@@ -1,0 +1,24 @@
+{
+  "extends": [
+    "tailored-tunes",
+    "plugin:json/recommended",
+    "plugin:security/recommended"
+  ],
+  "root": true,
+  "parser": "@typescript-eslint/parser",
+  "plugins": [
+    "json",
+    "@typescript-eslint"
+  ],
+  "rules": {
+    "no-console": "off",
+    "security/detect-object-injection": 0,
+    "security/detect-non-literal-fs-filename": 0,
+    "no-underscore-dangle": ["error", { "allow": ["__dirname", "__filename"] }]
+  },
+  "env": {
+    "commonjs": false,
+    "es6": true,
+    "node": true
+  }
+}

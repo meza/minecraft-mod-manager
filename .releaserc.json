@@ -1,0 +1,44 @@
+{
+  "branches": [
+    "+([0-9])?(.{+([0-9]),x}).x",
+    "main",
+    "next",
+    {
+      "name": "beta",
+      "prerelease": true
+    },
+    {
+      "name": "alpha",
+      "prerelease": true
+    }
+  ],
+  "plugins": [
+    "@semantic-release/commit-analyzer",
+    "semantic-release-export-data",
+    "@semantic-release/release-notes-generator",
+    [
+      "@semantic-release/changelog",
+      {
+        "changelogTitle": "# Create Meza CLI Changelog",
+        "changelogFile": "CHANGELOG.md"
+      }
+    ],
+    [
+      "@semantic-release/npm",
+      {
+        "postversion": "yarn build"
+      }
+    ],
+    "@semantic-release/github",
+    [
+      "@semantic-release/git",
+      {
+        "message": "chore(release): ${nextRelease.version} as ${branch.channel} [skip ci]\n\n${nextRelease.notes}",
+        "assets": [
+          "package.json",
+          "CHANGELOG.md"
+        ]
+      }
+    ]
+  ]
+}
