@@ -26,7 +26,7 @@
     [
       "@semantic-release/npm",
       {
-        "postversion": "yarn build"
+        "postversion": "./scripts/setVersion.sh ./src/version.ts && yarn build"
       }
     ],
     "@semantic-release/github",
