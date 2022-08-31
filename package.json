@@ -1,5 +1,5 @@
 {
-  "name": "@meza/create-meza-cli",
+  "name": "@meza/minecraft-mod-updater",
   "version": "1.0.0",
   "exports": {
     ".": {
@@ -10,7 +10,7 @@
     }
   },
   "bin": {
-    "create-meza-cli": "dist/index.js"
+    "minecraft-mod-updater": "dist/index.js"
   },
   "license": "GPL-3.0",
   "type": "module",
@@ -85,6 +85,10 @@
     "uuid": "^8.3.2",
     "vitest": "^0.22.1",
     "yarn": "^1.22.17"
+  },
+  "pkg": {
+    "scripts": "dist/**/*.js",
+    "outputPath": "bin"
   },
   "repository": {
     "type": "git",

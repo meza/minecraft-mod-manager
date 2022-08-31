@@ -19,7 +19,7 @@
     [
       "@semantic-release/changelog",
       {
-        "changelogTitle": "# Create Meza CLI Changelog",
+        "changelogTitle": "# Minecraft Mod Updater Changelog",
         "changelogFile": "CHANGELOG.md"
       }
     ],
