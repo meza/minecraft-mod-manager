@@ -6,7 +6,7 @@ import { add } from './lib/add.js';
 import { list } from './lib/list.js';
 import { Platform } from './lib/modlist.types.js';
 import { update } from './lib/update.js';
-
+import { version } from './version.js';
 
 export const APP_NAME = 'Minecraft Mod Updater';
 export const APP_DESCRIPTION = 'Updates mods from Modrinth, Curseforge and Datapacks from Vanilla Tweaks';
@@ -19,7 +19,7 @@ export interface DefaultOptions {
 const commands = [];
 
 const program = new Command();
-program.name(APP_NAME).version(process.env.npm_package_version).description(APP_DESCRIPTION);
+program.name(APP_NAME).version(version).description(APP_DESCRIPTION);
 
 commands.push(
   program.command('list')
