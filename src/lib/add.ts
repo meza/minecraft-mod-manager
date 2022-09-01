@@ -15,13 +15,14 @@ export const add = async (platform: Platform, id: string, options: AddOptions) =
 
   await downloadFile(moddata.downloadUrl, path.resolve(configuration.modsFolder, moddata.fileName));
 
-  if(configuration.mods.find((mod: ModConfig) => (mod.id === id && mod.type === platform))) {
+  if (configuration.mods.find((mod: ModConfig) => (mod.id === id && mod.type === platform))) {
     return;
   }
 
   configuration.mods.push({
     type: platform,
     id: id,
+    name: moddata.name,
     installed: {
       fileName: moddata.fileName,
       releasedOn: moddata.releaseDate,

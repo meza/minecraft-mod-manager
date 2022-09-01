@@ -42,7 +42,8 @@
     "commander": "^9.3.0",
     "core-js": "^3.19.1",
     "dotenv": "^16.0.2",
-    "inquirer": "^9.1.0"
+    "inquirer": "^9.1.0",
+    "log-symbols": "^5.1.0"
   },
   "commitlint": {
     "extends": [

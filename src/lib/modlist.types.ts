@@ -1,25 +1,25 @@
 export interface ModDetails {
-  name: string
-  fileName: string
-  releaseDate: string
-  hash: string
-  downloadUrl: string
+  name: string;
+  fileName: string;
+  releaseDate: string;
+  hash: string;
+  downloadUrl: string;
 }
 
 export enum ReleaseType {
-  ALPHA='alpha',
-  BETA='beta',
-  RELEASE='release'
+  ALPHA = 'alpha',
+  BETA = 'beta',
+  RELEASE = 'release'
 }
 
 export enum Platform {
-  CURSEFORGE='curseforge',
-  MODRINTH='modrinth'
+  CURSEFORGE = 'curseforge',
+  MODRINTH = 'modrinth'
 }
 
 export enum Loader {
-  FORGE='forge',
-  FABRIC='fabric'
+  FORGE = 'forge',
+  FABRIC = 'fabric'
 }
 
 export interface ModInstall {
@@ -33,6 +33,7 @@ export interface ModConfig {
   id: string,
   installed?: ModInstall,
   allowedReleaseTypes: ReleaseType[]
+  name?: string,
 }
 
 export interface ModlistConfig {

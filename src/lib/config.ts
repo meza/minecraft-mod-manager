@@ -14,7 +14,7 @@ export const fileExists = async (configPath: string) => {
 export const writeConfigFile = async (config: ModlistConfig, configPath?: string) => {
   const configLocation = path.resolve(configPath || DEFAULT_CONFIG_LOCATION);
   await fs.writeFile(configLocation, JSON.stringify(config, null, 2));
-}
+};
 
 export const readConfigFile = async (configPath?: string): Promise<ModlistConfig> => {
   const runPath = process.cwd();
