@@ -59,6 +59,7 @@ export const getMod = async (projectId: string, allowedReleaseTypes: ReleaseType
   });
 
   if (modDetailsRequest.status !== 200) {
+    console.log(modDetailsRequest);
     throw new Error('Could not find the given mod');
   }
 

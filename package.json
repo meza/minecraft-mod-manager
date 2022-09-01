@@ -41,7 +41,7 @@
     "chalk": "^5.0.1",
     "commander": "^9.3.0",
     "core-js": "^3.19.1",
-    "dotenv-defaults": "^5.0.2",
+    "dotenv": "^16.0.2",
     "inquirer": "^9.1.0"
   },
   "commitlint": {
@@ -86,13 +86,9 @@
     "vitest": "^0.22.1",
     "yarn": "^1.22.17"
   },
-  "pkg": {
-    "scripts": "dist/**/*.js",
-    "outputPath": "bin"
-  },
   "repository": {
     "type": "git",
-    "url": "https://github.com/meza/create-meza-cli.git"
+    "url": "https://github.com/meza/minecraft-mod-updater.git"
   },
   "publishConfig": {
     "access": "public"

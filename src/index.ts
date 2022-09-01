@@ -1,5 +1,5 @@
 #!/usr/bin/env node
-//import 'dotenv-defaults/config';
+import 'dotenv/config';
 import { Command } from 'commander';
 import path from 'path';
 import { add } from './lib/add.js';
@@ -9,7 +9,7 @@ import { update } from './lib/update.js';
 import { version } from './version.js';
 
 export const APP_NAME = 'Minecraft Mod Updater';
-export const APP_DESCRIPTION = 'Updates mods from Modrinth, Curseforge and Datapacks from Vanilla Tweaks';
+export const APP_DESCRIPTION = 'Updates mods from Modrinth and Curseforge';
 export const DEFAULT_CONFIG_LOCATION = path.resolve(process.cwd(), './modlist.json');
 
 export interface DefaultOptions {
