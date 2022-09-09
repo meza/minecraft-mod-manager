@@ -50,7 +50,7 @@ jobs:
   insiders-build:
     strategy:
       matrix:
-        os: [windows, macos, ubuntu]
+        os: [windows-latest, macos-latest, ubuntu-latest]
         include:
           - os: windows-latest
             build: |
