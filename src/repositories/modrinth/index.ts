@@ -1,4 +1,6 @@
 import { ModDetails, ReleaseType } from '../../lib/modlist.types.js';
+import { version } from '../../version.js';
+import { modrinthApiKey } from '../../env.js';
 
 interface Hash {
   sha1: string;
@@ -30,9 +32,9 @@ export const getMod = async (
 
   const modDetailsRequest = await fetch(url, {
     headers: {
-      'user-agent': `github_com/meza/minecraft-mod-updater/${process.env.npm_package_version}`,
+      'user-agent': `github_com/meza/minecraft-mod-updater/${version}`,
       'Accept': 'application/json',
-      'Authorization': process.env.MODRINTH_API_KEY
+      'Authorization': modrinthApiKey
     }
   });
 

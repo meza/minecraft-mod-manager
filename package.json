@@ -18,9 +18,10 @@
   "private": false,
   "scripts": {
     "build": "esbuild ./src/ --bundle --platform=node --outfile=dist/mmu.cjs",
+    "build:binaries": "npx pkg dist/mmu.cjs",
     "start": "node --no-warnings --loader ts-node/esm src/index.ts",
     "commit": "cz",
-    "ci": "npm-run-all --parallel lint test",
+    "ci": "npm-run-all --parallel lint",
     "clean": "rimraf dist .cache/tsbuildinfo",
     "clean:all": "yarn clean && rimraf node_modules .cache",
     "lint:specific": "eslint --ext .ts --ext .json --cache --cache-location .cache/",
@@ -63,6 +64,7 @@
     "@ryansonshine/cz-conventional-changelog": "^3.3.4",
     "@semantic-release/changelog": "^6.0.1",
     "@semantic-release/commit-analyzer": "^9.0.2",
+    "@semantic-release/exec": "^6.0.3",
     "@semantic-release/git": "^10.0.1",
     "@semantic-release/github": "^8.0.6",
     "@semantic-release/npm": "^9.0.1",
@@ -103,3 +105,4 @@
     }
   }
 }
+

@@ -24,12 +24,26 @@
       }
     ],
     [
-      "@semantic-release/npm",
-      {
-        "postversion": "./scripts/setVersion.sh ./src/version.ts && yarn build"
-      }
+      "@semantic-release/exec", {
+      "prepareCmd": "./scripts/prepare.sh ./src/version.ts ${nextRelease.version} && yarn build && yarn build:binaries -o dist/pkg/mmu-${nextRelease.version}"
+    }
     ],
-    "@semantic-release/github",
+    ["@semantic-release/github", {
+      "assets": [
+        {
+          "path": "dist/pkg/mmu-${nextRelease.version}-win.exe",
+          "label": "MMU ${nextRelease.version} Windows"
+        },
+        {
+          "path": "dist/pkg/mmu-${nextRelease.version}-macos",
+          "label": "MMU ${nextRelease.version} MacOS"
+        },
+        {
+          "path": "dist/pkg/mmu-${nextRelease.version}-linux",
+          "label": "MMU ${nextRelease.version} Linux"
+        }
+      ]
+    }],
     [
       "@semantic-release/git",
       {

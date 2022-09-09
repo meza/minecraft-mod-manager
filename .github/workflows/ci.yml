@@ -47,24 +47,8 @@ jobs:
       new-release-published: ${{ steps.get-next-version.outputs.new-release-published }}
       new-release-version: ${{ steps.get-next-version.outputs.new-release-version }}
 
-  insiders-build:
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v2
-      - uses: actions/setup-node@v1
-        with:
-          node-version: 18
-      - run: |
-          yarn --pure-lockfile
-          yarn build
-          npx pkg dist/mmu.cjs --out-path dist/pkg/
-      - uses: actions/upload-artifact@v2
-        with:
-          name: binaries
-          path: dist/pkg
-
   release:
-    needs: [ verify, insiders-build ]
+    needs: [ verify ]
     if: needs.verify.outputs.new-release-published == 'true'
     name: Release
     runs-on: ubuntu-latest
@@ -102,10 +86,10 @@ jobs:
 
       - name: Install deps
         run: yarn --pure-lockfile --offline
-      - name: Build
-        run: yarn build
-      - name: Release
+      - name: Build & Release
         env:
+          CURSEFORGE_API_KEY: ${{ secrets.CURSEFORGE_API_KEY }}
+          MODRINTH_API_KEY: ${{ secrets.MODRINTH_API_KEY }}
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           NPM_TOKEN: ${{ secrets.NPM_TOKEN }}
         run: yarn release

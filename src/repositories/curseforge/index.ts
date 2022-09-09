@@ -1,7 +1,10 @@
 import { ModDetails, ReleaseType } from '../../lib/modlist.types.js';
+import { curseForgeApiKey } from '../../env.js';
 
 export enum HashFunctions {
+  // eslint-disable-next-line no-unused-vars
   sha1 = 1,
+  // eslint-disable-next-line no-unused-vars
   md5 = 2,
 }
 
@@ -54,7 +57,7 @@ export const getMod = async (projectId: string, allowedReleaseTypes: ReleaseType
   const modDetailsRequest = await fetch(url, {
     headers: {
       'Accept': 'application/json',
-      'x-api-key': process.env.CURSEFORGE_API_KEY
+      'x-api-key': curseForgeApiKey
     }
   });
 
