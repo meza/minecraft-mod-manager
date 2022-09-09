@@ -17,7 +17,7 @@
   "types": "dist/index.d.ts",
   "private": false,
   "scripts": {
-    "build": "tsc",
+    "build": "esbuild ./src/ --bundle --platform=node --outfile=dist/mmu.cjs",
     "start": "node --no-warnings --loader ts-node/esm src/index.ts",
     "commit": "cz",
     "ci": "npm-run-all --parallel lint test",

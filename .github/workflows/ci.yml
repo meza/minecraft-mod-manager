@@ -48,32 +48,7 @@ jobs:
       new-release-version: ${{ steps.get-next-version.outputs.new-release-version }}
 
   insiders-build:
-    strategy:
-      matrix:
-        os: [ windows, macos, ubuntu ]
-        include:
-          - os: windows
-            build: |
-              cd dist
-              npx nexe -o mmu.exe -t x64-14.15.3 index.js
-            artifact:
-              name: mmu.exe
-              path: dist/mmu.exe
-          - os: macos
-            build: |
-              cd dist
-              npx nexe -o mmu.app -t x64-14.15.3 index.js
-            artifact:
-              name: mmu.app
-              path: dist/mmu.app
-          - os: ubuntu
-            build: |
-              cd dist
-              npx nexe -o mmu -t x64-14.15.3 index.js
-            artifact:
-              name: mmu
-              path: dist/mmu
-    runs-on: ${{ matrix.os }}-latest
+    runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v2
       - uses: actions/setup-node@v1
@@ -82,11 +57,11 @@ jobs:
       - run: |
           yarn --pure-lockfile
           yarn build
-          ${{ matrix.build }}
+          npx pkg dist/mmu.cjs --out-path dist/pkg/
       - uses: actions/upload-artifact@v2
         with:
-          name: ${{ matrix.artifact.name }}
-          path: ${{ matrix.artifact.path }}
+          name: binaries
+          path: dist/pkg
 
   release:
     needs: [ verify, insiders-build ]
