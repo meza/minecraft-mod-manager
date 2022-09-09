@@ -63,20 +63,20 @@ jobs:
               echo starting nexe
               npx nexe -o dist/mmu.exe -t x64-14.15.3 dist/index.js
             artifact:
-              - name: mmu.exe
-                path: dist/mmu.exe
+              name: mmu.exe
+              path: dist/mmu.exe
           - os: macos
             build: |
               npx nexe -o dist/mmu.app -t x64-14.15.3 dist/index.js
             artifact:
-              - name: mmu.app
-                path: dist/mmu.app
+              name: mmu.app
+              path: dist/mmu.app
           - os: ubuntu
             build: |
               npx nexe -o dist/mmu -t x64-14.15.3 dist/index.js
             artifact:
-              - name: mmu
-                path: dist/mmu
+              name: mmu
+              path: dist/mmu
     runs-on: ${{ matrix.os }}-latest
     steps:
       - uses: actions/checkout@v2
