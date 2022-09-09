@@ -25,21 +25,21 @@
     ],
     [
       "@semantic-release/exec", {
-      "prepareCmd": "./scripts/prepare.sh ./src/version.ts ${nextRelease.version} && yarn build && yarn build:binaries -o dist/pkg/mmu-${nextRelease.version}"
+      "prepareCmd": "./scripts/prepare.sh ./src/version.ts ${nextRelease.version} && yarn build && yarn build:binaries -o dist/pkg/mmu"
     }
     ],
     ["@semantic-release/github", {
       "assets": [
         {
-          "path": "dist/pkg/mmu-${nextRelease.version}-win.exe",
+          "path": "dist/pkg/mmu-win.exe",
           "label": "MMU ${nextRelease.version} Windows"
         },
         {
-          "path": "dist/pkg/mmu-${nextRelease.version}-macos",
+          "path": "dist/pkg/mmu-macos",
           "label": "MMU ${nextRelease.version} MacOS"
         },
         {
-          "path": "dist/pkg/mmu-${nextRelease.version}-linux",
+          "path": "dist/pkg/mmu-linux",
           "label": "MMU ${nextRelease.version} Linux"
         }
       ]
