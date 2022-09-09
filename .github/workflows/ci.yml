@@ -50,9 +50,9 @@ jobs:
   insiders-build:
     strategy:
       matrix:
-        os: [windows-latest, macos-latest, ubuntu-latest]
+        os: [windows, macos, ubuntu]
         include:
-          - os: windows-latest
+          - os: windows
             build: |
               Set-ExecutionPolicy Unrestricted -Force
               iex ((New-Object System.Net.WebClient).DownloadString('https://boxstarter.org/bootstrapper.ps1'))
@@ -63,11 +63,11 @@ jobs:
               echo starting nexe
               npx nexe -o dist/mmu.exe -t x64-14.15.3 dist/index.js
             artifact: dist/mmu.exe
-          - os: macos-latest
+          - os: macos
             build: |
               npx nexe -o dist/mmu.app -t x64-14.15.3 dist/index.js
             artifact: dist/mmu.app
-          - os: ubuntu-latest
+          - os: ubuntu
             build: |
               npx nexe -o dist/mmu -t x64-14.15.3 dist/index.js
             artifact: dist/mmu
