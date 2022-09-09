@@ -18,25 +18,25 @@ export interface DefaultOptions {
 
 const commands = [];
 
-const program = new Command();
-program.name(APP_NAME).version(version).description(APP_DESCRIPTION);
+const index = new Command();
+index.name(APP_NAME).version(version).description(APP_DESCRIPTION);
 
 commands.push(
-  program.command('list')
+  index.command('list')
     .action(async (options) => {
       await list(options);
     })
 );
 
 commands.push(
-  program.command('update')
+  index.command('update')
     .action(async (options) => {
       await update(options);
     })
 );
 
 commands.push(
-  program.command('add')
+  index.command('add')
     .argument('<type>', 'curseforge or modrinth')
     .argument('<id>', 'Curseforge or Modrinth Project Id')
     .action(async (type: Platform, id: string, options) => {
@@ -48,4 +48,4 @@ commands.forEach((command) => {
   command.option('-c, --config <MODLIST_JSON>', 'An alternative JSON file containing the configuration');
 });
 
-program.parse();
+index.parse(process.argv);

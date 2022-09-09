@@ -1,25 +1,31 @@
 import { ModDetails, ReleaseType } from '../../lib/modlist.types.js';
 
 interface Hash {
-  sha1: string
-  sha512: string
+  sha1: string;
+  sha512: string;
 }
 
 interface ModrinthFile {
-  hashes: Hash
-  url: string
-  filename: string
+  hashes: Hash;
+  url: string;
+  filename: string;
 }
 
 interface ModrinthVersion {
-  name: string
-  loaders: string[]
-  game_versions: string[]
-  date_published: string
-  files: ModrinthFile[]
+  name: string;
+  loaders: string[];
+  game_versions: string[];
+  date_published: string;
+  version_type: ReleaseType;
+  files: ModrinthFile[];
 }
 
-export const getMod = async (projectId: string, _allowedReleaseTypes: ReleaseType[], allowedGameVersion: string, loader: string): Promise<ModDetails> => {
+export const getMod = async (
+  projectId: string,
+  allowedReleaseTypes: ReleaseType[],
+  allowedGameVersion: string,
+  loader: string,
+  allowFallback: boolean): Promise<ModDetails> => {
   const url = `https://api.modrinth.com/v2/project/${projectId}/version`;
 
   const modDetailsRequest = await fetch(url, {
@@ -37,7 +43,21 @@ export const getMod = async (projectId: string, _allowedReleaseTypes: ReleaseTyp
       return version.loaders.map((origLoader: string) => origLoader.toLowerCase()).includes(loader.toLowerCase());
     })
     .filter((version) => {
-      return version.game_versions.includes(allowedGameVersion);
+      const hasPerfectMatch = version.game_versions.includes(allowedGameVersion);
+      if (!hasPerfectMatch && allowFallback) {
+        const gameVersionsWithOnlyMajorAndMinor = version.game_versions.map((gameVersion) => {
+          const [major, minor] = gameVersion.split('.');
+          return `${major}.${minor}`;
+        });
+
+        const [major, minor] = allowedGameVersion.split('.');
+
+        return gameVersionsWithOnlyMajorAndMinor.includes(`${major}.${minor}`);
+      }
+      return hasPerfectMatch;
+    })
+    .filter((version) => {
+      return allowedReleaseTypes.includes(version.version_type);
     })
     .sort((a, b) => {
       return a.date_published < b.date_published ? 1 : -1;
@@ -45,7 +65,7 @@ export const getMod = async (projectId: string, _allowedReleaseTypes: ReleaseTyp
   ;
 
   if (potentialFiles.length === 0) {
-    throw new Error('No files found for the given mod');
+    throw new Error(`No files found for the given mod: Modrinth ${projectId}`);
   }
   const latestFile = potentialFiles[0];
 

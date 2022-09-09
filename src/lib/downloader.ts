@@ -1,24 +1,17 @@
-import fs from 'node:fs/promises';
 import path from 'path';
-import { fileExists } from './config.js';
+import Downloader from 'nodejs-file-downloader';
 
 export const downloadFile = async (url: string, destination: string) => {
+  // @ts-ignore
+  const downloader = new Downloader({
+    url: url,
+    directory: path.dirname(destination),
+    filename: path.basename(destination),
+    cloneFiles: false
+  });
   try {
-
-    if (await fileExists(destination)) {
-      return;
-    }
-
-    const dirname = path.dirname(destination);
-    await fs.mkdir(dirname, { recursive: true });
-
-    const file = await fs.open(destination, 'w');
-
-    const response = await fetch(url);
-    const buff = await response.arrayBuffer();
-
-    await file.write(buff.toString());
+    await downloader.download();
   } catch (error) {
-    throw new Error('Could not download mod');
+    throw new Error(`Error downloading file: ${error}`);
   }
 };

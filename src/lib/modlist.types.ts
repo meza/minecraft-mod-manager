@@ -39,6 +39,7 @@ export interface ModConfig {
 export interface ModlistConfig {
   loader: Loader,
   gameVersion: string,
+  allowVersionFallback: boolean,
   defaultAllowedReleaseTypes: ReleaseType[],
   modsFolder: string,
   mods: ModConfig[]

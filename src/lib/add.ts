@@ -11,7 +11,13 @@ export interface AddOptions extends DefaultOptions {
 export const add = async (platform: Platform, id: string, options: AddOptions) => {
   const configuration = await readConfigFile(options.config);
 
-  const moddata = await fetchModDetails(platform, id, configuration.defaultAllowedReleaseTypes, configuration.gameVersion, configuration.loader);
+  const moddata = await fetchModDetails(
+    platform,
+    id,
+    configuration.defaultAllowedReleaseTypes,
+    configuration.gameVersion,
+    configuration.loader,
+    configuration.allowVersionFallback);
 
   await downloadFile(moddata.downloadUrl, path.resolve(configuration.modsFolder, moddata.fileName));
 

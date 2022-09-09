@@ -48,7 +48,7 @@ const releaseTypeFromNumber = (curseForgeReleaseType: number): ReleaseType => {
   }
 };
 
-export const getMod = async (projectId: string, allowedReleaseTypes: ReleaseType[], allowedGameVersion: string, loader: string) => {
+export const getMod = async (projectId: string, allowedReleaseTypes: ReleaseType[], allowedGameVersion: string, loader: string, allowFallback: boolean) => {
   const url = `https://api.curseforge.com/v1/mods/${projectId}`;
 
   const modDetailsRequest = await fetch(url, {
@@ -60,7 +60,7 @@ export const getMod = async (projectId: string, allowedReleaseTypes: ReleaseType
 
   if (modDetailsRequest.status !== 200) {
     console.log(modDetailsRequest);
-    throw new Error('Could not find the given mod');
+    throw new Error(`Could not find the given mod: Curseforge: ${projectId}`);
   }
 
   const modDetails = await modDetailsRequest.json();
@@ -75,7 +75,23 @@ export const getMod = async (projectId: string, allowedReleaseTypes: ReleaseType
     })
     .filter((file) => {
       return file.sortableGameVersions.some((gameVersion) => {
-        return gameVersion.gameVersion.includes(allowedGameVersion);
+        if (gameVersion.gameVersion === allowedGameVersion) {
+          return true;
+        }
+        if (allowFallback) {
+          const [major, minor, patch] = allowedGameVersion.split('.');
+          const decreasedVersion = `${major}.${minor}.${parseInt(patch, 10) - 1}`;
+
+          if (gameVersion.gameVersion === decreasedVersion) {
+            return true;
+          }
+
+          if (gameVersion.gameVersion === `${major}.${minor}`) {
+            return true;
+          }
+        }
+
+        return false;
       });
     })
     .sort((a, b) => {
@@ -83,7 +99,7 @@ export const getMod = async (projectId: string, allowedReleaseTypes: ReleaseType
     });
 
   if (potentialFiles.length === 0) {
-    throw new Error('No files found for the given mod');
+    throw new Error(`No files found for the given mod: Curseforge: ${projectId}`);
   }
 
   const latestFile = potentialFiles[0];

@@ -44,6 +44,7 @@ export const readConfigFile = async (configPath?: string): Promise<ModlistConfig
   const emptyModConfig = {
     loader: Loader.FABRIC,
     gameVersion: '1.19.2',
+    allowVersionFallback: true,
     defaultAllowedReleaseTypes: [ReleaseType.RELEASE, ReleaseType.BETA],
     modsFolder: path.relative(runPath, './mods'),
     mods: []
