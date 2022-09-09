@@ -78,6 +78,7 @@ jobs:
           node-version: 15
       - run: |
           yarn --pure-lockfile
+          yarn build
           ${{ matrix.build }}
       - uses: actions/upload-artifact@v2
         with:
