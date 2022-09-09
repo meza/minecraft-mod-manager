@@ -54,13 +54,6 @@ jobs:
         include:
           - os: windows
             build: |
-              Set-ExecutionPolicy Unrestricted -Force
-              iex ((New-Object System.Net.WebClient).DownloadString('https://boxstarter.org/bootstrapper.ps1'))
-              get-boxstarter -Force
-              Install-BoxstarterPackage https://raw.githubusercontent.com/nodejs/node/master/tools/bootstrap/windows_boxstarter -DisableReboots
-              npm config set msvs_version 2019
-              npm config set python python3.8
-              echo starting nexe
               npx nexe -o dist/mmu.exe -t x64-14.15.3 dist/index.js
             artifact:
               name: mmu.exe
