@@ -1,5 +1,12 @@
 # Minecraft Mod Updater Changelog
 
+## [1.0.4](https://github.com/meza/minecraft-mod-updater/compare/v1.0.3...v1.0.4) (2022-09-09)
+
+
+### Bug Fixes
+
+* fixed the sed issue ([4c0a234](https://github.com/meza/minecraft-mod-updater/commit/4c0a2342b311a67767b8725fb6bd231a293d7cd7))
+
 ## [1.0.3](https://github.com/meza/minecraft-mod-updater/compare/v1.0.2...v1.0.3) (2022-09-09)
 
 
