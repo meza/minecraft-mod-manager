@@ -1,5 +1,12 @@
 # Minecraft Mod Updater Changelog
 
+## [1.0.3](https://github.com/meza/minecraft-mod-updater/compare/v1.0.2...v1.0.3) (2022-09-09)
+
+
+### Bug Fixes
+
+* attempting to fix the lookup issues ([a645bd1](https://github.com/meza/minecraft-mod-updater/commit/a645bd1536030dc6b69f7d5f10ceb1de7197a227))
+
 ## [1.0.2](https://github.com/meza/minecraft-mod-updater/compare/v1.0.1...v1.0.2) (2022-09-09)
 
 
