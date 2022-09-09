@@ -1,5 +1,12 @@
 # Minecraft Mod Updater Changelog
 
+## [1.0.2](https://github.com/meza/minecraft-mod-updater/compare/v1.0.1...v1.0.2) (2022-09-09)
+
+
+### Bug Fixes
+
+* hopefully fixed the artifact publishing ([e33776b](https://github.com/meza/minecraft-mod-updater/commit/e33776bc722e6f90d91904422cc48ff9deabf5b6))
+
 ## [1.0.1](https://github.com/meza/minecraft-mod-updater/compare/v1.0.0...v1.0.1) (2022-09-09)
 
 
