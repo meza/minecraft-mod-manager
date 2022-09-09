@@ -1,6 +1,6 @@
 name: Verify and Release
 
-on: [push]
+on: [ push ]
 
 env:
   LEFTHOOK: 0
@@ -50,7 +50,7 @@ jobs:
   insiders-build:
     strategy:
       matrix:
-        os: [windows, macos, ubuntu]
+        os: [ windows, macos, ubuntu ]
         include:
           - os: windows
             build: |
@@ -62,15 +62,21 @@ jobs:
               npm config set python python3.8
               echo starting nexe
               npx nexe -o dist/mmu.exe -t x64-14.15.3 dist/index.js
-            artifact: dist/mmu.exe
+            artifact:
+              - name: mmu.exe
+                path: dist/mmu.exe
           - os: macos
             build: |
               npx nexe -o dist/mmu.app -t x64-14.15.3 dist/index.js
-            artifact: dist/mmu.app
+            artifact:
+              - name: mmu.app
+                path: dist/mmu.app
           - os: ubuntu
             build: |
               npx nexe -o dist/mmu -t x64-14.15.3 dist/index.js
-            artifact: dist/mmu
+            artifact:
+              - name: mmu
+                path: dist/mmu
     runs-on: ${{ matrix.os }}-latest
     steps:
       - uses: actions/checkout@v2
@@ -83,11 +89,11 @@ jobs:
           ${{ matrix.build }}
       - uses: actions/upload-artifact@v2
         with:
-          name: ${{ matrix.artifact }}
-          path: ${{ matrix.artifact }}
+          name: ${{ matrix.artifact.name }}
+          path: ${{ matrix.artifact.path }}
 
   release:
-    needs: [verify, insiders-build]
+    needs: [ verify, insiders-build ]
     if: needs.verify.outputs.new-release-published == 'true'
     name: Release
     runs-on: ubuntu-latest
