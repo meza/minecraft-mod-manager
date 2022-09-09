@@ -54,19 +54,22 @@ jobs:
         include:
           - os: windows
             build: |
-              npx nexe -o dist/mmu.exe -t x64-14.15.3 dist/index.js
+              cd dist
+              npx nexe -o mmu.exe -t x64-14.15.3 index.js
             artifact:
               name: mmu.exe
               path: dist/mmu.exe
           - os: macos
             build: |
-              npx nexe -o dist/mmu.app -t x64-14.15.3 dist/index.js
+              cd dist
+              npx nexe -o mmu.app -t x64-14.15.3 index.js
             artifact:
               name: mmu.app
               path: dist/mmu.app
           - os: ubuntu
             build: |
-              npx nexe -o dist/mmu -t x64-14.15.3 dist/index.js
+              cd dist
+              npx nexe -o mmu -t x64-14.15.3 index.js
             artifact:
               name: mmu
               path: dist/mmu
