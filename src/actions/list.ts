@@ -1,6 +1,6 @@
-import { DefaultOptions } from '../index.js';
-import { readConfigFile } from './config.js';
+import { readConfigFile } from '../lib/config.js';
 import chalk from 'chalk';
+import { DefaultOptions } from '../mmu.js';
 
 export interface ListOptions extends DefaultOptions {}
 

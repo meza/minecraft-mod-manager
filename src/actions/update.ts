@@ -1,11 +1,11 @@
 import path from 'path';
-import { DefaultOptions } from '../index.js';
 import { fetchModDetails } from '../repositories/index.js';
-import { fileExists, readConfigFile, writeConfigFile } from './config.js';
-import { downloadFile } from './downloader.js';
-import { ModConfig, ModDetails } from './modlist.types.js';
-import { getHash } from './hash.js';
+import { fileExists, readConfigFile, writeConfigFile } from '../lib/config.js';
+import { downloadFile } from '../lib/downloader.js';
+import { ModConfig, ModDetails } from '../lib/modlist.types.js';
+import { getHash } from '../lib/hash.js';
 import fs from 'node:fs/promises';
+import { DefaultOptions } from '../mmu.js';
 
 interface UpdateOptions extends DefaultOptions {
 }

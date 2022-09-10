@@ -1,8 +1,8 @@
 import fs from 'node:fs/promises';
 import path from 'path';
-import { DEFAULT_CONFIG_LOCATION } from '../index.js';
 import inquirer from 'inquirer';
 import { Loader, ModlistConfig, ReleaseType } from './modlist.types.js';
+import { DEFAULT_CONFIG_LOCATION } from '../mmu.js';
 
 export const fileExists = async (configPath: string) => {
   return await fs.access(configPath).then(
