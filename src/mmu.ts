@@ -17,7 +17,6 @@ export interface DefaultOptions {
   debug?: boolean;
 }
 
-
 const commands = [];
 
 export const program = new Command();

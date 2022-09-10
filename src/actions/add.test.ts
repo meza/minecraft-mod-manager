@@ -10,9 +10,9 @@ import { GeneratorResult } from '../../test/test.types.js';
 import { chance } from 'jest-chance';
 import { generateModConfig } from '../../test/modConfigGenerator.js';
 
-vi.mock('./config.js');
+vi.mock('../lib/config.js');
 vi.mock('../repositories/index.js');
-vi.mock('./downloader.js');
+vi.mock('../lib/downloader.js');
 
 interface LocalTestContext {
   randomConfiguration: GeneratorResult<ModlistConfig>;
