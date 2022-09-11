@@ -4,6 +4,38 @@ import { ModConfig, Platform } from '../lib/modlist.types.js';
 import { readConfigFile, writeConfigFile } from '../lib/config.js';
 import { downloadFile } from '../lib/downloader.js';
 import { DefaultOptions } from '../mmu.js';
+import { UnknownPlatformException } from '../errors/UnknownPlatformException.js';
+import inquirer from 'inquirer';
+import chalk from 'chalk';
+
+const handleUnknownPlatformException = async (error: UnknownPlatformException, id: string, options: DefaultOptions) => {
+  const platformUsed = error.platform;
+  const platformList = Object.values(Platform);
+
+  if (options.quiet === true) {
+    console.error(chalk.red(`Unknown platform "${chalk.whiteBright(platformUsed)}". Please use one of the following: ${platformList.join(', ')}`));
+    return;
+  }
+
+  const answers = await inquirer.prompt([
+    {
+      type: 'list',
+      name: 'platform',
+      default: false,
+      choices: [...platformList, 'cancel'],
+      message: chalk.redBright(`The platform you entered (${chalk.whiteBright(platformUsed)}) is not a valid platform.\n`)
+        + chalk.whiteBright('Would you like to retry with a valid one?')
+    }
+  ]);
+
+  if (answers.platform === 'cancel') {
+    return;
+  }
+
+  // eslint-disable-next-line no-use-before-define
+  await add(answers.platform, id, options);
+
+};
 
 export const add = async (platform: Platform, id: string, options: DefaultOptions) => {
   const configuration = await readConfigFile(options.config);
@@ -41,6 +73,11 @@ export const add = async (platform: Platform, id: string, options: DefaultOption
 
     await writeConfigFile(configuration, options.config);
   } catch (error) {
+    if (error instanceof UnknownPlatformException) {
+      await handleUnknownPlatformException(error, id, options);
+      return;
+    }
+
     console.error(error);
   }
 

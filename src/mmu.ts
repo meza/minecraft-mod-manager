@@ -15,6 +15,7 @@ export const DEFAULT_CONFIG_LOCATION = path.resolve(process.cwd(), './modlist.js
 export interface DefaultOptions {
   config?: string;
   debug?: boolean;
+  quiet?: boolean;
 }
 
 const commands = [];
@@ -47,4 +48,5 @@ commands.push(
 
 commands.forEach((command) => {
   command.option('-c, --config <MODLIST_JSON>', 'An alternative JSON file containing the configuration');
+  command.option('-q, --quiet', 'Suppress all output', false);
 });

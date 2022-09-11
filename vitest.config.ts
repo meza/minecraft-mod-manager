@@ -5,11 +5,12 @@ export default defineConfig({
     cache: {
       dir: '.cache/.vitest'
     },
+    globalSetup: './test/globalSetup.ts',
     dir: 'src',
     testTimeout: 10000,
     watch: false,
     outputFile: 'reports/junit.xml',
-    reporters: ['default', 'junit'],
+    reporters: ['verbose', 'junit'],
     coverage: {
       reportsDirectory: './reports/coverage/unit',
       reporter: ['text', 'json', 'html'],

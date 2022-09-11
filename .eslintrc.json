@@ -20,5 +20,14 @@
     "commonjs": false,
     "es6": true,
     "node": true
-  }
+  },
+  "overrides": [
+    {
+      "files": ["**/*.test.ts"],
+      "rules": {
+        "no-use-before-define": "off",
+        "max-nested-callbacks": "off"
+      }
+    }
+  ]
 }

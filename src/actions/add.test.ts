@@ -9,10 +9,13 @@ import { generateModDetails } from '../../test/modDetailsGenerator.js';
 import { GeneratorResult } from '../../test/test.types.js';
 import { chance } from 'jest-chance';
 import { generateModConfig } from '../../test/modConfigGenerator.js';
+import { UnknownPlatformException } from '../errors/UnknownPlatformException.js';
+import inquirer from 'inquirer';
 
 vi.mock('../lib/config.js');
 vi.mock('../repositories/index.js');
 vi.mock('../lib/downloader.js');
+vi.mock('inquirer');
 
 interface LocalTestContext {
   randomConfiguration: GeneratorResult<ModlistConfig>;
@@ -23,12 +26,19 @@ const assumeDownloadIsSuccessful = () => {
   vi.mocked(downloadFile).mockResolvedValueOnce();
 };
 
+const assumeWrongPlatform = (override?: string) => {
+  const randomPlatform = override || chance.word();
+  vi.mocked(fetchModDetails).mockReset();
+  vi.mocked(fetchModDetails).mockRejectedValueOnce(new UnknownPlatformException(randomPlatform));
+  return randomPlatform;
+};
+
 describe('The add module', async () => {
   beforeEach<LocalTestContext>((context) => {
     context.randomConfiguration = generateModlist();
 
     // the main configuration to work with
-    vi.mocked(readConfigFile).mockResolvedValueOnce(context.randomConfiguration.generated);
+    vi.mocked(readConfigFile).mockResolvedValue(context.randomConfiguration.generated);
 
     // the mod details returned from the repository
     context.randomModDetails = generateModDetails();
@@ -36,7 +46,7 @@ describe('The add module', async () => {
   });
 
   afterEach(() => {
-    vi.restoreAllMocks();
+    vi.resetAllMocks();
   });
 
   it<LocalTestContext>('should add a mod to the configuration', async (
@@ -150,6 +160,88 @@ describe('The add module', async () => {
       consoleSpy,
       'The debug message was not logged'
     ).toHaveBeenCalledWith('Mod another-mod-id for modrinth already exists in the configuration');
+  });
+
+  describe('when an incorrect platform is chosen in interactive mode', async () => {
+    describe('and the user chooses to cancel', async () => {
+      it('it should exit after the prompt', async () => {
+        const wrongPlatformText = assumeWrongPlatform();
+        const randomModId = chance.word();
+
+        vi.mocked(inquirer.prompt).mockResolvedValueOnce({ platform: 'cancel' });
+
+        await add(wrongPlatformText, randomModId, { config: 'config.json' });
+
+        // @ts-ignore anyone with a fix for this?
+        const inquirerOptions = vi.mocked(inquirer.prompt).mock.calls[0][0][0];
+
+        expect(inquirerOptions.choices.sort()).toEqual(['cancel', ...Object.values(Platform)].sort());
+        expect(vi.mocked(inquirer.prompt)).toHaveBeenCalledTimes(1);
+
+        // These mean that the add hasn't been recursively called
+        expect(vi.mocked(readConfigFile)).toHaveBeenCalledTimes(1);
+        expect(vi.mocked(fetchModDetails)).toHaveBeenCalledTimes(1);
+        expect(vi.mocked(downloadFile)).not.toHaveBeenCalled();
+      });
+    });
+
+    describe('and the user chooses an alternative option', async () => {
+      it<LocalTestContext>('it should call add again with the new platform', async (context) => {
+        const randomModId = chance.word();
+
+        // 1st invocation fails
+        const wrongPlatformText = assumeWrongPlatform();
+
+        // we select a correct platform through the prompt
+        const randomPlatform = chance.pickone(Object.values(Platform));
+        vi.mocked(inquirer.prompt).mockResolvedValueOnce({ platform: randomPlatform });
+
+        // upon 2nd invocation of the fetch, return a correct response
+        vi.mocked(fetchModDetails).mockResolvedValueOnce(context.randomModDetails.generated);
+
+        // we assume that the download is successful
+        assumeDownloadIsSuccessful();
+
+        await add(wrongPlatformText, randomModId, { config: 'config.json' });
+
+        expect(vi.mocked(downloadFile)).toHaveBeenCalledWith(
+          context.randomModDetails.generated.downloadUrl,
+          expect.any(String)
+        );
+
+        // make sure we save with the correct platform
+        const actualConfiguration = vi.mocked(writeConfigFile).mock.calls[0][0];
+        expect(actualConfiguration.mods[0].type).toEqual(randomPlatform);
+
+        // validate our assumptions about how many times things have been called
+        expect(vi.mocked(downloadFile)).toHaveBeenCalledOnce();
+        expect(vi.mocked(fetchModDetails)).toHaveBeenCalledTimes(2);
+        expect(vi.mocked(readConfigFile)).toHaveBeenCalledTimes(2);
+        expect(vi.mocked(writeConfigFile)).toHaveBeenCalledTimes(1);
+
+      });
+    });
+  });
+
+  describe('when an incorrect platform is chosen in quiet mode', async () => {
+    it('it should exit after an error message has been shown', async () => {
+      const wrongPlatformText = assumeWrongPlatform('very-wrong-platform');
+      const randomModId = chance.word();
+
+      const consoleSpy = vi.spyOn(console, 'error');
+      consoleSpy.mockImplementation(() => {});
+
+      await add(wrongPlatformText, randomModId, { config: 'config.json', quiet: true });
+
+      // did we notify the user?
+      const consoleError = consoleSpy.mock.calls[0][0];
+      expect(consoleError).toEqual('Unknown platform "very-wrong-platform". Please use one of the following: curseforge, modrinth');
+
+      // These mean that the add hasn't been recursively called
+      expect(vi.mocked(readConfigFile)).toHaveBeenCalledTimes(1);
+      expect(vi.mocked(fetchModDetails)).toHaveBeenCalledTimes(1);
+      expect(vi.mocked(downloadFile)).not.toHaveBeenCalled();
+    });
   });
 
 });
