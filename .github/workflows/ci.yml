@@ -8,7 +8,6 @@ env:
 jobs:
   verify:
     runs-on: ubuntu-latest
-
     steps:
       - uses: actions/checkout@v2
       - name: Cache multiple paths
@@ -39,6 +38,11 @@ jobs:
 
       - run: yarn --pure-lockfile
       - run: yarn ci
+      - name: Publish Test Results
+        uses: EnricoMi/publish-unit-test-result-action/composite@v2
+        if: always()
+        with:
+          junit_files: "test-results/junit.xml"
       - run: npx semantic-release --dry-run
         id: get-next-version
         env:

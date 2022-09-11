@@ -21,7 +21,7 @@
     "build:binaries": "npx pkg dist/mmu.cjs -t node18-win,node18-linux,node18-macos",
     "start": "node --no-warnings --loader ts-node/esm src/index.ts",
     "commit": "cz",
-    "ci": "npm-run-all --parallel lint test",
+    "ci": "npm-run-all --parallel lint report",
     "clean": "rimraf dist .cache/tsbuildinfo",
     "clean:all": "yarn clean && rimraf node_modules .cache",
     "lint:specific": "eslint --ext .ts --ext .json --cache --cache-location .cache/",
@@ -31,7 +31,7 @@
     "lint": "npm-run-all --parallel lint:*",
     "test": "npm-run-all --parallel test:*",
     "test:unit": "vitest",
-    "report": "exit 0",
+    "report": "vitest --coverage",
     "semantic-release": "semantic-release",
     "release": "semantic-release"
   },
