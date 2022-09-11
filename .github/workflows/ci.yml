@@ -42,7 +42,7 @@ jobs:
         uses: EnricoMi/publish-unit-test-result-action/composite@v2
         if: always()
         with:
-          junit_files: "test-results/junit.xml"
+          junit_files: "reports/junit.xml"
       - run: npx semantic-release --dry-run
         id: get-next-version
         env:
