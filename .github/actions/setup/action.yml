@@ -14,6 +14,7 @@ runs:
 
     - name: Get yarn cache directory path
       id: yarn-cache-dir-path
+      shell: bash
       run: echo "::set-output name=dir::$(yarn config get cacheFolder)"
 
     - uses: actions/cache@v2
@@ -31,3 +32,4 @@ runs:
         cache: 'yarn'
 
     - run: yarn --pure-lockfile
+      shell: bash
