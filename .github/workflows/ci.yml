@@ -48,7 +48,7 @@ jobs:
       new-release-version: ${{ steps.get-next-version.outputs.new-release-version }}
 
   release:
-    needs: [ verify ]
+    needs: [ verify, build-push-artifacts ]
     if: needs.verify.outputs.new-release-published == 'true'
     name: Release
     runs-on: ubuntu-latest
