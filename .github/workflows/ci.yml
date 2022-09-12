@@ -45,7 +45,7 @@ jobs:
           junit_files: "reports/junit.xml"
 
       - name: attempt build artifacts
-        run: yarn build && build:binaries
+        run: yarn build && yarn build:binaries
         if: always()
 
       - name: Upload build artifacts
