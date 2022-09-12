@@ -10,7 +10,6 @@ jobs:
   reusable_workflow_job:
     runs-on: ${{ inputs.runs-on }}
     steps:
-      - uses: actions/checkout@v2
       - name: Cache multiple paths
         uses: actions/cache@v2
         with:
