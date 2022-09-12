@@ -43,6 +43,19 @@ jobs:
         if: always()
         with:
           junit_files: "reports/junit.xml"
+
+      - name: attempt build artifacts
+        run: yarn build && build:binaries
+        if: always()
+
+      - name: Upload build artifacts
+        uses: actions/upload-artifact@v2
+        if: always()
+        with:
+          if-no-files-found: ignore
+          name: Binaries
+          path: dist/pkg/mmu*
+
       - run: npx semantic-release --dry-run
         id: get-next-version
         env:

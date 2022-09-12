@@ -25,7 +25,7 @@
     ],
     [
       "@semantic-release/exec", {
-      "prepareCmd": "./scripts/prepare.sh ./src/version.ts ${nextRelease.version} && yarn build && yarn build:binaries -o dist/pkg/mmu"
+      "prepareCmd": "./scripts/prepare.sh ./src/version.ts ${nextRelease.version} && yarn build && yarn build:binaries"
     }
     ],
     ["@semantic-release/github", {
