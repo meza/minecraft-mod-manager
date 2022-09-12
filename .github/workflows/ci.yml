@@ -7,6 +7,7 @@ env:
 
 jobs:
   build-push-artifacts:
+    name: 📦 Build artifacts for the commit (for internal use only)
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v2
@@ -24,6 +25,7 @@ jobs:
           path: dist/pkg/mmu*
 
   verify:
+    name: 🔎 Lint and Test
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v2
@@ -55,7 +57,7 @@ jobs:
       - name: Set up node
         uses: ./.github/actions/setup/
 
-      - name: Build & Release
+      - name: 🚀 Build & Release
         env:
           CURSEFORGE_API_KEY: ${{ secrets.CURSEFORGE_API_KEY }}
           MODRINTH_API_KEY: ${{ secrets.MODRINTH_API_KEY }}
