@@ -10,9 +10,8 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v2
-      - uses: ./.github/actions/setup/
-        with:
-          runs-on: ubuntu-latest
+      - name: Set up node
+        uses: ./.github/actions/setup/
 
       - run: yarn build
       - run: yarn build:binaries
@@ -28,9 +27,8 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v2
-      - uses: ./.github/actions/setup/
-        with:
-          runs-on: ubuntu-latest
+      - name: Set up node
+        uses: ./.github/actions/setup/
 
       - run: yarn ci
       - name: Publish Test Results
@@ -54,9 +52,8 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v2
-      - uses: ./.github/actions/setup/
-        with:
-          runs-on: ubuntu-latest
+      - name: Set up node
+        uses: ./.github/actions/setup/
 
       - name: Build & Release
         env:
