@@ -1,5 +1,6 @@
-import { ModDetails, ReleaseType } from '../../lib/modlist.types.js';
+import { ModDetails, Platform, ReleaseType } from '../../lib/modlist.types.js';
 import { curseForgeApiKey } from '../../env.js';
+import { CouldNotFindModException } from '../../errors/CouldNotFindModException.js';
 
 export enum HashFunctions {
   // eslint-disable-next-line no-unused-vars
@@ -62,7 +63,7 @@ export const getMod = async (projectId: string, allowedReleaseTypes: ReleaseType
   });
 
   if (modDetailsRequest.status !== 200) {
-    throw new Error(`Could not find the given mod: Curseforge: ${projectId}`);
+    throw new CouldNotFindModException(projectId, Platform.CURSEFORGE);
   }
 
   const modDetails = await modDetailsRequest.json();

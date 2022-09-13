@@ -11,6 +11,7 @@ import { chance } from 'jest-chance';
 import { generateModConfig } from '../../test/modConfigGenerator.js';
 import { UnknownPlatformException } from '../errors/UnknownPlatformException.js';
 import inquirer from 'inquirer';
+import { CouldNotFindModException } from '../errors/CouldNotFindModException.js';
 
 vi.mock('../lib/config.js');
 vi.mock('../repositories/index.js');
@@ -31,6 +32,15 @@ const assumeWrongPlatform = (override?: string) => {
   vi.mocked(fetchModDetails).mockReset();
   vi.mocked(fetchModDetails).mockRejectedValueOnce(new UnknownPlatformException(randomPlatform));
   return randomPlatform;
+};
+
+const assumeModNotFound = (override? : string) => {
+  const randomPlatform = chance.pickone(Object.values(Platform));
+  const randomMod = override || chance.word();
+
+  vi.mocked(fetchModDetails).mockReset();
+  vi.mocked(fetchModDetails).mockRejectedValueOnce(new CouldNotFindModException(randomPlatform, randomMod));
+  return { randomPlatform: randomPlatform, randomMod: randomMod };
 };
 
 describe('The add module', async () => {
@@ -162,6 +172,22 @@ describe('The add module', async () => {
     ).toHaveBeenCalledWith('Mod another-mod-id for modrinth already exists in the configuration');
   });
 
+  it('should report unexpected errors', async () => {
+    const consoleSpy = vi.spyOn(console, 'error');
+
+    const randomErrorMessage = chance.sentence();
+    const randomPlatform = chance.pickone(Object.values(Platform));
+    const randomMod = chance.word();
+
+    vi.mocked(fetchModDetails).mockReset();
+    vi.mocked(fetchModDetails).mockRejectedValueOnce(new Error(randomErrorMessage));
+
+    await add(randomPlatform, randomMod, { config: 'config.json' });
+
+    expect(consoleSpy).toHaveBeenCalledWith(randomErrorMessage);
+
+  });
+
   describe('when an incorrect platform is chosen in interactive mode', async () => {
     describe('and the user chooses to cancel', async () => {
       it('it should exit after the prompt', async () => {
@@ -244,4 +270,21 @@ describe('The add module', async () => {
     });
   });
 
+  describe('when the mod can\'t be found', async () => {
+    it('it should exit after an error message has been shown', async () => {
+      const consoleSpy = vi.spyOn(console, 'error');
+
+      const { randomPlatform, randomMod } = assumeModNotFound();
+
+      await add(randomPlatform, randomMod, { config: 'config.json' });
+
+      expect(consoleSpy).toHaveBeenCalledWith(`Mod "${randomMod}" for ${randomPlatform} does not exist`);
+
+      // Validate our assumptions about the work being done
+      expect(vi.mocked(readConfigFile)).toHaveBeenCalledTimes(1);
+      expect(vi.mocked(fetchModDetails)).toHaveBeenCalledTimes(1);
+      expect(vi.mocked(downloadFile)).not.toHaveBeenCalled();
+
+    });
+  });
 });

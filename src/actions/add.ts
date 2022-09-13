@@ -7,6 +7,7 @@ import { DefaultOptions } from '../mmu.js';
 import { UnknownPlatformException } from '../errors/UnknownPlatformException.js';
 import inquirer from 'inquirer';
 import chalk from 'chalk';
+import { CouldNotFindModException } from '../errors/CouldNotFindModException.js';
 
 const handleUnknownPlatformException = async (error: UnknownPlatformException, id: string, options: DefaultOptions) => {
   const platformUsed = error.platform;
@@ -75,6 +76,11 @@ export const add = async (platform: Platform, id: string, options: DefaultOption
   } catch (error) {
     if (error instanceof UnknownPlatformException) {
       await handleUnknownPlatformException(error, id, options);
+      return;
+    }
+
+    if (error instanceof CouldNotFindModException) {
+      console.error(chalk.redBright(`Mod "${chalk.whiteBright(id)}" for ${chalk.whiteBright(platform)} does not exist`));
       return;
     }
 

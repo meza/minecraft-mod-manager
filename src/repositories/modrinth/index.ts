@@ -1,6 +1,7 @@
-import { ModDetails, ReleaseType } from '../../lib/modlist.types.js';
+import { ModDetails, Platform, ReleaseType } from '../../lib/modlist.types.js';
 import { version } from '../../version.js';
 import { modrinthApiKey } from '../../env.js';
+import { CouldNotFindModException } from '../../errors/CouldNotFindModException.js';
 
 interface Hash {
   sha1: string;
@@ -37,6 +38,10 @@ export const getMod = async (
       'Authorization': modrinthApiKey
     }
   });
+
+  if (modDetailsRequest.status !== 200) {
+    throw new CouldNotFindModException(projectId, Platform.MODRINTH);
+  }
 
   const modVersions = await modDetailsRequest.json() as ModrinthVersion[];
 
