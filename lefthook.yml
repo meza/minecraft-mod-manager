@@ -15,7 +15,7 @@
 commit-msg:
   commands:
     lint-commit-msg:
-      run: echo "Linting commit message..." && npx commitlint --edit
+      run: npx commitlint --edit
 pre-commit:
   parallel: true
   commands:

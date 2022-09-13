@@ -178,13 +178,14 @@ describe('The add module', async () => {
     const randomErrorMessage = chance.sentence();
     const randomPlatform = chance.pickone(Object.values(Platform));
     const randomMod = chance.word();
+    const error = new Error(randomErrorMessage);
 
     vi.mocked(fetchModDetails).mockReset();
-    vi.mocked(fetchModDetails).mockRejectedValueOnce(new Error(randomErrorMessage));
+    vi.mocked(fetchModDetails).mockRejectedValueOnce(error);
 
     await add(randomPlatform, randomMod, { config: 'config.json' });
 
-    expect(consoleSpy).toHaveBeenCalledWith(randomErrorMessage);
+    expect(consoleSpy).toHaveBeenCalledWith(error);
 
   });
 
