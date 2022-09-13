@@ -1,6 +1,7 @@
 import { ModDetails, Platform, ReleaseType } from '../../lib/modlist.types.js';
 import { curseForgeApiKey } from '../../env.js';
 import { CouldNotFindModException } from '../../errors/CouldNotFindModException.js';
+import { NoFileFound } from '../../errors/NoFileFound.js';
 
 export enum HashFunctions {
   // eslint-disable-next-line no-unused-vars
@@ -102,7 +103,7 @@ export const getMod = async (projectId: string, allowedReleaseTypes: ReleaseType
     });
 
   if (potentialFiles.length === 0) {
-    throw new Error(`No files found for the given mod: Curseforge: ${projectId}`);
+    throw new NoFileFound(modDetails.data.name, Platform.CURSEFORGE);
   }
 
   const latestFile = potentialFiles[0];

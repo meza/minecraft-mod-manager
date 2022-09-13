@@ -2,6 +2,7 @@ import { ModDetails, Platform, ReleaseType } from '../../lib/modlist.types.js';
 import { version } from '../../version.js';
 import { modrinthApiKey } from '../../env.js';
 import { CouldNotFindModException } from '../../errors/CouldNotFindModException.js';
+import { NoFileFound } from '../../errors/NoFileFound.js';
 
 interface Hash {
   sha1: string;
@@ -72,8 +73,9 @@ export const getMod = async (
   ;
 
   if (potentialFiles.length === 0) {
-    throw new Error(`No files found for the given mod: Modrinth ${projectId}`);
+    throw new NoFileFound(projectId, Platform.MODRINTH);
   }
+
   const latestFile = potentialFiles[0];
 
   const modData: ModDetails = {

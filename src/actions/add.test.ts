@@ -12,6 +12,7 @@ import { generateModConfig } from '../../test/modConfigGenerator.js';
 import { UnknownPlatformException } from '../errors/UnknownPlatformException.js';
 import inquirer from 'inquirer';
 import { CouldNotFindModException } from '../errors/CouldNotFindModException.js';
+import { NoFileFound } from '../errors/NoFileFound.js';
 
 vi.mock('../lib/config.js');
 vi.mock('../repositories/index.js');
@@ -34,13 +35,17 @@ const assumeWrongPlatform = (override?: string) => {
   return randomPlatform;
 };
 
-const assumeModNotFound = (override? : string) => {
-  const randomPlatform = chance.pickone(Object.values(Platform));
+const assumeModNotFound = (override?: string) => {
+  const randomPlatform = getRandomPlatform();
   const randomMod = override || chance.word();
 
   vi.mocked(fetchModDetails).mockReset();
   vi.mocked(fetchModDetails).mockRejectedValueOnce(new CouldNotFindModException(randomPlatform, randomMod));
   return { randomPlatform: randomPlatform, randomMod: randomMod };
+};
+
+const getRandomPlatform = () => {
+  return chance.pickone(Object.values(Platform));
 };
 
 describe('The add module', async () => {
@@ -105,7 +110,7 @@ describe('The add module', async () => {
   });
 
   it<LocalTestContext>('should skip the download if the mod already exists', async (context) => {
-    const randomPlatform = chance.pickone(Object.values(Platform));
+    const randomPlatform = getRandomPlatform();
     const randomModId = chance.word();
 
     const randomModDetails = generateModConfig({
@@ -172,11 +177,28 @@ describe('The add module', async () => {
     ).toHaveBeenCalledWith('Mod another-mod-id for modrinth already exists in the configuration');
   });
 
+  it<LocalTestContext>('should report when a file cannot be found for the version and exit', async ({ randomConfiguration }) => {
+    const consoleSpy = vi.spyOn(console, 'error');
+
+    const randomPlatform = getRandomPlatform();
+    const randomModId = chance.word();
+    const randomVersion = randomConfiguration.expected.gameVersion;
+    const randomLoader = randomConfiguration.expected.loader;
+
+    vi.mocked(downloadFile).mockReset();
+    vi.mocked(downloadFile).mockRejectedValueOnce(new NoFileFound(randomModId, randomPlatform));
+
+    await add(randomPlatform, randomModId, { config: 'config.json' });
+
+    expect(consoleSpy).toHaveBeenCalledWith(`Could not find a file for the version ${randomVersion} for ${randomLoader}`);
+
+  });
+
   it('should report unexpected errors', async () => {
     const consoleSpy = vi.spyOn(console, 'error');
 
     const randomErrorMessage = chance.sentence();
-    const randomPlatform = chance.pickone(Object.values(Platform));
+    const randomPlatform = getRandomPlatform();
     const randomMod = chance.word();
     const error = new Error(randomErrorMessage);
 
@@ -220,7 +242,7 @@ describe('The add module', async () => {
         const wrongPlatformText = assumeWrongPlatform();
 
         // we select a correct platform through the prompt
-        const randomPlatform = chance.pickone(Object.values(Platform));
+        const randomPlatform = getRandomPlatform();
         vi.mocked(inquirer.prompt).mockResolvedValueOnce({ platform: randomPlatform });
 
         // upon 2nd invocation of the fetch, return a correct response
@@ -256,7 +278,8 @@ describe('The add module', async () => {
       const randomModId = chance.word();
 
       const consoleSpy = vi.spyOn(console, 'error');
-      consoleSpy.mockImplementation(() => {});
+      consoleSpy.mockImplementation(() => {
+      });
 
       await add(wrongPlatformText, randomModId, { config: 'config.json', quiet: true });
 

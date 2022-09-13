@@ -8,6 +8,7 @@ import { UnknownPlatformException } from '../errors/UnknownPlatformException.js'
 import inquirer from 'inquirer';
 import chalk from 'chalk';
 import { CouldNotFindModException } from '../errors/CouldNotFindModException.js';
+import { NoFileFound } from '../errors/NoFileFound.js';
 
 const handleUnknownPlatformException = async (error: UnknownPlatformException, id: string, options: DefaultOptions) => {
   const platformUsed = error.platform;
@@ -82,6 +83,13 @@ export const add = async (platform: Platform, id: string, options: DefaultOption
     if (error instanceof CouldNotFindModException) {
       console.error(chalk.redBright(`Mod "${chalk.whiteBright(id)}" for ${chalk.whiteBright(platform)} does not exist`));
       return;
+    }
+
+    if (error instanceof NoFileFound) {
+      console.error(
+        chalk.red(`Could not find a file for the version ${chalk.whiteBright(configuration.gameVersion)} `
+          + `for ${chalk.whiteBright(configuration.loader)}`)
+      );
     }
 
     console.error(error);
