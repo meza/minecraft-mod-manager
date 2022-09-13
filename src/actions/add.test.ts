@@ -155,7 +155,7 @@ describe('The add module', async () => {
     ).not.toHaveBeenCalled();
   });
 
-  it<LocalTestContext>('should show a debug message when it is not asked for', async (context) => {
+  it<LocalTestContext>('should show a debug message when it is asked for', async (context) => {
     const consoleSpy = vi.spyOn(console, 'debug');
 
     const randomPlatform = Platform.MODRINTH;
