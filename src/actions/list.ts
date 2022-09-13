@@ -10,11 +10,10 @@ export const list = async (options: ListOptions) => {
   console.log((chalk.green('Configured mods')));
 
   config.mods.forEach((mod) => {
-    console.log(` ${mod.name}`);
     if (mod.installed) {
-      console.log('   ', chalk.green('\u2705'), 'Installed');
+      console.log(chalk.green('\u2705'), mod.name?.trim(), 'is installed');
     } else {
-      console.log('   ', chalk.green('\u274c'), 'Not installed');
+      console.log(chalk.red('\u274c'), mod.name?.trim(), 'is not installed');
     }
 
   });
