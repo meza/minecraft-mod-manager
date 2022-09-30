@@ -1,10 +1,9 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { add } from './add.js';
-import { ModDetails, ModlistConfig, Platform } from '../lib/modlist.types.js';
 import { readConfigFile, writeConfigFile } from '../lib/config.js';
 import { fetchModDetails } from '../repositories/index.js';
 import { downloadFile } from '../lib/downloader.js';
-import { generateModlist } from '../../test/modlistGenerator.js';
+import { generateModsJson } from '../../test/modlistGenerator.js';
 import { generateModDetails } from '../../test/modDetailsGenerator.js';
 import { GeneratorResult } from '../../test/test.types.js';
 import { chance } from 'jest-chance';
@@ -13,6 +12,7 @@ import { UnknownPlatformException } from '../errors/UnknownPlatformException.js'
 import inquirer from 'inquirer';
 import { CouldNotFindModException } from '../errors/CouldNotFindModException.js';
 import { NoFileFound } from '../errors/NoFileFound.js';
+import { RemoteModDetails, ModsJson, Platform } from '../lib/modlist.types.js';
 
 vi.mock('../lib/config.js');
 vi.mock('../repositories/index.js');
@@ -20,8 +20,8 @@ vi.mock('../lib/downloader.js');
 vi.mock('inquirer');
 
 interface LocalTestContext {
-  randomConfiguration: GeneratorResult<ModlistConfig>;
-  randomModDetails: GeneratorResult<ModDetails>;
+  randomConfiguration: GeneratorResult<ModsJson>;
+  randomModDetails: GeneratorResult<RemoteModDetails>;
 }
 
 const assumeDownloadIsSuccessful = () => {
@@ -50,7 +50,7 @@ const getRandomPlatform = () => {
 
 describe('The add module', async () => {
   beforeEach<LocalTestContext>((context) => {
-    context.randomConfiguration = generateModlist();
+    context.randomConfiguration = generateModsJson();
 
     // the main configuration to work with
     vi.mocked(readConfigFile).mockResolvedValue(context.randomConfiguration.generated);

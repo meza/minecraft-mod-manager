@@ -1,5 +1,5 @@
 import { describe, it, vi, expect, afterEach } from 'vitest';
-import { generateModlist } from '../../test/modlistGenerator.js';
+import { generateModsJson } from '../../test/modlistGenerator.js';
 import { generateModConfig } from '../../test/modConfigGenerator.js';
 import { list } from './list.js';
 import { readConfigFile } from '../lib/config.js';
@@ -17,7 +17,7 @@ describe('The list action', async () => {
       const consoleSpy = vi.spyOn(console, 'log');
       consoleSpy.mockImplementation(() => { });
 
-      const randomConfig = generateModlist().generated;
+      const randomConfig = generateModsJson().generated;
 
       const mod1 = generateModConfig({ name: 'mod1.jar' }).generated;
       const mod2 = generateModConfig({ name: 'mod2.jar' }).generated;
@@ -42,7 +42,7 @@ describe('The list action', async () => {
       const consoleSpy = vi.spyOn(console, 'log');
       consoleSpy.mockImplementation(() => { });
 
-      const randomConfig = generateModlist().generated;
+      const randomConfig = generateModsJson().generated;
 
       const mod1 = generateModConfig({ name: 'mod1.jar' }).generated;
       const mod2 = generateModConfig({ name: 'mod2.jar' }).generated;

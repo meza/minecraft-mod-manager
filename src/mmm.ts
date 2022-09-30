@@ -4,12 +4,12 @@ import { Command } from 'commander';
 import { add } from './actions/add.js';
 import { list } from './actions/list.js';
 import { Platform } from './lib/modlist.types.js';
-import { update } from './actions/update.js';
+import { install } from './actions/install.js';
 import { version } from './version.js';
 import path from 'path';
 
-export const APP_NAME = 'Minecraft Mod Updater';
-export const APP_DESCRIPTION = 'Updates mods from Modrinth and Curseforge';
+export const APP_NAME = 'Minecraft Mod Manager';
+export const APP_DESCRIPTION = 'Manages mods from Modrinth and Curseforge';
 export const DEFAULT_CONFIG_LOCATION = path.resolve(process.cwd(), './modlist.json');
 
 export interface DefaultOptions {
@@ -28,13 +28,15 @@ commands.push(
     .action(async (options) => {
       await list(options);
     })
+    .aliases(['l', 'ls'])
 );
 
 commands.push(
-  program.command('update')
+  program.command('install')
     .action(async (options) => {
-      await update(options);
+      await install(options);
     })
+    .aliases(['i'])
 );
 
 commands.push(
@@ -44,6 +46,7 @@ commands.push(
     .action(async (type: Platform, id: string, options) => {
       await add(type, id, options);
     })
+    .aliases(['a'])
 );
 
 commands.forEach((command) => {

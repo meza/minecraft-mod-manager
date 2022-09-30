@@ -1,3 +1,3 @@
-import { program } from './mmu.js';
+import { program } from './mmm';
 
 program.parse(process.argv);

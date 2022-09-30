@@ -22,7 +22,7 @@ jobs:
         with:
           if-no-files-found: error
           name: Dev Binaries for testing purposes (zip)
-          path: dist/pkg/mmu*
+          path: dist/pkg/mmm*
 
   verify:
     name: 🔎 Lint and Test

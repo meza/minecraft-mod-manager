@@ -1,10 +1,10 @@
 # <p align="center">🚀 Minecraft Mod Updater 🚀</p>
 
-<p align="center">A command line utility to add and update Minecraft mods.</p>
+<p align="center">A command line utility to add and install Minecraft mods.</p>
 
 <br/><br/>
 
-It's a helpful utility for modpack creators and players who want to add and update mods in their Minecraft installation
+It's a helpful utility for modpack creators and players who want to add and install mods in their Minecraft installation
 who
 are using launchers that aren't capable of that.
 

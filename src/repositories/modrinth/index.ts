@@ -1,4 +1,4 @@
-import { ModDetails, Platform, ReleaseType } from '../../lib/modlist.types.js';
+import { RemoteModDetails, Platform, ReleaseType } from '../../lib/modlist.types.js';
 import { version } from '../../version.js';
 import { modrinthApiKey } from '../../env.js';
 import { CouldNotFindModException } from '../../errors/CouldNotFindModException.js';
@@ -24,12 +24,30 @@ interface ModrinthVersion {
   files: ModrinthFile[];
 }
 
+const getName = async (projectId: string): Promise<string> => {
+  const url = `https://api.modrinth.com/v2/project/${projectId}`;
+  const modDetailsRequest = await fetch(url, {
+    headers: {
+      'user-agent': `github_com/meza/minecraft-mod-updater/${version}`,
+      'Accept': 'application/json',
+      'Authorization': modrinthApiKey
+    }
+  });
+
+  if (modDetailsRequest.status !== 200) {
+    throw new CouldNotFindModException(projectId, Platform.MODRINTH);
+  }
+
+  const modDetails = await modDetailsRequest.json();
+  return modDetails.title;
+};
+
 export const getMod = async (
   projectId: string,
   allowedReleaseTypes: ReleaseType[],
   allowedGameVersion: string,
   loader: string,
-  allowFallback: boolean): Promise<ModDetails> => {
+  allowFallback: boolean): Promise<RemoteModDetails> => {
   const url = `https://api.modrinth.com/v2/project/${projectId}/version`;
 
   const modDetailsRequest = await fetch(url, {
@@ -78,8 +96,8 @@ export const getMod = async (
 
   const latestFile = potentialFiles[0];
 
-  const modData: ModDetails = {
-    name: latestFile.name,
+  const modData: RemoteModDetails = {
+    name: await getName(projectId),
     fileName: latestFile.files[0].filename,
     releaseDate: latestFile.date_published,
     hash: latestFile.files[0].hashes.sha1,

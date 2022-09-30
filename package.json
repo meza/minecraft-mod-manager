@@ -1,5 +1,5 @@
 {
-  "name": "@meza/minecraft-mod-updater",
+  "name": "@meza/minecraft-mod-manager",
   "version": "1.0.4",
   "exports": {
     ".": {
@@ -18,7 +18,7 @@
   "private": false,
   "scripts": {
     "build": "esbuild ./src/ --bundle --platform=node --outfile=dist/mmu.cjs",
-    "build:binaries": "npx pkg dist/mmu.cjs -t node18-win,node18-linux,node18-macos -o dist/pkg/mmu",
+    "build:binaries": "npx pkg dist/mmm.cjs -t node18-win,node18-linux,node18-macos -o dist/pkg/mmm",
     "start": "node --no-warnings --loader ts-node/esm src/index.ts",
     "commit": "cz",
     "ci": "npm-run-all --parallel lint report",

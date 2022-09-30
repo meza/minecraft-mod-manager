@@ -1,4 +1,4 @@
-import { ModDetails, Platform, ReleaseType } from '../../lib/modlist.types.js';
+import { RemoteModDetails, Platform, ReleaseType } from '../../lib/modlist.types.js';
 import { curseForgeApiKey } from '../../env.js';
 import { CouldNotFindModException } from '../../errors/CouldNotFindModException.js';
 import { NoFileFound } from '../../errors/NoFileFound.js';
@@ -108,8 +108,8 @@ export const getMod = async (projectId: string, allowedReleaseTypes: ReleaseType
 
   const latestFile = potentialFiles[0];
 
-  const modData: ModDetails = {
-    name: latestFile.displayName,
+  const modData: RemoteModDetails = {
+    name: modDetails.data.name,
     fileName: latestFile.fileName,
     releaseDate: latestFile.fileDate,
     hash: getHash(latestFile.hashes, HashFunctions.sha1),

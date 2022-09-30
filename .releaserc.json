@@ -19,7 +19,7 @@
     [
       "@semantic-release/changelog",
       {
-        "changelogTitle": "# Minecraft Mod Updater Changelog",
+        "changelogTitle": "# Minecraft Mod Manager Changelog",
         "changelogFile": "CHANGELOG.md"
       }
     ],
@@ -32,15 +32,15 @@
       "assets": [
         {
           "path": "dist/pkg/mmu-win.exe",
-          "label": "MMU ${nextRelease.version} Windows"
+          "label": "MMM ${nextRelease.version} Windows"
         },
         {
-          "path": "dist/pkg/mmu-macos",
-          "label": "MMU ${nextRelease.version} MacOS"
+          "path": "dist/pkg/mmm-macos",
+          "label": "MMM ${nextRelease.version} MacOS"
         },
         {
-          "path": "dist/pkg/mmu-linux",
-          "label": "MMU ${nextRelease.version} Linux"
+          "path": "dist/pkg/mmm-linux",
+          "label": "MMM ${nextRelease.version} Linux"
         }
       ]
     }],

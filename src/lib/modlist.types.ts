@@ -1,5 +1,5 @@
 /* eslint-disable no-unused-vars */
-export interface ModDetails {
+export interface RemoteModDetails {
   name: string;
   fileName: string;
   releaseDate: string;
@@ -24,24 +24,27 @@ export enum Loader {
 }
 
 export interface ModInstall {
-  fileName: string,
-  releasedOn: string,
-  hash: string
-}
-
-export interface ModConfig {
   type: Platform,
   id: string,
-  installed?: ModInstall,
+  name: string,
+  fileName: string,
+  releasedOn: string,
+  hash: string,
+  downloadUrl: string,
+}
+
+export interface Mod {
+  type: Platform,
+  id: string,
   allowedReleaseTypes: ReleaseType[]
   name?: string,
 }
 
-export interface ModlistConfig {
+export interface ModsJson {
   loader: Loader,
   gameVersion: string,
   allowVersionFallback: boolean,
   defaultAllowedReleaseTypes: ReleaseType[],
   modsFolder: string,
-  mods: ModConfig[]
+  mods: Mod[]
 }

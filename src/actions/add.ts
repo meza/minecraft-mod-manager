@@ -1,9 +1,9 @@
 import path from 'path';
 import { fetchModDetails } from '../repositories/index.js';
-import { ModConfig, Platform } from '../lib/modlist.types.js';
-import { readConfigFile, writeConfigFile } from '../lib/config.js';
+import { Mod, Platform } from '../lib/modlist.types.js';
+import { readConfigFile, readLockFile, writeConfigFile, writeLockFile } from '../lib/config.js';
 import { downloadFile } from '../lib/downloader.js';
-import { DefaultOptions } from '../mmu.js';
+import { DefaultOptions } from '../mmm.js';
 import { UnknownPlatformException } from '../errors/UnknownPlatformException.js';
 import inquirer from 'inquirer';
 import chalk from 'chalk';
@@ -42,7 +42,7 @@ const handleUnknownPlatformException = async (error: UnknownPlatformException, i
 export const add = async (platform: Platform, id: string, options: DefaultOptions) => {
   const configuration = await readConfigFile(options.config);
 
-  if (configuration.mods.find((mod: ModConfig) => (mod.id === id && mod.type === platform))) {
+  if (configuration.mods.find((mod: Mod) => (mod.id === id && mod.type === platform))) {
     if (options.debug) {
       console.debug(`Mod ${id} for ${platform} already exists in the configuration`);
     }
@@ -61,19 +61,28 @@ export const add = async (platform: Platform, id: string, options: DefaultOption
 
     await downloadFile(modData.downloadUrl, path.resolve(configuration.modsFolder, modData.fileName));
 
+    const installations = await readLockFile(options.config);
+
     configuration.mods.push({
       type: platform,
       id: id,
       name: modData.name,
-      installed: {
-        fileName: modData.fileName,
-        releasedOn: modData.releaseDate,
-        hash: modData.hash
-      },
       allowedReleaseTypes: configuration.defaultAllowedReleaseTypes
     });
 
+    installations.push({
+      name: modData.name,
+      type: platform,
+      id: id,
+      fileName: modData.fileName,
+      releasedOn: modData.releaseDate,
+      hash: modData.hash,
+      downloadUrl: modData.downloadUrl
+    });
+
     await writeConfigFile(configuration, options.config);
+    await writeLockFile(installations, options.config);
+
   } catch (error) {
     if (error instanceof UnknownPlatformException) {
       await handleUnknownPlatformException(error, id, options);
