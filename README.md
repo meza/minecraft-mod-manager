@@ -1,4 +1,4 @@
-# <p align="center">🚀 Minecraft Mod Updater 🚀</p>
+# <p align="center">🚀 Minecraft Mod Manager 🚀</p>
 
 <p align="center">A command line utility to add and install Minecraft mods.</p>
 
@@ -23,9 +23,28 @@ over the mods that are installed.
 
 ## Installation
 
-Go to the [releases page](https://github.com/meza/minecraft-mod-updater/releases) and download the latest version for your platform.
+Go to the [releases page](https://github.com/meza/minecraft-mod-manager/releases) and download the latest version for your platform.
 
 ## Usage
+
+The Minecraft Mod Manager uses the `modlist.json` file to configure how and what mods are installed.
+
+### Adding a mod
+
+To add a mod, you need to specify which platform the mod is from
+and then the project/mod's ID.
+
+`mmm add <type> <modId>`
+
+#### How to find the mod ID?
+
+// @TODO
+
+#### Examples
+
+Adding the Fabric API: `mmm add curseforge 306612`
+
+Adding Sodium: `mmm add modrinth AANobbMI`
 
 ### `modlist.json`
 

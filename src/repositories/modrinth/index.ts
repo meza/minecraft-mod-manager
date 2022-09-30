@@ -24,14 +24,16 @@ interface ModrinthVersion {
   files: ModrinthFile[];
 }
 
+const apiHeaders = {
+  'user-agent': `github_com/meza/minecraft-mod-manager/${version}`,
+  'Accept': 'application/json',
+  'Authorization': modrinthApiKey
+};
+
 const getName = async (projectId: string): Promise<string> => {
   const url = `https://api.modrinth.com/v2/project/${projectId}`;
   const modDetailsRequest = await fetch(url, {
-    headers: {
-      'user-agent': `github_com/meza/minecraft-mod-updater/${version}`,
-      'Accept': 'application/json',
-      'Authorization': modrinthApiKey
-    }
+    headers: apiHeaders
   });
 
   if (modDetailsRequest.status !== 200) {
@@ -51,11 +53,7 @@ export const getMod = async (
   const url = `https://api.modrinth.com/v2/project/${projectId}/version`;
 
   const modDetailsRequest = await fetch(url, {
-    headers: {
-      'user-agent': `github_com/meza/minecraft-mod-updater/${version}`,
-      'Accept': 'application/json',
-      'Authorization': modrinthApiKey
-    }
+    headers: apiHeaders
   });
 
   if (modDetailsRequest.status !== 200) {
