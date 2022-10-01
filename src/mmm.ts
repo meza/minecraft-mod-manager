@@ -13,7 +13,7 @@ export const APP_DESCRIPTION = 'Manages mods from Modrinth and Curseforge';
 export const DEFAULT_CONFIG_LOCATION = path.resolve(process.cwd(), './modlist.json');
 
 export interface DefaultOptions {
-  config?: string;
+  config: string;
   debug?: boolean;
   quiet?: boolean;
 }
@@ -50,7 +50,7 @@ commands.push(
 );
 
 commands.forEach((command) => {
-  command.option('-c, --config <MODLIST_JSON>', 'An alternative JSON file containing the configuration');
+  command.option('-c, --config <MODLIST_JSON>', 'An alternative JSON file containing the configuration', DEFAULT_CONFIG_LOCATION);
   command.option('-q, --quiet', 'Suppress all output', false);
   command.option('-d, --debug', 'Enable debug messages', false);
 });
