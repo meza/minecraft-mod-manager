@@ -52,4 +52,5 @@ commands.push(
 commands.forEach((command) => {
   command.option('-c, --config <MODLIST_JSON>', 'An alternative JSON file containing the configuration');
   command.option('-q, --quiet', 'Suppress all output', false);
+  command.option('-d, --debug', 'Enable debug messages', false);
 });

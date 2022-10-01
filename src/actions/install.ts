@@ -48,8 +48,12 @@ export const install = async (options: UpdateOptions) => {
 
     mods[index].name = modData.name;
 
+    if (options.debug) {
+      console.debug(`Checking ${mod.name} for ${mod.type}`);
+    }
+
     if (!hasInstallation(mod, installedMods)) { // no installation exists
-      console.log(`${mod.id} doesn't exist, downloading from ${mod.type}`);
+      console.log(`${mod.name} doesn't exist, downloading from ${mod.type}`);
       const dlData = await getMod(modData, configuration.modsFolder);
       installedMods.push({
         name: modData.name,

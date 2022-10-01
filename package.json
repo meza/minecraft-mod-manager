@@ -17,7 +17,7 @@
   "types": "dist/index.d.ts",
   "private": false,
   "scripts": {
-    "build": "esbuild ./src/ --bundle --platform=node --outfile=dist/mmu.cjs",
+    "build": "esbuild ./src/ --bundle --platform=node --outfile=dist/mmm.cjs",
     "build:binaries": "npx pkg dist/mmm.cjs -t node18-win,node18-linux,node18-macos -o dist/pkg/mmm",
     "start": "node --no-warnings --loader ts-node/esm src/index.ts",
     "commit": "cz",

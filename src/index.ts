@@ -1,3 +1,3 @@
-import { program } from './mmm';
+import { program } from './mmm.js';
 
 program.parse(process.argv);
