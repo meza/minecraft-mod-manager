@@ -2,7 +2,8 @@ import { describe, it, vi, expect, afterEach } from 'vitest';
 import { generateModsJson } from '../../test/modlistGenerator.js';
 import { generateModConfig } from '../../test/modConfigGenerator.js';
 import { list } from './list.js';
-import { readConfigFile } from '../lib/config.js';
+import { readConfigFile, readLockFile } from '../lib/config.js';
+import { generateModInstall } from '../../test/modInstallGenerator.js';
 
 vi.mock('../lib/config.js');
 
@@ -27,6 +28,14 @@ describe('The list action', async () => {
 
       vi.mocked(readConfigFile).mockResolvedValue(randomConfig);
 
+      const installedMods = [
+        generateModInstall({ id: mod1.id, type: mod1.type }).generated,
+        generateModInstall({ id: mod2.id, type: mod2.type }).generated,
+        generateModInstall({ id: mod3.id, type: mod3.type }).generated
+      ];
+
+      vi.mocked(readLockFile).mockResolvedValueOnce(installedMods);
+
       await list({ config: 'config.json' });
 
       expect(consoleSpy).toHaveBeenNthCalledWith(1, 'Configured mods');
@@ -48,9 +57,14 @@ describe('The list action', async () => {
       const mod2 = generateModConfig({ name: 'mod2.jar' }).generated;
       const mod3 = generateModConfig({ name: 'mod3.jar' }).generated;
 
-      delete mod2.installed;
-
       randomConfig.mods = [mod1, mod2, mod3];
+
+      const installedMods = [
+        generateModInstall({ id: mod1.id, type: mod1.type }).generated,
+        generateModInstall({ id: mod3.id, type: mod3.type }).generated
+      ];
+
+      vi.mocked(readLockFile).mockResolvedValueOnce(installedMods);
 
       vi.mocked(readConfigFile).mockResolvedValue(randomConfig);
 
