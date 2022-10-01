@@ -17,7 +17,7 @@ export const updateMod = async (
     await fs.rm(`${modPath}.bak`);
 
   } catch {
-    console.log('Download failed, restoring the original');
+    console.log(`Download of ${mod.name} failed, restoring the original`);
     await fs.rename(`${modPath}.bak`, modPath);
   }
 
