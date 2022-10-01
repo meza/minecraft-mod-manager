@@ -20,7 +20,7 @@ interface CurseForgeGameVersion {
   gameVersion: string
 }
 
-interface CurseforgeModFile {
+export interface CurseforgeModFile {
   displayName: string
   fileDate: string
   releaseType: number

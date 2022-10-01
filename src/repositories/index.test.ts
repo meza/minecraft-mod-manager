@@ -10,7 +10,7 @@ import { generateRemoteModDetails } from '../../test/modDetailsGenerator.js';
 vi.mock('./modrinth/index.js');
 vi.mock('./curseforge/index.js');
 
-interface LocalTestContext {
+export interface RepositoryTestContext {
   platform: Platform,
   id: string,
   allowedReleaseTypes: ReleaseType[],
@@ -20,7 +20,7 @@ interface LocalTestContext {
 }
 
 describe('The repository facade', () => {
-  beforeEach<LocalTestContext>((context) => {
+  beforeEach<RepositoryTestContext>((context) => {
     context.platform = chance.pickone(Object.values(Platform));
     context.id = chance.word();
     context.allowedReleaseTypes = chance.pickset(Object.values(ReleaseType), chance.integer({
@@ -36,7 +36,7 @@ describe('The repository facade', () => {
     vi.resetAllMocks();
   });
 
-  it<LocalTestContext>('throws an exception when an unknown platform is used', async (context) => {
+  it<RepositoryTestContext>('throws an exception when an unknown platform is used', async (context) => {
     const invalidPlatform = chance.word();
     await expect(async () => {
       await fetchModDetails(
@@ -54,7 +54,7 @@ describe('The repository facade', () => {
     [Platform.CURSEFORGE, cfMod],
     [Platform.MODRINTH, mMod]
   ])('when the platform is %s', (platform: Platform, implementation) => {
-    it<LocalTestContext>('calls the correct implementation', async (context) => {
+    it<RepositoryTestContext>('calls the correct implementation', async (context) => {
       const randomResult = generateRemoteModDetails().generated;
       vi.mocked(implementation).mockResolvedValueOnce(randomResult);
       await fetchModDetails(
