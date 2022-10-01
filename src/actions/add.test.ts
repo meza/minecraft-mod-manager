@@ -1,6 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { add } from './add.js';
-import { readConfigFile, writeConfigFile } from '../lib/config.js';
+import { readConfigFile, readLockFile, writeConfigFile, writeLockFile } from '../lib/config.js';
 import { fetchModDetails } from '../repositories/index.js';
 import { downloadFile } from '../lib/downloader.js';
 import { generateModsJson } from '../../test/modlistGenerator.js';
@@ -12,7 +12,7 @@ import { UnknownPlatformException } from '../errors/UnknownPlatformException.js'
 import inquirer from 'inquirer';
 import { CouldNotFindModException } from '../errors/CouldNotFindModException.js';
 import { NoFileFound } from '../errors/NoFileFound.js';
-import { RemoteModDetails, ModsJson, Platform } from '../lib/modlist.types.js';
+import { RemoteModDetails, ModsJson, Platform, ModInstall } from '../lib/modlist.types.js';
 
 vi.mock('../lib/config.js');
 vi.mock('../repositories/index.js');
@@ -54,6 +54,7 @@ describe('The add module', async () => {
 
     // the main configuration to work with
     vi.mocked(readConfigFile).mockResolvedValue(context.randomConfiguration.generated);
+    vi.mocked(readLockFile).mockResolvedValue([]);
 
     // the mod details returned from the repository
     context.randomModDetails = generateModDetails();
@@ -92,20 +93,32 @@ describe('The add module', async () => {
           type: randomPlatform,
           id: randomModId,
           name: randomModDetails.expected.name,
-          installed: {
-            fileName: randomModDetails.expected.fileName,
-            releasedOn: randomModDetails.expected.releaseDate,
-            hash: randomModDetails.expected.hash
-          },
           allowedReleaseTypes: randomConfiguration.expected.defaultAllowedReleaseTypes
         }
       ]
     };
 
+    const expectedLockFile: ModInstall[] = [
+      {
+        type: randomPlatform,
+        id: randomModId,
+        name: randomModDetails.expected.name,
+        fileName: randomModDetails.expected.fileName,
+        releasedOn: randomModDetails.expected.releaseDate,
+        hash: randomModDetails.expected.hash,
+        downloadUrl: randomModDetails.expected.downloadUrl
+      }
+    ];
+
     expect(
       vi.mocked(writeConfigFile),
-      'Writing the configuration file after adding a mod has failes'
+      'Writing the configuration file after adding a mod has failed'
     ).toHaveBeenCalledWith(expectedConfiguration, 'config.json');
+
+    expect(
+      vi.mocked(writeLockFile),
+      'Writing the lock file after adding a mod has failed'
+    ).toHaveBeenCalledWith(expectedLockFile, 'config.json');
 
   });
 
@@ -135,6 +148,8 @@ describe('The add module', async () => {
 
   it<LocalTestContext>('should not show a debug message when it is not asked for', async (context) => {
     const consoleSpy = vi.spyOn(console, 'debug');
+    vi.mocked(consoleSpy).mockImplementation(() => {
+    });
 
     const randomPlatform = Platform.CURSEFORGE;
     const randomModId = 'a-mod-id';
@@ -157,6 +172,8 @@ describe('The add module', async () => {
 
   it<LocalTestContext>('should show a debug message when it is asked for', async (context) => {
     const consoleSpy = vi.spyOn(console, 'debug');
+    vi.mocked(consoleSpy).mockImplementation(() => {
+    });
 
     const randomPlatform = Platform.MODRINTH;
     const randomModId = 'another-mod-id';
@@ -179,6 +196,8 @@ describe('The add module', async () => {
 
   it<LocalTestContext>('should report when a file cannot be found for the version and exit', async ({ randomConfiguration }) => {
     const consoleSpy = vi.spyOn(console, 'error');
+    vi.mocked(consoleSpy).mockImplementation(() => {
+    });
 
     const randomPlatform = getRandomPlatform();
     const randomModId = chance.word();
@@ -196,6 +215,8 @@ describe('The add module', async () => {
 
   it('should report unexpected errors', async () => {
     const consoleSpy = vi.spyOn(console, 'error');
+    vi.mocked(consoleSpy).mockImplementation(() => {
+    });
 
     const randomErrorMessage = chance.sentence();
     const randomPlatform = getRandomPlatform();
@@ -297,6 +318,8 @@ describe('The add module', async () => {
   describe('when the mod can\'t be found', async () => {
     it('it should exit after an error message has been shown', async () => {
       const consoleSpy = vi.spyOn(console, 'error');
+      vi.mocked(consoleSpy).mockImplementation(() => {
+      });
 
       const { randomPlatform, randomMod } = assumeModNotFound();
 
