@@ -11,7 +11,7 @@ import { generateModConfig } from '../../test/modConfigGenerator.js';
 import { UnknownPlatformException } from '../errors/UnknownPlatformException.js';
 import inquirer from 'inquirer';
 import { CouldNotFindModException } from '../errors/CouldNotFindModException.js';
-import { NoFileFound } from '../errors/NoFileFound.js';
+import { NoRemoteFileFound } from '../errors/NoRemoteFileFound.js';
 import { RemoteModDetails, ModsJson, Platform, ModInstall } from '../lib/modlist.types.js';
 
 vi.mock('../lib/config.js');
@@ -205,7 +205,7 @@ describe('The add module', async () => {
     const randomLoader = randomConfiguration.expected.loader;
 
     vi.mocked(downloadFile).mockReset();
-    vi.mocked(downloadFile).mockRejectedValueOnce(new NoFileFound(randomModId, randomPlatform));
+    vi.mocked(downloadFile).mockRejectedValueOnce(new NoRemoteFileFound(randomModId, randomPlatform));
 
     await add(randomPlatform, randomModId, { config: 'config.json' });
 

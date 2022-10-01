@@ -1,6 +1,6 @@
 import { Platform } from '../lib/modlist.types.js';
 
-export class NoFileFound extends Error {
+export class NoRemoteFileFound extends Error {
   public readonly modName: string;
   public readonly platform: Platform;
 

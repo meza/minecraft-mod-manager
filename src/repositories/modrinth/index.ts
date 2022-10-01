@@ -2,7 +2,7 @@ import { RemoteModDetails, Platform, ReleaseType } from '../../lib/modlist.types
 import { version } from '../../version.js';
 import { modrinthApiKey } from '../../env.js';
 import { CouldNotFindModException } from '../../errors/CouldNotFindModException.js';
-import { NoFileFound } from '../../errors/NoFileFound.js';
+import { NoRemoteFileFound } from '../../errors/NoRemoteFileFound.js';
 
 interface Hash {
   sha1: string;
@@ -89,7 +89,7 @@ export const getMod = async (
   ;
 
   if (potentialFiles.length === 0) {
-    throw new NoFileFound(projectId, Platform.MODRINTH);
+    throw new NoRemoteFileFound(projectId, Platform.MODRINTH);
   }
 
   const latestFile = potentialFiles[0];

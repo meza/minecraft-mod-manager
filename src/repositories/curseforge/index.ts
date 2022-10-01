@@ -1,7 +1,7 @@
 import { RemoteModDetails, Platform, ReleaseType } from '../../lib/modlist.types.js';
 import { curseForgeApiKey } from '../../env.js';
 import { CouldNotFindModException } from '../../errors/CouldNotFindModException.js';
-import { NoFileFound } from '../../errors/NoFileFound.js';
+import { NoRemoteFileFound } from '../../errors/NoRemoteFileFound.js';
 
 export enum HashFunctions {
   // eslint-disable-next-line no-unused-vars
@@ -103,7 +103,7 @@ export const getMod = async (projectId: string, allowedReleaseTypes: ReleaseType
     });
 
   if (potentialFiles.length === 0) {
-    throw new NoFileFound(modDetails.data.name, Platform.CURSEFORGE);
+    throw new NoRemoteFileFound(modDetails.data.name, Platform.CURSEFORGE);
   }
 
   const latestFile = potentialFiles[0];
