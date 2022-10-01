@@ -1,27 +1,19 @@
 import fs from 'node:fs/promises';
 import path from 'path';
 import { downloadFile } from './downloader.js';
-import { ModInstall, RemoteModDetails } from './modlist.types.js';
+import { ModInstall } from './modlist.types.js';
 
 export const updateMod = async (
   mod: ModInstall,
   modPath: string,
-  modData: RemoteModDetails,
   modsFolder: string
 ): Promise<ModInstall> => {
 
   await fs.rename(modPath, `${modPath}.bak`);
 
   try {
-    const newPath = path.resolve(modsFolder, modData.fileName);
-    await downloadFile(modData.downloadUrl, newPath);
-
-    mod.name = modData.name;
-    mod.fileName = modData.fileName;
-    mod.releasedOn = modData.releaseDate;
-    mod.hash = modData.hash;
-    mod.downloadUrl = modData.downloadUrl;
-
+    const newPath = path.resolve(modsFolder, mod.fileName);
+    await downloadFile(mod.downloadUrl, newPath);
     await fs.rm(`${modPath}.bak`);
 
   } catch {

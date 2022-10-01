@@ -2,7 +2,7 @@ import { RemoteModDetails } from '../src/lib/modlist.types.js';
 import { chance } from 'jest-chance';
 import { GeneratorResult } from './test.types.js';
 
-export const generateModDetails = (overrides?: Partial<RemoteModDetails>): GeneratorResult<RemoteModDetails> => {
+export const generateRemoteModDetails = (overrides?: Partial<RemoteModDetails>): GeneratorResult<RemoteModDetails> => {
   const generated: RemoteModDetails = {
     name: chance.word(),
     fileName: chance.word(),

@@ -4,7 +4,7 @@ import { readConfigFile, readLockFile, writeConfigFile, writeLockFile } from '..
 import { fetchModDetails } from '../repositories/index.js';
 import { downloadFile } from '../lib/downloader.js';
 import { generateModsJson } from '../../test/modlistGenerator.js';
-import { generateModDetails } from '../../test/modDetailsGenerator.js';
+import { generateRemoteModDetails } from '../../test/modDetailsGenerator.js';
 import { GeneratorResult } from '../../test/test.types.js';
 import { chance } from 'jest-chance';
 import { generateModConfig } from '../../test/modConfigGenerator.js';
@@ -57,7 +57,7 @@ describe('The add module', async () => {
     vi.mocked(readLockFile).mockResolvedValue([]);
 
     // the mod details returned from the repository
-    context.randomModDetails = generateModDetails();
+    context.randomModDetails = generateRemoteModDetails();
     vi.mocked(fetchModDetails).mockResolvedValueOnce(context.randomModDetails.generated);
   });
 

@@ -38,7 +38,7 @@ and then the project/mod's ID.
 
 #### How to find the mod ID?
 
-// @TODO
+[//]: # (TODO: Add a section on how to find the mod ID for each platform)
 
 #### Examples
 
