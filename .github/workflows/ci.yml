@@ -43,6 +43,7 @@ jobs:
         with:
           format: markdown
           output: file
+          badge: true
           filename: "reports/coverage/unit/cobertura-coverage.xml"
       - name: Publish code coverage report
         if: always()
