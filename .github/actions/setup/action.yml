@@ -43,7 +43,7 @@ runs:
       run: |
         echo "::set-output name=pnpm_cache_dir::$(pnpm store path)"
 
-    - uses: actions/cache@v3
+    - uses: pat-s/always-upload-cache@v3
       name: Setup pnpm cache
       with:
         path: ${{ steps.pnpm-cache.outputs.pnpm_cache_dir }}
