@@ -42,7 +42,10 @@ jobs:
         if: always()
         with:
           format: markdown
+          output: file
           filename: "reports/coverage/unit/cobertura-coverage.xml"
+      - name: Publish code coverage report
+        run: cat code-coverage-results.md >> $GITHUB_STEP_SUMMARY
 
       - run: npx semantic-release --dry-run
         id: get-next-version
