@@ -1,4 +1,5 @@
 {
+  "fileMatch": "package.json",
   "packageRules": [
     {
       "matchUpdateTypes": [
