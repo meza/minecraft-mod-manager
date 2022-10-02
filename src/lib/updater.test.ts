@@ -1,4 +1,4 @@
-import { describe, it, vi, expect, afterEach } from 'vitest';
+import { afterEach, describe, expect, it, vi } from 'vitest';
 import { generateModInstall } from '../../test/modInstallGenerator.js';
 import { chance } from 'jest-chance';
 import path from 'node:path';
@@ -45,7 +45,8 @@ describe('The updater module', () => {
 
   it('should roll back on download failure', async () => {
     const consoleSpy = vi.spyOn(console, 'log');
-    vi.mocked(console.log).mockImplementationOnce(() => {});
+    vi.mocked(console.log).mockImplementationOnce(() => {
+    });
 
     const randomMod = generateModInstall().generated;
     const randomModsFolder = chance.word();
@@ -68,6 +69,5 @@ describe('The updater module', () => {
     expect(vi.mocked(fs.rm)).not.toHaveBeenCalled();
 
   });
-
 
 });
