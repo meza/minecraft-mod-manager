@@ -3,13 +3,15 @@
   "extends": [
     "config:base"
   ],
+  "enabledManagers": [
+    "npm"
+  ],
   "baseBranches": [
-    "main",
-    "next"
+    "next",
+    "initial"
   ],
   "semanticCommits": "enabled",
   "semanticCommitType": "chore",
-  "fileMatch": "package.json",
   "packageRules": [
     {
       "matchUpdateTypes": [
