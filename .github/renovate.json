@@ -7,8 +7,8 @@
     "npm"
   ],
   "baseBranches": [
-    "main",
-    "next"
+    "next",
+    "initial"
   ],
   "semanticCommits": "enabled",
   "semanticCommitType": "chore",
