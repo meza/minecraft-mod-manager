@@ -34,7 +34,6 @@ specifiers:
   eslint-plugin-json: 3.1.0
   eslint-plugin-security: 1.5.0
   inquirer: ^9.1.2
-  install-deps-postmerge: 2.0.1
   is-ci: 3.0.1
   jest-chance: 0.1.11
   lefthook: 1.1.1
@@ -93,7 +92,6 @@ devDependencies:
   eslint-config-tailored-tunes: 5.0.2
   eslint-plugin-json: 3.1.0
   eslint-plugin-security: 1.5.0
-  install-deps-postmerge: 2.0.1
   is-ci: 3.0.1
   jest-chance: 0.1.11
   lefthook: 1.1.1
@@ -2246,21 +2244,6 @@ packages:
     engines: {node: '>=0.10.0'}
     dev: true
 
-  /execa/4.1.0:
-    resolution: {integrity: sha512-j5W0//W7f8UxAn8hXVnwG8tLwdiUy4FJLcSupCg6maBYZDpyBvTApK7KyuI4bKj8KOh1r2YH+6ucuYtJv1bTZA==}
-    engines: {node: '>=10'}
-    dependencies:
-      cross-spawn: 7.0.3
-      get-stream: 5.2.0
-      human-signals: 1.1.1
-      is-stream: 2.0.1
-      merge-stream: 2.0.0
-      npm-run-path: 4.0.1
-      onetime: 5.1.2
-      signal-exit: 3.0.7
-      strip-final-newline: 2.0.0
-    dev: true
-
   /execa/5.1.1:
     resolution: {integrity: sha512-8uSpZZocAZRBAPIEINJj3Lo9HyGitllczc27Eh5YYojjMFMn8yHMDMaUHE2Jqfq05D/wucwI4JGURyXt1vchyg==}
     engines: {node: '>=10'}
@@ -2536,13 +2519,6 @@ packages:
       has-symbols: 1.0.3
     dev: true
 
-  /get-stream/5.2.0:
-    resolution: {integrity: sha512-nBF+F1rAZVCu/p7rjzgA+Yb4lfYXrpl7a6VmJrU8wF9I1CKvP/QwPNZHnOlwbTkY6dvtFIzFMSyQXbLoTQPRpA==}
-    engines: {node: '>=8'}
-    dependencies:
-      pump: 3.0.0
-    dev: true
-
   /get-stream/6.0.1:
     resolution: {integrity: sha512-ts6Wi+2j3jQjqi70w5AlN8DFnkSwC+MqmxEzdEALB2qXZYV3X/b1CTfgPLGJNMeAWxdPfU8FO1ms3NUfaHCPYg==}
     engines: {node: '>=10'}
@@ -2778,11 +2754,6 @@ packages:
     transitivePeerDependencies:
       - supports-color
 
-  /human-signals/1.1.1:
-    resolution: {integrity: sha512-SEQu7vl8KjNL2eoGBLF3+wAjpsNfA9XMlXAYj/3EdaNfAlxKthD1xjEQfGOUhllCGGJVNY34bRr6lPINhNjyZw==}
-    engines: {node: '>=8.12.0'}
-    dev: true
-
   /human-signals/2.1.0:
     resolution: {integrity: sha512-B4FFZ6q/T2jhhksgkbEW3HBvWIfDW85snkQgawt07S7J5QXTk6BkNV+0yAeZrM5QpMAdYlocGoljn0sJ/WQkFw==}
     engines: {node: '>=10.17.0'}
@@ -2899,15 +2870,6 @@ packages:
       through: 2.3.8
       wrap-ansi: 8.0.1
     dev: false
-
-  /install-deps-postmerge/2.0.1:
-    resolution: {integrity: sha512-L2RM7W3dDo4DboV/ETA8KE/DQIdZMXFhzOO8CMJEZPPx73t/kyT7BqAaWDtTNY//8lb/F8TYkfdBmwRb3NFEiA==}
-    engines: {node: '>=10'}
-    hasBin: true
-    dependencies:
-      execa: 4.1.0
-      yarn-or-npm: 3.0.1
-    dev: true
 
   /internal-slot/1.0.3:
     resolution: {integrity: sha512-O0DB1JC/sPyZl7cIo78n5dR7eUSwwpYPiXRhTzNxZVAMUuB8vlnRFyLxdrVToks6XPLVnFfbzaVd5WLjhgg+vA==}
@@ -4110,13 +4072,6 @@ packages:
     dependencies:
       find-up: 2.1.0
       load-json-file: 4.0.0
-    dev: true
-
-  /pkg-dir/4.2.0:
-    resolution: {integrity: sha512-HRDzbaKjC+AOWVXxAU/x54COGeIv9eb+6CkDSQoNTt4XyWoIJvuPsXizxu/Fr23EiekbtZwmh1IcIG/l/a10GQ==}
-    engines: {node: '>=8'}
-    dependencies:
-      find-up: 4.1.0
     dev: true
 
   /pkg-fetch/3.4.2:
@@ -5459,15 +5414,6 @@ packages:
       string-width: 4.2.3
       y18n: 5.0.8
       yargs-parser: 21.1.1
-    dev: true
-
-  /yarn-or-npm/3.0.1:
-    resolution: {integrity: sha512-fTiQP6WbDAh5QZAVdbMQkecZoahnbOjClTQhzv74WX5h2Uaidj1isf9FDes11TKtsZ0/ZVfZsqZ+O3x6aLERHQ==}
-    engines: {node: '>=8.6.0'}
-    hasBin: true
-    dependencies:
-      cross-spawn: 6.0.5
-      pkg-dir: 4.2.0
     dev: true
 
   /yn/3.1.1:

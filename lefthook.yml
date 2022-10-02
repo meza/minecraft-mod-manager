@@ -28,5 +28,5 @@ pre-commit:
 post-merge:
   commands:
     install-deps-postmerge:
-      tags: frontend
-      run: npx install-deps-postmerge
+      glob: "{package.json,pnpm-lock.json}"
+      run: pnpm install --frozen-lockfile
