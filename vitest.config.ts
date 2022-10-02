@@ -13,7 +13,7 @@ export default defineConfig({
     reporters: ['verbose', 'junit'],
     coverage: {
       reportsDirectory: './reports/coverage/unit',
-      reporter: ['text', 'json', 'html'],
+      reporter: ['text', 'json', 'html', 'lcov', 'cobertura'],
       statements: 100,
       branches: 100,
       functions: 100,
