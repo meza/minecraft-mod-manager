@@ -1,58 +1,58 @@
 lockfileVersion: 5.4
 
 specifiers:
-  '@commitlint/cli': ^17.1.2
-  '@commitlint/config-conventional': ^17.1.0
-  '@commitlint/prompt-cli': ^17.1.2
-  '@faker-js/faker': ^7.5.0
-  '@meza/adr-tools': ^1.0.10
-  '@meza/tsconfig-base': ^1.1.0
-  '@ryansonshine/commitizen': ^4.2.8
-  '@ryansonshine/cz-conventional-changelog': ^3.3.4
-  '@semantic-release/changelog': ^6.0.1
-  '@semantic-release/commit-analyzer': ^9.0.2
-  '@semantic-release/exec': ^6.0.3
-  '@semantic-release/git': ^10.0.1
-  '@semantic-release/github': ^8.0.6
-  '@semantic-release/npm': ^9.0.1
-  '@semantic-release/release-notes-generator': ^10.0.3
+  '@commitlint/cli': 17.1.2
+  '@commitlint/config-conventional': 17.1.0
+  '@commitlint/prompt-cli': 17.1.2
+  '@faker-js/faker': 7.5.0
+  '@meza/adr-tools': 1.0.10
+  '@meza/tsconfig-base': 1.1.0
+  '@ryansonshine/commitizen': 4.2.8
+  '@ryansonshine/cz-conventional-changelog': 3.3.4
+  '@semantic-release/changelog': 6.0.1
+  '@semantic-release/commit-analyzer': 9.0.2
+  '@semantic-release/exec': 6.0.3
+  '@semantic-release/git': 10.0.1
+  '@semantic-release/github': 8.0.6
+  '@semantic-release/npm': 9.0.1
+  '@semantic-release/release-notes-generator': 10.0.3
   '@types/inquirer': ^9.0.2
   '@types/node': ^18.7.23
-  '@types/uuid': ^8.3.4
-  '@typescript-eslint/eslint-plugin': ^5.38.1
-  '@typescript-eslint/parser': ^5.38.1
-  '@vitest/coverage-c8': ^0.23.4
-  c8: ^7.11.3
+  '@types/uuid': 8.3.4
+  '@typescript-eslint/eslint-plugin': 5.38.1
+  '@typescript-eslint/parser': 5.38.1
+  '@vitest/coverage-c8': 0.23.4
+  c8: 7.12.0
   chalk: ^5.0.1
   commander: ^9.4.1
-  copyfiles: ^2.4.1
+  copyfiles: 2.4.1
   core-js: ^3.25.3
   dotenv: ^16.0.3
-  esbuild: ^0.15.10
-  eslint: ^8.24.0
-  eslint-config-tailored-tunes: ^5.0.2
-  eslint-plugin-json: ^3.1.0
-  eslint-plugin-security: ^1.5.0
+  esbuild: 0.15.10
+  eslint: 8.24.0
+  eslint-config-tailored-tunes: 5.0.2
+  eslint-plugin-json: 3.1.0
+  eslint-plugin-security: 1.5.0
   inquirer: ^9.1.2
-  install-deps-postmerge: ^2.0.1
-  is-ci: ^3.0.1
-  jest-chance: ^0.1.11
-  lefthook: ^1.1.1
+  install-deps-postmerge: 2.0.1
+  is-ci: 3.0.1
+  jest-chance: 0.1.11
+  lefthook: 1.1.1
   log-symbols: ^5.1.0
-  mock-cwd: ^1.0.0
-  node: ^18.10.0
+  mock-cwd: 1.0.0
+  node: 18.10.0
   nodejs-file-downloader: ^4.10.2
-  npm-run-all: ^4.1.5
-  pkg: ^5.8.0
-  pnpm: ^7.12.2
-  rimraf: ^3.0.2
-  semantic-release: ^19.0.3
-  semantic-release-export-data: ^1.0.0
+  npm-run-all: 4.1.5
+  pkg: 5.8.0
+  pnpm: 7.12.2
+  rimraf: 3.0.2
+  semantic-release: 19.0.5
+  semantic-release-export-data: 1.0.0
   sha1-file: ^3.0.0
-  ts-node: ^10.8.1
-  typescript: ^4.8.4
-  uuid: ^9.0.0
-  vitest: ^0.23.4
+  ts-node: 10.9.1
+  typescript: 4.8.4
+  uuid: 9.0.0
+  vitest: 0.23.4
 
 dependencies:
   '@types/inquirer': 9.0.2
@@ -4397,7 +4397,7 @@ packages:
     resolution: {integrity: sha512-nBpuuYuY5jFsli/JIs1oldw6fOQCBioohqWZg/2hiaOybXOft4lonv85uDOKXdf8rhyK159cxU5cDcK/NKk8zw==}
     hasBin: true
     dependencies:
-      is-core-module: 2.9.0
+      is-core-module: 2.10.0
       path-parse: 1.0.7
       supports-preserve-symlinks-flag: 1.0.0
     dev: true
@@ -5372,7 +5372,7 @@ packages:
   /wide-align/1.1.5:
     resolution: {integrity: sha512-eDMORYaPNZ4sQIuuYPDHdQvf4gyCF9rEEV/yPxGfwPkRodwEgiMUUXTx/dex+Me0wxx53S+NgUHaP7y3MGlDmg==}
     dependencies:
-      string-width: 1.0.2
+      string-width: 4.2.3
     dev: true
 
   /word-wrap/1.2.3:
