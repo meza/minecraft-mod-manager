@@ -23,7 +23,7 @@ vi.mock('../lib/hash.js');
 const emptyLockFile: ModInstall[] = [];
 
 const expectModDetailsHaveBeenFetchedCorrectlyForMod = (
-  mod: Mod, modsJson: ModsJson, call: number = 1) => {
+  mod: Mod, modsJson: ModsJson, call = 1) => {
   expect(vi.mocked(fetchModDetails)).toHaveBeenNthCalledWith(
     call,
     mod.type,

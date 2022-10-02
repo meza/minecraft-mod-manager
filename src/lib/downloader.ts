@@ -3,6 +3,7 @@ import Downloader from 'nodejs-file-downloader';
 import { DownloadFailedException } from '../errors/DownloadFailedException.js';
 
 export const downloadFile = async (url: string, destination: string) => {
+  // eslint-disable-next-line @typescript-eslint/ban-ts-comment
   // @ts-ignore
   const downloader = new Downloader({
     url: url,

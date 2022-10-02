@@ -97,7 +97,7 @@ describe('The Curseforge repository', () => {
     const randomFile = generateCurseforgeModFile({
       isAvailable: true,
       fileStatus: releasedStatus,
-      releaseType: Release.RELEASE,
+      releaseType: Release.ALPHA,
       sortableGameVersions: [{
         gameVersion: context.gameVersion,
         gameVersionName: context.loader
@@ -109,7 +109,7 @@ describe('The Curseforge repository', () => {
     await expect(async () => {
       await getMod(
         context.id,
-        [ReleaseType.RELEASE],
+        [ReleaseType.ALPHA],
         context.gameVersion,
         context.loader,
         false

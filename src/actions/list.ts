@@ -2,7 +2,7 @@ import { readConfigFile, readLockFile } from '../lib/config.js';
 import chalk from 'chalk';
 import { DefaultOptions } from '../mmm.js';
 
-export interface ListOptions extends DefaultOptions {}
+export type ListOptions = DefaultOptions
 
 export const list = async (options: ListOptions) => {
   const config = await readConfigFile(options.config);
