@@ -33,7 +33,7 @@ jobs:
         uses: ./.github/actions/setup/
       - name: Cache build helpers
         id: cache-build-data
-        uses: actions/cache@v3
+        uses: pat-s/always-upload-cache@v3
         if: always()
         env:
           cache-name: cache-build-data
