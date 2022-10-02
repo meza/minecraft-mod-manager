@@ -21,10 +21,10 @@ pre-commit:
   commands:
     lint:
       tags:
-      run: yarn lint
+      run: pnpm lint
     test:
       glob: "src/**/*.test.{js,ts,tsx}"
-      run: yarn test
+      run: pnpm test
 post-merge:
   commands:
     install-deps-postmerge:

@@ -22,8 +22,11 @@
     "start": "node --no-warnings --loader ts-node/esm src/index.ts",
     "commit": "cz",
     "ci": "npm-run-all --parallel -c lint report",
-    "clean": "rimraf dist .cache",
-    "clean:all": "pnpm clean && rimraf node_modules .cache",
+    "clean": "npm-run-all clean:basics",
+    "clean:all": "npm-run-all clean:basics clean:githooks clean:dependencies",
+    "clean:basics": "rimraf dist .cache",
+    "clean:githooks": "lefthook uninstall -k",
+    "clean:dependencies": "rimraf node_modules",
     "lint:specific": "eslint --ext .ts --ext .json --cache --cache-location .cache/",
     "lint:eslint": "pnpm lint:specific src test",
     "lint:tsc": "tsc --noEmit",
@@ -33,7 +36,8 @@
     "test:unit": "vitest",
     "report": "vitest --coverage",
     "semantic-release": "semantic-release",
-    "release": "semantic-release"
+    "release": "semantic-release",
+    "postinstall": "lefthook install"
   },
   "dependencies": {
     "@types/inquirer": "^9.0.2",
