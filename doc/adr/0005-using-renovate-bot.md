@@ -6,7 +6,7 @@ Date: 2022-10-02
 
 Accepted
 
-Caused by [4. using pnpm](0004-using-pnpm.md)
+Caused by [4. Using pnpm](0004-using-pnpm.md)
 
 ## Context
 

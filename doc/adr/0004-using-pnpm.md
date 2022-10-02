@@ -1,4 +1,4 @@
-# 4. using pnpm
+# 4. Using pnpm
 
 Date: 2022-10-02
 
