@@ -1,5 +1,5 @@
 name: "Setup node and install dependencies"
-description: "Takes care of the copy-pasta for the cache handling of yarn"
+description: "Takes care of the copy-pasta for the cache handling of pnpm"
 
 runs:
   using: "composite"
@@ -10,26 +10,26 @@ runs:
     #        path: |
     #          ~/.cache
     #          ~/node_modules
-    #        key: ${{ runner.os }}-${{ hashFiles('**/yarn.lock') }}
+    #        key: ${{ runner.os }}-${{ hashFiles('**/pnpm.lock') }}
     #
-    #    - name: Get yarn cache directory path
-    #      id: yarn-cache-dir-path
+    #    - name: Get pnpm cache directory path
+    #      id: pnpm-cache-dir-path
     #      shell: bash
-    #      run: echo "::set-output name=dir::$(yarn config get cacheFolder)"
+    #      run: echo "::set-output name=dir::$(pnpm config get cacheFolder)"
     #
     #    - uses: actions/cache@v2
-    #      id: yarn-cache # use this to check for `cache-hit` (`steps.yarn-cache.outputs.cache-hit != 'true'`)
+    #      id: pnpm-cache # use this to check for `cache-hit` (`steps.pnpm-cache.outputs.cache-hit != 'true'`)
     #      with:
-    #        path: ${{ steps.yarn-cache-dir-path.outputs.dir }}
-    #        key: ${{ runner.os }}-yarn-${{ hashFiles('**/yarn.lock') }}
+    #        path: ${{ steps.pnpm-cache-dir-path.outputs.dir }}
+    #        key: ${{ runner.os }}-pnpm-${{ hashFiles('**/pnpm.lock') }}
     #        restore-keys: |
-    #          ${{ runner.os }}-yarn-
+    #          ${{ runner.os }}-pnpm-
 
     - name: Use Node.js ${{ matrix.node-version }}
       uses: actions/setup-node@v3
       with:
         node-version: 18
-        cache: 'yarn'
+        cache: 'pnpm'
 
-    - run: yarn install --frozen-lockfile
+    - run: pnpm install --frozen-lockfile
       shell: bash

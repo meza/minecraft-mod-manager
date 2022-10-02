@@ -14,8 +14,8 @@ jobs:
       - name: Set up node
         uses: ./.github/actions/setup/
 
-      - run: yarn build
-      - run: yarn build:binaries
+      - run: pnpm build
+      - run: pnpm build:binaries
 
       - name: Upload build artifacts
         uses: actions/upload-artifact@v3
@@ -40,7 +40,7 @@ jobs:
         with:
           path: ./.cache
           key: ${{ runner.os }}-${{ env.cache-name }}
-      - run: yarn ci
+      - run: pnpm ci
       - name: Publish Test Results
         uses: EnricoMi/publish-unit-test-result-action/composite@v2
         if: always()
@@ -83,4 +83,4 @@ jobs:
           MODRINTH_API_KEY: ${{ secrets.MODRINTH_API_KEY }}
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           NPM_TOKEN: ${{ secrets.NPM_TOKEN }}
-        run: yarn release
+        run: pnpm release
