@@ -41,6 +41,7 @@ jobs:
         uses: irongut/CodeCoverageSummary@v1.3.0
         if: always()
         with:
+          format: markdown
           filename: "reports/coverage/unit/cobertura-coverage.xml"
 
       - run: npx semantic-release --dry-run
