@@ -1,0 +1,28 @@
+{
+  "$schema": "https://docs.renovatebot.com/renovate-schema.json",
+  "extends": [
+    "config:base"
+  ],
+  "baseBranches": [
+    "main",
+    "next"
+  ],
+  "semanticCommits": "enabled",
+  "semanticCommitType": "chore",
+  "fileMatch": "package.json",
+  "packageRules": [
+    {
+      "matchUpdateTypes": [
+        "minor",
+        "patch",
+        "pin",
+        "digest"
+      ],
+      "automerge": true
+    }
+  ],
+  "schedule": [
+    "after 10pm and before 5am every weekday",
+    "every weekend"
+  ]
+}
