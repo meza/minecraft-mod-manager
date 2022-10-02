@@ -45,6 +45,7 @@ jobs:
           output: file
           filename: "reports/coverage/unit/cobertura-coverage.xml"
       - name: Publish code coverage report
+        if: always()
         run: cat code-coverage-results.md >> $GITHUB_STEP_SUMMARY
 
       - run: npx semantic-release --dry-run
