@@ -31,6 +31,14 @@ jobs:
       - uses: actions/checkout@v2
       - name: Set up node
         uses: ./.github/actions/setup/
+      - name: Cache build helpers
+        id: cache-build-data
+        uses: actions/cache@v3
+        env:
+          cache-name: cache-build-data
+        with:
+          path: ./.cache
+          key: ${{ runner.os }}-${{ env.cache-name }}
       - run: yarn ci
       - name: Publish Test Results
         uses: EnricoMi/publish-unit-test-result-action/composite@v2

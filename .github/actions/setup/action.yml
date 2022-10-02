@@ -25,14 +25,6 @@ runs:
     #        restore-keys: |
     #          ${{ runner.os }}-yarn-
 
-    - name: Cache build helpers
-      id: cache-build-data
-      uses: actions/cache@v3
-      env:
-        cache-name: cache-build-data
-      with:
-        path: ./.cache
-        key: ${{ runner.os }}-${{ env.cache-name }}
     - name: Use Node.js ${{ matrix.node-version }}
       uses: actions/setup-node@v3
       with:
