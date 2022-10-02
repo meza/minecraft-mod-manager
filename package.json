@@ -25,7 +25,7 @@
     "clean": "rimraf dist .cache",
     "clean:all": "pnpm clean && rimraf node_modules .cache",
     "lint:specific": "eslint --ext .ts --ext .json --cache --cache-location .cache/",
-    "lint:eslint": "pnpm lint:specific .",
+    "lint:eslint": "pnpm lint:specific src test",
     "lint:tsc": "tsc --noEmit",
     "lint:fix": "pnpm lint:eslint --fix && pnpm lint:tsc",
     "lint": "npm-run-all --parallel lint:eslint lint:tsc",

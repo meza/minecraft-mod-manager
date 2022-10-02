@@ -1,4 +1,4 @@
-import { afterEach, describe, it, vi, expect } from 'vitest';
+import { afterEach, describe, expect, it, vi } from 'vitest';
 import { chance } from 'jest-chance';
 import path from 'node:path';
 import { default as Downloader } from 'nodejs-file-downloader';
@@ -46,12 +46,9 @@ describe('The downloader facade', () => {
       cancel: vi.fn()
     }));
 
-    try {
+    await expect(async () => {
       await downloadFile(url, destination);
-      expect.fail('Expected the Download Failed Exception to be thrown');
-    } catch (e) {
-      expect(e).toBeInstanceOf(DownloadFailedException);
-      expect((e as DownloadFailedException).message).toBe(`Error downloading file: ${url}`);
-    }
+    }).rejects.toThrow(new DownloadFailedException(url));
+
   });
 });

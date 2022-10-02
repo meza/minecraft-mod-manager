@@ -7,17 +7,30 @@
   ],
   "root": true,
   "parser": "@typescript-eslint/parser",
+  "parserOptions": {
+    "project": "./tsconfig.json"
+  },
   "plugins": [
     "json",
     "@typescript-eslint"
   ],
   "rules": {
+    "dot-notation": "error",
+    "@typescript-eslint/dot-notation": "error",
     "no-console": "off",
     "no-warning-comments": "warn",
     "no-unused-vars": "off",
     "security/detect-object-injection": 0,
     "security/detect-non-literal-fs-filename": 0,
-    "no-underscore-dangle": ["error", {"allow": ["__dirname", "__filename"]}]
+    "no-underscore-dangle": [
+      "error",
+      {
+        "allow": [
+          "__dirname",
+          "__filename"
+        ]
+      }
+    ]
   },
   "env": {
     "commonjs": false,
@@ -26,7 +39,10 @@
   },
   "overrides": [
     {
-      "files": ["**/*.test.ts", "test/**/*.ts"],
+      "files": [
+        "**/*.test.ts",
+        "test/**/*.ts"
+      ],
       "rules": {
         "@typescript-eslint/no-empty-function": "off",
         "@typescript-eslint/ban-ts-comment": "off",
