@@ -28,7 +28,7 @@
     "lint:eslint": "yarn lint:specific .",
     "lint:tsc": "tsc --noEmit",
     "lint:fix": "yarn lint:eslint --fix && yarn lint:tsc",
-    "lint": "npm-run-all --parallel lint:*",
+    "lint": "npm-run-all --parallel lint:eslint lint:tsc",
     "test": "npm-run-all --parallel test:*",
     "test:unit": "vitest",
     "report": "vitest --coverage",
