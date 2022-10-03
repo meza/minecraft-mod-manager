@@ -69,6 +69,37 @@ const getModDetails = async (projectId: string): Promise<ModrinthMod> => {
   };
 };
 
+const hasTheCorrectLoader = (version: ModrinthVersion, loader: string) => {
+  return version.loaders.map((origLoader: string) => origLoader.toLowerCase()).includes(loader.toLowerCase());
+};
+
+const hasTheCorrectReleaseType = (version: ModrinthVersion, allowedReleaseTypes: ReleaseType[]) => {
+  return allowedReleaseTypes.includes(version.version_type);
+};
+
+const hasTheCorrectVersion = (version: ModrinthVersion, allowedGameVersion: string, allowFallback: boolean) => {
+  if (version.game_versions.includes(allowedGameVersion)) {
+    return true;
+  }
+
+  if (allowFallback) {
+
+    const [major, minor, patch] = allowedGameVersion.split('.').map((num) => parseInt(num, 10));
+
+    if (patch && patch > 1) {
+      if (version.game_versions.includes(`${major}.${minor}.${patch - 1}`)) {
+        return true;
+      }
+    }
+
+    if (version.game_versions.includes(`${major}.${minor}`)) {
+      return true;
+    }
+  }
+
+  return false;
+};
+
 export const getMod = async (
   projectId: string,
   allowedReleaseTypes: ReleaseType[],
@@ -77,37 +108,19 @@ export const getMod = async (
   allowFallback: boolean): Promise<RemoteModDetails> => {
 
   const { name, versions } = await getModDetails(projectId);
+
   const potentialFiles = versions
     .filter((version) => {
-      return version.loaders.map((origLoader: string) => origLoader.toLowerCase()).includes(loader.toLowerCase());
+      return hasTheCorrectLoader(version, loader);
     })
     .filter((version) => {
-      return allowedReleaseTypes.includes(version.version_type);
+      return hasTheCorrectReleaseType(version, allowedReleaseTypes);
     })
     .filter((version) => {
-      if (version.game_versions.includes(allowedGameVersion)) {
-        return true;
-      }
-
-      if (allowFallback) {
-
-        const [major, minor, patch] = allowedGameVersion.split('.').map((num) => parseInt(num, 10));
-
-        if (patch && patch > 1) {
-          if (version.game_versions.includes(`${major}.${minor}.${patch - 1}`)) {
-            return true;
-          }
-        }
-
-        if (version.game_versions.includes(`${major}.${minor}`)) {
-          return true;
-        }
-      }
-
-      return false;
+      return hasTheCorrectVersion(version, allowedGameVersion, allowFallback);
     })
-    .sort((a, b) => {
-      return a.date_published < b.date_published ? 1 : -1;
+    .sort((versionA, versionB) => {
+      return versionA.date_published < versionB.date_published ? 1 : -1;
     });
 
   if (potentialFiles.length === 0) {
