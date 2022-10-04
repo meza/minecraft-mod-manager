@@ -1,5 +1,4 @@
-import { describe, it, expect, vi } from 'vitest';
-import { afterEach } from 'vitest';
+import { afterEach, describe, expect, it, vi } from 'vitest';
 import { generateModsJson } from '../../test/modlistGenerator.js';
 import { Mod, ModInstall, ModsJson } from '../lib/modlist.types.js';
 import { generateModConfig } from '../../test/modConfigGenerator.js';
@@ -235,12 +234,47 @@ describe('The install module', () => {
     vi.mocked(getHash).mockResolvedValueOnce(randomInstallation.hash);
 
     const consoleSpy = vi.spyOn(console, 'debug');
-    vi.mocked(consoleSpy).mockImplementation(() => {});
+    vi.mocked(consoleSpy).mockImplementation(() => {
+    });
 
     await install({ config: 'config.json', debug: true });
 
     expect(consoleSpy).toHaveBeenCalledWith(`Checking ${randomInstalledMod.name} for ${randomInstalledMod.type}`);
 
+  });
+
+  it('handles the case when there is nothing to do', async () => {
+    const { randomConfiguration, randomInstallation } = setupOneInstalledMod();
+
+    // Prepare the configuration file state
+    vi.mocked(readConfigFile).mockResolvedValueOnce(randomConfiguration);
+    vi.mocked(readLockFile).mockResolvedValueOnce([
+      randomInstallation
+    ]);
+
+    vi.mocked(getHash).mockResolvedValueOnce(randomInstallation.hash);
+
+    // Prepare the console log mock
+    const consoleSpy = vi.spyOn(console, 'log');
+    vi.mocked(consoleSpy).mockImplementation(() => {
+    });
+
+    // Prepare the file existence mock
+    assumeModFileExists(randomInstallation);
+
+    // Run the install
+    await install({ config: 'config.json' });
+
+    // Verify our expectations
+    expect(consoleSpy).not.toHaveBeenCalled();
+
+    expect(vi.mocked(writeConfigFile)).toHaveBeenCalledWith(randomConfiguration, 'config.json');
+    expect(vi.mocked(writeLockFile)).toHaveBeenCalledWith([randomInstallation], 'config.json');
+
+    expect(vi.mocked(downloadFile)).not.toHaveBeenCalled();
+    expect(vi.mocked(fetchModDetails)).not.toHaveBeenCalled();
+
+    verifyBasics();
   });
 
 });
