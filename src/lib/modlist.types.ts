@@ -36,7 +36,7 @@ export interface ModInstall {
 export interface Mod {
   type: Platform,
   id: string,
-  allowedReleaseTypes: ReleaseType[]
+  allowedReleaseTypes?: ReleaseType[]
   name?: string,
 }
 

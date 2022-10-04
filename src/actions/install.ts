@@ -57,6 +57,7 @@ export const install = async (options: DefaultOptions) => {
         // TODO handle the download failing
         return;
       }
+      return;
     }
 
     const modData = await fetchModDetails(

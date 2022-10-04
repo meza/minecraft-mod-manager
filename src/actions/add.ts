@@ -1,7 +1,7 @@
 import path from 'path';
 import { fetchModDetails } from '../repositories/index.js';
-import { Mod, Platform } from '../lib/modlist.types.js';
-import { readConfigFile, readLockFile, writeConfigFile, writeLockFile } from '../lib/config.js';
+import { Mod, ModsJson, Platform } from '../lib/modlist.types.js';
+import { initializeConfigFile, readConfigFile, readLockFile, writeConfigFile, writeLockFile } from '../lib/config.js';
 import { downloadFile } from '../lib/downloader.js';
 import { DefaultOptions } from '../mmm.js';
 import { UnknownPlatformException } from '../errors/UnknownPlatformException.js';
@@ -9,6 +9,8 @@ import inquirer from 'inquirer';
 import chalk from 'chalk';
 import { CouldNotFindModException } from '../errors/CouldNotFindModException.js';
 import { NoRemoteFileFound } from '../errors/NoRemoteFileFound.js';
+import { ConfigFileNotFoundException } from '../errors/ConfigFileNotFoundException.js';
+import { shouldCreateConfig } from '../interactions/shouldCreateConfig.js';
 
 const handleUnknownPlatformException = async (error: UnknownPlatformException, id: string, options: DefaultOptions) => {
   const platformUsed = error.platform;
@@ -39,8 +41,21 @@ const handleUnknownPlatformException = async (error: UnknownPlatformException, i
 
 };
 
+const getConfiguration = async (options: DefaultOptions): Promise<ModsJson> => {
+  try {
+    return await readConfigFile(options.config);
+  } catch (error) {
+    if (error instanceof ConfigFileNotFoundException && options.quiet === false) {
+      if (await shouldCreateConfig(options.config)) {
+        return await initializeConfigFile(options.config);
+      }
+    }
+    throw error;
+  }
+};
+
 export const add = async (platform: Platform, id: string, options: DefaultOptions) => {
-  const configuration = await readConfigFile(options.config);
+  const configuration = await getConfiguration(options);
 
   if (configuration.mods.find((mod: Mod) => (mod.id === id && mod.type === platform))) {
     if (options.debug) {
@@ -66,8 +81,7 @@ export const add = async (platform: Platform, id: string, options: DefaultOption
     configuration.mods.push({
       type: platform,
       id: id,
-      name: modData.name,
-      allowedReleaseTypes: configuration.defaultAllowedReleaseTypes
+      name: modData.name
     });
 
     installations.push({

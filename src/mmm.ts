@@ -7,6 +7,7 @@ import { Platform } from './lib/modlist.types.js';
 import { install } from './actions/install.js';
 import { version } from './version.js';
 import path from 'path';
+import { update } from './actions/update.js';
 
 export const APP_NAME = 'Minecraft Mod Manager';
 export const APP_DESCRIPTION = 'Manages mods from Modrinth and Curseforge';
@@ -37,6 +38,14 @@ commands.push(
       await install(options);
     })
     .aliases(['i'])
+);
+
+commands.push(
+  program.command('update')
+    .action(async (options) => {
+      await update(options);
+    })
+    .aliases(['u'])
 );
 
 commands.push(

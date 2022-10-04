@@ -58,7 +58,7 @@ export const readConfigFile = async (configPath: string): Promise<ModsJson> => {
   return JSON.parse(configContents);
 };
 
-export const initializeConfigFile = async (configPath: string) => {
+export const initializeConfigFile = async (configPath: string): Promise<ModsJson> => {
   const configLocation = path.resolve(configPath);
   const runPath = process.cwd();
   const emptyModJson = {
@@ -71,6 +71,7 @@ export const initializeConfigFile = async (configPath: string) => {
   };
 
   await writeConfigFile(emptyModJson, configLocation);
+  //TODO handle error
 
   return emptyModJson;
 };

@@ -1,13 +1,13 @@
 import fs from 'node:fs/promises';
 import path from 'path';
 import { downloadFile } from './downloader.js';
-import { ModInstall } from './modlist.types.js';
+import { ModInstall, RemoteModDetails } from './modlist.types.js';
 
 export const updateMod = async (
-  mod: ModInstall,
+  mod: ModInstall | RemoteModDetails,
   modPath: string,
   modsFolder: string
-): Promise<ModInstall> => {
+): Promise<ModInstall | RemoteModDetails> => {
 
   await fs.rename(modPath, `${modPath}.bak`);
 

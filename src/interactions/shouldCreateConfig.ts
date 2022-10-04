@@ -5,7 +5,7 @@ export const shouldCreateConfig = async (configLocation: string): Promise<boolea
     {
       type: 'confirm',
       name: 'create',
-      default: false,
+      default: true,
       message: `The config file: (${configLocation}) does not exist. Should we create it?`
     }
   ]);

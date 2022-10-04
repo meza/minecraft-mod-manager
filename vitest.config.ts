@@ -12,6 +12,7 @@ export default defineConfig({
     outputFile: 'reports/junit.xml',
     reporters: ['verbose', 'junit'],
     coverage: {
+      all: true,
       reportsDirectory: './reports/coverage/unit',
       reporter: ['text', 'cobertura'],
       statements: 100,

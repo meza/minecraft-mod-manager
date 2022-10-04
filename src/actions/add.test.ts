@@ -1,6 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { add } from './add.js';
-import { readConfigFile, readLockFile, writeConfigFile, writeLockFile } from '../lib/config.js';
+import { initializeConfigFile, readConfigFile, readLockFile, writeConfigFile, writeLockFile } from '../lib/config.js';
 import { fetchModDetails } from '../repositories/index.js';
 import { downloadFile } from '../lib/downloader.js';
 import { generateModsJson } from '../../test/modlistGenerator.js';
@@ -12,12 +12,15 @@ import { UnknownPlatformException } from '../errors/UnknownPlatformException.js'
 import inquirer from 'inquirer';
 import { CouldNotFindModException } from '../errors/CouldNotFindModException.js';
 import { NoRemoteFileFound } from '../errors/NoRemoteFileFound.js';
-import { RemoteModDetails, ModsJson, Platform, ModInstall } from '../lib/modlist.types.js';
+import { ModInstall, ModsJson, Platform, RemoteModDetails } from '../lib/modlist.types.js';
+import { ConfigFileNotFoundException } from '../errors/ConfigFileNotFoundException.js';
+import { shouldCreateConfig } from '../interactions/shouldCreateConfig.js';
 
 vi.mock('../lib/config.js');
 vi.mock('../repositories/index.js');
 vi.mock('../lib/downloader.js');
 vi.mock('inquirer');
+vi.mock('../interactions/shouldCreateConfig.js');
 
 interface LocalTestContext {
   randomConfiguration: GeneratorResult<ModsJson>;
@@ -92,8 +95,7 @@ describe('The add module', async () => {
         {
           type: randomPlatform,
           id: randomModId,
-          name: randomModDetails.expected.name,
-          allowedReleaseTypes: randomConfiguration.expected.defaultAllowedReleaseTypes
+          name: randomModDetails.expected.name
         }
       ]
     };
@@ -120,6 +122,55 @@ describe('The add module', async () => {
       'Writing the lock file after adding a mod has failed'
     ).toHaveBeenCalledWith(expectedLockFile, 'config.json');
 
+  });
+
+  describe('when the configuraiton file does not exist', () => {
+    beforeEach(() => {
+      vi.mocked(readConfigFile).mockReset();
+      vi.mocked(readConfigFile).mockRejectedValueOnce(new ConfigFileNotFoundException('test-config.json'));
+    });
+    it('should report an error in quiet mode', async () => {
+      const randomPlatform = getRandomPlatform();
+      const randomModId = chance.word();
+
+      await expect(async () => {
+        await add(randomPlatform, randomModId, { config: 'test-config.json', quiet: true });
+      }).rejects.toThrow(new ConfigFileNotFoundException('test-config.json'));
+    });
+
+    it<LocalTestContext>('should initialize the config in interactive mode when asked to', async ({
+      randomConfiguration
+    }) => {
+      const randomPlatform = getRandomPlatform();
+      const randomModId = chance.word();
+
+      vi.mocked(shouldCreateConfig).mockResolvedValueOnce(true);
+      vi.mocked(initializeConfigFile).mockResolvedValueOnce(randomConfiguration.generated);
+
+      await add(randomPlatform, randomModId, { config: 'test-config.json', quiet: false });
+
+      expect(vi.mocked(shouldCreateConfig)).toHaveBeenCalledOnce();
+
+      expect(
+        vi.mocked(writeConfigFile),
+        'Writing the configuration file after auto-initializing the config has failed'
+      ).toHaveBeenCalledWith(randomConfiguration.generated, 'test-config.json');
+
+    });
+
+    it('should throw an error if config creation was declined in interactive mode', async () => {
+      const randomPlatform = getRandomPlatform();
+      const randomModId = chance.word();
+
+      vi.mocked(shouldCreateConfig).mockResolvedValueOnce(false);
+
+      await expect(async () => {
+        await add(randomPlatform, randomModId, { config: 'test-config.json', quiet: false });
+      }).rejects.toThrow(new ConfigFileNotFoundException('test-config.json'));
+
+      expect(vi.mocked(shouldCreateConfig)).toHaveBeenCalledOnce();
+
+    });
   });
 
   it<LocalTestContext>('should skip the download if the mod already exists', async (context) => {
