@@ -4,7 +4,7 @@ import { initializeConfigFile, readConfigFile, readLockFile, writeConfigFile, wr
 import { fetchModDetails } from '../repositories/index.js';
 import { downloadFile } from '../lib/downloader.js';
 import { generateModsJson } from '../../test/modlistGenerator.js';
-import { generateRemoteModDetails } from '../../test/modDetailsGenerator.js';
+import { generateRemoteModDetails } from '../../test/generateRemoteDetails.js';
 import { GeneratorResult } from '../../test/test.types.js';
 import { chance } from 'jest-chance';
 import { generateModConfig } from '../../test/modConfigGenerator.js';

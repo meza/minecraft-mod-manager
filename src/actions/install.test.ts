@@ -1,16 +1,22 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import { generateModsJson } from '../../test/modlistGenerator.js';
-import { Mod, ModInstall, ModsJson } from '../lib/modlist.types.js';
-import { generateModConfig } from '../../test/modConfigGenerator.js';
 import { install } from './install.js';
 import { fetchModDetails } from '../repositories/index.js';
-import { fileExists, readConfigFile, readLockFile, writeConfigFile, writeLockFile } from '../lib/config.js';
-import { generateRemoteModDetails } from '../../test/modDetailsGenerator.js';
+import { readConfigFile, readLockFile, writeConfigFile, writeLockFile } from '../lib/config.js';
+import { generateRemoteModDetails } from '../../test/generateRemoteDetails.js';
 import { downloadFile } from '../lib/downloader.js';
-import { generateModInstall } from '../../test/modInstallGenerator.js';
-import path from 'node:path';
 import { updateMod } from '../lib/updater.js';
 import { getHash } from '../lib/hash.js';
+import {
+  assumeModFileExists,
+  assumeModFileIsMissing,
+  assumeSuccessfulDownload,
+  assumeSuccessfulUpdate,
+  emptyLockFile,
+  expectModDetailsHaveBeenFetchedCorrectlyForMod,
+  setupOneInstalledMod,
+  setupOneUninstalledMod,
+  verifyBasics
+} from '../../test/setupHelpers.js';
 
 vi.mock('../repositories/index.js');
 vi.mock('../lib/downloader.js');
@@ -18,77 +24,6 @@ vi.mock('inquirer');
 vi.mock('../lib/config.js');
 vi.mock('../lib/updater.js');
 vi.mock('../lib/hash.js');
-
-const emptyLockFile: ModInstall[] = [];
-
-const expectModDetailsHaveBeenFetchedCorrectlyForMod = (
-  mod: Mod, modsJson: ModsJson, call = 1) => {
-  expect(vi.mocked(fetchModDetails)).toHaveBeenNthCalledWith(
-    call,
-    mod.type,
-    mod.id,
-    modsJson.defaultAllowedReleaseTypes,
-    modsJson.gameVersion,
-    modsJson.loader,
-    modsJson.allowVersionFallback
-  );
-};
-
-const setupOneInstalledMod = () => {
-  const randomConfiguration = generateModsJson().generated;
-  const randomInstalledMod = generateModConfig().generated;
-  const randomInstallation = generateModInstall({
-    type: randomInstalledMod.type,
-    id: randomInstalledMod.id
-  }).generated;
-
-  randomConfiguration.mods = [randomInstalledMod];
-
-  return {
-    randomConfiguration: randomConfiguration,
-    randomInstalledMod: randomInstalledMod,
-    randomInstallation: randomInstallation
-  };
-};
-
-const setupOneUninstalledMod = () => {
-  const randomConfiguration = generateModsJson().generated;
-  const randomUninstalledMod = generateModConfig().generated;
-
-  randomConfiguration.mods = [randomUninstalledMod];
-
-  return {
-    randomConfiguration: randomConfiguration,
-    randomUninstalledMod: randomUninstalledMod
-  };
-};
-
-const verifyBasics = () => {
-  expect(vi.mocked(writeConfigFile)).toHaveBeenCalledOnce();
-  expect(vi.mocked(writeLockFile)).toHaveBeenCalledOnce();
-  expect(vi.mocked(readConfigFile)).toHaveBeenCalledOnce();
-  expect(vi.mocked(readLockFile)).toHaveBeenCalledOnce();
-};
-
-const assumeSuccessfulDownload = () => {
-  vi.mocked(downloadFile).mockResolvedValue();
-};
-
-const assumeSuccessfulUpdate = (modToUpdate: ModInstall) => {
-  vi.mocked(updateMod).mockResolvedValueOnce(modToUpdate);
-};
-
-const assumeModFileIsMissing = (randomInstallation: ModInstall) => {
-  vi.mocked(fileExists).mockImplementation(async (modPath: string) => {
-    return path.basename(modPath) !== randomInstallation.fileName;
-  });
-};
-
-const assumeModFileExists = (randomInstallation: ModInstall) => {
-  vi.mocked(fileExists).mockImplementation(async (modPath: string) => {
-    return path.basename(modPath) === randomInstallation.fileName;
-  });
-};
 
 describe('The install module', () => {
 
@@ -202,7 +137,7 @@ describe('The install module', () => {
     assumeSuccessfulUpdate(randomInstallation);
 
     // Prepare the file existence mock
-    assumeModFileExists(randomInstallation);
+    assumeModFileExists(randomInstallation.fileName);
 
     vi.mocked(getHash).mockResolvedValueOnce('different-hash');
 
@@ -260,7 +195,7 @@ describe('The install module', () => {
     });
 
     // Prepare the file existence mock
-    assumeModFileExists(randomInstallation);
+    assumeModFileExists(randomInstallation.fileName);
 
     // Run the install
     await install({ config: 'config.json' });

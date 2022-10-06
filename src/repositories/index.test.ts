@@ -1,11 +1,11 @@
-import { describe, it, vi, expect, afterEach, beforeEach } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { Loader, Platform, ReleaseType } from '../lib/modlist.types.js';
 import { getMod as cfMod } from './curseforge/index.js';
 import { getMod as mMod } from './modrinth/index.js';
 import { chance } from 'jest-chance';
 import { fetchModDetails } from './index.js';
 import { UnknownPlatformException } from '../errors/UnknownPlatformException.js';
-import { generateRemoteModDetails } from '../../test/modDetailsGenerator.js';
+import { generateRemoteModDetails } from '../../test/generateRemoteDetails.js';
 
 vi.mock('./modrinth/index.js');
 vi.mock('./curseforge/index.js');
