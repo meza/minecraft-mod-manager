@@ -26,7 +26,7 @@ There are 3 main responsibilities (and commands for these) of the app
 
 ### ADD
 
-`mmm add <platform> id`
+`mmm add <platform> <id>`
 
 This adds a given mod to the configuration file and downloads the relevant mod file to the configured mod folder.
 
