@@ -65,7 +65,7 @@ Currently the 2 possible values of the platform are:
 
 This makes sure that every mod that is specified in the config file is downloaded and ready to use.
 
-You need to run this file whenever you want to make sure that the previously added mods are downloaded and ready to use.
+You need to run this command whenever you want to make sure that the previously added mods are downloaded and ready to use.
 
 The install command works off of the `modlist-lock.json` file which contains the exact version information for any given mod.
 
