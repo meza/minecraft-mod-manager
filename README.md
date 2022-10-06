@@ -4,7 +4,7 @@
 
 <br/><br/>
 
-Minecraft Mod Manager is a helpful utility for players, modpack creators and server owners who want to keep their Minecract mods up to date without the need for a launcher or having to manually check and download new files.
+Minecraft Mod Manager is a helpful utility for players, modpack creators and server owners who want to keep their Minecraft mods up to date without the need for a launcher or having to manually check and download new files.
 
 It can currently use mods from [Curseforge](https://curseforge.com/minecraft) and [Modrinth](https://modrinth.com/).
 
