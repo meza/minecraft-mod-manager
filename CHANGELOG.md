@@ -1,5 +1,12 @@
 # Minecraft Mod Manager Changelog
 
+## [1.0.1](https://github.com/meza/minecraft-mod-manager/compare/v1.0.0...v1.0.1) (2022-10-06)
+
+
+### Bug Fixes
+
+* fixed the windows release artifact not being shown ([45ccf2d](https://github.com/meza/minecraft-mod-manager/commit/45ccf2de183856408540b40a521e40b584214c66))
+
 # 1.0.0 (2022-10-06)
 
 

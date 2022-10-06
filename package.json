@@ -1,6 +1,6 @@
 {
   "name": "@meza/minecraft-mod-manager",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "exports": {
     ".": {
       "import": {
