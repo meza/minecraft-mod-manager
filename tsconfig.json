@@ -1,6 +1,8 @@
 {
   "extends": "@meza/tsconfig-base",
   "compilerOptions": {
+    "tsBuildInfoFile": ".cache/.tsbuildinfo",
+    "incremental": true,
     "target": "ES2020",
     "module": "NodeNext",
     "moduleResolution": "NodeNext",
@@ -11,17 +13,18 @@
     "declarationDir": "./dist/types",
     "isolatedModules": true,
     "sourceRoot": "src",
+    "noPropertyAccessFromIndexSignature": false,
     "typeRoots": [
       "./node_modules/@types",
       "./src/types"
     ]
   },
   "include": [
-    "src/**/*"
+    "src/**/*.ts",
+    "test/**/*.ts"
   ],
   "exclude": [
-    "node_modules",
-    "tests/**/*"
+    "node_modules"
   ],
   "ts-node": {
     "files": true

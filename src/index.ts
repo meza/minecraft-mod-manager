@@ -1,3 +1,5 @@
-import { program } from './mmu.js';
+import { program } from './mmm.js';
 
 program.parse(process.argv);
+
+// TODO test the console logs everywhere

@@ -1,0 +1,59 @@
+name: "Setup node and install dependencies"
+description: "Takes care of the copy-pasta for the cache handling of pnpm"
+inputs:
+  cache-name:
+    description: "The name of the cache to use"
+    required: true
+
+runs:
+  using: "composite"
+  steps:
+    #    - name: Cache multiple paths
+    #      uses: actions/cache@v2
+    #      with:
+    #        path: |
+    #          ~/.cache
+    #          ~/node_modules
+    #        key: ${{ runner.os }}-${{ hashFiles('**/pnpm.lock') }}
+    #
+    #    - name: Get pnpm cache directory path
+    #      id: pnpm-cache-dir-path
+    #      shell: bash
+    #      run: echo "::set-output name=dir::$(pnpm config get cacheFolder)"
+    #
+    #    - uses: actions/cache@v2
+    #      id: pnpm-cache # use this to check for `cache-hit` (`steps.pnpm-cache.outputs.cache-hit != 'true'`)
+    #      with:
+    #        path: ${{ steps.pnpm-cache-dir-path.outputs.dir }}
+    #        key: ${{ runner.os }}-pnpm-${{ hashFiles('**/pnpm.lock') }}
+    #        restore-keys: |
+    #          ${{ runner.os }}-pnpm-
+
+    - name: Use Node.js ${{ matrix.node-version }}
+      uses: actions/setup-node@v3
+      with:
+        node-version: 18
+
+    - uses: pnpm/action-setup@v2.0.1
+      name: Install pnpm
+      id: pnpm-install
+      with:
+        version: 7
+        run_install: false
+
+    - name: Get pnpm store directory
+      id: pnpm-cache
+      shell: bash
+      run: |
+        echo "::set-output name=pnpm_cache_dir::$(pnpm store path)"
+
+    - uses: pat-s/always-upload-cache@v3
+      name: Setup pnpm cache
+      with:
+        path: ${{ steps.pnpm-cache.outputs.pnpm_cache_dir }}
+        key: ${{ runner.os }}-pnpm-store-${{ hashFiles('**/pnpm-lock.yaml') }}-${{ inputs.cache-name }}
+        restore-keys: |
+          ${{ runner.os }}-pnpm-store-
+
+    - run: pnpm install
+      shell: bash

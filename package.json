@@ -1,6 +1,6 @@
 {
-  "name": "@meza/minecraft-mod-updater",
-  "version": "1.0.4",
+  "name": "@meza/minecraft-mod-manager",
+  "version": "1.0.0",
   "exports": {
     ".": {
       "import": {
@@ -17,23 +17,27 @@
   "types": "dist/index.d.ts",
   "private": false,
   "scripts": {
-    "build": "esbuild ./src/ --bundle --platform=node --outfile=dist/mmu.cjs",
-    "build:binaries": "npx pkg dist/mmu.cjs -t node18-win,node18-linux,node18-macos",
+    "build": "esbuild ./src/ --bundle --platform=node --outfile=dist/mmm.cjs",
+    "build:binaries": "PKG_CACHE_PATH=./cache/pkg pkg dist/mmm.cjs -t node18-win,node18-linux,node18-macos -o dist/pkg/mmm",
     "start": "node --no-warnings --loader ts-node/esm src/index.ts",
     "commit": "cz",
-    "ci": "npm-run-all --parallel lint test",
-    "clean": "rimraf dist .cache/tsbuildinfo",
-    "clean:all": "yarn clean && rimraf node_modules .cache",
+    "ci": "npm-run-all --parallel -c lint report",
+    "clean": "npm-run-all clean:basics",
+    "clean:all": "npm-run-all clean:basics clean:githooks clean:dependencies",
+    "clean:basics": "rimraf dist .cache",
+    "clean:githooks": "lefthook uninstall -k",
+    "clean:dependencies": "rimraf node_modules",
     "lint:specific": "eslint --ext .ts --ext .json --cache --cache-location .cache/",
-    "lint:eslint": "yarn lint:specific .",
+    "lint:eslint": "pnpm lint:specific src test",
     "lint:tsc": "tsc --noEmit",
-    "lint:fix": "yarn lint:eslint --fix && yarn lint:tsc",
-    "lint": "npm-run-all --parallel lint:*",
+    "lint:fix": "pnpm lint:eslint --fix && pnpm lint:tsc",
+    "lint": "npm-run-all --parallel lint:eslint lint:tsc",
     "test": "npm-run-all --parallel test:*",
     "test:unit": "vitest",
-    "report": "exit 0",
+    "report": "vitest --coverage",
     "semantic-release": "semantic-release",
-    "release": "semantic-release"
+    "release": "semantic-release",
+    "postinstall": "lefthook install"
   },
   "dependencies": {
     "@types/inquirer": "^9.0.2",
@@ -74,35 +78,32 @@
     "@vitest/coverage-c8": "0.23.4",
     "c8": "7.12.0",
     "copyfiles": "2.4.1",
+    "esbuild": "0.15.10",
     "eslint": "8.24.0",
     "eslint-config-tailored-tunes": "5.0.2",
     "eslint-plugin-json": "3.1.0",
     "eslint-plugin-security": "1.5.0",
-    "install-deps-postmerge": "2.0.1",
     "is-ci": "3.0.1",
     "jest-chance": "0.1.11",
+    "lefthook": "1.1.1",
     "mock-cwd": "1.0.0",
     "node": "18.10.0",
     "npm-run-all": "4.1.5",
+    "pkg": "5.8.0",
+    "pnpm": "7.13.0",
     "rimraf": "3.0.2",
     "semantic-release": "19.0.5",
     "semantic-release-export-data": "1.0.0",
     "ts-node": "10.9.1",
     "typescript": "4.8.4",
     "uuid": "9.0.0",
-    "vitest": "0.23.4",
-    "yarn": "1.22.19"
+    "vitest": "0.23.4"
   },
   "repository": {
     "type": "git",
-    "url": "https://github.com/meza/minecraft-mod-updater.git"
+    "url": "https://github.com/meza/minecraft-mod-manager.git"
   },
   "publishConfig": {
     "access": "public"
-  },
-  "config": {
-    "commitizen": {
-      "path": "./node_modules/@ryansonshine/cz-conventional-changelog"
-    }
   }
 }

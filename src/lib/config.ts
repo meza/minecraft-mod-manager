@@ -1,8 +1,7 @@
 import fs from 'node:fs/promises';
 import path from 'path';
-import inquirer from 'inquirer';
-import { Loader, ModlistConfig, ReleaseType } from './modlist.types.js';
-import { DEFAULT_CONFIG_LOCATION } from '../mmu.js';
+import { Loader, ModInstall, ModsJson, ReleaseType } from './modlist.types.js';
+import { ConfigFileNotFoundException } from '../errors/ConfigFileNotFoundException.js';
 
 export const fileExists = async (configPath: string) => {
   return await fs.access(configPath).then(
@@ -11,14 +10,24 @@ export const fileExists = async (configPath: string) => {
   );
 };
 
-export const writeConfigFile = async (config: ModlistConfig, configPath?: string) => {
-  const configLocation = path.resolve(configPath || DEFAULT_CONFIG_LOCATION);
-  await fs.writeFile(configLocation, JSON.stringify(config, null, 2));
+const getLockfileName = (configPath: string) => {
+  return path.resolve(path.basename(configPath, path.extname(configPath)) + '-lock.json');
 };
 
-export const readConfigFile = async (configPath?: string): Promise<ModlistConfig> => {
-  const runPath = process.cwd();
-  const configLocation = path.resolve(configPath || DEFAULT_CONFIG_LOCATION);
+export const writeConfigFile = async (config: ModsJson, configPath: string) => {
+  const configLocation = path.resolve(configPath);
+  await fs.writeFile(configLocation, JSON.stringify(config, null, 2));
+  // TODO handle failed write
+};
+
+export const writeLockFile = async (config: ModInstall[], configPath: string) => {
+  const configLocation = getLockfileName(path.resolve(configPath));
+  await fs.writeFile(configLocation, JSON.stringify(config, null, 2));
+  // TODO handle failed write
+};
+
+export const readLockFile = async (configPath: string): Promise<ModInstall[]> => {
+  const configLocation = getLockfileName(path.resolve(configPath));
   const configFileExists = await fileExists(configLocation);
 
   if (configFileExists) {
@@ -28,20 +37,31 @@ export const readConfigFile = async (configPath?: string): Promise<ModlistConfig
     return JSON.parse(configContents);
   }
 
-  const answers = await inquirer.prompt([
-    {
-      type: 'confirm',
-      name: 'create',
-      default: false,
-      message: `The config file: (${configLocation}) does not exist. Should we create it?`
-    }
-  ]);
+  const emptyModLock: ModInstall[] = [];
 
-  if (answers.create === false) {
-    throw new Error('Config File does not exist');
+  await writeLockFile(emptyModLock, configPath);
+
+  return emptyModLock;
+
+};
+
+export const readConfigFile = async (configPath: string): Promise<ModsJson> => {
+  const configLocation = path.resolve(configPath);
+
+  if (!await fileExists(configLocation)) {
+    throw new ConfigFileNotFoundException(configLocation);
   }
 
-  const emptyModConfig = {
+  const configContents = await fs.readFile(configLocation, {
+    encoding: 'utf8'
+  });
+  return JSON.parse(configContents);
+};
+
+export const initializeConfigFile = async (configPath: string): Promise<ModsJson> => {
+  const configLocation = path.resolve(configPath);
+  const runPath = process.cwd();
+  const emptyModJson = {
     loader: Loader.FABRIC,
     gameVersion: '1.19.2',
     allowVersionFallback: true,
@@ -50,8 +70,8 @@ export const readConfigFile = async (configPath?: string): Promise<ModlistConfig
     mods: []
   };
 
-  await fs.writeFile(configLocation, JSON.stringify(emptyModConfig, null, 2));
+  await writeConfigFile(emptyModJson, configLocation);
+  //TODO handle error
 
-  return emptyModConfig;
-
+  return emptyModJson;
 };
