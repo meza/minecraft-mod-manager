@@ -6,12 +6,11 @@ import { list } from './actions/list.js';
 import { Platform } from './lib/modlist.types.js';
 import { install } from './actions/install.js';
 import { version } from './version.js';
-import path from 'path';
 import { update } from './actions/update.js';
 
 export const APP_NAME = 'Minecraft Mod Manager';
 export const APP_DESCRIPTION = 'Manages mods from Modrinth and Curseforge';
-export const DEFAULT_CONFIG_LOCATION = path.resolve(process.cwd(), './modlist.json');
+export const DEFAULT_CONFIG_LOCATION = './modlist.json';
 
 export interface DefaultOptions {
   config: string;
