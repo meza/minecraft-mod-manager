@@ -24,26 +24,30 @@
       }
     ],
     [
-      "@semantic-release/exec", {
-      "prepareCmd": "./scripts/prepare.sh ./src/version.ts ${nextRelease.version} && yarn build && yarn build:binaries"
-    }
+      "@semantic-release/exec",
+      {
+        "prepareCmd": "./scripts/prepare.sh ./src/version.ts ${nextRelease.version} && yarn build && yarn build:binaries"
+      }
     ],
-    ["@semantic-release/github", {
-      "assets": [
-        {
-          "path": "dist/pkg/mmu-win.exe",
-          "label": "MMM ${nextRelease.version} Windows"
-        },
-        {
-          "path": "dist/pkg/mmm-macos",
-          "label": "MMM ${nextRelease.version} MacOS"
-        },
-        {
-          "path": "dist/pkg/mmm-linux",
-          "label": "MMM ${nextRelease.version} Linux"
-        }
-      ]
-    }],
+    [
+      "@semantic-release/github",
+      {
+        "assets": [
+          {
+            "path": "dist/pkg/mmm-win.exe",
+            "label": "MMM ${nextRelease.version} Windows"
+          },
+          {
+            "path": "dist/pkg/mmm-macos",
+            "label": "MMM ${nextRelease.version} MacOS"
+          },
+          {
+            "path": "dist/pkg/mmm-linux",
+            "label": "MMM ${nextRelease.version} Linux"
+          }
+        ]
+      }
+    ],
     [
       "@semantic-release/git",
       {
