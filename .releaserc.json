@@ -47,17 +47,6 @@
           }
         ]
       }
-    ],
-    [
-      "@semantic-release/git",
-      {
-        "message": "chore(release): ${nextRelease.version} as ${branch.channel} [skip ci]\n\n${nextRelease.notes}",
-        "assets": [
-          "package.json",
-          "pnpm-lock.yaml",
-          "CHANGELOG.md"
-        ]
-      }
     ]
   ]
 }
