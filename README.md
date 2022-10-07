@@ -23,26 +23,21 @@ For the best results, put the downloaded executable into your minecraft folder i
 
 ![Folder Structure](/doc/images/mmm-folder-structure.png)
 
-> **Running the app requires a terminal**
+---
+
+## Running
+
+To use the tool, **you need to have a command line / terminal open** and be in the folder where the tool is.
 
 <details>
 <summary>Click for help with opening a terminal in Windows</summary>
 
-- Navigate to the folder where the mmm.exe (and the rest of your minecraft installation exists)
-- Click to the address bar
-- Type: cmd and hit enter
+1. Navigate to the folder where the mmm.exe (and the rest of your minecraft installation exists)
+2. Click to the address bar
+3. Type: cmd and hit enter
 
 ![](/doc/images/cmd-windows.gif)
 
-</details>
-
-## Running
-
-To use the tool, you need to have a command line / terminal open and be in the folder where the tool is.
-
-<details>
-<summary>Opening a terminal in Windows</summary>
-1. Navigate to the folder
 </details>
 
 
