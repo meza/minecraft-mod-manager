@@ -16,12 +16,25 @@ control over the mods that are installed.
 
 ## Installation
 
-Go to the [releases page](https://github.com/meza/minecraft-mod-manager/releases) and download the latest version for
-your platform.
+Go to the [releases page](https://github.com/meza/minecraft-mod-manager/releases), find the latest release,
+**click on the Assets word** and download the latest version for your platform.
 
 For the best results, put the downloaded executable into your minecraft folder in the same level as the `mods` folder.
 
 ![Folder Structure](/doc/images/mmm-folder-structure.png)
+
+> **Running the app requires a terminal**
+
+<details>
+<summary>Click for help with opening a terminal in Windows</summary>
+
+- Navigate to the folder where the mmm.exe (and the rest of your minecraft installation exists)
+- Click to the address bar
+- Type: cmd and hit enter
+
+![](/doc/images/cmd-windows.gif)
+
+</details>
 
 ## Running
 
