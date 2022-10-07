@@ -155,6 +155,8 @@ This points to your mods folder. Traditionally it would be "mods" but you can mo
 
 Possible values is one or all of the following: `alpha`, `beta`, `release`
 
+This setting will be overridable on an individual mod basis in the next release. Currently it's a global setting.
+
 #### allowVersionFallback _optional_
 
 This is a field that exist due to the chaotic nature of Minecraft mod versioning. Setting this `true` will do the following:
