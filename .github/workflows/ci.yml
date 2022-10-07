@@ -18,7 +18,7 @@ jobs:
 
       - run: pnpm build
       - run: pnpm build:binaries
-      - run: ./scripts/binaries
+      - run: ./scripts/binaries.sh
 
       - name: Upload build artifacts
         uses: actions/upload-artifact@v3
