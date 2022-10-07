@@ -18,13 +18,14 @@ jobs:
 
       - run: pnpm build
       - run: pnpm build:binaries
+      - run: ./scripts/binaries
 
       - name: Upload build artifacts
         uses: actions/upload-artifact@v3
         with:
           if-no-files-found: error
           name: Dev Binaries for testing purposes
-          path: dist/pkg/mmm*
+          path: dist/pkg/**/mmm*
 
   verify:
     name: 🔎 Lint and Test
