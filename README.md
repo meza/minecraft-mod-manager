@@ -91,6 +91,17 @@ Due to the Minecraft modding community's lack of consistent versioning, the "new
 
 ## Explaining the configuration
 
+### modlist-lock.json
+
+You have seen this file mentioned in this document and you might be wondering what to do with it.
+
+The lockfile is 100% managed by the app itself and it ensures consistency across [`install`](#install) runs. It effectively "locks" the versions to the exact versions you installed with the last [`add`](#add) or [`update`](#update) commands.
+
+**You don't have to do anything with it!**.
+
+If you use version control to manage your server/modpack/configuration then make sure to commit **both** the `modlist.json` and the `modlist-lock.json`. Together they ensure that you are in full control of what gets installed.
+
+
 ### modlist.json
 
 The modlist.json is the main configuration file of Minecraft Mod Manager.
