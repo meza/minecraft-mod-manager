@@ -42,7 +42,13 @@ To use the tool, **you need to have a command line / terminal open** and be in t
 
 </details>
 
+<details>
+<summary>Click for help with opening a terminal in Linux and MacOS</summary>
 
+<br/>
+
+Let's be honest, you already know...
+</details>
 ---
 
 ## How it works
