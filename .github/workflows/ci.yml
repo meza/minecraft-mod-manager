@@ -16,6 +16,7 @@ jobs:
         with:
           cache-name: binaries
 
+      - run: ./scripts/prepare.sh ./src/version.ts INTERNAL
       - run: pnpm build
       - run: pnpm build:binaries
       - run: ./scripts/binaries.sh

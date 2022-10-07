@@ -4,17 +4,34 @@
 
 <br/><br/>
 
-Minecraft Mod Manager is a helpful utility for players, modpack creators and server owners who want to keep their Minecraft mods up to date without the need for a launcher or having to manually check and download new files.
+Minecraft Mod Manager is a helpful utility for players, modpack creators and server owners who want to keep their
+Minecraft mods up to date without the need for a launcher or having to manually check and download new files.
 
 It can currently use mods from [Curseforge](https://curseforge.com/minecraft) and [Modrinth](https://modrinth.com/).
 
 If you want support for other platforms, please feel free to submit a pull request or a feature request.
 
-It's purposefully made to have a very explicit configuration file to avoid any "magic". This allows you to have full control over the mods that are installed.
+It's purposefully made to have a very explicit configuration file to avoid any "magic". This allows you to have full
+control over the mods that are installed.
 
 ## Installation
 
-Go to the [releases page](https://github.com/meza/minecraft-mod-manager/releases) and download the latest version for your platform.
+Go to the [releases page](https://github.com/meza/minecraft-mod-manager/releases) and download the latest version for
+your platform.
+
+For the best results, put the downloaded executable into your minecraft folder in the same level as the `mods` folder.
+
+![Folder Structure](doc/images/mmm-folder-structure.png)
+
+## Running
+
+To use the tool, you need to have a command line / terminal open and be in the folder where the tool is.
+
+<details>
+<summary>Opening a terminal in Windows</summary>
+1. Navigate to the folder
+</details>
+
 
 ---
 
@@ -49,12 +66,12 @@ Currently the 2 possible values of the platform are:
 
 <details>
   <summary>Click for examples</summary>
-  
-  
-  Adding the [Fabric API from Curseforge](https://www.curseforge.com/minecraft/mc-mods/fabric-api): `mmm add curseforge 306612`
 
-  
-  Adding [Sodium from Modrinth](https://modrinth.com/mod/sodium/): `mmm add modrinth AANobbMI`
+
+Adding
+the [Fabric API from Curseforge](https://www.curseforge.com/minecraft/mc-mods/fabric-api): `mmm add curseforge 306612`
+
+Adding [Sodium from Modrinth](https://modrinth.com/mod/sodium/): `mmm add modrinth AANobbMI`
 </details>
 
 ---
@@ -65,17 +82,22 @@ Currently the 2 possible values of the platform are:
 
 This makes sure that every mod that is specified in the config file is downloaded and ready to use.
 
-You need to run this command whenever you want to make sure that the previously added mods are downloaded and ready to use.
+You need to run this command whenever you want to make sure that the previously added mods are downloaded and ready to
+use.
 
-The install command works off of the `modlist-lock.json` file which contains the exact version information for any given mod.
+The install command works off of the `modlist-lock.json` file which contains the exact version information for any given
+mod.
 
-If a `modlist-lock.json` does not exist, the install command will download the latest version of every mod. This is a limitation of the Minecraft modding ecosystem and the lack of enforced versioning. 
+If a `modlist-lock.json` does not exist, the install command will download the latest version of every mod. This is a
+limitation of the Minecraft modding ecosystem and the lack of enforced versioning.
 
 > If you are in charge of Modrinth or Curseforge, please mandate the use of semver!
 
-If a `modlist-lock.json` exists, then the install command will *always* download the exact same version of the mods listed inside of it.
+If a `modlist-lock.json` exists, then the install command will *always* download the exact same version of the mods
+listed inside of it.
 
-Sending both the `modlist.json` and the `modlist-lock.json` file to other people is the surefire way to ensure that everyone has the exact same versions of everything.
+Sending both the `modlist.json` and the `modlist-lock.json` file to other people is the surefire way to ensure that
+everyone has the exact same versions of everything.
 
 ---
 
@@ -83,11 +105,14 @@ Sending both the `modlist.json` and the `modlist-lock.json` file to other people
 
 `mmm update` or `mmm u`
 
-This will try and find newer versions of every mod defined in the `modlist.json` file that matches the given game version and loader. If a new mod is found, it will be downloaded and the old one will be removed. If the download fails, the old one will be kept.
+This will try and find newer versions of every mod defined in the `modlist.json` file that matches the given game
+version and loader. If a new mod is found, it will be downloaded and the old one will be removed. If the download fails,
+the old one will be kept.
 
 You would run this command when you want to make sure that you're using the newest versions of the mods.
 
-Due to the Minecraft modding community's lack of consistent versioning, the "newness" of a mod is defined by the release date of a file being newer than the old one + the hash of the file being different.
+Due to the Minecraft modding community's lack of consistent versioning, the "newness" of a mod is defined by the release
+date of a file being newer than the old one + the hash of the file being different.
 
 ## Explaining the configuration
 
@@ -95,18 +120,23 @@ Due to the Minecraft modding community's lack of consistent versioning, the "new
 
 You have seen this file mentioned in this document and you might be wondering what to do with it.
 
-The lockfile is 100% managed by the app itself and it ensures consistency across [`install`](#install) runs. It effectively "locks" the versions to the exact versions you installed with the last [`add`](#add) or [`update`](#update) commands.
+The lockfile is 100% managed by the app itself and it ensures consistency across [`install`](#install) runs. It
+effectively "locks" the versions to the exact versions you installed with the last [`add`](#add) or [`update`](#update)
+commands.
 
 **You don't have to do anything with it!**
 
-If you use version control to manage your server/modpack/configuration then make sure to commit **both** the `modlist.json` and the `modlist-lock.json`. Together they ensure that you are in full control of what gets installed.
-
+If you use version control to manage your server/modpack/configuration then make sure to commit **both**
+the `modlist.json` and the `modlist-lock.json`. Together they ensure that you are in full control of what gets
+installed.
 
 ### modlist.json
 
 The modlist.json is the main configuration file of Minecraft Mod Manager.
 
-It is in JSON format. If you're unfamiliar with JSON or want to make sure that everything is in order, please use the [JSON Validator](https://jsonlint.com/) website to make sure that the file contents are valid before running the app.
+It is in JSON format. If you're unfamiliar with JSON or want to make sure that everything is in order, please use
+the [JSON Validator](https://jsonlint.com/) website to make sure that the file contents are valid before running the
+app.
 
 This is how it looks like if you followed the examples in the [`add`](#add) section:
 
@@ -126,7 +156,7 @@ This is how it looks like if you followed the examples in the [`add`](#add) sect
       "id": "306612",
       "name": "Fabric API"
     },
-     {
+    {
       "type": "modrinth",
       "id": "AANobbMI",
       "name": "Sodium"
@@ -141,7 +171,7 @@ This is how it looks like if you followed the examples in the [`add`](#add) sect
 
 Possible values: `fabric`, `forge`
 
-The loader defines which minecraft loader you're using. 
+The loader defines which minecraft loader you're using.
 
 #### gameVersion _required_
 
@@ -159,12 +189,15 @@ This setting will be overridable on an individual mod basis in the next release.
 
 #### allowVersionFallback _optional_
 
-This is a field that exist due to the chaotic nature of Minecraft mod versioning. Setting this `true` will do the following:
+This is a field that exist due to the chaotic nature of Minecraft mod versioning. Setting this `true` will do the
+following:
 
-- If a suitable mod isn't found for the given Minecraft version, say 1.19.2, it will try for 1.19.1 (the previous minor version)
+- If a suitable mod isn't found for the given Minecraft version, say 1.19.2, it will try for 1.19.1 (the previous minor
+  version)
 - If a suitable mod isn't found for the previous minor version, it will try for 1.19 (the previous major version)
 
-This happens quite frequently unfortunately because mod developers either don't update their mods but they still work or they forget to list the supported Minecraft versions correctly.
+This happens quite frequently unfortunately because mod developers either don't update their mods but they still work or
+they forget to list the supported Minecraft versions correctly.
 
 This setting will be overridable on an individual mod basis in the next release. Currently it's a global setting.
 
