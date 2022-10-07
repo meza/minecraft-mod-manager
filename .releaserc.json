@@ -26,7 +26,7 @@
     [
       "@semantic-release/exec",
       {
-        "prepareCmd": "./scripts/prepare.sh ./src/version.ts ${nextRelease.version} && pnpm build && pnpm build:binaries"
+        "prepareCmd": "./scripts/prepare.sh ./src/version.ts ${nextRelease.version} && pnpm build && pnpm build:binaries && ./scripts/binaries.sh ${nextRelease.version}"
       }
     ],
     [
@@ -34,19 +34,16 @@
       {
         "assets": [
           {
-            "path": "dist/pkg/mmm-win.exe",
-            "name": "win/mmm.exe",
-            "label": "MMM ${nextRelease.version} Windows"
+            "path": "dist/*-windows.zip",
+            "label": "Minecraft Mod Manager v${nextRelease.version} for Windows"
           },
           {
-            "path": "dist/pkg/mmm-macos",
-            "name": "macos/mmm",
-            "label": "MMM ${nextRelease.version} MacOS"
+            "path": "dist/*-macos.zip",
+            "label": "Minecraft Mod Manager v${nextRelease.version} for MacOS"
           },
           {
-            "path": "dist/pkg/mmm-linux",
-            "name": "linux/mmm",
-            "label": "MMM ${nextRelease.version} Linux"
+            "path": "dist/*-linux.zip",
+            "label": "Minecraft Mod Manager v${nextRelease.version} for Linux"
           }
         ]
       }
