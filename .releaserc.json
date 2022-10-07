@@ -34,15 +34,15 @@
       {
         "assets": [
           {
-            "path": "dist/pkg/mmm-win.exe",
+            "path": "dist/pkg/win/mmm.exe",
             "label": "MMM ${nextRelease.version} Windows"
           },
           {
-            "path": "dist/pkg/mmm-macos",
+            "path": "dist/pkg/macos/mmm",
             "label": "MMM ${nextRelease.version} MacOS"
           },
           {
-            "path": "dist/pkg/mmm-linux",
+            "path": "dist/pkg/linux/mmm",
             "label": "MMM ${nextRelease.version} Linux"
           }
         ]
