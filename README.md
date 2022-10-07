@@ -32,6 +32,8 @@ To use the tool, **you need to have a command line / terminal open** and be in t
 <details>
 <summary>Click for help with opening a terminal in Windows</summary>
 
+<br/>
+
 1. Navigate to the folder where the mmm.exe (and the rest of your minecraft installation exists)
 2. Click to the address bar
 3. Type: cmd and hit enter
