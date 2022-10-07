@@ -18,7 +18,7 @@
   "private": false,
   "scripts": {
     "build": "esbuild ./src/ --bundle --platform=node --outfile=dist/mmm.cjs",
-    "build:binaries": "PKG_CACHE_PATH=./cache/pkg pkg dist/mmm.cjs -t node18-win,node18-linux,node18-macos -o dist/pkg/mmm",
+    "build:binaries": "PKG_CACHE_PATH=./cache/pkg pkg dist/mmm.cjs -t node18-win,node18-linux,node18-macos --options \"no-warnings\" -o dist/pkg/mmm",
     "start": "node --no-warnings --loader ts-node/esm src/index.ts",
     "commit": "cz",
     "ci": "npm-run-all --parallel -c lint report",
@@ -105,5 +105,10 @@
   },
   "publishConfig": {
     "access": "public"
+  },
+  "pkg": {
+    "options": [
+      "no-warnings"
+    ]
   }
 }
