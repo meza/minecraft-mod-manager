@@ -26,7 +26,7 @@
     [
       "@semantic-release/exec",
       {
-        "prepareCmd": "./scripts/prepare.sh ./src/version.ts ${nextRelease.version} && pn build && pn build:binaries && ./scripts/binaries.sh"
+        "prepareCmd": "./scripts/prepare.sh ./src/version.ts ${nextRelease.version} && pnpm build && pnpm build:binaries && ./scripts/binaries.sh"
       }
     ],
     [
