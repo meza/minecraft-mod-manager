@@ -21,7 +21,7 @@ your platform.
 
 For the best results, put the downloaded executable into your minecraft folder in the same level as the `mods` folder.
 
-![Folder Structure](doc/images/mmm-folder-structure.png)
+![Folder Structure](/doc/images/mmm-folder-structure.png)
 
 ## Running
 
