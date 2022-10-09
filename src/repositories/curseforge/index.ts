@@ -64,9 +64,10 @@ const getFiles = async (projectId: string): Promise<CurseforgeModFile[]> => {
     }
   });
 
-  if (modFiles.status !== 200) {
-    throw new CouldNotFindModException(projectId, Platform.CURSEFORGE);
-  }
+  // if (modFiles.status !== 200) {
+  //   throw new CouldNotFindModException(projectId, Platform.CURSEFORGE);
+  // }
+  // TODO fix this
 
   const filesData = await modFiles.json();
   return filesData.data as CurseforgeModFile[];
