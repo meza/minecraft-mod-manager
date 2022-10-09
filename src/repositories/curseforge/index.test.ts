@@ -24,17 +24,23 @@ const assumeFailedModFetch = () => {
 };
 
 const assumeSuccessfulModFetch = (modName: string, latestFiles: CurseforgeModFile[]) => {
-  vi.stubGlobal('fetch', () => {
-    return Promise.resolve({
-      status: 200,
-      json: () => Promise.resolve({
-        data: {
-          name: modName,
-          latestFiles: latestFiles
-        }
-      })
-    });
-  });
+  vi.stubGlobal('fetch', vi.fn());
+
+  vi.mocked(fetch).mockResolvedValueOnce({
+    status: 200,
+    json: () => Promise.resolve({
+      data: {
+        name: modName
+      }
+    })
+  } as Response);
+
+  vi.mocked(fetch).mockResolvedValueOnce({
+    status: 200,
+    json: () => Promise.resolve({
+      data: latestFiles
+    })
+  } as Response);
 };
 
 describe('The Curseforge repository', () => {
