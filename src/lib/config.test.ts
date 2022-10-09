@@ -1,4 +1,4 @@
-import { describe, it, vi, expect, afterEach } from 'vitest';
+import { afterEach, describe, expect, it, vi } from 'vitest';
 import fs from 'node:fs/promises';
 import { chance } from 'jest-chance';
 import {
@@ -14,7 +14,10 @@ import path from 'node:path';
 import { generateModInstall } from '../../test/modInstallGenerator.js';
 import { generateModsJson } from '../../test/modlistGenerator.js';
 import { ConfigFileNotFoundException } from '../errors/ConfigFileNotFoundException.js';
+import { initializeConfig } from '../interactions/initializeConfig.js';
+import * as process from 'process';
 
+vi.mock('../interactions/initializeConfig.js');
 vi.mock('node:fs/promises');
 
 describe('The config library', () => {
@@ -139,10 +142,13 @@ describe('The config library', () => {
   it('can initialize a new config file', async () => {
     const configName = 'config.json';
 
+    const randomConfig = generateModsJson().generated;
+
+    vi.mocked(initializeConfig).mockResolvedValueOnce(randomConfig);
     const actual = await initializeConfigFile(configName);
 
-    expect(actual).toMatchSnapshot();
-    expect(vi.mocked(fs.writeFile)).toHaveBeenCalled();
+    expect(actual).toEqual(randomConfig);
+    expect(vi.mocked(initializeConfig)).toHaveBeenCalledWith({ config: configName }, process.cwd());
 
   });
 

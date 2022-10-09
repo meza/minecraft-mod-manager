@@ -3,10 +3,11 @@ import 'dotenv/config';
 import { Command } from 'commander';
 import { add } from './actions/add.js';
 import { list } from './actions/list.js';
-import { Platform } from './lib/modlist.types.js';
+import { Platform, ReleaseType } from './lib/modlist.types.js';
 import { install } from './actions/install.js';
 import { version } from './version.js';
 import { update } from './actions/update.js';
+import { initializeConfig } from './interactions/initializeConfig.js';
 
 export const APP_NAME = 'Minecraft Mod Manager';
 export const APP_DESCRIPTION = 'Manages mods from Modrinth and Curseforge';
@@ -19,7 +20,7 @@ export interface DefaultOptions {
 }
 
 const commands = [];
-
+const cwd = process.cwd();
 export const program = new Command();
 program.name(APP_NAME).version(version).description(APP_DESCRIPTION);
 
@@ -55,6 +56,19 @@ commands.push(
       await add(type, id, options);
     })
     .aliases(['a'])
+);
+
+commands.push(
+  program.command('init')
+    .option('-l, --loader <loader>', `Which loader would you like to use? ${Object.values(Platform).join(', ')}`)
+    .option('-g, --game-version <gameVersion>', 'What exact Minecraft version are you using? (eg: 1.18.2, 1.19, 1.19.1)')
+    .option('-f, --allow-version-fallback', 'Should we try to download mods for previous Minecraft versions if they do not exists for your Minecraft Version?')
+    .option('-r, --default-allowed-release-types <defaultAllowedReleaseTypes>',
+      `Which types of releases would you like to consider to download? ${Object.values(ReleaseType).join(', ')} - comma separated list`)
+    .option('-m, --mods-folder <modsFolder>', `where is your mods folder? (full or relative path from ${cwd})`)
+    .action(async (options) => {
+      await initializeConfig(options, cwd);
+    })
 );
 
 commands.forEach((command) => {
