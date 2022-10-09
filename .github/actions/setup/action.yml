@@ -47,6 +47,16 @@ runs:
       run: |
         echo "::set-output name=pnpm_cache_dir::$(pnpm store path)"
 
+    - name: Cache build helpers
+      id: cache-build-data
+      uses: pat-s/always-upload-cache@v3
+      if: always()
+      env:
+        cache-name: cache-build-data
+      with:
+        path: ./.cache
+        key: ${{ runner.os }}-build-data-${{ inputs.cache-name }}
+
     - uses: pat-s/always-upload-cache@v3
       name: Setup pnpm cache
       with:
