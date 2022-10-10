@@ -85,17 +85,3 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           NPM_TOKEN: ${{ secrets.NPM_TOKEN }}
         run: pnpm release
-
-  todos:
-    runs-on: ubuntu-latest
-
-    steps:
-      - uses: actions/checkout@v3
-
-      - name: Run Issue Bot
-        uses: derjuulsn/todo-issue@main
-        with:
-          caseSensitive: false
-          excludePattern: '^(node_modules/)'
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
