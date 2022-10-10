@@ -81,6 +81,7 @@ export const initializeConfig = async (options: InitializeOptions, cwd: string):
       type: 'input',
       default: await getLatestMinecraftVersion(),
       message: 'What exact Minecraft version are you using? (eg: 1.18.2, 1.19, 1.19.1)',
+      validateText: 'Verifying the game version',
       validate: validateGameVersion
     },
     {
