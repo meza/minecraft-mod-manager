@@ -1,5 +1,5 @@
 import { DefaultOptions } from '../mmm.js';
-import { Loader, ModsJson, Platform, ReleaseType } from '../lib/modlist.types.js';
+import { Loader, ModsJson, ReleaseType } from '../lib/modlist.types.js';
 import inquirer from 'inquirer';
 import { fileExists, writeConfigFile } from '../lib/config.js';
 import * as path from 'path';
@@ -23,14 +23,14 @@ const addNewToFilename = (filename: string) => {
   return `${basename}-new${ext}`;
 };
 
-const validateConfigName = () => async (input: string) => {
+const validateConfigName = async (input: string) => {
   if (await fileExists(input)) {
     return 'The config file already exists. Please choose a different name';
   }
   return true;
 };
 
-const validateGameVersion = () => async (input: string) => {
+const validateGameVersion = async (input: string) => {
   if (await verifyMinecraftVersion(input)) {
     return true;
   }
@@ -55,7 +55,7 @@ export const initializeConfig = async (options: InitializeOptions, cwd: string):
       type: 'confirm',
       name: 'overwrite',
       default: false,
-      message: `The config file: (${options.config}) already exists. Should we overwrite it?`
+      message: `The config file: (${options.config}) already exists. Should we overwrite it? (Abort with CTRL+C)`
     },
     {
       when: async (answers: { overwrite?: boolean }) => {
@@ -73,7 +73,7 @@ export const initializeConfig = async (options: InitializeOptions, cwd: string):
       name: 'loader',
       type: 'list',
       message: 'Which loader would you like to use?',
-      choices: Object.values(Platform)
+      choices: Object.values(Loader)
     },
     {
       when: !options.gameVersion,
@@ -87,7 +87,7 @@ export const initializeConfig = async (options: InitializeOptions, cwd: string):
       when: !options.allowVersionFallback,
       name: 'allowVersionFallback',
       type: 'confirm',
-      message: 'Should we try to download mods for previous Minecraft versions if they do not exists for your Minecraft Version?'
+      message: 'Should we try to download mods for previous Minecraft versions if they do not exist for your Minecraft Version?'
     },
     {
       when: !options.defaultAllowedReleaseTypes,
