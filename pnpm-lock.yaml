@@ -21,7 +21,7 @@ specifiers:
   '@types/uuid': 8.3.4
   '@typescript-eslint/eslint-plugin': 5.39.0
   '@typescript-eslint/parser': 5.39.0
-  '@vitest/coverage-c8': 0.24.0
+  '@vitest/coverage-c8': 0.24.1
   c8: 7.12.0
   chalk: ^5.0.1
   commander: ^9.4.1
@@ -36,14 +36,14 @@ specifiers:
   inquirer: ^9.1.2
   is-ci: 3.0.1
   jest-chance: 0.1.11
-  lefthook: 1.1.1
+  lefthook: 1.1.2
   log-symbols: ^5.1.0
   mock-cwd: 1.0.0
   node: 18.10.0
   nodejs-file-downloader: ^4.10.2
   npm-run-all: 4.1.5
   pkg: 5.8.0
-  pnpm: 7.13.3
+  pnpm: 7.13.4
   rimraf: 3.0.2
   semantic-release: 19.0.5
   semantic-release-export-data: 1.0.0
@@ -51,7 +51,7 @@ specifiers:
   ts-node: 10.9.1
   typescript: 4.8.4
   uuid: 9.0.0
-  vitest: 0.24.0
+  vitest: 0.24.1
 
 dependencies:
   '@types/inquirer': 9.0.2
@@ -84,7 +84,7 @@ devDependencies:
   '@types/uuid': 8.3.4
   '@typescript-eslint/eslint-plugin': 5.39.0_cfd7h3iktziq6hcwahu2qxhjhy
   '@typescript-eslint/parser': 5.39.0_z4bbprzjrhnsfa24uvmcbu7f5q
-  '@vitest/coverage-c8': 0.24.0
+  '@vitest/coverage-c8': 0.24.1
   c8: 7.12.0
   copyfiles: 2.4.1
   esbuild: 0.15.10
@@ -94,19 +94,19 @@ devDependencies:
   eslint-plugin-security: 1.5.0
   is-ci: 3.0.1
   jest-chance: 0.1.11
-  lefthook: 1.1.1
+  lefthook: 1.1.2
   mock-cwd: 1.0.0
   node: 18.10.0
   npm-run-all: 4.1.5
   pkg: 5.8.0
-  pnpm: 7.13.3
+  pnpm: 7.13.4
   rimraf: 3.0.2
   semantic-release: 19.0.5
   semantic-release-export-data: 1.0.0_semantic-release@19.0.5
   ts-node: 10.9.1_gbhfbbeqrol7fxixnzbkbuanxe
   typescript: 4.8.4
   uuid: 9.0.0
-  vitest: 0.24.0
+  vitest: 0.24.1
 
 packages:
 
@@ -1019,11 +1019,11 @@ packages:
       eslint-visitor-keys: 3.3.0
     dev: true
 
-  /@vitest/coverage-c8/0.24.0:
-    resolution: {integrity: sha512-Ho5256BOrLnsJgEgE368ED17cr8rOAXrxvwpZ+XZUA4yAcMBxGAX08cCeG4dibmNVD2NE9Hcpd2foMZsTge3wA==}
+  /@vitest/coverage-c8/0.24.1:
+    resolution: {integrity: sha512-cOFHXRHB9WHtGgsHE4FX4Ef1c9Hon668RNJQOJvqSy1/1Y7zIYIBhFWmuFKLZRCMV4jGT5CRiuB9KtdNsOc3og==}
     dependencies:
       c8: 7.12.0
-      vitest: 0.24.0
+      vitest: 0.24.1
     transitivePeerDependencies:
       - '@edge-runtime/vm'
       - '@vitest/browser'
@@ -3200,65 +3200,65 @@ packages:
     engines: {node: '>=0.10.0'}
     dev: true
 
-  /lefthook-darwin-arm64/1.1.1:
-    resolution: {integrity: sha512-Vs+3kRgC8S8Vz4Xxug6u3wV24BpO3IG/R1D8mZYolHyrS60Nx24ZadV267BjYp7OPe+mwC4xZFwj388YJGF2Ew==}
+  /lefthook-darwin-arm64/1.1.2:
+    resolution: {integrity: sha512-Pl9zj6zH8baREF7h0xlmDThsqYzH/MvuADxDAkec6AFKTdt879N8sNdOi9JwwvnlnlV5dcgk54JeUpiNOHSOig==}
     cpu: [arm64]
     os: [darwin]
     requiresBuild: true
     dev: true
     optional: true
 
-  /lefthook-darwin-x64/1.1.1:
-    resolution: {integrity: sha512-wrkg2NYBW/y5pnpiTplkn7mbvCe5hkoAUhag+xw6xVyti4GcS5uMFZEJdKzq+LajOK50DhfdmZ2nEud2XM6FQQ==}
+  /lefthook-darwin-x64/1.1.2:
+    resolution: {integrity: sha512-Q7hn9babpYc3f8mk+0Q1Rrw4Tjgdof9UyMpnKbDJRIgLlIIEieDQPCXSon7zvSIRgt19km716bB5kkXeCGTldg==}
     cpu: [x64]
     os: [darwin]
     requiresBuild: true
     dev: true
     optional: true
 
-  /lefthook-linux-arm64/1.1.1:
-    resolution: {integrity: sha512-CkGPQroJ9jBnW4fwnuHimbKNgR1vbSqBEdQXyZxRg3VGoKoN6Np1LGzcLGu3ySMshaYNqnavGdkp6F86deN5qA==}
+  /lefthook-linux-arm64/1.1.2:
+    resolution: {integrity: sha512-qwXMpwm2a4nQqCokOpZ9Qq+eq0mO3Rt7eq5tmeXkm5+LyUjn0VBlDbcJiDyFsUHr9LtDGdgx2+izZusx672jbw==}
     cpu: [arm64]
     os: [linux]
     requiresBuild: true
     dev: true
     optional: true
 
-  /lefthook-linux-x64/1.1.1:
-    resolution: {integrity: sha512-dmETuxz1Jja2wg2G+NOCKwbrNKanjWkFd1XVSfIisX4tYMLbCesqL7ZosL9rI06SOEDulTZHdmfNj7aEDUPpog==}
+  /lefthook-linux-x64/1.1.2:
+    resolution: {integrity: sha512-eSyiOv4ux19EawgRa6z0K/xQnaHf+9q+qvMjtruDAOVXPRGM1+9LUmKQc5YrW9xN64iMUfN9twn0XoQYM3EPOA==}
     cpu: [x64]
     os: [linux]
     requiresBuild: true
     dev: true
     optional: true
 
-  /lefthook-windows-arm64/1.1.1:
-    resolution: {integrity: sha512-RaAJFATYuWmbLaHZlcfXR1JsiDu6KCuaXb8W1pJVI+3vXNx9bueVL4ps6KZGxSwnktrdH3pFjbYs88qmsQ5zBw==}
+  /lefthook-windows-arm64/1.1.2:
+    resolution: {integrity: sha512-wXp9/NjjOPjO/eES6rcCt3F0Zg3ETSJmV7niu9640CiNhoR99OjgVLq5WMOsS7qkVP8AU8X1M4qsv+Gsle6xYQ==}
     cpu: [arm64]
     os: [win32]
     requiresBuild: true
     dev: true
     optional: true
 
-  /lefthook-windows-x64/1.1.1:
-    resolution: {integrity: sha512-zOI1iCnc5U7LS7nHj2raneeviSYHLXzgksrV7Ain+W1F6bYpS+1k5PqCQuLfEspsQYfJGiJo1SeueIcoIzqtiQ==}
+  /lefthook-windows-x64/1.1.2:
+    resolution: {integrity: sha512-tiTeS0OkHSMj1bp0yznw6dCTiofjb02E2i9K7Cice+3fTooxvem8F1oUFXL07Rmlgj/rZwAMzVRUGB7l8UMwXg==}
     cpu: [x64]
     os: [win32]
     requiresBuild: true
     dev: true
     optional: true
 
-  /lefthook/1.1.1:
-    resolution: {integrity: sha512-IRhJHWEwLlN+FHJnIBamgaIcr53C4iskN+uZ3yzqhoFcaO7kWtmzW3DIPCB48mzlCIOFnjfPvVLX0SyPdkWQCw==}
+  /lefthook/1.1.2:
+    resolution: {integrity: sha512-iAci+XquzXG87RWtTUxbbeY9MEu9MeIWARRr2ZbyP41Wm/QYx38BWUNzmxdc4qBEqP14gnrAqw8JoXkP4rW3qQ==}
     hasBin: true
     requiresBuild: true
     optionalDependencies:
-      lefthook-darwin-arm64: 1.1.1
-      lefthook-darwin-x64: 1.1.1
-      lefthook-linux-arm64: 1.1.1
-      lefthook-linux-x64: 1.1.1
-      lefthook-windows-arm64: 1.1.1
-      lefthook-windows-x64: 1.1.1
+      lefthook-darwin-arm64: 1.1.2
+      lefthook-darwin-x64: 1.1.2
+      lefthook-linux-arm64: 1.1.2
+      lefthook-linux-x64: 1.1.2
+      lefthook-windows-arm64: 1.1.2
+      lefthook-windows-x64: 1.1.2
     dev: true
 
   /levn/0.4.1:
@@ -4114,8 +4114,8 @@ packages:
       - supports-color
     dev: true
 
-  /pnpm/7.13.3:
-    resolution: {integrity: sha512-6avqSfzfAr/9w1ZleaMI276ZuZUu88eOIe6v2mTCuwtSjUEqheboH1G4m7jgF+4arMUfnBrz371UAU+DCeCiSA==}
+  /pnpm/7.13.4:
+    resolution: {integrity: sha512-ZaP5+PRzXI0g4KijU7zx4hi7RUJcSYBJIb90e+lyTeQyRw91+peJoFAzWa63+4fjJIz6CqY0cNkP7trZXh5l8w==}
     engines: {node: '>=14.6'}
     hasBin: true
     dev: true
@@ -4917,8 +4917,8 @@ packages:
       readable-stream: 3.6.0
     dev: true
 
-  /tinybench/2.2.1:
-    resolution: {integrity: sha512-VxB1P8DUhpCC1j2WtKgFYpv3SwU7vtnfmG29cK7hXcqyD7lLiq6SYCVpDceoAT99mvTN+V8Ay4OdtZQbB72+Sw==}
+  /tinybench/2.3.0:
+    resolution: {integrity: sha512-zs1gMVBwyyG2QbVchYIbnabRhMOCGvrwZz/q+SV+LIMa9q5YDQZi2kkI6ZRqV2Bz7ba1uvrc7ieUoE4KWnGeKg==}
     dev: true
 
   /tinypool/0.3.0:
@@ -5211,8 +5211,8 @@ packages:
       fsevents: 2.3.2
     dev: true
 
-  /vitest/0.24.0:
-    resolution: {integrity: sha512-k5j3FPTor+MJx2x0pDW2gtVk+s9VC6nSHT3SoqOIk9Je5fFpPgict+Xy2eAVXUogvSixs45Ya1oZk+oK93BO0w==}
+  /vitest/0.24.1:
+    resolution: {integrity: sha512-NKkK1xnDIOOr42pKBfGQQl6b6IWdFVBpG6ZS1T+nUlJuqcOiZ7lxjVwHy9wrtTYpJ0BWww9y6bSGYXubD29Nag==}
     engines: {node: '>=v14.16.0'}
     hasBin: true
     peerDependencies:
@@ -5240,7 +5240,7 @@ packages:
       debug: 4.3.4
       local-pkg: 0.4.2
       strip-literal: 0.4.2
-      tinybench: 2.2.1
+      tinybench: 2.3.0
       tinypool: 0.3.0
       tinyspy: 1.0.2
       vite: 3.1.4
