@@ -10,7 +10,7 @@ export default defineConfig({
     testTimeout: 10000,
     watch: false,
     outputFile: 'reports/junit.xml',
-    reporters: ['junit'],
+    reporters: ['verbose', 'junit'],
     coverage: {
       all: true,
       reportsDirectory: './reports/coverage/unit',

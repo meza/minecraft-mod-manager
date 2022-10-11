@@ -1,4 +1,5 @@
 import chalk from 'chalk';
+import { GithubReleasesNotFoundException } from '../errors/GithubReleasesNotFoundException.js';
 
 const prepareRelease = (release: any) => {
   release.numericVersion = release.tag_name.replace('v', '');
@@ -6,11 +7,11 @@ const prepareRelease = (release: any) => {
   return release;
 };
 
-export const githubReleases = async () => {
+const githubReleases = async () => {
   const url = 'https://api.github.com/repos/meza/minecraft-mod-manager/releases';
   const response = await fetch(url);
   if (!response.ok) {
-    throw new Error('Github releases not found');
+    throw new GithubReleasesNotFoundException();
   }
   const json = await response.json();
   const prereleases = json.filter((release: any) => release.prerelease).map(prepareRelease);
