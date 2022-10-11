@@ -6,11 +6,13 @@ import { Platform } from './lib/modlist.types.js';
 import { list } from './actions/list.js';
 import { install } from './actions/install.js';
 import { update } from './actions/update.js';
+import { initializeConfig } from './interactions/initializeConfig.js';
 
 vi.mock('./actions/add.js');
 vi.mock('./actions/list.js');
 vi.mock('./actions/install.js');
 vi.mock('./actions/update.js');
+vi.mock('./interactions/initializeConfig.js');
 
 describe('The main CLI configuration', () => {
 
@@ -61,5 +63,15 @@ describe('The main CLI configuration', () => {
       chance.pickone(['update', 'u'])
     ]);
     expect(vi.mocked(update)).toHaveBeenCalledOnce();
+  });
+
+  it('has initialize hooked up to the correct function', async () => {
+    vi.mocked(initializeConfig).mockResolvedValueOnce(expect.anything());
+    await program.parse([
+      '',
+      '',
+      chance.pickone(['init'])
+    ]);
+    expect(vi.mocked(initializeConfig)).toHaveBeenCalledOnce();
   });
 });
