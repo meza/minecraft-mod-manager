@@ -1,3 +1,5 @@
+import { MinecraftVersionsCouldNotBeFetchedException } from '../errors/MinecraftVersionsCouldNotBeFetchedException.js';
+
 export interface MinecraftVersionInfo {
   id: string,
   type: 'release' | 'snapshot',
@@ -14,13 +16,13 @@ export interface MinecraftVersionsApi {
   versions: MinecraftVersionInfo[]
 }
 
-export const listMinecraftVersions = async (): Promise<MinecraftVersionsApi> => {
+const listMinecraftVersions = async (): Promise<MinecraftVersionsApi> => {
   const url = 'https://launchermeta.mojang.com/mc/game/version_manifest.json';
 
   const response = await fetch(url);
 
   if (!response.ok) {
-    throw new Error('Minecraft versions not found');
+    throw new MinecraftVersionsCouldNotBeFetchedException();
   }
 
   return await response.json();
