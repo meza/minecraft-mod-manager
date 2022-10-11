@@ -1,6 +1,5 @@
-import { afterEach, describe, expect, it, vi } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { add } from './actions/add.js';
-import { program } from './mmm.js';
 import { chance } from 'jest-chance';
 import { Platform } from './lib/modlist.types.js';
 import { list } from './actions/list.js';
@@ -16,15 +15,23 @@ vi.mock('./interactions/initializeConfig.js');
 
 describe('The main CLI configuration', () => {
 
+  beforeEach(async () => {
+    const cwdSpy = vi.spyOn(process, 'cwd');
+    cwdSpy.mockReturnValue('/path/to/minecraft/installation');
+  });
+
   afterEach(() => {
     vi.resetAllMocks();
+    vi.resetModules();
   });
 
   it('is set up correctly', async () => {
+    const { program } = await import('./mmm.js');
     expect(program).toMatchSnapshot();
   });
 
   it('has add hooked up to the correct function', async () => {
+    const { program } = await import('./mmm.js');
     vi.mocked(add).mockResolvedValueOnce();
     await program.parse([
       '',
@@ -36,6 +43,8 @@ describe('The main CLI configuration', () => {
   });
 
   it('has list hooked up to the correct function', async () => {
+    const { program } = await import('./mmm.js');
+
     vi.mocked(list).mockResolvedValueOnce();
     await program.parse([
       '',
@@ -46,6 +55,8 @@ describe('The main CLI configuration', () => {
   });
 
   it('has install hooked up to the correct function', async () => {
+    const { program } = await import('./mmm.js');
+
     vi.mocked(install).mockResolvedValueOnce();
     await program.parse([
       '',
@@ -56,6 +67,8 @@ describe('The main CLI configuration', () => {
   });
 
   it('has update hooked up to the correct function', async () => {
+    const { program } = await import('./mmm.js');
+
     vi.mocked(update).mockResolvedValueOnce();
     await program.parse([
       '',
@@ -66,6 +79,8 @@ describe('The main CLI configuration', () => {
   });
 
   it('has initialize hooked up to the correct function', async () => {
+    const { program } = await import('./mmm.js');
+
     vi.mocked(initializeConfig).mockResolvedValueOnce(expect.anything());
     await program.parse([
       '',

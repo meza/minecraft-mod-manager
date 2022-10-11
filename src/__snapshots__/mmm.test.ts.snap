@@ -742,7 +742,7 @@ Command {
           "conflictsWith": [],
           "defaultValue": undefined,
           "defaultValueDescription": undefined,
-          "description": "where is your mods folder? (full or relative path from /home/meza/dev/minecraft-mod-updater)",
+          "description": "where is your mods folder? (full or relative path from /path/to/minecraft/installation)",
           "envVar": undefined,
           "flags": "-m, --mods-folder <modsFolder>",
           "hidden": false,
