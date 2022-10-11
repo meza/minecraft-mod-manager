@@ -34,7 +34,7 @@ runs:
       with:
         node-version: latest
 
-    - uses: pnpm/action-setup@v2.0.1
+    - uses: pnpm/action-setup@v2.2.3
       name: Install pnpm
       id: pnpm-install
       with:
