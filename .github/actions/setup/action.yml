@@ -8,27 +8,6 @@ inputs:
 runs:
   using: "composite"
   steps:
-    #    - name: Cache multiple paths
-    #      uses: actions/cache@v2
-    #      with:
-    #        path: |
-    #          ~/.cache
-    #          ~/node_modules
-    #        key: ${{ runner.os }}-${{ hashFiles('**/pnpm.lock') }}
-    #
-    #    - name: Get pnpm cache directory path
-    #      id: pnpm-cache-dir-path
-    #      shell: bash
-    #      run: echo "::set-output name=dir::$(pnpm config get cacheFolder)"
-    #
-    #    - uses: actions/cache@v2
-    #      id: pnpm-cache # use this to check for `cache-hit` (`steps.pnpm-cache.outputs.cache-hit != 'true'`)
-    #      with:
-    #        path: ${{ steps.pnpm-cache-dir-path.outputs.dir }}
-    #        key: ${{ runner.os }}-pnpm-${{ hashFiles('**/pnpm.lock') }}
-    #        restore-keys: |
-    #          ${{ runner.os }}-pnpm-
-
     - name: Use Node.js ${{ matrix.node-version }}
       uses: actions/setup-node@v3
       with:

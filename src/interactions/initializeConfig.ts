@@ -4,8 +4,9 @@ import inquirer from 'inquirer';
 import { fileExists, writeConfigFile } from '../lib/config.js';
 import * as path from 'path';
 import { getLatestMinecraftVersion, verifyMinecraftVersion } from '../lib/minecraftVersionVerifier.js';
+import { IncorrectMinecraftVersionException } from '../errors/IncorrectMinecraftVersionException.js';
 
-interface InitializeOptions extends DefaultOptions {
+export interface InitializeOptions extends DefaultOptions {
   loader?: Loader,
   gameVersion?: string,
   allowVersionFallback?: boolean,
@@ -30,11 +31,11 @@ const validateConfigName = async (input: string) => {
   return true;
 };
 
-const validateGameVersion = async (input: string) => {
+const validateGameVersion = async (input: string): Promise<boolean | string> => {
   if (await verifyMinecraftVersion(input)) {
     return true;
   }
-  return 'Invalid game version, please try again';
+  return 'The game version is invalid. Please enter a valid game version';
 };
 
 const mergeOptions = (options: InitializeOptions, iq: IQInternal) => {
@@ -48,7 +49,16 @@ const mergeOptions = (options: InitializeOptions, iq: IQInternal) => {
   };
 };
 
+const validateInput = async (options: InitializeOptions) => {
+  if (options.gameVersion) {
+    if (!await verifyMinecraftVersion(options.gameVersion)) {
+      throw new IncorrectMinecraftVersionException(options.gameVersion);
+    }
+  }
+};
+
 export const initializeConfig = async (options: InitializeOptions, cwd: string): Promise<ModsJson> => {
+  await validateInput(options);
   const prompts = [
     {
       when: await fileExists(options.config),
@@ -113,11 +123,8 @@ export const initializeConfig = async (options: InitializeOptions, cwd: string):
       }
     }
   ];
-
   const iq = await inquirer.prompt(prompts) as IQInternal;
-
   const answers = mergeOptions(options, iq) as ModsJson;
-
   const configLocation = path.resolve(cwd, iq.config || options.config);
 
   await writeConfigFile(answers, configLocation);
