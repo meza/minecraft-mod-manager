@@ -32,13 +32,13 @@ runs:
     - name: Use Node.js ${{ matrix.node-version }}
       uses: actions/setup-node@v3
       with:
-        node-version: 18
+        node-version: latest
 
     - uses: pnpm/action-setup@v2.0.1
       name: Install pnpm
       id: pnpm-install
       with:
-        version: 7
+        version: latest
         run_install: false
 
     - name: Get pnpm store directory
