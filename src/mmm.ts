@@ -8,6 +8,7 @@ import { install } from './actions/install.js';
 import { version } from './version.js';
 import { update } from './actions/update.js';
 import { initializeConfig } from './interactions/initializeConfig.js';
+import { hasUpdate } from './lib/mmmVersionCheck.js';
 
 export const APP_NAME = 'Minecraft Mod Manager';
 export const APP_DESCRIPTION = 'Manages mods from Modrinth and Curseforge';
@@ -23,6 +24,8 @@ const commands = [];
 const cwd = process.cwd();
 export const program = new Command();
 program.name(APP_NAME).version(version).description(APP_DESCRIPTION);
+
+await hasUpdate(version);
 
 commands.push(
   program.command('list')

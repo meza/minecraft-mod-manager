@@ -17,7 +17,7 @@ jobs:
           cache-name: binaries
 
       - run: pnpm clean
-      - run: ./scripts/prepare.sh ./src/version.ts INTERNAL
+      - run: ./scripts/prepare.sh ./src/version.ts dev-${{ GITHUB_RUN_ID }}-${{ GITHUB_SHA }}
         env:
           CURSEFORGE_API_KEY: ${{ secrets.CURSEFORGE_API_KEY }}
           MODRINTH_API_KEY: ${{ secrets.MODRINTH_API_KEY }}
