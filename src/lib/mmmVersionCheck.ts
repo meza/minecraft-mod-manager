@@ -16,10 +16,12 @@ export const githubReleases = async () => {
   return releases;
 };
 
+const isFirstLetterANumber = (input: string) => {
+  return (/^\d/).test(input);
+};
+
 export const hasUpdate = async (currentVersion: string): Promise<boolean> => {
-  console.log('Checking for updates...');
-  console.log('Current version:', currentVersion);
-  if (currentVersion.substring(0, 1) !== 'v') {
+  if (!isFirstLetterANumber(currentVersion)) {
     console.log('You are running a development version of MMM. Skipping update check.');
     return false;
   }
