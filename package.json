@@ -17,7 +17,7 @@
   "types": "dist/index.d.ts",
   "private": false,
   "scripts": {
-    "build": "esbuild ./src/ --bundle --platform=node --outfile=dist/mmm.cjs",
+    "build": "esbuild ./src/ --bundle --target=esnext --platform=node --outfile=dist/mmm.cjs",
     "build:binaries": "PKG_CACHE_PATH=.cache/pkg pkg dist/mmm.cjs -t node18-win,node18-linux,node18-macos --options \"no-warnings\" -o dist/pkg/mmm",
     "start": "node --no-warnings --loader ts-node/esm src/index.ts",
     "commit": "cz",
