@@ -8,6 +8,8 @@ import { getLatestMinecraftVersion, verifyMinecraftVersion } from '../lib/minecr
 import { IncorrectMinecraftVersionException } from '../errors/IncorrectMinecraftVersionException.js';
 import * as path from 'path';
 import { configFile } from './configFileOverwrite.js';
+import { Loader, ReleaseType } from '../lib/modlist.types.js';
+import { findQuestion } from '../../test/inquirerHelper.js';
 
 vi.mock('../lib/minecraftVersionVerifier.js');
 vi.mock('./configFileOverwrite.js');
@@ -77,6 +79,104 @@ describe('The Initialization Interaction', () => {
         );
       });
     });
+  });
+
+  it('asks for the loader when the loader isn\'t supplied', async () => {
+    const input = generateInitializeOptions().generated;
+    delete input.loader;
+
+    const selectedLoader = chance.pickone(Object.values(Loader));
+
+    vi.mocked(inquirer.prompt).mockResolvedValueOnce({
+      loader: selectedLoader
+    });
+    await initializeConfig(input, chance.word());
+
+    expect(findQuestion(inquirer.prompt, 'loader')).toMatchInlineSnapshot(`
+      {
+        "choices": [
+          "forge",
+          "fabric",
+        ],
+        "message": "Which loader would you like to use?",
+        "name": "loader",
+        "type": "list",
+        "when": true,
+      }
+    `);
+  });
+
+  it('skips the loader question when the loader is supplied', async () => {
+    const input = generateInitializeOptions().generated;
+    vi.mocked(inquirer.prompt).mockResolvedValueOnce({});
+    await initializeConfig(input, chance.word());
+
+    expect(findQuestion(inquirer.prompt, 'loader').when).toBeFalsy();
+  });
+
+  it('asks for the version fallback when it isn\'t supplied', async () => {
+    const input = generateInitializeOptions().generated;
+    delete input.allowVersionFallback;
+
+    vi.mocked(inquirer.prompt).mockResolvedValueOnce({
+      allowVersionFallback: chance.bool()
+    });
+    await initializeConfig(input, chance.word());
+
+    expect(findQuestion(inquirer.prompt, 'allowVersionFallback')).toMatchInlineSnapshot(`
+      {
+        "message": "Should we try to download mods for previous Minecraft versions if they do not exist for your Minecraft Version?",
+        "name": "allowVersionFallback",
+        "type": "confirm",
+        "when": true,
+      }
+    `);
+  });
+
+  it('skips the version fallback question when it is supplied', async () => {
+    const input = generateInitializeOptions().generated;
+
+    vi.mocked(inquirer.prompt).mockResolvedValueOnce({});
+    await initializeConfig(input, chance.word());
+
+    expect(findQuestion(inquirer.prompt, 'allowVersionFallback').when).toBeFalsy();
+  });
+
+  it('asks for the release types when they aren\'t supplied', async () => {
+    const input = generateInitializeOptions().generated;
+    delete input.defaultAllowedReleaseTypes;
+
+    vi.mocked(inquirer.prompt).mockResolvedValueOnce({
+      defaultAllowedReleaseTypes: chance.pickset(Object.values(ReleaseType), { min: 1, max: 3 })
+    });
+    await initializeConfig(input, chance.word());
+
+    expect(findQuestion(inquirer.prompt, 'defaultAllowedReleaseTypes')).toMatchInlineSnapshot(`
+      {
+        "choices": [
+          "alpha",
+          "beta",
+          "release",
+        ],
+        "default": [
+          "release",
+          "beta",
+        ],
+        "message": "Which types of releases would you like to consider to download?",
+        "name": "defaultAllowedReleaseTypes",
+        "type": "checkbox",
+        "when": true,
+      }
+    `);
+  });
+
+  it('skips the release types question when they are supplied', async () => {
+    const input = generateInitializeOptions().generated;
+
+    vi.mocked(inquirer.prompt).mockResolvedValueOnce({});
+    await initializeConfig(input, chance.word());
+
+    expect(findQuestion(inquirer.prompt, 'allowVersionFallback').when).toBeFalsy();
   });
 
 });

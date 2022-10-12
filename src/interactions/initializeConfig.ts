@@ -53,7 +53,6 @@ export const initializeConfig = async (options: InitializeOptions, cwd: string):
   const prompts = [
     {
       when: !options.loader,
-      default: options.loader,
       name: 'loader',
       type: 'list',
       message: 'Which loader would you like to use?',
@@ -69,7 +68,7 @@ export const initializeConfig = async (options: InitializeOptions, cwd: string):
       validate: validateGameVersion
     },
     {
-      when: !options.allowVersionFallback,
+      when: !Object.hasOwn(options, 'allowVersionFallback'),
       name: 'allowVersionFallback',
       type: 'confirm',
       message: 'Should we try to download mods for previous Minecraft versions if they do not exist for your Minecraft Version?'
