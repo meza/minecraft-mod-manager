@@ -23,6 +23,7 @@ describe('The Initialization Interaction', () => {
     vi.mocked(getLatestMinecraftVersion).mockResolvedValue('0.0.0');
     vi.mocked(verifyMinecraftVersion).mockResolvedValue(true);
   });
+
   afterEach(() => {
     vi.resetAllMocks();
   });
@@ -53,6 +54,7 @@ describe('The Initialization Interaction', () => {
     beforeEach(() => {
       vi.mocked(verifyMinecraftVersion).mockReset();
     });
+
     describe('when the correct version is supplied', () => {
       it('it should be successfully verified from the command line', async () => {
         vi.mocked(verifyMinecraftVersion).mockResolvedValueOnce(true);

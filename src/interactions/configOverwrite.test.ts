@@ -16,6 +16,7 @@ describe('The Config Overwrite Interaction', () => {
   afterEach(() => {
     vi.resetAllMocks();
   });
+
   describe('when the supplied config file already exists', () => {
     describe('and we are in non-interactive mode', () => {
       it('it should throw an error', async () => {
@@ -26,6 +27,7 @@ describe('The Config Overwrite Interaction', () => {
         );
       });
     });
+
     describe('and we are in interactive mode', () => {
       describe('when the user wants to overwrite it', () => {
         it('it should use the submitted options', async () => {
