@@ -105,6 +105,8 @@ You can add these one after the other, for example: `mmm init -l curseforge -p 1
 | -r    | --default-allowed-release-types | Which release types do you allow?       | A comma separated list of the following: <br/>`alpha`, `beta`, `release`                                                                  | `mmm init -r release,beta`                         |
 | -m    | --mods-folder                   | Where do you want to download the mods? | An absolute or relative path to an **existing** folder<br/>Don't forget to use quotes for paths that include spaces or special characters | `mmm init -m "C:/My Modpack/mods"`                 |
 
+---
+
 ### ADD
 
 `mmm add <platform> <id>`
