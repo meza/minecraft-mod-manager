@@ -2,7 +2,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { generateInitializeOptions } from '../../test/initializeOptionsGenerator.js';
 import { initializeConfig, InitializeOptions } from './initializeConfig.js';
 import inquirer from 'inquirer';
-import { writeConfigFile } from '../lib/config.js';
+import { fileExists, writeConfigFile } from '../lib/config.js';
 import { chance } from 'jest-chance';
 import { getLatestMinecraftVersion, verifyMinecraftVersion } from '../lib/minecraftVersionVerifier.js';
 import { IncorrectMinecraftVersionException } from '../errors/IncorrectMinecraftVersionException.js';
@@ -66,6 +66,25 @@ describe('The Initialization Interaction', () => {
         await expect(initializeConfig(inputOptions.generated, chance.word())).resolves.not.toThrow();
 
       });
+
+      it('it should be successfully verified from the interactive ui', async () => {
+        vi.mocked(verifyMinecraftVersion).mockReset();
+        vi.mocked(verifyMinecraftVersion).mockResolvedValue(true);
+        const input = generateInitializeOptions().generated;
+        delete input.gameVersion;
+        vi.mocked(inquirer.prompt).mockResolvedValueOnce({});
+        await initializeConfig(input, chance.word());
+
+        const question = findQuestion(inquirer.prompt, 'gameVersion');
+
+        expect(question.validate).toBeDefined();
+
+        const verifierFunction = question.validate;
+        const actual = await verifierFunction!(chance.word());
+
+        expect(actual).toBeTruthy();
+
+      });
     });
 
     describe('when the incorrect version is supplied', async () => {
@@ -77,6 +96,77 @@ describe('The Initialization Interaction', () => {
         await expect(initializeConfig(inputOptions.generated, chance.word())).rejects.toThrow(
           new IncorrectMinecraftVersionException(inputOptions.expected.gameVersion!)
         );
+      });
+
+      it('it should show an error message on the interactive ui', async () => {
+        vi.mocked(verifyMinecraftVersion).mockReset();
+        vi.mocked(verifyMinecraftVersion).mockResolvedValue(false);
+        const input = generateInitializeOptions().generated;
+        delete input.gameVersion;
+
+        vi.mocked(inquirer.prompt).mockResolvedValueOnce({});
+        await initializeConfig(input, chance.word());
+
+        const question = findQuestion(inquirer.prompt, 'gameVersion');
+
+        expect(question.validate).toBeDefined();
+
+        const verifierFunction = question.validate;
+        const actual = await verifierFunction!(chance.word());
+
+        expect(actual).toMatchInlineSnapshot('"The game version is invalid. Please enter a valid game version"');
+
+      });
+    });
+  });
+
+  describe('and the mods folder is supplied', () => {
+    describe('when an existing folder is given', () => {
+      it('it should be verified from the interactive ui', async () => {
+        const root = '/' + chance.word();
+        const folder = chance.word();
+        const modsLocation = path.resolve(root, folder);
+        const input = generateInitializeOptions().generated;
+        delete input.gameVersion;
+        vi.mocked(inquirer.prompt).mockResolvedValueOnce({});
+
+        vi.mocked(fileExists).mockResolvedValueOnce(true);
+
+        await initializeConfig(input, root);
+
+        const question = findQuestion(inquirer.prompt, 'modsFolder');
+
+        expect(question.validate).toBeDefined();
+
+        const verifierFunction = question.validate;
+        const actual = await verifierFunction!(folder);
+
+        expect(vi.mocked(fileExists)).toHaveBeenCalledWith(modsLocation);
+        expect(actual).toBeTruthy();
+      });
+    });
+    describe('when a non existing folder is given', () => {
+      it('it should show an error message on the interactive ui', async () => {
+        const root = '/root';
+        const folder = 'test-folder';
+        const modsLocation = path.resolve(root, folder);
+        const input = generateInitializeOptions().generated;
+        delete input.gameVersion;
+        vi.mocked(inquirer.prompt).mockResolvedValueOnce({});
+
+        vi.mocked(fileExists).mockResolvedValueOnce(false);
+
+        await initializeConfig(input, root);
+
+        const question = findQuestion(inquirer.prompt, 'modsFolder');
+
+        expect(question.validate).toBeDefined();
+
+        const verifierFunction = question.validate;
+        const actual = await verifierFunction!(folder);
+
+        expect(vi.mocked(fileExists)).toHaveBeenCalledWith(modsLocation);
+        expect(actual).toMatchInlineSnapshot('"The folder: /root/test-folder does not exist. Please enter a valid one and try again."');
       });
     });
   });
@@ -177,6 +267,68 @@ describe('The Initialization Interaction', () => {
     await initializeConfig(input, chance.word());
 
     expect(findQuestion(inquirer.prompt, 'allowVersionFallback').when).toBeFalsy();
+  });
+
+  it('asks for the game version when it isn\'t supplied', async () => {
+    const input = generateInitializeOptions().generated;
+    delete input.gameVersion;
+
+    vi.mocked(inquirer.prompt).mockResolvedValueOnce({
+      gameVersion: chance.word()
+    });
+    await initializeConfig(input, chance.word());
+
+    expect(findQuestion(inquirer.prompt, 'gameVersion')).toMatchInlineSnapshot(`
+      {
+        "default": "0.0.0",
+        "message": "What exact Minecraft version are you using? (eg: 1.18.2, 1.19, 1.19.1)",
+        "name": "gameVersion",
+        "type": "input",
+        "validate": [Function],
+        "validateText": "Verifying the game version",
+        "when": true,
+      }
+    `);
+  });
+
+  it('skips the game version question when it is supplied', async () => {
+    const input = generateInitializeOptions().generated;
+
+    vi.mocked(inquirer.prompt).mockResolvedValueOnce({});
+    await initializeConfig(input, chance.word());
+
+    expect(findQuestion(inquirer.prompt, 'gameVersion').when).toBeFalsy();
+  });
+
+  it('asks for the mods folder when it isn\'t supplied', async () => {
+    const input = generateInitializeOptions().generated;
+    delete input.modsFolder;
+
+    vi.mocked(inquirer.prompt).mockResolvedValueOnce({
+      gameVersion: chance.word()
+    });
+
+    await initializeConfig(input, '/root');
+
+    expect(findQuestion(inquirer.prompt, 'modsFolder')).toMatchInlineSnapshot(`
+      {
+        "default": "./mods",
+        "message": "where is your mods folder? (full or relative path from /root):",
+        "name": "modsFolder",
+        "type": "input",
+        "validate": [Function],
+        "when": true,
+      }
+    `);
+  });
+
+  it('skips the mods folder question when it is supplied', async () => {
+    const input = generateInitializeOptions().generated;
+
+    vi.mocked(inquirer.prompt).mockResolvedValueOnce({});
+    await initializeConfig(input, chance.word());
+
+    expect(findQuestion(inquirer.prompt, 'modsFolder').when).toBeFalsy();
   });
 
 });

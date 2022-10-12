@@ -85,7 +85,7 @@ export const initializeConfig = async (options: InitializeOptions, cwd: string):
       when: !options.modsFolder,
       name: 'modsFolder',
       type: 'input',
-      default: options.modsFolder || './mods',
+      default: './mods',
       message: `where is your mods folder? (full or relative path from ${cwd}):`,
       validate: async (input: string) => {
         const dir = path.resolve(cwd, input);
