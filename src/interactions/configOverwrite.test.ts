@@ -117,4 +117,46 @@ describe('The Config Overwrite Interaction', () => {
       });
     });
   });
+
+  it('should show the correct messages', async () => {
+    const originalFile = 'test.json';
+    vi.mocked(fileExists).mockResolvedValue(true);
+    vi.mocked(inquirer.prompt).mockResolvedValueOnce({ overwrite: false }); // for the config question
+    vi.mocked(inquirer.prompt).mockResolvedValueOnce({ newConfig: chance.word() }); // for the config question
+
+    const inputOptions = { config: originalFile };
+
+    await configFile(inputOptions, chance.word());
+
+    expect(vi.mocked(inquirer.prompt).mock.calls[0][0].message).toMatchInlineSnapshot('"The config file test.json already exists. Would you like to overwrite it?"');
+    expect(vi.mocked(inquirer.prompt).mock.calls[1][0].message).toMatchInlineSnapshot('"Please enter a new config file name"');
+  });
+
+  it('should show the correct types', async () => {
+    vi.mocked(fileExists).mockResolvedValue(true);
+    vi.mocked(inquirer.prompt).mockResolvedValueOnce({ overwrite: false }); // for the config question
+    vi.mocked(inquirer.prompt).mockResolvedValueOnce({ newConfig: chance.word() }); // for the config question
+
+    const inputOptions = { config: chance.word() };
+
+    await configFile(inputOptions, chance.word());
+
+    expect(vi.mocked(inquirer.prompt).mock.calls[0][0].type).toMatchInlineSnapshot('"confirm"');
+    expect(vi.mocked(inquirer.prompt).mock.calls[1][0].type).toMatchInlineSnapshot('"input"');
+  });
+
+  it('should show the correct default for the new file', async () => {
+    const filename = 'test2.json';
+    const expectedFileName = 'test2-new.json';
+
+    vi.mocked(fileExists).mockResolvedValue(true);
+    vi.mocked(inquirer.prompt).mockResolvedValueOnce({ overwrite: false }); // for the config question
+    vi.mocked(inquirer.prompt).mockResolvedValueOnce({ newConfig: chance.word() }); // for the config question
+
+    const inputOptions = { config: filename };
+
+    await configFile(inputOptions, chance.word());
+
+    expect(vi.mocked(inquirer.prompt).mock.calls[1][0].default).toEqual(expectedFileName);
+  });
 });
