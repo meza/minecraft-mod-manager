@@ -37,16 +37,30 @@ const mergeOptions = (options: InitializeOptions, iq: IQInternal) => {
   };
 };
 
-const validateInput = async (options: InitializeOptions) => {
+const validateModsFolder = async (input: string, cwd: string) => {
+  const dir = path.resolve(cwd, input);
+  if (!await fileExists(dir)) {
+    return `The folder: ${dir} does not exist. Please enter a valid one and try again.`;
+  }
+  return true;
+};
+
+const validateInput = async (options: InitializeOptions, cwd: string) => {
   if (options.gameVersion) {
     if (!await verifyMinecraftVersion(options.gameVersion)) {
       throw new IncorrectMinecraftVersionException(options.gameVersion);
     }
   }
+  if (options.modsFolder) {
+    const result = await validateModsFolder(options.modsFolder, cwd);
+    if (result !== true) {
+      throw new Error(result);
+    }
+  }
 };
 
 export const initializeConfig = async (options: InitializeOptions, cwd: string): Promise<ModsJson> => {
-  await validateInput(options);
+  await validateInput(options, cwd);
 
   options.config = await configFile(options, cwd);
 
@@ -88,11 +102,7 @@ export const initializeConfig = async (options: InitializeOptions, cwd: string):
       default: './mods',
       message: `where is your mods folder? (full or relative path from ${cwd}):`,
       validate: async (input: string) => {
-        const dir = path.resolve(cwd, input);
-        if (!await fileExists(dir)) {
-          return `The folder: ${dir} does not exist. Please enter a valid one and try again.`;
-        }
-        return true;
+        return validateModsFolder(input, cwd);
       }
     }
   ];

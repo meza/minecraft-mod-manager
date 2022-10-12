@@ -21,6 +21,7 @@ vi.mock('inquirer');
 
 describe('The Initialization Interaction', () => {
   beforeEach(() => {
+    vi.mocked(fileExists).mockResolvedValue(true);
     vi.mocked(configFile).mockImplementation(async (input, cwd) => path.resolve(cwd, input.config));
     vi.mocked(getLatestMinecraftVersion).mockResolvedValue('0.0.0');
     vi.mocked(verifyMinecraftVersion).mockResolvedValue(true);
@@ -121,13 +122,32 @@ describe('The Initialization Interaction', () => {
   });
 
   describe('and the mods folder is supplied', () => {
+    beforeEach(() => {
+      vi.mocked(fileExists).mockReset();
+    });
     describe('when an existing folder is given', () => {
+      it('it should be successfully verified from the command line', async () => {
+        const root = '/' + chance.word();
+        const folder = chance.word();
+        const location = path.resolve(root, folder);
+        vi.mocked(inquirer.prompt).mockResolvedValue({});
+        const inputOptions = generateInitializeOptions({
+          modsFolder: folder
+        });
+
+        vi.mocked(fileExists).mockResolvedValue(true);
+
+        await expect(initializeConfig(inputOptions.generated, root)).resolves.not.toThrow();
+
+        expect(fileExists).toHaveBeenCalledWith(location);
+
+      });
       it('it should be verified from the interactive ui', async () => {
         const root = '/' + chance.word();
         const folder = chance.word();
         const modsLocation = path.resolve(root, folder);
         const input = generateInitializeOptions().generated;
-        delete input.gameVersion;
+        delete input.modsFolder;
         vi.mocked(inquirer.prompt).mockResolvedValueOnce({});
 
         vi.mocked(fileExists).mockResolvedValueOnce(true);
@@ -146,12 +166,27 @@ describe('The Initialization Interaction', () => {
       });
     });
     describe('when a non existing folder is given', () => {
+      it('it should show an error message on the command line', async () => {
+        const root = chance.word();
+        const folder = chance.word();
+        const location = path.resolve(root, folder);
+        vi.mocked(fileExists).mockResolvedValueOnce(false);
+        vi.mocked(inquirer.prompt).mockResolvedValue({});
+        const inputOptions = generateInitializeOptions({
+          modsFolder: folder
+        });
+
+        await expect(initializeConfig(inputOptions.generated, root)).rejects.toThrow(
+          new Error(`The folder: ${location} does not exist. Please enter a valid one and try again.`)
+        );
+      });
+
       it('it should show an error message on the interactive ui', async () => {
         const root = '/root';
         const folder = 'test-folder';
         const modsLocation = path.resolve(root, folder);
         const input = generateInitializeOptions().generated;
-        delete input.gameVersion;
+        delete input.modsFolder;
         vi.mocked(inquirer.prompt).mockResolvedValueOnce({});
 
         vi.mocked(fileExists).mockResolvedValueOnce(false);
