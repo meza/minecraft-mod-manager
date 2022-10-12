@@ -338,8 +338,8 @@ making any changes.
 
 #### Prerequisites
 
-- [Node.js](https://nodejs.org/en/) (v18 or higher)
-- [pnpm](https://pnpm.io/) (v7.13 or higher)
+- [Node.js](https://nodejs.org/en/) (v18.10 or higher)
+- [pnpm](https://pnpm.io) (v7.13.4 or higher)
 
 #### Install dependencies
 
@@ -361,6 +361,46 @@ We use [Conventional Commits](https://www.conventionalcommits.org/en/v1.0.0/) to
 to automatically bump the version number.
 
 > **Changes not following the Conventional Commits specification will be rejected.**
+
+---
+
+#### Unit testing
+
+The project has been written in a TDD fashion and all contributions are required to have full and meaningful coverage.
+
+> _100% coverage is just the bare minimum_
+
+Untested pull requests will be rejected.
+
+---
+
+#### Linting rules
+
+`pnpm lint` or the `pnpm ci` will apply the supplied linting rules.
+
+##### DO NOT
+
+- suppress linting errors unless there is absolutely no way around them
+- modify the rules to make them less strict
+- argue about the rules
+
+##### DO
+
+- create contributions that make the rules more coherent
+- ask for help if you don't understand why a rule is in place (but first please look up the violation)
+
+##### Exceptions
+
+Sometimes when dealing with external sources, things like `snake_case_names` are inevitable. Those can be suppressed on
+the line they occur.
+
+---
+
+#### Documentation
+
+Make sure additions are well documented with the same language and style as the main readme is.
+
+---
 
 #### Using `console.log` and `console.error`
 
