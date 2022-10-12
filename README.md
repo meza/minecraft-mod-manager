@@ -14,6 +14,45 @@ If you want support for other platforms, please feel free to submit a pull reque
 It's purposefully made to have a very explicit configuration file to avoid any "magic". This allows you to have full
 control over the mods that are installed.
 
+---
+
+<details>
+<summary><b>Click for the Table of Contents</b></summary>
+<!-- TOC -->
+
+* [Installation](#installation)
+* [Running](#running)
+* [How it works](#how-it-works)
+  * [INIT](#init)
+    * [Command line arguments for `init`](#command-line-arguments-for-init)
+  * [ADD](#add)
+    * [Platforms](#platforms)
+    * [How to find the Mod ID?](#how-to-find-the-mod-id)
+  * [INSTALL](#install)
+  * [UPDATE](#update)
+  * [LIST](#list)
+* [Explaining the configuration](#explaining-the-configuration)
+  * [modlist-lock.json](#modlist-lockjson)
+  * [modlist.json](#modlistjson)
+    * [loader](#loader-_required)
+    * [gameVersion](#gameversion-required)
+    * [modsFolder](#modsfolder-required)
+    * [defaultAllowedReleaseTypes](#defaultallowedreleasetypes-required)
+    * [allowVersionFallback](#allowversionfallback-optional)
+* [Contribute to the project](#contribute-to-the-project)
+  * [Setup](#setup)
+    * [Prerequisites](#prerequisites)
+    * [Install dependencies](#install-dependencies)
+    * [Validate](#validate)
+  * [Code Considerations](#code-considerations)
+    * [Conventional commmit messages](#conventional-commmit-messages)
+    * [Using `console.log` and `console.error`](#using-consolelog-and-consoleerror)
+
+<!-- TOC -->
+</details>
+
+---
+
 ## Installation
 
 Go to the [releases page](https://github.com/meza/minecraft-mod-manager/releases), find the latest release,
