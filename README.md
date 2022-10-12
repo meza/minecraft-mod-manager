@@ -180,6 +180,16 @@ You would run this command when you want to make sure that you're using the newe
 Due to the Minecraft modding community's lack of consistent versioning, the "newness" of a mod is defined by the release
 date of a file being newer than the old one + the hash of the file being different.
 
+---
+
+### LIST
+
+`mmm list`
+
+This will list all the mods that are managed by the tool and their current status.
+
+---
+
 ## Explaining the configuration
 
 ### modlist-lock.json
