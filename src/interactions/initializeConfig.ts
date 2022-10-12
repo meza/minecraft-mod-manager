@@ -5,6 +5,7 @@ import { fileExists, writeConfigFile } from '../lib/config.js';
 import * as path from 'path';
 import { getLatestMinecraftVersion, verifyMinecraftVersion } from '../lib/minecraftVersionVerifier.js';
 import { IncorrectMinecraftVersionException } from '../errors/IncorrectMinecraftVersionException.js';
+import { configFile } from './configFileOverwrite.js';
 
 export interface InitializeOptions extends DefaultOptions {
   loader?: Loader,
@@ -17,19 +18,6 @@ export interface InitializeOptions extends DefaultOptions {
 interface IQInternal extends ModsJson {
   config: string
 }
-
-const addNewToFilename = (filename: string) => {
-  const ext = path.extname(filename);
-  const basename = path.basename(filename, ext);
-  return `${basename}-new${ext}`;
-};
-
-const validateConfigName = async (input: string) => {
-  if (await fileExists(input)) {
-    return 'The config file already exists. Please choose a different name';
-  }
-  return true;
-};
 
 const validateGameVersion = async (input: string): Promise<boolean | string> => {
   if (await verifyMinecraftVersion(input)) {
@@ -59,24 +47,10 @@ const validateInput = async (options: InitializeOptions) => {
 
 export const initializeConfig = async (options: InitializeOptions, cwd: string): Promise<ModsJson> => {
   await validateInput(options);
+
+  options.config = await configFile(options, cwd);
+
   const prompts = [
-    {
-      when: await fileExists(options.config),
-      type: 'confirm',
-      name: 'overwrite',
-      default: false,
-      message: `The config file: (${options.config}) already exists. Should we overwrite it? (Abort with CTRL+C)`
-    },
-    {
-      when: async (answers: { overwrite?: boolean }) => {
-        return await fileExists(options.config) && !answers.overwrite;
-      },
-      type: 'input',
-      name: 'config',
-      default: addNewToFilename(options.config),
-      message: 'What should we name the new config file?:',
-      verify: validateConfigName
-    },
     {
       when: !options.loader,
       default: options.loader,
@@ -125,9 +99,8 @@ export const initializeConfig = async (options: InitializeOptions, cwd: string):
   ];
   const iq = await inquirer.prompt(prompts) as IQInternal;
   const answers = mergeOptions(options, iq) as ModsJson;
-  const configLocation = path.resolve(cwd, iq.config || options.config);
 
-  await writeConfigFile(answers, configLocation);
+  await writeConfigFile(answers, options.config);
   //TODO handle error
 
   return answers as ModsJson;
