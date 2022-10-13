@@ -40,8 +40,8 @@ export const hasUpdate = async (currentVersion: string): Promise<{
   const latestVersion = releases[0];
   const releasedOn = formatDateFromTimeString(latestVersion.published_at);
   if (!isFirstLetterANumber(currentVersion)) {
-    console.log(chalk.bgYellowBright(chalk.whiteBright(`\n[update] You are running a development version of MMM. Please update to the latest release from ${releasedOn}.`)));
-    console.log(chalk.bgYellowBright(chalk.whiteBright(`[update] You can download it from ${latestVersion.html_url}\n`)));
+    console.log(chalk.bgYellowBright(chalk.black(`\n[update] You are running a development version of MMM. Please update to the latest release from ${releasedOn}.`)));
+    console.log(chalk.bgYellowBright(chalk.black(`[update] You can download it from ${latestVersion.html_url}\n`)));
     return {
       hasUpdate: false,
       latestVersion: latestVersion.tag_name,
