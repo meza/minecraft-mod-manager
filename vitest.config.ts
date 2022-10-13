@@ -6,11 +6,9 @@ export default defineConfig({
       dir: '.cache/.vitest'
     },
     globalSetup: './test/globalSetup.ts',
-    maxConcurrency: 100,
     dir: 'src',
-    testTimeout: 5000,
+    testTimeout: 10000,
     watch: false,
-    css: false,
     outputFile: 'reports/junit.xml',
     reporters: ['verbose', 'junit'],
     coverage: {
