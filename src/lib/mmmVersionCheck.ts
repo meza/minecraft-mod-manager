@@ -24,22 +24,29 @@ const isFirstLetterANumber = (input: string) => {
   return (/^\d/).test(input);
 };
 
+const formatDateFromTimeString = (timeString: string) => {
+  const date = new Date(timeString);
+  return date.toString();
+};
+
 export const hasUpdate = async (currentVersion: string): Promise<{
   hasUpdate: boolean,
   latestVersion: string,
-  latestVersionUrl: string
+  latestVersionUrl: string,
+  releasedOn: string
 }> => {
 
   const releases = await githubReleases();
   const latestVersion = releases[0];
-
+  const releasedOn = formatDateFromTimeString(latestVersion.published_at);
   if (!isFirstLetterANumber(currentVersion)) {
-    console.log(chalk.bgYellowBright(chalk.whiteBright('\n[update] You are running a development version of MMM. Please update to the latest release.')));
+    console.log(chalk.bgYellowBright(chalk.whiteBright(`\n[update] You are running a development version of MMM. Please update to the latest release from ${releasedOn}.`)));
     console.log(chalk.bgYellowBright(chalk.whiteBright(`[update] You can download it from ${latestVersion.html_url}\n`)));
     return {
       hasUpdate: false,
       latestVersion: latestVersion.tag_name,
-      latestVersionUrl: latestVersion.html_url
+      latestVersionUrl: latestVersion.html_url,
+      releasedOn: releasedOn
     };
   }
 
@@ -49,26 +56,30 @@ export const hasUpdate = async (currentVersion: string): Promise<{
     return {
       hasUpdate: true,
       latestVersion: latestVersion.tag_name,
-      latestVersionUrl: latestVersion.html_url
+      latestVersionUrl: latestVersion.html_url,
+      releasedOn: formatDateFromTimeString(latestVersion.published_at)
     };
   }
   if (latestVersionParts[1] > currentVersionParts[1]) {
     return {
       hasUpdate: true,
       latestVersion: latestVersion.tag_name,
-      latestVersionUrl: latestVersion.html_url
+      latestVersionUrl: latestVersion.html_url,
+      releasedOn: formatDateFromTimeString(latestVersion.published_at)
     };
   }
   if (latestVersionParts[2] > currentVersionParts[2]) {
     return {
       hasUpdate: true,
       latestVersion: latestVersion.tag_name,
-      latestVersionUrl: latestVersion.html_url
+      latestVersionUrl: latestVersion.html_url,
+      releasedOn: formatDateFromTimeString(latestVersion.published_at)
     };
   }
   return {
     hasUpdate: false,
     latestVersion: latestVersion.tag_name,
-    latestVersionUrl: latestVersion.html_url
+    latestVersionUrl: latestVersion.html_url,
+    releasedOn: formatDateFromTimeString(latestVersion.published_at)
   };
 };

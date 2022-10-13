@@ -4,7 +4,7 @@ import { version } from './version.js';
 
 hasUpdate(version).then((update) => {
   if (update.hasUpdate) {
-    console.log(`There is a new version of MMM available: ${update.latestVersion}`);
+    console.log(`There is a new version of MMM available: ${update.latestVersion} from ${update.releasedOn}`);
     console.log(`You can download it from ${update.latestVersionUrl}`);
   }
   program.parse(process.argv);

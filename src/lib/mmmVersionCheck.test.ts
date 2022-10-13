@@ -21,8 +21,16 @@ describe('The MMM Version Check module', () => {
     vi.mocked(fetch).mockResolvedValueOnce({
       ok: true,
       json: vi.fn().mockResolvedValueOnce([
-        // eslint-disable-next-line camelcase
-        { tag_name: 'v1.0.0', prerelease: false, draft: false, html_url: 'release-url' }
+        {
+          // eslint-disable-next-line camelcase
+          tag_name: 'v1.0.0',
+          prerelease: false,
+          draft: false,
+          // eslint-disable-next-line camelcase
+          html_url: 'release-url',
+          // eslint-disable-next-line camelcase
+          published_at: '2022-10-09T21:28:59Z'
+        }
       ])
     } as unknown as Response);
 
@@ -32,10 +40,12 @@ describe('The MMM Version Check module', () => {
     expect(result).toEqual({
       hasUpdate: false,
       latestVersion: 'v1.0.0',
-      latestVersionUrl: 'release-url'
+      latestVersionUrl: 'release-url',
+      releasedOn: 'Sun Oct 09 2022 22:28:59 GMT+0100 (British Summer Time)'
     });
 
-    expect(consoleSpy).toHaveBeenCalledWith('\n[update] You are running a development version of MMM. Please update to the latest release.');
+    expect(consoleSpy).toHaveBeenCalledWith('\n[update] You are running a development version of MMM. '
+      + 'Please update to the latest release from Sun Oct 09 2022 22:28:59 GMT+0100 (British Summer Time).');
     expect(consoleSpy).toHaveBeenCalledWith('[update] You can download it from release-url\n');
 
   });
@@ -45,7 +55,7 @@ describe('The MMM Version Check module', () => {
       ok: true,
       json: () => Promise.resolve([
         // eslint-disable-next-line camelcase
-        { tag_name: 'v1.0.0', prerelease: false, draft: false },
+        { tag_name: 'v1.0.0', prerelease: false, draft: false, published_at: '2021-12-09T12:20:59Z' },
         // eslint-disable-next-line camelcase
         { tag_name: 'v0.9.0', prerelease: false, draft: false },
         // eslint-disable-next-line camelcase
@@ -55,7 +65,8 @@ describe('The MMM Version Check module', () => {
     expect(hasUpdate('1.0.0')).resolves.toEqual({
       hasUpdate: false,
       latestVersion: 'v1.0.0',
-      latestVersionUrl: undefined
+      latestVersionUrl: undefined,
+      releasedOn: 'Thu Dec 09 2021 12:20:59 GMT+0000 (Greenwich Mean Time)'
     });
   });
 
@@ -66,7 +77,7 @@ describe('The MMM Version Check module', () => {
         // eslint-disable-next-line camelcase
         { tag_name: 'v1.0.1', prerelease: true, draft: false },
         // eslint-disable-next-line camelcase
-        { tag_name: 'v1.0.0', prerelease: false, draft: false },
+        { tag_name: 'v1.0.0', prerelease: false, draft: false, published_at: '2019-02-03T02:20:59Z' },
         // eslint-disable-next-line camelcase
         { tag_name: 'v0.8.0', prerelease: false, draft: false }
       ])
@@ -74,7 +85,8 @@ describe('The MMM Version Check module', () => {
     expect(hasUpdate('0.0.9')).resolves.toEqual({
       hasUpdate: true,
       latestVersion: 'v1.0.0',
-      latestVersionUrl: undefined
+      latestVersionUrl: undefined,
+      releasedOn: 'Sun Feb 03 2019 02:20:59 GMT+0000 (Greenwich Mean Time)'
     });
   });
 
@@ -98,7 +110,8 @@ describe('The MMM Version Check module', () => {
       expect(hasUpdate(currentVersion)).resolves.toEqual({
         hasUpdate: true,
         latestVersion: latestVersion,
-        latestVersionUrl: url
+        latestVersionUrl: url,
+        releasedOn: expect.any(String)
       });
     });
   });

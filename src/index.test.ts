@@ -16,7 +16,8 @@ describe('The main entry point', () => {
     vi.mocked(hasUpdate).mockResolvedValueOnce({
       hasUpdate: false,
       latestVersion: '',
-      latestVersionUrl: ''
+      latestVersionUrl: '',
+      releasedOn: ''
     });
     await import('./index.js');
     expect(vi.mocked(program.parse)).toHaveBeenCalledWith(process.argv);
@@ -25,6 +26,7 @@ describe('The main entry point', () => {
   it('alerts when there are updates and still calls the main program', async () => {
     const randomVersion = chance.word();
     const randomUrl = chance.url();
+    const releasedOn = chance.date().toISOString();
 
     const consoleLogSpy = vi.spyOn(console, 'log').mockImplementation(() => {
     });
@@ -32,11 +34,12 @@ describe('The main entry point', () => {
     vi.mocked(hasUpdate).mockResolvedValueOnce({
       hasUpdate: true,
       latestVersion: randomVersion,
-      latestVersionUrl: randomUrl
+      latestVersionUrl: randomUrl,
+      releasedOn: releasedOn
     });
     await import('./index.js');
 
-    expect(consoleLogSpy).toHaveBeenCalledWith(`There is a new version of MMM available: ${randomVersion}`);
+    expect(consoleLogSpy).toHaveBeenCalledWith(`There is a new version of MMM available: ${randomVersion} from ${releasedOn}`);
     expect(consoleLogSpy).toHaveBeenCalledWith(`You can download it from ${randomUrl}`);
     expect(vi.mocked(program.parse)).toHaveBeenCalledWith(process.argv);
   });
