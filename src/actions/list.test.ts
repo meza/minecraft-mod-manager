@@ -1,4 +1,4 @@
-import { describe, it, vi, expect, afterEach } from 'vitest';
+import { afterEach, describe, expect, it, vi } from 'vitest';
 import { generateModsJson } from '../../test/modlistGenerator.js';
 import { generateModConfig } from '../../test/modConfigGenerator.js';
 import { list } from './list.js';
@@ -14,24 +14,25 @@ describe('The list action', async () => {
   });
 
   describe('when all the mods are installed', () => {
-    it('it should list all the mods', async () => {
+    it('it should list all the mods sorted', async () => {
       const consoleSpy = vi.spyOn(console, 'log');
-      consoleSpy.mockImplementation(() => { });
+      consoleSpy.mockImplementation(() => {
+      });
 
       const randomConfig = generateModsJson().generated;
 
+      const mod3 = generateModConfig({ name: 'mod3.jar' }).generated;
       const mod1 = generateModConfig({ name: 'mod1.jar' }).generated;
       const mod2 = generateModConfig({ name: 'mod2.jar' }).generated;
-      const mod3 = generateModConfig({ name: 'mod3.jar' }).generated;
 
-      randomConfig.mods = [mod1, mod2, mod3];
+      randomConfig.mods = [mod3, mod1, mod2];
 
       vi.mocked(readConfigFile).mockResolvedValue(randomConfig);
 
       const installedMods = [
+        generateModInstall({ id: mod3.id, type: mod3.type }).generated,
         generateModInstall({ id: mod1.id, type: mod1.type }).generated,
-        generateModInstall({ id: mod2.id, type: mod2.type }).generated,
-        generateModInstall({ id: mod3.id, type: mod3.type }).generated
+        generateModInstall({ id: mod2.id, type: mod2.type }).generated
       ];
 
       vi.mocked(readLockFile).mockResolvedValueOnce(installedMods);
@@ -49,7 +50,8 @@ describe('The list action', async () => {
   describe('when some of the mods are not installed', () => {
     it('it should list all the mods appropriately', async () => {
       const consoleSpy = vi.spyOn(console, 'log');
-      consoleSpy.mockImplementation(() => { });
+      consoleSpy.mockImplementation(() => {
+      });
 
       const randomConfig = generateModsJson().generated;
 
