@@ -5,11 +5,13 @@ import { chance } from 'jest-chance';
 
 describe('The MMM Version Check module', () => {
   beforeEach(() => {
+    vi.useFakeTimers();
     vi.stubGlobal('fetch', vi.fn());
   });
   afterEach(() => {
     expect(fetch).toHaveBeenCalledOnce();
     vi.resetAllMocks();
+    vi.useRealTimers();
   });
 
   it('should throw an error if the response is not ok', async () => {
@@ -41,11 +43,11 @@ describe('The MMM Version Check module', () => {
       hasUpdate: false,
       latestVersion: 'v1.0.0',
       latestVersionUrl: 'release-url',
-      releasedOn: 'Sun Oct 09 2022 22:28:59 GMT+0100 (British Summer Time)'
+      releasedOn: 'Sun Oct 09 2022 21:28:59 GMT+0000 (Greenwich Mean Time)'
     });
 
     expect(consoleSpy).toHaveBeenCalledWith('\n[update] You are running a development version of MMM. '
-      + 'Please update to the latest release from Sun Oct 09 2022 22:28:59 GMT+0100 (British Summer Time).');
+      + 'Please update to the latest release from Sun Oct 09 2022 21:28:59 GMT+0000 (Greenwich Mean Time).');
     expect(consoleSpy).toHaveBeenCalledWith('[update] You can download it from release-url\n');
 
   });
