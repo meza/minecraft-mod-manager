@@ -12,6 +12,7 @@ const githubReleases = async () => {
   const response = await fetch(url);
   if (!response.ok) {
     throw new GithubReleasesNotFoundException();
+    // TODO handle failed fetch
   }
   const json = await response.json();
   const prereleases = json.filter((release: any) => release.prerelease).map(prepareRelease);
@@ -42,6 +43,7 @@ export const hasUpdate = async (currentVersion: string): Promise<{
   if (!isFirstLetterANumber(currentVersion)) {
     console.log(chalk.bgYellowBright(chalk.black(`\n[update] You are running a development version of MMM. Please update to the latest release from ${releasedOn}.`)));
     console.log(chalk.bgYellowBright(chalk.black(`[update] You can download it from ${latestVersion.html_url}\n`)));
+    // Todo handle console
     return {
       hasUpdate: false,
       latestVersion: latestVersion.tag_name,

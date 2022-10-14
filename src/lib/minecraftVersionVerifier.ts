@@ -23,6 +23,7 @@ const listMinecraftVersions = async (): Promise<MinecraftVersionsApi> => {
 
   if (!response.ok) {
     throw new MinecraftVersionsCouldNotBeFetchedException();
+    // TODO handle failed fetch
   }
 
   return await response.json();

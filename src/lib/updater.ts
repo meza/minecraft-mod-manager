@@ -10,6 +10,7 @@ export const updateMod = async (
 ): Promise<ModInstall | RemoteModDetails> => {
 
   await fs.rename(modPath, `${modPath}.bak`);
+  // Todo handle bak file existing or rename not working
 
   try {
     const newPath = path.resolve(modsFolder, mod.fileName);
@@ -18,7 +19,9 @@ export const updateMod = async (
 
   } catch {
     console.log(`Download of ${mod.name} failed, restoring the original`);
+    // Todo handle the error
     await fs.rename(`${modPath}.bak`, modPath);
+    // Todo handle bak file existing or rename not working
   }
 
   return mod;

@@ -28,11 +28,11 @@ export const writeLockFile = async (config: ModInstall[], configPath: string) =>
 };
 
 export const readLockFile = async (configPath: string): Promise<ModInstall[]> => {
-  const configLocation = getLockfileName(path.resolve(configPath));
-  const configFileExists = await fileExists(configLocation);
+  const lockFileLocation = getLockfileName(path.resolve(configPath));
+  const lockFileExists = await fileExists(lockFileLocation);
 
-  if (configFileExists) {
-    const configContents = await fs.readFile(configLocation, {
+  if (lockFileExists) {
+    const configContents = await fs.readFile(lockFileLocation, {
       encoding: 'utf8'
     });
     return JSON.parse(configContents);

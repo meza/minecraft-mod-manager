@@ -18,6 +18,7 @@ const handleUnknownPlatformException = async (error: UnknownPlatformException, i
 
   if (options.quiet === true) {
     console.error(chalk.red(`Unknown platform "${chalk.whiteBright(platformUsed)}". Please use one of the following: ${platformList.join(', ')}`));
+    // Todo handle with unified exit
     return;
   }
 
@@ -105,6 +106,7 @@ export const add = async (platform: Platform, id: string, options: DefaultOption
 
     if (error instanceof CouldNotFindModException) {
       console.error(chalk.redBright(`Mod "${chalk.whiteBright(id)}" for ${chalk.whiteBright(platform)} does not exist`));
+      // Todo handle with unified exit
       return;
     }
 
@@ -113,6 +115,7 @@ export const add = async (platform: Platform, id: string, options: DefaultOption
         chalk.red(`Could not find a file for the version ${chalk.whiteBright(configuration.gameVersion)} `
           + `for ${chalk.whiteBright(configuration.loader)}`)
       );
+      // Todo handle with unified exit
     }
 
     console.error(error);
