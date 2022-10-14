@@ -11,14 +11,14 @@ import { CouldNotFindModException } from '../errors/CouldNotFindModException.js'
 import { NoRemoteFileFound } from '../errors/NoRemoteFileFound.js';
 import { ConfigFileNotFoundException } from '../errors/ConfigFileNotFoundException.js';
 import { shouldCreateConfig } from '../interactions/shouldCreateConfig.js';
+import { Logger } from '../lib/Logger.js';
 
-const handleUnknownPlatformException = async (error: UnknownPlatformException, id: string, options: DefaultOptions) => {
+const handleUnknownPlatformException = async (error: UnknownPlatformException, id: string, options: DefaultOptions, logger: Logger) => {
   const platformUsed = error.platform;
   const platformList = Object.values(Platform);
 
   if (options.quiet === true) {
-    console.error(chalk.red(`Unknown platform "${chalk.whiteBright(platformUsed)}". Please use one of the following: ${platformList.join(', ')}`));
-    // Todo handle with unified exit
+    logger.error(`Unknown platform "${chalk.whiteBright(platformUsed)}". Please use one of the following: ${chalk.whiteBright(platformList.join(', '))}`);
     return;
   }
 
@@ -38,7 +38,7 @@ const handleUnknownPlatformException = async (error: UnknownPlatformException, i
   }
 
   // eslint-disable-next-line no-use-before-define
-  await add(answers.platform, id, options);
+  await add(answers.platform, id, options, logger);
 
 };
 
@@ -55,14 +55,12 @@ const getConfiguration = async (options: DefaultOptions): Promise<ModsJson> => {
   }
 };
 
-export const add = async (platform: Platform, id: string, options: DefaultOptions) => {
+export const add = async (platform: Platform, id: string, options: DefaultOptions, logger: Logger) => {
+
   const configuration = await getConfiguration(options);
 
   if (configuration.mods.find((mod: Mod) => (mod.id === id && mod.type === platform))) {
-    if (options.debug) {
-      console.debug(`Mod ${id} for ${platform} already exists in the configuration`);
-    }
-
+    logger.debug(`Mod ${id} for ${platform} already exists in the configuration`);
     return;
   }
 
@@ -100,25 +98,25 @@ export const add = async (platform: Platform, id: string, options: DefaultOption
 
   } catch (error) {
     if (error instanceof UnknownPlatformException) {
-      await handleUnknownPlatformException(error, id, options);
+      await handleUnknownPlatformException(error, id, options, logger);
       return;
     }
 
     if (error instanceof CouldNotFindModException) {
-      console.error(chalk.redBright(`Mod "${chalk.whiteBright(id)}" for ${chalk.whiteBright(platform)} does not exist`));
+      logger.error(`Mod "${chalk.whiteBright(id)}" for ${chalk.whiteBright(platform)} does not exist`);
       // Todo handle with unified exit
       return;
     }
 
     if (error instanceof NoRemoteFileFound) {
-      console.error(
-        chalk.red(`Could not find a file for the version ${chalk.whiteBright(configuration.gameVersion)} `
-          + `for ${chalk.whiteBright(configuration.loader)}`)
+      logger.error(
+        `Could not find a file for the version ${chalk.whiteBright(configuration.gameVersion)} `
+        + `for ${chalk.whiteBright(configuration.loader)}`
       );
       // Todo handle with unified exit
     }
 
-    console.error(error);
+    logger.error((error as Error).message, 2);
   }
 
 };

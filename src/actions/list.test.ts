@@ -1,13 +1,20 @@
-import { afterEach, describe, expect, it, vi } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { generateModsJson } from '../../test/modlistGenerator.js';
 import { generateModConfig } from '../../test/modConfigGenerator.js';
 import { list } from './list.js';
 import { readConfigFile, readLockFile } from '../lib/config.js';
 import { generateModInstall } from '../../test/modInstallGenerator.js';
+import { Logger } from '../lib/Logger.js';
 
+vi.mock('../lib/Logger.js');
 vi.mock('../lib/config.js');
 
 describe('The list action', async () => {
+  let logger: Logger;
+
+  beforeEach(() => {
+    logger = new Logger({} as never);
+  });
 
   afterEach(() => {
     vi.resetAllMocks();
@@ -15,9 +22,6 @@ describe('The list action', async () => {
 
   describe('when all the mods are installed', () => {
     it('it should list all the mods sorted', async () => {
-      const consoleSpy = vi.spyOn(console, 'log');
-      consoleSpy.mockImplementation(() => {
-      });
 
       const randomConfig = generateModsJson().generated;
 
@@ -37,22 +41,18 @@ describe('The list action', async () => {
 
       vi.mocked(readLockFile).mockResolvedValueOnce(installedMods);
 
-      await list({ config: 'config.json' });
+      await list({ config: 'config.json' }, logger);
 
-      expect(consoleSpy).toHaveBeenNthCalledWith(1, 'Configured mods');
-      expect(consoleSpy).toHaveBeenNthCalledWith(2, '\u2705', 'mod1.jar', 'is installed');
-      expect(consoleSpy).toHaveBeenNthCalledWith(3, '\u2705', 'mod2.jar', 'is installed');
-      expect(consoleSpy).toHaveBeenNthCalledWith(4, '\u2705', 'mod3.jar', 'is installed');
+      expect(logger.log).toHaveBeenNthCalledWith(1, 'Configured mods', true);
+      expect(logger.log).toHaveBeenNthCalledWith(2, '\u2705 mod1.jar is installed', true);
+      expect(logger.log).toHaveBeenNthCalledWith(3, '\u2705 mod2.jar is installed', true);
+      expect(logger.log).toHaveBeenNthCalledWith(4, '\u2705 mod3.jar is installed', true);
 
     });
   });
 
   describe('when some of the mods are not installed', () => {
     it('it should list all the mods appropriately', async () => {
-      const consoleSpy = vi.spyOn(console, 'log');
-      consoleSpy.mockImplementation(() => {
-      });
-
       const randomConfig = generateModsJson().generated;
 
       const mod1 = generateModConfig({ name: 'mod1.jar' }).generated;
@@ -70,12 +70,12 @@ describe('The list action', async () => {
 
       vi.mocked(readConfigFile).mockResolvedValue(randomConfig);
 
-      await list({ config: 'config.json' });
+      await list({ config: 'config.json' }, logger);
 
-      expect(consoleSpy).toHaveBeenNthCalledWith(1, 'Configured mods');
-      expect(consoleSpy).toHaveBeenNthCalledWith(2, '\u2705', 'mod1.jar', 'is installed');
-      expect(consoleSpy).toHaveBeenNthCalledWith(3, '\u274c', 'mod2.jar', 'is not installed');
-      expect(consoleSpy).toHaveBeenNthCalledWith(4, '\u2705', 'mod3.jar', 'is installed');
+      expect(logger.log).toHaveBeenNthCalledWith(1, 'Configured mods', true);
+      expect(logger.log).toHaveBeenNthCalledWith(2, '\u2705 mod1.jar is installed', true);
+      expect(logger.log).toHaveBeenNthCalledWith(3, '\u274c mod2.jar is not installed', true);
+      expect(logger.log).toHaveBeenNthCalledWith(4, '\u2705 mod3.jar is installed', true);
 
     });
   });

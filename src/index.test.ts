@@ -1,8 +1,9 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import { program } from './mmm.js';
+import { logger, program } from './mmm.js';
 import { hasUpdate } from './lib/mmmVersionCheck.js';
 import { chance } from 'jest-chance';
 
+vi.mock('./lib/Logger.js');
 vi.mock('./mmm.js');
 vi.mock('./version.js', () => ({ version: '0.0.0' }));
 vi.mock('./lib/mmmVersionCheck.js');
@@ -28,9 +29,6 @@ describe('The main entry point', () => {
     const randomUrl = chance.url();
     const releasedOn = chance.date().toISOString();
 
-    const consoleLogSpy = vi.spyOn(console, 'log').mockImplementation(() => {
-    });
-
     vi.mocked(hasUpdate).mockResolvedValueOnce({
       hasUpdate: true,
       latestVersion: randomVersion,
@@ -39,8 +37,8 @@ describe('The main entry point', () => {
     });
     await import('./index.js');
 
-    expect(consoleLogSpy).toHaveBeenCalledWith(`There is a new version of MMM available: ${randomVersion} from ${releasedOn}`);
-    expect(consoleLogSpy).toHaveBeenCalledWith(`You can download it from ${randomUrl}`);
+    expect(vi.mocked(logger.log)).toHaveBeenCalledWith(`There is a new version of MMM available: ${randomVersion} from ${releasedOn}`);
+    expect(vi.mocked(logger.log)).toHaveBeenCalledWith(`You can download it from ${randomUrl}`);
     expect(vi.mocked(program.parse)).toHaveBeenCalledWith(process.argv);
   });
 });

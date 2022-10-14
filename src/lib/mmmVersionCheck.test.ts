@@ -2,9 +2,15 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { hasUpdate } from './mmmVersionCheck.js';
 import { GithubReleasesNotFoundException } from '../errors/GithubReleasesNotFoundException.js';
 import { chance } from 'jest-chance';
+import { Logger } from './Logger.js';
+
+vi.mock('./Logger.js');
 
 describe('The MMM Version Check module', () => {
+  let logger: Logger;
+
   beforeEach(() => {
+    logger = new Logger({} as never);
     vi.useFakeTimers();
     vi.stubGlobal('fetch', vi.fn());
   });
@@ -16,7 +22,7 @@ describe('The MMM Version Check module', () => {
 
   it('should throw an error if the response is not ok', async () => {
     vi.mocked(fetch).mockResolvedValueOnce({ ok: false } as Response);
-    await expect(hasUpdate('')).rejects.toThrow(new GithubReleasesNotFoundException());
+    await expect(hasUpdate('', logger)).rejects.toThrow(new GithubReleasesNotFoundException());
   });
 
   it('should handle dev builds', async () => {
@@ -36,9 +42,7 @@ describe('The MMM Version Check module', () => {
       ])
     } as unknown as Response);
 
-    const consoleSpy = vi.spyOn(console, 'log').mockImplementation(() => {
-    });
-    const result = await hasUpdate('dev-' + chance.word());
+    const result = await hasUpdate('dev-' + chance.word(), logger);
     expect(result).toEqual({
       hasUpdate: false,
       latestVersion: 'v1.0.0',
@@ -46,9 +50,9 @@ describe('The MMM Version Check module', () => {
       releasedOn: 'Sun Oct 09 2022 21:28:59 GMT+0000 (Greenwich Mean Time)'
     });
 
-    expect(consoleSpy).toHaveBeenCalledWith('\n[update] You are running a development version of MMM. '
+    expect(logger.log).toHaveBeenCalledWith('\n[update] You are running a development version of MMM. '
       + 'Please update to the latest release from Sun Oct 09 2022 21:28:59 GMT+0000 (Greenwich Mean Time).');
-    expect(consoleSpy).toHaveBeenCalledWith('[update] You can download it from release-url\n');
+    expect(logger.log).toHaveBeenCalledWith('[update] You can download it from release-url\n');
 
   });
 
@@ -64,7 +68,7 @@ describe('The MMM Version Check module', () => {
         { tag_name: 'v0.8.0', prerelease: false, draft: false }
       ])
     } as Response);
-    expect(hasUpdate('1.0.0')).resolves.toEqual({
+    expect(hasUpdate('1.0.0', logger)).resolves.toEqual({
       hasUpdate: false,
       latestVersion: 'v1.0.0',
       latestVersionUrl: undefined,
@@ -84,7 +88,7 @@ describe('The MMM Version Check module', () => {
         { tag_name: 'v0.8.0', prerelease: false, draft: false }
       ])
     } as Response);
-    expect(hasUpdate('0.0.9')).resolves.toEqual({
+    expect(hasUpdate('0.0.9', logger)).resolves.toEqual({
       hasUpdate: true,
       latestVersion: 'v1.0.0',
       latestVersionUrl: undefined,
@@ -109,7 +113,7 @@ describe('The MMM Version Check module', () => {
           { tag_name: latestVersion, prerelease: prerelease, draft: draft, html_url: url }
         ])
       } as Response);
-      expect(hasUpdate(currentVersion)).resolves.toEqual({
+      expect(hasUpdate(currentVersion, logger)).resolves.toEqual({
         hasUpdate: true,
         latestVersion: latestVersion,
         latestVersionUrl: url,

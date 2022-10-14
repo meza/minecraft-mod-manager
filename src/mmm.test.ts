@@ -6,7 +6,9 @@ import { list } from './actions/list.js';
 import { install } from './actions/install.js';
 import { update } from './actions/update.js';
 import { initializeConfig } from './interactions/initializeConfig.js';
+import { Logger } from './lib/Logger.js';
 
+vi.mock('./lib/Logger.js');
 vi.mock('./actions/add.js');
 vi.mock('./actions/list.js');
 vi.mock('./actions/install.js');
@@ -14,8 +16,9 @@ vi.mock('./actions/update.js');
 vi.mock('./interactions/initializeConfig.js');
 
 describe('The main CLI configuration', () => {
-
+  let logger: Logger;
   beforeEach(async () => {
+    logger = new Logger({} as never);
     const cwdSpy = vi.spyOn(process, 'cwd');
     cwdSpy.mockReturnValue('/path/to/minecraft/installation');
   });
@@ -88,5 +91,27 @@ describe('The main CLI configuration', () => {
       chance.pickone(['init'])
     ]);
     expect(vi.mocked(initializeConfig)).toHaveBeenCalledOnce();
+  });
+
+  it('sets the logger to quiet when the quiet option is supplied', async () => {
+    const { program } = await import('./mmm.js');
+    await program.parse([
+      '',
+      '',
+      chance.pickone(['-q', '--quiet']),
+      chance.pickone(['init'])
+    ]);
+    expect(logger.flagQuiet).toHaveBeenCalledOnce();
+  });
+
+  it('sets the logger to debug when the debug option is supplied', async () => {
+    const { program } = await import('./mmm.js');
+    await program.parse([
+      '',
+      '',
+      chance.pickone(['-d', '--debug']),
+      chance.pickone(['init'])
+    ]);
+    expect(logger.flagDebug).toHaveBeenCalledOnce();
   });
 });

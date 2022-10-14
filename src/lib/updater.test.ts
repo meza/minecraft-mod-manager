@@ -1,13 +1,15 @@
-import { afterEach, describe, expect, it, vi } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { generateModInstall } from '../../test/modInstallGenerator.js';
 import { chance } from 'jest-chance';
 import path from 'node:path';
 import { updateMod } from './updater.js';
 import { downloadFile } from './downloader.js';
 import fs from 'node:fs/promises';
+import { Logger } from './Logger.js';
 
 vi.mock('node:fs/promises');
 vi.mock('./downloader.js');
+vi.mock('./Logger.js');
 
 const assumeDownloadSuccessful = () => {
   vi.mocked(downloadFile).mockResolvedValueOnce();
@@ -18,6 +20,11 @@ const assumeDownloadFailed = () => {
 };
 
 describe('The updater module', () => {
+  let logger: Logger;
+
+  beforeEach(() => {
+    logger = new Logger({} as never);
+  });
   afterEach(() => {
     vi.resetAllMocks();
   });
@@ -31,7 +38,7 @@ describe('The updater module', () => {
 
     assumeDownloadSuccessful();
 
-    await updateMod(randomMod, originalPath, randomModsFolder);
+    await updateMod(randomMod, originalPath, randomModsFolder, logger);
 
     expect(vi.mocked(fs.rename)).toHaveBeenCalledWith(originalPath, `${originalPath}.bak`);
     expect(vi.mocked(downloadFile)).toHaveBeenCalledWith(randomMod.downloadUrl, expectedNewPath);
@@ -44,10 +51,6 @@ describe('The updater module', () => {
   });
 
   it('should roll back on download failure', async () => {
-    const consoleSpy = vi.spyOn(console, 'log');
-    vi.mocked(console.log).mockImplementationOnce(() => {
-    });
-
     const randomMod = generateModInstall().generated;
     const randomModsFolder = chance.word();
     const randomOldPath = chance.word();
@@ -56,13 +59,13 @@ describe('The updater module', () => {
 
     assumeDownloadFailed();
 
-    await updateMod(randomMod, originalPath, randomModsFolder);
+    await updateMod(randomMod, originalPath, randomModsFolder, logger);
 
     expect(vi.mocked(fs.rename)).toHaveBeenNthCalledWith(1, originalPath, `${originalPath}.bak`);
     expect(vi.mocked(downloadFile)).toHaveBeenCalledWith(randomMod.downloadUrl, expectedNewPath);
     expect(vi.mocked(fs.rename)).toHaveBeenNthCalledWith(2, `${originalPath}.bak`, originalPath);
 
-    expect(consoleSpy).toHaveBeenCalledWith(`Download of ${randomMod.name} failed, restoring the original`);
+    expect(logger.log).toHaveBeenCalledWith(`Download of ${randomMod.name} failed, restoring the original`);
 
     expect(vi.mocked(fs.rename)).toHaveBeenCalledTimes(2);
     expect(vi.mocked(downloadFile)).toHaveBeenCalledOnce();

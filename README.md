@@ -109,16 +109,16 @@ Every command has a few common options that you can use:
 | -c           | --config    | Set the config file to an alternative path |
 | -d           | --debug     | Enable verbose logging                     |
 
-All options should be specified **after** the command. For example:
+All options should be specified **before** the command. For example:
 
 ```bash
-mmm install --quiet
+mmm --quiet install
 ```
 
 or
 
 ```bash
-mmm install -c ./my-config.json
+mmm -c ./my-config.json install
 ```
 
 ### INIT

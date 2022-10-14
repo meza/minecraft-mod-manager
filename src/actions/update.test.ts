@@ -16,6 +16,7 @@ import { chance } from 'jest-chance';
 import { updateMod } from '../lib/updater.js';
 import * as path from 'path';
 import { generateModInstall } from '../../test/modInstallGenerator.js';
+import { Logger } from '../lib/Logger.js';
 
 vi.mock('../repositories/index.js');
 vi.mock('../lib/downloader.js');
@@ -23,9 +24,12 @@ vi.mock('../lib/config.js');
 vi.mock('../lib/updater.js');
 vi.mock('../lib/hash.js');
 vi.mock('./install.js');
+vi.mock('../lib/Logger.js');
 
 describe('The update action', () => {
+  let logger: Logger;
   beforeEach(() => {
+    logger = new Logger({} as never);
     vi.mocked(install).mockResolvedValue();
   });
 
@@ -45,17 +49,14 @@ describe('The update action', () => {
     vi.mocked(readConfigFile).mockResolvedValueOnce(randomConfiguration);
     vi.mocked(readLockFile).mockResolvedValueOnce([randomInstallation]);
 
-    const consoleSpy = vi.spyOn(console, 'log');
-    vi.mocked(consoleSpy).mockImplementation(() => {
-    });
     assumeModFileExists(randomInstallation.fileName);
 
     vi.mocked(getHash).mockResolvedValueOnce(randomInstallation.hash);
 
-    await update({ config: 'config.json' });
+    await update({ config: 'config.json' }, logger);
 
     // Verify our expectations
-    expect(consoleSpy).not.toHaveBeenCalled();
+    expect(logger.log).not.toHaveBeenCalled();
 
     expect(vi.mocked(writeConfigFile)).toHaveBeenCalledWith(randomConfiguration, 'config.json');
     expect(vi.mocked(writeLockFile)).toHaveBeenCalledWith([randomInstallation], 'config.json');
@@ -94,21 +95,19 @@ describe('The update action', () => {
     vi.mocked(readLockFile).mockResolvedValueOnce([randomInstallation]);
     vi.mocked(updateMod).mockResolvedValueOnce(remoteDetails.generated);
 
-    const consoleSpy = vi.spyOn(console, 'log');
-    vi.mocked(consoleSpy).mockImplementation(() => {
-    });
     assumeModFileExists(randomInstallation.fileName);
 
     vi.mocked(getHash).mockResolvedValueOnce(randomInstallation.hash);
 
-    await update({ config: 'config.json' });
+    await update({ config: 'config.json' }, logger);
 
     // Verify our expectations
-    expect(consoleSpy).toHaveBeenCalledWith(`${remoteDetails.generated.name} has an update, downloading...`);
+    expect(logger.log).toHaveBeenCalledWith(`${remoteDetails.generated.name} has an update, downloading...`);
     expect(vi.mocked(updateMod)).toHaveBeenCalledWith(
       remoteDetails.generated,
       path.resolve(randomConfiguration.modsFolder, oldFilename),
-      randomConfiguration.modsFolder
+      randomConfiguration.modsFolder,
+      logger
     );
 
     expect(vi.mocked(writeConfigFile)).toHaveBeenCalledWith(randomConfiguration, 'config.json');
@@ -151,21 +150,19 @@ describe('The update action', () => {
     vi.mocked(readLockFile).mockResolvedValueOnce([randomInstallation]);
     vi.mocked(updateMod).mockResolvedValueOnce(remoteDetails.generated);
 
-    const consoleSpy = vi.spyOn(console, 'log');
-    vi.mocked(consoleSpy).mockImplementation(() => {
-    });
     assumeModFileExists(randomInstallation.fileName);
 
     vi.mocked(getHash).mockResolvedValueOnce(randomInstallation.hash);
 
-    await update({ config: 'config.json' });
+    await update({ config: 'config.json' }, logger);
 
     // Verify our expectations
-    expect(consoleSpy).toHaveBeenCalledWith(`${remoteDetails.generated.name} has an update, downloading...`);
+    expect(logger.log).toHaveBeenCalledWith(`${remoteDetails.generated.name} has an update, downloading...`);
     expect(vi.mocked(updateMod)).toHaveBeenCalledWith(
       remoteDetails.generated,
       path.resolve(randomConfiguration.modsFolder, oldFilename),
-      randomConfiguration.modsFolder
+      randomConfiguration.modsFolder,
+      logger
     );
 
     expect(vi.mocked(writeConfigFile)).toHaveBeenCalledWith(randomConfiguration, 'config.json');
@@ -177,7 +174,7 @@ describe('The update action', () => {
     verifyBasics();
   });
 
-  it('logs the update checks when in debug mode', async () => {
+  it('logs the update checks for debug mode', async () => {
     const { randomConfiguration, randomInstallation, randomInstalledMod } = setupOneInstalledMod();
 
     const remoteDetails = generateRemoteModDetails({
@@ -190,17 +187,14 @@ describe('The update action', () => {
     vi.mocked(readConfigFile).mockResolvedValueOnce(randomConfiguration);
     vi.mocked(readLockFile).mockResolvedValueOnce([randomInstallation]);
 
-    const consoleSpy = vi.spyOn(console, 'debug');
-    vi.mocked(consoleSpy).mockImplementation(() => {
-    });
     assumeModFileExists(randomInstallation.fileName);
 
     vi.mocked(getHash).mockResolvedValueOnce(randomInstallation.hash);
 
-    await update({ config: 'config.json', debug: true });
+    await update({ config: 'config.json', debug: chance.bool() }, logger);
 
     // Verify our expectations
-    expect(consoleSpy).toHaveBeenCalledWith(`[update] Checking ${randomInstalledMod.name} for ${randomInstalledMod.type}`);
+    expect(logger.debug).toHaveBeenCalledWith(`[update] Checking ${randomInstalledMod.name} for ${randomInstalledMod.type}`);
 
   });
 
@@ -217,14 +211,10 @@ describe('The update action', () => {
     vi.mocked(readConfigFile).mockResolvedValueOnce(randomConfiguration);
     vi.mocked(readLockFile).mockResolvedValueOnce([]);
 
-    const consoleSpy = vi.spyOn(console, 'error');
-    vi.mocked(consoleSpy).mockImplementation(() => {
-    });
-
-    await update({ config: 'config.json' });
+    await update({ config: 'config.json' }, logger);
 
     // Verify our expectations
-    expect(consoleSpy).toHaveBeenCalledWith(`${randomInstalledMod.name} doesn't seem to be installed, please run mmm install first`);
+    expect(logger.error).toHaveBeenCalledWith(`${randomInstalledMod.name} doesn't seem to be installed, please run mmm install first`);
 
   });
 
@@ -241,15 +231,12 @@ describe('The update action', () => {
     vi.mocked(readConfigFile).mockResolvedValueOnce(randomConfiguration);
     vi.mocked(readLockFile).mockResolvedValueOnce([randomInstallation]);
 
-    const consoleSpy = vi.spyOn(console, 'error');
-    vi.mocked(consoleSpy).mockImplementation(() => {
-    });
     assumeModFileIsMissing(randomInstallation);
-    await update({ config: 'config.json' });
+    await update({ config: 'config.json' }, logger);
     const expectedPath = path.resolve(randomConfiguration.modsFolder, randomInstallation.fileName);
 
     // Verify our expectations
-    expect(consoleSpy).toHaveBeenCalledWith(`${randomInstalledMod.name} (${expectedPath}) doesn't exist, please run mmm install`);
+    expect(logger.error).toHaveBeenCalledWith(`${randomInstalledMod.name} (${expectedPath}) doesn't exist, please run mmm install`);
 
   });
 

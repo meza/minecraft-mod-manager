@@ -1,5 +1,6 @@
 import chalk from 'chalk';
 import { GithubReleasesNotFoundException } from '../errors/GithubReleasesNotFoundException.js';
+import { Logger } from './Logger.js';
 
 const prepareRelease = (release: any) => {
   release.numericVersion = release.tag_name.replace('v', '');
@@ -30,7 +31,7 @@ const formatDateFromTimeString = (timeString: string) => {
   return date.toString();
 };
 
-export const hasUpdate = async (currentVersion: string): Promise<{
+export const hasUpdate = async (currentVersion: string, logger: Logger): Promise<{
   hasUpdate: boolean,
   latestVersion: string,
   latestVersionUrl: string,
@@ -41,8 +42,8 @@ export const hasUpdate = async (currentVersion: string): Promise<{
   const latestVersion = releases[0];
   const releasedOn = formatDateFromTimeString(latestVersion.published_at);
   if (!isFirstLetterANumber(currentVersion)) {
-    console.log(chalk.bgYellowBright(chalk.black(`\n[update] You are running a development version of MMM. Please update to the latest release from ${releasedOn}.`)));
-    console.log(chalk.bgYellowBright(chalk.black(`[update] You can download it from ${latestVersion.html_url}\n`)));
+    logger.log(chalk.bgYellowBright(chalk.black(`\n[update] You are running a development version of MMM. Please update to the latest release from ${releasedOn}.`)));
+    logger.log(chalk.bgYellowBright(chalk.black(`[update] You can download it from ${latestVersion.html_url}\n`)));
     // Todo handle console
     return {
       hasUpdate: false,

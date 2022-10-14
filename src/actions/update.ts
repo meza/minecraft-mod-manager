@@ -6,6 +6,7 @@ import { getHash } from '../lib/hash.js';
 import { updateMod } from '../lib/updater.js';
 import { fetchModDetails } from '../repositories/index.js';
 import { install } from './install.js';
+import { Logger } from '../lib/Logger.js';
 
 const getInstallation = (mod: Mod, installations: ModInstall[]) => {
   return installations.findIndex((i) => i.id === mod.id && i.type === mod.type);
@@ -15,8 +16,8 @@ const hasInstallation = (mod: Mod, installations: ModInstall[]) => {
   return getInstallation(mod, installations) > -1;
 };
 
-export const update = async (options: DefaultOptions) => {
-  await install(options);
+export const update = async (options: DefaultOptions, logger: Logger) => {
+  await install(options, logger);
   const configuration = await readConfigFile(options.config);
   const installations = await readLockFile(options.config);
 
@@ -25,9 +26,7 @@ export const update = async (options: DefaultOptions) => {
 
   const processMod = async (mod: Mod, index: number) => {
 
-    if (options.debug) {
-      console.debug(`[update] Checking ${mod.name} for ${mod.type}`);
-    }
+    logger.debug(`[update] Checking ${mod.name} for ${mod.type}`);
 
     const modData = await fetchModDetails(
       mod.type,
@@ -41,7 +40,8 @@ export const update = async (options: DefaultOptions) => {
     mods[index].name = modData.name;
 
     if (!hasInstallation(mod, installations)) {
-      console.error(`${mod.name} doesn't seem to be installed, please run mmm install first`);
+      logger.error(`${mod.name} doesn't seem to be installed, please run mmm install first`);
+      // TODO handle this better
       return;
     }
 
@@ -49,14 +49,15 @@ export const update = async (options: DefaultOptions) => {
     const oldModPath = path.resolve(configuration.modsFolder, installedMods[installedModIndex].fileName);
 
     if (!await fileExists(oldModPath)) {
-      console.error(`${mod.name} (${oldModPath}) doesn't exist, please run mmm install`);
+      logger.error(`${mod.name} (${oldModPath}) doesn't exist, please run mmm install`);
+      // TODO handle this better
       return;
     }
 
     const installedHash = await getHash(oldModPath);
     if (modData.hash !== installedHash || modData.releaseDate > installedMods[installedModIndex].releasedOn) {
-      console.log(`${mod.name} has an update, downloading...`);
-      await updateMod(modData, oldModPath, configuration.modsFolder);
+      logger.log(`${mod.name} has an update, downloading...`);
+      await updateMod(modData, oldModPath, configuration.modsFolder, logger);
       // TODO handle the download failing
 
       installedMods[installedModIndex].hash = modData.hash;

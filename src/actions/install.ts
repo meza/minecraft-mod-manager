@@ -6,6 +6,7 @@ import { Mod, ModInstall, RemoteModDetails } from '../lib/modlist.types.js';
 import { getHash } from '../lib/hash.js';
 import { DefaultOptions } from '../mmm.js';
 import { updateMod } from '../lib/updater.js';
+import { Logger } from '../lib/Logger.js';
 
 const getMod = async (moddata: RemoteModDetails, modsFolder: string) => {
   await downloadFile(moddata.downloadUrl, path.resolve(modsFolder, moddata.fileName));
@@ -25,7 +26,7 @@ const hasInstallation = (mod: Mod, installations: ModInstall[]) => {
   return getInstallation(mod, installations) > -1;
 };
 
-export const install = async (options: DefaultOptions) => {
+export const install = async (options: DefaultOptions, logger: Logger) => {
   const configuration = await readConfigFile(options.config);
   const installations = await readLockFile(options.config);
 
@@ -34,9 +35,7 @@ export const install = async (options: DefaultOptions) => {
 
   const processMod = async (mod: Mod, index: number) => {
 
-    if (options.debug) {
-      console.debug(`Checking ${mod.name} for ${mod.type}`);
-    }
+    logger.debug(`Checking ${mod.name} for ${mod.type}`);
 
     if (hasInstallation(mod, installations)) {
       const installedModIndex = getInstallation(mod, installedMods);
@@ -44,7 +43,7 @@ export const install = async (options: DefaultOptions) => {
       const modPath = path.resolve(configuration.modsFolder, installedMods[installedModIndex].fileName);
 
       if (!await fileExists(modPath)) {
-        console.log(`${mod.name} doesn't exist, downloading from ${installedMods[installedModIndex].type}`);
+        logger.log(`${mod.name} doesn't exist, downloading from ${installedMods[installedModIndex].type}`);
         await downloadFile(installedMods[installedModIndex].downloadUrl, modPath);
         // TODO handle the download failing
         return;
@@ -52,8 +51,8 @@ export const install = async (options: DefaultOptions) => {
 
       const installedHash = await getHash(modPath);
       if (installedMods[installedModIndex].hash !== installedHash) {
-        console.log(`${mod.name} has hash mismatch, downloading from source`);
-        await updateMod(installedMods[installedModIndex], modPath, configuration.modsFolder);
+        logger.log(`${mod.name} has hash mismatch, downloading from source`);
+        await updateMod(installedMods[installedModIndex], modPath, configuration.modsFolder, logger);
         // TODO handle the download failing
         return;
       }
@@ -73,7 +72,7 @@ export const install = async (options: DefaultOptions) => {
     mods[index].name = modData.name;
 
     // no installation exists
-    console.log(`${mod.name} doesn't exist, downloading from ${mod.type}`);
+    logger.log(`${mod.name} doesn't exist, downloading from ${mod.type}`);
     const dlData = await getMod(modData, configuration.modsFolder);
     // TODO handle the download failing
     installedMods.push({
