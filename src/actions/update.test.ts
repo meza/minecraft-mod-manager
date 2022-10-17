@@ -106,8 +106,7 @@ describe('The update action', () => {
     expect(vi.mocked(updateMod)).toHaveBeenCalledWith(
       remoteDetails.generated,
       path.resolve(randomConfiguration.modsFolder, oldFilename),
-      randomConfiguration.modsFolder,
-      logger
+      randomConfiguration.modsFolder
     );
 
     expect(vi.mocked(writeConfigFile)).toHaveBeenCalledWith(randomConfiguration, 'config.json');
@@ -161,8 +160,7 @@ describe('The update action', () => {
     expect(vi.mocked(updateMod)).toHaveBeenCalledWith(
       remoteDetails.generated,
       path.resolve(randomConfiguration.modsFolder, oldFilename),
-      randomConfiguration.modsFolder,
-      logger
+      randomConfiguration.modsFolder
     );
 
     expect(vi.mocked(writeConfigFile)).toHaveBeenCalledWith(randomConfiguration, 'config.json');

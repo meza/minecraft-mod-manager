@@ -52,7 +52,7 @@ export const install = async (options: DefaultOptions, logger: Logger) => {
       const installedHash = await getHash(modPath);
       if (installedMods[installedModIndex].hash !== installedHash) {
         logger.log(`${mod.name} has hash mismatch, downloading from source`);
-        await updateMod(installedMods[installedModIndex], modPath, configuration.modsFolder, logger);
+        await updateMod(installedMods[installedModIndex], modPath, configuration.modsFolder);
         // TODO handle the download failing
         return;
       }

@@ -57,7 +57,7 @@ export const update = async (options: DefaultOptions, logger: Logger) => {
     const installedHash = await getHash(oldModPath);
     if (modData.hash !== installedHash || modData.releaseDate > installedMods[installedModIndex].releasedOn) {
       logger.log(`${mod.name} has an update, downloading...`);
-      await updateMod(modData, oldModPath, configuration.modsFolder, logger);
+      await updateMod(modData, oldModPath, configuration.modsFolder);
       // TODO handle the download failing
 
       installedMods[installedModIndex].hash = modData.hash;

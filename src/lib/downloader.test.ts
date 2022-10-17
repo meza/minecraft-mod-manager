@@ -31,7 +31,8 @@ describe('The downloader facade', () => {
       url: url,
       directory: path.dirname(destination),
       filename: path.basename(destination),
-      cloneFiles: false
+      cloneFiles: false,
+      maxAttempts: 3
     });
 
   });
