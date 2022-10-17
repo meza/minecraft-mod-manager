@@ -12,6 +12,7 @@ import { NoRemoteFileFound } from '../errors/NoRemoteFileFound.js';
 import { ConfigFileNotFoundException } from '../errors/ConfigFileNotFoundException.js';
 import { shouldCreateConfig } from '../interactions/shouldCreateConfig.js';
 import { Logger } from '../lib/Logger.js';
+import { modNotFound } from '../interactions/modNotFound.js';
 
 const handleUnknownPlatformException = async (error: UnknownPlatformException, id: string, options: DefaultOptions, logger: Logger) => {
   const platformUsed = error.platform;
@@ -103,8 +104,8 @@ export const add = async (platform: Platform, id: string, options: DefaultOption
     }
 
     if (error instanceof CouldNotFindModException) {
-      logger.error(`Mod "${chalk.whiteBright(id)}" for ${chalk.whiteBright(platform)} does not exist`);
-      // Todo handle with unified exit
+      const { id: newId, platform: newPlatform } = await modNotFound(id, platform, logger, options);
+      await add(newPlatform, newId, options, logger);
       return;
     }
 

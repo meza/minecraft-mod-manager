@@ -16,6 +16,7 @@ import { ModInstall, ModsJson, Platform, RemoteModDetails } from '../lib/modlist
 import { ConfigFileNotFoundException } from '../errors/ConfigFileNotFoundException.js';
 import { shouldCreateConfig } from '../interactions/shouldCreateConfig.js';
 import { Logger } from '../lib/Logger.js';
+import { modNotFound } from '../interactions/modNotFound.js';
 
 vi.mock('../lib/Logger.js');
 vi.mock('../lib/config.js');
@@ -23,6 +24,7 @@ vi.mock('../repositories/index.js');
 vi.mock('../lib/downloader.js');
 vi.mock('inquirer');
 vi.mock('../interactions/shouldCreateConfig.js');
+vi.mock('../interactions/modNotFound.ts');
 
 interface LocalTestContext {
   randomConfiguration: GeneratorResult<ModsJson>;
@@ -333,16 +335,23 @@ describe('The add module', async () => {
   describe('when the mod can\'t be found', async () => {
     it('it should exit after an error message has been shown', async () => {
 
+      vi.mocked(modNotFound).mockResolvedValueOnce({
+        id: chance.word(),
+        platform: getRandomPlatform()
+      });
+
       const { randomPlatform, randomMod } = assumeModNotFound();
 
       await add(randomPlatform, randomMod, { config: 'config.json' }, logger);
 
-      expect(logger.error).toHaveBeenCalledWith(`Mod "${randomMod}" for ${randomPlatform} does not exist`);
+      expect(vi.mocked(modNotFound)).toHaveBeenCalledWith(randomMod, randomPlatform, logger, { config: 'config.json' });
 
       // Validate our assumptions about the work being done
-      expect(vi.mocked(readConfigFile)).toHaveBeenCalledTimes(1);
-      expect(vi.mocked(fetchModDetails)).toHaveBeenCalledTimes(1);
+      expect(vi.mocked(readConfigFile)).toHaveBeenCalledTimes(2);
+      expect(vi.mocked(fetchModDetails)).toHaveBeenCalledTimes(2);
       expect(vi.mocked(downloadFile)).not.toHaveBeenCalled();
+      expect(vi.mocked(writeConfigFile)).not.toHaveBeenCalled();
+      expect(vi.mocked(writeLockFile)).not.toHaveBeenCalled();
 
     });
   });
