@@ -5,6 +5,8 @@ import { list } from './list.js';
 import { readConfigFile, readLockFile } from '../lib/config.js';
 import { generateModInstall } from '../../test/modInstallGenerator.js';
 import { Logger } from '../lib/Logger.js';
+import { ConfigFileNotFoundException } from '../errors/ConfigFileNotFoundException.js';
+import { ErrorTexts } from '../errors/ErrorTexts.js';
 
 vi.mock('../lib/Logger.js');
 vi.mock('../lib/config.js');
@@ -76,6 +78,14 @@ describe('The list action', async () => {
       expect(logger.log).toHaveBeenNthCalledWith(2, '\u2705 mod1.jar is installed', true);
       expect(logger.log).toHaveBeenNthCalledWith(3, '\u274c mod2.jar is not installed', true);
       expect(logger.log).toHaveBeenNthCalledWith(4, '\u2705 mod3.jar is installed', true);
+
+    });
+
+    it('shows the correct error message when the config file is missing', async () => {
+      vi.mocked(readConfigFile).mockRejectedValueOnce(new ConfigFileNotFoundException('config.json'));
+      await list({ config: 'config.json' }, logger);
+
+      expect(vi.mocked(logger.error)).toHaveBeenCalledWith(ErrorTexts.configNotFound);
 
     });
   });

@@ -18,6 +18,8 @@ import {
   verifyBasics
 } from '../../test/setupHelpers.js';
 import { Logger } from '../lib/Logger.js';
+import { ConfigFileNotFoundException } from '../errors/ConfigFileNotFoundException.js';
+import { ErrorTexts } from '../errors/ErrorTexts.js';
 
 vi.mock('../lib/Logger.js');
 vi.mock('../repositories/index.js');
@@ -192,6 +194,14 @@ describe('The install module', () => {
     expect(vi.mocked(fetchModDetails)).not.toHaveBeenCalled();
 
     verifyBasics();
+  });
+
+  it('shows the correct error message when the config file is missing', async () => {
+    vi.mocked(readConfigFile).mockRejectedValueOnce(new ConfigFileNotFoundException('config.json'));
+    await install({ config: 'config.json' }, logger);
+
+    expect(vi.mocked(logger.error)).toHaveBeenCalledWith(ErrorTexts.configNotFound);
+
   });
 
 });

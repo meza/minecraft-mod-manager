@@ -17,6 +17,8 @@ import { updateMod } from '../lib/updater.js';
 import * as path from 'path';
 import { generateModInstall } from '../../test/modInstallGenerator.js';
 import { Logger } from '../lib/Logger.js';
+import { ConfigFileNotFoundException } from '../errors/ConfigFileNotFoundException.js';
+import { ErrorTexts } from '../errors/ErrorTexts.js';
 
 vi.mock('../repositories/index.js');
 vi.mock('../lib/downloader.js');
@@ -235,6 +237,14 @@ describe('The update action', () => {
 
     // Verify our expectations
     expect(logger.error).toHaveBeenCalledWith(`${randomInstalledMod.name} (${expectedPath}) doesn't exist, please run mmm install`);
+
+  });
+
+  it('shows the correct error message when the config file is missing', async () => {
+    vi.mocked(readConfigFile).mockRejectedValueOnce(new ConfigFileNotFoundException('config.json'));
+    await update({ config: 'config.json' }, logger);
+
+    expect(vi.mocked(logger.error)).toHaveBeenCalledWith(ErrorTexts.configNotFound);
 
   });
 
