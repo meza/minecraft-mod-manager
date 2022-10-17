@@ -2,7 +2,18 @@ import chalk from 'chalk';
 import { GithubReleasesNotFoundException } from '../errors/GithubReleasesNotFoundException.js';
 import { Logger } from './Logger.js';
 
-const prepareRelease = (release: any) => {
+interface GithubRelease {
+  tag_name: string;
+  name: string;
+  published_at: string;
+  prerelease: boolean;
+  draft: boolean;
+  html_url: string;
+  numericVersion: string;
+  versionParts: number[];
+}
+
+const prepareRelease = (release: GithubRelease) => {
   release.numericVersion = release.tag_name.replace('v', '');
   release.versionParts = release.numericVersion.split('.').map((part: string) => parseInt(part, 10));
   return release;
@@ -16,8 +27,8 @@ const githubReleases = async () => {
     // TODO handle failed fetch
   }
   const json = await response.json();
-  const prereleases = json.filter((release: any) => release.prerelease).map(prepareRelease);
-  const releases = json.filter((release: any) => !release.prerelease && !release.draft).map(prepareRelease);
+  const prereleases = json.filter((release: GithubRelease) => release.prerelease).map(prepareRelease);
+  const releases = json.filter((release: GithubRelease) => !release.prerelease && !release.draft).map(prepareRelease);
 
   return releases.length > 0 ? releases : prereleases;
 };
