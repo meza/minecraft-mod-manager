@@ -17,6 +17,7 @@ import { ConfigFileNotFoundException } from '../errors/ConfigFileNotFoundExcepti
 import { shouldCreateConfig } from '../interactions/shouldCreateConfig.js';
 import { Logger } from '../lib/Logger.js';
 import { modNotFound } from '../interactions/modNotFound.js';
+import { noRemoteFileFound } from '../interactions/noRemoteFileFound.js';
 
 vi.mock('../lib/Logger.js');
 vi.mock('../lib/config.js');
@@ -25,6 +26,7 @@ vi.mock('../lib/downloader.js');
 vi.mock('inquirer');
 vi.mock('../interactions/shouldCreateConfig.js');
 vi.mock('../interactions/modNotFound.ts');
+vi.mock('../interactions/noRemoteFileFound.js');
 
 interface LocalTestContext {
   randomConfiguration: GeneratorResult<ModsJson>;
@@ -224,18 +226,20 @@ describe('The add module', async () => {
   });
 
   it<LocalTestContext>('should report when a file cannot be found for the version and exit', async ({ randomConfiguration }) => {
-
-    const randomPlatform = getRandomPlatform();
+    const randomPlatform = Platform.CURSEFORGE;
     const randomModId = chance.word();
-    const randomVersion = randomConfiguration.expected.gameVersion;
-    const randomLoader = randomConfiguration.expected.loader;
 
-    vi.mocked(downloadFile).mockReset();
-    vi.mocked(downloadFile).mockRejectedValueOnce(new NoRemoteFileFound(randomModId, randomPlatform));
+    vi.mocked(fetchModDetails).mockReset();
+    vi.mocked(fetchModDetails).mockRejectedValueOnce(new NoRemoteFileFound(randomModId, randomPlatform));
+
+    vi.mocked(noRemoteFileFound).mockResolvedValueOnce({
+      id: 'another-mod-id',
+      platform: Platform.MODRINTH
+    });
 
     await add(randomPlatform, randomModId, { config: 'config.json' }, logger);
 
-    expect(logger.error).toHaveBeenCalledWith(`Could not find a file for the version ${randomVersion} for ${randomLoader}`);
+    expect(noRemoteFileFound).toHaveBeenCalledWith(randomModId, randomPlatform, randomConfiguration.expected, logger, { config: 'config.json' });
 
   });
 
@@ -333,7 +337,7 @@ describe('The add module', async () => {
   });
 
   describe('when the mod can\'t be found', async () => {
-    it('it should exit after an error message has been shown', async () => {
+    it('it should handle with the correct interaction', async () => {
 
       vi.mocked(modNotFound).mockResolvedValueOnce({
         id: chance.word(),

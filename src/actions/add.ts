@@ -13,6 +13,7 @@ import { ConfigFileNotFoundException } from '../errors/ConfigFileNotFoundExcepti
 import { shouldCreateConfig } from '../interactions/shouldCreateConfig.js';
 import { Logger } from '../lib/Logger.js';
 import { modNotFound } from '../interactions/modNotFound.js';
+import { noRemoteFileFound } from '../interactions/noRemoteFileFound.js';
 
 const handleUnknownPlatformException = async (error: UnknownPlatformException, id: string, options: DefaultOptions, logger: Logger) => {
   const platformUsed = error.platform;
@@ -110,11 +111,12 @@ export const add = async (platform: Platform, id: string, options: DefaultOption
     }
 
     if (error instanceof NoRemoteFileFound) {
-      logger.error(
-        `Could not find a file for the version ${chalk.whiteBright(configuration.gameVersion)} `
-        + `for ${chalk.whiteBright(configuration.loader)}`
-      );
-      // Todo handle with unified exit
+      const {
+        id: newId,
+        platform: newPlatform
+      } = await noRemoteFileFound(id, platform, configuration, logger, options);
+      await add(newPlatform, newId, options, logger);
+      return;
     }
 
     logger.error((error as Error).message, 2);
