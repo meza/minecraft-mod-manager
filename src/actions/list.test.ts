@@ -7,6 +7,7 @@ import { generateModInstall } from '../../test/modInstallGenerator.js';
 import { Logger } from '../lib/Logger.js';
 import { ConfigFileNotFoundException } from '../errors/ConfigFileNotFoundException.js';
 import { ErrorTexts } from '../errors/ErrorTexts.js';
+import { chance } from 'jest-chance';
 
 vi.mock('../lib/Logger.js');
 vi.mock('../lib/config.js');
@@ -88,5 +89,12 @@ describe('The list action', async () => {
       expect(vi.mocked(logger.error)).toHaveBeenCalledWith(ErrorTexts.configNotFound);
 
     });
+  });
+
+  it('handles unexpected errors', async () => {
+    const randomErrorMessage = chance.sentence();
+    vi.mocked(readConfigFile).mockRejectedValueOnce(new Error(randomErrorMessage));
+    await list({ config: 'config.json' }, logger);
+    expect(logger.error).toHaveBeenCalledWith(randomErrorMessage, 2);
   });
 });

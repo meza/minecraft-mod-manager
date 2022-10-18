@@ -248,4 +248,11 @@ describe('The update action', () => {
 
   });
 
+  it('handles unexpected errors', async () => {
+    const randomErrorMessage = chance.sentence();
+    vi.mocked(readConfigFile).mockRejectedValueOnce(new Error(randomErrorMessage));
+    await update({ config: 'config.json' }, logger);
+    expect(logger.error).toHaveBeenCalledWith(randomErrorMessage, 2);
+  });
+
 });

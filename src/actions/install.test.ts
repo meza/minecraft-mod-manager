@@ -20,6 +20,7 @@ import {
 import { Logger } from '../lib/Logger.js';
 import { ConfigFileNotFoundException } from '../errors/ConfigFileNotFoundException.js';
 import { ErrorTexts } from '../errors/ErrorTexts.js';
+import { chance } from 'jest-chance';
 
 vi.mock('../lib/Logger.js');
 vi.mock('../repositories/index.js');
@@ -202,6 +203,13 @@ describe('The install module', () => {
 
     expect(vi.mocked(logger.error)).toHaveBeenCalledWith(ErrorTexts.configNotFound);
 
+  });
+
+  it('handles unexpected errors', async () => {
+    const randomErrorMessage = chance.sentence();
+    vi.mocked(readConfigFile).mockRejectedValueOnce(new Error(randomErrorMessage));
+    await install({ config: 'config.json' }, logger);
+    expect(logger.error).toHaveBeenCalledWith(randomErrorMessage, 2);
   });
 
 });

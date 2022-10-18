@@ -101,5 +101,7 @@ export const install = async (options: DefaultOptions, logger: Logger) => {
     if (error instanceof ConfigFileNotFoundException) {
       logger.error(ErrorTexts.configNotFound);
     }
+
+    logger.error((error as Error).message, 2);
   }
 };

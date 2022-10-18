@@ -30,5 +30,7 @@ export const list = async (options: ListOptions, logger: Logger) => {
     if (error instanceof ConfigFileNotFoundException) {
       logger.error(ErrorTexts.configNotFound);
     }
+
+    logger.error((error as Error).message, 2);
   }
 };
