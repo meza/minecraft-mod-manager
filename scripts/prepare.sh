@@ -3,6 +3,8 @@
 FILE=$1
 VERSION=$2
 
+echo "HELP URL: $HELP_URL"
+
 cat > "$FILE" <<EOF
 export const version = '$VERSION';
 EOF
