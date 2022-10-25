@@ -114,4 +114,12 @@ describe('The main CLI configuration', () => {
     ]);
     expect(logger.flagDebug).toHaveBeenCalledOnce();
   });
+
+  it('can stop the execution', async () => {
+    vi.spyOn(process, 'exit').mockImplementation(() => {
+      throw new Error('process.exit');
+    });
+    const { stop } = await import('./mmm.js');
+    expect(stop).toThrow(new Error('process.exit'));
+  });
 });

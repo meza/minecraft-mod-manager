@@ -358,6 +358,8 @@ describe('The add module', async () => {
   describe('when the mod can\'t be found', async () => {
     it('it should handle with the correct interaction', async () => {
 
+      const secondRandomMod = generateRemoteModDetails();
+
       vi.mocked(modNotFound).mockResolvedValueOnce({
         id: chance.word(),
         platform: getRandomPlatform()
@@ -365,16 +367,19 @@ describe('The add module', async () => {
 
       const { randomPlatform, randomMod } = assumeModNotFound();
 
-      await expect(add(randomPlatform, randomMod, { config: 'config.json' }, logger)).rejects.toThrow(new Error('process.exit'));
+      vi.mocked(fetchModDetails).mockResolvedValueOnce(secondRandomMod.generated);
+      assumeDownloadIsSuccessful();
+
+      await add(randomPlatform, randomMod, { config: 'config.json' }, logger);
 
       expect(vi.mocked(modNotFound)).toHaveBeenCalledWith(randomMod, randomPlatform, logger, { config: 'config.json' });
 
       // Validate our assumptions about the work being done
       expect(vi.mocked(readConfigFile)).toHaveBeenCalledTimes(2);
       expect(vi.mocked(fetchModDetails)).toHaveBeenCalledTimes(2);
-      expect(vi.mocked(downloadFile)).not.toHaveBeenCalled();
-      expect(vi.mocked(writeConfigFile)).not.toHaveBeenCalled();
-      expect(vi.mocked(writeLockFile)).not.toHaveBeenCalled();
+      expect(vi.mocked(downloadFile)).toHaveBeenCalledOnce();
+      expect(vi.mocked(writeConfigFile)).toHaveBeenCalledOnce();
+      expect(vi.mocked(writeLockFile)).toHaveBeenCalledOnce();
 
     });
   });
