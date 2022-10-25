@@ -16,9 +16,7 @@ control over the mods that are installed.
 
 ---
 
-<details>
-<summary><b>Click for the Table of Contents</b></summary>
-<!-- TOC -->
+### Table Of Contents
 
 * [Installation](#installation)
 * [Running](#running)
@@ -50,7 +48,6 @@ control over the mods that are installed.
     * [Using `console.log` and `console.error`](#using-consolelog-and-consoleerror)
 
 <!-- TOC -->
-</details>
 
 ---
 
