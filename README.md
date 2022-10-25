@@ -168,7 +168,11 @@ Currently the 2 possible values of the platform are:
 
 **On Curseforge** you need the **Project ID** which you can find in the **top right hand corner** of every mod's page.
 
+![](/doc/images/curseforge.png)
+
 **On Modrinth** you need the **Project ID** which you can find in the **bottom left hand corner** of every mod's page.
+
+![](/doc/images/modrinth.png)
 
 <details>
   <summary>Click for examples</summary>
