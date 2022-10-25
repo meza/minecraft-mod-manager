@@ -9,6 +9,7 @@ import { version } from './version.js';
 import { update } from './actions/update.js';
 import { initializeConfig } from './interactions/initializeConfig.js';
 import { Logger } from './lib/Logger.js';
+import { helpUrl } from './env.js';
 
 export const APP_NAME = 'Minecraft Mod Manager';
 export const APP_DESCRIPTION = 'Manages mods from Modrinth and Curseforge';
@@ -33,6 +34,7 @@ export const stop = (): never => {
 const commands = [];
 
 program.name(APP_NAME).version(version).description(APP_DESCRIPTION);
+program.addHelpText('after', '\nFor more information, visit: ' + helpUrl);
 
 program.on('option:quiet', () => {
   logger.flagQuiet();

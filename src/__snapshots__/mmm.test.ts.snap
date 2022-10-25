@@ -14,6 +14,7 @@ Command {
   "_description": "Manages mods from Modrinth and Curseforge",
   "_enablePositionalOptions": false,
   "_events": {
+    "afterHelp": [Function],
     "option:config": [Function],
     "option:debug": [
       [Function],
@@ -25,7 +26,7 @@ Command {
     ],
     "option:version": [Function],
   },
-  "_eventsCount": 4,
+  "_eventsCount": 5,
   "_executableDir": null,
   "_executableFile": null,
   "_executableHandler": false,
