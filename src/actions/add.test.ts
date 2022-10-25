@@ -254,6 +254,25 @@ describe('The add module', async () => {
     expect(logger.error).toHaveBeenCalledWith('test-error', 2);
   });
 
+  it('should work when the retry succeeded', async () => {
+    const randomPlatform = Platform.CURSEFORGE;
+    const randomModId = chance.word();
+    const secondMod = generateRemoteModDetails();
+    vi.mocked(fetchModDetails).mockReset();
+    vi.mocked(fetchModDetails).mockRejectedValueOnce(new NoRemoteFileFound(randomModId, randomPlatform));
+    vi.mocked(fetchModDetails).mockResolvedValueOnce(secondMod.generated);
+    assumeDownloadIsSuccessful();
+    vi.mocked(noRemoteFileFound).mockResolvedValueOnce({
+      id: 'another-mod-id',
+      platform: Platform.MODRINTH
+    });
+
+    await add(randomPlatform, randomModId, { config: 'config.json' }, logger);
+
+    expect(noRemoteFileFound).toHaveBeenCalledOnce();
+    expect(logger.error).not.toHaveBeenCalled();
+  });
+
   it('should report unexpected errors', async () => {
 
     const randomErrorMessage = chance.sentence();
