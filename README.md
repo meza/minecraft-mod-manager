@@ -372,7 +372,7 @@ Step 4: Set the following for the "Pre-launch command" `"$INST_MC_DIR/mmm.exe" u
 
 It should look something like this:
 
-![](/doc/images/multimc-prelaunch.png)
+![](/doc/images/multimc.png)
 
 <br/><hr/>
 
