@@ -39,6 +39,7 @@ control over the mods that are installed.
     * [modsFolder](#modsfolder-required)
     * [defaultAllowedReleaseTypes](#defaultallowedreleasetypes-required)
     * [allowVersionFallback](#allowversionfallback-optional)
+* [Using with MultiMC](#using-with-multimc)
 * [Contribute to the project](#contribute-to-the-project)
   * [Setup](#setup)
     * [Prerequisites](#prerequisites)
@@ -353,6 +354,24 @@ This happens quite frequently unfortunately because mod developers either don't 
 they forget to list the supported Minecraft versions correctly.
 
 This setting will be overridable on an individual mod basis in the next release. Currently it's a global setting.
+
+## Using with MultiMC
+
+MultiMC is a great tool for managing your Minecraft instances. However it lacks the capability to keep the mods updated.
+
+You can use Minecraft Mod Manager to keep your mods up to date automatically.
+
+Step 1: Make sure that you have `mmm` in the .minecraft folder of your instance.
+
+Step 2: Edit your instance and go to "Settings" on the left hand side
+
+Step 3: Click on Custom Commands
+
+Step 4: Set the following for the "Pre-launch command" `"$INST_MC_DIR/mmm.exe" update`
+
+It should look something like this:
+
+![](/doc/images/multimc-prelaunch.png)
 
 <br/><hr/>
 
