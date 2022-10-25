@@ -59,8 +59,9 @@ const getConfiguration = async (options: DefaultOptions): Promise<ModsJson> => {
 export const add = async (platform: Platform, id: string, options: DefaultOptions, logger: Logger) => {
 
   const configuration = await getConfiguration(options);
+  const modConfig = configuration.mods.find((mod: Mod) => (mod.id === id && mod.type === platform));
 
-  if (configuration.mods.find((mod: Mod) => (mod.id === id && mod.type === platform))) {
+  if (modConfig) {
     logger.debug(`Mod ${id} for ${platform} already exists in the configuration`);
     return;
   }

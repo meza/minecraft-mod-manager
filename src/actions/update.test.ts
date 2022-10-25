@@ -2,6 +2,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import {
   assumeModFileExists,
   assumeModFileIsMissing,
+  expectModDetailsHaveBeenFetchedCorrectlyForMod,
   setupOneInstalledMod,
   verifyBasics
 } from '../../test/setupHelpers.js';
@@ -40,7 +41,8 @@ describe('The update action', () => {
   });
 
   it('does nothing when there are no updates', async () => {
-    const { randomConfiguration, randomInstallation } = setupOneInstalledMod();
+    const { randomConfiguration, randomInstallation, randomInstalledMod } = setupOneInstalledMod();
+    delete randomInstalledMod.allowedReleaseTypes;
 
     const remoteDetails = generateRemoteModDetails({
       hash: randomInstallation.hash,
@@ -65,8 +67,31 @@ describe('The update action', () => {
 
     expect(vi.mocked(downloadFile)).not.toHaveBeenCalled();
     expect(vi.mocked(fetchModDetails)).toHaveBeenCalledOnce();
+    expectModDetailsHaveBeenFetchedCorrectlyForMod(randomInstalledMod, randomConfiguration);
 
     verifyBasics();
+  });
+
+  it('can use the release type override', async () => {
+    const { randomConfiguration, randomInstallation, randomInstalledMod } = setupOneInstalledMod();
+
+    const remoteDetails = generateRemoteModDetails({
+      hash: randomInstallation.hash,
+      releaseDate: randomInstallation.releasedOn
+    });
+
+    vi.mocked(fetchModDetails).mockResolvedValueOnce(remoteDetails.generated);
+    vi.mocked(readConfigFile).mockResolvedValueOnce(randomConfiguration);
+    vi.mocked(readLockFile).mockResolvedValueOnce([randomInstallation]);
+
+    assumeModFileExists(randomInstallation.fileName);
+
+    vi.mocked(getHash).mockResolvedValueOnce(randomInstallation.hash);
+
+    await update({ config: 'config.json' }, logger);
+
+    expectModDetailsHaveBeenFetchedCorrectlyForMod(randomInstalledMod, randomConfiguration);
+
   });
 
   it('can update based on hashes', async () => {

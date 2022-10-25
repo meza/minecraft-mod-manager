@@ -65,7 +65,7 @@ export const install = async (options: DefaultOptions, logger: Logger) => {
       const modData = await fetchModDetails(
         mod.type,
         mod.id,
-        configuration.defaultAllowedReleaseTypes,
+        mod.allowedReleaseTypes || configuration.defaultAllowedReleaseTypes,
         configuration.gameVersion,
         configuration.loader,
         configuration.allowVersionFallback

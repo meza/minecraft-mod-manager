@@ -269,7 +269,10 @@ This is how it looks like if you followed the examples in the [`add`](#add) sect
     {
       "type": "curseforge",
       "id": "306612",
-      "name": "Fabric API"
+      "name": "Fabric API",
+      "allowedReleaseTypes": [
+        "release"
+      ]
     },
     {
       "type": "modrinth",
@@ -311,7 +314,31 @@ We recommend you use relative paths as they are more portable.
 
 Possible values is one or all of the following: `alpha`, `beta`, `release`
 
-This setting will be overridable on an individual mod basis in the next release. Currently it's a global setting.
+You can override this on a per-mod basis with the `allowedReleaseTypes` field in the mod definition.
+
+<details>
+  <summary>Example</summary>
+
+To lock Fabric Api to only release versions when everything else could be beta too, use it like below:
+
+```json
+{
+  ...
+  "mods": [
+    {
+      "type": "curseforge",
+      "id": "306612",
+      "name": "Fabric API",
+      "allowedReleaseTypes": [
+        "release"
+      ]
+    },
+    ...
+  ]
+}
+```
+
+</details>
 
 #### allowVersionFallback _optional_
 

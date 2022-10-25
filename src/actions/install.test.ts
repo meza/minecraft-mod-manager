@@ -1,4 +1,4 @@
-import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { install } from './install.js';
 import { fetchModDetails } from '../repositories/index.js';
 import { readConfigFile, readLockFile, writeConfigFile, writeLockFile } from '../lib/config.js';
@@ -34,15 +34,14 @@ describe('The install module', () => {
   let logger: Logger;
 
   beforeEach(() => {
+    vi.resetAllMocks();
     logger = new Logger({} as never);
   });
-  afterEach(() => {
-    vi.resetAllMocks();
-  });
 
-  it('installs a new mod', async () => {
+  it('installs a new mod with no release type override', async () => {
 
     const { randomConfiguration, randomUninstalledMod } = setupOneUninstalledMod();
+    delete randomUninstalledMod.allowedReleaseTypes;
 
     // Prepare the configuration file state
     vi.mocked(readConfigFile).mockResolvedValueOnce(randomConfiguration);
@@ -50,6 +49,7 @@ describe('The install module', () => {
 
     // Prepare the details the mod details fetcher should return
     const remoteDetails = generateRemoteModDetails().generated;
+
     vi.mocked(fetchModDetails).mockResolvedValueOnce(remoteDetails);
 
     // Prepare the download mock
@@ -79,6 +79,30 @@ describe('The install module', () => {
     expect(vi.mocked(fetchModDetails)).toHaveBeenCalledOnce();
 
     verifyBasics();
+
+  });
+
+  it('installs a new mod with a release type override', async () => {
+
+    const { randomConfiguration, randomUninstalledMod } = setupOneUninstalledMod();
+
+    // Prepare the configuration file state
+    vi.mocked(readConfigFile).mockResolvedValueOnce(randomConfiguration);
+    vi.mocked(readLockFile).mockResolvedValueOnce(emptyLockFile);
+
+    // Prepare the details the mod details fetcher should return
+    const remoteDetails = generateRemoteModDetails().generated;
+
+    vi.mocked(fetchModDetails).mockResolvedValueOnce(remoteDetails);
+
+    // Prepare the download mock
+    assumeSuccessfulDownload();
+
+    // Run the install
+    await install({ config: 'config.json' }, logger);
+
+    // Verify our expectations
+    expectModDetailsHaveBeenFetchedCorrectlyForMod(randomUninstalledMod, randomConfiguration);
 
   });
 
