@@ -1,4 +1,7 @@
 export const setup = () => {
+
+  process.env.TZ = 'GMT';
+
   // @ts-ignore
   process.env.CHANCE_SEED = process.env.CHANCE_SEED || '1234';
 

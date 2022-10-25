@@ -10,13 +10,17 @@ jobs:
     name: 📦 Build artifacts for the commit (for internal use only)
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v2
+      - uses: actions/checkout@v3
       - name: Set up node
         uses: ./.github/actions/setup/
         with:
           cache-name: binaries
 
-      - run: ./scripts/prepare.sh ./src/version.ts INTERNAL
+      - run: pnpm clean
+      - run: ./scripts/prepare.sh ./src/version.ts dev-${{ github.job_id }}-${{ github.sha }}
+        env:
+          CURSEFORGE_API_KEY: ${{ secrets.CURSEFORGE_API_KEY }}
+          MODRINTH_API_KEY: ${{ secrets.MODRINTH_API_KEY }}
       - run: pnpm build
       - run: pnpm build:binaries
       - run: ./scripts/binaries.sh
@@ -32,20 +36,11 @@ jobs:
     name: 🔎 Lint and Test
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v2
+      - uses: actions/checkout@v3
       - name: Set up node
         uses: ./.github/actions/setup/
         with:
           cache-name: pure-dependencies
-      - name: Cache build helpers
-        id: cache-build-data
-        uses: pat-s/always-upload-cache@v3
-        if: always()
-        env:
-          cache-name: cache-build-data
-        with:
-          path: ./.cache
-          key: ${{ runner.os }}-${{ env.cache-name }}
       - run: pnpm ci
       - name: Publish Test Results
         uses: EnricoMi/publish-unit-test-result-action/composite@v2

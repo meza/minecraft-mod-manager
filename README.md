@@ -14,6 +14,45 @@ If you want support for other platforms, please feel free to submit a pull reque
 It's purposefully made to have a very explicit configuration file to avoid any "magic". This allows you to have full
 control over the mods that are installed.
 
+---
+
+<details>
+<summary><b>Click for the Table of Contents</b></summary>
+<!-- TOC -->
+
+* [Installation](#installation)
+* [Running](#running)
+* [How it works](#how-it-works)
+  * [INIT](#init)
+    * [Command line arguments for `init`](#command-line-arguments-for-init)
+  * [ADD](#add)
+    * [Platforms](#platforms)
+    * [How to find the Mod ID?](#how-to-find-the-mod-id)
+  * [INSTALL](#install)
+  * [UPDATE](#update)
+  * [LIST](#list)
+* [Explaining the configuration](#explaining-the-configuration)
+  * [modlist-lock.json](#modlist-lockjson)
+  * [modlist.json](#modlistjson)
+    * [loader](#loader-_required)
+    * [gameVersion](#gameversion-required)
+    * [modsFolder](#modsfolder-required)
+    * [defaultAllowedReleaseTypes](#defaultallowedreleasetypes-required)
+    * [allowVersionFallback](#allowversionfallback-optional)
+* [Contribute to the project](#contribute-to-the-project)
+  * [Setup](#setup)
+    * [Prerequisites](#prerequisites)
+    * [Install dependencies](#install-dependencies)
+    * [Validate](#validate)
+  * [Code Considerations](#code-considerations)
+    * [Conventional commmit messages](#conventional-commmit-messages)
+    * [Using `console.log` and `console.error`](#using-consolelog-and-consoleerror)
+
+<!-- TOC -->
+</details>
+
+---
+
 ## Installation
 
 Go to the [releases page](https://github.com/meza/minecraft-mod-manager/releases), find the latest release,
@@ -55,7 +94,57 @@ Let's be honest, you already know...
 
 > _If you know `npm` or `yarn` from the web development world, this works just the same_
 
-There are 3 main responsibilities (and commands for these) of the app
+There are 5 main commands of the app. These are: [init](#init), [add](#add), [install](#install), [update](#update)
+and [list](#list)
+
+Every command has a help page that you can access by running `mmm help <command>`.
+
+__Common Options__
+
+Every command has a few common options that you can use:
+
+| Option Short | Option Long | Description                                |
+|--------------|-------------|--------------------------------------------|
+| -q           | --quiet     | Suppress all interactive ui elements       |
+| -c           | --config    | Set the config file to an alternative path |
+| -d           | --debug     | Enable verbose logging                     |
+
+All options should be specified **before** the command. For example:
+
+```bash
+mmm --quiet install
+```
+
+or
+
+```bash
+mmm -c ./my-config.json install
+```
+
+### INIT
+
+`mmm init`
+
+Initializes the configuration file. This will create a `modlist.json` file in the current folder by default.
+
+This will use an interactive prompt to ask you for the information it needs. If you don't want to use that or you're in
+an
+environment without interaction, you can supply all the answers view the command line arguments.
+
+#### Command line arguments for `init`
+
+You can supply all the answers via the command line arguments.
+You can add these one after the other, for example: `mmm init -l curseforge -p 1.16.5 -m ./mods -c ./modlist.json`
+
+| Short | Long                            | Description                             | Value                                                                                                                                     | Example                                            |
+|-------|---------------------------------|-----------------------------------------|-------------------------------------------------------------------------------------------------------------------------------------------|----------------------------------------------------|
+| -l    | --loader                        | The modloader to use                    | `curseforge` or `modrinth`                                                                                                                | `mmm init -l curseforge`                           |
+| -g    | --game-version                  | The Minecraft version to use            | A valid Minecraft version                                                                                                                 | `mmm init -g 1.19.2`                               |
+| -f    | --allow-version-fallback        | Whether to allow version fallback       | No value needed. <br/>When it is supplied, `true` is assumed                                                                              | `mmm init -f` to allow<br/>`mmm init` to not allow |
+| -r    | --default-allowed-release-types | Which release types do you allow?       | A comma separated list of the following: <br/>`alpha`, `beta`, `release`                                                                  | `mmm init -r release,beta`                         |
+| -m    | --mods-folder                   | Where do you want to download the mods? | An absolute or relative path to an **existing** folder<br/>Don't forget to use quotes for paths that include spaces or special characters | `mmm init -m "C:/My Modpack/mods"`                 |
+
+---
 
 ### ADD
 
@@ -130,6 +219,16 @@ You would run this command when you want to make sure that you're using the newe
 Due to the Minecraft modding community's lack of consistent versioning, the "newness" of a mod is defined by the release
 date of a file being newer than the old one + the hash of the file being different.
 
+---
+
+### LIST
+
+`mmm list`
+
+This will list all the mods that are managed by the tool and their current status.
+
+---
+
 ## Explaining the configuration
 
 ### modlist-lock.json
@@ -170,7 +269,10 @@ This is how it looks like if you followed the examples in the [`add`](#add) sect
     {
       "type": "curseforge",
       "id": "306612",
-      "name": "Fabric API"
+      "name": "Fabric API",
+      "allowedReleaseTypes": [
+        "release"
+      ]
     },
     {
       "type": "modrinth",
@@ -181,7 +283,7 @@ This is how it looks like if you followed the examples in the [`add`](#add) sect
 }
 ```
 
-> The **mods** field is managed by the [`add`](#add) command but you can also edit it by hand if you wish.
+> The **mods** field is managed by the [`add`](#add) command, but you can also edit it by hand if you wish.
 
 #### loader _required_
 
@@ -195,13 +297,48 @@ This needs to be the game version as listed by Mojang. `1.19`, `1.19.1`, `1.19.2
 
 #### modsFolder _required_
 
-This points to your mods folder. Traditionally it would be "mods" but you can modify it to whatever your situation needs
+This points to your mods folder. Traditionally it would be "mods" but you can modify it to whatever your situation
+needs.
+The value of this could be an absolute path or a relative path.
+
+We recommend you use relative paths as they are more portable.
+
+> __PRO TIP__
+>
+> Keep the `modlist.json` file in the root of your minecraft installation. Right next to the `server.properties` file.
+>
+> If the mods folder is relative, it will be a relative path from the modlist.json file. This makes it so that you can
+> easily include the modlist json with your modpack or multimc instance so others could make use of it too.
 
 #### defaultAllowedReleaseTypes _required_
 
 Possible values is one or all of the following: `alpha`, `beta`, `release`
 
-This setting will be overridable on an individual mod basis in the next release. Currently it's a global setting.
+You can override this on a per-mod basis with the `allowedReleaseTypes` field in the mod definition.
+
+<details>
+  <summary>Example</summary>
+
+To lock Fabric Api to only release versions when everything else could be beta too, use it like below:
+
+```json
+{
+  ...
+  "mods": [
+    {
+      "type": "curseforge",
+      "id": "306612",
+      "name": "Fabric API",
+      "allowedReleaseTypes": [
+        "release"
+      ]
+    },
+    ...
+  ]
+}
+```
+
+</details>
 
 #### allowVersionFallback _optional_
 
@@ -228,8 +365,8 @@ making any changes.
 
 #### Prerequisites
 
-- [Node.js](https://nodejs.org/en/) (v18 or higher)
-- [pnpm](https://pnpm.io/) (v7.13 or higher)
+- [Node.js](https://nodejs.org/en/) (v18.10 or higher)
+- [pnpm](https://pnpm.io) (v7.13.4 or higher)
 
 #### Install dependencies
 
@@ -251,6 +388,46 @@ We use [Conventional Commits](https://www.conventionalcommits.org/en/v1.0.0/) to
 to automatically bump the version number.
 
 > **Changes not following the Conventional Commits specification will be rejected.**
+
+---
+
+#### Unit testing
+
+The project has been written in a TDD fashion and all contributions are required to have full and meaningful coverage.
+
+> _100% coverage is just the bare minimum_
+
+Untested pull requests will be rejected.
+
+---
+
+#### Linting rules
+
+`pnpm lint` or the `pnpm ci` will apply the supplied linting rules.
+
+##### DO NOT
+
+- suppress linting errors unless there is absolutely no way around them
+- modify the rules to make them less strict
+- argue about the rules
+
+##### DO
+
+- create contributions that make the rules more coherent
+- ask for help if you don't understand why a rule is in place (but first please look up the violation)
+
+##### Exceptions
+
+Sometimes when dealing with external sources, things like `snake_case_names` are inevitable. Those can be suppressed on
+the line they occur.
+
+---
+
+#### Documentation
+
+Make sure additions are well documented with the same language and style as the main readme is.
+
+---
 
 #### Using `console.log` and `console.error`
 

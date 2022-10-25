@@ -12,6 +12,9 @@ export default defineConfig({
     outputFile: 'reports/junit.xml',
     reporters: ['verbose', 'junit'],
     coverage: {
+      excludeNodeModules: true,
+      include: ['src/**/*.ts'],
+      exclude: ['**/*.test.ts', '**/__mocks__/**.*', '**/*.d.ts'],
       all: true,
       reportsDirectory: './reports/coverage/unit',
       reporter: ['text', 'cobertura'],

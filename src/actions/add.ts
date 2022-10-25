@@ -3,7 +3,7 @@ import { fetchModDetails } from '../repositories/index.js';
 import { Mod, ModsJson, Platform } from '../lib/modlist.types.js';
 import { initializeConfigFile, readConfigFile, readLockFile, writeConfigFile, writeLockFile } from '../lib/config.js';
 import { downloadFile } from '../lib/downloader.js';
-import { DefaultOptions } from '../mmm.js';
+import { DefaultOptions, stop } from '../mmm.js';
 import { UnknownPlatformException } from '../errors/UnknownPlatformException.js';
 import inquirer from 'inquirer';
 import chalk from 'chalk';
@@ -11,14 +11,16 @@ import { CouldNotFindModException } from '../errors/CouldNotFindModException.js'
 import { NoRemoteFileFound } from '../errors/NoRemoteFileFound.js';
 import { ConfigFileNotFoundException } from '../errors/ConfigFileNotFoundException.js';
 import { shouldCreateConfig } from '../interactions/shouldCreateConfig.js';
+import { Logger } from '../lib/Logger.js';
+import { modNotFound } from '../interactions/modNotFound.js';
+import { noRemoteFileFound } from '../interactions/noRemoteFileFound.js';
 
-const handleUnknownPlatformException = async (error: UnknownPlatformException, id: string, options: DefaultOptions) => {
+const handleUnknownPlatformException = async (error: UnknownPlatformException, id: string, options: DefaultOptions, logger: Logger) => {
   const platformUsed = error.platform;
   const platformList = Object.values(Platform);
 
   if (options.quiet === true) {
-    console.error(chalk.red(`Unknown platform "${chalk.whiteBright(platformUsed)}". Please use one of the following: ${platformList.join(', ')}`));
-    return;
+    logger.error(`Unknown platform "${chalk.whiteBright(platformUsed)}". Please use one of the following: ${chalk.whiteBright(platformList.join(', '))}`);
   }
 
   const answers = await inquirer.prompt([
@@ -33,11 +35,11 @@ const handleUnknownPlatformException = async (error: UnknownPlatformException, i
   ]);
 
   if (answers.platform === 'cancel') {
-    return;
+    stop();
   }
 
   // eslint-disable-next-line no-use-before-define
-  await add(answers.platform, id, options);
+  await add(answers.platform, id, options, logger);
 
 };
 
@@ -54,14 +56,13 @@ const getConfiguration = async (options: DefaultOptions): Promise<ModsJson> => {
   }
 };
 
-export const add = async (platform: Platform, id: string, options: DefaultOptions) => {
+export const add = async (platform: Platform, id: string, options: DefaultOptions, logger: Logger) => {
+
   const configuration = await getConfiguration(options);
+  const modConfig = configuration.mods.find((mod: Mod) => (mod.id === id && mod.type === platform));
 
-  if (configuration.mods.find((mod: Mod) => (mod.id === id && mod.type === platform))) {
-    if (options.debug) {
-      console.debug(`Mod ${id} for ${platform} already exists in the configuration`);
-    }
-
+  if (modConfig) {
+    logger.debug(`Mod ${id} for ${platform} already exists in the configuration`);
     return;
   }
 
@@ -99,23 +100,26 @@ export const add = async (platform: Platform, id: string, options: DefaultOption
 
   } catch (error) {
     if (error instanceof UnknownPlatformException) {
-      await handleUnknownPlatformException(error, id, options);
+      await handleUnknownPlatformException(error, id, options, logger);
       return;
     }
 
     if (error instanceof CouldNotFindModException) {
-      console.error(chalk.redBright(`Mod "${chalk.whiteBright(id)}" for ${chalk.whiteBright(platform)} does not exist`));
+      const { id: newId, platform: newPlatform } = await modNotFound(id, platform, logger, options);
+      await add(newPlatform, newId, options, logger);
       return;
     }
 
     if (error instanceof NoRemoteFileFound) {
-      console.error(
-        chalk.red(`Could not find a file for the version ${chalk.whiteBright(configuration.gameVersion)} `
-          + `for ${chalk.whiteBright(configuration.loader)}`)
-      );
+      const {
+        id: newId,
+        platform: newPlatform
+      } = await noRemoteFileFound(id, platform, configuration, logger, options);
+      await add(newPlatform, newId, options, logger);
+      return;
     }
 
-    console.error(error);
+    logger.error((error as Error).message, 2);
   }
 
 };

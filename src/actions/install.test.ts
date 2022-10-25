@@ -1,4 +1,4 @@
-import { afterEach, describe, expect, it, vi } from 'vitest';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { install } from './install.js';
 import { fetchModDetails } from '../repositories/index.js';
 import { readConfigFile, readLockFile, writeConfigFile, writeLockFile } from '../lib/config.js';
@@ -17,7 +17,12 @@ import {
   setupOneUninstalledMod,
   verifyBasics
 } from '../../test/setupHelpers.js';
+import { Logger } from '../lib/Logger.js';
+import { ConfigFileNotFoundException } from '../errors/ConfigFileNotFoundException.js';
+import { ErrorTexts } from '../errors/ErrorTexts.js';
+import { chance } from 'jest-chance';
 
+vi.mock('../lib/Logger.js');
 vi.mock('../repositories/index.js');
 vi.mock('../lib/downloader.js');
 vi.mock('inquirer');
@@ -26,14 +31,17 @@ vi.mock('../lib/updater.js');
 vi.mock('../lib/hash.js');
 
 describe('The install module', () => {
+  let logger: Logger;
 
-  afterEach(() => {
+  beforeEach(() => {
     vi.resetAllMocks();
+    logger = new Logger({} as never);
   });
 
-  it('installs a new mod', async () => {
+  it('installs a new mod with no release type override', async () => {
 
     const { randomConfiguration, randomUninstalledMod } = setupOneUninstalledMod();
+    delete randomUninstalledMod.allowedReleaseTypes;
 
     // Prepare the configuration file state
     vi.mocked(readConfigFile).mockResolvedValueOnce(randomConfiguration);
@@ -41,22 +49,18 @@ describe('The install module', () => {
 
     // Prepare the details the mod details fetcher should return
     const remoteDetails = generateRemoteModDetails().generated;
-    vi.mocked(fetchModDetails).mockResolvedValueOnce(remoteDetails);
 
-    // Prepare the console log mock
-    const consoleSpy = vi.spyOn(console, 'log');
-    vi.mocked(consoleSpy).mockImplementation(() => {
-    });
+    vi.mocked(fetchModDetails).mockResolvedValueOnce(remoteDetails);
 
     // Prepare the download mock
     assumeSuccessfulDownload();
 
     // Run the install
-    await install({ config: 'config.json' });
+    await install({ config: 'config.json' }, logger);
 
     // Verify our expectations
     expectModDetailsHaveBeenFetchedCorrectlyForMod(randomUninstalledMod, randomConfiguration);
-    expect(consoleSpy).toHaveBeenCalledWith(`${randomUninstalledMod.name} doesn't exist, downloading from ${randomUninstalledMod.type}`);
+    expect(logger.log).toHaveBeenCalledWith(`${randomUninstalledMod.name} doesn't exist, downloading from ${randomUninstalledMod.type}`);
 
     expect(vi.mocked(writeConfigFile)).toHaveBeenCalledWith(randomConfiguration, 'config.json');
     expect(vi.mocked(writeLockFile)).toHaveBeenCalledWith([
@@ -78,6 +82,30 @@ describe('The install module', () => {
 
   });
 
+  it('installs a new mod with a release type override', async () => {
+
+    const { randomConfiguration, randomUninstalledMod } = setupOneUninstalledMod();
+
+    // Prepare the configuration file state
+    vi.mocked(readConfigFile).mockResolvedValueOnce(randomConfiguration);
+    vi.mocked(readLockFile).mockResolvedValueOnce(emptyLockFile);
+
+    // Prepare the details the mod details fetcher should return
+    const remoteDetails = generateRemoteModDetails().generated;
+
+    vi.mocked(fetchModDetails).mockResolvedValueOnce(remoteDetails);
+
+    // Prepare the download mock
+    assumeSuccessfulDownload();
+
+    // Run the install
+    await install({ config: 'config.json' }, logger);
+
+    // Verify our expectations
+    expectModDetailsHaveBeenFetchedCorrectlyForMod(randomUninstalledMod, randomConfiguration);
+
+  });
+
   it('downloads a missing mod', async () => {
 
     const { randomConfiguration, randomInstalledMod, randomInstallation } = setupOneInstalledMod();
@@ -88,11 +116,6 @@ describe('The install module', () => {
       randomInstallation
     ]);
 
-    // Prepare the console log mock
-    const consoleSpy = vi.spyOn(console, 'log');
-    vi.mocked(consoleSpy).mockImplementation(() => {
-    });
-
     // Prepare the download mock
     assumeSuccessfulDownload();
 
@@ -100,10 +123,10 @@ describe('The install module', () => {
     assumeModFileIsMissing(randomInstallation);
 
     // Run the install
-    await install({ config: 'config.json' });
+    await install({ config: 'config.json' }, logger);
 
     // Verify our expectations
-    expect(consoleSpy).toHaveBeenCalledWith(
+    expect(logger.log).toHaveBeenCalledWith(
       `${randomInstalledMod.name} doesn't exist, downloading from ${randomInstalledMod.type}`
     );
 
@@ -128,11 +151,6 @@ describe('The install module', () => {
       randomInstallation
     ]);
 
-    // Prepare the console log mock
-    const consoleSpy = vi.spyOn(console, 'log');
-    vi.mocked(consoleSpy).mockImplementation(() => {
-    });
-
     // Prepare the download mock
     assumeSuccessfulUpdate(randomInstallation);
 
@@ -142,10 +160,10 @@ describe('The install module', () => {
     vi.mocked(getHash).mockResolvedValueOnce('different-hash');
 
     // Run the install
-    await install({ config: 'config.json' });
+    await install({ config: 'config.json' }, logger);
 
     // Verify our expectations
-    expect(consoleSpy).toHaveBeenCalledWith(
+    expect(logger.log).toHaveBeenCalledWith(
       `${randomInstalledMod.name} has hash mismatch, downloading from source`
     );
 
@@ -161,20 +179,16 @@ describe('The install module', () => {
     verifyBasics();
   });
 
-  it('Shows the debug messages when it is enabled', async () => {
+  it('Sets the appropriate debug messages', async () => {
     const { randomInstalledMod, randomInstallation, randomConfiguration } = setupOneInstalledMod();
 
     vi.mocked(readConfigFile).mockResolvedValueOnce(randomConfiguration);
     vi.mocked(readLockFile).mockResolvedValueOnce([randomInstallation]);
     vi.mocked(getHash).mockResolvedValueOnce(randomInstallation.hash);
 
-    const consoleSpy = vi.spyOn(console, 'debug');
-    vi.mocked(consoleSpy).mockImplementation(() => {
-    });
+    await install({ config: 'config.json', debug: true }, logger);
 
-    await install({ config: 'config.json', debug: true });
-
-    expect(consoleSpy).toHaveBeenCalledWith(`Checking ${randomInstalledMod.name} for ${randomInstalledMod.type}`);
+    expect(logger.debug).toHaveBeenCalledWith(`Checking ${randomInstalledMod.name} for ${randomInstalledMod.type}`);
 
   });
 
@@ -189,19 +203,14 @@ describe('The install module', () => {
 
     vi.mocked(getHash).mockResolvedValueOnce(randomInstallation.hash);
 
-    // Prepare the console log mock
-    const consoleSpy = vi.spyOn(console, 'log');
-    vi.mocked(consoleSpy).mockImplementation(() => {
-    });
-
     // Prepare the file existence mock
     assumeModFileExists(randomInstallation.fileName);
 
     // Run the install
-    await install({ config: 'config.json' });
+    await install({ config: 'config.json' }, logger);
 
     // Verify our expectations
-    expect(consoleSpy).not.toHaveBeenCalled();
+    expect(logger.log).not.toHaveBeenCalled();
 
     expect(vi.mocked(writeConfigFile)).toHaveBeenCalledWith(randomConfiguration, 'config.json');
     expect(vi.mocked(writeLockFile)).toHaveBeenCalledWith([randomInstallation], 'config.json');
@@ -210,6 +219,21 @@ describe('The install module', () => {
     expect(vi.mocked(fetchModDetails)).not.toHaveBeenCalled();
 
     verifyBasics();
+  });
+
+  it('shows the correct error message when the config file is missing', async () => {
+    vi.mocked(readConfigFile).mockRejectedValueOnce(new ConfigFileNotFoundException('config.json'));
+    await install({ config: 'config.json' }, logger);
+
+    expect(vi.mocked(logger.error)).toHaveBeenCalledWith(ErrorTexts.configNotFound);
+
+  });
+
+  it('handles unexpected errors', async () => {
+    const randomErrorMessage = chance.sentence();
+    vi.mocked(readConfigFile).mockRejectedValueOnce(new Error(randomErrorMessage));
+    await install({ config: 'config.json' }, logger);
+    expect(logger.error).toHaveBeenCalledWith(randomErrorMessage, 2);
   });
 
 });

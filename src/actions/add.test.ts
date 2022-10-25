@@ -15,12 +15,20 @@ import { NoRemoteFileFound } from '../errors/NoRemoteFileFound.js';
 import { ModInstall, ModsJson, Platform, RemoteModDetails } from '../lib/modlist.types.js';
 import { ConfigFileNotFoundException } from '../errors/ConfigFileNotFoundException.js';
 import { shouldCreateConfig } from '../interactions/shouldCreateConfig.js';
+import { Logger } from '../lib/Logger.js';
+import { modNotFound } from '../interactions/modNotFound.js';
+import { noRemoteFileFound } from '../interactions/noRemoteFileFound.js';
+import { stop } from '../mmm.js';
 
+vi.mock('../lib/Logger.js');
+vi.mock('../mmm.js');
 vi.mock('../lib/config.js');
 vi.mock('../repositories/index.js');
 vi.mock('../lib/downloader.js');
 vi.mock('inquirer');
 vi.mock('../interactions/shouldCreateConfig.js');
+vi.mock('../interactions/modNotFound.ts');
+vi.mock('../interactions/noRemoteFileFound.js');
 
 interface LocalTestContext {
   randomConfiguration: GeneratorResult<ModsJson>;
@@ -52,7 +60,9 @@ const getRandomPlatform = () => {
 };
 
 describe('The add module', async () => {
+  let logger: Logger;
   beforeEach<LocalTestContext>((context) => {
+    logger = new Logger({} as never);
     context.randomConfiguration = generateModsJson();
 
     // the main configuration to work with
@@ -62,6 +72,9 @@ describe('The add module', async () => {
     // the mod details returned from the repository
     context.randomModDetails = generateRemoteModDetails();
     vi.mocked(fetchModDetails).mockResolvedValueOnce(context.randomModDetails.generated);
+    vi.mocked(logger.error).mockImplementation(() => {
+      throw new Error('process.exit');
+    });
   });
 
   afterEach(() => {
@@ -77,7 +90,7 @@ describe('The add module', async () => {
 
     assumeDownloadIsSuccessful();
 
-    await add(randomPlatform, randomModId, { config: 'config.json' });
+    await add(randomPlatform, randomModId, { config: 'config.json' }, logger);
 
     expect(
       vi.mocked(readConfigFile),
@@ -124,7 +137,7 @@ describe('The add module', async () => {
 
   });
 
-  describe('when the configuraiton file does not exist', () => {
+  describe('when the configuration file does not exist', () => {
     beforeEach(() => {
       vi.mocked(readConfigFile).mockReset();
       vi.mocked(readConfigFile).mockRejectedValueOnce(new ConfigFileNotFoundException('test-config.json'));
@@ -133,9 +146,10 @@ describe('The add module', async () => {
       const randomPlatform = getRandomPlatform();
       const randomModId = chance.word();
 
-      await expect(async () => {
-        await add(randomPlatform, randomModId, { config: 'test-config.json', quiet: true });
-      }).rejects.toThrow(new ConfigFileNotFoundException('test-config.json'));
+      await expect(add(randomPlatform, randomModId, {
+        config: 'test-config.json',
+        quiet: true
+      }, logger)).rejects.toThrow(new ConfigFileNotFoundException('test-config.json'));
     });
 
     it<LocalTestContext>('should initialize the config in interactive mode when asked to', async ({
@@ -147,7 +161,7 @@ describe('The add module', async () => {
       vi.mocked(shouldCreateConfig).mockResolvedValueOnce(true);
       vi.mocked(initializeConfigFile).mockResolvedValueOnce(randomConfiguration.generated);
 
-      await add(randomPlatform, randomModId, { config: 'test-config.json', quiet: false });
+      await add(randomPlatform, randomModId, { config: 'test-config.json', quiet: false }, logger);
 
       expect(vi.mocked(shouldCreateConfig)).toHaveBeenCalledOnce();
 
@@ -164,9 +178,10 @@ describe('The add module', async () => {
 
       vi.mocked(shouldCreateConfig).mockResolvedValueOnce(false);
 
-      await expect(async () => {
-        await add(randomPlatform, randomModId, { config: 'test-config.json', quiet: false });
-      }).rejects.toThrow(new ConfigFileNotFoundException('test-config.json'));
+      await expect(add(randomPlatform, randomModId, {
+        config: 'test-config.json',
+        quiet: false
+      }, logger)).rejects.toThrow(new ConfigFileNotFoundException('test-config.json'));
 
       expect(vi.mocked(shouldCreateConfig)).toHaveBeenCalledOnce();
 
@@ -184,7 +199,7 @@ describe('The add module', async () => {
 
     context.randomConfiguration.generated.mods = [randomModDetails.generated];
 
-    await add(randomPlatform, randomModId, { config: 'config.json' });
+    await add(randomPlatform, randomModId, { config: 'config.json' }, logger);
 
     expect(
       vi.mocked(fetchModDetails),
@@ -197,38 +212,10 @@ describe('The add module', async () => {
     ).toHaveBeenCalledTimes(0);
   });
 
-  it<LocalTestContext>('should not show a debug message when it is not asked for', async (context) => {
-    const consoleSpy = vi.spyOn(console, 'debug');
-    vi.mocked(consoleSpy).mockImplementation(() => {
-    });
-
-    const randomPlatform = Platform.CURSEFORGE;
-    const randomModId = 'a-mod-id';
-    const isDebug = false;
-
-    const randomModDetails = generateModConfig({
-      type: randomPlatform,
-      id: randomModId
-    });
-
-    context.randomConfiguration.generated.mods = [randomModDetails.generated];
-
-    await add(randomPlatform, randomModId, { config: 'config.json', debug: isDebug });
-
-    expect(
-      consoleSpy,
-      'The debug message was not logged'
-    ).not.toHaveBeenCalled();
-  });
-
-  it<LocalTestContext>('should show a debug message when it is asked for', async (context) => {
-    const consoleSpy = vi.spyOn(console, 'debug');
-    vi.mocked(consoleSpy).mockImplementation(() => {
-    });
+  it<LocalTestContext>('should send the correct debug message', async (context) => {
 
     const randomPlatform = Platform.MODRINTH;
     const randomModId = 'another-mod-id';
-    const isDebug = true;
 
     const randomModDetails = generateModConfig({
       type: randomPlatform,
@@ -237,37 +224,56 @@ describe('The add module', async () => {
 
     context.randomConfiguration.generated.mods = [randomModDetails.generated];
 
-    await add(randomPlatform, randomModId, { config: 'config.json', debug: isDebug });
+    await add(randomPlatform, randomModId, { config: 'config.json', debug: chance.bool() }, logger);
 
     expect(
-      consoleSpy,
+      logger.debug,
       'The debug message was not logged'
     ).toHaveBeenCalledWith('Mod another-mod-id for modrinth already exists in the configuration');
   });
 
   it<LocalTestContext>('should report when a file cannot be found for the version and exit', async ({ randomConfiguration }) => {
-    const consoleSpy = vi.spyOn(console, 'error');
-    vi.mocked(consoleSpy).mockImplementation(() => {
+    const randomPlatform = Platform.CURSEFORGE;
+    const randomModId = chance.word();
+    vi.mocked(fetchModDetails).mockReset();
+    vi.mocked(fetchModDetails).mockRejectedValueOnce(new NoRemoteFileFound(randomModId, randomPlatform));
+    vi.mocked(fetchModDetails).mockRejectedValueOnce(new Error('test-error'));
+    vi.mocked(noRemoteFileFound).mockResolvedValueOnce({
+      id: 'another-mod-id',
+      platform: Platform.MODRINTH
     });
 
-    const randomPlatform = getRandomPlatform();
+    await expect(add(randomPlatform, randomModId, { config: 'config.json' }, logger)).rejects.toThrow(new Error('process.exit'));
+
+    expect(fetchModDetails).toHaveBeenNthCalledWith(2, Platform.MODRINTH, 'another-mod-id',
+      randomConfiguration.expected.defaultAllowedReleaseTypes,
+      randomConfiguration.expected.gameVersion,
+      randomConfiguration.expected.loader,
+      randomConfiguration.expected.allowVersionFallback);
+    expect(noRemoteFileFound).toHaveBeenCalledWith(randomModId, randomPlatform, randomConfiguration.expected, logger, { config: 'config.json' });
+    expect(logger.error).toHaveBeenCalledWith('test-error', 2);
+  });
+
+  it('should work when the retry succeeded', async () => {
+    const randomPlatform = Platform.CURSEFORGE;
     const randomModId = chance.word();
-    const randomVersion = randomConfiguration.expected.gameVersion;
-    const randomLoader = randomConfiguration.expected.loader;
+    const secondMod = generateRemoteModDetails();
+    vi.mocked(fetchModDetails).mockReset();
+    vi.mocked(fetchModDetails).mockRejectedValueOnce(new NoRemoteFileFound(randomModId, randomPlatform));
+    vi.mocked(fetchModDetails).mockResolvedValueOnce(secondMod.generated);
+    assumeDownloadIsSuccessful();
+    vi.mocked(noRemoteFileFound).mockResolvedValueOnce({
+      id: 'another-mod-id',
+      platform: Platform.MODRINTH
+    });
 
-    vi.mocked(downloadFile).mockReset();
-    vi.mocked(downloadFile).mockRejectedValueOnce(new NoRemoteFileFound(randomModId, randomPlatform));
+    await add(randomPlatform, randomModId, { config: 'config.json' }, logger);
 
-    await add(randomPlatform, randomModId, { config: 'config.json' });
-
-    expect(consoleSpy).toHaveBeenCalledWith(`Could not find a file for the version ${randomVersion} for ${randomLoader}`);
-
+    expect(noRemoteFileFound).toHaveBeenCalledOnce();
+    expect(logger.error).not.toHaveBeenCalled();
   });
 
   it('should report unexpected errors', async () => {
-    const consoleSpy = vi.spyOn(console, 'error');
-    vi.mocked(consoleSpy).mockImplementation(() => {
-    });
 
     const randomErrorMessage = chance.sentence();
     const randomPlatform = getRandomPlatform();
@@ -277,9 +283,9 @@ describe('The add module', async () => {
     vi.mocked(fetchModDetails).mockReset();
     vi.mocked(fetchModDetails).mockRejectedValueOnce(error);
 
-    await add(randomPlatform, randomMod, { config: 'config.json' });
+    await expect(add(randomPlatform, randomMod, { config: 'config.json' }, logger)).rejects.toThrow(new Error('process.exit'));
 
-    expect(consoleSpy).toHaveBeenCalledWith(error);
+    expect(logger.error).toHaveBeenCalledWith(randomErrorMessage, 2);
 
   });
 
@@ -289,16 +295,21 @@ describe('The add module', async () => {
         const wrongPlatformText = assumeWrongPlatform();
         const randomModId = chance.word();
 
+        const mockExit = vi.mocked(stop)
+          .mockImplementation(() => {
+            throw new Error('process.exit: -1');
+          });
+
         vi.mocked(inquirer.prompt).mockResolvedValueOnce({ platform: 'cancel' });
 
-        await add(wrongPlatformText, randomModId, { config: 'config.json' });
+        await expect(add(wrongPlatformText, randomModId, { config: 'config.json' }, logger)).rejects.toThrow(new Error('process.exit: -1'));
 
         // @ts-ignore anyone with a fix for this?
         const inquirerOptions = vi.mocked(inquirer.prompt).mock.calls[0][0][0];
 
         expect(inquirerOptions.choices.sort()).toEqual(['cancel', ...Object.values(Platform)].sort());
         expect(vi.mocked(inquirer.prompt)).toHaveBeenCalledTimes(1);
-
+        expect(mockExit).toHaveBeenCalledOnce();
         // These mean that the add hasn't been recursively called
         expect(vi.mocked(readConfigFile)).toHaveBeenCalledTimes(1);
         expect(vi.mocked(fetchModDetails)).toHaveBeenCalledTimes(1);
@@ -323,7 +334,7 @@ describe('The add module', async () => {
         // we assume that the download is successful
         assumeDownloadIsSuccessful();
 
-        await add(wrongPlatformText, randomModId, { config: 'config.json' });
+        await add(wrongPlatformText, randomModId, { config: 'config.json' }, logger);
 
         expect(vi.mocked(downloadFile)).toHaveBeenCalledWith(
           context.randomModDetails.generated.downloadUrl,
@@ -349,15 +360,12 @@ describe('The add module', async () => {
       const wrongPlatformText = assumeWrongPlatform('very-wrong-platform');
       const randomModId = chance.word();
 
-      const consoleSpy = vi.spyOn(console, 'error');
-      consoleSpy.mockImplementation(() => {
-      });
+      await expect(add(wrongPlatformText, randomModId, {
+        config: 'config.json',
+        quiet: true
+      }, logger)).rejects.toThrow(new Error('process.exit'));
 
-      await add(wrongPlatformText, randomModId, { config: 'config.json', quiet: true });
-
-      // did we notify the user?
-      const consoleError = consoleSpy.mock.calls[0][0];
-      expect(consoleError).toEqual('Unknown platform "very-wrong-platform". Please use one of the following: curseforge, modrinth');
+      expect(logger.error).toHaveBeenCalledWith('Unknown platform "very-wrong-platform". Please use one of the following: curseforge, modrinth');
 
       // These mean that the add hasn't been recursively called
       expect(vi.mocked(readConfigFile)).toHaveBeenCalledTimes(1);
@@ -367,21 +375,30 @@ describe('The add module', async () => {
   });
 
   describe('when the mod can\'t be found', async () => {
-    it('it should exit after an error message has been shown', async () => {
-      const consoleSpy = vi.spyOn(console, 'error');
-      vi.mocked(consoleSpy).mockImplementation(() => {
+    it('it should handle with the correct interaction', async () => {
+
+      const secondRandomMod = generateRemoteModDetails();
+
+      vi.mocked(modNotFound).mockResolvedValueOnce({
+        id: chance.word(),
+        platform: getRandomPlatform()
       });
 
       const { randomPlatform, randomMod } = assumeModNotFound();
 
-      await add(randomPlatform, randomMod, { config: 'config.json' });
+      vi.mocked(fetchModDetails).mockResolvedValueOnce(secondRandomMod.generated);
+      assumeDownloadIsSuccessful();
 
-      expect(consoleSpy).toHaveBeenCalledWith(`Mod "${randomMod}" for ${randomPlatform} does not exist`);
+      await add(randomPlatform, randomMod, { config: 'config.json' }, logger);
+
+      expect(vi.mocked(modNotFound)).toHaveBeenCalledWith(randomMod, randomPlatform, logger, { config: 'config.json' });
 
       // Validate our assumptions about the work being done
-      expect(vi.mocked(readConfigFile)).toHaveBeenCalledTimes(1);
-      expect(vi.mocked(fetchModDetails)).toHaveBeenCalledTimes(1);
-      expect(vi.mocked(downloadFile)).not.toHaveBeenCalled();
+      expect(vi.mocked(readConfigFile)).toHaveBeenCalledTimes(2);
+      expect(vi.mocked(fetchModDetails)).toHaveBeenCalledTimes(2);
+      expect(vi.mocked(downloadFile)).toHaveBeenCalledOnce();
+      expect(vi.mocked(writeConfigFile)).toHaveBeenCalledOnce();
+      expect(vi.mocked(writeLockFile)).toHaveBeenCalledOnce();
 
     });
   });

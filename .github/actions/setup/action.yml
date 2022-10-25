@@ -8,37 +8,16 @@ inputs:
 runs:
   using: "composite"
   steps:
-    #    - name: Cache multiple paths
-    #      uses: actions/cache@v2
-    #      with:
-    #        path: |
-    #          ~/.cache
-    #          ~/node_modules
-    #        key: ${{ runner.os }}-${{ hashFiles('**/pnpm.lock') }}
-    #
-    #    - name: Get pnpm cache directory path
-    #      id: pnpm-cache-dir-path
-    #      shell: bash
-    #      run: echo "::set-output name=dir::$(pnpm config get cacheFolder)"
-    #
-    #    - uses: actions/cache@v2
-    #      id: pnpm-cache # use this to check for `cache-hit` (`steps.pnpm-cache.outputs.cache-hit != 'true'`)
-    #      with:
-    #        path: ${{ steps.pnpm-cache-dir-path.outputs.dir }}
-    #        key: ${{ runner.os }}-pnpm-${{ hashFiles('**/pnpm.lock') }}
-    #        restore-keys: |
-    #          ${{ runner.os }}-pnpm-
-
     - name: Use Node.js ${{ matrix.node-version }}
       uses: actions/setup-node@v3
       with:
-        node-version: 18
+        node-version: latest
 
-    - uses: pnpm/action-setup@v2.0.1
+    - uses: pnpm/action-setup@v2.2.3
       name: Install pnpm
       id: pnpm-install
       with:
-        version: 7
+        version: latest
         run_install: false
 
     - name: Get pnpm store directory
@@ -46,6 +25,16 @@ runs:
       shell: bash
       run: |
         echo "::set-output name=pnpm_cache_dir::$(pnpm store path)"
+
+    - name: Cache build helpers
+      id: cache-build-data
+      uses: pat-s/always-upload-cache@v3
+      if: always()
+      env:
+        cache-name: cache-build-data
+      with:
+        path: ./.cache
+        key: ${{ runner.os }}-build-data-${{ inputs.cache-name }}
 
     - uses: pat-s/always-upload-cache@v3
       name: Setup pnpm cache

@@ -37,7 +37,7 @@ export interface Mod {
   type: Platform,
   id: string,
   allowedReleaseTypes?: ReleaseType[]
-  name?: string,
+  name: string,
 }
 
 export interface ModsJson {

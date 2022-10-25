@@ -13,11 +13,8 @@ const assumeDownloadSuccessful = () => {
   vi.mocked(downloadFile).mockResolvedValueOnce();
 };
 
-const assumeDownloadFailed = () => {
-  vi.mocked(downloadFile).mockRejectedValueOnce({});
-};
-
 describe('The updater module', () => {
+
   afterEach(() => {
     vi.resetAllMocks();
   });
@@ -33,39 +30,22 @@ describe('The updater module', () => {
 
     await updateMod(randomMod, originalPath, randomModsFolder);
 
-    expect(vi.mocked(fs.rename)).toHaveBeenCalledWith(originalPath, `${originalPath}.bak`);
     expect(vi.mocked(downloadFile)).toHaveBeenCalledWith(randomMod.downloadUrl, expectedNewPath);
-    expect(vi.mocked(fs.rm)).toHaveBeenCalledWith(`${originalPath}.bak`);
-
-    expect(vi.mocked(fs.rename)).toHaveBeenCalledOnce();
-    expect(vi.mocked(downloadFile)).toHaveBeenCalledOnce();
-    expect(vi.mocked(fs.rm)).toHaveBeenCalledOnce();
+    expect(vi.mocked(fs.rm)).toHaveBeenCalledWith(originalPath);
 
   });
 
-  it('should roll back on download failure', async () => {
-    const consoleSpy = vi.spyOn(console, 'log');
-    vi.mocked(console.log).mockImplementationOnce(() => {
-    });
-
+  it('should safely update to the same file file', async () => {
     const randomMod = generateModInstall().generated;
     const randomModsFolder = chance.word();
-    const randomOldPath = chance.word();
-    const originalPath = path.resolve(randomModsFolder, randomOldPath);
+    const originalPath = path.resolve(randomModsFolder, randomMod.fileName);
     const expectedNewPath = path.resolve(randomModsFolder, randomMod.fileName);
 
-    assumeDownloadFailed();
+    assumeDownloadSuccessful();
 
     await updateMod(randomMod, originalPath, randomModsFolder);
 
-    expect(vi.mocked(fs.rename)).toHaveBeenNthCalledWith(1, originalPath, `${originalPath}.bak`);
     expect(vi.mocked(downloadFile)).toHaveBeenCalledWith(randomMod.downloadUrl, expectedNewPath);
-    expect(vi.mocked(fs.rename)).toHaveBeenNthCalledWith(2, `${originalPath}.bak`, originalPath);
-
-    expect(consoleSpy).toHaveBeenCalledWith(`Download of ${randomMod.name} failed, restoring the original`);
-
-    expect(vi.mocked(fs.rename)).toHaveBeenCalledTimes(2);
-    expect(vi.mocked(downloadFile)).toHaveBeenCalledOnce();
     expect(vi.mocked(fs.rm)).not.toHaveBeenCalled();
 
   });

@@ -17,14 +17,15 @@
   "types": "dist/index.d.ts",
   "private": false,
   "scripts": {
-    "build": "esbuild ./src/ --bundle --platform=node --outfile=dist/mmm.cjs",
+    "build": "esbuild ./src/ --bundle --target=esnext --platform=node --outfile=dist/mmm.cjs",
     "build:binaries": "PKG_CACHE_PATH=.cache/pkg pkg dist/mmm.cjs -t node18-win,node18-linux,node18-macos --options \"no-warnings\" -o dist/pkg/mmm",
     "start": "node --no-warnings --loader ts-node/esm src/index.ts",
     "commit": "cz",
     "ci": "npm-run-all --parallel -c lint report",
     "clean": "npm-run-all clean:basics",
-    "clean:all": "npm-run-all clean:basics clean:githooks clean:dependencies",
-    "clean:basics": "rimraf dist .cache",
+    "clean:all": "npm-run-all clean:basics clean:cache clean:githooks clean:dependencies",
+    "clean:basics": "rimraf dist",
+    "clean:cache": "rimraf .cache",
     "clean:githooks": "lefthook uninstall -k",
     "clean:dependencies": "rimraf node_modules",
     "lint:specific": "eslint --ext .ts --ext .json --cache --cache-location .cache/",
@@ -105,5 +106,8 @@
   },
   "publishConfig": {
     "access": "public"
+  },
+  "engines": {
+    "node": ">=18.0.0"
   }
 }

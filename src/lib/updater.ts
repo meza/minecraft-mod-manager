@@ -9,18 +9,11 @@ export const updateMod = async (
   modsFolder: string
 ): Promise<ModInstall | RemoteModDetails> => {
 
-  await fs.rename(modPath, `${modPath}.bak`);
-
-  try {
-    const newPath = path.resolve(modsFolder, mod.fileName);
-    await downloadFile(mod.downloadUrl, newPath);
-    await fs.rm(`${modPath}.bak`);
-
-  } catch {
-    console.log(`Download of ${mod.name} failed, restoring the original`);
-    await fs.rename(`${modPath}.bak`, modPath);
+  const newPath = path.resolve(modsFolder, mod.fileName);
+  await downloadFile(mod.downloadUrl, newPath);
+  if (modPath !== newPath) {
+    await fs.rm(modPath);
   }
-
   return mod;
 
 };
