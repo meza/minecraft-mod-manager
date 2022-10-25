@@ -1,86 +1,87 @@
+import { DefaultOptions } from '../mmm.js';
+import { fileExists, readConfigFile, readLockFile, writeConfigFile, writeLockFile } from '../lib/config.js';
+import { Mod, ModInstall } from '../lib/modlist.types.js';
 import path from 'path';
-import { fetchModDetails } from '../repositories/index.js';
-import { fileExists, readConfigFile, writeConfigFile } from '../lib/config.js';
-import { downloadFile } from '../lib/downloader.js';
-import { ModConfig, ModDetails } from '../lib/modlist.types.js';
 import { getHash } from '../lib/hash.js';
-import fs from 'node:fs/promises';
-import { DefaultOptions } from '../mmu.js';
+import { updateMod } from '../lib/updater.js';
+import { fetchModDetails } from '../repositories/index.js';
+import { install } from './install.js';
+import { Logger } from '../lib/Logger.js';
+import { ConfigFileNotFoundException } from '../errors/ConfigFileNotFoundException.js';
+import { ErrorTexts } from '../errors/ErrorTexts.js';
 
-interface UpdateOptions extends DefaultOptions {
-}
-
-const getMod = async (moddata: ModDetails, modsFolder: string) => {
-  await downloadFile(moddata.downloadUrl, path.resolve(modsFolder, moddata.fileName));
-  return {
-    fileName: moddata.fileName,
-    releasedOn: moddata.releaseDate,
-    hash: moddata.hash
-  };
+const getInstallation = (mod: Mod, installations: ModInstall[]) => {
+  return installations.findIndex((i) => i.id === mod.id && i.type === mod.type);
 };
 
-export const update = async (options: UpdateOptions) => {
-  const configuration = await readConfigFile(options.config);
+const hasInstallation = (mod: Mod, installations: ModInstall[]) => {
+  return getInstallation(mod, installations) > -1;
+};
 
-  for (let i = 0; i < configuration.mods.length; i++) {
-    const mod = configuration.mods[i] as ModConfig;
+export const update = async (options: DefaultOptions, logger: Logger) => {
+  await install(options, logger);
+  try {
+    const configuration = await readConfigFile(options.config);
+    const installations = await readLockFile(options.config);
 
-    const moddata = await fetchModDetails(
-      mod.type,
-      mod.id,
-      configuration.defaultAllowedReleaseTypes,
-      configuration.gameVersion,
-      configuration.loader,
-      configuration.allowVersionFallback
-    );
+    const installedMods = installations;
+    const mods = configuration.mods;
 
-    mod.name = moddata.name;
+    const processMod = async (mod: Mod, index: number) => {
 
-    if (!mod.installed) {
-      console.log(`Installing ${mod.name}`);
-      const dlData = await getMod(moddata, configuration.modsFolder);
-      mod.installed = {
-        fileName: dlData.fileName,
-        releasedOn: dlData.releasedOn,
-        hash: dlData.hash
-      };
-    }
+      logger.debug(`[update] Checking ${mod.name} for ${mod.type}`);
 
-    const modPath = path.resolve(configuration.modsFolder, mod.installed.fileName);
+      const modData = await fetchModDetails(
+        mod.type,
+        mod.id,
+        mod.allowedReleaseTypes || configuration.defaultAllowedReleaseTypes,
+        configuration.gameVersion,
+        configuration.loader,
+        configuration.allowVersionFallback
+      );
+      // TODO Handle the fetch failing
+      mods[index].name = modData.name;
 
-    if (!await fileExists(modPath)) {
-      console.log(`${mod.name} doesn't exist, downloading from ${mod.type}`);
-      const dlData = await getMod(moddata, configuration.modsFolder);
-      mod.installed = {
-        fileName: dlData.fileName,
-        releasedOn: dlData.releasedOn,
-        hash: dlData.hash
-      };
-    }
-
-    const installedHash = await getHash(modPath);
-
-    if (moddata.hash !== installedHash) {
-      console.log(`${mod.name}  has hash mismatch, downloading from source`);
-      await fs.rename(modPath, `${modPath}.bak`);
-      try {
-        const newPath = path.resolve(configuration.modsFolder, moddata.fileName);
-        await downloadFile(moddata.downloadUrl, newPath);
-        mod.name = moddata.name;
-        mod.installed = {
-          fileName: moddata.fileName,
-          releasedOn: moddata.releaseDate,
-          hash: moddata.hash
-        };
-
-        await fs.rm(`${modPath}.bak`);
-      } catch {
-        console.log('Download failed, restoring the original');
-        await fs.rename(`${modPath}.bak`, modPath);
+      if (!hasInstallation(mod, installations)) {
+        logger.error(`${mod.name} doesn't seem to be installed, please run mmm install first`);
+        // TODO handle this better
       }
-    }
-    configuration.mods[i] = mod;
-  }
 
-  await writeConfigFile(configuration, options.config);
+      const installedModIndex = getInstallation(mod, installedMods);
+      const oldModPath = path.resolve(configuration.modsFolder, installedMods[installedModIndex].fileName);
+
+      if (!await fileExists(oldModPath)) {
+        logger.error(`${mod.name} (${oldModPath}) doesn't exist, please run mmm install`);
+        // TODO handle this better
+      }
+
+      const installedHash = await getHash(oldModPath);
+      if (modData.hash !== installedHash || modData.releaseDate > installedMods[installedModIndex].releasedOn) {
+        logger.log(`${mod.name} has an update, downloading...`);
+        await updateMod(modData, oldModPath, configuration.modsFolder);
+        // TODO handle the download failing
+
+        installedMods[installedModIndex].hash = modData.hash;
+        installedMods[installedModIndex].downloadUrl = modData.downloadUrl;
+        installedMods[installedModIndex].releasedOn = modData.releaseDate;
+        installedMods[installedModIndex].fileName = modData.fileName;
+
+        return;
+      }
+      return;
+    };
+
+    const promises = mods.map(processMod);
+
+    await Promise.all(promises);
+
+    await writeLockFile(installedMods, options.config);
+    await writeConfigFile(configuration, options.config);
+  } catch (error) {
+    if (error instanceof ConfigFileNotFoundException) {
+      logger.error(ErrorTexts.configNotFound);
+    }
+
+    logger.error((error as Error).message, 2);
+  }
 };

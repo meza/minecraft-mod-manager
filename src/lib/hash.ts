@@ -5,6 +5,7 @@ import { fileExists } from './config.js';
 export const getHash = async (file: string) => {
   if (!await fileExists(file)) {
     throw new Error(`File (${file}) does not exist, can't determine the hash`);
+    // TODO handle file not found
   }
 
   const contents = await fs.readFile(file);

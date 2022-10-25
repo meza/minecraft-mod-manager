@@ -1,5 +1,8 @@
-import { ModDetails, ReleaseType } from '../../lib/modlist.types.js';
+import { Platform, ReleaseType, RemoteModDetails } from '../../lib/modlist.types.js';
 import { curseForgeApiKey } from '../../env.js';
+import { CouldNotFindModException } from '../../errors/CouldNotFindModException.js';
+import { NoRemoteFileFound } from '../../errors/NoRemoteFileFound.js';
+import { InvalidReleaseTypeException } from './InvalidReleaseTypeException.js';
 
 export enum HashFunctions {
   // eslint-disable-next-line no-unused-vars
@@ -18,7 +21,7 @@ interface CurseForgeGameVersion {
   gameVersion: string
 }
 
-interface CurseforgeModFile {
+export interface CurseforgeModFile {
   displayName: string
   fileDate: string
   releaseType: number
@@ -47,8 +50,27 @@ const releaseTypeFromNumber = (curseForgeReleaseType: number): ReleaseType => {
     case 3:
       return ReleaseType.ALPHA;
     default:
-      throw new Error('Cannot determine release type');
+      throw new InvalidReleaseTypeException(curseForgeReleaseType);
   }
+};
+
+const getFiles = async (projectId: string): Promise<CurseforgeModFile[]> => {
+  const url = `https://api.curseforge.com/v1/mods/${projectId}/files`;
+
+  const modFiles = await fetch(url, {
+    headers: {
+      'Accept': 'application/json',
+      'x-api-key': curseForgeApiKey
+    }
+  });
+
+  // if (modFiles.status !== 200) {
+  //   throw new CouldNotFindModException(projectId, Platform.CURSEFORGE);
+  // }
+  // TODO fix this
+
+  const filesData = await modFiles.json();
+  return filesData.data as CurseforgeModFile[];
 };
 
 export const getMod = async (projectId: string, allowedReleaseTypes: ReleaseType[], allowedGameVersion: string, loader: string, allowFallback: boolean) => {
@@ -62,18 +84,21 @@ export const getMod = async (projectId: string, allowedReleaseTypes: ReleaseType
   });
 
   if (modDetailsRequest.status !== 200) {
-    throw new Error(`Could not find the given mod: Curseforge: ${projectId}`);
+    throw new CouldNotFindModException(projectId, Platform.CURSEFORGE);
   }
 
   const modDetails = await modDetailsRequest.json();
-  const files = modDetails.data.latestFiles as CurseforgeModFile[];
-
+  const files = await getFiles(projectId);
   const potentialFiles = files
     .filter((file) => {
       return file.sortableGameVersions.find((gameVersion) => gameVersion.gameVersionName.toLowerCase() === loader.toLowerCase());
     })
     .filter((file) => {
-      return file.isAvailable && allowedReleaseTypes.includes(releaseTypeFromNumber(file.releaseType)) && [4, 10].includes(file.fileStatus);
+      try {
+        return file.isAvailable && allowedReleaseTypes.includes(releaseTypeFromNumber(file.releaseType)) && [4, 10].includes(file.fileStatus);
+      } catch (e) {
+        return false;
+      }
     })
     .filter((file) => {
       return file.sortableGameVersions.some((gameVersion) => {
@@ -101,18 +126,22 @@ export const getMod = async (projectId: string, allowedReleaseTypes: ReleaseType
     });
 
   if (potentialFiles.length === 0) {
-    throw new Error(`No files found for the given mod: Curseforge: ${projectId}`);
+    throw new NoRemoteFileFound(modDetails.data.name, Platform.CURSEFORGE);
   }
 
   const latestFile = potentialFiles[0];
 
-  const modData: ModDetails = {
-    name: latestFile.displayName,
-    fileName: latestFile.fileName,
-    releaseDate: latestFile.fileDate,
-    hash: getHash(latestFile.hashes, HashFunctions.sha1),
-    downloadUrl: latestFile.downloadUrl
-  };
+  try {
+    const modData: RemoteModDetails = {
+      name: modDetails.data.name,
+      fileName: latestFile.fileName,
+      releaseDate: latestFile.fileDate,
+      hash: getHash(latestFile.hashes, HashFunctions.sha1),
+      downloadUrl: latestFile.downloadUrl
+    };
 
-  return modData;
+    return modData;
+  } catch (e) { // Catch when the hash is not found (due to curseforge error)
+    throw new NoRemoteFileFound(modDetails.data.name, Platform.CURSEFORGE);
+  }
 };

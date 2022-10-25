@@ -6,39 +6,61 @@ env:
   LEFTHOOK: 0
 
 jobs:
-  verify:
+  build-push-artifacts:
+    name: 📦 Build artifacts for the commit (for internal use only)
     runs-on: ubuntu-latest
-
     steps:
-      - uses: actions/checkout@v2
-      - name: Cache multiple paths
-        uses: actions/cache@v2
+      - uses: actions/checkout@v3
+      - name: Set up node
+        uses: ./.github/actions/setup/
         with:
-          path: |
-            ~/.cache
-            ~/node_modules
-          key: ${{ runner.os }}-${{ hashFiles('**/yarn.lock') }}
+          cache-name: binaries
 
-      - name: Get yarn cache directory path
-        id: yarn-cache-dir-path
-        run: echo "::set-output name=dir::$(yarn config get cacheFolder)"
+      - run: pnpm clean
+      - run: ./scripts/prepare.sh ./src/version.ts dev-${{ github.job_id }}-${{ github.sha }}
+        env:
+          HELP_URL: ${{github.server_url}}/${{github.repository}}/blob/${{github.sha}}/README.md
+          CURSEFORGE_API_KEY: ${{ secrets.CURSEFORGE_API_KEY }}
+          MODRINTH_API_KEY: ${{ secrets.MODRINTH_API_KEY }}
+      - run: pnpm build
+      - run: pnpm build:binaries
+      - run: ./scripts/binaries.sh
 
-      - uses: actions/cache@v2
-        id: yarn-cache # use this to check for `cache-hit` (`steps.yarn-cache.outputs.cache-hit != 'true'`)
+      - name: Upload build artifacts
+        uses: actions/upload-artifact@v3
         with:
-          path: ${{ steps.yarn-cache-dir-path.outputs.dir }}
-          key: ${{ runner.os }}-yarn-${{ hashFiles('**/yarn.lock') }}
-          restore-keys: |
-            ${{ runner.os }}-yarn-
+          if-no-files-found: error
+          name: Dev Binaries for testing purposes
+          path: dist/pkg/**/mmm*
 
-      - name: Use Node.js ${{ matrix.node-version }}
-        uses: actions/setup-node@v3
+  verify:
+    name: 🔎 Lint and Test
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v3
+      - name: Set up node
+        uses: ./.github/actions/setup/
         with:
-          node-version: 18
-          cache: 'yarn'
+          cache-name: pure-dependencies
+      - run: pnpm ci
+      - name: Publish Test Results
+        uses: EnricoMi/publish-unit-test-result-action/composite@v2
+        if: always()
+        with:
+          junit_files: "reports/junit.xml"
+      - name: Code Coverage Summary Report
+        uses: irongut/CodeCoverageSummary@v1.3.0
+        if: always()
+        with:
+          format: markdown
+          output: file
+          hide_complexity: false
+          badge: true
+          filename: "reports/coverage/unit/cobertura-coverage.xml"
+      - name: Publish code coverage report
+        if: always()
+        run: cat code-coverage-results.md >> $GITHUB_STEP_SUMMARY
 
-      - run: yarn --pure-lockfile
-      - run: yarn ci
       - run: npx semantic-release --dry-run
         id: get-next-version
         env:
@@ -48,48 +70,20 @@ jobs:
       new-release-version: ${{ steps.get-next-version.outputs.new-release-version }}
 
   release:
-    needs: [ verify ]
+    needs: [ verify, build-push-artifacts ]
     if: needs.verify.outputs.new-release-published == 'true'
     name: Release
     runs-on: ubuntu-latest
     steps:
-      - name: Checkout
-        uses: actions/checkout@v2
-        with:
-          fetch-depth: 0
-          persist-credentials: false
-      - name: Cache multiple paths
-        uses: actions/cache@v2
-        with:
-          path: |
-            ~/.cache
-            ~/node_modules
-          key: ${{ runner.os }}-${{ hashFiles('**/yarn.lock') }}
+      - uses: actions/checkout@v2
+      - name: Set up node
+        uses: ./.github/actions/setup/
 
-      - name: Get yarn cache directory path
-        id: yarn-cache-dir-path
-        run: echo "::set-output name=dir::$(yarn config get cacheFolder)"
-
-      - uses: actions/cache@v2
-        id: yarn-cache # use this to check for `cache-hit` (`steps.yarn-cache.outputs.cache-hit != 'true'`)
-        with:
-          path: ${{ steps.yarn-cache-dir-path.outputs.dir }}
-          key: ${{ runner.os }}-yarn-${{ hashFiles('**/yarn.lock') }}
-          restore-keys: |
-            ${{ runner.os }}-yarn-
-
-      - name: Use Node.js ${{ matrix.node-version }}
-        uses: actions/setup-node@v3
-        with:
-          node-version: 18
-          cache: 'yarn'
-
-      - name: Install deps
-        run: yarn --pure-lockfile --offline
-      - name: Build & Release
+      - name: 🚀 Build & Release
         env:
+          HELP_URL: ${{github.server_url}}/${{github.repository}}/blob/${{github.sha}}/README.md
           CURSEFORGE_API_KEY: ${{ secrets.CURSEFORGE_API_KEY }}
           MODRINTH_API_KEY: ${{ secrets.MODRINTH_API_KEY }}
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           NPM_TOKEN: ${{ secrets.NPM_TOKEN }}
-        run: yarn release
+        run: pnpm release

@@ -1,18 +1,68 @@
 import path from 'path';
 import { fetchModDetails } from '../repositories/index.js';
-import { ModConfig, Platform } from '../lib/modlist.types.js';
-import { readConfigFile, writeConfigFile } from '../lib/config.js';
+import { Mod, ModsJson, Platform } from '../lib/modlist.types.js';
+import { initializeConfigFile, readConfigFile, readLockFile, writeConfigFile, writeLockFile } from '../lib/config.js';
 import { downloadFile } from '../lib/downloader.js';
-import { DefaultOptions } from '../mmu.js';
+import { DefaultOptions, stop } from '../mmm.js';
+import { UnknownPlatformException } from '../errors/UnknownPlatformException.js';
+import inquirer from 'inquirer';
+import chalk from 'chalk';
+import { CouldNotFindModException } from '../errors/CouldNotFindModException.js';
+import { NoRemoteFileFound } from '../errors/NoRemoteFileFound.js';
+import { ConfigFileNotFoundException } from '../errors/ConfigFileNotFoundException.js';
+import { shouldCreateConfig } from '../interactions/shouldCreateConfig.js';
+import { Logger } from '../lib/Logger.js';
+import { modNotFound } from '../interactions/modNotFound.js';
+import { noRemoteFileFound } from '../interactions/noRemoteFileFound.js';
 
-export const add = async (platform: Platform, id: string, options: DefaultOptions) => {
-  const configuration = await readConfigFile(options.config);
+const handleUnknownPlatformException = async (error: UnknownPlatformException, id: string, options: DefaultOptions, logger: Logger) => {
+  const platformUsed = error.platform;
+  const platformList = Object.values(Platform);
 
-  if (configuration.mods.find((mod: ModConfig) => (mod.id === id && mod.type === platform))) {
-    if (options.debug) {
-      console.debug(`Mod ${id} for ${platform} already exists in the configuration`);
+  if (options.quiet === true) {
+    logger.error(`Unknown platform "${chalk.whiteBright(platformUsed)}". Please use one of the following: ${chalk.whiteBright(platformList.join(', '))}`);
+  }
+
+  const answers = await inquirer.prompt([
+    {
+      type: 'list',
+      name: 'platform',
+      default: false,
+      choices: [...platformList, 'cancel'],
+      message: chalk.redBright(`The platform you entered (${chalk.whiteBright(platformUsed)}) is not a valid platform.\n`)
+        + chalk.whiteBright('Would you like to retry with a valid one?')
     }
+  ]);
 
+  if (answers.platform === 'cancel') {
+    stop();
+  }
+
+  // eslint-disable-next-line no-use-before-define
+  await add(answers.platform, id, options, logger);
+
+};
+
+const getConfiguration = async (options: DefaultOptions): Promise<ModsJson> => {
+  try {
+    return await readConfigFile(options.config);
+  } catch (error) {
+    if (error instanceof ConfigFileNotFoundException && options.quiet === false) {
+      if (await shouldCreateConfig(options.config)) {
+        return await initializeConfigFile(options.config);
+      }
+    }
+    throw error;
+  }
+};
+
+export const add = async (platform: Platform, id: string, options: DefaultOptions, logger: Logger) => {
+
+  const configuration = await getConfiguration(options);
+  const modConfig = configuration.mods.find((mod: Mod) => (mod.id === id && mod.type === platform));
+
+  if (modConfig) {
+    logger.debug(`Mod ${id} for ${platform} already exists in the configuration`);
     return;
   }
 
@@ -27,21 +77,49 @@ export const add = async (platform: Platform, id: string, options: DefaultOption
 
     await downloadFile(modData.downloadUrl, path.resolve(configuration.modsFolder, modData.fileName));
 
+    const installations = await readLockFile(options.config);
+
     configuration.mods.push({
       type: platform,
       id: id,
+      name: modData.name
+    });
+
+    installations.push({
       name: modData.name,
-      installed: {
-        fileName: modData.fileName,
-        releasedOn: modData.releaseDate,
-        hash: modData.hash
-      },
-      allowedReleaseTypes: configuration.defaultAllowedReleaseTypes
+      type: platform,
+      id: id,
+      fileName: modData.fileName,
+      releasedOn: modData.releaseDate,
+      hash: modData.hash,
+      downloadUrl: modData.downloadUrl
     });
 
     await writeConfigFile(configuration, options.config);
+    await writeLockFile(installations, options.config);
+
   } catch (error) {
-    console.error(error);
+    if (error instanceof UnknownPlatformException) {
+      await handleUnknownPlatformException(error, id, options, logger);
+      return;
+    }
+
+    if (error instanceof CouldNotFindModException) {
+      const { id: newId, platform: newPlatform } = await modNotFound(id, platform, logger, options);
+      await add(newPlatform, newId, options, logger);
+      return;
+    }
+
+    if (error instanceof NoRemoteFileFound) {
+      const {
+        id: newId,
+        platform: newPlatform
+      } = await noRemoteFileFound(id, platform, configuration, logger, options);
+      await add(newPlatform, newId, options, logger);
+      return;
+    }
+
+    logger.error((error as Error).message, 2);
   }
 
 };
