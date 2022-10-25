@@ -13,7 +13,6 @@ export const modNotFound = async (modName: string, platform: Platform, logger: L
   const errorText = `Mod "${chalk.whiteBright(modName)}" for ${chalk.whiteBright(platform)} does not exist`;
   if (options.quiet === true) {
     logger.error(errorText);
-    return {} as ModNofFoundInteractionResult; // needs a return for testing purposes because the above line terminates the process in production
   }
 
   const answers = await inquirer.prompt([
@@ -27,7 +26,6 @@ export const modNotFound = async (modName: string, platform: Platform, logger: L
 
   if (answers.confirm === false) {
     logger.error('Aborting', 0);
-    return {} as ModNofFoundInteractionResult; // needs a return for testing purposes because the above line terminates the process in production
   }
 
   const { newModName, newPlatform } = await inquirer.prompt([

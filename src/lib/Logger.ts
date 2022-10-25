@@ -32,7 +32,7 @@ export class Logger {
     }
   }
 
-  error(message: string, code = 1) {
+  error(message: string, code = 1): never {
     this.program.error(chalk.red(message), { exitCode: code });
   }
 }

@@ -21,7 +21,6 @@ export const noRemoteFileFound = async (
 
   if (options.quiet === true) {
     logger.error(errorText);
-    return {} as NoRemoteFileFoundInteractionResult; // needs a return for testing purposes because the above line terminates the process in production
   }
 
   const newPlatform = platform === Platform.CURSEFORGE ? Platform.MODRINTH : Platform.CURSEFORGE;
@@ -37,7 +36,6 @@ export const noRemoteFileFound = async (
 
   if (answers.confirm === false) {
     logger.error('Aborting', 0);
-    return {} as NoRemoteFileFoundInteractionResult; // needs a return for testing purposes because the above line terminates the process in production
   }
 
   const { newModName } = await inquirer.prompt([

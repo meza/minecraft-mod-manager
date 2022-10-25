@@ -218,7 +218,7 @@ describe('The update action', () => {
 
   });
 
-  it('prints the correct error when the original mod file doe not exist', async () => {
+  it('prints the correct error when the original mod file does not exist', async () => {
     const { randomConfiguration, randomInstallation, randomInstalledMod } = setupOneInstalledMod();
 
     const remoteDetails = generateRemoteModDetails({
@@ -232,9 +232,9 @@ describe('The update action', () => {
     vi.mocked(readLockFile).mockResolvedValueOnce([randomInstallation]);
 
     assumeModFileIsMissing(randomInstallation);
-    await update({ config: 'config.json' }, logger);
     const expectedPath = path.resolve(randomConfiguration.modsFolder, randomInstallation.fileName);
 
+    await update({ config: 'config.json' }, logger);
     // Verify our expectations
     expect(logger.error).toHaveBeenCalledWith(`${randomInstalledMod.name} (${expectedPath}) doesn't exist, please run mmm install`);
 

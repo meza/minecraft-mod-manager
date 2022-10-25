@@ -17,10 +17,10 @@ vi.mock('./interactions/initializeConfig.js');
 
 describe('The main CLI configuration', () => {
   let logger: Logger;
-  beforeEach(async () => {
+  beforeEach(() => {
+    vi.resetModules();
+    vi.spyOn(process, 'cwd').mockReturnValue('/path/to/minecraft/installation');
     logger = new Logger({} as never);
-    const cwdSpy = vi.spyOn(process, 'cwd');
-    cwdSpy.mockReturnValue('/path/to/minecraft/installation');
   });
 
   afterEach(() => {

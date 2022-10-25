@@ -45,7 +45,6 @@ export const update = async (options: DefaultOptions, logger: Logger) => {
       if (!hasInstallation(mod, installations)) {
         logger.error(`${mod.name} doesn't seem to be installed, please run mmm install first`);
         // TODO handle this better
-        return;
       }
 
       const installedModIndex = getInstallation(mod, installedMods);
@@ -54,7 +53,6 @@ export const update = async (options: DefaultOptions, logger: Logger) => {
       if (!await fileExists(oldModPath)) {
         logger.error(`${mod.name} (${oldModPath}) doesn't exist, please run mmm install`);
         // TODO handle this better
-        return;
       }
 
       const installedHash = await getHash(oldModPath);

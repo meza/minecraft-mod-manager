@@ -3,7 +3,7 @@ import { fetchModDetails } from '../repositories/index.js';
 import { Mod, ModsJson, Platform } from '../lib/modlist.types.js';
 import { initializeConfigFile, readConfigFile, readLockFile, writeConfigFile, writeLockFile } from '../lib/config.js';
 import { downloadFile } from '../lib/downloader.js';
-import { DefaultOptions } from '../mmm.js';
+import { DefaultOptions, stop } from '../mmm.js';
 import { UnknownPlatformException } from '../errors/UnknownPlatformException.js';
 import inquirer from 'inquirer';
 import chalk from 'chalk';
@@ -21,7 +21,6 @@ const handleUnknownPlatformException = async (error: UnknownPlatformException, i
 
   if (options.quiet === true) {
     logger.error(`Unknown platform "${chalk.whiteBright(platformUsed)}". Please use one of the following: ${chalk.whiteBright(platformList.join(', '))}`);
-    return;
   }
 
   const answers = await inquirer.prompt([
@@ -36,7 +35,7 @@ const handleUnknownPlatformException = async (error: UnknownPlatformException, i
   ]);
 
   if (answers.platform === 'cancel') {
-    return;
+    stop();
   }
 
   // eslint-disable-next-line no-use-before-define

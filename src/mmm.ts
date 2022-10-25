@@ -13,6 +13,7 @@ import { Logger } from './lib/Logger.js';
 export const APP_NAME = 'Minecraft Mod Manager';
 export const APP_DESCRIPTION = 'Manages mods from Modrinth and Curseforge';
 export const DEFAULT_CONFIG_LOCATION = './modlist.json';
+const cwd = process.cwd();
 
 export interface DefaultOptions {
   config: string;
@@ -24,8 +25,12 @@ export const program = new Command();
 
 export const logger: Logger = new Logger(program);
 
+export const stop = (): never => {
+  // eslint-disable-next-line no-process-exit
+  process.exit(-1);
+};
+
 const commands = [];
-const cwd = process.cwd();
 
 program.name(APP_NAME).version(version).description(APP_DESCRIPTION);
 
