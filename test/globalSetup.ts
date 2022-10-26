@@ -1,4 +1,5 @@
 import chanceSetup from 'jest-chance';
+import * as process from 'process';
 
 export const setup = () => {
 
@@ -6,11 +7,14 @@ export const setup = () => {
 
   const chanceSeed = chanceSetup();
 
-  process.env.GITHUB_STEP_SUMMARY += `
+  if (process.env.GITHUB_STEP_SUMMARY) {
+    process.env.GITHUB_STEP_SUMMARY = `${process.env.GITHUB_STEP_SUMMARY}
+
   ### Chance Seed
 
   ${chanceSeed}
 `;
+  }
 
   // @ts-ignore
   process.env.FORCE_COLOR = 0;

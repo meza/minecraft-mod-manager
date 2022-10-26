@@ -1,5 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { Platform } from '../lib/modlist.types.js';
+import { Loader, Platform } from '../lib/modlist.types.js';
 import inquirer from 'inquirer';
 import { chance } from 'jest-chance';
 import { generateModsJson } from '../../test/modlistGenerator.js';
@@ -27,7 +27,8 @@ describe('The mod not found interaction', () => {
     const testPlatform = Platform.CURSEFORGE;
     const testModId = 'test-mod-id';
     const randomConfig = generateModsJson({
-      gameVersion: '1.16.5'
+      gameVersion: '1.16.5',
+      loader: Loader.FORGE
     }).generated;
 
     await expect(noRemoteFileFound(testModId, testPlatform, randomConfig, logger, {
