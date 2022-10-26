@@ -1,19 +1,20 @@
 import chanceSetup from 'jest-chance';
+import { writeFileSync } from 'node:fs';
 import * as process from 'process';
 
 export const setup = () => {
 
   process.env.TZ = 'GMT';
-
+  console.log(process.env);
   const chanceSeed = chanceSetup();
+  const filePath = process.env.GITHUB_STEP_SUMMARY;
+  if (filePath) {
+    const markdown = `
+### Repeat the test with
 
-  if (process.env.GITHUB_STEP_SUMMARY) {
-    process.env.GITHUB_STEP_SUMMARY = `${process.env.GITHUB_STEP_SUMMARY}
-
-  ### Chance Seed
-
-  ${chanceSeed}
+\`CHANCE_SEED=${chanceSeed} ${process.env.npm_lifecycle_script}\`
 `;
+    writeFileSync(filePath, markdown, 'utf8');
   }
 
   // @ts-ignore
