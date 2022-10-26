@@ -26,7 +26,9 @@ describe('The mod not found interaction', () => {
   it('shows the correct error message when in quiet mode', async () => {
     const testPlatform = Platform.CURSEFORGE;
     const testModId = 'test-mod-id';
-    const randomConfig = generateModsJson().generated;
+    const randomConfig = generateModsJson({
+      gameVersion: '1.16.5'
+    }).generated;
 
     await expect(noRemoteFileFound(testModId, testPlatform, randomConfig, logger, {
       config: 'config.json',
@@ -35,7 +37,7 @@ describe('The mod not found interaction', () => {
 
     const loggerErrorCall = vi.mocked(logger.error).mock.calls[0][0];
 
-    expect(loggerErrorCall).toMatchInlineSnapshot('"Could not find a file for test-mod-id and the Minecraft version cuodja for forge loader"');
+    expect(loggerErrorCall).toMatchInlineSnapshot('"Could not find a file for test-mod-id and the Minecraft version 1.16.5 for forge loader"');
     expect(vi.mocked(inquirer.prompt)).not.toHaveBeenCalled();
 
   });
