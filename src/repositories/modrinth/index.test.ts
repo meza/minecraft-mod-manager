@@ -248,7 +248,7 @@ describe('The Modrinth repository', () => {
     const randomVersionRedHerring = generateModrinthVersion({
       loaders: [context.loader],
       // eslint-disable-next-line camelcase
-      version_type: chance.pickone(context.allowedReleaseTypes),
+      version_type: ReleaseType.RELEASE,
       // eslint-disable-next-line camelcase
       game_versions: [version],
       // eslint-disable-next-line camelcase
@@ -257,14 +257,23 @@ describe('The Modrinth repository', () => {
     const randomVersionAnotherRedHerring = generateModrinthVersion({
       loaders: [context.loader],
       // eslint-disable-next-line camelcase
-      version_type: chance.pickone(context.allowedReleaseTypes),
+      version_type: ReleaseType.RELEASE,
+      // eslint-disable-next-line camelcase
+      game_versions: [version],
+      // eslint-disable-next-line camelcase
+      date_published: '2021-01-02'
+    }).generated;
+    const randomVersionAnotherRedHerring2 = generateModrinthVersion({
+      loaders: [context.loader],
+      // eslint-disable-next-line camelcase
+      version_type: ReleaseType.RELEASE,
       // eslint-disable-next-line camelcase
       game_versions: [version],
       // eslint-disable-next-line camelcase
       date_published: '2021-01-02'
     }).generated;
 
-    assumeSuccessfulDetailsFetch(randomName, [randomVersionRedHerring, randomVersion, randomVersionAnotherRedHerring]);
+    assumeSuccessfulDetailsFetch(randomName, [randomVersionRedHerring, randomVersion, randomVersionAnotherRedHerring, randomVersionAnotherRedHerring2]);
 
     const actual = await getMod(
       context.id,
