@@ -5,7 +5,7 @@ import * as process from 'process';
 export const setup = () => {
 
   process.env.TZ = 'GMT';
-  console.log(process.env);
+
   const chanceSeed = chanceSetup();
   const filePath = process.env.GITHUB_STEP_SUMMARY;
   if (filePath) {
