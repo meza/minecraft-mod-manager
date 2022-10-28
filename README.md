@@ -127,7 +127,7 @@ Initializes the configuration file. This will create a `modlist.json` file in th
 
 This will use an interactive prompt to ask you for the information it needs. If you don't want to use that or you're in
 an
-environment without interaction, you can supply all the answers view the command line arguments.
+environment without interaction, you can supply all the answers through the command line arguments.
 
 #### Command line arguments for `init`
 
