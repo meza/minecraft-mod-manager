@@ -82,7 +82,7 @@ describe('The Minecraft version verifier module', () => {
   });
 
   it('should return false if the Minecraft version is invalid', async () => {
-    const randomVersion = chance.word();
+    const randomVersion = chance.word() + '-invalid-for-sure';
     vi.mocked(fetch).mockResolvedValueOnce({
       ok: true,
       json: vi.fn().mockResolvedValueOnce({
