@@ -79,6 +79,7 @@ describe('The Curseforge repository', () => {
     const randomName = chance.word();
     const randomBadReleaseType = chance.integer({ min: 4, max: 100 });
     const randomFile = generateCurseforgeModFile({
+      isAvailable: true,
       sortableGameVersions: [{
         gameVersion: context.gameVersion,
         gameVersionName: context.loader

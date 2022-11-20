@@ -58,7 +58,7 @@ describe('The mod not found interaction', () => {
   });
 
   it('asks the user for a new mod id and platform when the user wants to modify their search', async () => {
-    const testPlatform = chance.pickone(Object.values(Platform));
+    const testPlatform = Platform.MODRINTH;
     const testModId = chance.word();
 
     vi.mocked(inquirer.prompt).mockResolvedValueOnce({ confirm: true });
@@ -77,7 +77,7 @@ describe('The mod not found interaction', () => {
             "curseforge",
             "modrinth",
           ],
-          "default": "curseforge",
+          "default": "modrinth",
           "message": "Which platform would you like to use?",
           "name": "newPlatform",
           "type": "list",
