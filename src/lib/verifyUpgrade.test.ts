@@ -60,7 +60,7 @@ describe('The Upgrade Test Module', () => {
     it<LocalTestContext>('should report everything fine', async ({ randomVersion, logger, options }) => {
       vi.mocked(verifyMinecraftVersion).mockResolvedValue(true);
 
-      vi.mocked(fetchModDetails).mockResolvedValue({} as any);
+      vi.mocked(fetchModDetails).mockResolvedValue({} as never);
 
       const result = await verifyUpgradeIsPossible(randomVersion, options, logger);
       expect(result).toEqual({
@@ -92,9 +92,9 @@ describe('The Upgrade Test Module', () => {
 
       if (failingModIndex === 0) { // randomizing which mod fails just for good measure
         vi.mocked(fetchModDetails).mockRejectedValueOnce(new Error());
-        vi.mocked(fetchModDetails).mockResolvedValueOnce({} as any);
+        vi.mocked(fetchModDetails).mockResolvedValueOnce({} as never);
       } else {
-        vi.mocked(fetchModDetails).mockResolvedValueOnce({} as any);
+        vi.mocked(fetchModDetails).mockResolvedValueOnce({} as never);
         vi.mocked(fetchModDetails).mockRejectedValueOnce(new Error());
       }
 
