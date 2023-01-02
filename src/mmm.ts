@@ -11,6 +11,7 @@ import { initializeConfig } from './interactions/initializeConfig.js';
 import { Logger } from './lib/Logger.js';
 import { Platform, ReleaseType } from './lib/modlist.types.js';
 import { version } from './version.js';
+import { changeGameVersion } from './actions/change.js';
 
 export const APP_NAME = 'Minecraft Mod Manager';
 export const APP_DESCRIPTION = 'Manages mods from Modrinth and Curseforge';
@@ -104,6 +105,14 @@ commands.push(
     .aliases(['t'])
     .action(async (gameVersion: string, _options, cmd) => {
       await testGameVersion(gameVersion, cmd.optsWithGlobals(), logger);
+    })
+);
+
+commands.push(
+  program.command('change')
+    .argument('[game_version]', 'The Minecraft version to change to', 'latest')
+    .action(async (gameVersion: string, _options, cmd) => {
+      await changeGameVersion(gameVersion, cmd.optsWithGlobals(), logger);
     })
 );
 

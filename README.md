@@ -28,6 +28,7 @@ control over the mods that are installed.
     * [How to find the Mod ID?](#how-to-find-the-mod-id)
   * [INSTALL](#install)
   * [UPDATE](#update)
+  * [CHANGE](#change)
   * [LIST](#list)
   * [TEST](#test)
 * [Explaining the configuration](#explaining-the-configuration)
@@ -221,6 +222,26 @@ You would run this command when you want to make sure that you're using the newe
 
 Due to the Minecraft modding community's lack of consistent versioning, the "newness" of a mod is defined by the release
 date of a file being newer than the old one + the hash of the file being different.
+
+---
+
+### CHANGE
+
+`mmm change [game_version]`
+
+This will attempt to change all the mods that are configured for the mod manager to the supplied
+minecraft version.
+
+If no version is given, the command will assume the most recent release version of Minecraft.
+
+It will perform the same check as the `mmm test` would before attempting a change so if either
+of the configured mods doesn't support the new game version, the change will not happen.
+
+The process of a `mmm change` is the equivalent of running `mmm test`, deleting all the current mod files
+from the configured mods directory, changing the `gameVersion` in the `modlist.json`, then running a
+`mmm install`.
+
+The exit codes of this command are identical to the [test](#test) command's.
 
 ---
 

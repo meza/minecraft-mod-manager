@@ -33,18 +33,21 @@ describe('The test action', () => {
   describe('when the mods can be upgraded safely', () => {
     it<LocalTestContext>('should report success for the given version', async ({ options, logger, version }) => {
 
-      vi.mocked(verifyUpgradeIsPossible).mockResolvedValueOnce({
+      const result = {
         canUpgrade: true,
         version: version
-      } as unknown as UpgradeVerificationResult);
+      } as unknown as UpgradeVerificationResult;
+      vi.mocked(verifyUpgradeIsPossible).mockResolvedValueOnce(result);
 
-      await testGameVersion(version, options, logger);
+      const actual = await testGameVersion(version, options, logger);
 
       const logMessage = vi.mocked(logger.log).mock.calls[0][0];
 
       expect(logMessage).toContain('All mods have support for ');
       expect(logMessage).toContain(version);
       expect(logMessage).toContain('You can safely upgrade.');
+
+      expect(actual).toBe(result);
 
     });
   });

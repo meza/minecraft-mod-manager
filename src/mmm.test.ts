@@ -8,6 +8,7 @@ import { update } from './actions/update.js';
 import { initializeConfig } from './interactions/initializeConfig.js';
 import { Logger } from './lib/Logger.js';
 import { Platform } from './lib/modlist.types.js';
+import { changeGameVersion } from './actions/change.js';
 
 vi.mock('./lib/Logger.js');
 vi.mock('./actions/add.js');
@@ -16,6 +17,7 @@ vi.mock('./actions/install.js');
 vi.mock('./actions/update.js');
 vi.mock('./interactions/initializeConfig.js');
 vi.mock('./actions/testGameVersion.js');
+vi.mock('./actions/change.js');
 
 describe('The main CLI configuration', () => {
   let logger: Logger;
@@ -104,6 +106,17 @@ describe('The main CLI configuration', () => {
       chance.pickone(['test', 't'])
     ]);
     expect(testGameVersion).toHaveBeenCalledOnce();
+  });
+
+  it('has the change hooked up to the correct function', async () => {
+    const { program } = await import('./mmm.js');
+    vi.mocked(changeGameVersion).mockResolvedValueOnce(expect.anything());
+    await program.parse([
+      '',
+      '',
+      chance.pickone(['change'])
+    ]);
+    expect(changeGameVersion).toHaveBeenCalledOnce();
   });
 
   it('sets the logger to quiet when the quiet option is supplied', async () => {
