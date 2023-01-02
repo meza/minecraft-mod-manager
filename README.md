@@ -29,6 +29,7 @@ control over the mods that are installed.
   * [INSTALL](#install)
   * [UPDATE](#update)
   * [LIST](#list)
+  * [TEST](#test)
 * [Explaining the configuration](#explaining-the-configuration)
   * [modlist-lock.json](#modlist-lockjson)
   * [modlist.json](#modlistjson)
@@ -231,6 +232,28 @@ This will list all the mods that are managed by the tool and their current statu
 
 ---
 
+### TEST
+
+`mmm test [game_version]`
+
+Test if you can use the specified game version. This is most commonly used to see if you can upgrade to a newer version
+of Minecraft and _test_ that all of your configured mods will have a version for it.
+
+For example if you're on 1.19.2 and you want to see if you could upgrade to 1.19.3, you would run: `mmm test 1.19.3`
+
+If you omit the game version, it will use the latest stable minecraft version.
+
+**For server operators and script automation, the command will have a non-zero (1) exit value when it finds mods that
+don't support the version you are testing for.**
+
+It will also return a non-zero (2) exit value when you're testing for the version that's already being used.
+
+This means that you could run `mmm test` every day for example, which would in return always check for the latest
+Minecraft release. Whenever the command returns with a zero exit code, you can run a version upgrade on your server if
+you like.
+
+---
+
 ## Explaining the configuration
 
 ### modlist-lock.json
@@ -354,11 +377,11 @@ following:
 This happens quite frequently unfortunately because mod developers either don't update their mods but they still work or
 they forget to list the supported Minecraft versions correctly.
 
-This setting will be overridable on an individual mod basis in the next release. Currently it's a global setting.
+This setting will be overridable on an individual mod basis in the next release. Currently, it's a global setting.
 
 ## Using with MultiMC
 
-MultiMC is a great tool for managing your Minecraft instances. However it lacks the capability to keep the mods updated.
+MultiMC is a great tool for managing your Minecraft instances. However, it lacks the capability to keep the mods updated.
 
 You can use Minecraft Mod Manager to keep your mods up to date automatically.
 
