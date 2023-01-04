@@ -19,6 +19,11 @@
       "./src/types"
     ]
   },
+  "linterOptions": {
+    "exclude": [
+      "lib/murmurhash3.ts"
+    ]
+  },
   "include": [
     "src/**/*.ts",
     "test/**/*.ts"

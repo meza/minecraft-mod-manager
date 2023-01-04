@@ -12,6 +12,7 @@
   "bin": {
     "minecraft-mod-updater": "dist/index.js"
   },
+  "gypfile": true,
   "license": "GPL-3.0",
   "type": "module",
   "types": "dist/index.d.ts",
@@ -43,13 +44,17 @@
   "dependencies": {
     "@types/inquirer": "^9.0.2",
     "@types/node": "^18.7.23",
+    "cd": "^0.3.3",
     "chalk": "^5.0.1",
     "commander": "^9.4.1",
     "core-js": "^3.25.3",
     "dotenv": "^16.0.3",
     "inquirer": "^9.1.2",
     "log-symbols": "^5.1.0",
+    "murmurhash3": "^0.5.0",
+    "node-addon-api": "^5.0.0",
     "nodejs-file-downloader": "^4.10.2",
+    "quick-hash": "^1.0.4",
     "sha1-file": "^3.0.0"
   },
   "commitlint": {
@@ -88,6 +93,7 @@
     "jest-chance": "0.2.5",
     "lefthook": "1.2.6",
     "mock-cwd": "1.0.0",
+    "node-gyp": "^9.3.1",
     "npm-run-all": "4.1.5",
     "pkg": "5.8.0",
     "pnpm": "7.21.0",
