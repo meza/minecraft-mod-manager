@@ -53,11 +53,7 @@
     "inquirer": "^9.1.2",
     "log-symbols": "^5.1.0",
     "md5-file": "^5.0.0",
-    "murmurhash3": "^0.5.0",
-    "node-addon-api": "^5.0.0",
-    "nodejs-file-downloader": "^4.10.2",
-    "quick-hash": "^1.0.4",
-    "sha1-file": "^3.0.0"
+    "nodejs-file-downloader": "^4.10.2"
   },
   "commitlint": {
     "extends": [
@@ -80,7 +76,6 @@
     "@semantic-release/github": "8.0.7",
     "@semantic-release/npm": "9.0.1",
     "@semantic-release/release-notes-generator": "10.0.3",
-    "@types/uuid": "8.3.4",
     "@typescript-eslint/eslint-plugin": "5.47.1",
     "@typescript-eslint/parser": "5.47.1",
     "@vitest/coverage-c8": "0.26.3",
@@ -104,7 +99,6 @@
     "semantic-release-export-data": "1.0.1",
     "ts-node": "10.9.1",
     "typescript": "4.9.4",
-    "uuid": "9.0.0",
     "vitest": "0.26.3"
   },
   "repository": {
