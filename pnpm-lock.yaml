@@ -6,6 +6,7 @@ specifiers:
   '@commitlint/prompt-cli': 17.3.0
   '@faker-js/faker': 7.6.0
   '@meza/adr-tools': 1.0.10
+  '@meza/curseforge-fingerprint': ^1.0.5
   '@meza/tsconfig-base': 1.1.0
   '@ryansonshine/commitizen': 4.2.8
   '@ryansonshine/cz-conventional-changelog': 3.3.4
@@ -39,6 +40,7 @@ specifiers:
   jest-chance: 0.2.5
   lefthook: 1.2.6
   log-symbols: ^5.1.0
+  md5-file: ^5.0.0
   mock-cwd: 1.0.0
   murmurhash3: ^0.5.0
   node-addon-api: ^5.0.0
@@ -58,6 +60,7 @@ specifiers:
   vitest: 0.26.3
 
 dependencies:
+  '@meza/curseforge-fingerprint': 1.0.5
   '@types/inquirer': 9.0.2
   '@types/node': 18.7.23
   cd: 0.3.3
@@ -67,6 +70,7 @@ dependencies:
   dotenv: 16.0.3
   inquirer: 9.1.2
   log-symbols: 5.1.0
+  md5-file: 5.0.0
   murmurhash3: 0.5.0
   node-addon-api: 5.0.0
   nodejs-file-downloader: 4.10.2
@@ -708,6 +712,15 @@ packages:
       inquirer: 8.2.4
       marked: 4.1.1
     dev: true
+
+  /@meza/curseforge-fingerprint/1.0.5:
+    resolution: {integrity: sha512-27MOMxKyx2V5UryjXIVoT/0kKrVJmlL+sqP6oPa/hcKdKnBhReIYuNc8/oXlAncxoEFzGnq5c3hisK2EWHGTCQ==}
+    requiresBuild: true
+    dependencies:
+      '@types/node': 18.7.23
+      core-js: 3.25.3
+      node-addon-api: 5.0.0
+    dev: false
 
   /@meza/tsconfig-base/1.1.0:
     resolution: {integrity: sha512-ScbUVyNon6sR5Vf84Y8ndzHjWQe1zhQK55VN7APS4U6yks9GBnhTm6l+ZuQ0fK9i8bzJ4nImnzZNE+BQ6cE8zw==}
@@ -4027,6 +4040,12 @@ packages:
     engines: {node: '>= 12'}
     hasBin: true
     dev: true
+
+  /md5-file/5.0.0:
+    resolution: {integrity: sha512-xbEFXCYVWrSx/gEKS1VPlg84h/4L20znVIulKw6kMfmBUAZNAnF00eczz9ICMl+/hjQGo5KSXRxbL/47X3rmMw==}
+    engines: {node: '>=10.13.0'}
+    hasBin: true
+    dev: false
 
   /memorystream/0.3.1:
     resolution: {integrity: sha512-S3UwM3yj5mtUSEfP41UZmt/0SCoVYUcU1rkXv+BQ5Ig8ndL4sPoJNBUJERafdPb5jjHJGuMgytgKvKIf58XNBw==}
