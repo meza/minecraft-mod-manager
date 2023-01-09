@@ -1,9 +1,9 @@
 lockfileVersion: 5.4
 
 specifiers:
-  '@commitlint/cli': 17.4.0
+  '@commitlint/cli': 17.4.1
   '@commitlint/config-conventional': 17.4.0
-  '@commitlint/prompt-cli': 17.4.0
+  '@commitlint/prompt-cli': 17.4.1
   '@faker-js/faker': 7.6.0
   '@meza/adr-tools': 1.0.10
   '@meza/tsconfig-base': 1.1.0
@@ -65,9 +65,9 @@ dependencies:
   sha1-file: 3.0.0
 
 devDependencies:
-  '@commitlint/cli': 17.4.0_@types+node@18.7.23
+  '@commitlint/cli': 17.4.1
   '@commitlint/config-conventional': 17.4.0
-  '@commitlint/prompt-cli': 17.4.0_@types+node@18.7.23
+  '@commitlint/prompt-cli': 17.4.1
   '@faker-js/faker': 7.6.0
   '@meza/adr-tools': 1.0.10
   '@meza/tsconfig-base': 1.1.0
@@ -178,14 +178,14 @@ packages:
     dev: true
     optional: true
 
-  /@commitlint/cli/17.4.0_@types+node@18.7.23:
-    resolution: {integrity: sha512-SEY4sYe8yVlgxPP7X0wJb96DBAGBPsCsy6QbqJt/UECbIAjDeDV5xXBV4jnS7T/qMC10sk6Ub9kDhEX0VWvblw==}
+  /@commitlint/cli/17.4.1:
+    resolution: {integrity: sha512-W8OJwz+izY+fVwyUt1HveCDmABMZNRVZHSVPw/Bh9Y62tp11SmmQaycgbsYLMiMy7JGn4mAJqEGlSHS9Uti9ZQ==}
     engines: {node: '>=v14'}
     hasBin: true
     dependencies:
       '@commitlint/format': 17.4.0
       '@commitlint/lint': 17.4.0
-      '@commitlint/load': 17.4.0_@types+node@18.7.23
+      '@commitlint/load': 17.4.1
       '@commitlint/read': 17.4.0
       '@commitlint/types': 17.4.0
       execa: 5.1.1
@@ -196,7 +196,6 @@ packages:
     transitivePeerDependencies:
       - '@swc/core'
       - '@swc/wasm'
-      - '@types/node'
     dev: true
 
   /@commitlint/config-conventional/17.4.0:
@@ -280,6 +279,30 @@ packages:
       - '@swc/wasm'
       - '@types/node'
     dev: true
+    optional: true
+
+  /@commitlint/load/17.4.1:
+    resolution: {integrity: sha512-6A7/LhIaQpL4ieciIDcVvK2d5z/UI1GBrtDaHm6sQSCL0265clB2/F7XKQNTJHXv9yG4LByT2r+QCpM4GugIfw==}
+    engines: {node: '>=v14'}
+    dependencies:
+      '@commitlint/config-validator': 17.4.0
+      '@commitlint/execute-rule': 17.4.0
+      '@commitlint/resolve-extends': 17.4.0
+      '@commitlint/types': 17.4.0
+      '@types/node': 18.7.23
+      chalk: 4.1.2
+      cosmiconfig: 8.0.0
+      cosmiconfig-typescript-loader: 4.1.1_hoioflfmojoy2y4fj2cxzcnm5m
+      lodash.isplainobject: 4.0.6
+      lodash.merge: 4.6.2
+      lodash.uniq: 4.5.0
+      resolve-from: 5.0.0
+      ts-node: 10.9.1_ooiiuqzxv24auyv6wfhxrugty4
+      typescript: 4.9.4
+    transitivePeerDependencies:
+      - '@swc/core'
+      - '@swc/wasm'
+    dev: true
 
   /@commitlint/message/17.4.0:
     resolution: {integrity: sha512-USGJDU9PPxcgQjKXCzvPUal65KAhxWq3hp+MrU1pNCN2itWM654CLIoY2LMIQ7rScTli9B5dTLH3vXhzbItmzA==}
@@ -295,33 +318,31 @@ packages:
       conventional-commits-parser: 3.2.4
     dev: true
 
-  /@commitlint/prompt-cli/17.4.0_@types+node@18.7.23:
-    resolution: {integrity: sha512-IEksDOB4uTIy+vZTRMZz6+xkRZ6hPGvQ6f0DQPHFqrhgpnUd+/FqgT0qrrWlb7ttxwYVr7cMpYCVfJN0fZkeBw==}
+  /@commitlint/prompt-cli/17.4.1:
+    resolution: {integrity: sha512-ACaXEy0i9N/XXuG861JxcWSLR9jA3bJlHP1N0I6EaHLJfwlIqhuTg0bMi8/vaEWCjPRmDO9gR5ehisD4GPw6/Q==}
     engines: {node: '>=v14'}
     hasBin: true
     dependencies:
-      '@commitlint/prompt': 17.4.0_@types+node@18.7.23
+      '@commitlint/prompt': 17.4.1
       execa: 5.1.1
       inquirer: 6.5.2
     transitivePeerDependencies:
       - '@swc/core'
       - '@swc/wasm'
-      - '@types/node'
     dev: true
 
-  /@commitlint/prompt/17.4.0_@types+node@18.7.23:
-    resolution: {integrity: sha512-RHlEUJ5W1bQHvG1Ak02v0s79aMvnS/+LVHdKSvuSOinZWZ0wQLKKIhKB7Rluaef9IlNYXS1VGd48pzwe3y2iCw==}
+  /@commitlint/prompt/17.4.1:
+    resolution: {integrity: sha512-coq6ZL8SChMZNZ1egtJABvJKKXT40TV+Q/u6CmAl0atPp1SbRpEVyLVewT1tjkGsTSC33TKG0vjguxf7TQCWRA==}
     engines: {node: '>=v14'}
     dependencies:
       '@commitlint/ensure': 17.4.0
-      '@commitlint/load': 17.4.0_@types+node@18.7.23
+      '@commitlint/load': 17.4.1
       '@commitlint/types': 17.4.0
       chalk: 4.1.2
       inquirer: 6.5.2
     transitivePeerDependencies:
       - '@swc/core'
       - '@swc/wasm'
-      - '@types/node'
     dev: true
 
   /@commitlint/read/17.4.0:
@@ -1228,7 +1249,7 @@ packages:
       debug: 4.3.4
       globby: 11.1.0
       is-glob: 4.0.3
-      semver: 7.3.7
+      semver: 7.3.8
       tsutils: 3.21.0_typescript@4.9.4
       typescript: 4.9.4
     transitivePeerDependencies:
