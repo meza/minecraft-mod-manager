@@ -18,7 +18,7 @@ specifiers:
   '@semantic-release/release-notes-generator': 10.0.3
   '@types/inquirer': ^9.0.2
   '@types/node': ^18.7.23
-  '@types/uuid': 8.3.4
+  '@types/uuid': 9.0.0
   '@typescript-eslint/eslint-plugin': 5.48.1
   '@typescript-eslint/parser': 5.48.1
   '@vitest/coverage-c8': 0.26.3
@@ -80,7 +80,7 @@ devDependencies:
   '@semantic-release/github': 8.0.7_semantic-release@19.0.5
   '@semantic-release/npm': 9.0.1_semantic-release@19.0.5
   '@semantic-release/release-notes-generator': 10.0.3_semantic-release@19.0.5
-  '@types/uuid': 8.3.4
+  '@types/uuid': 9.0.0
   '@typescript-eslint/eslint-plugin': 5.48.1_3jon24igvnqaqexgwtxk6nkpse
   '@typescript-eslint/parser': 5.48.1_iukboom6ndih5an6iafl45j2fe
   '@vitest/coverage-c8': 0.26.3
@@ -1104,8 +1104,8 @@ packages:
     dependencies:
       '@types/node': 18.7.23
 
-  /@types/uuid/8.3.4:
-    resolution: {integrity: sha512-c/I8ZRb51j+pYGAu5CrFMRxqZ2ke4y2grEBO5AUjgSkSk+qT2Ea+OdWElz/OiMf5MNpn2b17kuVBwZLQJXzihw==}
+  /@types/uuid/9.0.0:
+    resolution: {integrity: sha512-kr90f+ERiQtKWMz5rP32ltJ/BtULDI5RVO0uavn1HQUOwjx0R1h0rnDYNL0CepF1zL5bSY6FISAfd9tOdDhU5Q==}
     dev: true
 
   /@typescript-eslint/eslint-plugin/5.48.1_3jon24igvnqaqexgwtxk6nkpse:
