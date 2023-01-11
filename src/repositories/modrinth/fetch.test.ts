@@ -2,7 +2,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { RepositoryTestContext } from '../index.test.js';
 import { Loader, Platform, ReleaseType } from '../../lib/modlist.types.js';
 import { chance } from 'jest-chance';
-import { getMod, ModrinthVersion } from './index.js';
+import { getMod, ModrinthVersion } from './fetch.js';
 import { CouldNotFindModException } from '../../errors/CouldNotFindModException.js';
 import { generateModrinthVersion } from '../../../test/generateModrinthVersion.js';
 import { NoRemoteFileFound } from '../../errors/NoRemoteFileFound.js';
@@ -108,7 +108,7 @@ describe('The Modrinth repository', () => {
         context.id,
         [randomVersion.version_type],
         'correct-version',
-        randomVersion.loaders[0],
+        randomVersion.loaders[0] as Loader,
         false
       );
     }).rejects.toThrow(new NoRemoteFileFound(context.id, Platform.MODRINTH));

@@ -1,8 +1,24 @@
 import fs from 'node:fs/promises';
 import path from 'path';
-import { ModInstall, ModsJson } from './modlist.types.js';
+import { Mod, ModInstall, ModsJson } from './modlist.types.js';
 import { ConfigFileNotFoundException } from '../errors/ConfigFileNotFoundException.js';
 import { initializeConfig } from '../interactions/initializeConfig.js';
+
+export const getInstallation = (mod: Mod, installations: ModInstall[]) => {
+  return installations.findIndex((i) => i.id === mod.id && i.type === mod.type);
+};
+
+export const hasInstallation = (mod: Mod, installations: ModInstall[]) => {
+  return getInstallation(mod, installations) > -1;
+};
+
+export const fileIsManaged = (file: string, installations: ModInstall[]) => {
+  const result = installations.find((install) => {
+    return install.fileName === file;
+  });
+
+  return result !== undefined;
+};
 
 export const fileExists = async (configPath: string) => {
   return await fs.access(configPath).then(

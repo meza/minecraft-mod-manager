@@ -1,4 +1,4 @@
-import { CurseforgeModFile, HashFunctions } from '../src/repositories/curseforge/index.js';
+import { CurseforgeModFile, HashFunctions } from '../src/repositories/curseforge/fetch.js';
 import { chance } from 'jest-chance';
 import { GeneratorResult } from './test.types.js';
 
@@ -8,6 +8,7 @@ export const generateCurseforgeModFile = (overrides?: Partial<CurseforgeModFile>
   const fileDate = chance.date().toISOString();
   const releaseType = chance.integer({ min: 1, max: 3 });
   const fileName = chance.word();
+  const fileFingerprint = chance.integer({ min: 100000, max: 999999 });
   const downloadUrl = chance.url();
   const fileStatus = chance.integer({ min: 1, max: 3 });
   const isAvailable = chance.bool();
@@ -29,6 +30,7 @@ export const generateCurseforgeModFile = (overrides?: Partial<CurseforgeModFile>
   ];
 
   const generated: CurseforgeModFile = {
+    fileFingerprint: fileFingerprint,
     displayName: displayName,
     fileDate: fileDate,
     releaseType: releaseType,
@@ -42,6 +44,7 @@ export const generateCurseforgeModFile = (overrides?: Partial<CurseforgeModFile>
   };
 
   const expected: CurseforgeModFile = {
+    fileFingerprint: fileFingerprint,
     displayName: displayName,
     fileDate: fileDate,
     releaseType: releaseType,

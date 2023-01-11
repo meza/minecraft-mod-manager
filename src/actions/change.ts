@@ -1,19 +1,18 @@
 import { VerifyUpgradeOptions } from '../lib/verifyUpgrade.js';
 import { Logger } from '../lib/Logger.js';
 import { testGameVersion } from './testGameVersion.js';
-import { Mod, ModInstall } from '../lib/modlist.types.js';
-import { fileExists, readConfigFile, readLockFile, writeConfigFile, writeLockFile } from '../lib/config.js';
+import { Mod } from '../lib/modlist.types.js';
+import {
+  fileExists, getInstallation,
+  hasInstallation,
+  readConfigFile,
+  readLockFile,
+  writeConfigFile,
+  writeLockFile
+} from '../lib/config.js';
 import path from 'path';
 import fs from 'node:fs/promises';
 import { install } from './install.js';
-
-const getInstallation = (mod: Mod, installations: ModInstall[]) => {
-  return installations.findIndex((i) => i.id === mod.id && i.type === mod.type);
-};
-
-const hasInstallation = (mod: Mod, installations: ModInstall[]) => {
-  return getInstallation(mod, installations) > -1;
-};
 
 export const changeGameVersion = async (gameVersion: string, options: VerifyUpgradeOptions, logger: Logger) => {
   const { version } = await testGameVersion(gameVersion, options, logger);

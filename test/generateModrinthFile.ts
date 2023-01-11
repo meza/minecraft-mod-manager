@@ -1,4 +1,4 @@
-import { ModrinthFile } from '../src/repositories/modrinth/index.js';
+import { ModrinthFile } from '../src/repositories/modrinth/fetch.js';
 import { GeneratorResult } from './test.types.js';
 import { chance } from 'jest-chance';
 

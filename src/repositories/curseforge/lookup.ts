@@ -1,6 +1,21 @@
 import { curseForgeApiKey } from '../../env.js';
+import { curseforgeFileToRemoteModDetails, CurseforgeModFile } from './fetch.js';
+import { PlatformLookupResult } from '../index.js';
+import { Platform } from '../../lib/modlist.types.js';
+import { logger } from '../../mmm.js';
 
-export const lookup = async (fingerprint: number) => {
+interface CurseforgeLookupMatches {
+  id: number;
+  file: CurseforgeModFile;
+}
+interface CurseforgeLookupResult {
+  data: {
+    exactMatches: CurseforgeLookupMatches[];
+    exactFingerprints: number[];
+  }
+}
+
+export const lookup = async (fingerprints: string[]): Promise<PlatformLookupResult[]> => {
   const url = 'https://api.curseforge.com/v1/fingerprints';
   const modSearchResult = await fetch(url, {
     headers: {
@@ -10,16 +25,26 @@ export const lookup = async (fingerprint: number) => {
     },
     method: 'POST',
     body: JSON.stringify({
-      'fingerprints': [fingerprint]
+      'fingerprints': fingerprints
     })
   });
 
-  const data = await modSearchResult.json();
-
-  if (data.data.exactMatches.length === 0) {
-    throw new Error('Cannot find mod');
+  if (!modSearchResult.ok) {
+    logger.log('Could not reach Curseforge, please try again');
+    return [];
   }
 
-  return data.data.exactMatches.at(0).id;
+  const data: CurseforgeLookupResult = await modSearchResult.json();
 
+  const result: PlatformLookupResult[] = [];
+
+  data.data.exactMatches.forEach((match) => {
+    result.push({
+      modId: String(match.id),
+      platform: Platform.CURSEFORGE,
+      mod: curseforgeFileToRemoteModDetails(match.file, match.file.displayName)
+    });
+  });
+
+  return result;
 };

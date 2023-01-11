@@ -41,7 +41,7 @@
     "postinstall": "lefthook install"
   },
   "dependencies": {
-    "@meza/curseforge-fingerprint": "^1.0.5",
+    "@meza/curseforge-fingerprint": "^1.0.6",
     "@types/inquirer": "^9.0.2",
     "@types/node": "^18.7.23",
     "cd": "^0.3.3",
@@ -51,7 +51,6 @@
     "dotenv": "^16.0.3",
     "inquirer": "^9.1.2",
     "log-symbols": "^5.1.0",
-    "md5-file": "^5.0.0",
     "nodejs-file-downloader": "^4.10.2"
   },
   "commitlint": {

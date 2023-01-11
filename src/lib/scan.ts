@@ -1,33 +1,73 @@
-import { DefaultOptions } from '../mmm.js';
-import { Logger } from './Logger.js';
-import { readConfigFile } from './config.js';
-import path from 'path';
+import { ModInstall, ModsJson, Platform } from './modlist.types.js';
+import path from 'node:path';
 import fs from 'fs/promises';
-import md5file from 'md5-file';
-
+import { fetchModDetails, lookup, LookupInput, ResultItem } from '../repositories/index.js';
+import { fileIsManaged } from './config.js';
+import { getHash } from './hash.js';
+import { Modrinth } from '../repositories/modrinth/index.js';
 import curseforge from '@meza/curseforge-fingerprint';
-import { lookup } from '../repositories/curseforge/lookup.js';
+import { ScanResults } from '../actions/scan.js';
 
-export const scan = async (options: DefaultOptions, logger: Logger) => {
-  const configuration = await readConfigFile(options.config);
-
+export const scan = async (prefer: Platform, configuration: ModsJson, installations: ModInstall[]) => {
   const modsFolder = path.resolve(configuration.modsFolder);
 
   const files = await fs.readdir(modsFolder);
 
+  const cfInput: LookupInput = {
+    platform: Platform.CURSEFORGE,
+    hash: []
+  };
+  const modrinthInput: LookupInput = {
+    platform: Platform.MODRINTH,
+    hash: []
+  };
+
   const all = files.map(async (file) => {
-    const f = path.resolve(modsFolder, file);
-    const fp = curseforge.fingerprint(f);
-    try {
-      const modId = await lookup(fp);
-      console.log({ file: file, curseforge: fp, modrinth: await md5file(f), modId: modId });
-    } catch {
-      console.log({ file: file, curseforge: fp, modrinth: await md5file(f), modId: 'unknown' });
+    if (fileIsManaged(file, installations)) {
+      return;
     }
+
+    const filePath = path.resolve(modsFolder, file);
+    const fingerprint = curseforge.fingerprint(filePath);
+    const fileSha1Hash = await getHash(filePath, Modrinth.PREFERRED_HASH);
+
+    cfInput.hash.push(String(fingerprint));
+    modrinthInput.hash.push(fileSha1Hash);
   });
 
   await Promise.all(all);
+  const lookupResults = await lookup([cfInput, modrinthInput]);
 
-  logger.log('done');
+  const normalizers: Promise<ScanResults>[] = [];
 
+  const normalizeResults = async (lookupResult: ResultItem): Promise<ScanResults> => {
+    let hit = lookupResult.hits[0];
+    const preferredHitIndex = lookupResult.hits.findIndex((hit) => hit.platform === prefer);
+    if (preferredHitIndex >= 0) {
+      hit = lookupResult.hits[preferredHitIndex];
+    }
+
+    const modDetails = await fetchModDetails(hit.platform, hit.modId, configuration.defaultAllowedReleaseTypes, configuration.gameVersion, configuration.loader, configuration.allowVersionFallback);
+    return {
+      resolvedDetails: modDetails,
+      localDetails: lookupResult
+    };
+  };
+
+  lookupResults.forEach((lookupResult) => {
+    normalizers.push(normalizeResults(lookupResult));
+  });
+
+  const normalizedResults = await Promise.allSettled(normalizers);
+
+  const result: ScanResults[] = [];
+  normalizedResults.forEach((normalizeResult) => {
+    if (normalizeResult.status === 'rejected') {
+      return;
+    }
+
+    result.push(normalizeResult.value);
+  });
+
+  return result;
 };

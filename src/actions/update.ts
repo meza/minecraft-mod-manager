@@ -1,6 +1,13 @@
 import { DefaultOptions } from '../mmm.js';
-import { fileExists, readConfigFile, readLockFile, writeConfigFile, writeLockFile } from '../lib/config.js';
-import { Mod, ModInstall } from '../lib/modlist.types.js';
+import {
+  fileExists,
+  getInstallation, hasInstallation,
+  readConfigFile,
+  readLockFile,
+  writeConfigFile,
+  writeLockFile
+} from '../lib/config.js';
+import { Mod } from '../lib/modlist.types.js';
 import path from 'path';
 import { getHash } from '../lib/hash.js';
 import { updateMod } from '../lib/updater.js';
@@ -9,14 +16,6 @@ import { install } from './install.js';
 import { Logger } from '../lib/Logger.js';
 import { ConfigFileNotFoundException } from '../errors/ConfigFileNotFoundException.js';
 import { ErrorTexts } from '../errors/ErrorTexts.js';
-
-const getInstallation = (mod: Mod, installations: ModInstall[]) => {
-  return installations.findIndex((i) => i.id === mod.id && i.type === mod.type);
-};
-
-const hasInstallation = (mod: Mod, installations: ModInstall[]) => {
-  return getInstallation(mod, installations) > -1;
-};
 
 export const update = async (options: DefaultOptions, logger: Logger) => {
   await install(options, logger);

@@ -1,6 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { chance } from 'jest-chance';
-import { CurseforgeModFile, getMod, HashFunctions } from './index.js';
+import { CurseforgeModFile, getMod, HashFunctions } from './fetch.js';
 import { Loader, Platform, ReleaseType } from '../../lib/modlist.types.js';
 import { RepositoryTestContext } from '../index.test.js';
 import { CouldNotFindModException } from '../../errors/CouldNotFindModException.js';

@@ -1,11 +1,11 @@
-import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { Loader, Platform, ReleaseType } from '../lib/modlist.types.js';
-import { getMod as cfMod } from './curseforge/index.js';
-import { getMod as mMod } from './modrinth/index.js';
 import { chance } from 'jest-chance';
 import { fetchModDetails } from './index.js';
 import { UnknownPlatformException } from '../errors/UnknownPlatformException.js';
 import { generateRemoteModDetails } from '../../test/generateRemoteDetails.js';
+import { Curseforge } from './curseforge/index.js';
+import { Modrinth } from './modrinth/index.js';
 
 vi.mock('./modrinth/index.js');
 vi.mock('./curseforge/index.js');
@@ -19,8 +19,13 @@ export interface RepositoryTestContext {
   allowFallback: boolean
 }
 
+const curseforge = new Curseforge();
+const modrinth = new Modrinth();
+
 describe('The repository facade', () => {
   beforeEach<RepositoryTestContext>((context) => {
+    vi.resetAllMocks();
+
     context.platform = chance.pickone(Object.values(Platform));
     context.id = chance.word();
     context.allowedReleaseTypes = chance.pickset(Object.values(ReleaseType), chance.integer({
@@ -30,10 +35,6 @@ describe('The repository facade', () => {
     context.gameVersion = chance.pickone(['1.16.5', '1.17.1', '1.18.1', '1.18.2', '1.19']);
     context.loader = chance.pickone(Object.values(Loader));
     context.allowFallback = chance.bool();
-  });
-
-  afterEach(() => {
-    vi.resetAllMocks();
   });
 
   it<RepositoryTestContext>('throws an exception when an unknown platform is used', async (context) => {
@@ -51,8 +52,8 @@ describe('The repository facade', () => {
   });
 
   describe.each([
-    [Platform.CURSEFORGE, cfMod],
-    [Platform.MODRINTH, mMod]
+    [Platform.CURSEFORGE, curseforge.fetchMod],
+    [Platform.MODRINTH, modrinth.fetchMod]
   ])('when the platform is %s', (platform: Platform, implementation) => {
     it<RepositoryTestContext>('calls the correct implementation', async (context) => {
       const randomResult = generateRemoteModDetails().generated;

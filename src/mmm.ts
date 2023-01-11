@@ -9,10 +9,10 @@ import { update } from './actions/update.js';
 import { helpUrl } from './env.js';
 import { initializeConfig } from './interactions/initializeConfig.js';
 import { Logger } from './lib/Logger.js';
-import { Platform, ReleaseType } from './lib/modlist.types.js';
+import { Loader, Platform, ReleaseType } from './lib/modlist.types.js';
 import { version } from './version.js';
 import { changeGameVersion } from './actions/change.js';
-import { scan } from './lib/scan.js';
+import { scan } from './actions/scan.js';
 
 export const APP_NAME = 'Minecraft Mod Manager';
 export const APP_DESCRIPTION = 'Manages mods from Modrinth and Curseforge';
@@ -89,7 +89,7 @@ commands.push(
 
 commands.push(
   program.command('init')
-    .option('-l, --loader <loader>', `Which loader would you like to use? ${Object.values(Platform).join(', ')}`)
+    .option('-l, --loader <loader>', `Which loader would you like to use? ${Object.values(Loader).join(', ')}`)
     .option('-g, --game-version <gameVersion>', 'What exact Minecraft version are you using? (eg: 1.18.2, 1.19, 1.19.1)')
     .option('-f, --allow-version-fallback', 'Should we try to download mods for previous Minecraft versions if they do not exists for your Minecraft Version?')
     .option('-r, --default-allowed-release-types <defaultAllowedReleaseTypes>',
@@ -119,6 +119,9 @@ commands.push(
 
 commands.push(
   program.command('scan')
+    .description('Scans the mod directory and attempts to find the mods on the supported mod platforms.')
+    .option('-p, --prefer <platform>', `Which platform do you prefer to use? ${Object.values(Platform).join(', ')}`, Platform.CURSEFORGE)
+    .option('-a, --add', 'Add the mods to the modlist.json file', false)
     .action(async (_options, cmd) => {
       await scan(cmd.optsWithGlobals(), logger);
     })
