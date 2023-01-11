@@ -8,8 +8,22 @@ Minecraft Mod Manager is a helpful utility for players, modpack creators and ser
 Minecraft mods up to date without the need for a launcher or having to manually check and download new files.
 
 It can currently use mods from [Curseforge](https://curseforge.com/minecraft) and [Modrinth](https://modrinth.com/).
-
 If you want support for other platforms, please feel free to submit a pull request or a feature request.
+
+
+You currently can
+
+- add mods
+- automatically update mods
+- change minecraft versions and uppdate the mods
+
+Upcoming features:
+
+- scan and recognize manually added mods
+- consolidate mods to the same platform
+- remove mods
+- use github as the source for mods
+- self-update
 
 It's purposefully made to have a very explicit configuration file to avoid any "magic". This allows you to have full
 control over the mods that are installed.
