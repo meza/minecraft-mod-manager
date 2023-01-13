@@ -42,7 +42,7 @@ export const scan = async (prefer: Platform, configuration: ModsJson, installati
 
   const normalizeResults = async (lookupResult: ResultItem): Promise<ScanResults> => {
     let hit = lookupResult.hits[0];
-    const preferredHitIndex = lookupResult.hits.findIndex((hit) => hit.platform === prefer);
+    const preferredHitIndex = lookupResult.hits.findIndex((hit) => hit.platform.toString() === prefer);
     if (preferredHitIndex >= 0) {
       hit = lookupResult.hits[preferredHitIndex];
     }
@@ -50,7 +50,7 @@ export const scan = async (prefer: Platform, configuration: ModsJson, installati
     const modDetails = await fetchModDetails(hit.platform, hit.modId, configuration.defaultAllowedReleaseTypes, configuration.gameVersion, configuration.loader, configuration.allowVersionFallback);
     return {
       resolvedDetails: modDetails,
-      localDetails: lookupResult
+      localDetails: hit
     };
   };
 

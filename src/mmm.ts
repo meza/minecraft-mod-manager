@@ -120,7 +120,7 @@ commands.push(
 commands.push(
   program.command('scan')
     .description('Scans the mod directory and attempts to find the mods on the supported mod platforms.')
-    .option('-p, --prefer <platform>', `Which platform do you prefer to use? ${Object.values(Platform).join(', ')}`, Platform.CURSEFORGE)
+    .option('-p, --prefer <platform>', `Which platform do you prefer to use? ${Object.values(Platform).join(', ')}`, Platform.MODRINTH)
     .option('-a, --add', 'Add the mods to the modlist.json file', false)
     .action(async (_options, cmd) => {
       await scan(cmd.optsWithGlobals(), logger);
