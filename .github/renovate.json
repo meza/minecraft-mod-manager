@@ -7,19 +7,34 @@
     "npm"
   ],
   "baseBranches": [
-    "next"
+    "main"
   ],
   "semanticCommits": "enabled",
   "semanticCommitType": "chore",
   "packageRules": [
     {
+      "matchDepTypes": [
+        "devDependencies"
+      ],
       "matchUpdateTypes": [
         "minor",
         "patch",
         "pin",
         "digest"
       ],
-      "automerge": true
+      "automerge": true,
+      "semanticCommitType": "chore"
+    },
+    {
+      "matchDepTypes": [
+        "dependencies"
+      ],
+      "matchUpdateTypes": [
+        "minor",
+        "patch"
+      ],
+      "automerge": true,
+      "semanticCommitType": "fix"
     }
   ],
   "schedule": [
