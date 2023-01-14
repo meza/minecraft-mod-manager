@@ -44,7 +44,7 @@
     "@types/inquirer": "^9.0.2",
     "@types/node": "^18.7.23",
     "chalk": "^5.0.1",
-    "commander": "^9.4.1",
+    "commander": "^10.0.0",
     "core-js": "^3.25.3",
     "dotenv": "^16.0.3",
     "inquirer": "^9.1.2",

@@ -24,7 +24,7 @@ specifiers:
   '@vitest/coverage-c8': 0.27.1
   c8: 7.12.0
   chalk: ^5.0.1
-  commander: ^9.4.1
+  commander: ^10.0.0
   copyfiles: 2.4.1
   core-js: ^3.25.3
   dotenv: ^16.0.3
@@ -56,7 +56,7 @@ dependencies:
   '@types/inquirer': 9.0.2
   '@types/node': 18.7.23
   chalk: 5.0.1
-  commander: 9.4.1
+  commander: 10.0.0
   core-js: 3.25.3
   dotenv: 16.0.3
   inquirer: 9.1.2
@@ -1744,9 +1744,15 @@ packages:
     resolution: {integrity: sha512-dOy+3AuW3a2wNbZHIuMZpTcgjGuLU/uBL/ubcZF9OXbDo8ff4O8yVp5Bf0efS8uEoYo5q4Fx7dY9OgQGXgAsQA==}
     dev: true
 
+  /commander/10.0.0:
+    resolution: {integrity: sha512-zS5PnTI22FIRM6ylNW8G4Ap0IEOyk62fhLSD0+uHRT9McRCLGpkVNvao4bjimpK/GShynyQkFFxHhwMcETmduA==}
+    engines: {node: '>=14'}
+    dev: false
+
   /commander/9.4.1:
     resolution: {integrity: sha512-5EEkTNyHNGFPD2H+c/dXXfQZYa/scCKasxWcXJaWnNJ99pnQN9Vnmqow+p+PlFPE63Q6mThaZws1T+HxfpgtPw==}
     engines: {node: ^12.20.0 || >=14}
+    dev: true
 
   /compare-func/2.0.0:
     resolution: {integrity: sha512-zHig5N+tPWARooBnb0Zx1MFcdfpyJrfTJ3Y5L+IFvUm8rM74hHz66z0gw0x4tijh5CorKkKUCnW82R2vmpeCRA==}
