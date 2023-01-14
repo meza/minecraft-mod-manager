@@ -218,7 +218,7 @@ describe('The Curseforge repository', () => {
   });
 
   describe.each([1, 2, 3, 5, 6, 7, 8, 9, 11, 12, 13, 14, 15])('when the file status is %i', (status) => {
-    it<RepositoryTestContext>('throws an error', async (context) => {
+    it<RepositoryTestContext>(`throws an error for ${status}`, async (context) => {
       const randomName = chance.word();
       const randomFile = generateCurseforgeModFile({
         isAvailable: true,

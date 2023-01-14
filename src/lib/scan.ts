@@ -2,11 +2,11 @@ import { ModInstall, ModsJson, Platform } from './modlist.types.js';
 import path from 'node:path';
 import fs from 'fs/promises';
 import { fetchModDetails, lookup, LookupInput, ResultItem } from '../repositories/index.js';
-import { fileIsManaged } from './config.js';
 import { getHash } from './hash.js';
 import { Modrinth } from '../repositories/modrinth/index.js';
 import curseforge from '@meza/curseforge-fingerprint';
 import { ScanResults } from '../actions/scan.js';
+import { fileIsManaged } from './configurationHelper.js';
 
 export const scan = async (prefer: Platform, configuration: ModsJson, installations: ModInstall[]) => {
   const modsFolder = path.resolve(configuration.modsFolder);

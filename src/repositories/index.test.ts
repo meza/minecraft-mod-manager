@@ -55,7 +55,7 @@ describe('The repository facade', () => {
     [Platform.CURSEFORGE, curseforge.fetchMod],
     [Platform.MODRINTH, modrinth.fetchMod]
   ])('when the platform is %s', (platform: Platform, implementation) => {
-    it<RepositoryTestContext>('calls the correct implementation', async (context) => {
+    it<RepositoryTestContext>(`calls the correct implementation for ${platform}`, async (context) => {
       const randomResult = generateRemoteModDetails().generated;
       vi.mocked(implementation).mockResolvedValueOnce(randomResult);
       await fetchModDetails(

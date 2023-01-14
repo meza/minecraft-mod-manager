@@ -65,7 +65,7 @@ describe('The mod not found interaction', () => {
   describe.each([
     { input: Platform.CURSEFORGE, expected: Platform.MODRINTH },
     { input: Platform.MODRINTH, expected: Platform.CURSEFORGE }
-  ])('when the user wants to modify their search', ({ input, expected }) => {
+  ])('when the user wants to modify their search for $input', ({ input, expected }) => {
     it(`it asks for ${expected} when they come from ${input}`, async () => {
       const testPlatform = input;
       const testModId = chance.word();

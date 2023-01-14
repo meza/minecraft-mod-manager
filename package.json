@@ -26,7 +26,7 @@
     "clean:all": "npm-run-all clean:basics clean:cache clean:githooks clean:dependencies",
     "clean:basics": "rimraf dist",
     "clean:cache": "rimraf .cache",
-    "clean:githooks": "lefthook uninstall -k",
+    "clean:githooks": "lefthook uninstall",
     "clean:dependencies": "rimraf node_modules",
     "lint:specific": "eslint --ext .ts --ext .json --cache --cache-location .cache/",
     "lint:eslint": "pnpm lint:specific src test",
@@ -38,10 +38,10 @@
     "report": "vitest --coverage",
     "semantic-release": "semantic-release",
     "release": "semantic-release",
-    "postinstall": "lefthook install"
+    "prepare": "lefthook install"
   },
   "dependencies": {
-    "@meza/curseforge-fingerprint": "^1.0.6",
+    "@meza/curseforge-fingerprint": "^1.0.10",
     "@types/inquirer": "^9.0.2",
     "@types/node": "^18.7.23",
     "cd": "^0.3.3",
@@ -78,7 +78,6 @@
     "@typescript-eslint/parser": "5.48.0",
     "@vitest/coverage-c8": "0.26.3",
     "c8": "7.12.0",
-    "copyfiles": "2.4.1",
     "esbuild": "0.16.17",
     "eslint": "8.31.0",
     "eslint-config-tailored-tunes": "5.0.2",

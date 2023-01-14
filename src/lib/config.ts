@@ -1,24 +1,9 @@
 import fs from 'node:fs/promises';
 import path from 'path';
-import { Mod, ModInstall, ModsJson } from './modlist.types.js';
+import { ModInstall, ModsJson } from './modlist.types.js';
 import { ConfigFileNotFoundException } from '../errors/ConfigFileNotFoundException.js';
 import { initializeConfig } from '../interactions/initializeConfig.js';
-
-export const getInstallation = (mod: Mod, installations: ModInstall[]) => {
-  return installations.findIndex((i) => i.id === mod.id && i.type === mod.type);
-};
-
-export const hasInstallation = (mod: Mod, installations: ModInstall[]) => {
-  return getInstallation(mod, installations) > -1;
-};
-
-export const fileIsManaged = (file: string, installations: ModInstall[]) => {
-  const result = installations.find((install) => {
-    return install.fileName === file;
-  });
-
-  return result !== undefined;
-};
+import { shouldCreateConfig } from '../interactions/shouldCreateConfig.js';
 
 export const fileExists = async (configPath: string) => {
   return await fs.access(configPath).then(
@@ -82,4 +67,17 @@ export const initializeConfigFile = async (configPath: string): Promise<ModsJson
   }, runPath);
 
   return emptyModJson;
+};
+
+export const ensureConfiguration = async (configPath: string, quiet = false): Promise<ModsJson> => {
+  try {
+    return await readConfigFile(configPath);
+  } catch (error) {
+    if (error instanceof ConfigFileNotFoundException && !quiet) {
+      if (await shouldCreateConfig(configPath)) {
+        return await initializeConfigFile(configPath);
+      }
+    }
+    throw error;
+  }
 };

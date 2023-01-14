@@ -1,6 +1,6 @@
 import { DefaultOptions } from '../mmm.js';
 import { Logger } from '../lib/Logger.js';
-import { readConfigFile, readLockFile, writeConfigFile, writeLockFile } from '../lib/config.js';
+import { ensureConfiguration, readLockFile, writeConfigFile, writeLockFile } from '../lib/config.js';
 import { PlatformLookupResult } from '../repositories/index.js';
 import { Platform, RemoteModDetails } from '../lib/modlist.types.js';
 import { scan as scanLib } from '../lib/scan.js';
@@ -17,7 +17,7 @@ export interface ScanResults {
 }
 
 export const scan = async (options: ScanOptions, logger: Logger) => {
-  const configuration = await readConfigFile(options.config);
+  const configuration = await ensureConfiguration(options.config);
   const installations = await readLockFile(options.config);
 
   const scanResults = await scanLib(options.prefer, configuration, installations);

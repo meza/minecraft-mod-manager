@@ -1,6 +1,5 @@
 import {
   fileExists,
-  getInstallation, hasInstallation,
   readConfigFile,
   readLockFile,
   writeConfigFile,
@@ -16,6 +15,7 @@ import { updateMod } from '../lib/updater.js';
 import { Logger } from '../lib/Logger.js';
 import { ConfigFileNotFoundException } from '../errors/ConfigFileNotFoundException.js';
 import { ErrorTexts } from '../errors/ErrorTexts.js';
+import { getInstallation, hasInstallation } from '../lib/configurationHelper.js';
 
 const getMod = async (moddata: RemoteModDetails, modsFolder: string) => {
   await downloadFile(moddata.downloadUrl, path.resolve(modsFolder, moddata.fileName));
