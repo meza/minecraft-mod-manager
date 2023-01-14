@@ -108,9 +108,6 @@ Let's be honest, you already know...
 
 > _If you know `npm` or `yarn` from the web development world, this works just the same_
 
-There are 5 main commands of the app. These are: [init](#init), [add](#add), [install](#install), [update](#update)
-and [list](#list)
-
 Every command has a help page that you can access by running `mmm help <command>`.
 
 __Common Options__
@@ -152,7 +149,7 @@ You can add these one after the other, for example: `mmm init -l curseforge -p 1
 
 | Short | Long                            | Description                             | Value                                                                                                                                     | Example                                            |
 |-------|---------------------------------|-----------------------------------------|-------------------------------------------------------------------------------------------------------------------------------------------|----------------------------------------------------|
-| -l    | --loader                        | The modloader to use                    | `curseforge` or `modrinth`                                                                                                                | `mmm init -l curseforge`                           |
+| -l    | --loader                        | The mod loader to use                   | `fabric` or `forge`                                                                                                                       | `mmm init -l curseforge`                           |
 | -g    | --game-version                  | The Minecraft version to use            | A valid Minecraft version                                                                                                                 | `mmm init -g 1.19.2`                               |
 | -f    | --allow-version-fallback        | Whether to allow version fallback       | No value needed. <br/>When it is supplied, `true` is assumed                                                                              | `mmm init -f` to allow<br/>`mmm init` to not allow |
 | -r    | --default-allowed-release-types | Which release types do you allow?       | A comma separated list of the following: <br/>`alpha`, `beta`, `release`                                                                  | `mmm init -r release,beta`                         |
