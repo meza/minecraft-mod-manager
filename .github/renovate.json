@@ -7,7 +7,7 @@
     "npm"
   ],
   "baseBranches": [
-    "main"
+    "next"
   ],
   "semanticCommits": "enabled",
   "semanticCommitType": "chore",
