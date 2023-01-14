@@ -9,7 +9,7 @@ import { update } from './actions/update.js';
 import { helpUrl } from './env.js';
 import { initializeConfig } from './interactions/initializeConfig.js';
 import { Logger } from './lib/Logger.js';
-import { Platform, ReleaseType } from './lib/modlist.types.js';
+import { Loader, Platform, ReleaseType } from './lib/modlist.types.js';
 import { version } from './version.js';
 import { changeGameVersion } from './actions/change.js';
 
@@ -88,7 +88,7 @@ commands.push(
 
 commands.push(
   program.command('init')
-    .option('-l, --loader <loader>', `Which loader would you like to use? ${Object.values(Platform).join(', ')}`)
+    .option('-l, --loader <loader>', `Which loader would you like to use? ${Object.values(Loader).join(', ')}`)
     .option('-g, --game-version <gameVersion>', 'What exact Minecraft version are you using? (eg: 1.18.2, 1.19, 1.19.1)')
     .option('-f, --allow-version-fallback', 'Should we try to download mods for previous Minecraft versions if they do not exists for your Minecraft Version?')
     .option('-r, --default-allowed-release-types <defaultAllowedReleaseTypes>',

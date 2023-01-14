@@ -377,7 +377,7 @@ Command {
           "conflictsWith": [],
           "defaultValue": undefined,
           "defaultValueDescription": undefined,
-          "description": "Which loader would you like to use? curseforge, modrinth",
+          "description": "Which loader would you like to use? forge, fabric",
           "envVar": undefined,
           "flags": "-l, --loader <loader>",
           "hidden": false,
