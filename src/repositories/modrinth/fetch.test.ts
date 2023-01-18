@@ -7,15 +7,17 @@ import { CouldNotFindModException } from '../../errors/CouldNotFindModException.
 import { generateModrinthVersion } from '../../../test/generateModrinthVersion.js';
 import { NoRemoteFileFound } from '../../errors/NoRemoteFileFound.js';
 import { generateModrinthFile } from '../../../test/generateModrinthFile.js';
+import { rateLimitingFetch } from '../../lib/rateLimiter/index.js';
 
+vi.mock('../../lib/rateLimiter/index.js');
 const assumeFailedModFetch = () => {
-  vi.mocked(fetch).mockResolvedValueOnce({
+  vi.mocked(rateLimitingFetch).mockResolvedValueOnce({
     status: chance.pickone([401, 404, 500])
   } as Response);
 };
 
 const assumeSuccessfulModFetch = (name: string) => {
-  vi.mocked(fetch).mockResolvedValueOnce({
+  vi.mocked(rateLimitingFetch).mockResolvedValueOnce({
     status: 200,
     json: () => Promise.resolve({
       title: name
@@ -25,14 +27,14 @@ const assumeSuccessfulModFetch = (name: string) => {
 
 const assumeFailedDetailsFetch = (name: string) => {
   assumeSuccessfulModFetch(name);
-  vi.mocked(fetch).mockResolvedValueOnce({
+  vi.mocked(rateLimitingFetch).mockResolvedValueOnce({
     status: chance.pickone([401, 404, 500])
   } as Response);
 };
 
 const assumeSuccessfulDetailsFetch = (name: string, data: ModrinthVersion[]) => {
   assumeSuccessfulModFetch(name);
-  vi.mocked(fetch).mockResolvedValueOnce({
+  vi.mocked(rateLimitingFetch).mockResolvedValueOnce({
     status: 200,
     json: () => Promise.resolve(data)
   } as Response);
@@ -41,7 +43,6 @@ const assumeSuccessfulDetailsFetch = (name: string, data: ModrinthVersion[]) => 
 describe('The Modrinth repository', () => {
 
   beforeEach<RepositoryTestContext>((context) => {
-    vi.stubGlobal('fetch', vi.fn());
     context.platform = Platform.MODRINTH;
     context.id = chance.word();
     context.allowedReleaseTypes = chance.pickset(Object.values(ReleaseType), chance.integer({

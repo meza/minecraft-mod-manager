@@ -1,11 +1,12 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { chance } from 'jest-chance';
-import { CurseforgeModFile, getMod, HashFunctions } from './fetch.js';
-import { Loader, Platform, ReleaseType } from '../../lib/modlist.types.js';
+import { curseforgeFileToRemoteModDetails, CurseforgeModFile, getMod, HashFunctions } from './fetch.js';
+import { Loader, Platform, ReleaseType, RemoteModDetails } from '../../lib/modlist.types.js';
 import { RepositoryTestContext } from '../index.test.js';
 import { CouldNotFindModException } from '../../errors/CouldNotFindModException.js';
 import { generateCurseforgeModFile } from '../../../test/generateCurseforgeModFile.js';
 import { NoRemoteFileFound } from '../../errors/NoRemoteFileFound.js';
+import { rateLimitingFetch } from '../../lib/rateLimiter/index.js';
 
 enum Release {
   ALPHA = 3,
@@ -13,20 +14,18 @@ enum Release {
   RELEASE = 1
 }
 
+vi.mock('../../lib/rateLimiter/index.js');
+
 const releasedStatus = 10;
 
 const assumeFailedModFetch = () => {
-  vi.stubGlobal('fetch', () => {
-    return Promise.resolve({
-      status: chance.pickone([401, 404, 500])
-    });
-  });
+  vi.mocked(rateLimitingFetch).mockResolvedValue({
+    status: chance.pickone([401, 404, 500])
+  } as Response);
 };
 
 const assumeSuccessfulModFetch = (modName: string, latestFiles: CurseforgeModFile[]) => {
-  vi.stubGlobal('fetch', vi.fn());
-
-  vi.mocked(fetch).mockResolvedValueOnce({
+  vi.mocked(rateLimitingFetch).mockResolvedValueOnce({
     status: 200,
     json: () => Promise.resolve({
       data: {
@@ -35,7 +34,7 @@ const assumeSuccessfulModFetch = (modName: string, latestFiles: CurseforgeModFil
     })
   } as Response);
 
-  vi.mocked(fetch).mockResolvedValueOnce({
+  vi.mocked(rateLimitingFetch).mockResolvedValueOnce({
     status: 200,
     json: () => Promise.resolve({
       data: latestFiles
@@ -377,6 +376,35 @@ describe('The Curseforge repository', () => {
       hash: randomFile2.generated.hashes.find((hash) => hash.algo === HashFunctions.sha1)?.value,
       downloadUrl: randomFile2.generated.downloadUrl
     });
+
+  });
+
+  it('can convert a CF file to Remote Mod Details', () => {
+    const randomName = chance.word();
+    const randomFileName = chance.word();
+    const randomFileDate = chance.date();
+    const randomHash = chance.word();
+    const randomDownloadUrl = chance.word();
+
+    const file = generateCurseforgeModFile({
+      fileName: randomFileName,
+      fileDate: randomFileDate,
+      downloadUrl: randomDownloadUrl,
+      hashes: [
+        {
+          algo: HashFunctions.sha1,
+          value: randomHash
+        }
+      ]
+    }).generated;
+
+    const actual: RemoteModDetails = curseforgeFileToRemoteModDetails(file, randomName);
+
+    expect(actual.name).toEqual(randomName);
+    expect(actual.hash).toEqual(randomHash);
+    expect(actual.fileName).toEqual(randomFileName);
+    expect(actual.releaseDate).toEqual(randomFileDate);
+    expect(actual.downloadUrl).toEqual(randomDownloadUrl);
 
   });
 

@@ -15,3 +15,5 @@ export const fileIsManaged = (file: string, installations: ModInstall[]) => {
 
   return result !== undefined;
 };
+
+// generate unit tests for all of the above

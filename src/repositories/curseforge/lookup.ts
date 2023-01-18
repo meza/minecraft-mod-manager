@@ -3,6 +3,7 @@ import { curseforgeFileToRemoteModDetails, CurseforgeModFile } from './fetch.js'
 import { PlatformLookupResult } from '../index.js';
 import { Platform } from '../../lib/modlist.types.js';
 import { logger } from '../../mmm.js';
+import { rateLimitingFetch } from '../../lib/rateLimiter/index.js';
 
 interface CurseforgeLookupMatches {
   id: number;
@@ -17,7 +18,7 @@ interface CurseforgeLookupResult {
 
 export const lookup = async (fingerprints: string[]): Promise<PlatformLookupResult[]> => {
   const url = 'https://api.curseforge.com/v1/fingerprints';
-  const modSearchResult = await fetch(url, {
+  const modSearchResult = await rateLimitingFetch(url, {
     headers: {
       'Accept': 'application/json',
       'Content-Type': 'application/json',

@@ -2,6 +2,7 @@ import { Loader, Platform, ReleaseType, RemoteModDetails } from '../../lib/modli
 import { CouldNotFindModException } from '../../errors/CouldNotFindModException.js';
 import { NoRemoteFileFound } from '../../errors/NoRemoteFileFound.js';
 import { Modrinth } from './index.js';
+import { rateLimitingFetch } from '../../lib/rateLimiter/index.js';
 
 export interface Hash {
   sha1: string;
@@ -31,7 +32,7 @@ interface ModrinthMod {
 
 const getName = async (projectId: string): Promise<string> => {
   const url = `https://api.modrinth.com/v2/project/${projectId}`;
-  const modInfoRequest = await fetch(url, {
+  const modInfoRequest = await rateLimitingFetch(url, {
     headers: Modrinth.API_HEADERS
   });
 
@@ -47,7 +48,7 @@ const getModDetails = async (projectId: string, gameVersion: string, loader: Loa
   const name = await getName(projectId);
   const url = `https://api.modrinth.com/v2/project/${projectId}/version?game_versions=[${gameVersion}]&loaders=[${loader}]`;
 
-  const modDetailsRequest = await fetch(url, {
+  const modDetailsRequest = await rateLimitingFetch(url, {
     headers: Modrinth.API_HEADERS
   });
 

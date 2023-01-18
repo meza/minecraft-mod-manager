@@ -3,11 +3,12 @@ import { PlatformLookupResult } from '../index.js';
 import { Modrinth } from './index.js';
 import { ModrinthFile, ModrinthVersion } from './fetch.js';
 import { Platform, RemoteModDetails } from '../../lib/modlist.types.js';
+import { rateLimitingFetch } from '../../lib/rateLimiter/index.js';
 
 const startLookup = async (hash: string) => {
   const url = `https://api.modrinth.com/v2/version_file/${hash}?algorithm=sha1`;
 
-  const response = await fetch(url, {
+  const response = await rateLimitingFetch(url, {
     headers: Modrinth.API_HEADERS
   });
 

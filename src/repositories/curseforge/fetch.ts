@@ -4,6 +4,7 @@ import { CouldNotFindModException } from '../../errors/CouldNotFindModException.
 import { NoRemoteFileFound } from '../../errors/NoRemoteFileFound.js';
 import { InvalidReleaseTypeException } from './InvalidReleaseTypeException.js';
 import { Curseforge } from './index.js';
+import { rateLimitingFetch } from '../../lib/rateLimiter/index.js';
 
 export enum HashFunctions {
   // eslint-disable-next-line no-unused-vars
@@ -60,7 +61,7 @@ const getFiles = async (projectId: string, gameVersion: string, loader: Loader):
   const cfLoader = Curseforge.curseforgeLoaderFromLoader(loader);
   const url = `https://api.curseforge.com/v1/mods/${projectId}/files?gameVersion=${gameVersion}&modLoaderType=${cfLoader}`;
 
-  const modFiles = await fetch(url, {
+  const modFiles = await rateLimitingFetch(url, {
     headers: {
       'Accept': 'application/json',
       'x-api-key': curseForgeApiKey
@@ -89,7 +90,7 @@ export const curseforgeFileToRemoteModDetails = (file: CurseforgeModFile, name: 
 export const getMod = async (projectId: string, allowedReleaseTypes: ReleaseType[], allowedGameVersion: string, loader: Loader, allowFallback: boolean) => {
   const url = `https://api.curseforge.com/v1/mods/${projectId}`;
 
-  const modDetailsRequest = await fetch(url, {
+  const modDetailsRequest = await rateLimitingFetch(url, {
     headers: {
       'Accept': 'application/json',
       'x-api-key': curseForgeApiKey
