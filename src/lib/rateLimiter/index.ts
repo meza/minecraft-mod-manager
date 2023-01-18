@@ -1,7 +1,6 @@
 import { Queue } from './queue.js';
 import { FetchJob } from './FetchJob.js';
 import { Retrying } from './Retrying.js';
-import { MaximumRetriesReached } from './MaximumRetriesReached.js';
 
 export interface RateLimit {
   maxAttempts: number;
