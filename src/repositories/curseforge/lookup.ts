@@ -4,6 +4,7 @@ import { PlatformLookupResult } from '../index.js';
 import { Platform } from '../../lib/modlist.types.js';
 import { logger } from '../../mmm.js';
 import { rateLimitingFetch } from '../../lib/rateLimiter/index.js';
+import chalk from 'chalk';
 
 interface CurseforgeLookupMatches {
   id: number;
@@ -31,7 +32,7 @@ export const lookup = async (fingerprints: string[]): Promise<PlatformLookupResu
   });
 
   if (!modSearchResult.ok) {
-    logger.log('Could not reach Curseforge, please try again');
+    logger.log(chalk.whiteBright(chalk.bgRed('Could not reach Curseforge, please try again')));
     return [];
   }
 

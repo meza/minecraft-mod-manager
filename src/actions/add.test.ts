@@ -22,6 +22,7 @@ import { Logger } from '../lib/Logger.js';
 import { modNotFound } from '../interactions/modNotFound.js';
 import { noRemoteFileFound } from '../interactions/noRemoteFileFound.js';
 import { stop } from '../mmm.js';
+import { generateRandomPlatform } from '../../test/generateRandomPlatform.js';
 
 vi.mock('../lib/Logger.js');
 vi.mock('../mmm.js');
@@ -59,7 +60,7 @@ const assumeModNotFound = (override?: string) => {
 };
 
 const getRandomPlatform = () => {
-  return chance.pickone(Object.values(Platform));
+  return generateRandomPlatform();
 };
 
 describe('The add module', async () => {

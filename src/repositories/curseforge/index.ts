@@ -4,7 +4,7 @@ import { getMod } from './fetch.js';
 import { lookup as cfLookup } from './lookup.js';
 import { UnknownLoaderException } from '../../errors/UnknownLoaderException.js';
 
-enum CurseforgeLoader {
+export enum CurseforgeLoader {
   ANY = 0,
   FORGE = 1,
   CAULDRON = 2,

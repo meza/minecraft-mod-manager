@@ -64,6 +64,10 @@ export const fetchModDetails = async (
 };
 
 export const lookup = async (lookup: LookupInput[]): Promise<ResultItem[]> => {
+  if (lookup.length === 0) {
+    return [];
+  }
+
   const lookups: Promise<PlatformLookupResult[]>[] = [];
 
   Object.values(Platform).map((platform) => {

@@ -1,6 +1,7 @@
-import { ModInstall, Platform } from '../src/lib/modlist.types.js';
+import { ModInstall } from '../src/lib/modlist.types.js';
 import { GeneratorResult } from './test.types.js';
 import { chance } from 'jest-chance';
+import { generateRandomPlatform } from './generateRandomPlatform.js';
 
 export const generateModInstall = (overrides?: Partial<ModInstall>): GeneratorResult<ModInstall> => {
 
@@ -9,7 +10,7 @@ export const generateModInstall = (overrides?: Partial<ModInstall>): GeneratorRe
   const hash = chance.hash();
   const downloadUrl = chance.url();
   const name = chance.word();
-  const type = chance.pickone(Object.values(Platform));
+  const type = generateRandomPlatform();
   const id = chance.word();
 
   const generated: ModInstall = {

@@ -21,11 +21,13 @@ export const scan = async (prefer: Platform, configuration: ModsJson, installati
     platform: Platform.MODRINTH,
     hash: []
   };
-
+  let found = 0;
   const all = files.map(async (file) => {
     if (fileIsManaged(file, installations)) {
       return;
     }
+
+    found++;
 
     const filePath = path.resolve(modsFolder, file);
     const fingerprint = curseforge.fingerprint(filePath);
@@ -36,7 +38,11 @@ export const scan = async (prefer: Platform, configuration: ModsJson, installati
   });
 
   await Promise.all(all);
-  const lookupResults = await lookup([cfInput, modrinthInput]);
+  if (found === 0) {
+    return [];
+  }
+
+  const lookupResults: ResultItem[] = await lookup([cfInput, modrinthInput]);
 
   const normalizers: Promise<ScanResults>[] = [];
 

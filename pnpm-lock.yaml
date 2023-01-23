@@ -6,7 +6,7 @@ specifiers:
   '@commitlint/prompt-cli': 17.4.2
   '@faker-js/faker': 7.6.0
   '@meza/adr-tools': 1.0.10
-  '@meza/curseforge-fingerprint': ^1.0.10
+  '@meza/curseforge-fingerprint': ^1.0.11
   '@meza/tsconfig-base': 1.1.0
   '@ryansonshine/commitizen': 4.2.8
   '@ryansonshine/cz-conventional-changelog': 3.3.4
@@ -53,7 +53,7 @@ specifiers:
   vitest: 0.27.1
 
 dependencies:
-  '@meza/curseforge-fingerprint': 1.0.10
+  '@meza/curseforge-fingerprint': 1.0.11
   chalk: 5.0.1
   commander: 10.0.0
   core-js: 3.25.3
@@ -698,8 +698,8 @@ packages:
       marked: 4.1.1
     dev: true
 
-  /@meza/curseforge-fingerprint/1.0.10:
-    resolution: {integrity: sha512-wvQlgTWTxAjH0PE86MAQOrlAvA/ynIgagFHto3hcEoB1r2owLezuma6HdlllfSk2sZLspKBoWH7TGoKdGM6Vsg==}
+  /@meza/curseforge-fingerprint/1.0.11:
+    resolution: {integrity: sha512-D1UjZQ33035txlxe7xbVKCKJb//nq9nl+jHGPw7ENj/KFioESu07ZcOnuiEfnDb2d7HpuNSjS1qFfCAqxdA9oA==}
     requiresBuild: true
     dependencies:
       '@types/node': 18.7.23

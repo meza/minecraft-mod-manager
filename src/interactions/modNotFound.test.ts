@@ -5,6 +5,7 @@ import { modNotFound } from './modNotFound.js';
 import inquirer from 'inquirer';
 import { chance } from 'jest-chance';
 import { Logger } from '../lib/Logger.js';
+import { generateRandomPlatform } from '../../test/generateRandomPlatform.js';
 
 vi.mock('../mmm.js');
 vi.mock('inquirer');
@@ -40,7 +41,7 @@ describe('The mod not found interaction', () => {
   });
 
   it('aborts when the user does not want to modify their search', async () => {
-    const testPlatform = chance.pickone(Object.values(Platform));
+    const testPlatform = generateRandomPlatform();
     const testModId = chance.word();
 
     vi.mocked(inquirer.prompt).mockResolvedValueOnce({ confirm: false });

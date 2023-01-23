@@ -132,8 +132,8 @@ describe('The Rate Limiting Library', () => {
     vi.useFakeTimers();
     vi.spyOn(queueExports, 'Queue').mockImplementation(() => ({
       dequeue: () => undefined,
-      enqueue: (_queueItem: FetchJob) => {}
-    } as Queue<FetchJob>));
+      enqueue: () => {}
+    } as unknown as Queue<FetchJob>));
 
     rateLimitingFetch(input);
 

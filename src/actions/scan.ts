@@ -2,9 +2,10 @@ import { DefaultOptions } from '../mmm.js';
 import { Logger } from '../lib/Logger.js';
 import { ensureConfiguration, readLockFile, writeConfigFile, writeLockFile } from '../lib/config.js';
 import { PlatformLookupResult } from '../repositories/index.js';
-import { Platform, RemoteModDetails } from '../lib/modlist.types.js';
+import { Mod, ModInstall, Platform, RemoteModDetails } from '../lib/modlist.types.js';
 import { scan as scanLib } from '../lib/scan.js';
 import chalk from 'chalk';
+import { shouldAddScanResults } from '../interactions/shouldAddScanResults.js';
 
 export interface ScanOptions extends DefaultOptions {
   prefer: Platform;
@@ -14,6 +15,11 @@ export interface ScanOptions extends DefaultOptions {
 export interface ScanResults {
   resolvedDetails: RemoteModDetails;
   localDetails: PlatformLookupResult;
+}
+
+interface FoundEntries {
+  mod: Mod;
+  install: ModInstall;
 }
 
 export const scan = async (options: ScanOptions, logger: Logger) => {
@@ -27,45 +33,44 @@ export const scan = async (options: ScanOptions, logger: Logger) => {
     return;
   }
 
+  const found: FoundEntries[] = [];
+
   scanResults.forEach((hit) => {
-    if (!options.quiet && !options.add) {
-      const message = chalk.green('\u2705') + `Found unmanaged mod: ${chalk.bold(chalk.whiteBright(hit.resolvedDetails.name))}`;
-      logger.log(message);
-    }
+    const message = chalk.green('\u2705') + `Found unmanaged mod: ${chalk.bold(chalk.whiteBright(hit.resolvedDetails.name))}`;
+    logger.log(message, true);
 
-    if (options.add) {
-      configuration.mods.push({
-        type: hit.localDetails.platform,
-        id: hit.localDetails.modId,
-        name: hit.resolvedDetails.name
+    found.push(
+      {
+        mod: {
+          type: hit.localDetails.platform,
+          id: hit.localDetails.modId,
+          name: hit.resolvedDetails.name
+        },
+        install: {
+          name: hit.resolvedDetails.name,
+          type: hit.localDetails.platform,
+          id: hit.localDetails.modId,
+          fileName: hit.localDetails.mod.fileName,
+          hash: hit.localDetails.mod.hash,
+          downloadUrl: hit.localDetails.mod.downloadUrl,
+          releasedOn: hit.localDetails.mod.releaseDate
+        }
       });
-
-      installations.push({
-        name: hit.resolvedDetails.name,
-        type: hit.localDetails.platform,
-        id: hit.localDetails.modId,
-        fileName: hit.localDetails.mod.fileName,
-        hash: hit.localDetails.mod.hash,
-        downloadUrl: hit.localDetails.mod.downloadUrl,
-        releasedOn: hit.localDetails.mod.releaseDate
-      });
-
-      logger.log(`${chalk.green('\u2705')} Added ${chalk.bold(chalk.cyanBright(hit.resolvedDetails.name))} from ${chalk.bold(chalk.yellow(hit.localDetails.platform))}`);
-    }
-
   });
-  if (!options.add) {
-    logger.log('\n' + chalk.yellow('Use the --add flag to add these mod to your modlist.'));
-    return;
+
+  if (await shouldAddScanResults(options, logger)) {
+
+    found.forEach(({ mod, install }) => {
+      configuration.mods.push(mod);
+      installations.push(install);
+    });
+
+    await writeConfigFile(configuration, options.config);
+    await writeLockFile(installations, options.config);
   }
-
-  await writeConfigFile(configuration, options.config);
-  await writeLockFile(installations, options.config);
-
   // scan during init
-  // scan when there is a config
+
   // deduce loader from the mods
   // if the loader doesn't match, error
-  // add the existing file as local installation (can't just use add)
 
 };
