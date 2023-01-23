@@ -1,19 +1,19 @@
 // Vitest Snapshot v1
 
-exports[`The mod not found interaction > when the user wants to modify their search > it asks for curseforge when they come from modrinth 1`] = `
+exports[`The mod not found interaction > when the user wants to modify their search for 'curseforge' > it asks for modrinth when they come from curseforge 1`] = `
 [
   {
-    "message": "What is the project id of the mod you want to add on curseforge?",
+    "message": "What is the project id of the mod you want to add on modrinth?",
     "name": "newModName",
     "type": "input",
   },
 ]
 `;
 
-exports[`The mod not found interaction > when the user wants to modify their search > it asks for modrinth when they come from curseforge 1`] = `
+exports[`The mod not found interaction > when the user wants to modify their search for 'modrinth' > it asks for curseforge when they come from modrinth 1`] = `
 [
   {
-    "message": "What is the project id of the mod you want to add on modrinth?",
+    "message": "What is the project id of the mod you want to add on curseforge?",
     "name": "newModName",
     "type": "input",
   },

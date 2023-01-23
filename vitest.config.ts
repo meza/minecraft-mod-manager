@@ -1,4 +1,16 @@
 import { defineConfig } from 'vitest/config';
+import isCi from 'is-ci';
+
+const testReporters = ['default'];
+const coverageReporters = ['text'];
+
+if (!isCi) {
+  // testReporters.push('verbose');
+  coverageReporters.push('html');
+} else {
+  testReporters.push('junit');
+  coverageReporters.push('cobertura');
+}
 
 export default defineConfig({
   test: {
@@ -10,14 +22,14 @@ export default defineConfig({
     testTimeout: 10000,
     watch: false,
     outputFile: 'reports/junit.xml',
-    reporters: ['verbose', 'junit'],
+    reporters: testReporters,
     coverage: {
       excludeNodeModules: true,
       include: ['src/**/*.ts'],
       exclude: ['**/*.testGameVersion.ts', '**/__mocks__/**.*', '**/*.d.ts', '**/*.test.ts'],
       all: true,
       reportsDirectory: './reports/coverage/unit',
-      reporter: ['text', 'cobertura'],
+      reporter: coverageReporters,
       statements: 100,
       branches: 100,
       functions: 100,

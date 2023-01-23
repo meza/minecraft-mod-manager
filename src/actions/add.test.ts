@@ -1,6 +1,11 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { add } from './add.js';
-import { initializeConfigFile, readConfigFile, readLockFile, writeConfigFile, writeLockFile } from '../lib/config.js';
+import {
+  ensureConfiguration,
+  readLockFile,
+  writeConfigFile,
+  writeLockFile
+} from '../lib/config.js';
 import { fetchModDetails } from '../repositories/index.js';
 import { downloadFile } from '../lib/downloader.js';
 import { generateModsJson } from '../../test/modlistGenerator.js';
@@ -13,12 +18,11 @@ import inquirer from 'inquirer';
 import { CouldNotFindModException } from '../errors/CouldNotFindModException.js';
 import { NoRemoteFileFound } from '../errors/NoRemoteFileFound.js';
 import { ModInstall, ModsJson, Platform, RemoteModDetails } from '../lib/modlist.types.js';
-import { ConfigFileNotFoundException } from '../errors/ConfigFileNotFoundException.js';
-import { shouldCreateConfig } from '../interactions/shouldCreateConfig.js';
 import { Logger } from '../lib/Logger.js';
 import { modNotFound } from '../interactions/modNotFound.js';
 import { noRemoteFileFound } from '../interactions/noRemoteFileFound.js';
 import { stop } from '../mmm.js';
+import { generateRandomPlatform } from '../../test/generateRandomPlatform.js';
 
 vi.mock('../lib/Logger.js');
 vi.mock('../mmm.js');
@@ -56,7 +60,7 @@ const assumeModNotFound = (override?: string) => {
 };
 
 const getRandomPlatform = () => {
-  return chance.pickone(Object.values(Platform));
+  return generateRandomPlatform();
 };
 
 describe('The add module', async () => {
@@ -66,7 +70,7 @@ describe('The add module', async () => {
     context.randomConfiguration = generateModsJson();
 
     // the main configuration to work with
-    vi.mocked(readConfigFile).mockResolvedValue(context.randomConfiguration.generated);
+    vi.mocked(ensureConfiguration).mockResolvedValue(context.randomConfiguration.generated);
     vi.mocked(readLockFile).mockResolvedValue([]);
 
     // the mod details returned from the repository
@@ -93,7 +97,7 @@ describe('The add module', async () => {
     await add(randomPlatform, randomModId, { config: 'config.json' }, logger);
 
     expect(
-      vi.mocked(readConfigFile),
+      vi.mocked(ensureConfiguration),
       'did not read the configuration file'
     ).toHaveBeenCalledTimes(1);
 
@@ -135,57 +139,6 @@ describe('The add module', async () => {
       'Writing the lock file after adding a mod has failed'
     ).toHaveBeenCalledWith(expectedLockFile, 'config.json');
 
-  });
-
-  describe('when the configuration file does not exist', () => {
-    beforeEach(() => {
-      vi.mocked(readConfigFile).mockReset();
-      vi.mocked(readConfigFile).mockRejectedValueOnce(new ConfigFileNotFoundException('test-config.json'));
-    });
-    it('should report an error in quiet mode', async () => {
-      const randomPlatform = getRandomPlatform();
-      const randomModId = chance.word();
-
-      await expect(add(randomPlatform, randomModId, {
-        config: 'test-config.json',
-        quiet: true
-      }, logger)).rejects.toThrow(new ConfigFileNotFoundException('test-config.json'));
-    });
-
-    it<LocalTestContext>('should initialize the config in interactive mode when asked to', async ({
-      randomConfiguration
-    }) => {
-      const randomPlatform = getRandomPlatform();
-      const randomModId = chance.word();
-
-      vi.mocked(shouldCreateConfig).mockResolvedValueOnce(true);
-      vi.mocked(initializeConfigFile).mockResolvedValueOnce(randomConfiguration.generated);
-
-      await add(randomPlatform, randomModId, { config: 'test-config.json', quiet: false }, logger);
-
-      expect(vi.mocked(shouldCreateConfig)).toHaveBeenCalledOnce();
-
-      expect(
-        vi.mocked(writeConfigFile),
-        'Writing the configuration file after auto-initializing the config has failed'
-      ).toHaveBeenCalledWith(randomConfiguration.generated, 'test-config.json');
-
-    });
-
-    it('should throw an error if config creation was declined in interactive mode', async () => {
-      const randomPlatform = getRandomPlatform();
-      const randomModId = chance.word();
-
-      vi.mocked(shouldCreateConfig).mockResolvedValueOnce(false);
-
-      await expect(add(randomPlatform, randomModId, {
-        config: 'test-config.json',
-        quiet: false
-      }, logger)).rejects.toThrow(new ConfigFileNotFoundException('test-config.json'));
-
-      expect(vi.mocked(shouldCreateConfig)).toHaveBeenCalledOnce();
-
-    });
   });
 
   it<LocalTestContext>('should skip the download if the mod already exists', async (context) => {
@@ -311,7 +264,7 @@ describe('The add module', async () => {
         expect(vi.mocked(inquirer.prompt)).toHaveBeenCalledTimes(1);
         expect(mockExit).toHaveBeenCalledOnce();
         // These mean that the add hasn't been recursively called
-        expect(vi.mocked(readConfigFile)).toHaveBeenCalledTimes(1);
+        expect(vi.mocked(ensureConfiguration)).toHaveBeenCalledTimes(1);
         expect(vi.mocked(fetchModDetails)).toHaveBeenCalledTimes(1);
         expect(vi.mocked(downloadFile)).not.toHaveBeenCalled();
       });
@@ -348,7 +301,7 @@ describe('The add module', async () => {
         // validate our assumptions about how many times things have been called
         expect(vi.mocked(downloadFile)).toHaveBeenCalledOnce();
         expect(vi.mocked(fetchModDetails)).toHaveBeenCalledTimes(2);
-        expect(vi.mocked(readConfigFile)).toHaveBeenCalledTimes(2);
+        expect(vi.mocked(ensureConfiguration)).toHaveBeenCalledTimes(2);
         expect(vi.mocked(writeConfigFile)).toHaveBeenCalledTimes(1);
 
       });
@@ -368,7 +321,7 @@ describe('The add module', async () => {
       expect(logger.error).toHaveBeenCalledWith('Unknown platform "very-wrong-platform". Please use one of the following: curseforge, modrinth');
 
       // These mean that the add hasn't been recursively called
-      expect(vi.mocked(readConfigFile)).toHaveBeenCalledTimes(1);
+      expect(vi.mocked(ensureConfiguration)).toHaveBeenCalledTimes(1);
       expect(vi.mocked(fetchModDetails)).toHaveBeenCalledTimes(1);
       expect(vi.mocked(downloadFile)).not.toHaveBeenCalled();
     });
@@ -394,7 +347,7 @@ describe('The add module', async () => {
       expect(vi.mocked(modNotFound)).toHaveBeenCalledWith(randomMod, randomPlatform, logger, { config: 'config.json' });
 
       // Validate our assumptions about the work being done
-      expect(vi.mocked(readConfigFile)).toHaveBeenCalledTimes(2);
+      expect(vi.mocked(ensureConfiguration)).toHaveBeenCalledTimes(2);
       expect(vi.mocked(fetchModDetails)).toHaveBeenCalledTimes(2);
       expect(vi.mocked(downloadFile)).toHaveBeenCalledOnce();
       expect(vi.mocked(writeConfigFile)).toHaveBeenCalledOnce();

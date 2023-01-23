@@ -3,6 +3,7 @@ import path from 'path';
 import { ModInstall, ModsJson } from './modlist.types.js';
 import { ConfigFileNotFoundException } from '../errors/ConfigFileNotFoundException.js';
 import { initializeConfig } from '../interactions/initializeConfig.js';
+import { shouldCreateConfig } from '../interactions/shouldCreateConfig.js';
 
 export const fileExists = async (configPath: string) => {
   return await fs.access(configPath).then(
@@ -66,4 +67,17 @@ export const initializeConfigFile = async (configPath: string): Promise<ModsJson
   }, runPath);
 
   return emptyModJson;
+};
+
+export const ensureConfiguration = async (configPath: string, quiet = false): Promise<ModsJson> => {
+  try {
+    return await readConfigFile(configPath);
+  } catch (error) {
+    if (error instanceof ConfigFileNotFoundException && !quiet) {
+      if (await shouldCreateConfig(configPath)) {
+        return await initializeConfigFile(configPath);
+      }
+    }
+    throw error;
+  }
 };

@@ -1,7 +1,53 @@
-import { Loader, Platform, ReleaseType } from '../lib/modlist.types.js';
-import { getMod as cfMod } from './curseforge/index.js';
-import { getMod as mMod } from './modrinth/index.js';
+import { Loader, Platform, ReleaseType, RemoteModDetails } from '../lib/modlist.types.js';
 import { UnknownPlatformException } from '../errors/UnknownPlatformException.js';
+import { Curseforge } from './curseforge/index.js';
+import { Modrinth } from './modrinth/index.js';
+
+export interface PlatformLookupResult {
+  platform: Platform;
+  modId: string;
+  mod: RemoteModDetails;
+}
+
+export interface LookupHits {
+  platform: Platform;
+  mod: RemoteModDetails;
+}
+
+export interface LookupResult {
+  hash: string;
+  hits: LookupHits[];
+}
+
+/**
+ * The hash/hashes to look up
+ * The platform property is necessary to distinguish between the inputs since each platform has a unique requirement
+ */
+export interface LookupInput { // TODO make the platform the key
+  platform: Platform;
+  hash: string[];
+}
+
+export interface Repository {
+  fetchMod: (projectId: string, allowedReleaseTypes: ReleaseType[], allowedGameVersion: string, loader: Loader, allowFallback: boolean) => Promise<RemoteModDetails>;
+  lookup: (lookup: string[]) => Promise<PlatformLookupResult[]>;
+}
+
+export interface ResultItem {
+  sha1Hash: string;
+  hits: PlatformLookupResult[];
+}
+
+const getRepository = (platform: Platform): Repository => {
+  switch (platform) {
+    case Platform.CURSEFORGE:
+      return new Curseforge();
+    case Platform.MODRINTH:
+      return new Modrinth();
+    default:
+      throw new UnknownPlatformException(platform);
+  }
+};
 
 export const fetchModDetails = async (
   platform: Platform,
@@ -11,11 +57,56 @@ export const fetchModDetails = async (
   loader: Loader,
   allowFallback: boolean
 ) => {
-  switch (platform) {
-    case Platform.CURSEFORGE:
-      return await cfMod(id, allowedReleaseTypes, gameVersion, loader, allowFallback);
-    case Platform.MODRINTH:
-      return await mMod(id, allowedReleaseTypes, gameVersion, loader, allowFallback);
-    default: throw new UnknownPlatformException(platform);
+
+  const repository = getRepository(platform);
+  return await repository.fetchMod(id, allowedReleaseTypes, gameVersion, loader, allowFallback);
+
+};
+
+export const lookup = async (lookup: LookupInput[]): Promise<ResultItem[]> => {
+  if (lookup.length === 0) {
+    return [];
   }
+
+  const lookups: Promise<PlatformLookupResult[]>[] = [];
+
+  Object.values(Platform).map((platform) => {
+
+    const specificInput = lookup.find(l => l.platform === platform);
+
+    if (!specificInput) {
+      return;
+    }
+
+    const repository = getRepository(platform);
+    lookups.push(repository.lookup(specificInput.hash));
+  });
+
+  const platformLookupResults = await Promise.allSettled(lookups);
+
+  const consolidatedResult: ResultItem[] = [];
+
+  platformLookupResults.forEach((platformLookupResult) => {
+    if (platformLookupResult.status === 'rejected') {
+      return;
+    }
+
+    const platformResult: PlatformLookupResult[] = platformLookupResult.value;
+
+    platformResult.forEach((match) => {
+      const hash = match.mod.hash;
+      const targetIndex = consolidatedResult.findIndex((i) => i.sha1Hash === hash);
+      if (targetIndex === -1) {
+        consolidatedResult.push({
+          sha1Hash: hash,
+          hits: [match]
+        });
+      } else {
+        consolidatedResult[targetIndex].hits.push(match);
+      }
+    });
+
+  });
+
+  return consolidatedResult;
 };

@@ -16,6 +16,7 @@
     "@typescript-eslint"
   ],
   "rules": {
+    "no-continue": "off",
     "dot-notation": "error",
     "@typescript-eslint/dot-notation": "error",
     "no-console": "off",

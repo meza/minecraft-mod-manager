@@ -1,7 +1,12 @@
 import path from 'path';
 import { fetchModDetails } from '../repositories/index.js';
-import { Mod, ModsJson, Platform } from '../lib/modlist.types.js';
-import { initializeConfigFile, readConfigFile, readLockFile, writeConfigFile, writeLockFile } from '../lib/config.js';
+import { Mod, Platform } from '../lib/modlist.types.js';
+import {
+  ensureConfiguration,
+  readLockFile,
+  writeConfigFile,
+  writeLockFile
+} from '../lib/config.js';
 import { downloadFile } from '../lib/downloader.js';
 import { DefaultOptions, stop } from '../mmm.js';
 import { UnknownPlatformException } from '../errors/UnknownPlatformException.js';
@@ -9,8 +14,6 @@ import inquirer from 'inquirer';
 import chalk from 'chalk';
 import { CouldNotFindModException } from '../errors/CouldNotFindModException.js';
 import { NoRemoteFileFound } from '../errors/NoRemoteFileFound.js';
-import { ConfigFileNotFoundException } from '../errors/ConfigFileNotFoundException.js';
-import { shouldCreateConfig } from '../interactions/shouldCreateConfig.js';
 import { Logger } from '../lib/Logger.js';
 import { modNotFound } from '../interactions/modNotFound.js';
 import { noRemoteFileFound } from '../interactions/noRemoteFileFound.js';
@@ -43,22 +46,9 @@ const handleUnknownPlatformException = async (error: UnknownPlatformException, i
 
 };
 
-const getConfiguration = async (options: DefaultOptions): Promise<ModsJson> => {
-  try {
-    return await readConfigFile(options.config);
-  } catch (error) {
-    if (error instanceof ConfigFileNotFoundException && options.quiet === false) {
-      if (await shouldCreateConfig(options.config)) {
-        return await initializeConfigFile(options.config);
-      }
-    }
-    throw error;
-  }
-};
-
 export const add = async (platform: Platform, id: string, options: DefaultOptions, logger: Logger) => {
 
-  const configuration = await getConfiguration(options);
+  const configuration = await ensureConfiguration(options.config, options.quiet);
   const modConfig = configuration.mods.find((mod: Mod) => (mod.id === id && mod.type === platform));
 
   if (modConfig) {

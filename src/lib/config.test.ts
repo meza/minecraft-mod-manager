@@ -2,6 +2,7 @@ import { afterEach, describe, expect, it, vi } from 'vitest';
 import fs from 'node:fs/promises';
 import { chance } from 'jest-chance';
 import {
+  ensureConfiguration,
   fileExists,
   initializeConfigFile,
   readConfigFile,
@@ -16,7 +17,9 @@ import { generateModsJson } from '../../test/modlistGenerator.js';
 import { ConfigFileNotFoundException } from '../errors/ConfigFileNotFoundException.js';
 import { initializeConfig } from '../interactions/initializeConfig.js';
 import * as process from 'process';
+import { shouldCreateConfig } from '../interactions/shouldCreateConfig.js';
 
+vi.mock('../interactions/shouldCreateConfig.js');
 vi.mock('../interactions/initializeConfig.js');
 vi.mock('node:fs/promises');
 
@@ -152,4 +155,63 @@ describe('The config library', () => {
 
   });
 
+  describe('when ensuring that a config exists', () => {
+    describe('and in interactive mode', () => {
+      it('creates a new one if there is no existing one', async () => {
+        const configName = 'config.json';
+        const randomConfig = generateModsJson().generated;
+
+        //File does not exist
+        vi.mocked(fs.access).mockRejectedValueOnce(new Error());
+        vi.mocked(shouldCreateConfig).mockResolvedValueOnce(true);
+        vi.mocked(initializeConfig).mockResolvedValueOnce(randomConfig);
+
+        const actual = await ensureConfiguration(configName);
+
+        expect(actual).toEqual(randomConfig);
+        expect(initializeConfig).toHaveBeenCalledOnce();
+      });
+
+      it('throws an error if the user chose to not create one', async () => {
+        const configName = 'config.json';
+
+        //File does not exist
+        vi.mocked(fs.access).mockRejectedValueOnce(new Error());
+        vi.mocked(shouldCreateConfig).mockResolvedValueOnce(false);
+
+        await expect(ensureConfiguration(configName)).rejects.toThrow(ConfigFileNotFoundException);
+
+        expect(initializeConfig).not.toHaveBeenCalled();
+      });
+    });
+
+    describe('and in non-interactive mode', () => {
+      it('throws an error', async () => {
+        const configName = 'config.json';
+        const quiet = true;
+
+        //File does not exist
+        vi.mocked(fs.access).mockRejectedValueOnce(new Error());
+
+        await expect(ensureConfiguration(configName, quiet)).rejects.toThrow(ConfigFileNotFoundException);
+      });
+    });
+
+    it('returns the existing one if there is one', async () => {
+      const configName = 'config.json';
+
+      // File exists
+      vi.mocked(fs.access).mockResolvedValueOnce();
+
+      const randomModsJson = generateModsJson();
+      const fileContents = JSON.stringify(randomModsJson.generated, null, 2);
+
+      // Return config file contents
+      vi.mocked(fs.readFile).mockResolvedValueOnce(fileContents);
+
+      const actualOutput = await ensureConfiguration(configName);
+
+      expect(actualOutput).toEqual(randomModsJson.expected);
+    });
+  });
 });

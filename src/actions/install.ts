@@ -1,14 +1,21 @@
-import { fileExists, readConfigFile, readLockFile, writeConfigFile, writeLockFile } from '../lib/config.js';
+import {
+  fileExists,
+  readConfigFile,
+  readLockFile,
+  writeConfigFile,
+  writeLockFile
+} from '../lib/config.js';
 import path from 'path';
 import { fetchModDetails } from '../repositories/index.js';
 import { downloadFile } from '../lib/downloader.js';
-import { Mod, ModInstall, RemoteModDetails } from '../lib/modlist.types.js';
+import { Mod, RemoteModDetails } from '../lib/modlist.types.js';
 import { getHash } from '../lib/hash.js';
 import { DefaultOptions } from '../mmm.js';
 import { updateMod } from '../lib/updater.js';
 import { Logger } from '../lib/Logger.js';
 import { ConfigFileNotFoundException } from '../errors/ConfigFileNotFoundException.js';
 import { ErrorTexts } from '../errors/ErrorTexts.js';
+import { getInstallation, hasInstallation } from '../lib/configurationHelper.js';
 
 const getMod = async (moddata: RemoteModDetails, modsFolder: string) => {
   await downloadFile(moddata.downloadUrl, path.resolve(modsFolder, moddata.fileName));
@@ -18,14 +25,6 @@ const getMod = async (moddata: RemoteModDetails, modsFolder: string) => {
     hash: moddata.hash,
     downloadUrl: moddata.downloadUrl
   };
-};
-
-const getInstallation = (mod: Mod, installations: ModInstall[]) => {
-  return installations.findIndex((i) => i.id === mod.id && i.type === mod.type);
-};
-
-const hasInstallation = (mod: Mod, installations: ModInstall[]) => {
-  return getInstallation(mod, installations) > -1;
 };
 
 export const install = async (options: DefaultOptions, logger: Logger) => {

@@ -5,6 +5,7 @@ import { chance } from 'jest-chance';
 import { generateModsJson } from '../../test/modlistGenerator.js';
 import { noRemoteFileFound } from './noRemoteFileFound.js';
 import { Logger } from '../lib/Logger.js';
+import { generateRandomPlatform } from '../../test/generateRandomPlatform.js';
 
 vi.mock('../mmm.js');
 vi.mock('inquirer');
@@ -44,7 +45,7 @@ describe('The mod not found interaction', () => {
   });
 
   it('aborts when the user does not want to modify their search', async () => {
-    const testPlatform = chance.pickone(Object.values(Platform));
+    const testPlatform = generateRandomPlatform();
     const testModId = chance.word();
     const randomConfig = generateModsJson().generated;
 
@@ -65,7 +66,7 @@ describe('The mod not found interaction', () => {
   describe.each([
     { input: Platform.CURSEFORGE, expected: Platform.MODRINTH },
     { input: Platform.MODRINTH, expected: Platform.CURSEFORGE }
-  ])('when the user wants to modify their search', ({ input, expected }) => {
+  ])('when the user wants to modify their search for $input', ({ input, expected }) => {
     it(`it asks for ${expected} when they come from ${input}`, async () => {
       const testPlatform = input;
       const testModId = chance.word();

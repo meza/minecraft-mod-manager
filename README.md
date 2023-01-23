@@ -271,7 +271,7 @@ This will list all the mods that are managed by the tool and their current statu
 Test if you can use the specified game version. This is most commonly used to see if you can upgrade to a newer version
 of Minecraft and _test_ that all of your configured mods will have a version for it.
 
-For example if you're on 1.19.2 and you want to see if you could upgrade to 1.19.3, you would run: `mmm test 1.19.3`
+For example if you're on 1.19.2, and you want to see if you could upgrade to 1.19.3, you would run: `mmm test 1.19.3`
 
 If you omit the game version, it will use the latest stable minecraft version.
 
@@ -283,6 +283,29 @@ It will also return a non-zero (2) exit value when you're testing for the versio
 This means that you could run `mmm test` every day for example, which would in return always check for the latest
 Minecraft release. Whenever the command returns with a zero exit code, you can run a version upgrade on your server if
 you like.
+
+---
+
+### SCAN
+
+Scans the configured mods folder and looks for files that are currently not managed by the mod manager.
+When a file is found, it will attempt to look up that file on all the supported platforms.
+
+It will report back the findings and if executed without any extra parameters, it will not modify anything.
+
+If you supply the `--add` flag, it will add the discovered files to your modlist json.
+
+#### Will it delete the files that it found?
+
+No. It will reuse the found files and add them to the lockfile so you can decide if you want to then update to the newest
+versions or not.
+
+#### Command line arguments for the scan function
+
+| Short | Long                            | Description                                               | Value                                                                                                                                     | Example                  |
+|-------|---------------------------------|-----------------------------------------------------------|-------------------------------------------------------------------------------------------------------------------------------------------|--------------------------|
+| -p    | --prefer                        | Which platform do you prefer to use?                      | `curseforge` or `modrinth`                                                                                                                | `mmm scan -p curseforge` |
+| -a    | --add                           | Automatically add the discovered mods to the modlist json | A valid Minecraft version                                                                                                                 | `mmm scan -a`            |
 
 ---
 

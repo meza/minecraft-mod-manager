@@ -12,6 +12,7 @@ import { Logger } from './lib/Logger.js';
 import { Loader, Platform, ReleaseType } from './lib/modlist.types.js';
 import { version } from './version.js';
 import { changeGameVersion } from './actions/change.js';
+import { scan } from './actions/scan.js';
 
 export const APP_NAME = 'Minecraft Mod Manager';
 export const APP_DESCRIPTION = 'Manages mods from Modrinth and Curseforge';
@@ -113,6 +114,16 @@ commands.push(
     .argument('[game_version]', 'The Minecraft version to change to', 'latest')
     .action(async (gameVersion: string, _options, cmd) => {
       await changeGameVersion(gameVersion, cmd.optsWithGlobals(), logger);
+    })
+);
+
+commands.push(
+  program.command('scan')
+    .description('Scans the mod directory and attempts to find the mods on the supported mod platforms.')
+    .option('-p, --prefer <platform>', `Which platform do you prefer to use? ${Object.values(Platform).join(', ')}`, Platform.MODRINTH)
+    .option('-a, --add', 'Add the mods to the xmodlist.json file', false)
+    .action(async (_options, cmd) => {
+      await scan(cmd.optsWithGlobals(), logger);
     })
 );
 

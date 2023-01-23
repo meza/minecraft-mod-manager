@@ -4,7 +4,7 @@ import { chance } from 'jest-chance';
 import { DefaultOptions } from '../mmm.js';
 import { changeGameVersion } from './change.js';
 import { generateModsJson } from '../../test/modlistGenerator.js';
-import { fileExists, readConfigFile, readLockFile, writeConfigFile, writeLockFile } from '../lib/config.js';
+import { fileExists, ensureConfiguration, readLockFile, writeConfigFile, writeLockFile } from '../lib/config.js';
 import { install } from './install.js';
 import { testGameVersion } from './testGameVersion.js';
 import { generateModInstall } from '../../test/modInstallGenerator.js';
@@ -44,8 +44,10 @@ describe('The change action', () => {
 
   it<LocalTestContext>('changes the version in the config', async ({ version, options, logger }) => {
     const config = generateModsJson({ gameVersion: 'old' }).generated;
+    const quietFlag = chance.bool();
+    options.quiet = quietFlag;
 
-    vi.mocked(readConfigFile).mockResolvedValueOnce(config);
+    vi.mocked(ensureConfiguration).mockResolvedValueOnce(config);
     vi.mocked(readLockFile).mockResolvedValue([]);
 
     await changeGameVersion(version, options, logger);
@@ -56,10 +58,11 @@ describe('The change action', () => {
 
     expect(savedConfig.gameVersion).not.toEqual('old');
     expect(savedConfig.gameVersion).toEqual(version);
+    expect(ensureConfiguration).toHaveBeenCalledWith(options.config, quietFlag);
   });
 
   it<LocalTestContext>('empties the lockfile', async ({ version, options, logger }) => {
-    vi.mocked(readConfigFile).mockResolvedValueOnce(generateModsJson().generated);
+    vi.mocked(ensureConfiguration).mockResolvedValueOnce(generateModsJson().generated);
     vi.mocked(readLockFile).mockResolvedValue([generateModInstall().generated]);
 
     await changeGameVersion(version, options, logger);
@@ -70,7 +73,7 @@ describe('The change action', () => {
   });
 
   it<LocalTestContext>('calls the install module', async ({ version, options, logger }) => {
-    vi.mocked(readConfigFile).mockResolvedValueOnce(generateModsJson().generated);
+    vi.mocked(ensureConfiguration).mockResolvedValueOnce(generateModsJson().generated);
     vi.mocked(readLockFile).mockResolvedValue([]);
 
     await changeGameVersion(version, options, logger);
@@ -87,7 +90,7 @@ describe('The change action', () => {
     const install3 = generateModInstall({ fileName: 'mymod3' }).generated;
 
     vi.mocked(readLockFile).mockResolvedValueOnce([install1, install2, install3]);
-    vi.mocked(readConfigFile).mockResolvedValueOnce(generateModsJson({
+    vi.mocked(ensureConfiguration).mockResolvedValueOnce(generateModsJson({
       mods: [
         generateModConfig({ id: install1.id, type: install1.type }).generated,
         generateModConfig({ id: install2.id, type: install2.type }).generated,
@@ -114,7 +117,7 @@ describe('The change action', () => {
     const install3 = generateModInstall({ fileName: 'mymod3' }).generated;
 
     vi.mocked(readLockFile).mockResolvedValueOnce([install1, install3]);
-    vi.mocked(readConfigFile).mockResolvedValueOnce(generateModsJson({
+    vi.mocked(ensureConfiguration).mockResolvedValue(generateModsJson({
       mods: [
         generateModConfig({ id: install1.id, type: install1.type }).generated,
         generateModConfig({ id: install2.id, type: install2.type }).generated,
