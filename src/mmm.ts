@@ -13,6 +13,7 @@ import { Loader, Platform, ReleaseType } from './lib/modlist.types.js';
 import { version } from './version.js';
 import { changeGameVersion } from './actions/change.js';
 import { scan } from './actions/scan.js';
+import { prune } from './actions/prune.js';
 
 export const APP_NAME = 'Minecraft Mod Manager';
 export const APP_DESCRIPTION = 'Manages mods from Modrinth and Curseforge';
@@ -124,6 +125,15 @@ commands.push(
     .option('-a, --add', 'Add the mods to the xmodlist.json file', false)
     .action(async (_options, cmd) => {
       await scan(cmd.optsWithGlobals(), logger);
+    })
+);
+
+commands.push(
+  program.command('prune')
+    .description('Prunes the mod directory from all the unmanaged files.')
+    .option('-f, --force', 'Delete the files without asking', false)
+    .action(async (_options, cmd) => {
+      await prune(cmd.optsWithGlobals(), logger);
     })
 );
 

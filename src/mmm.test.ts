@@ -10,11 +10,13 @@ import { Logger } from './lib/Logger.js';
 import { Platform } from './lib/modlist.types.js';
 import { changeGameVersion } from './actions/change.js';
 import { scan } from './actions/scan.js';
+import { prune } from './actions/prune.js';
 
 vi.mock('./lib/Logger.js');
 vi.mock('./actions/add.js');
 vi.mock('./actions/list.js');
 vi.mock('./actions/scan.js');
+vi.mock('./actions/prune.js');
 vi.mock('./actions/install.js');
 vi.mock('./actions/update.js');
 vi.mock('./interactions/initializeConfig.js');
@@ -130,6 +132,17 @@ describe('The main CLI configuration', () => {
       chance.pickone(['scan'])
     ]);
     expect(scan).toHaveBeenCalledOnce();
+  });
+
+  it('has the prune hooked up to the correct function', async () => {
+    const { program } = await import('./mmm.js');
+    vi.mocked(prune).mockResolvedValueOnce(expect.anything());
+    await program.parse([
+      '',
+      '',
+      chance.pickone(['prune'])
+    ]);
+    expect(prune).toHaveBeenCalledOnce();
   });
 
   it('sets the logger to quiet when the quiet option is supplied', async () => {
