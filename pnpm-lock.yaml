@@ -46,7 +46,7 @@ specifiers:
   nodejs-file-downloader: ^4.10.2
   npm-run-all: 4.1.5
   pkg: 5.8.0
-  pnpm: 7.25.1
+  pnpm: 7.26.0
   rimraf: 4.1.2
   semantic-release: 20.0.4
   semantic-release-export-data: 1.0.1
@@ -102,7 +102,7 @@ devDependencies:
   node-gyp: 9.3.1
   npm-run-all: 4.1.5
   pkg: 5.8.0
-  pnpm: 7.25.1
+  pnpm: 7.26.0
   rimraf: 4.1.2
   semantic-release: 20.0.4
   semantic-release-export-data: 1.0.1_semantic-release@20.0.4
@@ -4864,8 +4864,8 @@ packages:
       - supports-color
     dev: true
 
-  /pnpm/7.25.1:
-    resolution: {integrity: sha512-y/jlADVxyk+scBwI0ALRf8QoUMgrWyONnD1voZaPTBI+D+aIXXiFG9pMk3eLhvEfc0nK8KUnnbDDBTywd7WsMw==}
+  /pnpm/7.26.0:
+    resolution: {integrity: sha512-ASNhFsTa9YpJoalnGa28IKMimZk/oBOt19oxvB6+iP2EVr1h+PYcsTty4mrgSE/LegWQPy4yphZinshKjxycOA==}
     engines: {node: '>=14.6'}
     hasBin: true
     dev: true
