@@ -47,6 +47,7 @@
     "commander": "^10.0.0",
     "core-js": "^3.25.3",
     "dotenv": "^16.0.3",
+    "glob": "^8.1.0",
     "inquirer": "^9.1.2",
     "log-symbols": "^5.1.0",
     "nodejs-file-downloader": "^4.10.2"
@@ -72,6 +73,7 @@
     "@semantic-release/github": "8.0.7",
     "@semantic-release/npm": "9.0.2",
     "@semantic-release/release-notes-generator": "10.0.3",
+    "@types/glob": "^8.0.1",
     "@types/inquirer": "^9.0.2",
     "@types/is-ci": "^3.0.0",
     "@types/node": "^18.7.23",

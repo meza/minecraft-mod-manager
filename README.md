@@ -19,9 +19,8 @@ You currently can
 
 Upcoming features:
 
-- scan and recognize manually added mods
-- consolidate mods to the same platform
 - remove mods
+- consolidate mods to the same platform
 - use github as the source for mods
 - self-update
 
@@ -45,6 +44,7 @@ control over the mods that are installed.
   * [CHANGE](#change)
   * [LIST](#list)
   * [TEST](#test)
+  * [PRUNE](#prune)
 * [Explaining the configuration](#explaining-the-configuration)
   * [modlist-lock.json](#modlist-lockjson)
   * [modlist.json](#modlistjson)
@@ -53,6 +53,7 @@ control over the mods that are installed.
     * [modsFolder](#modsfolder-required)
     * [defaultAllowedReleaseTypes](#defaultallowedreleasetypes-required)
     * [allowVersionFallback](#allowversionfallback-optional)
+  * [.mmmignore](#ignore-file)
 * [Using with MultiMC](#using-with-multimc)
 * [Contribute to the project](#contribute-to-the-project)
   * [Setup](#setup)
@@ -286,6 +287,18 @@ you like.
 
 ---
 
+### PRUNE
+
+Removes all unmanaged files from the mod directory.
+
+#### Command line arguments for the prune function
+
+| Short | Long    | Description                                               | Value                     | Example        |
+|-------|---------|-----------------------------------------------------------|---------------------------|----------------|
+| -f    | --force | Delete the files without asking                           |                           | `mmm prune -f` |
+
+---
+
 ### SCAN
 
 Scans the configured mods folder and looks for files that are currently not managed by the mod manager.
@@ -433,6 +446,8 @@ This happens quite frequently unfortunately because mod developers either don't 
 they forget to list the supported Minecraft versions correctly.
 
 This setting will be overridable on an individual mod basis in the next release. Currently, it's a global setting.
+
+---
 
 ## Using with MultiMC
 
