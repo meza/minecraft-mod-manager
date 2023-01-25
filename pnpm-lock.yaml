@@ -21,8 +21,8 @@ specifiers:
   '@types/inquirer': ^9.0.2
   '@types/is-ci': ^3.0.0
   '@types/node': ^18.7.23
-  '@typescript-eslint/eslint-plugin': 5.48.2
-  '@typescript-eslint/parser': 5.48.2
+  '@typescript-eslint/eslint-plugin': 5.49.0
+  '@typescript-eslint/parser': 5.49.0
   '@vitest/coverage-c8': 0.27.3
   '@vitest/ui': ^0.27.2
   c8: 7.12.0
@@ -39,7 +39,7 @@ specifiers:
   inquirer: ^9.1.2
   is-ci: 3.0.1
   jest-chance: 0.2.5
-  lefthook: 1.2.7
+  lefthook: 1.2.8
   log-symbols: ^5.1.0
   mock-cwd: 1.0.0
   node-gyp: ^9.3.1
@@ -48,7 +48,7 @@ specifiers:
   pkg: 5.8.0
   pnpm: 7.25.1
   rimraf: 4.1.1
-  semantic-release: 20.0.2
+  semantic-release: 20.0.4
   semantic-release-export-data: 1.0.1
   ts-node: 10.9.1
   typescript: 4.9.4
@@ -74,19 +74,19 @@ devDependencies:
   '@meza/tsconfig-base': 1.1.0
   '@ryansonshine/commitizen': 4.2.8
   '@ryansonshine/cz-conventional-changelog': 3.3.4
-  '@semantic-release/changelog': 6.0.2_semantic-release@20.0.2
-  '@semantic-release/commit-analyzer': 9.0.2_semantic-release@20.0.2
-  '@semantic-release/exec': 6.0.3_semantic-release@20.0.2
-  '@semantic-release/git': 10.0.1_semantic-release@20.0.2
-  '@semantic-release/github': 8.0.7_semantic-release@20.0.2
-  '@semantic-release/npm': 9.0.2_semantic-release@20.0.2
-  '@semantic-release/release-notes-generator': 10.0.3_semantic-release@20.0.2
+  '@semantic-release/changelog': 6.0.2_semantic-release@20.0.4
+  '@semantic-release/commit-analyzer': 9.0.2_semantic-release@20.0.4
+  '@semantic-release/exec': 6.0.3_semantic-release@20.0.4
+  '@semantic-release/git': 10.0.1_semantic-release@20.0.4
+  '@semantic-release/github': 8.0.7_semantic-release@20.0.4
+  '@semantic-release/npm': 9.0.2_semantic-release@20.0.4
+  '@semantic-release/release-notes-generator': 10.0.3_semantic-release@20.0.4
   '@types/glob': 8.0.1
   '@types/inquirer': 9.0.2
   '@types/is-ci': 3.0.0
   '@types/node': 18.7.23
-  '@typescript-eslint/eslint-plugin': 5.48.2_caon6io6stgpr7lz2rtbhekxqy
-  '@typescript-eslint/parser': 5.48.2_7uibuqfxkfaozanbtbziikiqje
+  '@typescript-eslint/eslint-plugin': 5.49.0_iu322prlnwsygkcra5kbpy22si
+  '@typescript-eslint/parser': 5.49.0_7uibuqfxkfaozanbtbziikiqje
   '@vitest/coverage-c8': 0.27.3_@vitest+ui@0.27.3
   '@vitest/ui': 0.27.3
   c8: 7.12.0
@@ -97,15 +97,15 @@ devDependencies:
   eslint-plugin-security: 1.6.0
   is-ci: 3.0.1
   jest-chance: 0.2.5
-  lefthook: 1.2.7
+  lefthook: 1.2.8
   mock-cwd: 1.0.0
   node-gyp: 9.3.1
   npm-run-all: 4.1.5
   pkg: 5.8.0
   pnpm: 7.25.1
   rimraf: 4.1.1
-  semantic-release: 20.0.2
-  semantic-release-export-data: 1.0.1_semantic-release@20.0.2
+  semantic-release: 20.0.4
+  semantic-release-export-data: 1.0.1_semantic-release@20.0.4
   ts-node: 10.9.1_ooiiuqzxv24auyv6wfhxrugty4
   typescript: 4.9.4
   vitest: 0.27.3_@vitest+ui@0.27.3
@@ -933,7 +933,7 @@ packages:
       - '@swc/wasm'
     dev: true
 
-  /@semantic-release/changelog/6.0.2_semantic-release@20.0.2:
+  /@semantic-release/changelog/6.0.2_semantic-release@20.0.4:
     resolution: {integrity: sha512-jHqfTkoPbDEOAgAP18mGP53IxeMwxTISN+GwTRy9uLu58UjARoZU8ScCgWGeO2WPkEsm57H8AkyY02W2ntIlIw==}
     engines: {node: '>=14.17'}
     peerDependencies:
@@ -943,10 +943,10 @@ packages:
       aggregate-error: 3.1.0
       fs-extra: 11.0.0
       lodash: 4.17.21
-      semantic-release: 20.0.2
+      semantic-release: 20.0.4
     dev: true
 
-  /@semantic-release/commit-analyzer/9.0.2_semantic-release@20.0.2:
+  /@semantic-release/commit-analyzer/9.0.2_semantic-release@20.0.4:
     resolution: {integrity: sha512-E+dr6L+xIHZkX4zNMe6Rnwg4YQrWNXK+rNsvwOPpdFppvZO1olE2fIgWhv89TkQErygevbjsZFSIxp+u6w2e5g==}
     engines: {node: '>=14.17'}
     peerDependencies:
@@ -959,7 +959,7 @@ packages:
       import-from: 4.0.0
       lodash: 4.17.21
       micromatch: 4.0.5
-      semantic-release: 20.0.2
+      semantic-release: 20.0.4
     transitivePeerDependencies:
       - supports-color
     dev: true
@@ -969,7 +969,7 @@ packages:
     engines: {node: '>=14.17'}
     dev: true
 
-  /@semantic-release/exec/6.0.3_semantic-release@20.0.2:
+  /@semantic-release/exec/6.0.3_semantic-release@20.0.4:
     resolution: {integrity: sha512-bxAq8vLOw76aV89vxxICecEa8jfaWwYITw6X74zzlO0mc/Bgieqx9kBRz9z96pHectiTAtsCwsQcUyLYWnp3VQ==}
     engines: {node: '>=14.17'}
     peerDependencies:
@@ -981,12 +981,12 @@ packages:
       execa: 5.1.1
       lodash: 4.17.21
       parse-json: 5.2.0
-      semantic-release: 20.0.2
+      semantic-release: 20.0.4
     transitivePeerDependencies:
       - supports-color
     dev: true
 
-  /@semantic-release/git/10.0.1_semantic-release@20.0.2:
+  /@semantic-release/git/10.0.1_semantic-release@20.0.4:
     resolution: {integrity: sha512-eWrx5KguUcU2wUPaO6sfvZI0wPafUKAMNC18aXY4EnNcrZL86dEmpNVnC9uMpGZkmZJ9EfCVJBQx4pV4EMGT1w==}
     engines: {node: '>=14.17'}
     peerDependencies:
@@ -1000,12 +1000,12 @@ packages:
       lodash: 4.17.21
       micromatch: 4.0.5
       p-reduce: 2.1.0
-      semantic-release: 20.0.2
+      semantic-release: 20.0.4
     transitivePeerDependencies:
       - supports-color
     dev: true
 
-  /@semantic-release/github/8.0.7_semantic-release@20.0.2:
+  /@semantic-release/github/8.0.7_semantic-release@20.0.4:
     resolution: {integrity: sha512-VtgicRIKGvmTHwm//iqTh/5NGQwsncOMR5vQK9pMT92Aem7dv37JFKKRuulUsAnUOIlO4G8wH3gPiBAA0iW0ww==}
     engines: {node: '>=14.17'}
     peerDependencies:
@@ -1026,14 +1026,14 @@ packages:
       mime: 3.0.0
       p-filter: 2.1.0
       p-retry: 4.6.2
-      semantic-release: 20.0.2
+      semantic-release: 20.0.4
       url-join: 4.0.1
     transitivePeerDependencies:
       - encoding
       - supports-color
     dev: true
 
-  /@semantic-release/npm/9.0.2_semantic-release@20.0.2:
+  /@semantic-release/npm/9.0.2_semantic-release@20.0.4:
     resolution: {integrity: sha512-zgsynF6McdzxPnFet+a4iO9HpAlARXOM5adz7VGVCvj0ne8wtL2ZOQoDV2wZPDmdEotDIbVeJjafhelZjs9j6g==}
     engines: {node: '>=16 || ^14.17'}
     peerDependencies:
@@ -1050,12 +1050,12 @@ packages:
       rc: 1.2.8
       read-pkg: 5.2.0
       registry-auth-token: 5.0.1
-      semantic-release: 20.0.2
+      semantic-release: 20.0.4
       semver: 7.3.8
       tempy: 1.0.1
     dev: true
 
-  /@semantic-release/release-notes-generator/10.0.3_semantic-release@20.0.2:
+  /@semantic-release/release-notes-generator/10.0.3_semantic-release@20.0.4:
     resolution: {integrity: sha512-k4x4VhIKneOWoBGHkx0qZogNjCldLPRiAjnIpMnlUh6PtaWXp/T+C9U7/TaNDDtgDa5HMbHl4WlREdxHio6/3w==}
     engines: {node: '>=14.17'}
     peerDependencies:
@@ -1071,7 +1071,7 @@ packages:
       into-stream: 6.0.0
       lodash: 4.17.21
       read-pkg-up: 7.0.1
-      semantic-release: 20.0.2
+      semantic-release: 20.0.4
     transitivePeerDependencies:
       - supports-color
     dev: true
@@ -1173,8 +1173,8 @@ packages:
       '@types/node': 18.7.23
     dev: true
 
-  /@typescript-eslint/eslint-plugin/5.48.2_caon6io6stgpr7lz2rtbhekxqy:
-    resolution: {integrity: sha512-sR0Gja9Ky1teIq4qJOl0nC+Tk64/uYdX+mi+5iB//MH8gwyx8e3SOyhEzeLZEFEEfCaLf8KJq+Bd/6je1t+CAg==}
+  /@typescript-eslint/eslint-plugin/5.49.0_iu322prlnwsygkcra5kbpy22si:
+    resolution: {integrity: sha512-IhxabIpcf++TBaBa1h7jtOWyon80SXPRLDq0dVz5SLFC/eW6tofkw/O7Ar3lkx5z5U6wzbKDrl2larprp5kk5Q==}
     engines: {node: ^12.22.0 || ^14.17.0 || >=16.0.0}
     peerDependencies:
       '@typescript-eslint/parser': ^5.0.0
@@ -1184,10 +1184,10 @@ packages:
       typescript:
         optional: true
     dependencies:
-      '@typescript-eslint/parser': 5.48.2_7uibuqfxkfaozanbtbziikiqje
-      '@typescript-eslint/scope-manager': 5.48.2
-      '@typescript-eslint/type-utils': 5.48.2_7uibuqfxkfaozanbtbziikiqje
-      '@typescript-eslint/utils': 5.48.2_7uibuqfxkfaozanbtbziikiqje
+      '@typescript-eslint/parser': 5.49.0_7uibuqfxkfaozanbtbziikiqje
+      '@typescript-eslint/scope-manager': 5.49.0
+      '@typescript-eslint/type-utils': 5.49.0_7uibuqfxkfaozanbtbziikiqje
+      '@typescript-eslint/utils': 5.49.0_7uibuqfxkfaozanbtbziikiqje
       debug: 4.3.4
       eslint: 8.32.0
       ignore: 5.2.0
@@ -1200,8 +1200,8 @@ packages:
       - supports-color
     dev: true
 
-  /@typescript-eslint/parser/5.48.2_7uibuqfxkfaozanbtbziikiqje:
-    resolution: {integrity: sha512-38zMsKsG2sIuM5Oi/olurGwYJXzmtdsHhn5mI/pQogP+BjYVkK5iRazCQ8RGS0V+YLk282uWElN70zAAUmaYHw==}
+  /@typescript-eslint/parser/5.49.0_7uibuqfxkfaozanbtbziikiqje:
+    resolution: {integrity: sha512-veDlZN9mUhGqU31Qiv2qEp+XrJj5fgZpJ8PW30sHU+j/8/e5ruAhLaVDAeznS7A7i4ucb/s8IozpDtt9NqCkZg==}
     engines: {node: ^12.22.0 || ^14.17.0 || >=16.0.0}
     peerDependencies:
       eslint: ^6.0.0 || ^7.0.0 || ^8.0.0
@@ -1210,9 +1210,9 @@ packages:
       typescript:
         optional: true
     dependencies:
-      '@typescript-eslint/scope-manager': 5.48.2
-      '@typescript-eslint/types': 5.48.2
-      '@typescript-eslint/typescript-estree': 5.48.2_typescript@4.9.4
+      '@typescript-eslint/scope-manager': 5.49.0
+      '@typescript-eslint/types': 5.49.0
+      '@typescript-eslint/typescript-estree': 5.49.0_typescript@4.9.4
       debug: 4.3.4
       eslint: 8.32.0
       typescript: 4.9.4
@@ -1220,16 +1220,16 @@ packages:
       - supports-color
     dev: true
 
-  /@typescript-eslint/scope-manager/5.48.2:
-    resolution: {integrity: sha512-zEUFfonQid5KRDKoI3O+uP1GnrFd4tIHlvs+sTJXiWuypUWMuDaottkJuR612wQfOkjYbsaskSIURV9xo4f+Fw==}
+  /@typescript-eslint/scope-manager/5.49.0:
+    resolution: {integrity: sha512-clpROBOiMIzpbWNxCe1xDK14uPZh35u4QaZO1GddilEzoCLAEz4szb51rBpdgurs5k2YzPtJeTEN3qVbG+LRUQ==}
     engines: {node: ^12.22.0 || ^14.17.0 || >=16.0.0}
     dependencies:
-      '@typescript-eslint/types': 5.48.2
-      '@typescript-eslint/visitor-keys': 5.48.2
+      '@typescript-eslint/types': 5.49.0
+      '@typescript-eslint/visitor-keys': 5.49.0
     dev: true
 
-  /@typescript-eslint/type-utils/5.48.2_7uibuqfxkfaozanbtbziikiqje:
-    resolution: {integrity: sha512-QVWx7J5sPMRiOMJp5dYshPxABRoZV1xbRirqSk8yuIIsu0nvMTZesKErEA3Oix1k+uvsk8Cs8TGJ6kQ0ndAcew==}
+  /@typescript-eslint/type-utils/5.49.0_7uibuqfxkfaozanbtbziikiqje:
+    resolution: {integrity: sha512-eUgLTYq0tR0FGU5g1YHm4rt5H/+V2IPVkP0cBmbhRyEmyGe4XvJ2YJ6sYTmONfjmdMqyMLad7SB8GvblbeESZA==}
     engines: {node: ^12.22.0 || ^14.17.0 || >=16.0.0}
     peerDependencies:
       eslint: '*'
@@ -1238,8 +1238,8 @@ packages:
       typescript:
         optional: true
     dependencies:
-      '@typescript-eslint/typescript-estree': 5.48.2_typescript@4.9.4
-      '@typescript-eslint/utils': 5.48.2_7uibuqfxkfaozanbtbziikiqje
+      '@typescript-eslint/typescript-estree': 5.49.0_typescript@4.9.4
+      '@typescript-eslint/utils': 5.49.0_7uibuqfxkfaozanbtbziikiqje
       debug: 4.3.4
       eslint: 8.32.0
       tsutils: 3.21.0_typescript@4.9.4
@@ -1248,13 +1248,13 @@ packages:
       - supports-color
     dev: true
 
-  /@typescript-eslint/types/5.48.2:
-    resolution: {integrity: sha512-hE7dA77xxu7ByBc6KCzikgfRyBCTst6dZQpwaTy25iMYOnbNljDT4hjhrGEJJ0QoMjrfqrx+j1l1B9/LtKeuqA==}
+  /@typescript-eslint/types/5.49.0:
+    resolution: {integrity: sha512-7If46kusG+sSnEpu0yOz2xFv5nRz158nzEXnJFCGVEHWnuzolXKwrH5Bsf9zsNlOQkyZuk0BZKKoJQI+1JPBBg==}
     engines: {node: ^12.22.0 || ^14.17.0 || >=16.0.0}
     dev: true
 
-  /@typescript-eslint/typescript-estree/5.48.2_typescript@4.9.4:
-    resolution: {integrity: sha512-bibvD3z6ilnoVxUBFEgkO0k0aFvUc4Cttt0dAreEr+nrAHhWzkO83PEVVuieK3DqcgL6VAK5dkzK8XUVja5Zcg==}
+  /@typescript-eslint/typescript-estree/5.49.0_typescript@4.9.4:
+    resolution: {integrity: sha512-PBdx+V7deZT/3GjNYPVQv1Nc0U46dAHbIuOG8AZ3on3vuEKiPDwFE/lG1snN2eUB9IhF7EyF7K1hmTcLztNIsA==}
     engines: {node: ^12.22.0 || ^14.17.0 || >=16.0.0}
     peerDependencies:
       typescript: '*'
@@ -1262,8 +1262,8 @@ packages:
       typescript:
         optional: true
     dependencies:
-      '@typescript-eslint/types': 5.48.2
-      '@typescript-eslint/visitor-keys': 5.48.2
+      '@typescript-eslint/types': 5.49.0
+      '@typescript-eslint/visitor-keys': 5.49.0
       debug: 4.3.4
       globby: 11.1.0
       is-glob: 4.0.3
@@ -1274,17 +1274,17 @@ packages:
       - supports-color
     dev: true
 
-  /@typescript-eslint/utils/5.48.2_7uibuqfxkfaozanbtbziikiqje:
-    resolution: {integrity: sha512-2h18c0d7jgkw6tdKTlNaM7wyopbLRBiit8oAxoP89YnuBOzCZ8g8aBCaCqq7h208qUTroL7Whgzam7UY3HVLow==}
+  /@typescript-eslint/utils/5.49.0_7uibuqfxkfaozanbtbziikiqje:
+    resolution: {integrity: sha512-cPJue/4Si25FViIb74sHCLtM4nTSBXtLx1d3/QT6mirQ/c65bV8arBEebBJJizfq8W2YyMoPI/WWPFWitmNqnQ==}
     engines: {node: ^12.22.0 || ^14.17.0 || >=16.0.0}
     peerDependencies:
       eslint: ^6.0.0 || ^7.0.0 || ^8.0.0
     dependencies:
       '@types/json-schema': 7.0.11
       '@types/semver': 7.3.12
-      '@typescript-eslint/scope-manager': 5.48.2
-      '@typescript-eslint/types': 5.48.2
-      '@typescript-eslint/typescript-estree': 5.48.2_typescript@4.9.4
+      '@typescript-eslint/scope-manager': 5.49.0
+      '@typescript-eslint/types': 5.49.0
+      '@typescript-eslint/typescript-estree': 5.49.0_typescript@4.9.4
       eslint: 8.32.0
       eslint-scope: 5.1.1
       eslint-utils: 3.0.0_eslint@8.32.0
@@ -1294,11 +1294,11 @@ packages:
       - typescript
     dev: true
 
-  /@typescript-eslint/visitor-keys/5.48.2:
-    resolution: {integrity: sha512-z9njZLSkwmjFWUelGEwEbdf4NwKvfHxvGC0OcGN1Hp/XNDIcJ7D5DpPNPv6x6/mFvc1tQHsaWmpD/a4gOvvCJQ==}
+  /@typescript-eslint/visitor-keys/5.49.0:
+    resolution: {integrity: sha512-v9jBMjpNWyn8B6k/Mjt6VbUS4J1GvUlR4x3Y+ibnP1z7y7V4n0WRz+50DY6+Myj0UaXVSuUlHohO+eZ8IJEnkg==}
     engines: {node: ^12.22.0 || ^14.17.0 || >=16.0.0}
     dependencies:
-      '@typescript-eslint/types': 5.48.2
+      '@typescript-eslint/types': 5.49.0
       eslint-visitor-keys: 3.3.0
     dev: true
 
@@ -3696,83 +3696,83 @@ packages:
     engines: {node: '>=0.10.0'}
     dev: true
 
-  /lefthook-darwin-arm64/1.2.7:
-    resolution: {integrity: sha512-ku+4wxcFJZC/Ey2AUAVo1+6LG1Pk1TglINuAv/1BuOHEJwTA/orb6RWDaRhGF2YyUVw0Y5hEgZolOBNrqGfC/Q==}
+  /lefthook-darwin-arm64/1.2.8:
+    resolution: {integrity: sha512-4gmZpcPPDo9NQYwHdDAoPv0Ho0V1xa5GPGYOrpKzmgA4MogLMmtp2AUUQt8ekgfoUfiXn6Zh2Ww83J+kIW04Ww==}
     cpu: [arm64]
     os: [darwin]
     requiresBuild: true
     dev: true
     optional: true
 
-  /lefthook-darwin-x64/1.2.7:
-    resolution: {integrity: sha512-URkg0MEAJQ9lwVBFaEZxCz0iwMpiGicoeRwbBQIfcD1BKDdaK0hSG6FY18bvFcXHXqBgw8uxBEd3xvkpJTn6LA==}
+  /lefthook-darwin-x64/1.2.8:
+    resolution: {integrity: sha512-5QyHU2YyJmNpiorxXqKPYlhlYQSBjx+0DOLKOtd20aCQIZXQFMhgJUSe3s5WGNyxEzoVIzZ05rxBbsIqnNXliQ==}
     cpu: [x64]
     os: [darwin]
     requiresBuild: true
     dev: true
     optional: true
 
-  /lefthook-freebsd-arm64/1.2.7:
-    resolution: {integrity: sha512-FCUlH9Uv7PN2VYmovEqBED//w+fYJdp+akfNmp7bDTVxlRb+YjkQfIwFn7ombIrxsMtb4AnWuEhoZoNmAOpViA==}
+  /lefthook-freebsd-arm64/1.2.8:
+    resolution: {integrity: sha512-LwCYN2B6nNIv+4LLFYMNbMJYUI3xvF6tN+y9gY13yanOVdbMcJDHTVFP4l0yEpeAy93UDzvGIPXo0RX99CEpRg==}
     cpu: [arm64]
     os: [freebsd]
     requiresBuild: true
     dev: true
     optional: true
 
-  /lefthook-freebsd-x64/1.2.7:
-    resolution: {integrity: sha512-CNsan6wnbVRvPHJXjxtpd/5Ftyvw7z/UDr5PC1g82s5IV0nlRkm8DvN76mD+S6hUf1KStx/nYCvgHdZnKcCGwg==}
+  /lefthook-freebsd-x64/1.2.8:
+    resolution: {integrity: sha512-Jojivv39Ocp/Z78cagLdJkp2z//h01nCMNHYo5Hf2vBkL9oBDxSg3arJSc7C5h8tTk6WZG4zZgVHF+FF8RqTcQ==}
     cpu: [x64]
     os: [freebsd]
     requiresBuild: true
     dev: true
     optional: true
 
-  /lefthook-linux-arm64/1.2.7:
-    resolution: {integrity: sha512-ciBM0lm1xDshDJfuwYLkkQMr58aO/8HBunpMGosGdyvBmKfWhUoNYlMM16ghNpi/dDNZHdarooPZmXAYwxlq9Q==}
+  /lefthook-linux-arm64/1.2.8:
+    resolution: {integrity: sha512-KkOC56fpVQ6baZFZXr9ReMvSHDW8mClhAxSHM99UY2p7vBk63fP7SXvq0QBMVxtqZr8pzVV0fReuL4N47H3kMA==}
     cpu: [arm64]
     os: [linux]
     requiresBuild: true
     dev: true
     optional: true
 
-  /lefthook-linux-x64/1.2.7:
-    resolution: {integrity: sha512-1VRWPZyddmJzrkOI+JXV0rV8vr2U+JShJLEyzTWs/b46aQxEfkq0VbiWtJ3mKb5OpCqu19W+1Xd2/ahhhT8f2g==}
+  /lefthook-linux-x64/1.2.8:
+    resolution: {integrity: sha512-iNAHyhNr3th9ESFDjEcXjVfl83QXP8422LRX+oQnr6WHQSZ+pn5FN7SptKovw7+M0WqvjBHyj4Pw7OXA+NZXLg==}
     cpu: [x64]
     os: [linux]
     requiresBuild: true
     dev: true
     optional: true
 
-  /lefthook-windows-arm64/1.2.7:
-    resolution: {integrity: sha512-ylIapeQ487IqHYvsCP9Pa1C2Q4np1A/xXgARC/l2E3jhGdZe71R54pTJK+v4HryITDRRT13yTdHJWKcGJRClfg==}
+  /lefthook-windows-arm64/1.2.8:
+    resolution: {integrity: sha512-BmIQ+M6jJUcT5QQyOaF8UvIK3vtk+a9XH/MQwgqZ8ou8T1vQR0aF7xcjHK/4wGtlwUP2+Qye9+n6xYvkwl/6+A==}
     cpu: [arm64]
     os: [win32]
     requiresBuild: true
     dev: true
     optional: true
 
-  /lefthook-windows-x64/1.2.7:
-    resolution: {integrity: sha512-hQsq5lK6c4zLm8ScdGJFFG3QODsvaO68YA8jcSLhMngJVRwQ7XOl877udWD+WZ151EB4RY9rG+rKq9lYnwsbaA==}
+  /lefthook-windows-x64/1.2.8:
+    resolution: {integrity: sha512-7ONLOkd/Un/zEU9WdOHL0fgOy7WRdIMzHuk+TNwqzoAO8G/qaFSPfsIteN2GifZ0cDBSLGE8x5rfxRv2nUuzcA==}
     cpu: [x64]
     os: [win32]
     requiresBuild: true
     dev: true
     optional: true
 
-  /lefthook/1.2.7:
-    resolution: {integrity: sha512-6QEeP78IAuonzH+D7p00sga6meePVUj5ap113x+uBKSpBDhgK6iVeeNE0D18L8oVJhNk00tDVAZV1AQAn80Low==}
+  /lefthook/1.2.8:
+    resolution: {integrity: sha512-dB6sA3SxMxUvZjUN+pjQrEapJppqERO8DJMdpJvDsymIIKJLQY/iG5H9bR/J4+kE+trho+wC8F+zsuuOhtlSxQ==}
     hasBin: true
     requiresBuild: true
     optionalDependencies:
-      lefthook-darwin-arm64: 1.2.7
-      lefthook-darwin-x64: 1.2.7
-      lefthook-freebsd-arm64: 1.2.7
-      lefthook-freebsd-x64: 1.2.7
-      lefthook-linux-arm64: 1.2.7
-      lefthook-linux-x64: 1.2.7
-      lefthook-windows-arm64: 1.2.7
-      lefthook-windows-x64: 1.2.7
+      lefthook-darwin-arm64: 1.2.8
+      lefthook-darwin-x64: 1.2.8
+      lefthook-freebsd-arm64: 1.2.8
+      lefthook-freebsd-x64: 1.2.8
+      lefthook-linux-arm64: 1.2.8
+      lefthook-linux-x64: 1.2.8
+      lefthook-windows-arm64: 1.2.8
+      lefthook-windows-x64: 1.2.8
     dev: true
 
   /levn/0.4.1:
@@ -5246,25 +5246,25 @@ packages:
       truncate-utf8-bytes: 1.0.2
     dev: false
 
-  /semantic-release-export-data/1.0.1_semantic-release@20.0.2:
+  /semantic-release-export-data/1.0.1_semantic-release@20.0.4:
     resolution: {integrity: sha512-6vlgrrzzcMi/REhQd65Bh4dfSKmgwXOJ/Q2RVlT9WsU4Ya1T2qGpkSrMfG/n6oFRrqBdbDlyZgxNd94ziW+vSg==}
     peerDependencies:
       semantic-release: '>=18'
     dependencies:
       '@actions/core': 1.10.0
-      semantic-release: 20.0.2
+      semantic-release: 20.0.4
     dev: true
 
-  /semantic-release/20.0.2:
-    resolution: {integrity: sha512-K6TYMAnSUqM2oH0/0ZJErMzkx4SgV2dM8jh5RNGj1ANJ81z/u5XVaPPCZADAl7voEf6t2hd6YioLd0I6yXui2A==}
+  /semantic-release/20.0.4:
+    resolution: {integrity: sha512-pTYxIjGbwbLvlCu+QI/4EtS8aDvuz3XedGibNPz2QnMUWSl5aeGLXRboVQQV03GaQbiYeZ6MnpA2zjgzTZcLEQ==}
     engines: {node: '>=18'}
     hasBin: true
     dependencies:
-      '@semantic-release/commit-analyzer': 9.0.2_semantic-release@20.0.2
+      '@semantic-release/commit-analyzer': 9.0.2_semantic-release@20.0.4
       '@semantic-release/error': 3.0.0
-      '@semantic-release/github': 8.0.7_semantic-release@20.0.2
-      '@semantic-release/npm': 9.0.2_semantic-release@20.0.2
-      '@semantic-release/release-notes-generator': 10.0.3_semantic-release@20.0.2
+      '@semantic-release/github': 8.0.7_semantic-release@20.0.4
+      '@semantic-release/npm': 9.0.2_semantic-release@20.0.4
+      '@semantic-release/release-notes-generator': 10.0.3_semantic-release@20.0.4
       aggregate-error: 4.0.1
       cosmiconfig: 8.0.0
       debug: 4.3.4
