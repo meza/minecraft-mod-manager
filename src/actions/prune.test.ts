@@ -4,11 +4,12 @@ import { prune, PruneOptions } from './prune.js';
 import { ModInstall, ModsJson } from '../lib/modlist.types.js';
 import { generateModsJson } from '../../test/modlistGenerator.js';
 import { ensureConfiguration, readLockFile } from '../lib/config.js';
-import * as fs from 'fs/promises';
 import { chance } from 'jest-chance';
 import { fileIsManaged } from '../lib/configurationHelper.js';
 import { shouldPruneFiles } from '../interactions/shouldPruneFiles.js';
 import path from 'path';
+import fs from 'fs/promises';
+import { getModFiles } from '../lib/fileHelper.js';
 
 interface LocalTestContext {
   logger: Logger;
@@ -18,10 +19,11 @@ interface LocalTestContext {
 }
 
 vi.mock('../lib/config.js');
-vi.mock('fs/promises');
 vi.mock('../lib/Logger.js');
 vi.mock('../lib/configurationHelper.js');
 vi.mock('../interactions/shouldPruneFiles.js');
+vi.mock('../lib/fileHelper.js');
+vi.mock('fs/promises');
 
 describe('The prune action', () => {
   beforeEach<LocalTestContext>((context) => {
@@ -42,7 +44,7 @@ describe('The prune action', () => {
   });
 
   it<LocalTestContext>('notifies about no files in the mods folder', async ({ options, logger }) => {
-    vi.mocked(fs.readdir).mockResolvedValueOnce([]);
+    vi.mocked(getModFiles).mockResolvedValueOnce([]);
 
     await prune(options, logger);
 
@@ -52,7 +54,7 @@ describe('The prune action', () => {
   });
 
   it<LocalTestContext>('notifies about no unmanaged files in the mods folder', async ({ options, logger }) => {
-    vi.mocked(fs.readdir).mockResolvedValueOnce(chance.n(chance.word, chance.integer({ min: 2, max: 10 })));
+    vi.mocked(getModFiles).mockResolvedValueOnce(chance.n(chance.word, chance.integer({ min: 2, max: 10 })));
     vi.mocked(fileIsManaged).mockReturnValue(true);
 
     await prune(options, logger);
@@ -71,7 +73,7 @@ describe('The prune action', () => {
     const expectedFile2 = path.resolve(configuration.modsFolder, file2);
     const expectedFile3 = path.resolve(configuration.modsFolder, file3);
 
-    vi.mocked(fs.readdir).mockResolvedValueOnce([file1, file2, file3]);
+    vi.mocked(getModFiles).mockResolvedValueOnce([file1, file2, file3]);
     vi.mocked(fileIsManaged).mockReturnValue(false);
     vi.mocked(shouldPruneFiles).mockResolvedValueOnce(true);
 
@@ -95,7 +97,7 @@ describe('The prune action', () => {
     const file2 = chance.word();
     const file3 = chance.word();
 
-    vi.mocked(fs.readdir).mockResolvedValueOnce([file1, file2, file3]);
+    vi.mocked(getModFiles).mockResolvedValueOnce([file1, file2, file3]);
     vi.mocked(fileIsManaged).mockReturnValue(false);
     vi.mocked(shouldPruneFiles).mockResolvedValueOnce(false);
 

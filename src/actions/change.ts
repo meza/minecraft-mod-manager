@@ -27,7 +27,6 @@ export const changeGameVersion = async (gameVersion: string, options: VerifyUpgr
       const installedModIndex = getInstallation(mod, installedMods);
       const oldModPath = path.resolve(configuration.modsFolder, installedMods[installedModIndex].fileName);
       if (await fileExists(oldModPath)) {
-        console.log(oldModPath);
         await fs.rm(oldModPath);
       }
     }
