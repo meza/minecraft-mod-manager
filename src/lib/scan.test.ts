@@ -4,17 +4,16 @@ import { generateModsJson } from '../../test/modlistGenerator.js';
 import { generateRandomPlatform } from '../../test/generateRandomPlatform.js';
 import { scan } from './scan.js';
 import { fetchModDetails, lookup } from '../repositories/index.js';
-import fs from 'fs/promises';
 import { chance } from 'jest-chance';
-import path from 'path';
 import curseforge from '@meza/curseforge-fingerprint';
 import { getHash } from './hash.js';
 import { fileIsManaged } from './configurationHelper.js';
 import { generateResultItem } from '../../test/generateResultItem.js';
 import { generatePlatformLookupResult } from '../../test/generatePlatformLookupResult.js';
 import { generateRemoteModDetails } from '../../test/generateRemoteDetails.js';
+import { getModFiles } from './fileHelper.js';
 
-vi.mock('fs/promises');
+vi.mock('./fileHelper.js');
 vi.mock('./hash.js');
 vi.mock('@meza/curseforge-fingerprint');
 vi.mock('./configurationHelper.js');
@@ -24,6 +23,7 @@ interface LocalTestContext {
   randomConfiguration: ModsJson;
   randomInstallations: ModInstall[];
   randomPlatform: Platform;
+  config: 'config.json';
 }
 
 describe('The scan library', () => {
@@ -39,22 +39,22 @@ describe('The scan library', () => {
       const randomModsFolder = chance.word();
       context.randomConfiguration.modsFolder = randomModsFolder;
 
-      vi.mocked(fs.readdir).mockResolvedValueOnce([]);
+      vi.mocked(getModFiles).mockResolvedValueOnce([]);
       vi.mocked(lookup).mockResolvedValueOnce([]);
 
-      const actual = await scan(context.randomPlatform, context.randomConfiguration, context.randomInstallations);
+      const actual = await scan(context.config, context.randomPlatform, context.randomConfiguration, context.randomInstallations);
 
       expect(actual).toEqual([]);
-      expect(vi.mocked(fs.readdir)).toHaveBeenCalledWith(path.resolve(randomModsFolder));
+      expect(vi.mocked(getModFiles)).toHaveBeenCalledWith(context.config, randomModsFolder);
     });
   });
 
   describe('when all files are managed', () => {
     it<LocalTestContext>('returns an empty array', async (context) => {
-      vi.mocked(fs.readdir).mockResolvedValueOnce(chance.n(chance.word, chance.integer({ min: 5, max: 50 })));
+      vi.mocked(getModFiles).mockResolvedValueOnce(chance.n(chance.word, chance.integer({ min: 5, max: 50 })));
       vi.mocked(fileIsManaged).mockReturnValue(true);
 
-      const actual = await scan(context.randomPlatform, context.randomConfiguration, context.randomInstallations);
+      const actual = await scan(context.config, context.randomPlatform, context.randomConfiguration, context.randomInstallations);
 
       expect(actual).toEqual([]);
     });
@@ -66,22 +66,22 @@ describe('The scan library', () => {
       const randomFileName = chance.word();
       const randomHash = chance.hash();
       const randomFingerprint = chance.integer({ min: 6, max: 6 });
-      const expectedPath = path.resolve('mods-folder', randomFileName);
+      const expectedPath = randomFileName;
 
       context.randomConfiguration.modsFolder = randomModsFolder;
-      vi.mocked(fs.readdir).mockResolvedValueOnce([randomFileName]);
+      vi.mocked(getModFiles).mockResolvedValueOnce([randomFileName]);
       vi.mocked(fileIsManaged).mockReturnValueOnce(false); // non-managed path
       vi.mocked(curseforge.fingerprint).mockReturnValueOnce(randomFingerprint);
       vi.mocked(getHash).mockResolvedValueOnce(randomHash);
 
       vi.mocked(lookup).mockResolvedValueOnce([]); // we don't care about the return just yet
 
-      await scan(context.randomPlatform, context.randomConfiguration, context.randomInstallations);
+      await scan(context.config, context.randomPlatform, context.randomConfiguration, context.randomInstallations);
 
       //expectations
       // do we call the curseforge fingerprint with the correct values?
       expect(curseforge.fingerprint).toHaveBeenCalledOnce();
-      expect(curseforge.fingerprint).toHaveBeenCalledWith(expectedPath);
+      expect(curseforge.fingerprint).toHaveBeenCalledWith(expectedPath); // whatever comes from the getModFiles
 
       // do we call the modrinth hasher with the correct values?
       expect(getHash).toHaveBeenCalledOnce();
@@ -95,14 +95,14 @@ describe('The scan library', () => {
       const randomHash = chance.hash();
       const randomFingerprint = chance.integer({ min: 6, max: 6 });
 
-      vi.mocked(fs.readdir).mockResolvedValueOnce([randomFileName]);
+      vi.mocked(getModFiles).mockResolvedValueOnce([randomFileName]);
       vi.mocked(fileIsManaged).mockReturnValueOnce(false); // non-managed path
       vi.mocked(curseforge.fingerprint).mockReturnValueOnce(randomFingerprint);
       vi.mocked(getHash).mockResolvedValueOnce(randomHash);
 
       vi.mocked(lookup).mockResolvedValueOnce([]); // we don't care about the return just yet
 
-      await scan(context.randomPlatform, context.randomConfiguration, context.randomInstallations);
+      await scan(context.config, context.randomPlatform, context.randomConfiguration, context.randomInstallations);
 
       const lookupArgs = vi.mocked(lookup).mock.calls[0][0];
 
@@ -132,11 +132,11 @@ describe('The scan library', () => {
           ]
         }).generated;
 
-        vi.mocked(fs.readdir).mockResolvedValueOnce([chance.word()]); // we don't care about the files
+        vi.mocked(getModFiles).mockResolvedValueOnce([chance.word()]); // we don't care about the files
         vi.mocked(fetchModDetails).mockResolvedValueOnce(expectedModDetails);
         vi.mocked(lookup).mockResolvedValueOnce([lookupResult]);
 
-        const actual = await scan(preferredPlatform, context.randomConfiguration, context.randomInstallations);
+        const actual = await scan(context.config, preferredPlatform, context.randomConfiguration, context.randomInstallations);
 
         expect(actual[0].resolvedDetails).toBe(expectedModDetails);
         expect(actual[0].localDetails).toBe(expectedHit);
@@ -161,11 +161,11 @@ describe('The scan library', () => {
           ]
         }).generated;
 
-        vi.mocked(fs.readdir).mockResolvedValueOnce([chance.word()]); // we don't care about the files
+        vi.mocked(getModFiles).mockResolvedValueOnce([chance.word()]); // we don't care about the files
         vi.mocked(fetchModDetails).mockResolvedValueOnce(expectedModDetails);
         vi.mocked(lookup).mockResolvedValueOnce([lookupResult]);
 
-        const actual = await scan(preferredPlatform, context.randomConfiguration, context.randomInstallations);
+        const actual = await scan(context.config, preferredPlatform, context.randomConfiguration, context.randomInstallations);
 
         expect(actual[0].resolvedDetails).toBe(expectedModDetails);
         expect(actual[0].localDetails).toBe(preferredHit);
@@ -181,11 +181,11 @@ describe('The scan library', () => {
           ]
         }).generated;
 
-        vi.mocked(fs.readdir).mockResolvedValueOnce([chance.word()]); // we don't care about the files
+        vi.mocked(getModFiles).mockResolvedValueOnce([chance.word()]); // we don't care about the files
         vi.mocked(fetchModDetails).mockRejectedValueOnce(new Error('test-error'));
         vi.mocked(lookup).mockResolvedValueOnce([lookupResult]);
 
-        const actual = await scan(context.randomPlatform, context.randomConfiguration, context.randomInstallations);
+        const actual = await scan(context.config, context.randomPlatform, context.randomConfiguration, context.randomInstallations);
 
         expect(actual).toEqual([]);
 

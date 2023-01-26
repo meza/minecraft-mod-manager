@@ -1,17 +1,14 @@
 import { ModInstall, ModsJson, Platform } from './modlist.types.js';
-import path from 'node:path';
-import fs from 'fs/promises';
 import { fetchModDetails, lookup, LookupInput, ResultItem } from '../repositories/index.js';
 import { getHash } from './hash.js';
 import { Modrinth } from '../repositories/modrinth/index.js';
 import curseforge from '@meza/curseforge-fingerprint';
 import { ScanResults } from '../actions/scan.js';
 import { fileIsManaged } from './configurationHelper.js';
+import { getModFiles } from './fileHelper.js';
 
-export const scan = async (prefer: Platform, configuration: ModsJson, installations: ModInstall[]) => {
-  const modsFolder = path.resolve(configuration.modsFolder);
-
-  const files = await fs.readdir(modsFolder);
+export const scan = async (configLocation: string, prefer: Platform, configuration: ModsJson, installations: ModInstall[]) => {
+  const files = await getModFiles(configLocation, configuration.modsFolder);
 
   const cfInput: LookupInput = {
     platform: Platform.CURSEFORGE,
@@ -22,14 +19,12 @@ export const scan = async (prefer: Platform, configuration: ModsJson, installati
     hash: []
   };
   let found = 0;
-  const all = files.map(async (file) => {
-    if (fileIsManaged(file, installations)) {
+  const all = files.map(async (filePath) => {
+    if (fileIsManaged(filePath, installations)) {
       return;
     }
-
     found++;
 
-    const filePath = path.resolve(modsFolder, file);
     const fingerprint = curseforge.fingerprint(filePath);
     const fileSha1Hash = await getHash(filePath, Modrinth.PREFERRED_HASH);
 

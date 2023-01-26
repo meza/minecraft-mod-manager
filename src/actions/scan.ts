@@ -26,7 +26,7 @@ export const scan = async (options: ScanOptions, logger: Logger) => {
   const configuration = await ensureConfiguration(options.config);
   const installations = await readLockFile(options.config);
 
-  const scanResults = await scanLib(options.prefer, configuration, installations);
+  const scanResults = await scanLib(options.config, options.prefer, configuration, installations);
 
   if (scanResults.length === 0) {
     logger.log('You have no unmanaged mods in your mods folder.');
