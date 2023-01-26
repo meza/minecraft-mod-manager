@@ -34,7 +34,7 @@ specifiers:
   eslint: 8.32.0
   eslint-config-tailored-tunes: 5.0.2
   eslint-plugin-json: 3.1.0
-  eslint-plugin-security: 1.6.0
+  eslint-plugin-security: 1.7.0
   glob: ^8.1.0
   inquirer: ^9.1.2
   is-ci: 3.0.1
@@ -94,7 +94,7 @@ devDependencies:
   eslint: 8.32.0
   eslint-config-tailored-tunes: 5.0.2
   eslint-plugin-json: 3.1.0
-  eslint-plugin-security: 1.6.0
+  eslint-plugin-security: 1.7.0
   is-ci: 3.0.1
   jest-chance: 0.2.5
   lefthook: 1.2.8
@@ -2527,8 +2527,8 @@ packages:
       vscode-json-languageservice: 4.2.1
     dev: true
 
-  /eslint-plugin-security/1.6.0:
-    resolution: {integrity: sha512-SGvyejbhW/dziRbzOroKX5bj8z/qtBOw7Q95C9CBbJQqBtFB2o4OxSM3MCO2u9noPp7B6DDaFGtXTx8ImPiO/A==}
+  /eslint-plugin-security/1.7.0:
+    resolution: {integrity: sha512-+ahcCh7M5w7fdFaNccaChBGq8nd3Wa+XvGJS+hY74kvrMhG4EuLbljRIjilOqh1iDMW/EckB1oOWmiVIYlVACQ==}
     dependencies:
       safe-regex: 2.1.1
     dev: true
