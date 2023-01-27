@@ -1,11 +1,11 @@
 import path from 'path';
 import * as fs from 'fs/promises';
 import { notIgnored } from './ignore.js';
+import { getModsDir } from './configurationHelper.js';
 
 export const getModFiles = async (configLocation: string, modsFolder: string) => {
   const dir = path.resolve(path.dirname(configLocation));
-  const modsDir = path.isAbsolute(modsFolder) ? modsFolder : path.resolve(dir, modsFolder);
-
+  const modsDir = getModsDir(configLocation, modsFolder);
   const modFileNames = await fs.readdir(modsDir);
   const files = modFileNames.map((file) => {
     return path.resolve(modsDir, file);

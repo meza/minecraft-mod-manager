@@ -41,6 +41,7 @@ specifiers:
   jest-chance: 0.2.5
   lefthook: 1.2.8
   log-symbols: ^5.1.0
+  minimatch: ^6.1.6
   mock-cwd: 1.0.0
   node-gyp: ^9.3.1
   nodejs-file-downloader: ^4.10.2
@@ -63,6 +64,7 @@ dependencies:
   glob: 8.1.0
   inquirer: 9.1.2
   log-symbols: 5.1.0
+  minimatch: 6.1.6
   nodejs-file-downloader: 4.10.2
 
 devDependencies:
@@ -4100,6 +4102,13 @@ packages:
     engines: {node: '>=10'}
     dependencies:
       brace-expansion: 2.0.1
+
+  /minimatch/6.1.6:
+    resolution: {integrity: sha512-6bR3UIeh/DF8+p6A9Spyuy67ShOq42rOkHWi7eUe3Ua99Zo5lZfGC6lJJWkeoK4k9jQFT3Pl7czhTXimG2XheA==}
+    engines: {node: '>=10'}
+    dependencies:
+      brace-expansion: 2.0.1
+    dev: false
 
   /minimist-options/4.1.0:
     resolution: {integrity: sha512-Q4r8ghd80yhO/0j1O3B2BjweX3fiHg9cdOwjJd2J76Q135c+NDxGCqdYKQ1SKBuFfgWbAUzBfvYjPUEeNgqN1A==}
