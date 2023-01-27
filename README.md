@@ -39,6 +39,7 @@ control over the mods that are installed.
   * [ADD](#add)
     * [Platforms](#platforms)
     * [How to find the Mod ID?](#how-to-find-the-mod-id)
+  * [REMOVE](#remove)
   * [INSTALL](#install)
   * [UPDATE](#update)
   * [CHANGE](#change)
@@ -194,6 +195,38 @@ the [Fabric API from Curseforge](https://www.curseforge.com/minecraft/mc-mods/fa
 
 Adding [Sodium from Modrinth](https://modrinth.com/mod/sodium/): `mmm add modrinth AANobbMI`
 </details>
+
+---
+
+### REMOVE
+
+`mmm remove <name or id>`
+
+Removes a single, or a set of mods from both the configuration and the filesystem.
+Minecraft Mod Manager will always try to match the ID first and then the name fully and then the name partially.
+
+#### Name lookups
+
+You can specify one of multiple mods to remove. The simplest form is a comma separated list of mods like:
+```bash
+mmm remove mod1 mod2 "mod with space in its name"
+```
+
+> Remember to add the quotes if there are spaces in the mod names
+
+You can also use [glob patterns](#glob-primer) to describe multiple mods.
+
+Say you want to remove all world edit related mods, you can use:
+
+```bash
+mmm remove world*edit*
+```
+
+#### Command line arguments for the remove function
+
+| Short | Long      | Description                                           | Value                     | Example         |
+|-------|-----------|-------------------------------------------------------|---------------------------|-----------------|
+| -n    | --dry-run | Print out the files/mods that would have been removed |                           | `mmm remove -n` |
 
 ---
 

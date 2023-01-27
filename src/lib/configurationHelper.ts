@@ -1,5 +1,34 @@
-import { Mod, ModInstall } from './modlist.types.js';
+import { Mod, ModInstall, ModsJson } from './modlist.types.js';
 import path from 'path';
+import minimatch from 'minimatch';
+
+export const findLocalMods = (lookup: string[], configuration: ModsJson) => {
+  const matches: Set<Mod> = new Set<Mod>();
+  lookup.forEach((modLookup) => {
+    const pattern: RegExp = minimatch.makeRe(modLookup.toLowerCase()) as RegExp;
+    const found = configuration.mods.filter((mod) => {
+      if (mod.id.match(pattern)) {
+        return true;
+      }
+
+      if (mod.name.toLowerCase().match(pattern)) {
+        return true;
+      }
+
+      return false;
+    });
+
+    found.forEach((mod) => {
+      matches.add(mod);
+    });
+  });
+  return matches;
+};
+
+export const getModsDir = (configPath: string, modsFolder: string) => {
+  const dir = path.resolve(path.dirname(configPath));
+  return path.isAbsolute(modsFolder) ? modsFolder : path.resolve(dir, modsFolder);
+};
 
 export const getInstallation = (mod: Mod, installations: ModInstall[]) => {
   return installations.findIndex((i) => i.id === mod.id && i.type === mod.type);

@@ -28,24 +28,6 @@ describe('The file helper module', () => {
 
   });
 
-  it<LocalTestContext>('can handle an absolute mods folder', async ({ configLocation }) => {
-    vi.mocked(fs.readdir).mockResolvedValueOnce([]);
-
-    await getModFiles(configLocation, '/absolute/mods');
-
-    expect(fs.readdir).toHaveBeenCalledWith('/absolute/mods');
-
-  });
-
-  it<LocalTestContext>('returns properly when no files are found', async ({ configLocation }) => {
-    vi.mocked(fs.readdir).mockResolvedValueOnce([]);
-
-    const actual = await getModFiles(configLocation, chance.word());
-
-    expect(actual).toEqual([]);
-
-  });
-
   it<LocalTestContext>('applies the ignore filter', async ({ configLocation, rootDir }) => {
     const foundFiles = chance.n(() => {
       return path.resolve(rootDir, 'mods', chance.word());

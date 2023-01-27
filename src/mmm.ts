@@ -14,6 +14,7 @@ import { version } from './version.js';
 import { changeGameVersion } from './actions/change.js';
 import { scan } from './actions/scan.js';
 import { prune } from './actions/prune.js';
+import { removeAction } from './actions/remove.js';
 
 export const APP_NAME = 'Minecraft Mod Manager';
 export const APP_DESCRIPTION = 'Manages mods from Modrinth and Curseforge';
@@ -134,6 +135,16 @@ commands.push(
     .option('-f, --force', 'Delete the files without asking', false)
     .action(async (_options, cmd) => {
       await prune(cmd.optsWithGlobals(), logger);
+    })
+);
+
+commands.push(
+  program.command('remove')
+    .description('Removes one or more mods from both the config and the filesystem.')
+    .option('-n, --dry-run', 'Print out the files/mods that would have been removed', false)
+    .argument('<mods...>', 'A list of the mod(s) to remove. e.g: mmm remove mod1 mod2 "mod with space in its name"')
+    .action(async (mods: string[], _options, cmd) => {
+      await removeAction(mods, cmd.optsWithGlobals(), logger);
     })
 );
 
