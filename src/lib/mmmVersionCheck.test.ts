@@ -2,8 +2,10 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { hasUpdate } from './mmmVersionCheck.js';
 import { chance } from 'jest-chance';
 import { Logger } from './Logger.js';
+import { rateLimitingFetch } from './rateLimiter/index.js';
 
 vi.mock('./Logger.js');
+vi.mock('./rateLimiter/index.js');
 
 describe('The MMM Version Check module', () => {
   let logger: Logger;
@@ -11,16 +13,15 @@ describe('The MMM Version Check module', () => {
   beforeEach(() => {
     logger = new Logger({} as never);
     vi.useFakeTimers();
-    vi.stubGlobal('fetch', vi.fn());
   });
   afterEach(() => {
-    expect(fetch).toHaveBeenCalledOnce();
+    expect(rateLimitingFetch).toHaveBeenCalledOnce();
     vi.resetAllMocks();
     vi.useRealTimers();
   });
 
   it('should throw an error if the response is not ok', async () => {
-    vi.mocked(fetch).mockResolvedValueOnce({ ok: false } as Response);
+    vi.mocked(rateLimitingFetch).mockResolvedValueOnce({ ok: false } as Response);
     const actual = await hasUpdate('', logger);
     expect(actual.hasUpdate).toBeFalsy();
     expect(actual.latestVersion).toEqual('vDEV');
@@ -29,7 +30,7 @@ describe('The MMM Version Check module', () => {
   });
 
   it('should handle dev builds', async () => {
-    vi.mocked(fetch).mockResolvedValueOnce({
+    vi.mocked(rateLimitingFetch).mockResolvedValueOnce({
       ok: true,
       json: vi.fn().mockResolvedValueOnce([
         {
@@ -60,7 +61,7 @@ describe('The MMM Version Check module', () => {
   });
 
   it('should return the current version if there is no update', () => {
-    vi.mocked(fetch).mockResolvedValueOnce({
+    vi.mocked(rateLimitingFetch).mockResolvedValueOnce({
       ok: true,
       json: () => Promise.resolve([
         // eslint-disable-next-line camelcase
@@ -80,7 +81,7 @@ describe('The MMM Version Check module', () => {
   });
 
   it('should prioritize releases over prereleases', () => {
-    vi.mocked(fetch).mockResolvedValueOnce({
+    vi.mocked(rateLimitingFetch).mockResolvedValueOnce({
       ok: true,
       json: () => Promise.resolve([
         // eslint-disable-next-line camelcase
@@ -109,7 +110,7 @@ describe('The MMM Version Check module', () => {
       { currentVersion: '1.0.0', latestVersion: 'v2.0.0', name: 'major' }
     ])('should return the new version when there is a $name update', ({ currentVersion, latestVersion }) => {
       const url = chance.url();
-      vi.mocked(fetch).mockResolvedValueOnce({
+      vi.mocked(rateLimitingFetch).mockResolvedValueOnce({
         ok: true,
         json: () => Promise.resolve([
           // eslint-disable-next-line camelcase

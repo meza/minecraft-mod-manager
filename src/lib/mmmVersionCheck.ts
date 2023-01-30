@@ -2,6 +2,7 @@ import chalk from 'chalk';
 import { GithubReleasesNotFoundException } from '../errors/GithubReleasesNotFoundException.js';
 import { Logger } from './Logger.js';
 import { version } from '../version.js';
+import { rateLimitingFetch } from './rateLimiter/index.js';
 
 interface GithubRelease {
   tag_name: string;
@@ -22,7 +23,7 @@ const prepareRelease = (release: GithubRelease) => {
 
 const githubReleases = async () => {
   const url = 'https://api.github.com/repos/meza/minecraft-mod-manager/releases';
-  const response = await fetch(url);
+  const response = await rateLimitingFetch(url);
   if (!response.ok) {
     throw new GithubReleasesNotFoundException();
   }
