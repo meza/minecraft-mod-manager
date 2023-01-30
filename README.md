@@ -19,9 +19,8 @@ You currently can
 
 Upcoming features:
 
-- scan and recognize manually added mods
-- consolidate mods to the same platform
 - remove mods
+- consolidate mods to the same platform
 - use github as the source for mods
 - self-update
 
@@ -40,11 +39,13 @@ control over the mods that are installed.
   * [ADD](#add)
     * [Platforms](#platforms)
     * [How to find the Mod ID?](#how-to-find-the-mod-id)
+  * [REMOVE](#remove)
   * [INSTALL](#install)
   * [UPDATE](#update)
   * [CHANGE](#change)
   * [LIST](#list)
   * [TEST](#test)
+  * [PRUNE](#prune)
 * [Explaining the configuration](#explaining-the-configuration)
   * [modlist-lock.json](#modlist-lockjson)
   * [modlist.json](#modlistjson)
@@ -53,6 +54,7 @@ control over the mods that are installed.
     * [modsFolder](#modsfolder-required)
     * [defaultAllowedReleaseTypes](#defaultallowedreleasetypes-required)
     * [allowVersionFallback](#allowversionfallback-optional)
+  * [.mmmignore](#ignore-file)
 * [Using with MultiMC](#using-with-multimc)
 * [Contribute to the project](#contribute-to-the-project)
   * [Setup](#setup)
@@ -196,6 +198,38 @@ Adding [Sodium from Modrinth](https://modrinth.com/mod/sodium/): `mmm add modrin
 
 ---
 
+### REMOVE
+
+`mmm remove <name or id>`
+
+Removes a single, or a set of mods from both the configuration and the filesystem.
+Minecraft Mod Manager will always try to match the ID first and then the name fully and then the name partially.
+
+#### Name lookups
+
+You can specify one of multiple mods to remove. The simplest form is a comma separated list of mods like:
+```bash
+mmm remove mod1 mod2 "mod with space in its name"
+```
+
+> Remember to add the quotes if there are spaces in the mod names
+
+You can also use [glob patterns](#glob-primer) to describe multiple mods.
+
+Say you want to remove all world edit related mods, you can use:
+
+```bash
+mmm remove world*edit*
+```
+
+#### Command line arguments for the remove function
+
+| Short | Long      | Description                                           | Value                     | Example         |
+|-------|-----------|-------------------------------------------------------|---------------------------|-----------------|
+| -n    | --dry-run | Print out the files/mods that would have been removed |                           | `mmm remove -n` |
+
+---
+
 ### INSTALL
 
 `mmm install` or `mmm i`
@@ -271,7 +305,7 @@ This will list all the mods that are managed by the tool and their current statu
 Test if you can use the specified game version. This is most commonly used to see if you can upgrade to a newer version
 of Minecraft and _test_ that all of your configured mods will have a version for it.
 
-For example if you're on 1.19.2 and you want to see if you could upgrade to 1.19.3, you would run: `mmm test 1.19.3`
+For example if you're on 1.19.2, and you want to see if you could upgrade to 1.19.3, you would run: `mmm test 1.19.3`
 
 If you omit the game version, it will use the latest stable minecraft version.
 
@@ -283,6 +317,45 @@ It will also return a non-zero (2) exit value when you're testing for the versio
 This means that you could run `mmm test` every day for example, which would in return always check for the latest
 Minecraft release. Whenever the command returns with a zero exit code, you can run a version upgrade on your server if
 you like.
+
+---
+
+### PRUNE
+
+Removes all unmanaged files from the mod directory.
+
+#### Ignoring files
+
+The prune command adheres to the [.mmmignore](#ignore-file) file and will not process any files specified there.
+
+#### Command line arguments for the prune function
+
+| Short | Long    | Description                                               | Value                     | Example        |
+|-------|---------|-----------------------------------------------------------|---------------------------|----------------|
+| -f    | --force | Delete the files without asking                           |                           | `mmm prune -f` |
+
+---
+
+### SCAN
+
+Scans the configured mods folder and looks for files that are currently not managed by the mod manager.
+When a file is found, it will attempt to look up that file on all the supported platforms.
+
+It will report back the findings and if executed without any extra parameters, it will not modify anything.
+
+If you supply the `--add` flag, it will add the discovered files to your modlist json.
+
+#### Will it delete the files that it found?
+
+No. It will reuse the found files and add them to the lockfile so you can decide if you want to then update to the newest
+versions or not.
+
+#### Command line arguments for the scan function
+
+| Short | Long                            | Description                                               | Value                                                                                                                                     | Example                  |
+|-------|---------------------------------|-----------------------------------------------------------|-------------------------------------------------------------------------------------------------------------------------------------------|--------------------------|
+| -p    | --prefer                        | Which platform do you prefer to use?                      | `curseforge` or `modrinth`                                                                                                                | `mmm scan -p curseforge` |
+| -a    | --add                           | Automatically add the discovered mods to the modlist json | A valid Minecraft version                                                                                                                 | `mmm scan -a`            |
 
 ---
 
@@ -410,6 +483,74 @@ This happens quite frequently unfortunately because mod developers either don't 
 they forget to list the supported Minecraft versions correctly.
 
 This setting will be overridable on an individual mod basis in the next release. Currently, it's a global setting.
+
+### Ignore File
+
+Ignoring files works pretty much the same way as it does with [.gitignore](https://git-scm.com/docs/gitignore).
+
+You have to create a `.mmmignore` file in the same directory as your `modlist.json` file is.
+Having files listed in the `.mmmignore` will make all operations ignore the given file like it doesn't exist.
+
+Each line within the ignore file is a Glob Pattern.
+
+The patterns will be applied by taking the directory of the modlist.json file's directory as the starting point.
+
+> This will change in the future. If you would like it to change sooner, please open an issue on github
+
+For example to ignore the worldedit and the modmenu mods, the `.mmmignore` file would have the following entries:
+
+```
+mods/modmenu-*.jar
+mods/worldedit-*.jar
+```
+
+#### Glob Primer
+
+> This section is taken from [the glob package](https://github.com/isaacs/node-glob/blob/main/README.md)
+
+"Globs" are the patterns you type when you do stuff like `ls *.js` on
+the command line, or put `build/*` in a `.gitignore` file.
+
+Before parsing the path part patterns, braced sections are expanded
+into a set.  Braced sections start with `{` and end with `}`, with any
+number of comma-delimited sections within.  Braced sections may contain
+slash characters, so `a{/b/c,bcd}` would expand into `a/b/c` and `abcd`.
+
+The following characters have special magic meaning when used in a
+path portion:
+
+* `*` Matches 0 or more characters in a single path portion
+* `?` Matches 1 character
+* `[...]` Matches a range of characters, similar to a RegExp range.
+  If the first character of the range is `!` or `^` then it matches
+  any character not in the range.
+* `!(pattern|pattern|pattern)` Matches anything that does not match
+  any of the patterns provided.
+* `?(pattern|pattern|pattern)` Matches zero or one occurrence of the
+  patterns provided.
+* `+(pattern|pattern|pattern)` Matches one or more occurrences of the
+  patterns provided.
+* `*(a|b|c)` Matches zero or more occurrences of the patterns provided
+* `@(pattern|pat*|pat?erN)` Matches exactly one of the patterns
+  provided
+* `**` If a "globstar" is alone in a path portion, then it matches
+  zero or more directories and subdirectories searching for matches.
+  It does not crawl symlinked directories.
+
+##### Dots
+
+If a file or directory path portion has a `.` as the first character,
+then it will not match any glob pattern unless that pattern's
+corresponding path part also has a `.` as its first character.
+
+For example, the pattern `a/.*/c` would match the file at `a/.b/c`.
+However the pattern `a/*/c` would not, because `*` does not start with
+a dot character.
+
+You can make glob treat dots as normal characters by setting
+`dot:true` in the options.
+
+---
 
 ## Using with MultiMC
 

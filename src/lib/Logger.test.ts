@@ -65,17 +65,6 @@ describe('The logger', () => {
       expect(logSpy).not.toHaveBeenCalled();
     });
 
-    it<TestContext>('should not log to the console', ({ program, randomMessage }) => {
-      const logger = new Logger(program);
-      const logSpy = vi.spyOn(console, 'log').mockImplementation(() => {
-      });
-
-      logger.flagQuiet();
-      logger.log(randomMessage);
-
-      expect(logSpy).not.toHaveBeenCalled();
-    });
-
     it<TestContext>('should log to the console when forced', ({ program, randomMessage }) => {
       const logger = new Logger(program);
       const logSpy = vi.spyOn(console, 'log').mockImplementation(() => {

@@ -9,15 +9,21 @@ import { initializeConfig } from './interactions/initializeConfig.js';
 import { Logger } from './lib/Logger.js';
 import { Platform } from './lib/modlist.types.js';
 import { changeGameVersion } from './actions/change.js';
+import { scan } from './actions/scan.js';
+import { prune } from './actions/prune.js';
+import { removeAction } from './actions/remove.js';
 
 vi.mock('./lib/Logger.js');
 vi.mock('./actions/add.js');
 vi.mock('./actions/list.js');
+vi.mock('./actions/scan.js');
+vi.mock('./actions/prune.js');
 vi.mock('./actions/install.js');
 vi.mock('./actions/update.js');
 vi.mock('./interactions/initializeConfig.js');
 vi.mock('./actions/testGameVersion.js');
 vi.mock('./actions/change.js');
+vi.mock('./actions/remove.js');
 
 describe('The main CLI configuration', () => {
   let logger: Logger;
@@ -117,6 +123,40 @@ describe('The main CLI configuration', () => {
       chance.pickone(['change'])
     ]);
     expect(changeGameVersion).toHaveBeenCalledOnce();
+  });
+
+  it('has the scan hooked up to the correct function', async () => {
+    const { program } = await import('./mmm.js');
+    vi.mocked(scan).mockResolvedValueOnce(expect.anything());
+    await program.parse([
+      '',
+      '',
+      chance.pickone(['scan'])
+    ]);
+    expect(scan).toHaveBeenCalledOnce();
+  });
+
+  it('has the prune hooked up to the correct function', async () => {
+    const { program } = await import('./mmm.js');
+    vi.mocked(prune).mockResolvedValueOnce(expect.anything());
+    await program.parse([
+      '',
+      '',
+      chance.pickone(['prune'])
+    ]);
+    expect(prune).toHaveBeenCalledOnce();
+  });
+
+  it('has the remove action hooked up to the correct function', async () => {
+    const { program } = await import('./mmm.js');
+    vi.mocked(removeAction).mockResolvedValueOnce(expect.anything());
+    await program.parse([
+      '',
+      '',
+      chance.pickone(['remove']),
+      []
+    ]);
+    expect(removeAction).toHaveBeenCalledOnce();
   });
 
   it('sets the logger to quiet when the quiet option is supplied', async () => {
