@@ -48,6 +48,19 @@ describe('The Scan action', () => {
 
     vi.mocked(ensureConfiguration).mockResolvedValue(context.randomConfiguration);
     vi.mocked(readLockFile).mockResolvedValueOnce(context.randomInstallations);
+    vi.mocked(context.logger.error).mockImplementation(() => {
+      throw new Error('process.exit');
+    });
+  });
+  describe('when there are unexpected errors', () => {
+    it<LocalTestContext>('logs them correctly', async ({ options, logger }) => {
+      const error = chance.word();
+      vi.mocked(scanLib).mockRejectedValueOnce(new Error(error));
+      await expect(scan(options, logger)).rejects.toThrow('process.exit');
+
+      expect(logger.error).toHaveBeenCalledWith(error, 2);
+
+    });
   });
 
   it<LocalTestContext>('correctly reports when there are no unmanaged mods', async ({ options, logger }) => {
