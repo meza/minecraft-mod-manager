@@ -23,6 +23,7 @@ import { modNotFound } from '../interactions/modNotFound.js';
 import { noRemoteFileFound } from '../interactions/noRemoteFileFound.js';
 import { stop } from '../mmm.js';
 import { generateRandomPlatform } from '../../test/generateRandomPlatform.js';
+import { DownloadFailedException } from '../errors/DownloadFailedException.js';
 
 vi.mock('../lib/Logger.js');
 vi.mock('../mmm.js');
@@ -352,6 +353,25 @@ describe('The add module', async () => {
       expect(vi.mocked(downloadFile)).toHaveBeenCalledOnce();
       expect(vi.mocked(writeConfigFile)).toHaveBeenCalledOnce();
       expect(vi.mocked(writeLockFile)).toHaveBeenCalledOnce();
+
+    });
+  });
+
+  describe('When the download fails', () => {
+    it('reports the correct error', async () => {
+      const url = chance.url({ protocol: 'https' });
+      const randomPlatform = getRandomPlatform();
+      const randomModId = chance.word();
+      vi.mocked(downloadFile).mockRejectedValueOnce(new DownloadFailedException(url));
+
+      await expect(add(randomPlatform, randomModId, { config: 'config.json' }, logger)).rejects.toThrow('process.exit');
+
+      expect(logger.error).toHaveBeenCalledOnce();
+      const message = vi.mocked(logger.error).mock.calls[0][0];
+
+      expect(message).toContain(url);
+      expect(message).toContain('Error downloading file: ');
+      expect(message).toContain('please try again');
 
     });
   });
