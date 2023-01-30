@@ -110,7 +110,6 @@ export const initializeConfig = async (options: InitializeOptions, cwd: string):
   const answers = mergeOptions(options, iq) as ModsJson;
 
   await writeConfigFile(answers, options.config);
-  //TODO handle error
 
   return answers as ModsJson;
 };
