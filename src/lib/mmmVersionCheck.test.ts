@@ -20,13 +20,17 @@ describe('The MMM Version Check module', () => {
     vi.useRealTimers();
   });
 
-  it('should throw an error if the response is not ok', async () => {
+  it('should stay silent if the latest version cannot be fetched', async () => {
     vi.mocked(rateLimitingFetch).mockResolvedValueOnce({ ok: false } as Response);
     const actual = await hasUpdate('', logger);
     expect(actual.hasUpdate).toBeFalsy();
     expect(actual.latestVersion).toEqual('vDEV');
     expect(actual.latestVersionUrl).toEqual('<github cannot be reached>');
+  });
 
+  it('should throw an error if the fetch errors', async () => {
+    vi.mocked(rateLimitingFetch).mockRejectedValueOnce(new Error('something'));
+    await expect(hasUpdate('', logger)).rejects.toThrow('something');
   });
 
   it('should handle dev builds', async () => {
