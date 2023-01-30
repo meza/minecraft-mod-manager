@@ -21,6 +21,7 @@ import { Logger } from '../lib/Logger.js';
 import { ConfigFileNotFoundException } from '../errors/ConfigFileNotFoundException.js';
 import { ErrorTexts } from '../errors/ErrorTexts.js';
 import { chance } from 'jest-chance';
+import { DownloadFailedException } from '../errors/DownloadFailedException.js';
 
 vi.mock('../lib/Logger.js');
 vi.mock('../repositories/index.js');
@@ -36,6 +37,9 @@ describe('The install module', () => {
   beforeEach(() => {
     vi.resetAllMocks();
     logger = new Logger({} as never);
+    vi.mocked(logger.error).mockImplementation(() => {
+      throw new Error('process.exit');
+    });
   });
 
   it('installs a new mod with no release type override', async () => {
@@ -223,7 +227,7 @@ describe('The install module', () => {
 
   it('shows the correct error message when the config file is missing', async () => {
     vi.mocked(readConfigFile).mockRejectedValueOnce(new ConfigFileNotFoundException('config.json'));
-    await install({ config: 'config.json' }, logger);
+    await expect(install({ config: 'config.json' }, logger)).rejects.toThrow('process.exit');
 
     expect(vi.mocked(logger.error)).toHaveBeenCalledWith(ErrorTexts.configNotFound);
 
@@ -232,8 +236,77 @@ describe('The install module', () => {
   it('handles unexpected errors', async () => {
     const randomErrorMessage = chance.sentence();
     vi.mocked(readConfigFile).mockRejectedValueOnce(new Error(randomErrorMessage));
-    await install({ config: 'config.json' }, logger);
+    await expect(install({ config: 'config.json' }, logger)).rejects.toThrow('process.exit');
+
     expect(logger.error).toHaveBeenCalledWith(randomErrorMessage, 2);
   });
 
+  describe('when fetching a missing mod file fails', () => {
+    it('reports the correct error', async () => {
+      const url = chance.url({ protocol: 'https' });
+      const { randomConfiguration, randomInstallation } = setupOneInstalledMod();
+
+      // Prepare the configuration file state
+      vi.mocked(readConfigFile).mockResolvedValueOnce(randomConfiguration);
+      vi.mocked(readLockFile).mockResolvedValueOnce([
+        randomInstallation
+      ]);
+      // Prepare the file existence mock
+      assumeModFileIsMissing(randomInstallation);
+      vi.mocked(downloadFile).mockRejectedValueOnce(new DownloadFailedException(url));
+
+      await expect(install({ config: 'config.json' }, logger)).rejects.toThrow('process.exit');
+      const message = vi.mocked(logger.error).mock.calls[0][0];
+
+      expect(message).toContain(url);
+    });
+  });
+
+  describe('when the download fails during an update', () => {
+    it('shows the correct message', async () => {
+      const url = chance.url({ protocol: 'https' });
+      const { randomConfiguration, randomInstallation } = setupOneInstalledMod();
+
+      // Prepare the configuration file state
+      vi.mocked(readConfigFile).mockResolvedValueOnce(randomConfiguration);
+      vi.mocked(readLockFile).mockResolvedValueOnce([
+        randomInstallation
+      ]);
+
+      // Prepare the file existence mock
+      assumeModFileExists(randomInstallation.fileName);
+
+      vi.mocked(getHash).mockResolvedValueOnce('different-hash');
+
+      vi.mocked(updateMod).mockRejectedValueOnce(new DownloadFailedException(url));
+
+      await expect(install({ config: 'config.json' }, logger)).rejects.toThrow('process.exit');
+      const message = vi.mocked(logger.error).mock.calls[0][0];
+
+      expect(message).toContain(url);
+    });
+  });
+
+  describe('when fetching a missing installation fails', () => {
+    it('reports the correct error', async () => {
+      const url = chance.url({ protocol: 'https' });
+      const { randomConfiguration } = setupOneUninstalledMod();
+
+      // Prepare the configuration file state
+      vi.mocked(readConfigFile).mockResolvedValueOnce(randomConfiguration);
+      vi.mocked(readLockFile).mockResolvedValueOnce(emptyLockFile);
+
+      // Prepare the details the mod details fetcher should return
+      const remoteDetails = generateRemoteModDetails().generated;
+
+      vi.mocked(fetchModDetails).mockResolvedValueOnce(remoteDetails);
+      vi.mocked(downloadFile).mockRejectedValueOnce(new DownloadFailedException(url));
+
+      await expect(install({ config: 'config.json' }, logger)).rejects.toThrow('process.exit');
+      const message = vi.mocked(logger.error).mock.calls[0][0];
+
+      expect(message).toContain(url);
+
+    });
+  });
 });
