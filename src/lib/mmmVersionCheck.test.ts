@@ -1,6 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { hasUpdate } from './mmmVersionCheck.js';
-import { GithubReleasesNotFoundException } from '../errors/GithubReleasesNotFoundException.js';
 import { chance } from 'jest-chance';
 import { Logger } from './Logger.js';
 
@@ -22,7 +21,11 @@ describe('The MMM Version Check module', () => {
 
   it('should throw an error if the response is not ok', async () => {
     vi.mocked(fetch).mockResolvedValueOnce({ ok: false } as Response);
-    await expect(hasUpdate('', logger)).rejects.toThrow(new GithubReleasesNotFoundException());
+    const actual = await hasUpdate('', logger);
+    expect(actual.hasUpdate).toBeFalsy();
+    expect(actual.latestVersion).toEqual('vDEV');
+    expect(actual.latestVersionUrl).toEqual('<github cannot be reached>');
+
   });
 
   it('should handle dev builds', async () => {

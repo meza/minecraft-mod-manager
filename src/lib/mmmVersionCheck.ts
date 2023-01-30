@@ -1,6 +1,7 @@
 import chalk from 'chalk';
 import { GithubReleasesNotFoundException } from '../errors/GithubReleasesNotFoundException.js';
 import { Logger } from './Logger.js';
+import { version } from '../version.js';
 
 interface GithubRelease {
   tag_name: string;
@@ -24,7 +25,6 @@ const githubReleases = async () => {
   const response = await fetch(url);
   if (!response.ok) {
     throw new GithubReleasesNotFoundException();
-    // TODO handle failed fetch
   }
   const json = await response.json();
   const prereleases = json.filter((release: GithubRelease) => release.prerelease).map(prepareRelease);
@@ -48,9 +48,29 @@ export const hasUpdate = async (currentVersion: string, logger: Logger): Promise
   latestVersionUrl: string,
   releasedOn: string
 }> => {
+  let latestVersion: GithubRelease = {
+    draft: false,
+    // eslint-disable-next-line camelcase
+    html_url: '<github cannot be reached>',
+    name: `v${version}`,
+    numericVersion: version,
+    prerelease: false,
+    // eslint-disable-next-line camelcase
+    published_at: new Date().toISOString(),
+    // eslint-disable-next-line camelcase
+    tag_name: `v${version}`,
+    versionParts: version.split('.').map((v) => Number(v))
+  };
 
-  const releases = await githubReleases();
-  const latestVersion = releases[0];
+  try {
+    const releases = await githubReleases();
+    latestVersion = releases[0];
+
+  } catch (error) {
+    if (!(error instanceof GithubReleasesNotFoundException)) {
+      throw error;
+    }
+  }
   const releasedOn = formatDateFromTimeString(latestVersion.published_at);
   if (!isFirstLetterANumber(currentVersion)) {
     logger.log(chalk.bgYellowBright(chalk.black(`\n[update] You are running a development version of MMM. Please update to the latest release from ${releasedOn}.`)));
