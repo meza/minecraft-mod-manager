@@ -55,7 +55,6 @@ export const hasUpdate = async (currentVersion: string, logger: Logger): Promise
   if (!isFirstLetterANumber(currentVersion)) {
     logger.log(chalk.bgYellowBright(chalk.black(`\n[update] You are running a development version of MMM. Please update to the latest release from ${releasedOn}.`)));
     logger.log(chalk.bgYellowBright(chalk.black(`[update] You can download it from ${latestVersion.html_url}\n`)));
-    // Todo move console up one level
     return {
       hasUpdate: false,
       latestVersion: latestVersion.tag_name,
