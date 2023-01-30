@@ -35,7 +35,12 @@ export const removeAction = async (mods: string[], options: RemoveOptions, logge
       if (!options.dryRun) {
         await fs.rm(path.resolve(modsDir, filename), { force: true });
         installations.splice(installationIndex, 1);
-        await writeLockFile(installations, options.config);
+        /**
+         * We're using structuredClone here to avoid weird reference changes under the hood.
+         * This way we write an accurate snapshot of what should be written.
+         * The tests have caught a weird race condition that isn't present this way.
+         */
+        await writeLockFile(structuredClone(installations), options.config);
       }
     }
 

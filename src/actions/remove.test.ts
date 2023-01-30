@@ -161,12 +161,12 @@ describe('The remove action', () => {
       await removeAction([], options, logger);
 
       expect(fs.rm).toHaveBeenCalledTimes(2);
-      expect(fs.rm).toHaveBeenNthCalledWith(1, '/mods/file1', { force: true });
-      expect(fs.rm).toHaveBeenNthCalledWith(2, '/mods/file2', { force: true });
-
       expect(writeLockFile).toHaveBeenCalledTimes(2); //for both deleted mods
-      // TODO: revisit this false negative test expectation
-      //expect(writeLockFile).toHaveBeenNthCalledWith(1, [mod2Install, mod3Install], options.config);
+
+      expect(fs.rm).toHaveBeenNthCalledWith(1, '/mods/file1', { force: true });
+      expect(writeLockFile).toHaveBeenNthCalledWith(1, [mod2Install, mod3Install], options.config);
+
+      expect(fs.rm).toHaveBeenNthCalledWith(2, '/mods/file2', { force: true });
       expect(writeLockFile).toHaveBeenNthCalledWith(2, [mod3Install], options.config);
     });
   });
