@@ -31,7 +31,7 @@ const mergeOptions = (options: InitializeOptions, iq: IQInternal) => {
     loader: iq.loader || options.loader,
     gameVersion: iq.gameVersion || options.gameVersion,
     allowVersionFallback: iq.allowVersionFallback || options.allowVersionFallback,
-    defaultAllowedReleaseTypes: iq.defaultAllowedReleaseTypes || options.defaultAllowedReleaseTypes!.replace(/\s/g, '').split(','),
+    defaultAllowedReleaseTypes: iq.defaultAllowedReleaseTypes || options.defaultAllowedReleaseTypes?.replace(/\s/g, '').split(','),
     modsFolder: iq.modsFolder || options.modsFolder,
     mods: []
   };
