@@ -17,8 +17,8 @@
   "types": "dist/index.d.ts",
   "private": false,
   "scripts": {
-    "build": "esbuild ./src/ --bundle --target=esnext --platform=node --outfile=dist/mmm.cjs",
-    "build:binaries": "PKG_CACHE_PATH=.cache/pkg pkg dist/mmm.cjs -t node18-win,node18-linux,node18-macos --options \"no-warnings\" -o dist/pkg/mmm",
+    "build": "esbuild ./src/ --bundle --target=esnext --platform=node --outfile=dist/mmm.cjs --external:@meza/curseforge-fingerprint",
+    "build:binaries": "PKG_CACHE_PATH=.cache/pkg pkg dist/mmm.cjs --no-native-build -c ./.pkgrc.json -t node18-win,node18-linux,node18-macos --options \"no-warnings\" -o dist/pkg/mmm",
     "start": "node --no-warnings --loader ts-node/esm src/index.ts",
     "commit": "cz",
     "ci": "npm-run-all --parallel -c lint report",
@@ -42,7 +42,7 @@
     "prepare": "lefthook install"
   },
   "dependencies": {
-    "@meza/curseforge-fingerprint": "^1.0.11",
+    "@meza/curseforge-fingerprint": "^1.1.1",
     "chalk": "^5.0.1",
     "commander": "^10.0.0",
     "core-js": "^3.25.3",
@@ -111,6 +111,6 @@
     "access": "public"
   },
   "engines": {
-    "node": ">=19.0.0"
+    "node": ">=18.5.0"
   }
 }

@@ -24,7 +24,6 @@ export const scan = async (configLocation: string, prefer: Platform, configurati
       return;
     }
     found++;
-
     const fingerprint = curseforge.fingerprint(filePath);
     const fileSha1Hash = await getHash(filePath, Modrinth.PREFERRED_HASH);
 
