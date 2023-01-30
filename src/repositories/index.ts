@@ -23,7 +23,7 @@ export interface LookupResult {
  * The hash/hashes to look up
  * The platform property is necessary to distinguish between the inputs since each platform has a unique requirement
  */
-export interface LookupInput { // TODO make the platform the key
+export interface LookupInput {
   platform: Platform;
   hash: string[];
 }
