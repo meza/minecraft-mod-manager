@@ -58,6 +58,31 @@ describe('The Curseforge repository', () => {
   });
 
   it<RepositoryTestContext>('throws an error when the mod details could not be fetched', async (context) => {
+    vi.mocked(rateLimitingFetch).mockResolvedValueOnce({
+      ok: true,
+      json: () => Promise.resolve({
+        data: {
+          name: chance.word()
+        }
+      })
+    } as Response);
+
+    vi.mocked(rateLimitingFetch).mockResolvedValueOnce({
+      ok: false
+    } as Response);
+
+    await expect(async () => {
+      await getMod(
+        context.id,
+        context.allowedReleaseTypes,
+        context.gameVersion,
+        context.loader,
+        context.allowFallback
+      );
+    }).rejects.toThrow(new CouldNotFindModException(context.id, context.platform));
+  });
+
+  it<RepositoryTestContext>('throws an error when the files cannot be fetched', async (context) => {
     assumeFailedModFetch();
 
     await expect(async () => {
