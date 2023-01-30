@@ -10,5 +10,3 @@ hasUpdate(version, logger).then((update) => {
   }
   program.parse(process.argv);
 });
-
-// TODO test the console logs everywhere
