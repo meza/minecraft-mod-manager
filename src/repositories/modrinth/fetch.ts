@@ -36,7 +36,7 @@ const getName = async (projectId: string): Promise<string> => {
     headers: Modrinth.API_HEADERS
   });
 
-  if (modInfoRequest.status !== 200) {
+  if (!modInfoRequest.ok) {
     throw new CouldNotFindModException(projectId, Platform.MODRINTH);
   }
 
@@ -52,7 +52,7 @@ const getModDetails = async (projectId: string, gameVersion: string, loader: Loa
     headers: Modrinth.API_HEADERS
   });
 
-  if (modDetailsRequest.status !== 200) {
+  if (!modDetailsRequest.ok) {
     throw new CouldNotFindModException(projectId, Platform.MODRINTH);
   }
 

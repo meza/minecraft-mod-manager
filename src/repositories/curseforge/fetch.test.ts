@@ -1,4 +1,4 @@
-import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { chance } from 'jest-chance';
 import { curseforgeFileToRemoteModDetails, CurseforgeModFile, getMod, HashFunctions } from './fetch.js';
 import { Loader, Platform, ReleaseType, RemoteModDetails } from '../../lib/modlist.types.js';
@@ -20,13 +20,13 @@ const releasedStatus = 10;
 
 const assumeFailedModFetch = () => {
   vi.mocked(rateLimitingFetch).mockResolvedValue({
-    status: chance.pickone([401, 404, 500])
+    ok: false
   } as Response);
 };
 
 const assumeSuccessfulModFetch = (modName: string, latestFiles: CurseforgeModFile[]) => {
   vi.mocked(rateLimitingFetch).mockResolvedValueOnce({
-    status: 200,
+    ok: true,
     json: () => Promise.resolve({
       data: {
         name: modName
@@ -35,7 +35,7 @@ const assumeSuccessfulModFetch = (modName: string, latestFiles: CurseforgeModFil
   } as Response);
 
   vi.mocked(rateLimitingFetch).mockResolvedValueOnce({
-    status: 200,
+    ok: true,
     json: () => Promise.resolve({
       data: latestFiles
     })
@@ -45,6 +45,7 @@ const assumeSuccessfulModFetch = (modName: string, latestFiles: CurseforgeModFil
 describe('The Curseforge repository', () => {
 
   beforeEach<RepositoryTestContext>((context) => {
+    vi.resetAllMocks();
     context.platform = Platform.CURSEFORGE;
     context.id = chance.word();
     context.allowedReleaseTypes = chance.pickset(Object.values(ReleaseType), chance.integer({
@@ -54,10 +55,6 @@ describe('The Curseforge repository', () => {
     context.gameVersion = chance.pickone(['1.16.5', '1.17.1', '1.18.1', '1.18.2', '1.19']);
     context.loader = chance.pickone(Object.values(Loader));
     context.allowFallback = false;
-  });
-
-  afterEach(() => {
-    vi.resetAllMocks();
   });
 
   it<RepositoryTestContext>('throws an error when the mod details could not be fetched', async (context) => {
@@ -85,6 +82,7 @@ describe('The Curseforge repository', () => {
       }],
       releaseType: randomBadReleaseType
     });
+
     assumeSuccessfulModFetch(randomName, [randomFile.generated]);
 
     await expect(async () => {
