@@ -1,6 +1,7 @@
 # <p align="center">🚀 Minecraft Mod Manager 🚀</p>
 
 <p align="center">A command line utility to install and update Minecraft mods (for the Java edition) without a launcher.</p>
+<p align="center"><a href="https://github.com/users/meza/projects/5/views/1" target="_blank">Project Board</a> | <a href="https://github.com/meza/minecraft-mod-manager/milestones" target="_blank">Roadmap</a></p>
 
 <br/><br/>
 
@@ -13,13 +14,15 @@ If you want support for other platforms, please feel free to submit a pull reque
 
 You currently can
 
-- add mods
-- automatically update mods
-- change minecraft versions and uppdate the mods
+- [add mods](#add)
+- [remove mods](#remove)
+- [automatically update mods](#update)
+- [change minecraft versions and uppdate the mods](#change)
+- [automatically recognize manually added files](#scan)
 
 Upcoming features:
 
-- remove mods
+- [manage mods with dependencies](https://github.com/meza/minecraft-mod-manager/issues/203)
 - consolidate mods to the same platform
 - use github as the source for mods
 - self-update
@@ -46,6 +49,7 @@ control over the mods that are installed.
   * [LIST](#list)
   * [TEST](#test)
   * [PRUNE](#prune)
+  * [SCAN](#scan)
 * [Explaining the configuration](#explaining-the-configuration)
   * [modlist-lock.json](#modlist-lockjson)
   * [modlist.json](#modlistjson)
@@ -207,7 +211,7 @@ Minecraft Mod Manager will always try to match the ID first and then the name fu
 
 #### Name lookups
 
-You can specify one of multiple mods to remove. The simplest form is a comma separated list of mods like:
+You can specify one of multiple mods to remove. The simplest form is a list of mods like:
 ```bash
 mmm remove mod1 mod2 "mod with space in its name"
 ```
