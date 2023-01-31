@@ -46,6 +46,7 @@ control over the mods that are installed.
   * [LIST](#list)
   * [TEST](#test)
   * [PRUNE](#prune)
+  * [SCAN](#scan)
 * [Explaining the configuration](#explaining-the-configuration)
   * [modlist-lock.json](#modlist-lockjson)
   * [modlist.json](#modlistjson)
