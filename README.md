@@ -208,7 +208,7 @@ Minecraft Mod Manager will always try to match the ID first and then the name fu
 
 #### Name lookups
 
-You can specify one of multiple mods to remove. The simplest form is a comma separated list of mods like:
+You can specify one of multiple mods to remove. The simplest form is a list of mods like:
 ```bash
 mmm remove mod1 mod2 "mod with space in its name"
 ```
