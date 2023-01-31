@@ -20,11 +20,12 @@ pre-commit:
   parallel: true
   commands:
     lint:
+      glob: "src/**/*{.ts,.json}"
       tags:
       run: pnpm lint
     test:
-      glob: "src/**/*.test.{js,ts,tsx}"
-      run: pnpm test
+      glob: "src/**/*.ts"
+      run: pnpm report
 post-merge:
   commands:
     install-deps-postmerge:
