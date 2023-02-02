@@ -42,16 +42,14 @@ export const update = async (options: DefaultOptions, logger: Logger) => {
       mods[index].name = modData.name;
 
       if (!hasInstallation(mod, installations)) {
-        logger.error(`${mod.name} doesn't seem to be installed, please run mmm install first`);
-        // TODO handle this better
+        logger.error(`${mod.name} doesn't seem to be installed. Please delete the lock file and the mods folder and try again.`, 1);
       }
 
       const installedModIndex = getInstallation(mod, installedMods);
       const oldModPath = path.resolve(configuration.modsFolder, installedMods[installedModIndex].fileName);
 
       if (!await fileExists(oldModPath)) {
-        logger.error(`${mod.name} (${oldModPath}) doesn't exist, please run mmm install`);
-        // TODO handle this better
+        logger.error(`${mod.name} (${oldModPath}) doesn't exist. Please delete the lock file and the mods folder and try again.`, 1);
       }
 
       const installedHash = await getHash(oldModPath);
