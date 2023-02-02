@@ -6,6 +6,7 @@ import * as path from 'path';
 import { getLatestMinecraftVersion, verifyMinecraftVersion } from '../lib/minecraftVersionVerifier.js';
 import { IncorrectMinecraftVersionException } from '../errors/IncorrectMinecraftVersionException.js';
 import { configFile } from './configFileOverwrite.js';
+import { MinecraftVersionsCouldNotBeFetchedException } from '../errors/MinecraftVersionsCouldNotBeFetchedException.js';
 
 export interface InitializeOptions extends DefaultOptions {
   loader?: Loader,
@@ -20,10 +21,17 @@ interface IQInternal extends ModsJson {
 }
 
 const validateGameVersion = async (input: string): Promise<boolean | string> => {
-  if (await verifyMinecraftVersion(input)) {
-    return true;
+  try {
+    if (await verifyMinecraftVersion(input)) {
+      return true;
+    }
+    return 'The game version is invalid. Please enter a valid game version';
+  } catch (e) {
+    if (e instanceof MinecraftVersionsCouldNotBeFetchedException) {
+      return true;
+    }
+    throw e;
   }
-  return 'The game version is invalid. Please enter a valid game version';
 };
 
 const mergeOptions = (options: InitializeOptions, iq: IQInternal) => {
@@ -46,9 +54,21 @@ const validateModsFolder = async (input: string, cwd: string) => {
 };
 
 const validateInput = async (options: InitializeOptions, cwd: string) => {
+  /**
+   * @TODO Handle cli option validation better for the init function
+   *
+   * Currently the negative case is just throwing errors. It would be nice
+   * to properly communicate the errors and offer solutions.
+   */
   if (options.gameVersion) {
-    if (!await verifyMinecraftVersion(options.gameVersion)) {
-      throw new IncorrectMinecraftVersionException(options.gameVersion);
+    try {
+      if (!await verifyMinecraftVersion(options.gameVersion)) {
+        throw new IncorrectMinecraftVersionException(options.gameVersion);
+      }
+    } catch (e) {
+      if (!(e instanceof MinecraftVersionsCouldNotBeFetchedException)) {
+        throw e;
+      }
     }
   }
   if (options.modsFolder) {
@@ -64,6 +84,14 @@ export const initializeConfig = async (options: InitializeOptions, cwd: string):
 
   options.config = await configFile(options, cwd);
 
+  let latestMinercraftDefault;
+
+  try {
+    latestMinercraftDefault = await getLatestMinecraftVersion();
+  } catch (e) {
+    latestMinercraftDefault = '';
+  }
+
   const prompts = [
     {
       when: !options.loader,
@@ -76,7 +104,7 @@ export const initializeConfig = async (options: InitializeOptions, cwd: string):
       when: !options.gameVersion,
       name: 'gameVersion',
       type: 'input',
-      default: await getLatestMinecraftVersion(),
+      default: latestMinercraftDefault,
       message: 'What exact Minecraft version are you using? (eg: 1.18.2, 1.19, 1.19.1)',
       validateText: 'Verifying the game version',
       validate: validateGameVersion

@@ -1,4 +1,4 @@
-import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { generateInitializeOptions } from '../../test/initializeOptionsGenerator.js';
 import { initializeConfig, InitializeOptions } from './initializeConfig.js';
 import inquirer from 'inquirer';
@@ -10,6 +10,7 @@ import * as path from 'path';
 import { configFile } from './configFileOverwrite.js';
 import { Loader, ReleaseType } from '../lib/modlist.types.js';
 import { findQuestion } from '../../test/inquirerHelper.js';
+import { MinecraftVersionsCouldNotBeFetchedException } from '../errors/MinecraftVersionsCouldNotBeFetchedException.js';
 
 vi.mock('../lib/minecraftVersionVerifier.js');
 vi.mock('./configFileOverwrite.js');
@@ -21,14 +22,11 @@ vi.mock('inquirer');
 
 describe('The Initialization Interaction', () => {
   beforeEach(() => {
+    vi.resetAllMocks();
     vi.mocked(fileExists).mockResolvedValue(true);
     vi.mocked(configFile).mockImplementation(async (input, cwd) => path.resolve(cwd, input.config));
     vi.mocked(getLatestMinecraftVersion).mockResolvedValue('0.0.0');
     vi.mocked(verifyMinecraftVersion).mockResolvedValue(true);
-  });
-
-  afterEach(() => {
-    vi.resetAllMocks();
   });
 
   it('should use the submitted options', async () => {
@@ -54,12 +52,10 @@ describe('The Initialization Interaction', () => {
   });
 
   describe('and the game version is supplied', () => {
-    beforeEach(() => {
-      vi.mocked(verifyMinecraftVersion).mockReset();
-    });
 
     describe('when the correct version is supplied', () => {
       it('it should be successfully verified from the command line', async () => {
+        vi.mocked(verifyMinecraftVersion).mockReset();
         vi.mocked(verifyMinecraftVersion).mockResolvedValueOnce(true);
         vi.mocked(inquirer.prompt).mockResolvedValue({});
         const inputOptions = generateInitializeOptions();
@@ -90,6 +86,7 @@ describe('The Initialization Interaction', () => {
 
     describe('when the incorrect version is supplied', async () => {
       it('it should throw an error', async () => {
+        vi.mocked(verifyMinecraftVersion).mockReset();
         vi.mocked(verifyMinecraftVersion).mockResolvedValueOnce(false);
         vi.mocked(inquirer.prompt).mockResolvedValue({});
         const inputOptions = generateInitializeOptions();
@@ -117,6 +114,57 @@ describe('The Initialization Interaction', () => {
 
         expect(actual).toMatchInlineSnapshot('"The game version is invalid. Please enter a valid game version"');
 
+      });
+    });
+
+    describe('when the version cannot be verified', () => {
+      it('returns true if the MC version fetch failed', async () =>{
+        vi.mocked(verifyMinecraftVersion).mockReset();
+        vi.mocked(verifyMinecraftVersion).mockRejectedValue(new MinecraftVersionsCouldNotBeFetchedException());
+        const input = generateInitializeOptions().generated;
+
+        vi.mocked(inquirer.prompt).mockResolvedValueOnce({});
+        await initializeConfig(input, chance.word());
+
+        const question = findQuestion(inquirer.prompt, 'gameVersion');
+
+        expect(question.validate).toBeDefined();
+
+        const verifierFunction = question.validate;
+        const actual = await verifierFunction!(chance.word());
+
+        expect(actual).toBeTruthy();
+      });
+
+      describe('when using the cli option', () => {
+        it('throws any underlying unexpected errors', async () => {
+          const error = chance.word();
+          vi.mocked(verifyMinecraftVersion).mockReset();
+          vi.mocked(verifyMinecraftVersion).mockRejectedValueOnce(error);
+          const input = generateInitializeOptions().generated;
+          await expect(initializeConfig(input, chance.word())).rejects.toThrow(error);
+        });
+      });
+
+      describe('when validating the inquirer input', () => {
+        it('throws any underlying unexpected errors', async () => {
+          const error = chance.word();
+          vi.mocked(verifyMinecraftVersion).mockReset();
+          vi.mocked(verifyMinecraftVersion).mockResolvedValueOnce(true);
+          vi.mocked(verifyMinecraftVersion).mockRejectedValueOnce(error);
+          const input = generateInitializeOptions().generated;
+
+          vi.mocked(inquirer.prompt).mockResolvedValueOnce({});
+          await initializeConfig(input, chance.word());
+
+          const question = findQuestion(inquirer.prompt, 'gameVersion');
+
+          expect(question.validate).toBeDefined();
+
+          const verifierFunction = question.validate;
+          await expect(verifierFunction!(chance.word())).rejects.toThrow(error);
+
+        });
       });
     });
   });
@@ -324,6 +372,33 @@ describe('The Initialization Interaction', () => {
         "when": true,
       }
     `);
+  });
+
+  describe('when the game version cannot be fetched', () => {
+    it('defaults to an empty string', async () => {
+      const input = generateInitializeOptions().generated;
+      delete input.gameVersion;
+
+      vi.mocked(getLatestMinecraftVersion).mockReset();
+      vi.mocked(getLatestMinecraftVersion).mockRejectedValueOnce(new MinecraftVersionsCouldNotBeFetchedException());
+
+      vi.mocked(inquirer.prompt).mockResolvedValueOnce({
+        gameVersion: chance.word()
+      });
+      await initializeConfig(input, chance.word());
+
+      expect(findQuestion(inquirer.prompt, 'gameVersion')).toMatchInlineSnapshot(`
+      {
+        "default": "",
+        "message": "What exact Minecraft version are you using? (eg: 1.18.2, 1.19, 1.19.1)",
+        "name": "gameVersion",
+        "type": "input",
+        "validate": [Function],
+        "validateText": "Verifying the game version",
+        "when": true,
+      }
+    `);
+    });
   });
 
   it('skips the game version question when it is supplied', async () => {
