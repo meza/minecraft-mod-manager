@@ -6,7 +6,6 @@ import * as path from 'path';
 import { getLatestMinecraftVersion, verifyMinecraftVersion } from '../lib/minecraftVersionVerifier.js';
 import { IncorrectMinecraftVersionException } from '../errors/IncorrectMinecraftVersionException.js';
 import { configFile } from './configFileOverwrite.js';
-import { MinecraftVersionsCouldNotBeFetchedException } from '../errors/MinecraftVersionsCouldNotBeFetchedException.js';
 
 export interface InitializeOptions extends DefaultOptions {
   loader?: Loader,
@@ -54,14 +53,8 @@ const validateInput = async (options: InitializeOptions, cwd: string) => {
    * to properly communicate the errors and offer solutions.
    */
   if (options.gameVersion) {
-    try {
-      if (!await verifyMinecraftVersion(options.gameVersion)) {
-        throw new IncorrectMinecraftVersionException(options.gameVersion);
-      }
-    } catch (e) {
-      if (!(e instanceof MinecraftVersionsCouldNotBeFetchedException)) {
-        throw e;
-      }
+    if (!await verifyMinecraftVersion(options.gameVersion)) {
+      throw new IncorrectMinecraftVersionException(options.gameVersion);
     }
   }
   if (options.modsFolder) {
