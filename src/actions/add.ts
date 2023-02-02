@@ -49,7 +49,7 @@ const handleUnknownPlatformException = async (error: UnknownPlatformException, i
 
 export const add = async (platform: Platform, id: string, options: DefaultOptions, logger: Logger) => {
 
-  const configuration = await ensureConfiguration(options.config, options.quiet);
+  const configuration = await ensureConfiguration(options.config, logger, options.quiet);
   const modConfig = configuration.mods.find((mod: Mod) => (mod.id === id && mod.type === platform));
 
   if (modConfig) {

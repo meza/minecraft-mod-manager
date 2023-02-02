@@ -4,8 +4,9 @@ import { DefaultOptions } from '../mmm.js';
 import { fetchModDetails } from '../repositories/index.js';
 import { readConfigFile } from './config.js';
 import { Logger } from './Logger.js';
-import { getLatestMinecraftVersion, verifyMinecraftVersion } from './minecraftVersionVerifier.js';
+import { verifyMinecraftVersion } from './minecraftVersionVerifier.js';
 import { Mod } from './modlist.types.js';
+import { getLatestMinecraftVersion } from '../interactions/getLatestMinecraftVersion.js';
 
 export type VerifyUpgradeOptions = DefaultOptions;
 
@@ -19,7 +20,7 @@ export const verifyUpgradeIsPossible = async (gameVersion: string, options: Veri
   let version = gameVersion;
 
   if (gameVersion.toLowerCase() === 'latest') {
-    version = await getLatestMinecraftVersion();
+    version = await getLatestMinecraftVersion(options, logger);
   }
 
   const isValidVersion = await verifyMinecraftVersion(version);

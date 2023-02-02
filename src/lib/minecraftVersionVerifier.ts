@@ -20,14 +20,17 @@ export interface MinecraftVersionsApi {
 const listMinecraftVersions = async (): Promise<MinecraftVersionsApi> => {
   const url = 'https://launchermeta.mojang.com/mc/game/version_manifest.json';
 
-  const response = await rateLimitingFetch(url);
+  try {
+    const response = await rateLimitingFetch(url);
 
-  if (!response.ok) {
+    if (!response.ok) {
+      throw new MinecraftVersionsCouldNotBeFetchedException();
+    }
+
+    return await response.json();
+  } catch {
     throw new MinecraftVersionsCouldNotBeFetchedException();
-    // TODO handle failed fetch
   }
-
-  return await response.json();
 };
 
 export const getLatestMinecraftVersion = async (): Promise<string> => {
@@ -41,10 +44,6 @@ export const verifyMinecraftVersion = async (input: string): Promise<boolean> =>
 
     return versions.some(({ id }) => id === input);
   } catch (e) {
-
-    if (e instanceof MinecraftVersionsCouldNotBeFetchedException) {
-      return true;
-    }
-    throw e;
+    return true;
   }
 };

@@ -119,12 +119,14 @@ describe('The Minecraft version verifier module', () => {
     expect(isValid).toBe(true);
   });
 
-  it('should proxy underlying errors', async () => {
+  it('should ignore underlying errors', async () => {
     const randomVersion = chance.word();
     const error = chance.word();
     vi.mocked(rateLimitingFetch).mockRejectedValueOnce(error);
 
-    await expect(verifyMinecraftVersion(randomVersion)).rejects.toThrow(error);
+    const isValid = await verifyMinecraftVersion(randomVersion);
+
+    expect(isValid).toBe(true);
 
   });
 });

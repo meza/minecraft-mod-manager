@@ -11,7 +11,7 @@ export interface RemoveOptions extends DefaultOptions {
 }
 
 export const removeAction = async (mods: string[], options: RemoveOptions, logger: Logger) => {
-  const configuration = await ensureConfiguration(options.config);
+  const configuration = await ensureConfiguration(options.config, logger);
   const installations = await readLockFile(options.config);
   const matches = findLocalMods(mods, configuration);
   const modsDir = getModsDir(options.config, configuration.modsFolder);

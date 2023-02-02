@@ -23,7 +23,7 @@ interface FoundEntries {
 }
 
 export const scan = async (options: ScanOptions, logger: Logger) => {
-  const configuration = await ensureConfiguration(options.config);
+  const configuration = await ensureConfiguration(options.config, logger);
   const installations = await readLockFile(options.config);
   let scanResults: ScanResults[] = [];
 

@@ -98,7 +98,7 @@ commands.push(
       `Which types of releases would you like to consider to download? ${Object.values(ReleaseType).join(', ')} - comma separated list`)
     .option('-m, --mods-folder <modsFolder>', `where is your mods folder? (full or relative path from ${cwd})`)
     .action(async (_options, cmd) => {
-      await initializeConfig(cmd.optsWithGlobals(), cwd);
+      await initializeConfig(cmd.optsWithGlobals(), cwd, logger);
     })
 );
 

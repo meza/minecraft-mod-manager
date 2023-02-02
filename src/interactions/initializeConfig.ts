@@ -3,9 +3,11 @@ import { Loader, ModsJson, ReleaseType } from '../lib/modlist.types.js';
 import inquirer from 'inquirer';
 import { fileExists, writeConfigFile } from '../lib/config.js';
 import * as path from 'path';
-import { getLatestMinecraftVersion, verifyMinecraftVersion } from '../lib/minecraftVersionVerifier.js';
+import { verifyMinecraftVersion } from '../lib/minecraftVersionVerifier.js';
 import { IncorrectMinecraftVersionException } from '../errors/IncorrectMinecraftVersionException.js';
 import { configFile } from './configFileOverwrite.js';
+import { getLatestMinecraftVersion } from './getLatestMinecraftVersion.js';
+import { Logger } from '../lib/Logger.js';
 
 export interface InitializeOptions extends DefaultOptions {
   loader?: Loader,
@@ -65,18 +67,12 @@ const validateInput = async (options: InitializeOptions, cwd: string) => {
   }
 };
 
-export const initializeConfig = async (options: InitializeOptions, cwd: string): Promise<ModsJson> => {
+export const initializeConfig = async (options: InitializeOptions, cwd: string, logger: Logger): Promise<ModsJson> => {
   await validateInput(options, cwd);
 
   options.config = await configFile(options, cwd);
 
-  let latestMinercraftDefault;
-
-  try {
-    latestMinercraftDefault = await getLatestMinecraftVersion();
-  } catch (e) {
-    latestMinercraftDefault = '';
-  }
+  const latestMinercraftDefault = await getLatestMinecraftVersion(options, logger);
 
   const prompts = [
     {
