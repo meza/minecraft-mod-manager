@@ -17,21 +17,14 @@ export interface InitializeOptions extends DefaultOptions {
 }
 
 interface IQInternal extends ModsJson {
-  config: string
+  config: string;
 }
 
 const validateGameVersion = async (input: string): Promise<boolean | string> => {
-  try {
-    if (await verifyMinecraftVersion(input)) {
-      return true;
-    }
-    return 'The game version is invalid. Please enter a valid game version';
-  } catch (e) {
-    if (e instanceof MinecraftVersionsCouldNotBeFetchedException) {
-      return true;
-    }
-    throw e;
+  if (await verifyMinecraftVersion(input)) {
+    return true;
   }
+  return 'The game version is invalid. Please enter a valid game version';
 };
 
 const mergeOptions = (options: InitializeOptions, iq: IQInternal) => {

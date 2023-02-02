@@ -116,57 +116,6 @@ describe('The Initialization Interaction', () => {
 
       });
     });
-
-    describe('when the version cannot be verified', () => {
-      it('returns true if the MC version fetch failed', async () =>{
-        vi.mocked(verifyMinecraftVersion).mockReset();
-        vi.mocked(verifyMinecraftVersion).mockRejectedValue(new MinecraftVersionsCouldNotBeFetchedException());
-        const input = generateInitializeOptions().generated;
-
-        vi.mocked(inquirer.prompt).mockResolvedValueOnce({});
-        await initializeConfig(input, chance.word());
-
-        const question = findQuestion(inquirer.prompt, 'gameVersion');
-
-        expect(question.validate).toBeDefined();
-
-        const verifierFunction = question.validate;
-        const actual = await verifierFunction!(chance.word());
-
-        expect(actual).toBeTruthy();
-      });
-
-      describe('when using the cli option', () => {
-        it('throws any underlying unexpected errors', async () => {
-          const error = chance.word();
-          vi.mocked(verifyMinecraftVersion).mockReset();
-          vi.mocked(verifyMinecraftVersion).mockRejectedValueOnce(error);
-          const input = generateInitializeOptions().generated;
-          await expect(initializeConfig(input, chance.word())).rejects.toThrow(error);
-        });
-      });
-
-      describe('when validating the inquirer input', () => {
-        it('throws any underlying unexpected errors', async () => {
-          const error = chance.word();
-          vi.mocked(verifyMinecraftVersion).mockReset();
-          vi.mocked(verifyMinecraftVersion).mockResolvedValueOnce(true);
-          vi.mocked(verifyMinecraftVersion).mockRejectedValueOnce(error);
-          const input = generateInitializeOptions().generated;
-
-          vi.mocked(inquirer.prompt).mockResolvedValueOnce({});
-          await initializeConfig(input, chance.word());
-
-          const question = findQuestion(inquirer.prompt, 'gameVersion');
-
-          expect(question.validate).toBeDefined();
-
-          const verifierFunction = question.validate;
-          await expect(verifierFunction!(chance.word())).rejects.toThrow(error);
-
-        });
-      });
-    });
   });
 
   describe('and the mods folder is supplied', () => {

@@ -56,7 +56,10 @@
   "commitlint": {
     "extends": [
       "@commitlint/config-conventional"
-    ]
+    ],
+    "rules": {
+      "header-max-length": [0, "always", 100]
+    }
   },
   "devDependencies": {
     "@commitlint/cli": "17.4.2",

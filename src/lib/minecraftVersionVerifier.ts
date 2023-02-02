@@ -1,4 +1,5 @@
 import { MinecraftVersionsCouldNotBeFetchedException } from '../errors/MinecraftVersionsCouldNotBeFetchedException.js';
+import { rateLimitingFetch } from './rateLimiter/index.js';
 
 export interface MinecraftVersionInfo {
   id: string,
@@ -19,7 +20,7 @@ export interface MinecraftVersionsApi {
 const listMinecraftVersions = async (): Promise<MinecraftVersionsApi> => {
   const url = 'https://launchermeta.mojang.com/mc/game/version_manifest.json';
 
-  const response = await fetch(url);
+  const response = await rateLimitingFetch(url);
 
   if (!response.ok) {
     throw new MinecraftVersionsCouldNotBeFetchedException();
@@ -35,7 +36,15 @@ export const getLatestMinecraftVersion = async (): Promise<string> => {
 };
 
 export const verifyMinecraftVersion = async (input: string): Promise<boolean> => {
-  const { versions } = await listMinecraftVersions();
+  try {
+    const { versions } = await listMinecraftVersions();
 
-  return versions.some(({ id }) => id === input);
+    return versions.some(({ id }) => id === input);
+  } catch (e) {
+
+    if (e instanceof MinecraftVersionsCouldNotBeFetchedException) {
+      return true;
+    }
+    throw e;
+  }
 };
