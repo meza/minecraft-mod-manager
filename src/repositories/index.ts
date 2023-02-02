@@ -49,6 +49,18 @@ const getRepository = (platform: Platform): Repository => {
   }
 };
 
+/**
+ * Fetches the mod's details
+ *
+ * @param platform
+ * @param id
+ * @param allowedReleaseTypes
+ * @param gameVersion
+ * @param loader
+ * @param allowFallback
+ * @throws {CouldNotFindModException} When the mod itself cannot be found
+ * @throws {NoRemoteFileFound} When a suitable file for the mod cannot be found
+ */
 export const fetchModDetails = async (
   platform: Platform,
   id: string,

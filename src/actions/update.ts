@@ -1,7 +1,7 @@
 import { DefaultOptions } from '../mmm.js';
 import {
+  ensureConfiguration,
   fileExists,
-  readConfigFile,
   readLockFile,
   writeConfigFile,
   writeLockFile
@@ -20,7 +20,7 @@ import { getInstallation, hasInstallation } from '../lib/configurationHelper.js'
 export const update = async (options: DefaultOptions, logger: Logger) => {
   await install(options, logger);
   try {
-    const configuration = await readConfigFile(options.config);
+    const configuration = await ensureConfiguration(options.config, logger);
     const installations = await readLockFile(options.config);
 
     const installedMods = installations;

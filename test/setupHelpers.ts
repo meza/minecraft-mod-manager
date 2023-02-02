@@ -4,7 +4,13 @@ import { generateModsJson } from './modlistGenerator.js';
 import { generateModConfig } from './modConfigGenerator.js';
 import { generateModInstall } from './modInstallGenerator.js';
 import { expect, vi } from 'vitest';
-import { fileExists, readConfigFile, readLockFile, writeConfigFile, writeLockFile } from '../src/lib/config.js';
+import {
+  ensureConfiguration,
+  fileExists,
+  readLockFile,
+  writeConfigFile,
+  writeLockFile
+} from '../src/lib/config.js';
 import { downloadFile } from '../src/lib/downloader.js';
 import { updateMod } from '../src/lib/updater.js';
 import path from 'node:path';
@@ -14,7 +20,7 @@ export const emptyLockFile: ModInstall[] = [];
 export const verifyBasics = () => {
   expect(vi.mocked(writeConfigFile)).toHaveBeenCalledOnce();
   expect(vi.mocked(writeLockFile)).toHaveBeenCalledOnce();
-  expect(vi.mocked(readConfigFile)).toHaveBeenCalledOnce();
+  expect(vi.mocked(ensureConfiguration)).toHaveBeenCalledOnce();
   expect(vi.mocked(readLockFile)).toHaveBeenCalledOnce();
 };
 

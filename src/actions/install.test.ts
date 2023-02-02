@@ -1,7 +1,7 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { install } from './install.js';
 import { fetchModDetails } from '../repositories/index.js';
-import { readConfigFile, readLockFile, writeConfigFile, writeLockFile } from '../lib/config.js';
+import { ensureConfiguration, readLockFile, writeConfigFile, writeLockFile } from '../lib/config.js';
 import { generateRemoteModDetails } from '../../test/generateRemoteDetails.js';
 import { downloadFile } from '../lib/downloader.js';
 import { updateMod } from '../lib/updater.js';
@@ -18,10 +18,11 @@ import {
   verifyBasics
 } from '../../test/setupHelpers.js';
 import { Logger } from '../lib/Logger.js';
-import { ConfigFileNotFoundException } from '../errors/ConfigFileNotFoundException.js';
-import { ErrorTexts } from '../errors/ErrorTexts.js';
 import { chance } from 'jest-chance';
 import { DownloadFailedException } from '../errors/DownloadFailedException.js';
+import { CouldNotFindModException } from '../errors/CouldNotFindModException.js';
+import { Platform } from '../lib/modlist.types.js';
+import { NoRemoteFileFound } from '../errors/NoRemoteFileFound.js';
 
 vi.mock('../lib/Logger.js');
 vi.mock('../repositories/index.js');
@@ -48,7 +49,7 @@ describe('The install module', () => {
     delete randomUninstalledMod.allowedReleaseTypes;
 
     // Prepare the configuration file state
-    vi.mocked(readConfigFile).mockResolvedValueOnce(randomConfiguration);
+    vi.mocked(ensureConfiguration).mockResolvedValueOnce(randomConfiguration);
     vi.mocked(readLockFile).mockResolvedValueOnce(emptyLockFile);
 
     // Prepare the details the mod details fetcher should return
@@ -91,7 +92,7 @@ describe('The install module', () => {
     const { randomConfiguration, randomUninstalledMod } = setupOneUninstalledMod();
 
     // Prepare the configuration file state
-    vi.mocked(readConfigFile).mockResolvedValueOnce(randomConfiguration);
+    vi.mocked(ensureConfiguration).mockResolvedValueOnce(randomConfiguration);
     vi.mocked(readLockFile).mockResolvedValueOnce(emptyLockFile);
 
     // Prepare the details the mod details fetcher should return
@@ -115,7 +116,7 @@ describe('The install module', () => {
     const { randomConfiguration, randomInstalledMod, randomInstallation } = setupOneInstalledMod();
 
     // Prepare the configuration file state
-    vi.mocked(readConfigFile).mockResolvedValueOnce(randomConfiguration);
+    vi.mocked(ensureConfiguration).mockResolvedValueOnce(randomConfiguration);
     vi.mocked(readLockFile).mockResolvedValueOnce([
       randomInstallation
     ]);
@@ -150,7 +151,7 @@ describe('The install module', () => {
     const { randomConfiguration, randomInstalledMod, randomInstallation } = setupOneInstalledMod();
 
     // Prepare the configuration file state
-    vi.mocked(readConfigFile).mockResolvedValueOnce(randomConfiguration);
+    vi.mocked(ensureConfiguration).mockResolvedValueOnce(randomConfiguration);
     vi.mocked(readLockFile).mockResolvedValueOnce([
       randomInstallation
     ]);
@@ -186,7 +187,7 @@ describe('The install module', () => {
   it('Sets the appropriate debug messages', async () => {
     const { randomInstalledMod, randomInstallation, randomConfiguration } = setupOneInstalledMod();
 
-    vi.mocked(readConfigFile).mockResolvedValueOnce(randomConfiguration);
+    vi.mocked(ensureConfiguration).mockResolvedValueOnce(randomConfiguration);
     vi.mocked(readLockFile).mockResolvedValueOnce([randomInstallation]);
     vi.mocked(getHash).mockResolvedValueOnce(randomInstallation.hash);
 
@@ -200,7 +201,7 @@ describe('The install module', () => {
     const { randomConfiguration, randomInstallation } = setupOneInstalledMod();
 
     // Prepare the configuration file state
-    vi.mocked(readConfigFile).mockResolvedValueOnce(randomConfiguration);
+    vi.mocked(ensureConfiguration).mockResolvedValueOnce(randomConfiguration);
     vi.mocked(readLockFile).mockResolvedValueOnce([
       randomInstallation
     ]);
@@ -225,29 +226,13 @@ describe('The install module', () => {
     verifyBasics();
   });
 
-  it('shows the correct error message when the config file is missing', async () => {
-    vi.mocked(readConfigFile).mockRejectedValueOnce(new ConfigFileNotFoundException('config.json'));
-    await expect(install({ config: 'config.json' }, logger)).rejects.toThrow('process.exit');
-
-    expect(vi.mocked(logger.error)).toHaveBeenCalledWith(ErrorTexts.configNotFound);
-
-  });
-
-  it('handles unexpected errors', async () => {
-    const randomErrorMessage = chance.sentence();
-    vi.mocked(readConfigFile).mockRejectedValueOnce(new Error(randomErrorMessage));
-    await expect(install({ config: 'config.json' }, logger)).rejects.toThrow('process.exit');
-
-    expect(logger.error).toHaveBeenCalledWith(randomErrorMessage, 2);
-  });
-
   describe('when fetching a missing mod file fails', () => {
     it('reports the correct error', async () => {
       const url = chance.url({ protocol: 'https' });
       const { randomConfiguration, randomInstallation } = setupOneInstalledMod();
 
       // Prepare the configuration file state
-      vi.mocked(readConfigFile).mockResolvedValueOnce(randomConfiguration);
+      vi.mocked(ensureConfiguration).mockResolvedValueOnce(randomConfiguration);
       vi.mocked(readLockFile).mockResolvedValueOnce([
         randomInstallation
       ]);
@@ -268,7 +253,7 @@ describe('The install module', () => {
       const { randomConfiguration, randomInstallation } = setupOneInstalledMod();
 
       // Prepare the configuration file state
-      vi.mocked(readConfigFile).mockResolvedValueOnce(randomConfiguration);
+      vi.mocked(ensureConfiguration).mockResolvedValueOnce(randomConfiguration);
       vi.mocked(readLockFile).mockResolvedValueOnce([
         randomInstallation
       ]);
@@ -293,7 +278,7 @@ describe('The install module', () => {
       const { randomConfiguration } = setupOneUninstalledMod();
 
       // Prepare the configuration file state
-      vi.mocked(readConfigFile).mockResolvedValueOnce(randomConfiguration);
+      vi.mocked(ensureConfiguration).mockResolvedValueOnce(randomConfiguration);
       vi.mocked(readLockFile).mockResolvedValueOnce(emptyLockFile);
 
       // Prepare the details the mod details fetcher should return
@@ -307,6 +292,65 @@ describe('The install module', () => {
 
       expect(message).toContain(url);
 
+    });
+  });
+
+  describe('when a mod cannot be found', () => {
+    it('reports the correct message', async () => {
+      const aModName = 'a mod name';
+      const { randomConfiguration } = setupOneInstalledMod();
+
+      randomConfiguration.mods[0].id = 'id';
+      randomConfiguration.mods[0].name = aModName;
+      randomConfiguration.mods[0].type = Platform.MODRINTH;
+
+      // Prepare the configuration file state
+      vi.mocked(ensureConfiguration).mockResolvedValueOnce(randomConfiguration);
+      vi.mocked(readLockFile).mockResolvedValueOnce(emptyLockFile);
+
+      vi.mocked(fetchModDetails).mockRejectedValueOnce(new CouldNotFindModException('id', Platform.MODRINTH));
+
+      await install({ config: 'config.json' }, logger);
+      const message = vi.mocked(logger.log).mock.calls[0][0];
+
+      expect(message).toMatchInlineSnapshot('"❌ a mod name(id) cannot be found on modrinth anymore. Was the mod revoked?"');
+    });
+  });
+
+  describe('when a remote file is not found', () => {
+    it('reports the correct message', async () => {
+      const aModName = 'another mod name';
+      const { randomConfiguration } = setupOneInstalledMod();
+
+      randomConfiguration.mods[0].id = 'id2';
+      randomConfiguration.mods[0].name = aModName;
+      randomConfiguration.mods[0].type = Platform.CURSEFORGE;
+
+      // Prepare the configuration file state
+      vi.mocked(ensureConfiguration).mockResolvedValueOnce(randomConfiguration);
+      vi.mocked(readLockFile).mockResolvedValueOnce(emptyLockFile);
+
+      vi.mocked(fetchModDetails).mockRejectedValueOnce(new NoRemoteFileFound(aModName, Platform.CURSEFORGE));
+
+      await install({ config: 'config.json' }, logger);
+      const message = vi.mocked(logger.log).mock.calls[0][0];
+
+      expect(message).toMatchInlineSnapshot('"❌ curseforge doesn\'t serve the required file for another mod name(id2) anymore. Please update it."');
+    });
+  });
+
+  describe('when an unexpected error occurs', () => {
+    it('throws it on', async () => {
+      const error = chance.word();
+      const { randomConfiguration } = setupOneInstalledMod();
+
+      // Prepare the configuration file state
+      vi.mocked(ensureConfiguration).mockResolvedValueOnce(randomConfiguration);
+      vi.mocked(readLockFile).mockResolvedValueOnce(emptyLockFile);
+
+      vi.mocked(fetchModDetails).mockRejectedValueOnce(error);
+
+      await expect(install({ config: 'config.json' }, logger)).rejects.toThrow(error);
     });
   });
 });
