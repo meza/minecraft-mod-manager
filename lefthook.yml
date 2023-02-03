@@ -20,13 +20,10 @@ pre-commit:
   parallel: true
   commands:
     lint:
-      tags:
       run: pnpm lint
     test:
-      glob: "src/**/*.test.{js,ts,tsx}"
-      run: pnpm test
+      run: pnpm report
 post-merge:
   commands:
     install-deps-postmerge:
-      glob: "{package.json,pnpm-lock.json}"
       run: pnpm install --frozen-lockfile

@@ -3,9 +3,11 @@ import { Loader, ModsJson, ReleaseType } from '../lib/modlist.types.js';
 import inquirer from 'inquirer';
 import { fileExists, writeConfigFile } from '../lib/config.js';
 import * as path from 'path';
-import { getLatestMinecraftVersion, verifyMinecraftVersion } from '../lib/minecraftVersionVerifier.js';
+import { verifyMinecraftVersion } from '../lib/minecraftVersionVerifier.js';
 import { IncorrectMinecraftVersionException } from '../errors/IncorrectMinecraftVersionException.js';
 import { configFile } from './configFileOverwrite.js';
+import { getLatestMinecraftVersion } from './getLatestMinecraftVersion.js';
+import { Logger } from '../lib/Logger.js';
 
 export interface InitializeOptions extends DefaultOptions {
   loader?: Loader,
@@ -16,7 +18,7 @@ export interface InitializeOptions extends DefaultOptions {
 }
 
 interface IQInternal extends ModsJson {
-  config: string
+  config: string;
 }
 
 const validateGameVersion = async (input: string): Promise<boolean | string> => {
@@ -31,7 +33,7 @@ const mergeOptions = (options: InitializeOptions, iq: IQInternal) => {
     loader: iq.loader || options.loader,
     gameVersion: iq.gameVersion || options.gameVersion,
     allowVersionFallback: iq.allowVersionFallback || options.allowVersionFallback,
-    defaultAllowedReleaseTypes: iq.defaultAllowedReleaseTypes || options.defaultAllowedReleaseTypes!.replace(/\s/g, '').split(','),
+    defaultAllowedReleaseTypes: iq.defaultAllowedReleaseTypes || options.defaultAllowedReleaseTypes?.replace(/\s/g, '').split(','),
     modsFolder: iq.modsFolder || options.modsFolder,
     mods: []
   };
@@ -46,6 +48,12 @@ const validateModsFolder = async (input: string, cwd: string) => {
 };
 
 const validateInput = async (options: InitializeOptions, cwd: string) => {
+  /**
+   * @TODO Handle cli option validation better for the init function
+   *
+   * Currently the negative case is just throwing errors. It would be nice
+   * to properly communicate the errors and offer solutions.
+   */
   if (options.gameVersion) {
     if (!await verifyMinecraftVersion(options.gameVersion)) {
       throw new IncorrectMinecraftVersionException(options.gameVersion);
@@ -59,10 +67,12 @@ const validateInput = async (options: InitializeOptions, cwd: string) => {
   }
 };
 
-export const initializeConfig = async (options: InitializeOptions, cwd: string): Promise<ModsJson> => {
+export const initializeConfig = async (options: InitializeOptions, cwd: string, logger: Logger): Promise<ModsJson> => {
   await validateInput(options, cwd);
 
   options.config = await configFile(options, cwd);
+
+  const latestMinercraftDefault = await getLatestMinecraftVersion(options, logger);
 
   const prompts = [
     {
@@ -76,7 +86,7 @@ export const initializeConfig = async (options: InitializeOptions, cwd: string):
       when: !options.gameVersion,
       name: 'gameVersion',
       type: 'input',
-      default: await getLatestMinecraftVersion(),
+      default: latestMinercraftDefault,
       message: 'What exact Minecraft version are you using? (eg: 1.18.2, 1.19, 1.19.1)',
       validateText: 'Verifying the game version',
       validate: validateGameVersion
@@ -110,7 +120,6 @@ export const initializeConfig = async (options: InitializeOptions, cwd: string):
   const answers = mergeOptions(options, iq) as ModsJson;
 
   await writeConfigFile(answers, options.config);
-  //TODO handle error
 
   return answers as ModsJson;
 };

@@ -23,10 +23,15 @@ interface FoundEntries {
 }
 
 export const scan = async (options: ScanOptions, logger: Logger) => {
-  const configuration = await ensureConfiguration(options.config);
+  const configuration = await ensureConfiguration(options.config, logger);
   const installations = await readLockFile(options.config);
+  let scanResults: ScanResults[] = [];
 
-  const scanResults = await scanLib(options.config, options.prefer, configuration, installations);
+  try {
+    scanResults = await scanLib(options.config, options.prefer, configuration, installations);
+  } catch (error) {
+    logger.error((error as Error).message, 2);
+  }
 
   if (scanResults.length === 0) {
     logger.log('You have no unmanaged mods in your mods folder.');
@@ -68,8 +73,8 @@ export const scan = async (options: ScanOptions, logger: Logger) => {
     await writeConfigFile(configuration, options.config);
     await writeLockFile(installations, options.config);
   }
-  // scan during init
 
+  // scan during init
   // deduce loader from the mods
   // if the loader doesn't match, error
 

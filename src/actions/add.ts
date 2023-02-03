@@ -17,6 +17,7 @@ import { NoRemoteFileFound } from '../errors/NoRemoteFileFound.js';
 import { Logger } from '../lib/Logger.js';
 import { modNotFound } from '../interactions/modNotFound.js';
 import { noRemoteFileFound } from '../interactions/noRemoteFileFound.js';
+import { DownloadFailedException } from '../errors/DownloadFailedException.js';
 
 const handleUnknownPlatformException = async (error: UnknownPlatformException, id: string, options: DefaultOptions, logger: Logger) => {
   const platformUsed = error.platform;
@@ -48,7 +49,7 @@ const handleUnknownPlatformException = async (error: UnknownPlatformException, i
 
 export const add = async (platform: Platform, id: string, options: DefaultOptions, logger: Logger) => {
 
-  const configuration = await ensureConfiguration(options.config, options.quiet);
+  const configuration = await ensureConfiguration(options.config, logger, options.quiet);
   const modConfig = configuration.mods.find((mod: Mod) => (mod.id === id && mod.type === platform));
 
   if (modConfig) {
@@ -89,6 +90,9 @@ export const add = async (platform: Platform, id: string, options: DefaultOption
     await writeLockFile(installations, options.config);
 
   } catch (error) {
+    if (error instanceof DownloadFailedException) {
+      logger.error(error.message, 1);
+    }
     if (error instanceof UnknownPlatformException) {
       await handleUnknownPlatformException(error, id, options, logger);
       return;

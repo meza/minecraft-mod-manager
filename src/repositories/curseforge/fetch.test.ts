@@ -1,4 +1,4 @@
-import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { chance } from 'jest-chance';
 import { curseforgeFileToRemoteModDetails, CurseforgeModFile, getMod, HashFunctions } from './fetch.js';
 import { Loader, Platform, ReleaseType, RemoteModDetails } from '../../lib/modlist.types.js';
@@ -20,13 +20,13 @@ const releasedStatus = 10;
 
 const assumeFailedModFetch = () => {
   vi.mocked(rateLimitingFetch).mockResolvedValue({
-    status: chance.pickone([401, 404, 500])
+    ok: false
   } as Response);
 };
 
 const assumeSuccessfulModFetch = (modName: string, latestFiles: CurseforgeModFile[]) => {
   vi.mocked(rateLimitingFetch).mockResolvedValueOnce({
-    status: 200,
+    ok: true,
     json: () => Promise.resolve({
       data: {
         name: modName
@@ -35,7 +35,7 @@ const assumeSuccessfulModFetch = (modName: string, latestFiles: CurseforgeModFil
   } as Response);
 
   vi.mocked(rateLimitingFetch).mockResolvedValueOnce({
-    status: 200,
+    ok: true,
     json: () => Promise.resolve({
       data: latestFiles
     })
@@ -45,6 +45,7 @@ const assumeSuccessfulModFetch = (modName: string, latestFiles: CurseforgeModFil
 describe('The Curseforge repository', () => {
 
   beforeEach<RepositoryTestContext>((context) => {
+    vi.resetAllMocks();
     context.platform = Platform.CURSEFORGE;
     context.id = chance.word();
     context.allowedReleaseTypes = chance.pickset(Object.values(ReleaseType), chance.integer({
@@ -56,11 +57,32 @@ describe('The Curseforge repository', () => {
     context.allowFallback = false;
   });
 
-  afterEach(() => {
-    vi.resetAllMocks();
+  it<RepositoryTestContext>('throws an error when the mod details could not be fetched', async (context) => {
+    vi.mocked(rateLimitingFetch).mockResolvedValueOnce({
+      ok: true,
+      json: () => Promise.resolve({
+        data: {
+          name: chance.word()
+        }
+      })
+    } as Response);
+
+    vi.mocked(rateLimitingFetch).mockResolvedValueOnce({
+      ok: false
+    } as Response);
+
+    await expect(async () => {
+      await getMod(
+        context.id,
+        context.allowedReleaseTypes,
+        context.gameVersion,
+        context.loader,
+        context.allowFallback
+      );
+    }).rejects.toThrow(new CouldNotFindModException(context.id, context.platform));
   });
 
-  it<RepositoryTestContext>('throws an error when the mod details could not be fetched', async (context) => {
+  it<RepositoryTestContext>('throws an error when the files cannot be fetched', async (context) => {
     assumeFailedModFetch();
 
     await expect(async () => {
@@ -85,6 +107,7 @@ describe('The Curseforge repository', () => {
       }],
       releaseType: randomBadReleaseType
     });
+
     assumeSuccessfulModFetch(randomName, [randomFile.generated]);
 
     await expect(async () => {

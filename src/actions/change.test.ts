@@ -58,7 +58,7 @@ describe('The change action', () => {
 
     expect(savedConfig.gameVersion).not.toEqual('old');
     expect(savedConfig.gameVersion).toEqual(version);
-    expect(ensureConfiguration).toHaveBeenCalledWith(options.config, quietFlag);
+    expect(ensureConfiguration).toHaveBeenCalledWith(options.config, logger, quietFlag);
   });
 
   it<LocalTestContext>('empties the lockfile', async ({ version, options, logger }) => {

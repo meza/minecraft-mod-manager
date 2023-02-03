@@ -23,7 +23,7 @@ export interface LookupResult {
  * The hash/hashes to look up
  * The platform property is necessary to distinguish between the inputs since each platform has a unique requirement
  */
-export interface LookupInput { // TODO make the platform the key
+export interface LookupInput {
   platform: Platform;
   hash: string[];
 }
@@ -49,6 +49,18 @@ const getRepository = (platform: Platform): Repository => {
   }
 };
 
+/**
+ * Fetches the mod's details
+ *
+ * @param platform
+ * @param id
+ * @param allowedReleaseTypes
+ * @param gameVersion
+ * @param loader
+ * @param allowFallback
+ * @throws {CouldNotFindModException} When the mod itself cannot be found
+ * @throws {NoRemoteFileFound} When a suitable file for the mod cannot be found
+ */
 export const fetchModDetails = async (
   platform: Platform,
   id: string,

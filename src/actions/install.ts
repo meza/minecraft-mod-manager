@@ -1,6 +1,6 @@
 import {
+  ensureConfiguration,
   fileExists,
-  readConfigFile,
   readLockFile,
   writeConfigFile,
   writeLockFile
@@ -13,9 +13,11 @@ import { getHash } from '../lib/hash.js';
 import { DefaultOptions } from '../mmm.js';
 import { updateMod } from '../lib/updater.js';
 import { Logger } from '../lib/Logger.js';
-import { ConfigFileNotFoundException } from '../errors/ConfigFileNotFoundException.js';
-import { ErrorTexts } from '../errors/ErrorTexts.js';
 import { getInstallation, hasInstallation } from '../lib/configurationHelper.js';
+import { DownloadFailedException } from '../errors/DownloadFailedException.js';
+import { CouldNotFindModException } from '../errors/CouldNotFindModException.js';
+import { NoRemoteFileFound } from '../errors/NoRemoteFileFound.js';
+import chalk from 'chalk';
 
 const getMod = async (moddata: RemoteModDetails, modsFolder: string) => {
   await downloadFile(moddata.downloadUrl, path.resolve(modsFolder, moddata.fileName));
@@ -27,16 +29,34 @@ const getMod = async (moddata: RemoteModDetails, modsFolder: string) => {
   };
 };
 
+const handleError = (error: Error, mod: Mod, logger: Logger) => {
+  if (error instanceof CouldNotFindModException) {
+    logger.log(`${chalk.red('\u274c')} ${mod.name}${chalk.gray('(' + mod.id + ')')} cannot be found on ${mod.type} anymore. Was the mod revoked?`, true);
+    return;
+  }
+
+  if (error instanceof NoRemoteFileFound) {
+    logger.log(`${chalk.red('\u274c')} ${mod.type} doesn't serve the required file for ${mod.name}${chalk.gray('(' + mod.id + ')')} anymore. Please update it.`, true);
+    return;
+  }
+
+  if (error instanceof DownloadFailedException) {
+    logger.error(error.message, 1);
+  }
+
+  throw error;
+};
+
 export const install = async (options: DefaultOptions, logger: Logger) => {
-  try {
-    const configuration = await readConfigFile(options.config);
-    const installations = await readLockFile(options.config);
 
-    const installedMods = installations;
-    const mods = configuration.mods;
+  const configuration = await ensureConfiguration(options.config, logger);
+  const installations = await readLockFile(options.config);
 
-    const processMod = async (mod: Mod, index: number) => {
+  const installedMods = installations;
+  const mods = configuration.mods;
 
+  const processMod = async (mod: Mod, index: number) => {
+    try {
       logger.debug(`Checking ${mod.name} for ${mod.type}`);
 
       if (hasInstallation(mod, installations)) {
@@ -47,7 +67,6 @@ export const install = async (options: DefaultOptions, logger: Logger) => {
         if (!await fileExists(modPath)) {
           logger.log(`${mod.name} doesn't exist, downloading from ${installedMods[installedModIndex].type}`);
           await downloadFile(installedMods[installedModIndex].downloadUrl, modPath);
-          // TODO handle the download failing
           return;
         }
 
@@ -55,7 +74,6 @@ export const install = async (options: DefaultOptions, logger: Logger) => {
         if (installedMods[installedModIndex].hash !== installedHash) {
           logger.log(`${mod.name} has hash mismatch, downloading from source`);
           await updateMod(installedMods[installedModIndex], modPath, configuration.modsFolder);
-          // TODO handle the download failing
           return;
         }
         return;
@@ -69,14 +87,13 @@ export const install = async (options: DefaultOptions, logger: Logger) => {
         configuration.loader,
         configuration.allowVersionFallback
       );
-      // TODO Handle the fetch failing
 
       mods[index].name = modData.name;
 
       // no installation exists
       logger.log(`${mod.name} doesn't exist, downloading from ${mod.type}`);
       const dlData = await getMod(modData, configuration.modsFolder);
-      // TODO handle the download failing
+
       installedMods.push({
         name: modData.name,
         type: mod.type,
@@ -87,20 +104,16 @@ export const install = async (options: DefaultOptions, logger: Logger) => {
         downloadUrl: dlData.downloadUrl
       });
       return;
-
-    };
-
-    const promises = mods.map(processMod);
-
-    await Promise.all(promises);
-
-    await writeLockFile(installedMods, options.config);
-    await writeConfigFile(configuration, options.config);
-  } catch (error) {
-    if (error instanceof ConfigFileNotFoundException) {
-      logger.error(ErrorTexts.configNotFound);
+    } catch (error) {
+      handleError(error as Error, mod, logger);
     }
 
-    logger.error((error as Error).message, 2);
-  }
+  };
+
+  const promises = mods.map(processMod);
+
+  await Promise.all(promises);
+
+  await writeLockFile(installedMods, options.config);
+  await writeConfigFile(configuration, options.config);
 };

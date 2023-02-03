@@ -16,7 +16,7 @@ import { getInstallation, hasInstallation } from '../lib/configurationHelper.js'
 export const changeGameVersion = async (gameVersion: string, options: VerifyUpgradeOptions, logger: Logger) => {
   const { version } = await testGameVersion(gameVersion, options, logger);
 
-  const configuration = await ensureConfiguration(options.config, options.quiet);
+  const configuration = await ensureConfiguration(options.config, logger, options.quiet);
   const installations = await readLockFile(options.config);
 
   const installedMods = installations;

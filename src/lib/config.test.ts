@@ -1,4 +1,4 @@
-import { afterEach, describe, expect, it, vi } from 'vitest';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
 import fs from 'node:fs/promises';
 import { chance } from 'jest-chance';
 import {
@@ -18,13 +18,16 @@ import { ConfigFileNotFoundException } from '../errors/ConfigFileNotFoundExcepti
 import { initializeConfig } from '../interactions/initializeConfig.js';
 import * as process from 'process';
 import { shouldCreateConfig } from '../interactions/shouldCreateConfig.js';
+import { Logger } from './Logger.js';
 
 vi.mock('../interactions/shouldCreateConfig.js');
 vi.mock('../interactions/initializeConfig.js');
 vi.mock('node:fs/promises');
 
 describe('The config library', () => {
-  afterEach(() => {
+  let logger: Logger;
+  beforeEach(() => {
+    logger = new Logger({} as never);
     vi.resetAllMocks();
   });
 
@@ -148,10 +151,10 @@ describe('The config library', () => {
     const randomConfig = generateModsJson().generated;
 
     vi.mocked(initializeConfig).mockResolvedValueOnce(randomConfig);
-    const actual = await initializeConfigFile(configName);
+    const actual = await initializeConfigFile(configName, logger);
 
     expect(actual).toEqual(randomConfig);
-    expect(vi.mocked(initializeConfig)).toHaveBeenCalledWith({ config: configName }, process.cwd());
+    expect(vi.mocked(initializeConfig)).toHaveBeenCalledWith({ config: configName }, process.cwd(), logger);
 
   });
 
@@ -166,7 +169,7 @@ describe('The config library', () => {
         vi.mocked(shouldCreateConfig).mockResolvedValueOnce(true);
         vi.mocked(initializeConfig).mockResolvedValueOnce(randomConfig);
 
-        const actual = await ensureConfiguration(configName);
+        const actual = await ensureConfiguration(configName, logger);
 
         expect(actual).toEqual(randomConfig);
         expect(initializeConfig).toHaveBeenCalledOnce();
@@ -179,7 +182,7 @@ describe('The config library', () => {
         vi.mocked(fs.access).mockRejectedValueOnce(new Error());
         vi.mocked(shouldCreateConfig).mockResolvedValueOnce(false);
 
-        await expect(ensureConfiguration(configName)).rejects.toThrow(ConfigFileNotFoundException);
+        await expect(ensureConfiguration(configName, logger)).rejects.toThrow(ConfigFileNotFoundException);
 
         expect(initializeConfig).not.toHaveBeenCalled();
       });
@@ -193,7 +196,7 @@ describe('The config library', () => {
         //File does not exist
         vi.mocked(fs.access).mockRejectedValueOnce(new Error());
 
-        await expect(ensureConfiguration(configName, quiet)).rejects.toThrow(ConfigFileNotFoundException);
+        await expect(ensureConfiguration(configName, logger, quiet)).rejects.toThrow(ConfigFileNotFoundException);
       });
     });
 
@@ -209,7 +212,7 @@ describe('The config library', () => {
       // Return config file contents
       vi.mocked(fs.readFile).mockResolvedValueOnce(fileContents);
 
-      const actualOutput = await ensureConfiguration(configName);
+      const actualOutput = await ensureConfiguration(configName, logger);
 
       expect(actualOutput).toEqual(randomModsJson.expected);
     });

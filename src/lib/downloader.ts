@@ -16,6 +16,5 @@ export const downloadFile = async (url: string, destination: string) => {
     await downloader.download();
   } catch (_) {
     throw new DownloadFailedException(url);
-    // TODO handle failed download
   }
 };

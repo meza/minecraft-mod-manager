@@ -6,7 +6,7 @@ import { generateRandomPlatform } from './generateRandomPlatform.js';
 export const generateModConfig = (overrides?: Partial<Mod>): GeneratorResult<Mod> => {
 
   const type = generateRandomPlatform();
-  const id = chance.word();
+  const id = chance.hash({ length: 25 });
   const allowedReleaseTypes = chance.pickset(['release', 'beta', 'alpha'], chance.integer({ min: 1, max: 3 }));
   const name = chance.word();
 

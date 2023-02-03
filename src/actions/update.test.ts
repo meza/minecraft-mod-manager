@@ -1,4 +1,4 @@
-import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
 import {
   assumeModFileExists,
   assumeModFileIsMissing,
@@ -8,7 +8,7 @@ import {
 } from '../../test/setupHelpers.js';
 import { update } from './update.js';
 import { getHash } from '../lib/hash.js';
-import { readConfigFile, readLockFile, writeConfigFile, writeLockFile } from '../lib/config.js';
+import { ensureConfiguration, readLockFile, writeConfigFile, writeLockFile } from '../lib/config.js';
 import { downloadFile } from '../lib/downloader.js';
 import { fetchModDetails } from '../repositories/index.js';
 import { generateRemoteModDetails } from '../../test/generateRemoteDetails.js';
@@ -32,12 +32,12 @@ vi.mock('../lib/Logger.js');
 describe('The update action', () => {
   let logger: Logger;
   beforeEach(() => {
+    vi.resetAllMocks();
     logger = new Logger({} as never);
     vi.mocked(install).mockResolvedValue();
-  });
-
-  afterEach(() => {
-    vi.resetAllMocks();
+    vi.mocked(logger.error).mockImplementation(() => {
+      throw new Error('process.exit');
+    });
   });
 
   it('does nothing when there are no updates', async () => {
@@ -50,7 +50,7 @@ describe('The update action', () => {
     });
 
     vi.mocked(fetchModDetails).mockResolvedValueOnce(remoteDetails.generated);
-    vi.mocked(readConfigFile).mockResolvedValueOnce(randomConfiguration);
+    vi.mocked(ensureConfiguration).mockResolvedValueOnce(randomConfiguration);
     vi.mocked(readLockFile).mockResolvedValueOnce([randomInstallation]);
 
     assumeModFileExists(randomInstallation.fileName);
@@ -81,7 +81,7 @@ describe('The update action', () => {
     });
 
     vi.mocked(fetchModDetails).mockResolvedValueOnce(remoteDetails.generated);
-    vi.mocked(readConfigFile).mockResolvedValueOnce(randomConfiguration);
+    vi.mocked(ensureConfiguration).mockResolvedValueOnce(randomConfiguration);
     vi.mocked(readLockFile).mockResolvedValueOnce([randomInstallation]);
 
     assumeModFileExists(randomInstallation.fileName);
@@ -118,7 +118,7 @@ describe('The update action', () => {
     });
 
     vi.mocked(fetchModDetails).mockResolvedValueOnce(remoteDetails.generated);
-    vi.mocked(readConfigFile).mockResolvedValueOnce(randomConfiguration);
+    vi.mocked(ensureConfiguration).mockResolvedValueOnce(randomConfiguration);
     vi.mocked(readLockFile).mockResolvedValueOnce([randomInstallation]);
     vi.mocked(updateMod).mockResolvedValueOnce(remoteDetails.generated);
 
@@ -172,7 +172,7 @@ describe('The update action', () => {
     });
 
     vi.mocked(fetchModDetails).mockResolvedValueOnce(remoteDetails.generated);
-    vi.mocked(readConfigFile).mockResolvedValueOnce(randomConfiguration);
+    vi.mocked(ensureConfiguration).mockResolvedValueOnce(randomConfiguration);
     vi.mocked(readLockFile).mockResolvedValueOnce([randomInstallation]);
     vi.mocked(updateMod).mockResolvedValueOnce(remoteDetails.generated);
 
@@ -209,7 +209,7 @@ describe('The update action', () => {
     });
 
     vi.mocked(fetchModDetails).mockResolvedValueOnce(remoteDetails.generated);
-    vi.mocked(readConfigFile).mockResolvedValueOnce(randomConfiguration);
+    vi.mocked(ensureConfiguration).mockResolvedValueOnce(randomConfiguration);
     vi.mocked(readLockFile).mockResolvedValueOnce([randomInstallation]);
 
     assumeModFileExists(randomInstallation.fileName);
@@ -224,22 +224,27 @@ describe('The update action', () => {
   });
 
   it('prints the correct error when an installation is not found', async () => {
-    const { randomConfiguration, randomInstallation, randomInstalledMod } = setupOneInstalledMod();
+    const { randomConfiguration, randomInstallation } = setupOneInstalledMod();
 
+    randomInstallation.name = 'random mod name';
     const remoteDetails = generateRemoteModDetails({
       hash: randomInstallation.hash,
       releaseDate: randomInstallation.releasedOn,
-      name: randomInstalledMod.name!
+      name: randomInstallation.name
     });
 
     vi.mocked(fetchModDetails).mockResolvedValueOnce(remoteDetails.generated);
-    vi.mocked(readConfigFile).mockResolvedValueOnce(randomConfiguration);
+    vi.mocked(ensureConfiguration).mockResolvedValueOnce(randomConfiguration);
     vi.mocked(readLockFile).mockResolvedValueOnce([]);
 
-    await update({ config: 'config.json' }, logger);
+    await expect(update({ config: 'config.json' }, logger)).rejects.toThrow('process.exit');
 
     // Verify our expectations
-    expect(logger.error).toHaveBeenCalledWith(`${randomInstalledMod.name} doesn't seem to be installed, please run mmm install first`);
+    const message = vi.mocked(logger.error).mock.calls[0][0];
+    const errorCode = vi.mocked(logger.error).mock.calls[0][1];
+
+    expect(message).toMatchInlineSnapshot('"random mod name doesn\'t seem to be installed. Please delete the lock file and the mods folder and try again."');
+    expect(errorCode).toEqual(1);
 
   });
 
@@ -253,21 +258,21 @@ describe('The update action', () => {
     });
 
     vi.mocked(fetchModDetails).mockResolvedValueOnce(remoteDetails.generated);
-    vi.mocked(readConfigFile).mockResolvedValueOnce(randomConfiguration);
+    vi.mocked(ensureConfiguration).mockResolvedValueOnce(randomConfiguration);
     vi.mocked(readLockFile).mockResolvedValueOnce([randomInstallation]);
 
     assumeModFileIsMissing(randomInstallation);
     const expectedPath = path.resolve(randomConfiguration.modsFolder, randomInstallation.fileName);
 
-    await update({ config: 'config.json' }, logger);
+    await expect(update({ config: 'config.json' }, logger)).rejects.toThrow('process.exit');
     // Verify our expectations
-    expect(logger.error).toHaveBeenCalledWith(`${randomInstalledMod.name} (${expectedPath}) doesn't exist, please run mmm install`);
+    expect(logger.error).toHaveBeenCalledWith(`${randomInstalledMod.name} (${expectedPath}) doesn't exist. Please delete the lock file and the mods folder and try again.`, 1);
 
   });
 
   it('shows the correct error message when the config file is missing', async () => {
-    vi.mocked(readConfigFile).mockRejectedValueOnce(new ConfigFileNotFoundException('config.json'));
-    await update({ config: 'config.json' }, logger);
+    vi.mocked(ensureConfiguration).mockRejectedValueOnce(new ConfigFileNotFoundException('config.json'));
+    await expect(update({ config: 'config.json' }, logger)).rejects.toThrow('process.exit');
 
     expect(vi.mocked(logger.error)).toHaveBeenCalledWith(ErrorTexts.configNotFound);
 
@@ -275,8 +280,8 @@ describe('The update action', () => {
 
   it('handles unexpected errors', async () => {
     const randomErrorMessage = chance.sentence();
-    vi.mocked(readConfigFile).mockRejectedValueOnce(new Error(randomErrorMessage));
-    await update({ config: 'config.json' }, logger);
+    vi.mocked(ensureConfiguration).mockRejectedValueOnce(new Error(randomErrorMessage));
+    await expect(update({ config: 'config.json' }, logger)).rejects.toThrow('process.exit');
     expect(logger.error).toHaveBeenCalledWith(randomErrorMessage, 2);
   });
 
