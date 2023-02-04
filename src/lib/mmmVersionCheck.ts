@@ -15,6 +15,13 @@ interface GithubRelease {
   versionParts: number[];
 }
 
+export interface UpdateResult {
+  hasUpdate: boolean,
+  latestVersion: string,
+  latestVersionUrl: string,
+  releasedOn: string
+}
+
 const prepareRelease = (release: GithubRelease) => {
   release.numericVersion = release.tag_name.replace('v', '');
   release.versionParts = release.numericVersion.split('.').map((part: string) => parseInt(part, 10));
@@ -43,12 +50,7 @@ const formatDateFromTimeString = (timeString: string) => {
   return date.toString();
 };
 
-export const hasUpdate = async (currentVersion: string, logger: Logger): Promise<{
-  hasUpdate: boolean,
-  latestVersion: string,
-  latestVersionUrl: string,
-  releasedOn: string
-}> => {
+export const hasUpdate = async (currentVersion: string, logger: Logger): Promise<UpdateResult> => {
   let latestVersion: GithubRelease = {
     draft: false,
     // eslint-disable-next-line camelcase

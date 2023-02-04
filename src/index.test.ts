@@ -1,4 +1,4 @@
-import { afterEach, describe, expect, it, vi } from 'vitest';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { logger, program } from './mmm.js';
 import { hasUpdate } from './lib/mmmVersionCheck.js';
 import { chance } from 'jest-chance';
@@ -9,9 +9,10 @@ vi.mock('./version.js', () => ({ version: '0.0.0' }));
 vi.mock('./lib/mmmVersionCheck.js');
 
 describe('The main entry point', () => {
-  afterEach(() => {
+  beforeEach(() => {
     vi.resetModules();
     vi.resetAllMocks();
+    vi.mocked(program.parseAsync).mockResolvedValue({} as never);
   });
   it('calls the main program when there are no updates', async () => {
     vi.mocked(hasUpdate).mockResolvedValueOnce({
@@ -21,7 +22,7 @@ describe('The main entry point', () => {
       releasedOn: ''
     });
     await import('./index.js');
-    expect(vi.mocked(program.parse)).toHaveBeenCalledWith(process.argv);
+    expect(vi.mocked(program.parseAsync)).toHaveBeenCalledWith(process.argv);
   });
 
   it('alerts when there are updates and still calls the main program', async () => {
@@ -39,6 +40,6 @@ describe('The main entry point', () => {
 
     expect(vi.mocked(logger.log)).toHaveBeenCalledWith(`There is a new version of MMM available: ${randomVersion} from ${releasedOn}`);
     expect(vi.mocked(logger.log)).toHaveBeenCalledWith(`You can download it from ${randomUrl}`);
-    expect(vi.mocked(program.parse)).toHaveBeenCalledWith(process.argv);
+    expect(vi.mocked(program.parseAsync)).toHaveBeenCalledWith(process.argv);
   });
 });
