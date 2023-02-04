@@ -1,0 +1,66 @@
+name: Bug Report
+description: File a bug report
+title: ""
+labels: ["bug"]
+assignees:
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for taking the time to fill out this bug report!
+  - type: textarea
+    id: what-happened
+    attributes:
+      label: What happened?
+      description: A clear and concise description of what the bug is.
+      placeholder: Tell us what you see!
+      value: "A bug happened!"
+    validations:
+      required: true
+  - type: input
+    id: version
+    attributes:
+      label: Which command did you run?
+      placeholder: mmm list
+      validations:
+        required: true
+  - type: dropdown
+    id: os
+    attributes:
+      label: Operating System
+      description: Which operating system are you using?
+      options:
+        - Windows
+        - Linux
+        - MacOS
+    validations:
+      required: true
+  - type: input
+    id: version
+    attributes:
+      label: What version of MMM are you running?
+      placeholder: Run mmm version to get the version number
+      validations:
+        required: true
+  - type: textarea
+    id: config
+    attributes:
+      label: Contents of the modlist.json
+      description: Please copy and paste your modlist.json. This will be automatically formatted into code, so no need for backticks.
+      render: json
+  - type: textarea
+    id: lock
+    attributes:
+      label: Contents of the modlist-lock.json
+      description: Please copy and paste your modlist-lock.json. This will be automatically formatted into code, so no need for backticks.
+      render: json
+  - type: checkboxes
+    id: updated
+    attributes:
+      label: Updated
+      description: You should always make sure to update to the latest version of MMM from [the releases page](https://github.com/meza/minecraft-mod-manager/releases)
+      options:
+        - label: I swear I have tried it with the latest version!
+          required: true
+
+
