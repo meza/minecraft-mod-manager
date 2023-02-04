@@ -2,10 +2,13 @@ import { DefaultOptions } from '../mmm.js';
 import { Logger } from '../lib/Logger.js';
 import { ensureConfiguration, readLockFile, writeConfigFile, writeLockFile } from '../lib/config.js';
 import { PlatformLookupResult } from '../repositories/index.js';
-import { Mod, ModInstall, Platform, RemoteModDetails } from '../lib/modlist.types.js';
+import { Mod, ModInstall, ModsJson, Platform, RemoteModDetails } from '../lib/modlist.types.js';
 import { scan as scanLib } from '../lib/scan.js';
 import chalk from 'chalk';
 import { shouldAddScanResults } from '../interactions/shouldAddScanResults.js';
+import { getModFiles } from '../lib/fileHelper.js';
+import { fileIsManaged, getModsDir } from '../lib/configurationHelper.js';
+import path from 'path';
 
 export interface ScanOptions extends DefaultOptions {
   prefer: Platform;
@@ -22,6 +25,38 @@ interface FoundEntries {
   install: ModInstall;
 }
 
+const processForeignFiles = async (options: ScanOptions, configuration: ModsJson, installations: ModInstall[], scanResults: ScanResults[], hasResults: boolean, logger: Logger) => {
+  const modsFolder = getModsDir(options.config, configuration.modsFolder);
+  const allFiles = await getModFiles(options.config, configuration.modsFolder);
+  const nonManagedFiles = allFiles.filter((filePath) => {
+    return !fileIsManaged(filePath, installations);
+  });
+
+  const nonMatchedFiles = nonManagedFiles.filter((filePath) => {
+    const foundIndex = scanResults.findIndex((scanResult) => {
+      return path.resolve(modsFolder, scanResult.localDetails.mod.fileName) === filePath;
+    });
+    return foundIndex < 0;
+  });
+  const hasForeignFiles = (nonMatchedFiles.length > 0);
+
+  if ((!hasResults) && (!hasForeignFiles)) {
+    logger.log(`${chalk.green('\u2705')} All of your mods are managed by mmm.`);
+    return;
+  }
+
+  if (!hasResults) {
+    logger.log(`${chalk.green('\u2705')} Every mod that can be matched are managed by mmm.`);
+  }
+
+  if (hasForeignFiles) {
+    logger.log('\nThe following files cannot be matched to any mod on any of the platforms:\n');
+    nonMatchedFiles.forEach((file) => {
+      logger.log(`  ${chalk.red('\u274c')} ${file}`);
+    });
+  }
+};
+
 export const scan = async (options: ScanOptions, logger: Logger) => {
   const configuration = await ensureConfiguration(options.config, logger);
   const installations = await readLockFile(options.config);
@@ -33,11 +68,7 @@ export const scan = async (options: ScanOptions, logger: Logger) => {
     logger.error((error as Error).message, 2);
   }
 
-  if (scanResults.length === 0) {
-    logger.log('You have no unmanaged mods in your mods folder.');
-    return;
-  }
-
+  const hasResults = (scanResults.length > 0);
   const found: FoundEntries[] = [];
 
   scanResults.forEach((hit) => {
@@ -63,7 +94,7 @@ export const scan = async (options: ScanOptions, logger: Logger) => {
       });
   });
 
-  if (await shouldAddScanResults(options, logger)) {
+  if (hasResults && await shouldAddScanResults(options, logger)) {
 
     found.forEach(({ mod, install }) => {
       configuration.mods.push(mod);
@@ -73,6 +104,8 @@ export const scan = async (options: ScanOptions, logger: Logger) => {
     await writeConfigFile(configuration, options.config);
     await writeLockFile(installations, options.config);
   }
+
+  await processForeignFiles(options, configuration, installations, scanResults, hasResults, logger);
 
   // scan during init
   // deduce loader from the mods

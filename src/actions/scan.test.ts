@@ -10,6 +10,7 @@ import { generateScanResult, ScanResultGeneratorOverrides } from '../../test/gen
 import { shouldAddScanResults } from '../interactions/shouldAddScanResults.js';
 import { generateModConfig } from '../../test/modConfigGenerator.js';
 import { generateModInstall } from '../../test/modInstallGenerator.js';
+import { getModFiles } from '../lib/fileHelper.js';
 
 interface LocalTestContext {
   logger: Logger;
@@ -22,6 +23,7 @@ vi.mock('../lib/Logger.js');
 vi.mock('../lib/scan.js');
 vi.mock('../lib/config');
 vi.mock('../interactions/shouldAddScanResults.js');
+vi.mock('../lib/fileHelper.js');
 
 const randomModDetails = (): ScanResultGeneratorOverrides => {
   return {
@@ -51,6 +53,7 @@ describe('The Scan action', () => {
     vi.mocked(context.logger.error).mockImplementation(() => {
       throw new Error('process.exit');
     });
+    vi.mocked(getModFiles).mockResolvedValueOnce([]);
   });
   describe('when there are unexpected errors', () => {
     it<LocalTestContext>('logs them correctly', async ({ options, logger }) => {
@@ -69,7 +72,7 @@ describe('The Scan action', () => {
     options.quiet = false;
     await scan(options, logger);
 
-    expect(vi.mocked(logger.log).mock.calls[0][0]).toMatchInlineSnapshot('"You have no unmanaged mods in your mods folder."');
+    expect(vi.mocked(logger.log).mock.calls[0][0]).toMatchInlineSnapshot('"✅ All of your mods are managed by mmm."');
 
     expect(vi.mocked(writeConfigFile)).not.toHaveBeenCalled();
     expect(vi.mocked(writeLockFile)).not.toHaveBeenCalled();
@@ -196,4 +199,61 @@ describe('The Scan action', () => {
     });
 
   });
+
+  describe('when there are unrecognizable files in the mods folder', () => {
+    beforeEach(() => {
+      vi.mocked(getModFiles).mockReset();
+    });
+    it<LocalTestContext>('logs things correctly no scan results but foreign files', async ({ options, logger }) => {
+      const randomModName = chance.word();
+      vi.mocked(scanLib).mockResolvedValueOnce([]);
+      vi.mocked(getModFiles).mockResolvedValueOnce([
+        'first-bad-mod-x',
+        'second-bad-mod-y',
+        randomModName
+      ]);
+
+      await scan(options, logger);
+      const logCalls = vi.mocked(logger.log).mock.calls;
+
+      expect(logCalls[0][0]).toMatchInlineSnapshot('"✅ Every mod that can be matched are managed by mmm."');
+      expect(logCalls[1][0]).toMatchInlineSnapshot(`
+        "
+        The following files cannot be matched to any mod on any of the platforms:
+        "
+      `);
+      expect(logCalls[2][0]).toMatchInlineSnapshot('"  ❌ first-bad-mod-x"');
+      expect(logCalls[3][0]).toMatchInlineSnapshot('"  ❌ second-bad-mod-y"');
+      expect(logCalls[4][0]).toContain(randomModName);
+
+    });
+
+    it<LocalTestContext>('logs things correctly with scan results and foreign files', async ({ options, logger }) => {
+      const randomModName = chance.word();
+      vi.mocked(scanLib).mockResolvedValueOnce([generateScanResult(
+        { name: 'hi there' }
+      ).generated]);
+      vi.mocked(shouldAddScanResults).mockResolvedValueOnce(false);
+      vi.mocked(getModFiles).mockResolvedValueOnce([
+        'first-bad-mod',
+        'second-bad-mod',
+        randomModName
+      ]);
+
+      await scan(options, logger);
+      const logCalls = vi.mocked(logger.log).mock.calls;
+
+      expect(logCalls[0][0]).toMatchInlineSnapshot('"✅Found unmanaged mod: hi there"');
+      expect(logCalls[1][0]).toMatchInlineSnapshot(`
+        "
+        The following files cannot be matched to any mod on any of the platforms:
+        "
+      `);
+      expect(logCalls[2][0]).toMatchInlineSnapshot('"  ❌ first-bad-mod"');
+      expect(logCalls[3][0]).toMatchInlineSnapshot('"  ❌ second-bad-mod"');
+      expect(logCalls[4][0]).toContain(randomModName);
+
+    });
+  });
+
 });
