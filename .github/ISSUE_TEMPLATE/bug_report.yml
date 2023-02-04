@@ -20,8 +20,8 @@ body:
     attributes:
       label: Which command did you run?
       placeholder: mmm list
-      validations:
-        required: true
+    validations:
+      required: true
   - type: dropdown
     id: os
     attributes:
@@ -38,8 +38,8 @@ body:
     attributes:
       label: What version of MMM are you running?
       placeholder: Run mmm version to get the version number
-      validations:
-        required: true
+    validations:
+      required: true
   - type: textarea
     id: config
     attributes:
