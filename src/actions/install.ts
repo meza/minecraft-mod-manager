@@ -14,10 +14,7 @@ import { DefaultOptions } from '../mmm.js';
 import { updateMod } from '../lib/updater.js';
 import { Logger } from '../lib/Logger.js';
 import { getInstallation, hasInstallation } from '../lib/configurationHelper.js';
-import { DownloadFailedException } from '../errors/DownloadFailedException.js';
-import { CouldNotFindModException } from '../errors/CouldNotFindModException.js';
-import { NoRemoteFileFound } from '../errors/NoRemoteFileFound.js';
-import chalk from 'chalk';
+import { handleFetchErrors } from '../errors/handleFetchErrors.js';
 
 const getMod = async (moddata: RemoteModDetails, modsFolder: string) => {
   await downloadFile(moddata.downloadUrl, path.resolve(modsFolder, moddata.fileName));
@@ -27,24 +24,6 @@ const getMod = async (moddata: RemoteModDetails, modsFolder: string) => {
     hash: moddata.hash,
     downloadUrl: moddata.downloadUrl
   };
-};
-
-const handleError = (error: Error, mod: Mod, logger: Logger) => {
-  if (error instanceof CouldNotFindModException) {
-    logger.log(`${chalk.red('\u274c')} ${mod.name}${chalk.gray('(' + mod.id + ')')} cannot be found on ${mod.type} anymore. Was the mod revoked?`, true);
-    return;
-  }
-
-  if (error instanceof NoRemoteFileFound) {
-    logger.log(`${chalk.red('\u274c')} ${mod.type} doesn't serve the required file for ${mod.name}${chalk.gray('(' + mod.id + ')')} anymore. Please update it.`, true);
-    return;
-  }
-
-  if (error instanceof DownloadFailedException) {
-    logger.error(error.message, 1);
-  }
-
-  throw error;
 };
 
 export const install = async (options: DefaultOptions, logger: Logger) => {
@@ -105,7 +84,7 @@ export const install = async (options: DefaultOptions, logger: Logger) => {
       });
       return;
     } catch (error) {
-      handleError(error as Error, mod, logger);
+      handleFetchErrors(error as Error, mod, logger);
     }
 
   };

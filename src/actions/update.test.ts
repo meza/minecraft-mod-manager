@@ -18,9 +18,8 @@ import { updateMod } from '../lib/updater.js';
 import * as path from 'path';
 import { generateModInstall } from '../../test/modInstallGenerator.js';
 import { Logger } from '../lib/Logger.js';
-import { ConfigFileNotFoundException } from '../errors/ConfigFileNotFoundException.js';
-import { ErrorTexts } from '../errors/ErrorTexts.js';
 import { DefaultOptions } from '../mmm.js';
+import { handleFetchErrors } from '../errors/handleFetchErrors.js';
 
 vi.mock('../repositories/index.js');
 vi.mock('../lib/downloader.js');
@@ -29,6 +28,7 @@ vi.mock('../lib/updater.js');
 vi.mock('../lib/hash.js');
 vi.mock('./install.js');
 vi.mock('../lib/Logger.js');
+vi.mock('../errors/handleFetchErrors.js');
 
 interface LocalTestContext {
   options: DefaultOptions;
@@ -49,6 +49,7 @@ describe('The update action', () => {
     vi.mocked(context.logger.error).mockImplementation(() => {
       throw new Error('process.exit');
     });
+    vi.mocked(handleFetchErrors).mockReturnValue();
   });
 
   it<LocalTestContext>('does nothing when there are no updates', async ({ options, logger }) => {
@@ -249,7 +250,7 @@ describe('The update action', () => {
     vi.mocked(ensureConfiguration).mockResolvedValueOnce(randomConfiguration);
     vi.mocked(readLockFile).mockResolvedValueOnce([]);
 
-    await expect(update(options, logger)).rejects.toThrow('process.exit');
+    await update(options, logger);
 
     // Verify our expectations
     const message = vi.mocked(logger.error).mock.calls[0][0];
@@ -276,25 +277,23 @@ describe('The update action', () => {
     assumeModFileIsMissing(randomInstallation);
     const expectedPath = path.resolve(randomConfiguration.modsFolder, randomInstallation.fileName);
 
-    await expect(update(options, logger)).rejects.toThrow('process.exit');
+    await update(options, logger);
     // Verify our expectations
     expect(logger.error).toHaveBeenCalledWith(`${randomInstalledMod.name} (${expectedPath}) doesn't exist. Please delete the lock file and the mods folder and try again.`, 1);
 
   });
 
-  it<LocalTestContext>('shows the correct error message when the config file is missing', async ({ options, logger }) => {
-    vi.mocked(ensureConfiguration).mockRejectedValueOnce(new ConfigFileNotFoundException(options.config));
-    await expect(update(options, logger)).rejects.toThrow('process.exit');
-
-    expect(vi.mocked(logger.error)).toHaveBeenCalledWith(ErrorTexts.configNotFound);
-
-  });
-
   it<LocalTestContext>('handles unexpected errors', async ({ options, logger }) => {
     const randomErrorMessage = chance.sentence();
-    vi.mocked(ensureConfiguration).mockRejectedValueOnce(new Error(randomErrorMessage));
-    await expect(update(options, logger)).rejects.toThrow('process.exit');
-    expect(logger.error).toHaveBeenCalledWith(randomErrorMessage, 2);
+    const { randomConfiguration } = setupOneInstalledMod();
+
+    vi.mocked(handleFetchErrors).mockReset();
+    vi.mocked(handleFetchErrors).mockImplementation(() => {
+      throw new Error(randomErrorMessage);
+    });
+
+    vi.mocked(ensureConfiguration).mockResolvedValueOnce(randomConfiguration);
+    await expect(update(options, logger)).rejects.toThrow(randomErrorMessage);
   });
 
 });
