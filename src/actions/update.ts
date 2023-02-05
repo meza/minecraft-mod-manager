@@ -13,21 +13,21 @@ import { updateMod } from '../lib/updater.js';
 import { fetchModDetails } from '../repositories/index.js';
 import { install } from './install.js';
 import { Logger } from '../lib/Logger.js';
-import { ConfigFileNotFoundException } from '../errors/ConfigFileNotFoundException.js';
-import { ErrorTexts } from '../errors/ErrorTexts.js';
+
 import { getInstallation, hasInstallation } from '../lib/configurationHelper.js';
+import { handleFetchErrors } from '../errors/handleFetchErrors.js';
 
 export const update = async (options: DefaultOptions, logger: Logger) => {
   await install(options, logger);
-  try {
-    const configuration = await ensureConfiguration(options.config, logger);
-    const installations = await readLockFile(options, logger);
 
-    const installedMods = installations;
-    const mods = configuration.mods;
+  const configuration = await ensureConfiguration(options.config, logger);
+  const installations = await readLockFile(options, logger);
 
-    const processMod = async (mod: Mod, index: number) => {
+  const installedMods = installations;
+  const mods = configuration.mods;
 
+  const processMod = async (mod: Mod, index: number) => {
+    try {
       logger.debug(`[update] Checking ${mod.name} for ${mod.type}`);
 
       const modData = await fetchModDetails(
@@ -38,7 +38,6 @@ export const update = async (options: DefaultOptions, logger: Logger) => {
         configuration.loader,
         configuration.allowVersionFallback
       );
-      // TODO Handle the fetch failing
       mods[index].name = modData.name;
 
       if (!hasInstallation(mod, installations)) {
@@ -56,7 +55,6 @@ export const update = async (options: DefaultOptions, logger: Logger) => {
       if (modData.hash !== installedHash || modData.releaseDate > installedMods[installedModIndex].releasedOn) {
         logger.log(`${mod.name} has an update, downloading...`);
         await updateMod(modData, oldModPath, configuration.modsFolder);
-        // TODO handle the download failing
 
         installedMods[installedModIndex].hash = modData.hash;
         installedMods[installedModIndex].downloadUrl = modData.downloadUrl;
@@ -66,19 +64,15 @@ export const update = async (options: DefaultOptions, logger: Logger) => {
         return;
       }
       return;
-    };
-
-    const promises = mods.map(processMod);
-
-    await Promise.all(promises);
-
-    await writeLockFile(installedMods, options, logger);
-    await writeConfigFile(configuration, options, logger);
-  } catch (error) {
-    if (error instanceof ConfigFileNotFoundException) {
-      logger.error(ErrorTexts.configNotFound);
+    } catch (error) {
+      handleFetchErrors(error as Error, mod, logger);
     }
+  };
 
-    logger.error((error as Error).message, 2);
-  }
+  const promises = mods.map(processMod);
+
+  await Promise.all(promises);
+
+  await writeLockFile(installedMods, options, logger);
+  await writeConfigFile(configuration, options, logger);
 };

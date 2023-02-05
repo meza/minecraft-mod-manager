@@ -6,6 +6,7 @@ import { generateRemoteModDetails } from '../../test/generateRemoteDetails.js';
 import { downloadFile } from '../lib/downloader.js';
 import { updateMod } from '../lib/updater.js';
 import { getHash } from '../lib/hash.js';
+import { handleFetchErrors } from '../errors/handleFetchErrors.js';
 import {
   assumeModFileExists,
   assumeModFileIsMissing,
@@ -32,6 +33,7 @@ vi.mock('inquirer');
 vi.mock('../lib/config.js');
 vi.mock('../lib/updater.js');
 vi.mock('../lib/hash.js');
+vi.mock('../errors/handleFetchErrors.js');
 
 interface LocalTestContext {
   options: DefaultOptions;
@@ -51,6 +53,7 @@ describe('The install module', () => {
     vi.mocked(context.logger.error).mockImplementation(() => {
       throw new Error('process.exit');
     });
+    vi.mocked(handleFetchErrors).mockReturnValue();
   });
 
   it<LocalTestContext>('installs a new mod with no release type override', async ({ options, logger }) => {
@@ -236,9 +239,9 @@ describe('The install module', () => {
   });
 
   describe('when fetching a missing mod file fails', () => {
-    it<LocalTestContext>('reports the correct error', async ({ options, logger }) => {
+    it<LocalTestContext>('passes the correct error', async ({ options, logger }) => {
       const url = chance.url({ protocol: 'https' });
-      const { randomConfiguration, randomInstallation } = setupOneInstalledMod();
+      const { randomConfiguration, randomInstallation, randomInstalledMod } = setupOneInstalledMod();
 
       // Prepare the configuration file state
       vi.mocked(ensureConfiguration).mockResolvedValueOnce(randomConfiguration);
@@ -247,19 +250,18 @@ describe('The install module', () => {
       ]);
       // Prepare the file existence mock
       assumeModFileIsMissing(randomInstallation);
-      vi.mocked(downloadFile).mockRejectedValueOnce(new DownloadFailedException(url));
+      const error = new DownloadFailedException(url);
+      vi.mocked(downloadFile).mockRejectedValueOnce(error);
 
-      await expect(install(options, logger)).rejects.toThrow('process.exit');
-      const message = vi.mocked(logger.error).mock.calls[0][0];
-
-      expect(message).toContain(url);
+      await install(options, logger);
+      expect(handleFetchErrors).toHaveBeenCalledWith(error, randomInstalledMod, logger);
     });
   });
 
   describe('when the download fails during an update', () => {
     it<LocalTestContext>('shows the correct message', async ({ options, logger }) => {
       const url = chance.url({ protocol: 'https' });
-      const { randomConfiguration, randomInstallation } = setupOneInstalledMod();
+      const { randomConfiguration, randomInstallation, randomInstalledMod } = setupOneInstalledMod();
 
       // Prepare the configuration file state
       vi.mocked(ensureConfiguration).mockResolvedValueOnce(randomConfiguration);
@@ -271,20 +273,19 @@ describe('The install module', () => {
       assumeModFileExists(randomInstallation.fileName);
 
       vi.mocked(getHash).mockResolvedValueOnce('different-hash');
+      const error = new DownloadFailedException(url);
+      vi.mocked(updateMod).mockRejectedValueOnce(error);
 
-      vi.mocked(updateMod).mockRejectedValueOnce(new DownloadFailedException(url));
+      await install(options, logger);
 
-      await expect(install(options, logger)).rejects.toThrow('process.exit');
-      const message = vi.mocked(logger.error).mock.calls[0][0];
-
-      expect(message).toContain(url);
+      expect(handleFetchErrors).toHaveBeenCalledWith(error, randomInstalledMod, logger);
     });
   });
 
   describe('when fetching a missing installation fails', () => {
     it<LocalTestContext>('reports the correct error', async ({ options, logger }) => {
       const url = chance.url({ protocol: 'https' });
-      const { randomConfiguration } = setupOneUninstalledMod();
+      const { randomConfiguration, randomUninstalledMod } = setupOneUninstalledMod();
 
       // Prepare the configuration file state
       vi.mocked(ensureConfiguration).mockResolvedValueOnce(randomConfiguration);
@@ -294,12 +295,11 @@ describe('The install module', () => {
       const remoteDetails = generateRemoteModDetails().generated;
 
       vi.mocked(fetchModDetails).mockResolvedValueOnce(remoteDetails);
-      vi.mocked(downloadFile).mockRejectedValueOnce(new DownloadFailedException(url));
+      const error = new DownloadFailedException(url);
+      vi.mocked(downloadFile).mockRejectedValueOnce(error);
 
-      await expect(install(options, logger)).rejects.toThrow('process.exit');
-      const message = vi.mocked(logger.error).mock.calls[0][0];
-
-      expect(message).toContain(url);
+      await (install(options, logger));
+      expect(handleFetchErrors).toHaveBeenCalledWith(error, randomUninstalledMod, logger);
 
     });
   });
@@ -307,7 +307,7 @@ describe('The install module', () => {
   describe('when a mod cannot be found', () => {
     it<LocalTestContext>('reports the correct message', async ({ options, logger }) => {
       const aModName = 'a mod name';
-      const { randomConfiguration } = setupOneInstalledMod();
+      const { randomConfiguration, randomInstalledMod } = setupOneInstalledMod();
 
       randomConfiguration.mods[0].id = 'id';
       randomConfiguration.mods[0].name = aModName;
@@ -317,19 +317,19 @@ describe('The install module', () => {
       vi.mocked(ensureConfiguration).mockResolvedValueOnce(randomConfiguration);
       vi.mocked(readLockFile).mockResolvedValueOnce(emptyLockFile);
 
-      vi.mocked(fetchModDetails).mockRejectedValueOnce(new CouldNotFindModException('id', Platform.MODRINTH));
+      const error = new CouldNotFindModException('id', Platform.MODRINTH);
+      vi.mocked(fetchModDetails).mockRejectedValueOnce(error);
 
       await install(options, logger);
-      const message = vi.mocked(logger.log).mock.calls[0][0];
 
-      expect(message).toMatchInlineSnapshot('"❌ a mod name(id) cannot be found on modrinth anymore. Was the mod revoked?"');
+      expect(handleFetchErrors).toHaveBeenCalledWith(error, randomInstalledMod, logger);
     });
   });
 
   describe('when a remote file is not found', () => {
     it<LocalTestContext>('reports the correct message', async ({ options, logger }) => {
       const aModName = 'another mod name';
-      const { randomConfiguration } = setupOneInstalledMod();
+      const { randomConfiguration, randomInstalledMod } = setupOneInstalledMod();
 
       randomConfiguration.mods[0].id = 'id2';
       randomConfiguration.mods[0].name = aModName;
@@ -338,19 +338,23 @@ describe('The install module', () => {
       // Prepare the configuration file state
       vi.mocked(ensureConfiguration).mockResolvedValueOnce(randomConfiguration);
       vi.mocked(readLockFile).mockResolvedValueOnce(emptyLockFile);
-
-      vi.mocked(fetchModDetails).mockRejectedValueOnce(new NoRemoteFileFound(aModName, Platform.CURSEFORGE));
+      const error = new NoRemoteFileFound(aModName, Platform.CURSEFORGE);
+      vi.mocked(fetchModDetails).mockRejectedValueOnce(error);
 
       await install(options, logger);
-      const message = vi.mocked(logger.log).mock.calls[0][0];
 
-      expect(message).toMatchInlineSnapshot('"❌ curseforge doesn\'t serve the required file for another mod name(id2) anymore. Please update it."');
+      expect(handleFetchErrors).toHaveBeenCalledWith(error, randomInstalledMod, logger);
     });
   });
 
   describe('when an unexpected error occurs', () => {
     it<LocalTestContext>('throws it on', async ({ options, logger }) => {
       const error = chance.word();
+      vi.mocked(handleFetchErrors).mockReset();
+      vi.mocked(handleFetchErrors).mockImplementation(() => {
+        throw new Error(error);
+      });
+
       const { randomConfiguration } = setupOneInstalledMod();
 
       // Prepare the configuration file state
