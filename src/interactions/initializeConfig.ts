@@ -49,7 +49,7 @@ const validateModsFolder = async (input: string, cwd: string) => {
 
 const validateInput = async (options: InitializeOptions, cwd: string) => {
   /**
-   * @TODO Handle cli option validation better for the init function
+   * @todo Handle cli option validation better for the init function
    *
    * Currently the negative case is just throwing errors. It would be nice
    * to properly communicate the errors and offer solutions.
