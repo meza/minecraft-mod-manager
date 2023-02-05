@@ -13,7 +13,7 @@ export interface PruneOptions extends DefaultOptions {
 
 export const prune = async (options: PruneOptions, logger: Logger) => {
   const configuration = await ensureConfiguration(options.config, logger);
-  const installations = await readLockFile(options.config);
+  const installations = await readLockFile(options, logger);
   const modsFolder = path.resolve(configuration.modsFolder);
 
   const files = await getModFiles(options.config, configuration.modsFolder);

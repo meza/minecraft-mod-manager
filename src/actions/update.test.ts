@@ -20,6 +20,7 @@ import { generateModInstall } from '../../test/modInstallGenerator.js';
 import { Logger } from '../lib/Logger.js';
 import { ConfigFileNotFoundException } from '../errors/ConfigFileNotFoundException.js';
 import { ErrorTexts } from '../errors/ErrorTexts.js';
+import { DefaultOptions } from '../mmm.js';
 
 vi.mock('../repositories/index.js');
 vi.mock('../lib/downloader.js');
@@ -29,18 +30,28 @@ vi.mock('../lib/hash.js');
 vi.mock('./install.js');
 vi.mock('../lib/Logger.js');
 
+interface LocalTestContext {
+  options: DefaultOptions;
+  logger: Logger;
+}
+
 describe('The update action', () => {
-  let logger: Logger;
-  beforeEach(() => {
+
+  beforeEach<LocalTestContext>((context) => {
     vi.resetAllMocks();
-    logger = new Logger({} as never);
+    context.logger = new Logger({} as never);
+    context.options = {
+      config: 'config.json',
+      debug: false,
+      quiet: false
+    };
     vi.mocked(install).mockResolvedValue();
-    vi.mocked(logger.error).mockImplementation(() => {
+    vi.mocked(context.logger.error).mockImplementation(() => {
       throw new Error('process.exit');
     });
   });
 
-  it('does nothing when there are no updates', async () => {
+  it<LocalTestContext>('does nothing when there are no updates', async ({ options, logger }) => {
     const { randomConfiguration, randomInstallation, randomInstalledMod } = setupOneInstalledMod();
     delete randomInstalledMod.allowedReleaseTypes;
 
@@ -57,13 +68,13 @@ describe('The update action', () => {
 
     vi.mocked(getHash).mockResolvedValueOnce(randomInstallation.hash);
 
-    await update({ config: 'config.json' }, logger);
+    await update(options, logger);
 
     // Verify our expectations
     expect(logger.log).not.toHaveBeenCalled();
 
-    expect(vi.mocked(writeConfigFile)).toHaveBeenCalledWith(randomConfiguration, 'config.json');
-    expect(vi.mocked(writeLockFile)).toHaveBeenCalledWith([randomInstallation], 'config.json');
+    expect(vi.mocked(writeConfigFile)).toHaveBeenCalledWith(randomConfiguration, options, logger);
+    expect(vi.mocked(writeLockFile)).toHaveBeenCalledWith([randomInstallation], options, logger);
 
     expect(vi.mocked(downloadFile)).not.toHaveBeenCalled();
     expect(vi.mocked(fetchModDetails)).toHaveBeenCalledOnce();
@@ -72,7 +83,7 @@ describe('The update action', () => {
     verifyBasics();
   });
 
-  it('can use the release type override', async () => {
+  it<LocalTestContext>('can use the release type override', async ({ options, logger }) => {
     const { randomConfiguration, randomInstallation, randomInstalledMod } = setupOneInstalledMod();
 
     const remoteDetails = generateRemoteModDetails({
@@ -88,13 +99,13 @@ describe('The update action', () => {
 
     vi.mocked(getHash).mockResolvedValueOnce(randomInstallation.hash);
 
-    await update({ config: 'config.json' }, logger);
+    await update(options, logger);
 
     expectModDetailsHaveBeenFetchedCorrectlyForMod(randomInstalledMod, randomConfiguration);
 
   });
 
-  it('can update based on hashes', async () => {
+  it<LocalTestContext>('can update based on hashes', async ({ options, logger }) => {
     const { randomConfiguration, randomInstallation, randomInstalledMod } = setupOneInstalledMod();
     const oldFilename = randomInstallation.fileName;
     const newFilename = chance.word();
@@ -126,7 +137,7 @@ describe('The update action', () => {
 
     vi.mocked(getHash).mockResolvedValueOnce(randomInstallation.hash);
 
-    await update({ config: 'config.json' }, logger);
+    await update(options, logger);
 
     // Verify our expectations
     expect(logger.log).toHaveBeenCalledWith(`${remoteDetails.generated.name} has an update, downloading...`);
@@ -136,8 +147,8 @@ describe('The update action', () => {
       randomConfiguration.modsFolder
     );
 
-    expect(vi.mocked(writeConfigFile)).toHaveBeenCalledWith(randomConfiguration, 'config.json');
-    expect(vi.mocked(writeLockFile)).toHaveBeenCalledWith([newInstallation], 'config.json');
+    expect(vi.mocked(writeConfigFile)).toHaveBeenCalledWith(randomConfiguration, options, logger);
+    expect(vi.mocked(writeLockFile)).toHaveBeenCalledWith([newInstallation], options, logger);
 
     expect(vi.mocked(downloadFile)).not.toHaveBeenCalled();
     expect(vi.mocked(fetchModDetails)).toHaveBeenCalledOnce();
@@ -145,7 +156,7 @@ describe('The update action', () => {
     verifyBasics();
   });
 
-  it('can update based on release date only', async () => {
+  it<LocalTestContext>('can update based on release date only', async ({ options, logger }) => {
     const { randomConfiguration, randomInstallation, randomInstalledMod } = setupOneInstalledMod();
     const oldFilename = randomInstallation.fileName;
     const newFilename = chance.word();
@@ -180,7 +191,7 @@ describe('The update action', () => {
 
     vi.mocked(getHash).mockResolvedValueOnce(randomInstallation.hash);
 
-    await update({ config: 'config.json' }, logger);
+    await update(options, logger);
 
     // Verify our expectations
     expect(logger.log).toHaveBeenCalledWith(`${remoteDetails.generated.name} has an update, downloading...`);
@@ -190,8 +201,8 @@ describe('The update action', () => {
       randomConfiguration.modsFolder
     );
 
-    expect(vi.mocked(writeConfigFile)).toHaveBeenCalledWith(randomConfiguration, 'config.json');
-    expect(vi.mocked(writeLockFile)).toHaveBeenCalledWith([newInstallation], 'config.json');
+    expect(vi.mocked(writeConfigFile)).toHaveBeenCalledWith(randomConfiguration, options, logger);
+    expect(vi.mocked(writeLockFile)).toHaveBeenCalledWith([newInstallation], options, logger);
 
     expect(vi.mocked(downloadFile)).not.toHaveBeenCalled();
     expect(vi.mocked(fetchModDetails)).toHaveBeenCalledOnce();
@@ -199,7 +210,7 @@ describe('The update action', () => {
     verifyBasics();
   });
 
-  it('logs the update checks for debug mode', async () => {
+  it<LocalTestContext>('logs the update checks for debug mode', async ({ options, logger }) => {
     const { randomConfiguration, randomInstallation, randomInstalledMod } = setupOneInstalledMod();
 
     const remoteDetails = generateRemoteModDetails({
@@ -216,14 +227,15 @@ describe('The update action', () => {
 
     vi.mocked(getHash).mockResolvedValueOnce(randomInstallation.hash);
 
-    await update({ config: 'config.json', debug: chance.bool() }, logger);
+    options.debug = chance.bool();
+    await update(options, logger);
 
     // Verify our expectations
     expect(logger.debug).toHaveBeenCalledWith(`[update] Checking ${randomInstalledMod.name} for ${randomInstalledMod.type}`);
 
   });
 
-  it('prints the correct error when an installation is not found', async () => {
+  it<LocalTestContext>('prints the correct error when an installation is not found', async ({ options, logger }) => {
     const { randomConfiguration, randomInstallation } = setupOneInstalledMod();
 
     randomInstallation.name = 'random mod name';
@@ -237,7 +249,7 @@ describe('The update action', () => {
     vi.mocked(ensureConfiguration).mockResolvedValueOnce(randomConfiguration);
     vi.mocked(readLockFile).mockResolvedValueOnce([]);
 
-    await expect(update({ config: 'config.json' }, logger)).rejects.toThrow('process.exit');
+    await expect(update(options, logger)).rejects.toThrow('process.exit');
 
     // Verify our expectations
     const message = vi.mocked(logger.error).mock.calls[0][0];
@@ -248,7 +260,7 @@ describe('The update action', () => {
 
   });
 
-  it('prints the correct error when the original mod file does not exist', async () => {
+  it<LocalTestContext>('prints the correct error when the original mod file does not exist', async ({ options, logger }) => {
     const { randomConfiguration, randomInstallation, randomInstalledMod } = setupOneInstalledMod();
 
     const remoteDetails = generateRemoteModDetails({
@@ -264,24 +276,24 @@ describe('The update action', () => {
     assumeModFileIsMissing(randomInstallation);
     const expectedPath = path.resolve(randomConfiguration.modsFolder, randomInstallation.fileName);
 
-    await expect(update({ config: 'config.json' }, logger)).rejects.toThrow('process.exit');
+    await expect(update(options, logger)).rejects.toThrow('process.exit');
     // Verify our expectations
     expect(logger.error).toHaveBeenCalledWith(`${randomInstalledMod.name} (${expectedPath}) doesn't exist. Please delete the lock file and the mods folder and try again.`, 1);
 
   });
 
-  it('shows the correct error message when the config file is missing', async () => {
-    vi.mocked(ensureConfiguration).mockRejectedValueOnce(new ConfigFileNotFoundException('config.json'));
-    await expect(update({ config: 'config.json' }, logger)).rejects.toThrow('process.exit');
+  it<LocalTestContext>('shows the correct error message when the config file is missing', async ({ options, logger }) => {
+    vi.mocked(ensureConfiguration).mockRejectedValueOnce(new ConfigFileNotFoundException(options.config));
+    await expect(update(options, logger)).rejects.toThrow('process.exit');
 
     expect(vi.mocked(logger.error)).toHaveBeenCalledWith(ErrorTexts.configNotFound);
 
   });
 
-  it('handles unexpected errors', async () => {
+  it<LocalTestContext>('handles unexpected errors', async ({ options, logger }) => {
     const randomErrorMessage = chance.sentence();
     vi.mocked(ensureConfiguration).mockRejectedValueOnce(new Error(randomErrorMessage));
-    await expect(update({ config: 'config.json' }, logger)).rejects.toThrow('process.exit');
+    await expect(update(options, logger)).rejects.toThrow('process.exit');
     expect(logger.error).toHaveBeenCalledWith(randomErrorMessage, 2);
   });
 

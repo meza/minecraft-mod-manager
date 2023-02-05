@@ -69,7 +69,7 @@ describe('The change action', () => {
 
     expect(writeLockFile).toHaveBeenCalledOnce();
 
-    expect(writeLockFile).toHaveBeenCalledWith([], options.config);
+    expect(writeLockFile).toHaveBeenCalledWith([], options, logger);
   });
 
   it<LocalTestContext>('calls the install module', async ({ version, options, logger }) => {

@@ -68,7 +68,7 @@ export const add = async (platform: Platform, id: string, options: DefaultOption
 
     await downloadFile(modData.downloadUrl, path.resolve(configuration.modsFolder, modData.fileName));
 
-    const installations = await readLockFile(options.config);
+    const installations = await readLockFile(options, logger);
 
     configuration.mods.push({
       type: platform,
@@ -86,8 +86,8 @@ export const add = async (platform: Platform, id: string, options: DefaultOption
       downloadUrl: modData.downloadUrl
     });
 
-    await writeConfigFile(configuration, options.config);
-    await writeLockFile(installations, options.config);
+    await writeConfigFile(configuration, options, logger);
+    await writeLockFile(installations, options, logger);
 
   } catch (error) {
     if (error instanceof DownloadFailedException) {

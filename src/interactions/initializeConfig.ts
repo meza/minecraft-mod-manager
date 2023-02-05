@@ -119,7 +119,7 @@ export const initializeConfig = async (options: InitializeOptions, cwd: string, 
   const iq = await inquirer.prompt(prompts) as IQInternal;
   const answers = mergeOptions(options, iq) as ModsJson;
 
-  await writeConfigFile(answers, options.config);
+  await writeConfigFile(answers, options, logger);
 
   return answers as ModsJson;
 };
