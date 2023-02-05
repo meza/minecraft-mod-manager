@@ -59,7 +59,7 @@ const processForeignFiles = async (options: ScanOptions, configuration: ModsJson
 
 export const scan = async (options: ScanOptions, logger: Logger) => {
   const configuration = await ensureConfiguration(options.config, logger);
-  const installations = await readLockFile(options.config);
+  const installations = await readLockFile(options, logger);
   let scanResults: ScanResults[] = [];
 
   try {
@@ -101,8 +101,8 @@ export const scan = async (options: ScanOptions, logger: Logger) => {
       installations.push(install);
     });
 
-    await writeConfigFile(configuration, options.config);
-    await writeLockFile(installations, options.config);
+    await writeConfigFile(configuration, options, logger);
+    await writeLockFile(installations, options, logger);
   }
 
   await processForeignFiles(options, configuration, installations, scanResults, hasResults, logger);

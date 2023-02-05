@@ -1,4 +1,4 @@
-import { readConfigFile, readLockFile } from '../lib/config.js';
+import { ensureConfiguration, readLockFile } from '../lib/config.js';
 import chalk from 'chalk';
 import { DefaultOptions } from '../mmm.js';
 import { Mod } from '../lib/modlist.types.js';
@@ -10,8 +10,8 @@ export type ListOptions = DefaultOptions
 
 export const list = async (options: ListOptions, logger: Logger) => {
   try {
-    const config = await readConfigFile(options.config);
-    const installed = await readLockFile(options.config);
+    const config = await ensureConfiguration(options.config, logger);
+    const installed = await readLockFile(options, logger);
 
     logger.log((chalk.green('Configured mods')), true);
 

@@ -94,8 +94,8 @@ describe('The add module', async () => {
     const randomModId = chance.word();
 
     assumeDownloadIsSuccessful();
-
-    await add(randomPlatform, randomModId, { config: 'config.json' }, logger);
+    const options = { config: 'config.json' };
+    await add(randomPlatform, randomModId, options, logger);
 
     expect(
       vi.mocked(ensureConfiguration),
@@ -133,12 +133,12 @@ describe('The add module', async () => {
     expect(
       vi.mocked(writeConfigFile),
       'Writing the configuration file after adding a mod has failed'
-    ).toHaveBeenCalledWith(expectedConfiguration, 'config.json');
+    ).toHaveBeenCalledWith(expectedConfiguration, options, logger);
 
     expect(
       vi.mocked(writeLockFile),
       'Writing the lock file after adding a mod has failed'
-    ).toHaveBeenCalledWith(expectedLockFile, 'config.json');
+    ).toHaveBeenCalledWith(expectedLockFile, options, logger);
 
   });
 

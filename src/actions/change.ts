@@ -17,7 +17,7 @@ export const changeGameVersion = async (gameVersion: string, options: VerifyUpgr
   const { version } = await testGameVersion(gameVersion, options, logger);
 
   const configuration = await ensureConfiguration(options.config, logger, options.quiet);
-  const installations = await readLockFile(options.config);
+  const installations = await readLockFile(options, logger);
 
   const installedMods = installations;
   const mods = configuration.mods;
@@ -38,8 +38,8 @@ export const changeGameVersion = async (gameVersion: string, options: VerifyUpgr
 
   configuration.gameVersion = version;
 
-  await writeLockFile([], options.config);
-  await writeConfigFile(configuration, options.config);
+  await writeLockFile([], options, logger);
+  await writeConfigFile(configuration, options, logger);
 
   await install(options, logger);
 

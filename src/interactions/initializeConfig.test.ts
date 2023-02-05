@@ -52,7 +52,7 @@ describe('The Initialization Interaction', () => {
     };
 
     expect(actual).toEqual(expected);
-    expect(vi.mocked(writeConfigFile)).toHaveBeenLastCalledWith(expected, path.resolve('x', inputOptions.expected.config));
+    expect(vi.mocked(writeConfigFile)).toHaveBeenLastCalledWith(expected, inputOptions.generated, logger);
 
   });
 

@@ -50,7 +50,7 @@ const handleError = (error: Error, mod: Mod, logger: Logger) => {
 export const install = async (options: DefaultOptions, logger: Logger) => {
 
   const configuration = await ensureConfiguration(options.config, logger);
-  const installations = await readLockFile(options.config);
+  const installations = await readLockFile(options, logger);
 
   const installedMods = installations;
   const mods = configuration.mods;
@@ -114,6 +114,6 @@ export const install = async (options: DefaultOptions, logger: Logger) => {
 
   await Promise.all(promises);
 
-  await writeLockFile(installedMods, options.config);
-  await writeConfigFile(configuration, options.config);
+  await writeLockFile(installedMods, options, logger);
+  await writeConfigFile(configuration, options, logger);
 };
