@@ -171,30 +171,30 @@ describe('The Scan action', () => {
 
     expect(writtenLock).toContainEqual(preexistingInstall);
     expect(writtenLock).toContainEqual({
-      downloadUrl: randomResult1.localDetails.mod.downloadUrl,
-      fileName: randomResult1.localDetails.mod.fileName,
-      hash: randomResult1.localDetails.mod.hash,
+      downloadUrl: randomResult1.localDetails[0].mod.downloadUrl,
+      fileName: randomResult1.localDetails[0].mod.fileName,
+      hash: randomResult1.localDetails[0].mod.hash,
       id: details1.modId,
       name: details1.name,
-      releasedOn: randomResult1.localDetails.mod.releaseDate,
+      releasedOn: randomResult1.localDetails[0].mod.releaseDate,
       type: details1.platform
     });
     expect(writtenLock).toContainEqual({
-      downloadUrl: randomResult2.localDetails.mod.downloadUrl,
-      fileName: randomResult2.localDetails.mod.fileName,
-      hash: randomResult2.localDetails.mod.hash,
+      downloadUrl: randomResult2.localDetails[0].mod.downloadUrl,
+      fileName: randomResult2.localDetails[0].mod.fileName,
+      hash: randomResult2.localDetails[0].mod.hash,
       id: details2.modId,
       name: details2.name,
-      releasedOn: randomResult2.localDetails.mod.releaseDate,
+      releasedOn: randomResult2.localDetails[0].mod.releaseDate,
       type: details2.platform
     });
     expect(writtenLock).toContainEqual({
-      downloadUrl: randomResult3.localDetails.mod.downloadUrl,
-      fileName: randomResult3.localDetails.mod.fileName,
-      hash: randomResult3.localDetails.mod.hash,
+      downloadUrl: randomResult3.localDetails[0].mod.downloadUrl,
+      fileName: randomResult3.localDetails[0].mod.fileName,
+      hash: randomResult3.localDetails[0].mod.hash,
       id: details3.modId,
       name: details3.name,
-      releasedOn: randomResult3.localDetails.mod.releaseDate,
+      releasedOn: randomResult3.localDetails[0].mod.releaseDate,
       type: details3.platform
     });
 

@@ -17,7 +17,7 @@ export interface ScanOptions extends DefaultOptions {
 
 export interface ScanResults {
   resolvedDetails: RemoteModDetails;
-  localDetails: PlatformLookupResult;
+  localDetails: PlatformLookupResult[];
 }
 
 interface FoundEntries {
@@ -34,7 +34,7 @@ const processForeignFiles = async (options: ScanOptions, configuration: ModsJson
 
   const nonMatchedFiles = nonManagedFiles.filter((filePath) => {
     const foundIndex = scanResults.findIndex((scanResult) => {
-      return path.resolve(modsFolder, scanResult.localDetails.mod.fileName) === filePath;
+      return path.resolve(modsFolder, scanResult.localDetails[0].mod.fileName) === filePath;
     });
     return foundIndex < 0;
   });
@@ -78,18 +78,18 @@ export const scan = async (options: ScanOptions, logger: Logger) => {
     found.push(
       {
         mod: {
-          type: hit.localDetails.platform,
-          id: hit.localDetails.modId,
+          type: hit.localDetails[0].platform,
+          id: hit.localDetails[0].modId,
           name: hit.resolvedDetails.name
         },
         install: {
           name: hit.resolvedDetails.name,
-          type: hit.localDetails.platform,
-          id: hit.localDetails.modId,
-          fileName: hit.localDetails.mod.fileName,
-          hash: hit.localDetails.mod.hash,
-          downloadUrl: hit.localDetails.mod.downloadUrl,
-          releasedOn: hit.localDetails.mod.releaseDate
+          type: hit.localDetails[0].platform,
+          id: hit.localDetails[0].modId,
+          fileName: hit.localDetails[0].mod.fileName,
+          hash: hit.localDetails[0].mod.hash,
+          downloadUrl: hit.localDetails[0].mod.downloadUrl,
+          releasedOn: hit.localDetails[0].mod.releaseDate
         }
       });
   });

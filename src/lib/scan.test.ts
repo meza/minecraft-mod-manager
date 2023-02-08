@@ -139,8 +139,8 @@ describe('The scan library', () => {
         const actual = await scan(context.config, preferredPlatform, context.randomConfiguration, context.randomInstallations);
 
         expect(actual[0].resolvedDetails).toBe(expectedModDetails);
-        expect(actual[0].localDetails).toBe(expectedHit);
-        expect(actual).not.toContainEqual(notExpectedHit);
+        expect(actual[0].localDetails[0]).toBe(expectedHit);
+        expect(actual[0].localDetails[1]).toBe(notExpectedHit);
 
       });
     });
@@ -168,8 +168,8 @@ describe('The scan library', () => {
         const actual = await scan(context.config, preferredPlatform, context.randomConfiguration, context.randomInstallations);
 
         expect(actual[0].resolvedDetails).toBe(expectedModDetails);
-        expect(actual[0].localDetails).toBe(preferredHit);
-        expect(actual).not.toContainEqual(notPreferredHit);
+        expect(actual[0].localDetails[0]).toBe(preferredHit);
+        expect(actual[0].localDetails[1]).toBe(notPreferredHit);
       });
     });
 

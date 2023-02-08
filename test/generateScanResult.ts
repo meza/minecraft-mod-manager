@@ -27,11 +27,11 @@ export const generateScanResult = (overrides?: ScanResultGeneratorOverrides): Ge
   } as Partial<PlatformLookupResult>, { name: name } as Partial<RemoteModDetails>).generated;
   return {
     generated: {
-      localDetails: localDetails,
+      localDetails: [localDetails],
       resolvedDetails: resolvedDetails
     },
     expected: {
-      localDetails: localDetails,
+      localDetails: [localDetails],
       resolvedDetails: resolvedDetails
     }
   };
