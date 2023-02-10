@@ -53,16 +53,24 @@ export const scan = async (configLocation: string, prefer: Platform, configurati
       return 1;
     });
 
-    const modDetails = await fetchModDetails(
-      lookupResult.hits[0].platform,
-      lookupResult.hits[0].modId,
-      configuration.defaultAllowedReleaseTypes,
-      configuration.gameVersion,
-      configuration.loader,
-      configuration.allowVersionFallback
-    );
+    const allDetails = [];
+
+    for (let i = 0; i < lookupResult.hits.length; i++) {
+      const deets = await fetchModDetails(
+        lookupResult.hits[i].platform,
+        lookupResult.hits[i].modId,
+        configuration.defaultAllowedReleaseTypes,
+        configuration.gameVersion,
+        configuration.loader,
+        configuration.allowVersionFallback
+      );
+
+      allDetails[i] = deets;
+    }
+
     return {
-      resolvedDetails: modDetails,
+      preferredDetails: allDetails[0],
+      allRemoteDetails: allDetails,
       localDetails: lookupResult.hits
     };
   };

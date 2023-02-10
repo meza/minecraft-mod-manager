@@ -16,7 +16,8 @@ export interface ScanOptions extends DefaultOptions {
 }
 
 export interface ScanResults {
-  resolvedDetails: RemoteModDetails;
+  preferredDetails: RemoteModDetails;
+  allRemoteDetails: RemoteModDetails[];
   localDetails: PlatformLookupResult[];
 }
 
@@ -72,7 +73,7 @@ export const scan = async (options: ScanOptions, logger: Logger) => {
   const found: FoundEntries[] = [];
 
   scanResults.forEach((hit) => {
-    const message = chalk.green('\u2705') + `Found unmanaged mod: ${chalk.bold(chalk.whiteBright(hit.resolvedDetails.name))}`;
+    const message = chalk.green('\u2705') + `Found unmanaged mod: ${chalk.bold(chalk.whiteBright(hit.preferredDetails.name))}`;
     logger.log(message, true);
 
     found.push(
@@ -80,10 +81,10 @@ export const scan = async (options: ScanOptions, logger: Logger) => {
         mod: {
           type: hit.localDetails[0].platform,
           id: hit.localDetails[0].modId,
-          name: hit.resolvedDetails.name
+          name: hit.preferredDetails.name
         },
         install: {
-          name: hit.resolvedDetails.name,
+          name: hit.preferredDetails.name,
           type: hit.localDetails[0].platform,
           id: hit.localDetails[0].modId,
           fileName: hit.localDetails[0].mod.fileName,
