@@ -22,9 +22,15 @@ import { Logger } from '../lib/Logger.js';
 import { chance } from 'jest-chance';
 import { DownloadFailedException } from '../errors/DownloadFailedException.js';
 import { CouldNotFindModException } from '../errors/CouldNotFindModException.js';
-import { Platform } from '../lib/modlist.types.js';
+import { ModInstall, Platform } from '../lib/modlist.types.js';
 import { NoRemoteFileFound } from '../errors/NoRemoteFileFound.js';
 import { DefaultOptions } from '../mmm.js';
+import { getModFiles } from '../lib/fileHelper.js';
+import { generateModsJson } from '../../test/modlistGenerator.js';
+import { fileIsManaged, getInstallation, hasInstallation } from '../lib/configurationHelper.js';
+import { scanFiles } from '../lib/scan.js';
+import { FoundEntries, processScanResults, UnsureEntries } from './scan.js';
+import { generateScanResult } from '../../test/generateScanResult.js';
 
 vi.mock('../lib/Logger.js');
 vi.mock('../repositories/index.js');
@@ -34,6 +40,10 @@ vi.mock('../lib/config.js');
 vi.mock('../lib/updater.js');
 vi.mock('../lib/hash.js');
 vi.mock('../errors/handleFetchErrors.js');
+vi.mock('../lib/fileHelper.js');
+vi.mock('../lib/configurationHelper.js');
+vi.mock('../lib/scan.js');
+vi.mock('./scan.js');
 
 interface LocalTestContext {
   options: DefaultOptions;
@@ -54,6 +64,7 @@ describe('The install module', () => {
       throw new Error('process.exit');
     });
     vi.mocked(handleFetchErrors).mockReturnValue();
+    vi.mocked(getModFiles).mockResolvedValue([]);
   });
 
   it<LocalTestContext>('installs a new mod with no release type override', async ({ options, logger }) => {
@@ -139,6 +150,9 @@ describe('The install module', () => {
     // Prepare the file existence mock
     assumeModFileIsMissing(randomInstallation);
 
+    vi.mocked(hasInstallation).mockReturnValue(true);
+    vi.mocked(getInstallation).mockReturnValue(0);
+
     // Run the install
     await install(options, logger);
 
@@ -167,6 +181,9 @@ describe('The install module', () => {
     vi.mocked(readLockFile).mockResolvedValueOnce([
       randomInstallation
     ]);
+
+    vi.mocked(hasInstallation).mockReturnValueOnce(true);
+    vi.mocked(getInstallation).mockReturnValueOnce(0);
 
     // Prepare the download mock
     assumeSuccessfulUpdate(randomInstallation);
@@ -218,6 +235,9 @@ describe('The install module', () => {
       randomInstallation
     ]);
 
+    vi.mocked(hasInstallation).mockReturnValueOnce(true);
+    vi.mocked(getInstallation).mockReturnValueOnce(0);
+
     vi.mocked(getHash).mockResolvedValueOnce(randomInstallation.hash);
 
     // Prepare the file existence mock
@@ -238,6 +258,103 @@ describe('The install module', () => {
     verifyBasics();
   });
 
+  describe('when there are unknown files', () => {
+    it<LocalTestContext>('checks if all files are managed', async ({ options, logger }) => {
+      // Prepare the configuration file state
+      const emptyConfiguration = generateModsJson().generated;
+      const emptyInstallations: ModInstall[] = [];
+      vi.mocked(ensureConfiguration).mockResolvedValueOnce(emptyConfiguration);
+      vi.mocked(readLockFile).mockResolvedValueOnce(emptyInstallations);
+
+      const file1 = chance.word();
+      const file2 = chance.word();
+
+      vi.mocked(getModFiles).mockReset();
+      vi.mocked(getModFiles).mockResolvedValueOnce([file1, file2]);
+      vi.mocked(fileIsManaged).mockReturnValue(true); //exit quickly
+
+      // Run the install
+      await install(options, logger);
+
+      expect(fileIsManaged).toHaveBeenCalledTimes(2);
+      expect(fileIsManaged).toHaveBeenNthCalledWith(1, file1, emptyInstallations);
+      expect(fileIsManaged).toHaveBeenNthCalledWith(2, file2, emptyInstallations);
+
+    });
+
+    it<LocalTestContext>('scans and processes only the non managed files', async ({ options, logger }) => {
+      const emptyConfiguration = generateModsJson().generated;
+      const emptyInstallations: ModInstall[] = [];
+      vi.mocked(ensureConfiguration).mockResolvedValueOnce(emptyConfiguration);
+      vi.mocked(readLockFile).mockResolvedValueOnce(emptyInstallations);
+
+      const file1 = chance.word();
+      const file2 = chance.word();
+      const file3 = chance.word();
+
+      vi.mocked(getModFiles).mockReset();
+      vi.mocked(getModFiles).mockResolvedValueOnce([file1, file2, file3]);
+      vi.mocked(fileIsManaged).mockReturnValueOnce(true); //file1 is managed
+      vi.mocked(fileIsManaged).mockReturnValueOnce(false); //file2 is non-managed
+      vi.mocked(fileIsManaged).mockReturnValueOnce(false); //file3 is non-managed
+
+      const scanResults = [generateScanResult().generated];
+
+      vi.mocked(scanFiles).mockResolvedValueOnce(scanResults); // not processing anything
+      vi.mocked(processScanResults).mockReturnValue({ unsure: [] } as never);
+      // Run the install
+      await install(options, logger);
+
+      expect(scanFiles).toHaveBeenCalledOnce();
+      expect(scanFiles).toHaveBeenCalledWith(
+        [file2, file3],
+        emptyInstallations,
+        Platform.MODRINTH,
+        emptyConfiguration
+      );
+      expect(processScanResults).toHaveBeenCalledWith(
+        scanResults,
+        emptyConfiguration,
+        emptyInstallations,
+        logger
+      );
+    });
+
+    it<LocalTestContext>('exits as expected when there are unsure matches', async ({ options, logger }) => {
+      const emptyConfiguration = generateModsJson().generated;
+      const emptyInstallations: ModInstall[] = [];
+      vi.mocked(ensureConfiguration).mockResolvedValueOnce(emptyConfiguration);
+      vi.mocked(readLockFile).mockResolvedValueOnce(emptyInstallations);
+
+      vi.mocked(hasInstallation).mockReturnValueOnce(false);
+
+      vi.mocked(getModFiles).mockReset();
+      vi.mocked(getModFiles).mockResolvedValueOnce([chance.word()]);
+      vi.mocked(fileIsManaged).mockReturnValue(false); //don't care about the files
+
+      vi.mocked(scanFiles).mockResolvedValueOnce([]); // not processing anything
+
+      const processResult = {
+        unsure: [
+          chance.word() //doesn't matter
+        ] as unknown as UnsureEntries[],
+        unmanaged: [] as unknown as FoundEntries[]
+      };
+
+      vi.mocked(processScanResults).mockReturnValue(processResult);
+
+      await expect(install(options, logger)).rejects.toThrow('process.exit');
+
+      const errorMessage = vi.mocked(logger.error).mock.calls[0][0];
+
+      expect(errorMessage).toMatchInlineSnapshot(`
+        "
+        Please fix the unresolved issues above manually or by running mmm scan, then try again."
+      `);
+
+    });
+  });
+
   describe('when fetching a missing mod file fails', () => {
     it<LocalTestContext>('passes the correct error', async ({ options, logger }) => {
       const url = chance.url({ protocol: 'https' });
@@ -248,6 +365,10 @@ describe('The install module', () => {
       vi.mocked(readLockFile).mockResolvedValueOnce([
         randomInstallation
       ]);
+
+      vi.mocked(hasInstallation).mockReturnValueOnce(true);
+      vi.mocked(getInstallation).mockReturnValueOnce(0);
+
       // Prepare the file existence mock
       assumeModFileIsMissing(randomInstallation);
       const error = new DownloadFailedException(url);
@@ -268,6 +389,9 @@ describe('The install module', () => {
       vi.mocked(readLockFile).mockResolvedValueOnce([
         randomInstallation
       ]);
+
+      vi.mocked(hasInstallation).mockReturnValueOnce(true);
+      vi.mocked(getInstallation).mockReturnValueOnce(0);
 
       // Prepare the file existence mock
       assumeModFileExists(randomInstallation.fileName);

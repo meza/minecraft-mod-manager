@@ -1,4 +1,4 @@
-import { beforeEach, describe, vi, it, expect } from 'vitest';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { Logger } from '../lib/Logger.js';
 import { scan, ScanOptions } from './scan.js';
 import { chance } from 'jest-chance';
@@ -11,6 +11,7 @@ import { shouldAddScanResults } from '../interactions/shouldAddScanResults.js';
 import { generateModConfig } from '../../test/modConfigGenerator.js';
 import { generateModInstall } from '../../test/modInstallGenerator.js';
 import { getModFiles } from '../lib/fileHelper.js';
+import path from 'path';
 
 interface LocalTestContext {
   logger: Logger;
@@ -256,4 +257,136 @@ describe('The Scan action', () => {
     });
   });
 
+  describe('when there are half-state files in the mods folder', () => {
+    beforeEach(() => {
+      vi.mocked(getModFiles).mockReset();
+      vi.mocked(ensureConfiguration).mockReset();
+      vi.mocked(readLockFile).mockReset();
+    });
+
+    it<LocalTestContext>('finds the files that it is unsure of', async ({
+      options,
+      logger,
+      randomConfiguration
+    }) => {
+      const modsDir = '/mods';
+
+      const mod1name = 'mod1-name';
+      const mod2name = 'mod2-name';
+      const mod3name = 'mod3-name';
+      const mod4name = 'mod4-name';
+
+      const mod1 = generateModConfig({ name: mod1name }).generated;
+      const mod2 = generateModConfig({ name: mod2name }).generated;
+      const mod3 = generateModConfig({ name: mod3name }).generated;
+      const mod4 = generateModConfig({ name: mod4name }).generated;
+
+      randomConfiguration.mods = [mod1, mod2, mod3, mod4];
+      randomConfiguration.modsFolder = modsDir;
+
+      const mod1Install = generateModInstall({ type: mod1.type, id: mod1.id }).generated;
+      const mod2Install = generateModInstall({ type: mod2.type, id: mod2.id }).generated;
+      const mod3Install = generateModInstall({ type: mod3.type, id: mod3.id }).generated;
+
+      const scanResults1 = generateScanResult({ name: mod1name, platform: mod1.type, modId: mod1.id }).generated;
+      const scanResults2 = generateScanResult({ name: mod2name, platform: mod2.type, modId: mod2.id }).generated;
+      const scanResults3 = generateScanResult({ name: mod3name, platform: mod3.type, modId: mod3.id }).generated;
+      const scanResults4 = generateScanResult({ name: mod4name, platform: mod4.type, modId: mod4.id }).generated;
+
+      /**
+       * Mark mod2 legit, thus making mod1 and mod3 the only unsure file
+       */
+      scanResults2.localDetails[0].mod.hash = mod2Install.hash;
+
+      vi.mocked(ensureConfiguration).mockResolvedValue(randomConfiguration);
+
+      /**
+       * Mod4 is not in the lockfile, thus it should be recognized as such
+       */
+      vi.mocked(readLockFile).mockResolvedValue([mod1Install, mod2Install, mod3Install]);
+      scanResults4.localDetails[0].mod.fileName = 'mod4-local-filename';
+
+      vi.mocked(scanLib).mockResolvedValueOnce([scanResults1, scanResults2, scanResults3, scanResults4]);
+      vi.mocked(shouldAddScanResults).mockResolvedValueOnce(false);
+      vi.mocked(getModFiles).mockResolvedValueOnce([
+        path.resolve(modsDir, mod1Install.fileName),
+        path.resolve(modsDir, mod2Install.fileName),
+        path.resolve(modsDir, mod3Install.fileName),
+        path.resolve(modsDir, scanResults4.localDetails[0].mod.fileName)
+      ]);
+
+      await scan(options, logger);
+      const logCalls = vi.mocked(logger.log).mock.calls;
+
+      expect(logCalls[0][0]).toMatchInlineSnapshot('"❌ mod1-name has a different version locally than what is in the lockfile"');
+      expect(logCalls[1][0]).toMatchInlineSnapshot('"❌ mod3-name has a different version locally than what is in the lockfile"');
+      expect(logCalls[2][0]).toMatchInlineSnapshot('"❌ mod4-name has a local file that isn\'t in the lockfile."');
+    });
+
+    it<LocalTestContext>('corrects the unsure ones', async ({
+      options,
+      logger,
+      randomConfiguration
+    }) => {
+      const modsDir = '/mods';
+
+      const mod1name = 'mod1-name';
+      const mod2name = 'mod2-name';
+
+      const mod1 = generateModConfig({ name: mod1name }).generated;
+      const mod2 = generateModConfig({ name: mod2name }).generated;
+
+      randomConfiguration.mods = [mod1, mod2];
+      randomConfiguration.modsFolder = modsDir;
+
+      const mod1Install = generateModInstall({ type: mod1.type, id: mod1.id }).generated;
+      const mod2Install = generateModInstall({ type: mod2.type, id: mod2.id }).generated;
+
+      const scanResults1 = generateScanResult({ name: mod1name, platform: mod1.type, modId: mod1.id }).generated;
+      const scanResults2 = generateScanResult({ name: mod2name, platform: mod2.type, modId: mod2.id }).generated;
+
+      scanResults1.localDetails[0].mod.fileName = mod1Install.fileName;
+      scanResults2.localDetails[0].mod.fileName = mod2Install.fileName;
+
+      /**
+       * Mark mod2 different hash, thus making mod1 and mod3 the only unsure file
+       */
+      scanResults2.localDetails[0].mod.hash = mod2Install.hash + chance.word();
+
+      vi.mocked(ensureConfiguration).mockResolvedValue(randomConfiguration);
+
+      /**
+       * Mod1 is not in the lockfile, thus it should be recognized as such
+       */
+      vi.mocked(readLockFile).mockResolvedValue([mod2Install]);
+
+      vi.mocked(scanLib).mockResolvedValueOnce([scanResults1, scanResults2]);
+      vi.mocked(shouldAddScanResults).mockResolvedValueOnce(true);
+      vi.mocked(getModFiles).mockResolvedValueOnce([
+        path.resolve(modsDir, mod1Install.fileName),
+        path.resolve(modsDir, mod2Install.fileName)
+      ]);
+
+      await scan(options, logger);
+      const logCalls = vi.mocked(logger.log).mock.calls;
+
+      expect(logCalls[2][0]).toMatchInlineSnapshot('"✅ Updated mod1-name to match the installed file"');
+      expect(logCalls[3][0]).toMatchInlineSnapshot('"✅ Updated mod2-name to match the installed file"');
+
+      const writtenInstallation = vi.mocked(writeLockFile).mock.calls[0][0];
+
+      const expectedInstall = {
+        hash: scanResults1.localDetails[0].mod.hash,
+        fileName: scanResults1.localDetails[0].mod.fileName,
+        name: scanResults1.allRemoteDetails[0].name,
+        type: scanResults1.localDetails[0].platform,
+        id: scanResults1.localDetails[0].modId,
+        releasedOn: scanResults1.localDetails[0].mod.releaseDate,
+        downloadUrl: scanResults1.localDetails[0].mod.downloadUrl
+      };
+
+      expect(writtenInstallation).toContainEqual(expectedInstall);
+
+    });
+  });
 });

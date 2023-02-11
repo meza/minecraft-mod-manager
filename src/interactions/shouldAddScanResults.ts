@@ -16,7 +16,7 @@ export const shouldAddScanResults = async (options: ScanOptions, logger: Logger)
   const answers = await inquirer.prompt({
     type: 'confirm',
     name: 'add',
-    message: 'Do you want to add these mods to your config?',
+    message: 'Do you want to add these mods and/or make changes to your config?',
     default: true
   });
 

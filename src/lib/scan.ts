@@ -38,9 +38,7 @@ const getScanResults = async (files: string[], installations: ModInstall[]) => {
   return lookupResults;
 };
 
-export const scan = async (configLocation: string, prefer: Platform, configuration: ModsJson, installations: ModInstall[]) => {
-  const files = await getModFiles(configLocation, configuration.modsFolder);
-
+export const scanFiles = async (files: string[], installations: ModInstall[], prefer: Platform, configuration: ModsJson) => {
   const lookupResults = await getScanResults(files, installations);
 
   const normalizers: Promise<ScanResults>[] = [];
@@ -91,4 +89,9 @@ export const scan = async (configLocation: string, prefer: Platform, configurati
   });
 
   return result;
+};
+
+export const scan = async (configLocation: string, prefer: Platform, configuration: ModsJson, installations: ModInstall[]) => {
+  const files = await getModFiles(configLocation, configuration.modsFolder);
+  return scanFiles(files, installations, prefer, configuration);
 };
