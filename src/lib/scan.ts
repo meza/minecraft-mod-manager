@@ -7,9 +7,7 @@ import { ScanResults } from '../actions/scan.js';
 import { fileIsManaged } from './configurationHelper.js';
 import { getModFiles } from './fileHelper.js';
 
-export const scan = async (configLocation: string, prefer: Platform, configuration: ModsJson, installations: ModInstall[]) => {
-  const files = await getModFiles(configLocation, configuration.modsFolder);
-
+const getScanResults = async (files: string[], installations: ModInstall[]) => {
   const cfInput: LookupInput = {
     platform: Platform.CURSEFORGE,
     hash: []
@@ -37,20 +35,41 @@ export const scan = async (configLocation: string, prefer: Platform, configurati
   }
 
   const lookupResults: ResultItem[] = await lookup([cfInput, modrinthInput]);
+  return lookupResults;
+};
+
+export const scanFiles = async (files: string[], installations: ModInstall[], prefer: Platform, configuration: ModsJson) => {
+  const lookupResults = await getScanResults(files, installations);
 
   const normalizers: Promise<ScanResults>[] = [];
 
   const normalizeResults = async (lookupResult: ResultItem): Promise<ScanResults> => {
-    let hit = lookupResult.hits[0];
-    const preferredHitIndex = lookupResult.hits.findIndex((hit) => hit.platform.toString() === prefer);
-    if (preferredHitIndex >= 0) {
-      hit = lookupResult.hits[preferredHitIndex];
+    lookupResult.hits.sort((hit1, hit2) => {
+      if (hit1.platform === prefer && hit2.platform !== prefer) { // there can't be 2 identical hits from the same platform
+        return -1;
+      }
+      return 1;
+    });
+
+    const allDetails = [];
+
+    for (let i = 0; i < lookupResult.hits.length; i++) {
+      const deets = await fetchModDetails(
+        lookupResult.hits[i].platform,
+        lookupResult.hits[i].modId,
+        configuration.defaultAllowedReleaseTypes,
+        configuration.gameVersion,
+        configuration.loader,
+        configuration.allowVersionFallback
+      );
+
+      allDetails[i] = deets;
     }
 
-    const modDetails = await fetchModDetails(hit.platform, hit.modId, configuration.defaultAllowedReleaseTypes, configuration.gameVersion, configuration.loader, configuration.allowVersionFallback);
     return {
-      resolvedDetails: modDetails,
-      localDetails: hit
+      preferredDetails: allDetails[0],
+      allRemoteDetails: allDetails,
+      localDetails: lookupResult.hits
     };
   };
 
@@ -70,4 +89,9 @@ export const scan = async (configLocation: string, prefer: Platform, configurati
   });
 
   return result;
+};
+
+export const scan = async (configLocation: string, prefer: Platform, configuration: ModsJson, installations: ModInstall[]) => {
+  const files = await getModFiles(configLocation, configuration.modsFolder);
+  return scanFiles(files, installations, prefer, configuration);
 };
