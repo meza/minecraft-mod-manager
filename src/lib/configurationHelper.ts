@@ -1,11 +1,6 @@
 import { Mod, ModInstall, ModsJson } from './modlist.types.js';
 import path from 'path';
 import minimatch from 'minimatch';
-// import { ensureConfiguration, readLockFile } from './config.js';
-// import { DefaultOptions } from '../mmm.js';
-// import { Logger } from './Logger.js';
-// import { getModFiles } from './fileHelper.js';
-// import { scan } from './scan.js';
 
 export const findLocalMods = (lookup: string[], configuration: ModsJson) => {
   const matches: Set<Mod> = new Set<Mod>();
@@ -30,10 +25,6 @@ export const findLocalMods = (lookup: string[], configuration: ModsJson) => {
   return matches;
 };
 
-// interface Stuff {
-//   configuration: ModsJson,
-//   installations: ModInstall[]
-// }
 export const fileIsManaged = (file: string, installations: ModInstall[]) => {
   const filename = path.basename(file);
   const result = installations.find((install) => {
@@ -42,16 +33,6 @@ export const fileIsManaged = (file: string, installations: ModInstall[]) => {
 
   return result !== undefined;
 };
-
-// export const getStuff = async (options: DefaultOptions, logger: Logger) => {
-//   const configuration = await ensureConfiguration(options.config, logger);
-//   const installations = await readLockFile(options, logger);
-//   const files = await getModFiles(options.config, configuration.modsFolder);
-//
-//   const unknownFiles = files.filter((file) => {
-//     return !fileIsManaged(file, installations);
-//   });
-// };
 
 export const getModsDir = (configPath: string, modsFolder: string) => {
   const dir = path.resolve(path.dirname(configPath));
