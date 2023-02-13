@@ -1,15 +1,17 @@
-import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { generateInitializeOptions } from '../../test/initializeOptionsGenerator.js';
 import { initializeConfig, InitializeOptions } from './initializeConfig.js';
 import inquirer from 'inquirer';
 import { fileExists, writeConfigFile } from '../lib/config.js';
 import { chance } from 'jest-chance';
-import { getLatestMinecraftVersion, verifyMinecraftVersion } from '../lib/minecraftVersionVerifier.js';
+import { verifyMinecraftVersion } from '../lib/minecraftVersionVerifier.js';
 import { IncorrectMinecraftVersionException } from '../errors/IncorrectMinecraftVersionException.js';
 import * as path from 'path';
 import { configFile } from './configFileOverwrite.js';
 import { Loader, ReleaseType } from '../lib/modlist.types.js';
 import { findQuestion } from '../../test/inquirerHelper.js';
+import { Logger } from '../lib/Logger.js';
+import { getLatestMinecraftVersion } from './getLatestMinecraftVersion.js';
 
 vi.mock('../lib/minecraftVersionVerifier.js');
 vi.mock('./configFileOverwrite.js');
@@ -18,17 +20,18 @@ vi.mock('../lib/config.js', () => ({
   writeConfigFile: vi.fn()
 }));
 vi.mock('inquirer');
+vi.mock('../lib/Logger.js');
+vi.mock('./getLatestMinecraftVersion.js');
 
 describe('The Initialization Interaction', () => {
+  let logger: Logger;
   beforeEach(() => {
+    vi.resetAllMocks();
+    logger = new Logger({} as never);
     vi.mocked(fileExists).mockResolvedValue(true);
     vi.mocked(configFile).mockImplementation(async (input, cwd) => path.resolve(cwd, input.config));
     vi.mocked(getLatestMinecraftVersion).mockResolvedValue('0.0.0');
     vi.mocked(verifyMinecraftVersion).mockResolvedValue(true);
-  });
-
-  afterEach(() => {
-    vi.resetAllMocks();
   });
 
   it('should use the submitted options', async () => {
@@ -38,7 +41,7 @@ describe('The Initialization Interaction', () => {
     vi.mocked(inquirer.prompt).mockResolvedValueOnce({});
     const inputOptions = generateInitializeOptions();
 
-    const actual = await initializeConfig(inputOptions.generated, 'x');
+    const actual = await initializeConfig(inputOptions.generated, 'x', logger);
 
     const transformedInput: Partial<InitializeOptions> = { ...inputOptions.expected };
     delete transformedInput.config;
@@ -49,22 +52,20 @@ describe('The Initialization Interaction', () => {
     };
 
     expect(actual).toEqual(expected);
-    expect(vi.mocked(writeConfigFile)).toHaveBeenLastCalledWith(expected, path.resolve('x', inputOptions.expected.config));
+    expect(vi.mocked(writeConfigFile)).toHaveBeenLastCalledWith(expected, inputOptions.generated, logger);
 
   });
 
   describe('and the game version is supplied', () => {
-    beforeEach(() => {
-      vi.mocked(verifyMinecraftVersion).mockReset();
-    });
 
     describe('when the correct version is supplied', () => {
       it('it should be successfully verified from the command line', async () => {
+        vi.mocked(verifyMinecraftVersion).mockReset();
         vi.mocked(verifyMinecraftVersion).mockResolvedValueOnce(true);
         vi.mocked(inquirer.prompt).mockResolvedValue({});
         const inputOptions = generateInitializeOptions();
 
-        await expect(initializeConfig(inputOptions.generated, chance.word())).resolves.not.toThrow();
+        await expect(initializeConfig(inputOptions.generated, chance.word(), logger)).resolves.not.toThrow();
 
       });
 
@@ -74,7 +75,7 @@ describe('The Initialization Interaction', () => {
         const input = generateInitializeOptions().generated;
         delete input.gameVersion;
         vi.mocked(inquirer.prompt).mockResolvedValueOnce({});
-        await initializeConfig(input, chance.word());
+        await initializeConfig(input, chance.word(), logger);
 
         const question = findQuestion(inquirer.prompt, 'gameVersion');
 
@@ -90,11 +91,12 @@ describe('The Initialization Interaction', () => {
 
     describe('when the incorrect version is supplied', async () => {
       it('it should throw an error', async () => {
+        vi.mocked(verifyMinecraftVersion).mockReset();
         vi.mocked(verifyMinecraftVersion).mockResolvedValueOnce(false);
         vi.mocked(inquirer.prompt).mockResolvedValue({});
         const inputOptions = generateInitializeOptions();
 
-        await expect(initializeConfig(inputOptions.generated, chance.word())).rejects.toThrow(
+        await expect(initializeConfig(inputOptions.generated, chance.word(), logger)).rejects.toThrow(
           new IncorrectMinecraftVersionException(inputOptions.expected.gameVersion!)
         );
       });
@@ -106,7 +108,7 @@ describe('The Initialization Interaction', () => {
         delete input.gameVersion;
 
         vi.mocked(inquirer.prompt).mockResolvedValueOnce({});
-        await initializeConfig(input, chance.word());
+        await initializeConfig(input, chance.word(), logger);
 
         const question = findQuestion(inquirer.prompt, 'gameVersion');
 
@@ -137,7 +139,7 @@ describe('The Initialization Interaction', () => {
 
         vi.mocked(fileExists).mockResolvedValue(true);
 
-        await expect(initializeConfig(inputOptions.generated, root)).resolves.not.toThrow();
+        await expect(initializeConfig(inputOptions.generated, root, logger)).resolves.not.toThrow();
 
         expect(fileExists).toHaveBeenCalledWith(location);
 
@@ -152,7 +154,7 @@ describe('The Initialization Interaction', () => {
 
         vi.mocked(fileExists).mockResolvedValueOnce(true);
 
-        await initializeConfig(input, root);
+        await initializeConfig(input, root, logger);
 
         const question = findQuestion(inquirer.prompt, 'modsFolder');
 
@@ -176,7 +178,7 @@ describe('The Initialization Interaction', () => {
           modsFolder: folder
         });
 
-        await expect(initializeConfig(inputOptions.generated, root)).rejects.toThrow(
+        await expect(initializeConfig(inputOptions.generated, root, logger)).rejects.toThrow(
           new Error(`The folder: ${location} does not exist. Please enter a valid one and try again.`)
         );
       });
@@ -191,7 +193,7 @@ describe('The Initialization Interaction', () => {
 
         vi.mocked(fileExists).mockResolvedValueOnce(false);
 
-        await initializeConfig(input, root);
+        await initializeConfig(input, root, logger);
 
         const question = findQuestion(inquirer.prompt, 'modsFolder');
 
@@ -215,7 +217,7 @@ describe('The Initialization Interaction', () => {
     vi.mocked(inquirer.prompt).mockResolvedValueOnce({
       loader: selectedLoader
     });
-    await initializeConfig(input, chance.word());
+    await initializeConfig(input, chance.word(), logger);
 
     expect(findQuestion(inquirer.prompt, 'loader')).toMatchInlineSnapshot(`
       {
@@ -234,7 +236,7 @@ describe('The Initialization Interaction', () => {
   it('skips the loader question when the loader is supplied', async () => {
     const input = generateInitializeOptions().generated;
     vi.mocked(inquirer.prompt).mockResolvedValueOnce({});
-    await initializeConfig(input, chance.word());
+    await initializeConfig(input, chance.word(), logger);
 
     expect(findQuestion(inquirer.prompt, 'loader').when).toBeFalsy();
   });
@@ -246,7 +248,7 @@ describe('The Initialization Interaction', () => {
     vi.mocked(inquirer.prompt).mockResolvedValueOnce({
       allowVersionFallback: chance.bool()
     });
-    await initializeConfig(input, chance.word());
+    await initializeConfig(input, chance.word(), logger);
 
     expect(findQuestion(inquirer.prompt, 'allowVersionFallback')).toMatchInlineSnapshot(`
       {
@@ -262,7 +264,7 @@ describe('The Initialization Interaction', () => {
     const input = generateInitializeOptions().generated;
 
     vi.mocked(inquirer.prompt).mockResolvedValueOnce({});
-    await initializeConfig(input, chance.word());
+    await initializeConfig(input, chance.word(), logger);
 
     expect(findQuestion(inquirer.prompt, 'allowVersionFallback').when).toBeFalsy();
   });
@@ -274,7 +276,7 @@ describe('The Initialization Interaction', () => {
     vi.mocked(inquirer.prompt).mockResolvedValueOnce({
       defaultAllowedReleaseTypes: chance.pickset(Object.values(ReleaseType), { min: 1, max: 3 })
     });
-    await initializeConfig(input, chance.word());
+    await initializeConfig(input, chance.word(), logger);
 
     expect(findQuestion(inquirer.prompt, 'defaultAllowedReleaseTypes')).toMatchInlineSnapshot(`
       {
@@ -299,7 +301,7 @@ describe('The Initialization Interaction', () => {
     const input = generateInitializeOptions().generated;
 
     vi.mocked(inquirer.prompt).mockResolvedValueOnce({});
-    await initializeConfig(input, chance.word());
+    await initializeConfig(input, chance.word(), logger);
 
     expect(findQuestion(inquirer.prompt, 'allowVersionFallback').when).toBeFalsy();
   });
@@ -311,7 +313,7 @@ describe('The Initialization Interaction', () => {
     vi.mocked(inquirer.prompt).mockResolvedValueOnce({
       gameVersion: chance.word()
     });
-    await initializeConfig(input, chance.word());
+    await initializeConfig(input, chance.word(), logger);
 
     expect(findQuestion(inquirer.prompt, 'gameVersion')).toMatchInlineSnapshot(`
       {
@@ -330,7 +332,7 @@ describe('The Initialization Interaction', () => {
     const input = generateInitializeOptions().generated;
 
     vi.mocked(inquirer.prompt).mockResolvedValueOnce({});
-    await initializeConfig(input, chance.word());
+    await initializeConfig(input, chance.word(), logger);
 
     expect(findQuestion(inquirer.prompt, 'gameVersion').when).toBeFalsy();
   });
@@ -343,7 +345,7 @@ describe('The Initialization Interaction', () => {
       gameVersion: chance.word()
     });
 
-    await initializeConfig(input, '/root');
+    await initializeConfig(input, '/root', logger);
 
     expect(findQuestion(inquirer.prompt, 'modsFolder')).toMatchInlineSnapshot(`
       {
@@ -361,7 +363,7 @@ describe('The Initialization Interaction', () => {
     const input = generateInitializeOptions().generated;
 
     vi.mocked(inquirer.prompt).mockResolvedValueOnce({});
-    await initializeConfig(input, chance.word());
+    await initializeConfig(input, chance.word(), logger);
 
     expect(findQuestion(inquirer.prompt, 'modsFolder').when).toBeFalsy();
   });

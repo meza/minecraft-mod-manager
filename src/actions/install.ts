@@ -1,21 +1,17 @@
-import {
-  fileExists,
-  readConfigFile,
-  readLockFile,
-  writeConfigFile,
-  writeLockFile
-} from '../lib/config.js';
+import { ensureConfiguration, fileExists, readLockFile, writeConfigFile, writeLockFile } from '../lib/config.js';
 import path from 'path';
 import { fetchModDetails } from '../repositories/index.js';
 import { downloadFile } from '../lib/downloader.js';
-import { Mod, RemoteModDetails } from '../lib/modlist.types.js';
+import { Mod, ModInstall, ModsJson, Platform, RemoteModDetails } from '../lib/modlist.types.js';
 import { getHash } from '../lib/hash.js';
 import { DefaultOptions } from '../mmm.js';
 import { updateMod } from '../lib/updater.js';
 import { Logger } from '../lib/Logger.js';
-import { ConfigFileNotFoundException } from '../errors/ConfigFileNotFoundException.js';
-import { ErrorTexts } from '../errors/ErrorTexts.js';
-import { getInstallation, hasInstallation } from '../lib/configurationHelper.js';
+import { fileIsManaged, getInstallation, hasInstallation } from '../lib/configurationHelper.js';
+import { handleFetchErrors } from '../errors/handleFetchErrors.js';
+import { getModFiles } from '../lib/fileHelper.js';
+import { scanFiles } from '../lib/scan.js';
+import { processScanResults } from './scan.js';
 
 const getMod = async (moddata: RemoteModDetails, modsFolder: string) => {
   await downloadFile(moddata.downloadUrl, path.resolve(modsFolder, moddata.fileName));
@@ -27,16 +23,35 @@ const getMod = async (moddata: RemoteModDetails, modsFolder: string) => {
   };
 };
 
+const handleUnknownFiles = async (options: DefaultOptions, configuration: ModsJson, installations: ModInstall[], logger: Logger) => {
+  //const modsFolder = getModsDir(options.config, configuration.modsFolder);
+  const allFiles = await getModFiles(options.config, configuration.modsFolder);
+  const nonManagedFiles = allFiles.filter((filePath) => {
+    return !fileIsManaged(filePath, installations);
+  });
+
+  if (nonManagedFiles.length === 0) {
+    return;
+  }
+
+  const scanResults = await scanFiles(nonManagedFiles, installations, Platform.MODRINTH, configuration);
+  const { unsure } = processScanResults(scanResults, configuration, installations, logger);
+
+  if (unsure.length > 0) {
+    logger.error('\nPlease fix the unresolved issues above manually or by running mmm scan, then try again.', 1);
+  }
+};
+
 export const install = async (options: DefaultOptions, logger: Logger) => {
-  try {
-    const configuration = await readConfigFile(options.config);
-    const installations = await readLockFile(options.config);
 
-    const installedMods = installations;
-    const mods = configuration.mods;
+  const configuration = await ensureConfiguration(options.config, logger);
+  const installations = await readLockFile(options, logger);
+  await handleUnknownFiles(options, configuration, installations, logger);
+  const installedMods = installations;
+  const mods = configuration.mods;
 
-    const processMod = async (mod: Mod, index: number) => {
-
+  const processMod = async (mod: Mod, index: number) => {
+    try {
       logger.debug(`Checking ${mod.name} for ${mod.type}`);
 
       if (hasInstallation(mod, installations)) {
@@ -47,7 +62,6 @@ export const install = async (options: DefaultOptions, logger: Logger) => {
         if (!await fileExists(modPath)) {
           logger.log(`${mod.name} doesn't exist, downloading from ${installedMods[installedModIndex].type}`);
           await downloadFile(installedMods[installedModIndex].downloadUrl, modPath);
-          // TODO handle the download failing
           return;
         }
 
@@ -55,7 +69,6 @@ export const install = async (options: DefaultOptions, logger: Logger) => {
         if (installedMods[installedModIndex].hash !== installedHash) {
           logger.log(`${mod.name} has hash mismatch, downloading from source`);
           await updateMod(installedMods[installedModIndex], modPath, configuration.modsFolder);
-          // TODO handle the download failing
           return;
         }
         return;
@@ -69,14 +82,13 @@ export const install = async (options: DefaultOptions, logger: Logger) => {
         configuration.loader,
         configuration.allowVersionFallback
       );
-      // TODO Handle the fetch failing
 
       mods[index].name = modData.name;
 
       // no installation exists
       logger.log(`${mod.name} doesn't exist, downloading from ${mod.type}`);
       const dlData = await getMod(modData, configuration.modsFolder);
-      // TODO handle the download failing
+
       installedMods.push({
         name: modData.name,
         type: mod.type,
@@ -87,20 +99,16 @@ export const install = async (options: DefaultOptions, logger: Logger) => {
         downloadUrl: dlData.downloadUrl
       });
       return;
-
-    };
-
-    const promises = mods.map(processMod);
-
-    await Promise.all(promises);
-
-    await writeLockFile(installedMods, options.config);
-    await writeConfigFile(configuration, options.config);
-  } catch (error) {
-    if (error instanceof ConfigFileNotFoundException) {
-      logger.error(ErrorTexts.configNotFound);
+    } catch (error) {
+      handleFetchErrors(error as Error, mod, logger);
     }
 
-    logger.error((error as Error).message, 2);
-  }
+  };
+
+  const promises = mods.map(processMod);
+
+  await Promise.all(promises);
+
+  await writeLockFile(installedMods, options, logger);
+  await writeConfigFile(configuration, options, logger);
 };

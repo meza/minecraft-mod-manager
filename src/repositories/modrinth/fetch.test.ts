@@ -12,13 +12,13 @@ import { rateLimitingFetch } from '../../lib/rateLimiter/index.js';
 vi.mock('../../lib/rateLimiter/index.js');
 const assumeFailedModFetch = () => {
   vi.mocked(rateLimitingFetch).mockResolvedValueOnce({
-    status: chance.pickone([401, 404, 500])
+    ok: false
   } as Response);
 };
 
 const assumeSuccessfulModFetch = (name: string) => {
   vi.mocked(rateLimitingFetch).mockResolvedValueOnce({
-    status: 200,
+    ok: true,
     json: () => Promise.resolve({
       title: name
     })
@@ -28,14 +28,14 @@ const assumeSuccessfulModFetch = (name: string) => {
 const assumeFailedDetailsFetch = (name: string) => {
   assumeSuccessfulModFetch(name);
   vi.mocked(rateLimitingFetch).mockResolvedValueOnce({
-    status: chance.pickone([401, 404, 500])
+    ok: false
   } as Response);
 };
 
 const assumeSuccessfulDetailsFetch = (name: string, data: ModrinthVersion[]) => {
   assumeSuccessfulModFetch(name);
   vi.mocked(rateLimitingFetch).mockResolvedValueOnce({
-    status: 200,
+    ok: true,
     json: () => Promise.resolve(data)
   } as Response);
 };

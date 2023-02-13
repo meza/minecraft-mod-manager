@@ -54,7 +54,7 @@ describe('The should add scan results interaction', () => {
       [
         {
           "default": true,
-          "message": "Do you want to add these mods to your config?",
+          "message": "Do you want to add these mods and/or make changes to your config?",
           "name": "add",
           "type": "confirm",
         },

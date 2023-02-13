@@ -23,6 +23,7 @@ import { modNotFound } from '../interactions/modNotFound.js';
 import { noRemoteFileFound } from '../interactions/noRemoteFileFound.js';
 import { stop } from '../mmm.js';
 import { generateRandomPlatform } from '../../test/generateRandomPlatform.js';
+import { DownloadFailedException } from '../errors/DownloadFailedException.js';
 
 vi.mock('../lib/Logger.js');
 vi.mock('../mmm.js');
@@ -93,8 +94,8 @@ describe('The add module', async () => {
     const randomModId = chance.word();
 
     assumeDownloadIsSuccessful();
-
-    await add(randomPlatform, randomModId, { config: 'config.json' }, logger);
+    const options = { config: 'config.json' };
+    await add(randomPlatform, randomModId, options, logger);
 
     expect(
       vi.mocked(ensureConfiguration),
@@ -132,12 +133,12 @@ describe('The add module', async () => {
     expect(
       vi.mocked(writeConfigFile),
       'Writing the configuration file after adding a mod has failed'
-    ).toHaveBeenCalledWith(expectedConfiguration, 'config.json');
+    ).toHaveBeenCalledWith(expectedConfiguration, options, logger);
 
     expect(
       vi.mocked(writeLockFile),
       'Writing the lock file after adding a mod has failed'
-    ).toHaveBeenCalledWith(expectedLockFile, 'config.json');
+    ).toHaveBeenCalledWith(expectedLockFile, options, logger);
 
   });
 
@@ -352,6 +353,25 @@ describe('The add module', async () => {
       expect(vi.mocked(downloadFile)).toHaveBeenCalledOnce();
       expect(vi.mocked(writeConfigFile)).toHaveBeenCalledOnce();
       expect(vi.mocked(writeLockFile)).toHaveBeenCalledOnce();
+
+    });
+  });
+
+  describe('When the download fails', () => {
+    it('reports the correct error', async () => {
+      const url = chance.url({ protocol: 'https' });
+      const randomPlatform = getRandomPlatform();
+      const randomModId = chance.word();
+      vi.mocked(downloadFile).mockRejectedValueOnce(new DownloadFailedException(url));
+
+      await expect(add(randomPlatform, randomModId, { config: 'config.json' }, logger)).rejects.toThrow('process.exit');
+
+      expect(logger.error).toHaveBeenCalledOnce();
+      const message = vi.mocked(logger.error).mock.calls[0][0];
+
+      expect(message).toContain(url);
+      expect(message).toContain('Error downloading file: ');
+      expect(message).toContain('please try again');
 
     });
   });

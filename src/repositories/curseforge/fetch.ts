@@ -68,10 +68,9 @@ const getFiles = async (projectId: string, gameVersion: string, loader: Loader):
     }
   });
 
-  // if (modFiles.status !== 200) {
-  //   throw new CouldNotFindModException(projectId, Platform.CURSEFORGE);
-  // }
-  // TODO fix this
+  if (!modFiles.ok) {
+    throw new CouldNotFindModException(projectId, Platform.CURSEFORGE);
+  }
 
   const filesData = await modFiles.json();
   return filesData.data as CurseforgeModFile[];
@@ -97,7 +96,7 @@ export const getMod = async (projectId: string, allowedReleaseTypes: ReleaseType
     }
   });
 
-  if (modDetailsRequest.status !== 200) {
+  if (!modDetailsRequest.ok) {
     throw new CouldNotFindModException(projectId, Platform.CURSEFORGE);
   }
 

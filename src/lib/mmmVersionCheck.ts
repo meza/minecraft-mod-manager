@@ -1,6 +1,8 @@
 import chalk from 'chalk';
 import { GithubReleasesNotFoundException } from '../errors/GithubReleasesNotFoundException.js';
 import { Logger } from './Logger.js';
+import { version } from '../version.js';
+import { rateLimitingFetch } from './rateLimiter/index.js';
 
 interface GithubRelease {
   tag_name: string;
@@ -13,6 +15,13 @@ interface GithubRelease {
   versionParts: number[];
 }
 
+export interface UpdateResult {
+  hasUpdate: boolean,
+  latestVersion: string,
+  latestVersionUrl: string,
+  releasedOn: string
+}
+
 const prepareRelease = (release: GithubRelease) => {
   release.numericVersion = release.tag_name.replace('v', '');
   release.versionParts = release.numericVersion.split('.').map((part: string) => parseInt(part, 10));
@@ -21,10 +30,9 @@ const prepareRelease = (release: GithubRelease) => {
 
 const githubReleases = async () => {
   const url = 'https://api.github.com/repos/meza/minecraft-mod-manager/releases';
-  const response = await fetch(url);
+  const response = await rateLimitingFetch(url);
   if (!response.ok) {
     throw new GithubReleasesNotFoundException();
-    // TODO handle failed fetch
   }
   const json = await response.json();
   const prereleases = json.filter((release: GithubRelease) => release.prerelease).map(prepareRelease);
@@ -42,20 +50,34 @@ const formatDateFromTimeString = (timeString: string) => {
   return date.toString();
 };
 
-export const hasUpdate = async (currentVersion: string, logger: Logger): Promise<{
-  hasUpdate: boolean,
-  latestVersion: string,
-  latestVersionUrl: string,
-  releasedOn: string
-}> => {
+export const hasUpdate = async (currentVersion: string, logger: Logger): Promise<UpdateResult> => {
+  let latestVersion: GithubRelease = {
+    draft: false,
+    // eslint-disable-next-line camelcase
+    html_url: '<github cannot be reached>',
+    name: `v${version}`,
+    numericVersion: version,
+    prerelease: false,
+    // eslint-disable-next-line camelcase
+    published_at: new Date().toISOString(),
+    // eslint-disable-next-line camelcase
+    tag_name: `v${version}`,
+    versionParts: version.split('.').map((v) => Number(v))
+  };
 
-  const releases = await githubReleases();
-  const latestVersion = releases[0];
+  try {
+    const releases = await githubReleases();
+    latestVersion = releases[0];
+
+  } catch (error) {
+    if (!(error instanceof GithubReleasesNotFoundException)) {
+      throw error;
+    }
+  }
   const releasedOn = formatDateFromTimeString(latestVersion.published_at);
   if (!isFirstLetterANumber(currentVersion)) {
     logger.log(chalk.bgYellowBright(chalk.black(`\n[update] You are running a development version of MMM. Please update to the latest release from ${releasedOn}.`)));
     logger.log(chalk.bgYellowBright(chalk.black(`[update] You can download it from ${latestVersion.html_url}\n`)));
-    // Todo move console up one level
     return {
       hasUpdate: false,
       latestVersion: latestVersion.tag_name,

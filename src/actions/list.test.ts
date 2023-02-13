@@ -1,30 +1,41 @@
-import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { generateModsJson } from '../../test/modlistGenerator.js';
 import { generateModConfig } from '../../test/modConfigGenerator.js';
 import { list } from './list.js';
-import { readConfigFile, readLockFile } from '../lib/config.js';
+import { ensureConfiguration, readLockFile } from '../lib/config.js';
 import { generateModInstall } from '../../test/modInstallGenerator.js';
 import { Logger } from '../lib/Logger.js';
 import { ConfigFileNotFoundException } from '../errors/ConfigFileNotFoundException.js';
 import { ErrorTexts } from '../errors/ErrorTexts.js';
 import { chance } from 'jest-chance';
+import { DefaultOptions } from '../mmm.js';
 
 vi.mock('../lib/Logger.js');
 vi.mock('../lib/config.js');
 
+interface LocalTestContext {
+  options: DefaultOptions;
+  logger: Logger;
+}
+
 describe('The list action', async () => {
-  let logger: Logger;
-
-  beforeEach(() => {
-    logger = new Logger({} as never);
-  });
-
-  afterEach(() => {
+  beforeEach<LocalTestContext>((context) => {
     vi.resetAllMocks();
+    context.logger = new Logger({} as never);
+    context.options = {
+      config: 'config.json',
+      quiet: false,
+      debug: false
+    };
+
+    vi.mocked(context.logger.error).mockImplementation(() => {
+      throw new Error('process.exit');
+    });
+
   });
 
   describe('when all the mods are installed', () => {
-    it('it should list all the mods sorted', async () => {
+    it<LocalTestContext>('it should list all the mods sorted', async ({ options, logger }) => {
 
       const randomConfig = generateModsJson().generated;
 
@@ -34,7 +45,7 @@ describe('The list action', async () => {
 
       randomConfig.mods = [mod3, mod1, mod2];
 
-      vi.mocked(readConfigFile).mockResolvedValue(randomConfig);
+      vi.mocked(ensureConfiguration).mockResolvedValue(randomConfig);
 
       const installedMods = [
         generateModInstall({ id: mod3.id, type: mod3.type }).generated,
@@ -44,7 +55,7 @@ describe('The list action', async () => {
 
       vi.mocked(readLockFile).mockResolvedValueOnce(installedMods);
 
-      await list({ config: 'config.json' }, logger);
+      await list(options, logger);
 
       expect(logger.log).toHaveBeenNthCalledWith(1, 'Configured mods', true);
       expect(logger.log).toHaveBeenNthCalledWith(2, '\u2705 mod1.jar is installed', true);
@@ -55,7 +66,7 @@ describe('The list action', async () => {
   });
 
   describe('when some of the mods are not installed', () => {
-    it('it should list all the mods appropriately', async () => {
+    it<LocalTestContext>('it should list all the mods appropriately', async ({ options, logger }) => {
       const randomConfig = generateModsJson().generated;
 
       const mod1 = generateModConfig({ name: 'mod1.jar' }).generated;
@@ -71,9 +82,9 @@ describe('The list action', async () => {
 
       vi.mocked(readLockFile).mockResolvedValueOnce(installedMods);
 
-      vi.mocked(readConfigFile).mockResolvedValue(randomConfig);
+      vi.mocked(ensureConfiguration).mockResolvedValue(randomConfig);
 
-      await list({ config: 'config.json' }, logger);
+      await list(options, logger);
 
       expect(logger.log).toHaveBeenNthCalledWith(1, 'Configured mods', true);
       expect(logger.log).toHaveBeenNthCalledWith(2, '\u2705 mod1.jar is installed', true);
@@ -82,19 +93,19 @@ describe('The list action', async () => {
 
     });
 
-    it('shows the correct error message when the config file is missing', async () => {
-      vi.mocked(readConfigFile).mockRejectedValueOnce(new ConfigFileNotFoundException('config.json'));
-      await list({ config: 'config.json' }, logger);
+    it<LocalTestContext>('shows the correct error message when the config file is missing', async ({ options, logger }) => {
+      vi.mocked(ensureConfiguration).mockRejectedValueOnce(new ConfigFileNotFoundException(options.config));
+      await expect(list(options, logger)).rejects.toThrow('process.exit');
 
       expect(vi.mocked(logger.error)).toHaveBeenCalledWith(ErrorTexts.configNotFound);
 
     });
   });
 
-  it('handles unexpected errors', async () => {
+  it<LocalTestContext>('handles unexpected errors', async ({ options, logger }) => {
     const randomErrorMessage = chance.sentence();
-    vi.mocked(readConfigFile).mockRejectedValueOnce(new Error(randomErrorMessage));
-    await list({ config: 'config.json' }, logger);
+    vi.mocked(ensureConfiguration).mockRejectedValueOnce(new Error(randomErrorMessage));
+    await expect(list(options, logger)).rejects.toThrow('process.exit');
     expect(logger.error).toHaveBeenCalledWith(randomErrorMessage, 2);
   });
 });

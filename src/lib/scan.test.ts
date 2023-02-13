@@ -123,7 +123,11 @@ describe('The scan library', () => {
       it<LocalTestContext>('returns the first hits', async (context) => {
         const modId = chance.word();
         const expectedModDetails = generateRemoteModDetails({}).generated;
-        const expectedHit = generatePlatformLookupResult({ modId: modId, mod: expectedModDetails, platform: notThePreferredPlatform }).generated;
+        const expectedHit = generatePlatformLookupResult({
+          modId: modId,
+          mod: expectedModDetails,
+          platform: notThePreferredPlatform
+        }).generated;
         const notExpectedHit = generatePlatformLookupResult({ platform: notThePreferredPlatform }).generated;
         const lookupResult = generateResultItem({
           hits: [
@@ -138,9 +142,9 @@ describe('The scan library', () => {
 
         const actual = await scan(context.config, preferredPlatform, context.randomConfiguration, context.randomInstallations);
 
-        expect(actual[0].resolvedDetails).toBe(expectedModDetails);
-        expect(actual[0].localDetails).toBe(expectedHit);
-        expect(actual).not.toContainEqual(notExpectedHit);
+        expect(actual[0].preferredDetails).toBe(expectedModDetails);
+        expect(actual[0].localDetails[0]).toBe(expectedHit);
+        expect(actual[0].allRemoteDetails[0]).toBe(expectedModDetails);
 
       });
     });
@@ -152,7 +156,11 @@ describe('The scan library', () => {
       it<LocalTestContext>('returns the preferred platform results', async (context) => {
         const modId = chance.word();
         const expectedModDetails = generateRemoteModDetails().generated;
-        const preferredHit = generatePlatformLookupResult({ modId: modId, mod: expectedModDetails, platform: preferredPlatform }).generated;
+        const preferredHit = generatePlatformLookupResult({
+          modId: modId,
+          mod: expectedModDetails,
+          platform: preferredPlatform
+        }).generated;
         const notPreferredHit = generatePlatformLookupResult({ platform: notThePreferredPlatform }).generated;
         const lookupResult = generateResultItem({
           hits: [
@@ -167,9 +175,55 @@ describe('The scan library', () => {
 
         const actual = await scan(context.config, preferredPlatform, context.randomConfiguration, context.randomInstallations);
 
-        expect(actual[0].resolvedDetails).toBe(expectedModDetails);
-        expect(actual[0].localDetails).toBe(preferredHit);
-        expect(actual).not.toContainEqual(notPreferredHit);
+        expect(actual[0].preferredDetails).toBe(expectedModDetails);
+        expect(actual[0].allRemoteDetails[0]).toBe(expectedModDetails);
+        expect(actual[0].localDetails[0]).toBe(preferredHit);
+      });
+
+      it<LocalTestContext>('adds all results to the response', async (context) => {
+        const modId1 = chance.word();
+        const modId2 = chance.word();
+        const preferredModDetails = generateRemoteModDetails().generated;
+        const notPreferredModDetails = generateRemoteModDetails().generated;
+        const preferredHit = generatePlatformLookupResult({
+          modId: modId1,
+          mod: preferredModDetails,
+          platform: preferredPlatform
+        }).generated;
+        const notPreferredHit = generatePlatformLookupResult({
+          modId: modId2,
+          mod: notPreferredModDetails,
+          platform: notThePreferredPlatform
+        }).generated;
+        const lookupResult = generateResultItem({
+          hits: [
+            notPreferredHit,
+            preferredHit
+          ]
+        }).generated;
+
+        vi.mocked(getModFiles).mockResolvedValueOnce([chance.word()]); // we don't care about the files
+        vi.mocked(fetchModDetails).mockResolvedValueOnce(preferredModDetails);
+        vi.mocked(fetchModDetails).mockResolvedValueOnce(notPreferredModDetails);
+        vi.mocked(lookup).mockResolvedValueOnce([lookupResult]);
+
+        const actual = await scan(context.config, preferredPlatform, context.randomConfiguration, context.randomInstallations);
+
+        // Assess if the sorting worked.
+        // The preferred mod should be resolved first
+        const fetchCalls = vi.mocked(fetchModDetails).mock.calls;
+        expect(fetchModDetails).toHaveBeenCalledTimes(2);
+        expect(fetchCalls[0][0]).toEqual(preferredHit.platform);
+        expect(fetchCalls[0][1]).toEqual(preferredHit.modId);
+        expect(fetchCalls[1][0]).toEqual(notPreferredHit.platform);
+        expect(fetchCalls[1][1]).toEqual(notPreferredHit.modId);
+
+        // Assess the result
+        expect(actual[0].preferredDetails).toBe(preferredModDetails);
+        expect(actual[0].allRemoteDetails[0]).toBe(preferredModDetails);
+        expect(actual[0].allRemoteDetails[1]).toBe(notPreferredModDetails);
+        expect(actual[0].localDetails[0]).toBe(preferredHit);
+        expect(actual[0].localDetails[1]).toBe(notPreferredHit);
       });
     });
 
