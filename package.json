@@ -50,7 +50,7 @@
     "glob": "^8.1.0",
     "inquirer": "^9.1.2",
     "log-symbols": "^5.1.0",
-    "minimatch": "^6.1.6",
+    "minimatch": "^7.0.0",
     "nodejs-file-downloader": "^4.10.2"
   },
   "commitlint": {
