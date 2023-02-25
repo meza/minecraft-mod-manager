@@ -116,6 +116,7 @@ describe('The file writable module', () => {
 
         await fileToWrite(inputPath, options, logger);
 
+        // @ts-ignore
         const inquirerParams = vi.mocked(inquirer.prompt).mock.calls[0][0][0];
         const validator = inquirerParams.validate;
 
@@ -139,6 +140,7 @@ describe('The file writable module', () => {
 
         await fileToWrite(inputPath, options, logger);
 
+        // @ts-ignore
         const inquirerParams = vi.mocked(inquirer.prompt).mock.calls[0][0][0];
         const validator = inquirerParams.validate;
 
