@@ -1,6 +1,7 @@
 {
   "extends": "@meza/tsconfig-base",
   "compilerOptions": {
+    "preserveSymlinks": false,
     "tsBuildInfoFile": ".cache/.tsbuildinfo",
     "incremental": true,
     "target": "esnext",
