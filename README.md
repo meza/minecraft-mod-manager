@@ -362,7 +362,7 @@ versions or not.
 | Short | Long                            | Description                                               | Value                                                                                                                                     | Example                  |
 |-------|---------------------------------|-----------------------------------------------------------|-------------------------------------------------------------------------------------------------------------------------------------------|--------------------------|
 | -p    | --prefer                        | Which platform do you prefer to use?                      | `curseforge` or `modrinth`                                                                                                                | `mmm scan -p curseforge` |
-| -a    | --add                           | Automatically add the discovered mods to the modlist json | A valid Minecraft version                                                                                                                 | `mmm scan -a`            |
+| -a    | --add                           | Automatically add the discovered mods to the modlist json |                                                                                                                  | `mmm scan -a`            |
 
 ---
 
