@@ -83,7 +83,7 @@
     "@types/node": "^18.7.23",
     "@typescript-eslint/eslint-plugin": "5.54.0",
     "@typescript-eslint/parser": "5.54.0",
-    "@vitest/coverage-c8": "0.29.1",
+    "@vitest/coverage-c8": "0.29.2",
     "@vitest/ui": "^0.29.0",
     "c8": "7.13.0",
     "esbuild": "0.17.10",
@@ -104,7 +104,7 @@
     "semantic-release-export-data": "1.0.1",
     "ts-node": "10.9.1",
     "typescript": "4.9.5",
-    "vitest": "0.29.1"
+    "vitest": "0.29.2"
   },
   "repository": {
     "type": "git",
