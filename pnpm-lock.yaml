@@ -48,7 +48,7 @@ specifiers:
   npm-run-all: 4.1.5
   pkg: 5.8.0
   pnpm: 7.29.0
-  rimraf: 4.3.0
+  rimraf: 4.3.1
   semantic-release: 20.1.1
   semantic-release-export-data: 1.0.1
   ts-node: 10.9.1
@@ -105,7 +105,7 @@ devDependencies:
   npm-run-all: 4.1.5
   pkg: 5.8.0
   pnpm: 7.29.0
-  rimraf: 4.3.0
+  rimraf: 4.3.1
   semantic-release: 20.1.1
   semantic-release-export-data: 1.0.1_semantic-release@20.1.1
   ts-node: 10.9.1_6zdv76jsn47cb6md7p7ydfhime
@@ -5343,8 +5343,8 @@ packages:
     dependencies:
       glob: 7.2.3
 
-  /rimraf/4.3.0:
-    resolution: {integrity: sha512-5qVDXPbByA1qSJEWMv1qAwKsoS22vVpsL2QyxCKBw4gf6XiFo1K3uRLY6uSOOBFDwnqAZtnbILqWKKlzh8bkGg==}
+  /rimraf/4.3.1:
+    resolution: {integrity: sha512-GfHJHBzFQra23IxDzIdBqhOWfbtdgS1/dCHrDy+yvhpoJY5TdwdT28oWaHWfRpKFDLd3GZnGTx6Mlt4+anbsxQ==}
     engines: {node: '>=14'}
     hasBin: true
     dependencies:
