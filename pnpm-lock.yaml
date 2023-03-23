@@ -1,9 +1,9 @@
 lockfileVersion: 5.4
 
 specifiers:
-  '@commitlint/cli': 17.4.4
+  '@commitlint/cli': 17.5.0
   '@commitlint/config-conventional': 17.4.4
-  '@commitlint/prompt-cli': 17.4.4
+  '@commitlint/prompt-cli': 17.5.0
   '@faker-js/faker': 7.6.0
   '@meza/adr-tools': 1.0.10
   '@meza/curseforge-fingerprint': ^1.1.1
@@ -68,9 +68,9 @@ dependencies:
   nodejs-file-downloader: 4.10.2
 
 devDependencies:
-  '@commitlint/cli': 17.4.4
+  '@commitlint/cli': 17.5.0
   '@commitlint/config-conventional': 17.4.4
-  '@commitlint/prompt-cli': 17.4.4
+  '@commitlint/prompt-cli': 17.5.0
   '@faker-js/faker': 7.6.0
   '@meza/adr-tools': 1.0.10
   '@meza/tsconfig-base': 1.1.0
@@ -190,14 +190,14 @@ packages:
     dev: true
     optional: true
 
-  /@commitlint/cli/17.4.4:
-    resolution: {integrity: sha512-HwKlD7CPVMVGTAeFZylVNy14Vm5POVY0WxPkZr7EXLC/os0LH/obs6z4HRvJtH/nHCMYBvUBQhGwnufKfTjd5g==}
+  /@commitlint/cli/17.5.0:
+    resolution: {integrity: sha512-yNW3+M7UM1ioK28LKTrryIVB5qGpXlEv8+rJQiWPMZNayy9/1XR5+lL8qBTNlgopYtZWWnIm5RETcAN29ZTL/A==}
     engines: {node: '>=v14'}
     hasBin: true
     dependencies:
       '@commitlint/format': 17.4.4
       '@commitlint/lint': 17.4.4
-      '@commitlint/load': 17.4.4
+      '@commitlint/load': 17.5.0
       '@commitlint/read': 17.4.4
       '@commitlint/types': 17.4.4
       execa: 5.1.1
@@ -291,6 +291,30 @@ packages:
       - '@swc/core'
       - '@swc/wasm'
     dev: true
+    optional: true
+
+  /@commitlint/load/17.5.0:
+    resolution: {integrity: sha512-l+4W8Sx4CD5rYFsrhHH8HP01/8jEP7kKf33Xlx2Uk2out/UKoKPYMOIRcDH5ppT8UXLMV+x6Wm5osdRKKgaD1Q==}
+    engines: {node: '>=v14'}
+    dependencies:
+      '@commitlint/config-validator': 17.4.4
+      '@commitlint/execute-rule': 17.4.0
+      '@commitlint/resolve-extends': 17.4.4
+      '@commitlint/types': 17.4.4
+      '@types/node': 18.7.23
+      chalk: 4.1.2
+      cosmiconfig: 8.0.0
+      cosmiconfig-typescript-loader: 4.1.1_mgmi7qsirc7jxatqje34ge3vra
+      lodash.isplainobject: 4.0.6
+      lodash.merge: 4.6.2
+      lodash.uniq: 4.5.0
+      resolve-from: 5.0.0
+      ts-node: 10.9.1_6zdv76jsn47cb6md7p7ydfhime
+      typescript: 4.9.5
+    transitivePeerDependencies:
+      - '@swc/core'
+      - '@swc/wasm'
+    dev: true
 
   /@commitlint/message/17.4.2:
     resolution: {integrity: sha512-3XMNbzB+3bhKA1hSAWPCQA3lNxR4zaeQAQcHj0Hx5sVdO6ryXtgUBGGv+1ZCLMgAPRixuc6en+iNAzZ4NzAa8Q==}
@@ -306,12 +330,12 @@ packages:
       conventional-commits-parser: 3.2.4
     dev: true
 
-  /@commitlint/prompt-cli/17.4.4:
-    resolution: {integrity: sha512-/tH9KPD9wo/prlDv4SvIGY/3bRE4Be7G3FGyo5nJTIIAQ9XXU1f6xkOEP6q78NnwfLDt3cuuIewWWmzRNzOujg==}
+  /@commitlint/prompt-cli/17.5.0:
+    resolution: {integrity: sha512-+pjD2TyZ+jngFP26oJsRTk1VBZrfX0fxrvoNjULoRilqD/cH96S1GC+dzLA+1M1bNwKye4Ff/SNLdwj9jaFXxA==}
     engines: {node: '>=v14'}
     hasBin: true
     dependencies:
-      '@commitlint/prompt': 17.4.4
+      '@commitlint/prompt': 17.5.0
       execa: 5.1.1
       inquirer: 6.5.2
     transitivePeerDependencies:
@@ -319,12 +343,12 @@ packages:
       - '@swc/wasm'
     dev: true
 
-  /@commitlint/prompt/17.4.4:
-    resolution: {integrity: sha512-qWC2fydBnAQp+jJqoPYLzzQ6NFMBNm/GlP+oeYOHhMwCXl9nptDGXUJnW3cdL6G4QMYKqJv1czRfATzMXHDHcg==}
+  /@commitlint/prompt/17.5.0:
+    resolution: {integrity: sha512-UVgGj5/VYydaLaEGw3GMgBrG+vlS0OKt6hih5vkAu74KMGtUxWT7ACE/VTDuZtMv4u/bew9f6GgOr6LKIhqGng==}
     engines: {node: '>=v14'}
     dependencies:
       '@commitlint/ensure': 17.4.4
-      '@commitlint/load': 17.4.4
+      '@commitlint/load': 17.5.0
       '@commitlint/types': 17.4.4
       chalk: 4.1.2
       inquirer: 6.5.2
