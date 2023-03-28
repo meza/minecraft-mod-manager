@@ -35,7 +35,7 @@ specifiers:
   eslint-config-tailored-tunes: 5.0.2
   eslint-plugin-json: 3.1.0
   eslint-plugin-security: 1.7.1
-  glob: ^8.1.0
+  glob: ^9.0.0
   inquirer: ^9.1.2
   is-ci: 3.0.1
   jest-chance: 0.2.5
@@ -61,7 +61,7 @@ dependencies:
   commander: 10.0.0
   core-js: 3.25.3
   dotenv: 16.0.3
-  glob: 8.1.0
+  glob: 9.2.1
   inquirer: 9.1.2
   log-symbols: 5.1.0
   minimatch: 7.0.0
@@ -3090,7 +3090,6 @@ packages:
       minimatch: 7.4.2
       minipass: 4.2.4
       path-scurry: 1.6.1
-    dev: true
 
   /global-dirs/0.1.1:
     resolution: {integrity: sha512-NknMLn7F2J7aflwFOlGdNIuCDpN3VGoSoB+aap3KABFWbHVn1TCgFC+np23J8W2BiZbjfEw3BFBycSMv1AFblg==}
@@ -4158,7 +4157,6 @@ packages:
     engines: {node: '>=10'}
     dependencies:
       brace-expansion: 2.0.1
-    dev: true
 
   /minimist-options/4.1.0:
     resolution: {integrity: sha512-Q4r8ghd80yhO/0j1O3B2BjweX3fiHg9cdOwjJd2J76Q135c+NDxGCqdYKQ1SKBuFfgWbAUzBfvYjPUEeNgqN1A==}
@@ -4221,7 +4219,6 @@ packages:
   /minipass/4.2.4:
     resolution: {integrity: sha512-lwycX3cBMTvcejsHITUgYj6Gy6A7Nh4Q6h9NP4sTHY1ccJlC7yKzDmiShEHsJ16Jf1nKGDEaiHxiltsJEvk0nQ==}
     engines: {node: '>=8'}
-    dev: true
 
   /minizlib/2.1.2:
     resolution: {integrity: sha512-bAxsR8BVfj60DWXHE3u30oHzfl4G7khkSuPW+qvpd7jFRHm7dLxOjUk1EHACJ/hxLY8phGJ0YhYHZo7jil7Qdg==}
@@ -4807,7 +4804,6 @@ packages:
     dependencies:
       lru-cache: 7.14.1
       minipass: 4.2.4
-    dev: true
 
   /path-type/3.0.0:
     resolution: {integrity: sha512-T2ZUsdZFHgA3u4e5PfPbjd7HDDpxPnQb5jN0SrDsjNSuVXHJqtwTnWqG0B1jZrgmJ/7lj1EmVIByWt1gxGkWvg==}
