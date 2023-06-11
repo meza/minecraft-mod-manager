@@ -114,6 +114,7 @@
     "access": "public"
   },
   "engines": {
-    "node": ">=18.5.0"
+    "node": ">=18.5.0",
+    "pnpm": ">=8.0.0"
   }
 }
