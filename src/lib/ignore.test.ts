@@ -3,7 +3,7 @@ import { notIgnored } from './ignore.js';
 import path from 'path';
 import { fileExists } from './config.js';
 import { chance } from 'jest-chance';
-import glob from 'glob';
+import { glob } from 'glob';
 import * as fs from 'fs/promises';
 
 interface LocalTestContext {
