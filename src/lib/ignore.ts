@@ -1,7 +1,7 @@
 import path from 'path';
 import { fileExists } from './config.js';
 import * as fs from 'fs/promises';
-import glob from 'glob';
+import { glob } from 'glob';
 
 const ignored = async (rootLookupDir: string) => {
   const ignoreFileLocation = path.resolve(rootLookupDir, '.mmmignore');
