@@ -7,6 +7,7 @@ import { CouldNotFindModException } from '../../errors/CouldNotFindModException.
 import { generateCurseforgeModFile } from '../../../test/generateCurseforgeModFile.js';
 import { NoRemoteFileFound } from '../../errors/NoRemoteFileFound.js';
 import { rateLimitingFetch } from '../../lib/rateLimiter/index.js';
+import { CurseforgeDownloadUrlError } from '../../errors/CurseforgeDownloadUrlError.js';
 
 enum Release {
   ALPHA = 3,
@@ -80,6 +81,34 @@ describe('The Curseforge repository', () => {
         context.allowFallback
       );
     }).rejects.toThrow(new CouldNotFindModException(context.id, context.platform));
+  });
+
+  it<RepositoryTestContext>('throws an error when the curseforge does not provide a dl url', async (context) => {
+    const randomName = chance.word();
+    const randomFile1 = generateCurseforgeModFile({
+      isAvailable: true,
+      fileStatus: releasedStatus,
+      fileDate: '2019-08-24T14:15:22Z',
+      releaseType: Release.RELEASE,
+      sortableGameVersions: [{
+        gameVersionName: context.loader,
+        gameVersion: context.gameVersion
+      }],
+      // @ts-ignore
+      downloadUrl: null
+    });
+
+    assumeSuccessfulModFetch(randomName, [
+      randomFile1.generated
+    ]);
+
+    await expect(getMod(
+      context.id,
+      [ReleaseType.RELEASE],
+      context.gameVersion,
+      context.loader,
+      context.allowFallback
+    )).rejects.toThrow(new CurseforgeDownloadUrlError(randomName));
   });
 
   it<RepositoryTestContext>('throws an error when the files cannot be fetched', async (context) => {

@@ -693,7 +693,7 @@ Command {
           "conflictsWith": [],
           "defaultValue": false,
           "defaultValueDescription": undefined,
-          "description": "Add the mods to the xmodlist.json file",
+          "description": "Add the mods to the modlist.json file",
           "envVar": undefined,
           "flags": "-a, --add",
           "hidden": false,

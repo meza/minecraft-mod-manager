@@ -5,6 +5,7 @@ import { NoRemoteFileFound } from '../../errors/NoRemoteFileFound.js';
 import { InvalidReleaseTypeException } from './InvalidReleaseTypeException.js';
 import { Curseforge } from './index.js';
 import { rateLimitingFetch } from '../../lib/rateLimiter/index.js';
+import { CurseforgeDownloadUrlError } from '../../errors/CurseforgeDownloadUrlError.js';
 
 export enum HashFunctions {
   // eslint-disable-next-line no-unused-vars
@@ -143,6 +144,10 @@ export const getMod = async (projectId: string, allowedReleaseTypes: ReleaseType
   }
 
   const latestFile = potentialFiles[0];
+
+  if (latestFile.downloadUrl === null) {
+    throw new CurseforgeDownloadUrlError(modDetails.data.name);
+  }
 
   try {
     const modData = curseforgeFileToRemoteModDetails(latestFile, modDetails.data.name);
