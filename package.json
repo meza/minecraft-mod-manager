@@ -62,9 +62,9 @@
     }
   },
   "devDependencies": {
-    "@commitlint/cli": "17.6.5",
-    "@commitlint/config-conventional": "17.6.5",
-    "@commitlint/prompt-cli": "17.6.5",
+    "@commitlint/cli": "17.6.6",
+    "@commitlint/config-conventional": "17.6.6",
+    "@commitlint/prompt-cli": "17.6.6",
     "@faker-js/faker": "8.0.2",
     "@meza/adr-tools": "1.0.10",
     "@meza/tsconfig-base": "1.1.0",
