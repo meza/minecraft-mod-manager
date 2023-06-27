@@ -377,7 +377,7 @@ Command {
           "conflictsWith": [],
           "defaultValue": undefined,
           "defaultValueDescription": undefined,
-          "description": "Which loader would you like to use? forge, fabric",
+          "description": "Which loader would you like to use? forge, fabric, quilt",
           "envVar": undefined,
           "flags": "-l, --loader <loader>",
           "hidden": false,

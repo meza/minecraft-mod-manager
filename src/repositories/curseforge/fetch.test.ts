@@ -113,7 +113,6 @@ describe('The Curseforge repository', () => {
 
   it<RepositoryTestContext>('throws an error when the files cannot be fetched', async (context) => {
     assumeFailedModFetch();
-
     await expect(async () => {
       await getMod(
         context.id,

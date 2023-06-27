@@ -23,6 +23,10 @@ describe('The Curseforge Repository class', () => {
       const actual = Curseforge.curseforgeLoaderFromLoader(Loader.FABRIC);
       expect(actual).toEqual(CurseforgeLoader.FABRIC);
     });
+    it('can identify Quilt', () => {
+      const actual = Curseforge.curseforgeLoaderFromLoader(Loader.QUILT);
+      expect(actual).toEqual(CurseforgeLoader.QUILT);
+    });
     it('fails on an unknown platform', () => {
       const loader = chance.word() as Loader;
       try {
