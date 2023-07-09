@@ -3,7 +3,7 @@
 <p align="center">A command line utility to install and update Minecraft mods (for the Java edition) without a launcher.</p>
 <p align="center">
   <a href="https://github.com/users/meza/projects/5/views/4" target="_blank">Roadmap</a> |
-  <a href="https://github.com/users/meza/projects/5/views/1" target="_blank">Project Board</a> | 
+  <a href="https://github.com/users/meza/projects/5/views/1" target="_blank">Project Board</a> |
   <a href="https://github.com/meza/minecraft-mod-manager/milestones" target="_blank">Upcoming Milestones</a></p>
 
 <br/><br/>
@@ -158,7 +158,7 @@ You can add these one after the other, for example: `mmm init -l curseforge -p 1
 
 | Short | Long                            | Description                             | Value                                                                                                                                     | Example                                            |
 |-------|---------------------------------|-----------------------------------------|-------------------------------------------------------------------------------------------------------------------------------------------|----------------------------------------------------|
-| -l    | --loader                        | The mod loader to use                   | `fabric` or `forge`                                                                                                                       | `mmm init -l curseforge`                           |
+| -l    | --loader                        | The mod loader to use                   | `fabric`, `quilt` or `forge`                                                                                                               | `mmm init -l curseforge`                           |
 | -g    | --game-version                  | The Minecraft version to use            | A valid Minecraft version                                                                                                                 | `mmm init -g 1.19.2`                               |
 | -f    | --allow-version-fallback        | Whether to allow version fallback       | No value needed. <br/>When it is supplied, `true` is assumed                                                                              | `mmm init -f` to allow<br/>`mmm init` to not allow |
 | -r    | --default-allowed-release-types | Which release types do you allow?       | A comma separated list of the following: <br/>`alpha`, `beta`, `release`                                                                  | `mmm init -r release,beta`                         |
@@ -424,7 +424,7 @@ This is how it looks like if you followed the examples in the [`add`](#add) sect
 
 #### loader _required_
 
-Possible values: `fabric`, `forge`
+Possible values: `fabric`, `quilt`, `forge`
 
 The loader defines which minecraft loader you're using.
 

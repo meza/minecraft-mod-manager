@@ -21,6 +21,8 @@ export class Curseforge implements Repository {
         return CurseforgeLoader.FORGE;
       case Loader.FABRIC:
         return CurseforgeLoader.FABRIC;
+      case Loader.QUILT:
+        return CurseforgeLoader.QUILT;
       default:
         throw new UnknownLoaderException(loader);
     }

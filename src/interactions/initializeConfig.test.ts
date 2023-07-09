@@ -224,6 +224,7 @@ describe('The Initialization Interaction', () => {
         "choices": [
           "forge",
           "fabric",
+          "quilt",
         ],
         "message": "Which loader would you like to use?",
         "name": "loader",

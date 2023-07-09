@@ -20,7 +20,8 @@ export enum Platform {
 
 export enum Loader {
   FORGE = 'forge',
-  FABRIC = 'fabric'
+  FABRIC = 'fabric',
+  QUILT = 'quilt'
 }
 
 export interface ModInstall {
