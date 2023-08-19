@@ -100,7 +100,7 @@
     "pkg": "5.8.0",
     "pnpm": "8.6.12",
     "rimraf": "5.0.1",
-    "semantic-release": "21.0.7",
+    "semantic-release": "21.0.8",
     "semantic-release-export-data": "1.0.1",
     "ts-node": "10.9.1",
     "typescript": "5.1.6",
