@@ -146,8 +146,8 @@ devDependencies:
     specifier: 5.8.0
     version: 5.8.0
   pnpm:
-    specifier: 8.7.4
-    version: 8.7.4
+    specifier: 8.7.5
+    version: 8.7.5
   rimraf:
     specifier: 5.0.1
     version: 5.0.1
@@ -5129,8 +5129,8 @@ packages:
       - supports-color
     dev: true
 
-  /pnpm@8.7.4:
-    resolution: {integrity: sha512-/bQ5bXp8l7krhm2QXQVGuPjzNC/Z/p0fK4kw8aIrqG0YthTS9akRKGHiWyaHX623lntCriHBZZPqhbXczqSNVg==}
+  /pnpm@8.7.5:
+    resolution: {integrity: sha512-WI8WZb89Uiq5x2jdz4PcQMG9ovTnXcDCEpoEckPYIT2zD8/+dEhVozPlT7bu3WkBgE0uTARtgyIKAFt+IpW2cQ==}
     engines: {node: '>=16.14'}
     hasBin: true
     dev: true
