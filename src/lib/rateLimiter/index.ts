@@ -18,7 +18,7 @@ interface QueueRecord {
 }
 
 const defaultRateLimiting: RateLimit = {
-  timeBetweenCalls: 1000,
+  timeBetweenCalls: 100,
   maxAttempts: 3
 };
 
