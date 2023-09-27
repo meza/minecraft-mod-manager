@@ -67,7 +67,9 @@ describe('The test action', () => {
       expect(logger.log).toHaveBeenNthCalledWith(1, expect.stringContaining('Some mods are missing support for '));
       expect(logger.log).toHaveBeenNthCalledWith(1, expect.stringContaining(version));
       expect(logger.log).toHaveBeenNthCalledWith(2, expect.stringContaining(mod1.name));
+      expect(logger.log).toHaveBeenNthCalledWith(2, expect.stringContaining(mod1.id));
       expect(logger.log).toHaveBeenNthCalledWith(3, expect.stringContaining(mod2.name));
+      expect(logger.log).toHaveBeenNthCalledWith(3, expect.stringContaining(mod2.id));
 
       expect(logger.error).toHaveBeenCalledWith(expect.stringContaining('You cannot upgrade to'), 1);
       expect(logger.error).toHaveBeenCalledWith(expect.stringContaining(version), 1);

@@ -21,9 +21,9 @@ export const list = async (options: ListOptions, logger: Logger) => {
 
     config.mods.sort(sortByName).forEach((mod) => {
       if (installed.find((i) => i.id === mod.id && i.type === mod.type)) {
-        logger.log(`${chalk.green('\u2705')} ${mod.name?.trim()} is installed`, true);
+        logger.log(`${chalk.green('\u2705')} ${mod.name?.trim()} ${chalk.gray('(')}${chalk.gray(mod.id)}${chalk.gray(')')} is installed`, true);
       } else {
-        logger.log(`${chalk.red('\u274c')} ${mod.name?.trim()} is not installed`, true);
+        logger.log(`${chalk.red('\u274c')} ${mod.name?.trim()} ${chalk.gray('(')}${chalk.gray(mod.id)}${chalk.gray(')')} is not installed`, true);
       }
     });
   } catch (error) {
