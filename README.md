@@ -348,7 +348,8 @@ The prune command adheres to the [.mmmignore](#ignore-file) file and will not pr
 Scans the configured mods folder and looks for files that are currently not managed by the mod manager.
 When a file is found, it will attempt to look up that file on all the supported platforms.
 
-It will report back the findings and if executed without any extra parameters, it will not modify anything.
+It will report back the findings and if executed without any extra parameters, depending on the [interactivity settings](#how-it-works),
+it will either ask you what to do or not do anything.
 
 If you supply the `--add` flag, it will add the discovered files to your modlist json.
 
@@ -359,10 +360,10 @@ versions or not.
 
 #### Command line arguments for the scan function
 
-| Short | Long                            | Description                                               | Value                                                                                                                                     | Example                  |
-|-------|---------------------------------|-----------------------------------------------------------|-------------------------------------------------------------------------------------------------------------------------------------------|--------------------------|
-| -p    | --prefer                        | Which platform do you prefer to use?                      | `curseforge` or `modrinth`                                                                                                                | `mmm scan -p curseforge` |
-| -a    | --add                           | Automatically add the discovered mods to the modlist json |                                                                                                                  | `mmm scan -a`            |
+| Short | Long     | Description                                               | Value                      | Example                  |
+|-------|----------|-----------------------------------------------------------|----------------------------|--------------------------|
+| -p    | --prefer | Which platform do you prefer to use?                      | `curseforge` or `modrinth` | `mmm scan -p curseforge` |
+| -a    | --add    | Automatically add the discovered mods to the modlist json |                            | `mmm scan -a`            |
 
 ---
 
