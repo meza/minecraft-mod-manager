@@ -20,10 +20,10 @@ pre-commit:
   parallel: true
   commands:
     lint:
-      run: pnpm lint
+      run: npx pnpm lint
     test:
-      run: pnpm report
+      run: npx pnpm report
 post-merge:
   commands:
     install-deps-postmerge:
-      run: pnpm install --frozen-lockfile
+      run: npx pnpm install --frozen-lockfile

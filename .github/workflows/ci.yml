@@ -1,5 +1,11 @@
 name: Verify and Release
 
+permissions:
+  issues: write
+  checks: write
+  contents: write
+  pull-requests: write
+
 on: [ push ]
 
 env:
