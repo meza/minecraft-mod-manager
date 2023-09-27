@@ -19,7 +19,7 @@
   "scripts": {
     "build": "esbuild ./src/ --bundle --target=esnext --platform=node --outfile=dist/mmm.cjs --external:@meza/curseforge-fingerprint",
     "build:binaries": "cross-env PKG_CACHE_PATH=.cache/pkg pkg dist/mmm.cjs --no-native-build -c ./.pkgrc.json -t latest-win,latest-linux,latest-macos --options \"no-warnings\" -o dist/pkg/mmm",
-    "start": "node --no-warnings --loader ts-node/esm src/index.ts",
+    "start": "tsx src/index.ts",
     "commit": "cz",
     "ci": "npm-run-all --parallel -c lint report",
     "clean": "npm-run-all clean:basics",
@@ -108,6 +108,7 @@
     "semantic-release": "22.0.5",
     "semantic-release-export-data": "1.0.1",
     "ts-node": "10.9.1",
+    "tsx": "^3.13.0",
     "typescript": "5.2.2",
     "vitest": "0.27.3"
   },

@@ -4,10 +4,11 @@ import { minimatch } from 'minimatch';
 
 export const findLocalMods = (lookup: string[], configuration: ModsJson) => {
   const matches: Set<Mod> = new Set<Mod>();
+
   lookup.forEach((modLookup) => {
     const pattern: RegExp = minimatch.makeRe(modLookup.toLowerCase()) as RegExp;
     const found = configuration.mods.filter((mod) => {
-      if (mod.id.match(pattern)) {
+      if (mod.id.toLowerCase().match(pattern)) {
         return true;
       }
 

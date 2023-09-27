@@ -13,7 +13,7 @@ export const testGameVersion = async (gameVersion: string, options: VerifyUpgrad
     if (!verified.canUpgrade) {
       logger.log(`Some mods are missing support for ${verified.version}.`);
       verified.modsInError.forEach((mod) => {
-        logger.log(`${chalk.red('\u274c')} ${mod.name?.trim()}`);
+        logger.log(`${chalk.red('\u274c')} ${mod.name?.trim()} ${chalk.gray('(')}${chalk.gray(mod.id)}${chalk.gray(')')}`);
       });
       logger.error(`You cannot upgrade to ${verified.version} just yet.`, 1);
     }

@@ -39,9 +39,9 @@ describe('The list action', async () => {
 
       const randomConfig = generateModsJson().generated;
 
-      const mod3 = generateModConfig({ name: 'mod3.jar' }).generated;
-      const mod1 = generateModConfig({ name: 'mod1.jar' }).generated;
-      const mod2 = generateModConfig({ name: 'mod2.jar' }).generated;
+      const mod3 = generateModConfig({ name: 'mod3.jar', id: 'mod3id' }).generated;
+      const mod1 = generateModConfig({ name: 'mod1.jar', id: 'mod1id' }).generated;
+      const mod2 = generateModConfig({ name: 'mod2.jar', id: 'mod2id' }).generated;
 
       randomConfig.mods = [mod3, mod1, mod2];
 
@@ -58,9 +58,9 @@ describe('The list action', async () => {
       await list(options, logger);
 
       expect(logger.log).toHaveBeenNthCalledWith(1, 'Configured mods', true);
-      expect(logger.log).toHaveBeenNthCalledWith(2, '\u2705 mod1.jar is installed', true);
-      expect(logger.log).toHaveBeenNthCalledWith(3, '\u2705 mod2.jar is installed', true);
-      expect(logger.log).toHaveBeenNthCalledWith(4, '\u2705 mod3.jar is installed', true);
+      expect(logger.log).toHaveBeenNthCalledWith(2, '\u2705 mod1.jar (mod1id) is installed', true);
+      expect(logger.log).toHaveBeenNthCalledWith(3, '\u2705 mod2.jar (mod2id) is installed', true);
+      expect(logger.log).toHaveBeenNthCalledWith(4, '\u2705 mod3.jar (mod3id) is installed', true);
 
     });
   });
@@ -69,9 +69,9 @@ describe('The list action', async () => {
     it<LocalTestContext>('it should list all the mods appropriately', async ({ options, logger }) => {
       const randomConfig = generateModsJson().generated;
 
-      const mod1 = generateModConfig({ name: 'mod1.jar' }).generated;
-      const mod2 = generateModConfig({ name: 'mod2.jar' }).generated;
-      const mod3 = generateModConfig({ name: 'mod3.jar' }).generated;
+      const mod1 = generateModConfig({ name: 'mod1.jar', id: 'mod1id' }).generated;
+      const mod2 = generateModConfig({ name: 'mod2.jar', id: 'mod2id' }).generated;
+      const mod3 = generateModConfig({ name: 'mod3.jar', id: 'mod3id' }).generated;
 
       randomConfig.mods = [mod1, mod2, mod3];
 
@@ -87,9 +87,9 @@ describe('The list action', async () => {
       await list(options, logger);
 
       expect(logger.log).toHaveBeenNthCalledWith(1, 'Configured mods', true);
-      expect(logger.log).toHaveBeenNthCalledWith(2, '\u2705 mod1.jar is installed', true);
-      expect(logger.log).toHaveBeenNthCalledWith(3, '\u274c mod2.jar is not installed', true);
-      expect(logger.log).toHaveBeenNthCalledWith(4, '\u2705 mod3.jar is installed', true);
+      expect(logger.log).toHaveBeenNthCalledWith(2, '\u2705 mod1.jar (mod1id) is installed', true);
+      expect(logger.log).toHaveBeenNthCalledWith(3, '\u274c mod2.jar (mod2id) is not installed', true);
+      expect(logger.log).toHaveBeenNthCalledWith(4, '\u2705 mod3.jar (mod3id) is installed', true);
 
     });
 

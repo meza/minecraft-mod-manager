@@ -89,6 +89,8 @@ export const add = async (platform: Platform, id: string, options: DefaultOption
     await writeConfigFile(configuration, options, logger);
     await writeLockFile(installations, options, logger);
 
+    logger.log(`${chalk.green('\u2705')} Added ${modData.name} (${id}) for ${platform}`);
+
   } catch (error) {
     if (error instanceof DownloadFailedException) {
       logger.error(error.message, 1);
