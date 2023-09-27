@@ -203,7 +203,8 @@ describe('The Initialization Interaction', () => {
         const actual = await verifierFunction!(folder);
 
         expect(vi.mocked(fileExists)).toHaveBeenCalledWith(modsLocation);
-        expect(actual).toMatchInlineSnapshot('"The folder: /root/test-folder does not exist. Please enter a valid one and try again."');
+        const expectedPath = path.resolve(root, folder);
+        expect(actual).toEqual(`The folder: ${expectedPath} does not exist. Please enter a valid one and try again.`);
       });
     });
   });

@@ -1,3 +1,4 @@
+import path from 'node:path';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { Mod, ModInstall, ModsJson } from '../lib/modlist.types.js';
 import { generateModsJson } from '../../test/modlistGenerator.js';
@@ -148,7 +149,7 @@ describe('The remove action', () => {
 
       const config = generateModsJson({ mods: [mod1, mod2, mod3] }).generated;
 
-      vi.mocked(getModsDir).mockReturnValue('/mods');
+      vi.mocked(getModsDir).mockReturnValue(path.resolve('/mods'));
       vi.mocked(ensureConfiguration).mockResolvedValueOnce(config);
       vi.mocked(readLockFile).mockResolvedValueOnce([
         mod1Install,
@@ -163,10 +164,10 @@ describe('The remove action', () => {
       expect(fs.rm).toHaveBeenCalledTimes(2);
       expect(writeLockFile).toHaveBeenCalledTimes(2); //for both deleted mods
 
-      expect(fs.rm).toHaveBeenNthCalledWith(1, '/mods/file1', { force: true });
+      expect(fs.rm).toHaveBeenNthCalledWith(1, path.resolve('/mods/file1'), { force: true });
       expect(writeLockFile).toHaveBeenNthCalledWith(1, [mod2Install, mod3Install], options, logger);
 
-      expect(fs.rm).toHaveBeenNthCalledWith(2, '/mods/file2', { force: true });
+      expect(fs.rm).toHaveBeenNthCalledWith(2, path.resolve('/mods/file2'), { force: true });
       expect(writeLockFile).toHaveBeenNthCalledWith(2, [mod3Install], options, logger);
     });
   });
