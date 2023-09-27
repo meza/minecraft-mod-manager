@@ -2,7 +2,7 @@ import { DefaultOptions } from '../mmm.js';
 import { Loader, ModsJson, ReleaseType } from '../lib/modlist.types.js';
 import inquirer from 'inquirer';
 import { fileExists, writeConfigFile } from '../lib/config.js';
-import * as path from 'path';
+import path from 'node:path';
 import { verifyMinecraftVersion } from '../lib/minecraftVersionVerifier.js';
 import { IncorrectMinecraftVersionException } from '../errors/IncorrectMinecraftVersionException.js';
 import { configFile } from './configFileOverwrite.js';

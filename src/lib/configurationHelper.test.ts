@@ -5,11 +5,12 @@ import { generateModConfig } from '../../test/modConfigGenerator.js';
 import { fileIsManaged, findLocalMods, getInstallation, getModsDir, hasInstallation } from './configurationHelper.js';
 import { chance } from 'jest-chance';
 import { generateModsJson } from '../../test/modlistGenerator.js';
+import path from 'node:path';
 
-interface LocalTestContext {
-  installations: ModInstall[];
-  mod: Mod;
-}
+  interface LocalTestContext {
+    installations: ModInstall[];
+    mod: Mod;
+  }
 
 describe('The configuration helper', () => {
   beforeEach<LocalTestContext>((context) => {
@@ -41,9 +42,9 @@ describe('The configuration helper', () => {
   });
 
   it('can resolve a relative mod folder', () => {
-    const configPath = '/some-path/config.json';
+    const configPath = path.resolve('/some-path/config.json');
     const modsFolder = 'mods';
-    const expected = '/some-path/mods';
+    const expected = path.resolve('/some-path/mods');
     const actual = getModsDir(configPath, modsFolder);
 
     expect(actual).toEqual(expected);
