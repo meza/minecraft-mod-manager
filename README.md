@@ -353,6 +353,10 @@ it will either ask you what to do or not do anything.
 
 If you supply the `--add` flag, it will add the discovered files to your modlist json.
 
+#### What if I don't specify a preferred platform?
+
+If you don't specify a preferred platform, it will use `Modrinth`. It does not search on both at the same time, ever.
+
 #### Will it delete the files that it found?
 
 No. It will reuse the found files and add them to the lockfile so you can decide if you want to then update to the newest
@@ -360,10 +364,10 @@ versions or not.
 
 #### Command line arguments for the scan function
 
-| Short | Long     | Description                                               | Value                      | Example                  |
-|-------|----------|-----------------------------------------------------------|----------------------------|--------------------------|
-| -p    | --prefer | Which platform do you prefer to use?                      | `curseforge` or `modrinth` | `mmm scan -p curseforge` |
-| -a    | --add    | Automatically add the discovered mods to the modlist json |                            | `mmm scan -a`            |
+| Short | Long     | Description                                               | Value                      | Default    | Example                  |
+|-------|----------|-----------------------------------------------------------|----------------------------|------------|--------------------------|
+| -p    | --prefer | Which platform do you prefer to use?                      | `curseforge` or `modrinth` | `modrinth` | `mmm scan -p curseforge` |
+| -a    | --add    | Automatically add the discovered mods to the modlist json |                            |            | `mmm scan -a`            |
 
 ---
 
