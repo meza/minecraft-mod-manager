@@ -247,7 +247,7 @@ describe('The install module', () => {
     await install(options, logger);
 
     // Verify our expectations
-    expect(logger.log).not.toHaveBeenCalled();
+    expect(logger.log).toHaveBeenCalledWith('✅ all mods are installed!');
 
     expect(vi.mocked(writeConfigFile)).toHaveBeenCalledWith(randomConfiguration, options, logger);
     expect(vi.mocked(writeLockFile)).toHaveBeenCalledWith([randomInstallation], options, logger);

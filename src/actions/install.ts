@@ -1,3 +1,4 @@
+import chalk from 'chalk';
 import { ensureConfiguration, fileExists, readLockFile, writeConfigFile, writeLockFile } from '../lib/config.js';
 import path from 'path';
 import { fetchModDetails } from '../repositories/index.js';
@@ -111,4 +112,5 @@ export const install = async (options: DefaultOptions, logger: Logger) => {
 
   await writeLockFile(installedMods, options, logger);
   await writeConfigFile(configuration, options, logger);
+  logger.log(`${chalk.green('\u2705')} all mods are installed!`);
 };

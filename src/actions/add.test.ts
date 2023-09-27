@@ -140,6 +140,11 @@ describe('The add module', async () => {
       'Writing the lock file after adding a mod has failed'
     ).toHaveBeenCalledWith(expectedLockFile, options, logger);
 
+    expect(
+      logger.log,
+      'The log message was not logged'
+    ).toHaveBeenCalledWith(`✅ Added ${randomModDetails.expected.name} (${randomModId}) for ${randomPlatform}`);
+
   });
 
   it<LocalTestContext>('should skip the download if the mod already exists', async (context) => {
