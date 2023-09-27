@@ -18,7 +18,7 @@
   "private": false,
   "scripts": {
     "build": "esbuild ./src/ --bundle --target=esnext --platform=node --outfile=dist/mmm.cjs --external:@meza/curseforge-fingerprint",
-    "build:binaries": "PKG_CACHE_PATH=.cache/pkg pkg dist/mmm.cjs --no-native-build -c ./.pkgrc.json -t node18-win,node18-linux,node18-macos --options \"no-warnings\" -o dist/pkg/mmm",
+    "build:binaries": "cross-env PKG_CACHE_PATH=.cache/pkg pkg dist/mmm.cjs --no-native-build -c ./.pkgrc.json -t latest-win,latest-linux,latest-macos --options \"no-warnings\" -o dist/pkg/mmm",
     "start": "node --no-warnings --loader ts-node/esm src/index.ts",
     "commit": "cz",
     "ci": "npm-run-all --parallel -c lint report",
@@ -58,7 +58,11 @@
       "@commitlint/config-conventional"
     ],
     "rules": {
-      "header-max-length": [0, "always", 100]
+      "header-max-length": [
+        0,
+        "always",
+        100
+      ]
     }
   },
   "devDependencies": {
@@ -86,6 +90,7 @@
     "@vitest/coverage-c8": "0.27.3",
     "@vitest/ui": "^0.27.2",
     "c8": "8.0.1",
+    "cross-env": "^7.0.3",
     "esbuild": "0.19.3",
     "eslint": "8.49.0",
     "eslint-config-tailored-tunes": "5.0.2",
