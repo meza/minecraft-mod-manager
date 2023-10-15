@@ -149,8 +149,8 @@ devDependencies:
     specifier: 5.8.1
     version: 5.8.1
   pnpm:
-    specifier: 8.9.0
-    version: 8.9.0
+    specifier: 8.9.1
+    version: 8.9.1
   rimraf:
     specifier: 5.0.5
     version: 5.0.5
@@ -336,34 +336,10 @@ packages:
       '@commitlint/types': 17.4.4
     dev: true
 
-  /@commitlint/load@17.7.2:
-    resolution: {integrity: sha512-XA7WTnsjHZ4YH6ZYsrnxgLdXzriwMMq+utZUET6spbOEEIPBCDLdOQXS26P+v3TTO4hUHOEhzUquaBv3jbBixw==}
-    engines: {node: '>=v14'}
-    requiresBuild: true
-    dependencies:
-      '@commitlint/config-validator': 17.6.7
-      '@commitlint/execute-rule': 17.4.0
-      '@commitlint/resolve-extends': 17.6.7
-      '@commitlint/types': 17.4.4
-      '@types/node': 20.5.1
-      chalk: 4.1.2
-      cosmiconfig: 8.0.0
-      cosmiconfig-typescript-loader: 4.1.1(@types/node@20.5.1)(cosmiconfig@8.0.0)(ts-node@10.9.1)(typescript@5.2.2)
-      lodash.isplainobject: 4.0.6
-      lodash.merge: 4.6.2
-      lodash.uniq: 4.5.0
-      resolve-from: 5.0.0
-      ts-node: 10.9.1(@types/node@20.5.1)(typescript@5.2.2)
-      typescript: 5.2.2
-    transitivePeerDependencies:
-      - '@swc/core'
-      - '@swc/wasm'
-    dev: true
-    optional: true
-
   /@commitlint/load@17.8.0:
     resolution: {integrity: sha512-9VnGXYJCP4tXmR4YrwP8n5oX6T5ZsHfPQq6WuUQOvAI+QsDQMaTGgTRXr7us+xsjz+b+mMBSagogqfUx2aixyw==}
     engines: {node: '>=v14'}
+    requiresBuild: true
     dependencies:
       '@commitlint/config-validator': 17.6.7
       '@commitlint/execute-rule': 17.4.0
@@ -1258,7 +1234,7 @@ packages:
       longest: 2.0.1
       word-wrap: 1.2.5
     optionalDependencies:
-      '@commitlint/load': 17.7.2
+      '@commitlint/load': 17.8.0
     transitivePeerDependencies:
       - '@swc/core'
       - '@swc/wasm'
@@ -5401,8 +5377,8 @@ packages:
       - supports-color
     dev: true
 
-  /pnpm@8.9.0:
-    resolution: {integrity: sha512-74hZk44fBTe5/PAwkEQxE5Lzs4s0QXbmzU/e4hsiVSSwrCobCK4q4t3Vs/9LjKSW1neOlQ8+fJ9VW4EyWYJEHA==}
+  /pnpm@8.9.1:
+    resolution: {integrity: sha512-/ma2OuIl3ISym/T14A10j0TASAX/xdk4aDaUZj+4IwmrBCCkSpB1F9QNuPSeQs2POqEKtxa5BzbPE/mJQFWxaQ==}
     engines: {node: '>=16.14'}
     hasBin: true
     dev: true
