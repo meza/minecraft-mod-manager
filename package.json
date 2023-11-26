@@ -105,7 +105,7 @@
     "pkg": "5.8.1",
     "pnpm": "8.10.4",
     "rimraf": "5.0.5",
-    "semantic-release": "22.0.7",
+    "semantic-release": "22.0.8",
     "semantic-release-export-data": "1.0.1",
     "ts-node": "10.9.1",
     "tsx": "^3.13.0",
