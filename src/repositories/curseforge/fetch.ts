@@ -58,9 +58,9 @@ const releaseTypeFromNumber = (curseForgeReleaseType: number): ReleaseType => {
   }
 };
 
-const getFiles = async (projectId: string, loader: Loader): Promise<CurseforgeModFile[]> => {
+const getFiles = async (projectId: string, gameVersion: string, loader: Loader): Promise<CurseforgeModFile[]> => {
   const cfLoader = Curseforge.curseforgeLoaderFromLoader(loader);
-  const url = `https://api.curseforge.com/v1/mods/${projectId}/files?modLoaderType=${cfLoader}`;
+  const url = `https://api.curseforge.com/v1/mods/${projectId}/files?gameVersion=${gameVersion}&modLoaderType=${cfLoader}`;
 
   const modFiles = await rateLimitingFetch(url, {
     headers: {
@@ -102,7 +102,7 @@ export const getMod = async (projectId: string, allowedReleaseTypes: ReleaseType
   }
 
   const modDetails = await modDetailsRequest.json();
-  const files = await getFiles(projectId, loader);
+  const files = await getFiles(projectId, allowedGameVersion, loader);
   const potentialFiles = files
     .filter((file) => {
       return file.sortableGameVersions.find((gameVersion) => gameVersion.gameVersionName.toLowerCase() === loader.toLowerCase());

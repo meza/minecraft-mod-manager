@@ -44,9 +44,9 @@ const getName = async (projectId: string): Promise<string> => {
   return modInfo.title;
 };
 
-const getModDetails = async (projectId: string, loader: Loader): Promise<ModrinthMod> => {
+const getModDetails = async (projectId: string, gameVersion: string, loader: Loader): Promise<ModrinthMod> => {
   const name = await getName(projectId);
-  const url = `https://api.modrinth.com/v2/project/${projectId}/version?game_versions=loaders=["${loader}"]`;
+  const url = `https://api.modrinth.com/v2/project/${projectId}/version?game_versions=["${gameVersion}"]&loaders=["${loader}"]`;
 
   const modDetailsRequest = await rateLimitingFetch(url, {
     headers: Modrinth.API_HEADERS
@@ -102,7 +102,7 @@ export const getMod = async (
   loader: Loader,
   allowFallback: boolean): Promise<RemoteModDetails> => {
 
-  const { name, versions } = await getModDetails(projectId, loader);
+  const { name, versions } = await getModDetails(projectId, allowedGameVersion, loader);
   const potentialFiles = versions
     .filter((version) => {
       return hasTheCorrectLoader(version, loader);
