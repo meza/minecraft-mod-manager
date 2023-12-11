@@ -1,3 +1,4 @@
+import { getNextVersionDown } from '../../lib/fallbackVersion.js';
 import { Loader, Platform, ReleaseType, RemoteModDetails } from '../../lib/modlist.types.js';
 import { CouldNotFindModException } from '../../errors/CouldNotFindModException.js';
 import { NoRemoteFileFound } from '../../errors/NoRemoteFileFound.js';
@@ -72,27 +73,8 @@ const hasTheCorrectReleaseType = (version: ModrinthVersion, allowedReleaseTypes:
   return allowedReleaseTypes.includes(version.version_type);
 };
 
-const hasTheCorrectVersion = (version: ModrinthVersion, allowedGameVersion: string, allowFallback: boolean) => {
-  if (version.game_versions.includes(allowedGameVersion)) {
-    return true;
-  }
-
-  if (allowFallback) {
-
-    const [major, minor, patch] = allowedGameVersion.split('.').map((num) => parseInt(num, 10));
-
-    if (patch && patch > 1) {
-      if (version.game_versions.includes(`${major}.${minor}.${patch - 1}`)) {
-        return true;
-      }
-    }
-
-    if (version.game_versions.includes(`${major}.${minor}`)) {
-      return true;
-    }
-  }
-
-  return false;
+const hasTheCorrectVersion = (version: ModrinthVersion, allowedGameVersion: string) => {
+  return version.game_versions.includes(allowedGameVersion);
 };
 
 export const getMod = async (
@@ -101,7 +83,6 @@ export const getMod = async (
   allowedGameVersion: string,
   loader: Loader,
   allowFallback: boolean): Promise<RemoteModDetails> => {
-
   const { name, versions } = await getModDetails(projectId, allowedGameVersion, loader);
   const potentialFiles = versions
     .filter((version) => {
@@ -111,13 +92,19 @@ export const getMod = async (
       return hasTheCorrectReleaseType(version, allowedReleaseTypes);
     })
     .filter((version) => {
-      return hasTheCorrectVersion(version, allowedGameVersion, allowFallback);
+      return hasTheCorrectVersion(version, allowedGameVersion);
     })
     .sort((versionA, versionB) => {
       return versionA.date_published < versionB.date_published ? 1 : -1;
     });
 
   if (potentialFiles.length === 0) {
+
+    if (allowFallback) {
+      const versionDown = getNextVersionDown(allowedGameVersion);
+      return getMod(projectId, allowedReleaseTypes, versionDown.nextVersionToTry, loader, versionDown.canGoDown);
+    }
+
     throw new NoRemoteFileFound(projectId, Platform.MODRINTH);
   }
 
