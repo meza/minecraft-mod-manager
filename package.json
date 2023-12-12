@@ -49,7 +49,7 @@
     "dotenv": "^16.0.3",
     "glob": "^10.0.0",
     "inquirer": "^9.1.2",
-    "log-symbols": "^5.1.0",
+    "log-symbols": "^6.0.0",
     "minimatch": "^9.0.0",
     "nodejs-file-downloader": "^4.10.2"
   },
