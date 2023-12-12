@@ -124,6 +124,7 @@ describe('The remove action', () => {
       vi.mocked(ensureConfiguration).mockReset();
       vi.mocked(readLockFile).mockReset();
       vi.mocked(getInstallation).mockRestore();
+      vi.mocked(hasInstallation).mockReset();
       vi.mocked(hasInstallation).mockRestore();
 
       const mod1 = generateModConfig({ name: 'removed mod1' }).generated;
@@ -157,6 +158,9 @@ describe('The remove action', () => {
         mod2Install,
         mod3Install
       ]);
+
+      vi.mocked(hasInstallation).mockReturnValue(true);
+      vi.mocked(getInstallation).mockReturnValue(0);
 
       vi.mocked(findLocalMods).mockReturnValueOnce(new Set<Mod>([mod1, mod2])); //what are we removing?
 
