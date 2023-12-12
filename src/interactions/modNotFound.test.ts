@@ -35,7 +35,7 @@ describe('The mod not found interaction', () => {
 
     const loggerErrorCall = vi.mocked(logger.error).mock.calls[0][0];
 
-    expect(loggerErrorCall).toMatchInlineSnapshot('"Mod \\"test-mod-id\\" for curseforge does not exist"');
+    expect(loggerErrorCall).toMatchInlineSnapshot(`"Mod "test-mod-id" for curseforge does not exist"`);
     expect(vi.mocked(inquirer.prompt)).not.toHaveBeenCalled();
 
   });

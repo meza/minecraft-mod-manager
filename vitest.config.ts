@@ -24,16 +24,17 @@ export default defineConfig({
     outputFile: 'reports/junit.xml',
     reporters: testReporters,
     coverage: {
-      excludeNodeModules: true,
       include: ['src/**/*.ts'],
       exclude: ['**/*.testGameVersion.ts', '**/__mocks__/**.*', '**/*.d.ts', '**/*.test.ts'],
       all: true,
       reportsDirectory: './reports/coverage/unit',
       reporter: coverageReporters,
-      statements: 100,
-      branches: 100,
-      functions: 100,
-      lines: 100
+      thresholds: {
+        statements: 100,
+        branches: 100,
+        functions: 100,
+        lines: 100
+      }
     }
   }
 });
