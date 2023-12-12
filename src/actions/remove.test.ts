@@ -24,6 +24,7 @@ vi.mock('../lib/configurationHelper.js');
 vi.mock('fs/promises');
 
 describe('The remove action', () => {
+
   beforeEach<LocalTestContext>((context) => {
     vi.resetAllMocks();
 

@@ -6,7 +6,7 @@ import { chance } from 'jest-chance';
 import { fileExists } from '../lib/config.js';
 import { fileToWrite } from './fileToWrite.js';
 import path from 'path';
-import inquirer from 'inquirer';
+import inquirer, { Question, QuestionCollection } from 'inquirer';
 
 vi.mock('node:fs/promises');
 vi.mock('../lib/config.js');
@@ -116,7 +116,7 @@ describe('The file writable module', () => {
 
         await fileToWrite(inputPath, options, logger);
 
-        const inquirerParams = vi.mocked(inquirer.prompt).mock.calls[0][0][0];
+        const inquirerParams = (vi.mocked(inquirer.prompt).mock.calls[0][0] as QuestionCollection[])[0] as Question;
         const validator = inquirerParams.validate;
 
         vi.mocked(fileExists).mockReset();
@@ -124,9 +124,11 @@ describe('The file writable module', () => {
 
         vi.mocked(fileExists).mockResolvedValueOnce(false);
         vi.mocked(fs.access).mockResolvedValueOnce(undefined);
-
-        const actual = await validator(inputPath);
-        expect(actual).toBeTruthy();
+        expect(validator).toBeDefined();
+        if (validator) {
+          const actual = await validator(inputPath);
+          expect(actual).toBeTruthy();
+        }
       });
 
       it<LocalTestContext>('reports the user input valiator error', async ({ options, logger }) => {
@@ -139,7 +141,7 @@ describe('The file writable module', () => {
 
         await fileToWrite(inputPath, options, logger);
 
-        const inquirerParams = vi.mocked(inquirer.prompt).mock.calls[0][0][0];
+        const inquirerParams = (vi.mocked(inquirer.prompt).mock.calls[0][0] as QuestionCollection[])[0] as Question;
         const validator = inquirerParams.validate;
 
         vi.mocked(fileExists).mockReset();
@@ -148,8 +150,11 @@ describe('The file writable module', () => {
         vi.mocked(fileExists).mockResolvedValueOnce(false);
         vi.mocked(fs.access).mockRejectedValueOnce({});
 
-        const actual = await validator(inputPath);
-        expect(actual).toMatchInlineSnapshot('"/a/path/to/modlist2.json is not writable, please choose another one"');
+        expect(validator).toBeDefined();
+        if (validator) {
+          const actual = await validator(inputPath);
+          expect(actual).toMatchInlineSnapshot('"/a/path/to/modlist2.json is not writable, please choose another one"');
+        }
       });
     });
   });
