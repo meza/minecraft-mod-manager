@@ -83,6 +83,7 @@ commands.push(
   program.command('add')
     .argument('<type>', 'curseforge or modrinth')
     .argument('<id>', 'Curseforge or Modrinth Project Id')
+    .option('-f, --allow-version-fallback', 'Should we try to download the mod for previous Minecraft versions if they do not exists for your Minecraft Version?', false)
     .action(async (type: Platform, id: string, _options, cmd) => {
       await add(type, id, cmd.optsWithGlobals(), logger);
     })
@@ -93,7 +94,6 @@ commands.push(
   program.command('init')
     .option('-l, --loader <loader>', `Which loader would you like to use? ${Object.values(Loader).join(', ')}`)
     .option('-g, --game-version <gameVersion>', 'What exact Minecraft version are you using? (eg: 1.18.2, 1.19, 1.19.1)')
-    .option('-f, --allow-version-fallback', 'Should we try to download mods for previous Minecraft versions if they do not exists for your Minecraft Version?')
     .option('-r, --default-allowed-release-types <defaultAllowedReleaseTypes>',
       `Which types of releases would you like to consider to download? ${Object.values(ReleaseType).join(', ')} - comma separated list`)
     .option('-m, --mods-folder <modsFolder>', `where is your mods folder? (full or relative path from ${cwd})`)

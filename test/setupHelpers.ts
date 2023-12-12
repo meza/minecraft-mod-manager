@@ -34,7 +34,7 @@ export const expectModDetailsHaveBeenFetchedCorrectlyForMod = (
       mod.allowedReleaseTypes,
       modsJson.gameVersion,
       modsJson.loader,
-      modsJson.allowVersionFallback
+      mod.allowVersionFallback
     );
   } else {
     expect(vi.mocked(fetchModDetails)).toHaveBeenNthCalledWith(
@@ -44,7 +44,7 @@ export const expectModDetailsHaveBeenFetchedCorrectlyForMod = (
       modsJson.defaultAllowedReleaseTypes,
       modsJson.gameVersion,
       modsJson.loader,
-      modsJson.allowVersionFallback
+      mod.allowVersionFallback
     );
   }
 };

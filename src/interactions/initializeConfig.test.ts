@@ -243,34 +243,6 @@ describe('The Initialization Interaction', () => {
     expect(findQuestion(inquirer.prompt, 'loader').when).toBeFalsy();
   });
 
-  it('asks for the version fallback when it isn\'t supplied', async () => {
-    const input = generateInitializeOptions().generated;
-    delete input.allowVersionFallback;
-
-    vi.mocked(inquirer.prompt).mockResolvedValueOnce({
-      allowVersionFallback: chance.bool()
-    });
-    await initializeConfig(input, chance.word(), logger);
-
-    expect(findQuestion(inquirer.prompt, 'allowVersionFallback')).toMatchInlineSnapshot(`
-      {
-        "message": "Should we try to download mods for previous Minecraft versions if they do not exist for your Minecraft Version?",
-        "name": "allowVersionFallback",
-        "type": "confirm",
-        "when": true,
-      }
-    `);
-  });
-
-  it('skips the version fallback question when it is supplied', async () => {
-    const input = generateInitializeOptions().generated;
-
-    vi.mocked(inquirer.prompt).mockResolvedValueOnce({});
-    await initializeConfig(input, chance.word(), logger);
-
-    expect(findQuestion(inquirer.prompt, 'allowVersionFallback').when).toBeFalsy();
-  });
-
   it('asks for the release types when they aren\'t supplied', async () => {
     const input = generateInitializeOptions().generated;
     delete input.defaultAllowedReleaseTypes;
@@ -305,7 +277,7 @@ describe('The Initialization Interaction', () => {
     vi.mocked(inquirer.prompt).mockResolvedValueOnce({});
     await initializeConfig(input, chance.word(), logger);
 
-    expect(findQuestion(inquirer.prompt, 'allowVersionFallback').when).toBeFalsy();
+    expect(findQuestion(inquirer.prompt, 'defaultAllowedReleaseTypes').when).toBeFalsy();
   });
 
   it('asks for the game version when it isn\'t supplied', async () => {

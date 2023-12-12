@@ -39,12 +39,12 @@ export interface Mod {
   id: string,
   allowedReleaseTypes?: ReleaseType[]
   name: string,
+  allowVersionFallback?: boolean,
 }
 
 export interface ModsJson {
   loader: Loader,
   gameVersion: string,
-  allowVersionFallback: boolean,
   defaultAllowedReleaseTypes: ReleaseType[],
   modsFolder: string,
   mods: Mod[]

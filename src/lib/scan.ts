@@ -60,7 +60,7 @@ export const scanFiles = async (files: string[], installations: ModInstall[], pr
         configuration.defaultAllowedReleaseTypes,
         configuration.gameVersion,
         configuration.loader,
-        configuration.allowVersionFallback
+        false //TODO: Figure out how to handle this. Should scan allow fallback? Does it even matter? What's the logic here?
       );
 
       allDetails[i] = deets;

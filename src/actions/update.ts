@@ -36,7 +36,7 @@ export const update = async (options: DefaultOptions, logger: Logger) => {
         mod.allowedReleaseTypes || configuration.defaultAllowedReleaseTypes,
         configuration.gameVersion,
         configuration.loader,
-        configuration.allowVersionFallback
+        !!mod.allowVersionFallback
       );
       mods[index].name = modData.name;
 

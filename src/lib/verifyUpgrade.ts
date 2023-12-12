@@ -47,7 +47,7 @@ export const verifyUpgradeIsPossible = async (gameVersion: string, options: Veri
         mod.allowedReleaseTypes || configuration.defaultAllowedReleaseTypes,
         version,
         configuration.loader,
-        configuration.allowVersionFallback
+        !!mod.allowVersionFallback
       );
     } catch {
       errors.push(mod);

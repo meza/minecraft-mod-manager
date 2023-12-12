@@ -194,6 +194,7 @@ describe('The add module', async () => {
   it<LocalTestContext>('should report when a file cannot be found for the version and exit', async ({ randomConfiguration }) => {
     const randomPlatform = Platform.CURSEFORGE;
     const randomModId = chance.word();
+    const randomAllowVersion = chance.bool();
     vi.mocked(fetchModDetails).mockReset();
     vi.mocked(fetchModDetails).mockRejectedValueOnce(new NoRemoteFileFound(randomModId, randomPlatform));
     vi.mocked(fetchModDetails).mockRejectedValueOnce(new Error('test-error'));
@@ -202,14 +203,14 @@ describe('The add module', async () => {
       platform: Platform.MODRINTH
     });
 
-    await expect(add(randomPlatform, randomModId, { config: 'config.json' }, logger)).rejects.toThrow(new Error('process.exit'));
+    await expect(add(randomPlatform, randomModId, { config: 'config.json', allowVersionFallback: randomAllowVersion }, logger)).rejects.toThrow(new Error('process.exit'));
 
     expect(fetchModDetails).toHaveBeenNthCalledWith(2, Platform.MODRINTH, 'another-mod-id',
       randomConfiguration.expected.defaultAllowedReleaseTypes,
       randomConfiguration.expected.gameVersion,
       randomConfiguration.expected.loader,
-      randomConfiguration.expected.allowVersionFallback);
-    expect(noRemoteFileFound).toHaveBeenCalledWith(randomModId, randomPlatform, randomConfiguration.expected, logger, { config: 'config.json' });
+      randomAllowVersion);
+    expect(noRemoteFileFound).toHaveBeenCalledWith(randomModId, randomPlatform, randomConfiguration.expected, logger, { config: 'config.json', allowVersionFallback: randomAllowVersion });
     expect(logger.error).toHaveBeenCalledWith('test-error', 2);
   });
 

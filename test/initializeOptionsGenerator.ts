@@ -6,7 +6,6 @@ import { GeneratorResult } from './test.types.js';
 export const generateInitializeOptions = (overrides?: Partial<InitializeOptions>): GeneratorResult<InitializeOptions> => {
   const loader = chance.pickone(Object.values(Loader));
   const gameVersion = chance.word();
-  const allowVersionFallback = chance.bool();
   const defaultAllowedReleaseTypes = chance.pickset(Object.values(Platform), chance.integer({
     min: 1,
     max: Object.keys(Platform).length
@@ -17,7 +16,6 @@ export const generateInitializeOptions = (overrides?: Partial<InitializeOptions>
   const generated = {
     loader: loader,
     gameVersion: gameVersion,
-    allowVersionFallback: allowVersionFallback,
     defaultAllowedReleaseTypes: defaultAllowedReleaseTypes.join(','),
     modsFolder: modsFolder,
     config: config,
@@ -27,7 +25,6 @@ export const generateInitializeOptions = (overrides?: Partial<InitializeOptions>
   const expected = {
     loader: loader,
     gameVersion: gameVersion,
-    allowVersionFallback: allowVersionFallback,
     defaultAllowedReleaseTypes: defaultAllowedReleaseTypes,
     modsFolder: modsFolder,
     config: config,

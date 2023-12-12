@@ -179,7 +179,7 @@ describe('The Upgrade Test Module', () => {
       expected1.allowedReleaseTypes,
       randomVersion,
       randomConfiguration.loader,
-      randomConfiguration.allowVersionFallback
+      expected1.allowVersionFallback
     );
 
     expect(fetchModDetails).toHaveBeenCalledWith(
@@ -188,7 +188,7 @@ describe('The Upgrade Test Module', () => {
       randomConfiguration.defaultAllowedReleaseTypes,
       randomVersion,
       randomConfiguration.loader,
-      randomConfiguration.allowVersionFallback
+      expected2.allowVersionFallback
     );
   });
 });

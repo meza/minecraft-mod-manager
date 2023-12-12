@@ -19,7 +19,11 @@ import { modNotFound } from '../interactions/modNotFound.js';
 import { noRemoteFileFound } from '../interactions/noRemoteFileFound.js';
 import { DownloadFailedException } from '../errors/DownloadFailedException.js';
 
-const handleUnknownPlatformException = async (error: UnknownPlatformException, id: string, options: DefaultOptions, logger: Logger) => {
+export interface AddOptions extends DefaultOptions {
+  allowVersionFallback?: boolean;
+}
+
+const handleUnknownPlatformException = async (error: UnknownPlatformException, id: string, options: AddOptions, logger: Logger) => {
   const platformUsed = error.platform;
   const platformList = Object.values(Platform);
 
@@ -47,7 +51,7 @@ const handleUnknownPlatformException = async (error: UnknownPlatformException, i
 
 };
 
-export const add = async (platform: Platform, id: string, options: DefaultOptions, logger: Logger) => {
+export const add = async (platform: Platform, id: string, options: AddOptions, logger: Logger) => {
 
   const configuration = await ensureConfiguration(options.config, logger, options.quiet);
   const modConfig = configuration.mods.find((mod: Mod) => (mod.id === id && mod.type === platform));
@@ -64,7 +68,7 @@ export const add = async (platform: Platform, id: string, options: DefaultOption
       configuration.defaultAllowedReleaseTypes,
       configuration.gameVersion,
       configuration.loader,
-      configuration.allowVersionFallback);
+      !!options.allowVersionFallback);
 
     await downloadFile(modData.downloadUrl, path.resolve(configuration.modsFolder, modData.fileName));
 

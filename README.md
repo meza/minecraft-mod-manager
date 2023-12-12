@@ -156,13 +156,12 @@ environment without interaction, you can supply all the answers through the comm
 You can supply all the answers via the command line arguments.
 You can add these one after the other, for example: `mmm init -l curseforge -p 1.16.5 -m ./mods -c ./modlist.json`
 
-| Short | Long                            | Description                             | Value                                                                                                                                     | Example                                            |
-|-------|---------------------------------|-----------------------------------------|-------------------------------------------------------------------------------------------------------------------------------------------|----------------------------------------------------|
-| -l    | --loader                        | The mod loader to use                   | `fabric`, `quilt` or `forge`                                                                                                               | `mmm init -l curseforge`                           |
-| -g    | --game-version                  | The Minecraft version to use            | A valid Minecraft version                                                                                                                 | `mmm init -g 1.19.2`                               |
-| -f    | --allow-version-fallback        | Whether to allow version fallback       | No value needed. <br/>When it is supplied, `true` is assumed                                                                              | `mmm init -f` to allow<br/>`mmm init` to not allow |
-| -r    | --default-allowed-release-types | Which release types do you allow?       | A comma separated list of the following: <br/>`alpha`, `beta`, `release`                                                                  | `mmm init -r release,beta`                         |
-| -m    | --mods-folder                   | Where do you want to download the mods? | An absolute or relative path to an **existing** folder<br/>Don't forget to use quotes for paths that include spaces or special characters | `mmm init -m "C:/My Modpack/mods"`                 |
+| Short | Long                            | Description                             | Value                                                                                                                                     | Example                            |
+|-------|---------------------------------|-----------------------------------------|-------------------------------------------------------------------------------------------------------------------------------------------|------------------------------------|
+| -l    | --loader                        | The mod loader to use                   | `fabric`, `quilt` or `forge`                                                                                                              | `mmm init -l curseforge`           |
+| -g    | --game-version                  | The Minecraft version to use            | A valid Minecraft version                                                                                                                 | `mmm init -g 1.19.2`               |
+| -r    | --default-allowed-release-types | Which release types do you allow?       | A comma separated list of the following: <br/>`alpha`, `beta`, `release`                                                                  | `mmm init -r release,beta`         |
+| -m    | --mods-folder                   | Where do you want to download the mods? | An absolute or relative path to an **existing** folder<br/>Don't forget to use quotes for paths that include spaces or special characters | `mmm init -m "C:/My Modpack/mods"` |
 
 ---
 
@@ -176,9 +175,18 @@ You would run this command to add a given mod to the configuration file.
 
 Adding a mod also downloads the corresponding jar file.
 
+You can optionally specify the `--allow-version-fallback` flag to allow the tool to attempt to download the mod for
+previous versions of Minecraft if the mod doesn't support the current version.
+
+#### Command Line Arguments
+
+| Short | Long                     | Description                       | Value                                                        |
+|-------|--------------------------|-----------------------------------|--------------------------------------------------------------|
+| -f    | --allow-version-fallback | Whether to allow version fallback | No value needed. <br/>When it is supplied, `true` is assumed |
+
 #### Platforms
 
-Currently the 2 possible values of the platform are:
+Currently, the 2 possible values of the platform are:
 
 - curseforge
 - modrinth

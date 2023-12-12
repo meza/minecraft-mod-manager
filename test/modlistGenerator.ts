@@ -10,7 +10,6 @@ export const generateModsJson = (overrides?: Partial<ModsJson>): GeneratorResult
   const allowedReleases = chance.pickset(['release', 'beta', 'alpha'], allowedReleasesNumber);
   const gameVersion = chance.word();
   const loader = chance.pickone(Object.values(Loader)) as Loader;
-  const allowVersionFallback = chance.bool();
 
   const generated: ModsJson = {
 
@@ -18,7 +17,6 @@ export const generateModsJson = (overrides?: Partial<ModsJson>): GeneratorResult
     defaultAllowedReleaseTypes: allowedReleases,
     gameVersion: gameVersion,
     loader: loader,
-    allowVersionFallback: allowVersionFallback,
     mods: [],
     ...overrides
   };
@@ -28,7 +26,6 @@ export const generateModsJson = (overrides?: Partial<ModsJson>): GeneratorResult
     defaultAllowedReleaseTypes: allowedReleases,
     gameVersion: gameVersion,
     loader: loader,
-    allowVersionFallback: allowVersionFallback,
     mods: [],
     ...overrides
   };
