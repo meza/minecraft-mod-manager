@@ -145,35 +145,38 @@ describe('The Modrinth repository', () => {
     }).rejects.toThrow(new NoRemoteFileFound(context.id, Platform.MODRINTH));
   });
 
-  describe.each([
-    { version: '1.19.1', message: 'a one lower' },
-    { version: '1.19', message: 'the relevant major' }
-  ])('when version fallback is allowed and the available version is $message version', ({ version }) => {
+  describe('when version fallback is allowed and the available version is a one lower version', () => {
 
     afterEach(() => {
       vi.resetAllMocks();
     });
 
-    it<RepositoryTestContext>(`it finds ${version} correctly instead of 1.19.2`, async (context) => {
+    it<RepositoryTestContext>('it finds 1.19.1 correctly instead of 1.19.2', async (context) => {
       const randomName = chance.word();
       const randomFile = generateModrinthFile().generated;
-      const randomVersion = generateModrinthVersion({
+      const versionToFind = generateModrinthVersion({
         loaders: [context.loader],
         // eslint-disable-next-line camelcase
         version_type: ReleaseType.RELEASE,
         // eslint-disable-next-line camelcase
-        game_versions: [version],
+        game_versions: ['1.19.1'],
+        // eslint-disable-next-line camelcase
+        date_published: '2021-01-01',
         files: [randomFile]
       }).generated;
+
       const randomVersionRedHerring = generateModrinthVersion({
         loaders: [context.loader],
+        // eslint-disable-next-line camelcase
+        date_published: '2022-01-01',
         // eslint-disable-next-line camelcase
         version_type: chance.pickone(context.allowedReleaseTypes),
         // eslint-disable-next-line camelcase
         game_versions: ['1.19.0']
       }).generated;
 
-      assumeSuccessfulDetailsFetch(randomName, [randomVersionRedHerring, randomVersion]);
+      assumeSuccessfulDetailsFetch(randomName, [randomVersionRedHerring]);
+      assumeSuccessfulDetailsFetch(randomName, [versionToFind]);
 
       const actual = await getMod(
         context.id,
@@ -186,7 +189,59 @@ describe('The Modrinth repository', () => {
       expect(actual).toEqual({
         name: randomName,
         fileName: randomFile.filename,
-        releaseDate: randomVersion.date_published,
+        releaseDate: versionToFind.date_published,
+        hash: randomFile.hashes.sha1,
+        downloadUrl: randomFile.url
+      });
+    });
+  });
+
+  describe('when version fallback is allowed and the available version is the next major version', () => {
+
+    afterEach(() => {
+      vi.resetAllMocks();
+    });
+
+    it<RepositoryTestContext>('it finds 1.19 correctly instead of 1.19.2', async (context) => {
+      const randomName = chance.word();
+      const randomFile = generateModrinthFile().generated;
+      const versionToFind = generateModrinthVersion({
+        loaders: [context.loader],
+        // eslint-disable-next-line camelcase
+        version_type: ReleaseType.RELEASE,
+        // eslint-disable-next-line camelcase
+        game_versions: ['1.19'],
+        // eslint-disable-next-line camelcase
+        date_published: '2021-01-01',
+        files: [randomFile]
+      }).generated;
+
+      const randomVersionRedHerring = generateModrinthVersion({
+        loaders: [context.loader],
+        // eslint-disable-next-line camelcase
+        date_published: '2022-01-01',
+        // eslint-disable-next-line camelcase
+        version_type: chance.pickone(context.allowedReleaseTypes),
+        // eslint-disable-next-line camelcase
+        game_versions: ['1.19.0']
+      }).generated;
+
+      assumeSuccessfulDetailsFetch(randomName, []);
+      assumeSuccessfulDetailsFetch(randomName, [randomVersionRedHerring]);
+      assumeSuccessfulDetailsFetch(randomName, [versionToFind]);
+
+      const actual = await getMod(
+        context.id,
+        [ReleaseType.RELEASE],
+        '1.19.2',
+        context.loader,
+        true
+      );
+
+      expect(actual).toEqual({
+        name: randomName,
+        fileName: randomFile.filename,
+        releaseDate: versionToFind.date_published,
         hash: randomFile.hashes.sha1,
         downloadUrl: randomFile.url
       });

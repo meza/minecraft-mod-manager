@@ -292,15 +292,12 @@ describe('The Curseforge repository', () => {
     });
   });
 
-  describe.each([
-    { version: '1.19.1', message: 'a one lower' },
-    { version: '1.19', message: 'the relevant major' }
-  ])('when version fallback is allowed and the available version is $message version', ({ version }) => {
+  describe('when version fallback is allowed and the available version is one lower version', () => {
     beforeEach<RepositoryTestContext>((context) => {
       context.allowFallback = true;
     });
 
-    it<RepositoryTestContext>(`it finds ${version} correctly instead of 1.19.2`, async (context) => {
+    it<RepositoryTestContext>('it finds 1.19.1 correctly instead of 1.19.2', async (context) => {
       const randomName = chance.word();
       const randomFile = generateCurseforgeModFile({
         isAvailable: true,
@@ -308,9 +305,60 @@ describe('The Curseforge repository', () => {
         releaseType: Release.RELEASE,
         sortableGameVersions: [{
           gameVersionName: context.loader,
-          gameVersion: version
+          gameVersion: '1.19.1'
         }]
       });
+      assumeSuccessfulModFetch(randomName, []);
+      assumeSuccessfulModFetch(randomName, [randomFile.generated]);
+
+      const actual = await getMod(
+        context.id,
+        [ReleaseType.RELEASE],
+        '1.19.2',
+        context.loader,
+        true
+      );
+
+      expect(actual).toEqual({
+        name: randomName,
+        fileName: randomFile.generated.fileName,
+        releaseDate: randomFile.generated.fileDate,
+        hash: randomFile.generated.hashes.find((hash) => hash.algo === HashFunctions.sha1)?.value,
+        downloadUrl: randomFile.generated.downloadUrl
+      });
+
+    });
+  });
+
+  describe('when version fallback is allowed and the available version is the previous major version', () => {
+    beforeEach<RepositoryTestContext>((context) => {
+      context.allowFallback = true;
+    });
+
+    it<RepositoryTestContext>('it finds 1.19 correctly instead of 1.19.2', async (context) => {
+      const randomName = chance.word();
+      const randomFile = generateCurseforgeModFile({
+        isAvailable: true,
+        fileStatus: releasedStatus,
+        releaseType: Release.RELEASE,
+        sortableGameVersions: [{
+          gameVersionName: context.loader,
+          gameVersion: '1.19'
+        }]
+      });
+
+      const redHerring = generateCurseforgeModFile({
+        isAvailable: true,
+        fileStatus: releasedStatus,
+        releaseType: Release.RELEASE,
+        sortableGameVersions: [{
+          gameVersionName: context.loader,
+          gameVersion: '1.19.0'
+        }]
+      });
+
+      assumeSuccessfulModFetch(randomName, []);
+      assumeSuccessfulModFetch(randomName, [redHerring.generated]);
       assumeSuccessfulModFetch(randomName, [randomFile.generated]);
 
       const actual = await getMod(
