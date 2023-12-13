@@ -21,7 +21,8 @@ export enum Platform {
 export enum Loader {
   FORGE = 'forge',
   FABRIC = 'fabric',
-  QUILT = 'quilt'
+  QUILT = 'quilt',
+  LITELOADER = 'liteloader'
 }
 
 export interface ModInstall {
@@ -39,7 +40,7 @@ export interface Mod {
   id: string,
   allowedReleaseTypes?: ReleaseType[]
   name: string,
-  allowVersionFallback?: boolean,
+  allowVersionFallback?: boolean
 }
 
 export interface ModsJson {
