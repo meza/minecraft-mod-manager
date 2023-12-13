@@ -158,10 +158,28 @@ You can add these one after the other, for example: `mmm init -l curseforge -p 1
 
 | Short | Long                            | Description                             | Value                                                                                                                                     | Example                            |
 |-------|---------------------------------|-----------------------------------------|-------------------------------------------------------------------------------------------------------------------------------------------|------------------------------------|
-| -l    | --loader                        | The mod loader to use                   | `fabric`, `quilt` or `forge`                                                                                                              | `mmm init -l curseforge`           |
+| -l    | --loader                        | The mod loader to use                   | A valid loader from [the list of loaders](#loaders)                                                                                       | `mmm init -l curseforge`           |
 | -g    | --game-version                  | The Minecraft version to use            | A valid Minecraft version                                                                                                                 | `mmm init -g 1.19.2`               |
 | -r    | --default-allowed-release-types | Which release types do you allow?       | A comma separated list of the following: <br/>`alpha`, `beta`, `release`                                                                  | `mmm init -r release,beta`         |
 | -m    | --mods-folder                   | Where do you want to download the mods? | An absolute or relative path to an **existing** folder<br/>Don't forget to use quotes for paths that include spaces or special characters | `mmm init -m "C:/My Modpack/mods"` |
+
+#### Loaders
+
+Loaders are the mod loader systems that help you run mods.
+
+Both Modrinth and Curseforge support a different set of loaders. `mmm` supports all the loaders that are supported by these platforms.
+
+##### Supported by Curseforge AND Modrinth BOTH:
+
+`fabric`, `forge`, `quilt`, `liteloader`
+
+##### Supported by Curseforge ONLY:
+
+`cauldron`
+
+##### Supported by Modrinth ONLY:
+
+`bukkit`, `bungeecord`, `datapack`, `folia`, `modloader`, `neoforge`, `paper`, `purpur`, `rift`, `spigot`, `sponge`, `velocity`, `waterfall`
 
 ---
 

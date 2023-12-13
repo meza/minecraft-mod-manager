@@ -18,6 +18,7 @@ enum Release {
 vi.mock('../../lib/rateLimiter/index.js');
 
 const releasedStatus = 10;
+const testLoaders = [Loader.FORGE, Loader.FABRIC, Loader.QUILT, Loader.LITELOADER, Loader.CAULDRON];
 
 const assumeFailedModFetch = () => {
   vi.mocked(rateLimitingFetch).mockResolvedValue({
@@ -54,7 +55,7 @@ describe('The Curseforge repository', () => {
       max: Object.keys(ReleaseType).length
     }));
     context.gameVersion = chance.pickone(['1.16.5', '1.17.1', '1.18.1', '1.18.2', '1.19']);
-    context.loader = chance.pickone(Object.values(Loader));
+    context.loader = chance.pickone(testLoaders);
     context.allowFallback = false;
   });
 

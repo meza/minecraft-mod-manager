@@ -407,7 +407,7 @@ Command {
           "conflictsWith": [],
           "defaultValue": undefined,
           "defaultValueDescription": undefined,
-          "description": "Which loader would you like to use? forge, fabric, quilt, liteloader",
+          "description": "Which loader would you like to use? bukkit, bungeecord, cauldron, datapack, fabric, folia, forge, liteloader, modloader, neoforge, paper, purpur, quilt, rift, spigot, sponge, velocity, waterfall",
           "envVar": undefined,
           "flags": "-l, --loader <loader>",
           "hidden": false,

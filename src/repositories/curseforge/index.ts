@@ -1,8 +1,8 @@
-import { PlatformLookupResult, Repository } from '../index.js';
+import { UnknownLoaderException } from '../../errors/UnknownLoaderException.js';
 import { Loader, ReleaseType, RemoteModDetails } from '../../lib/modlist.types.js';
+import { PlatformLookupResult, Repository } from '../index.js';
 import { getMod } from './fetch.js';
 import { lookup as cfLookup } from './lookup.js';
-import { UnknownLoaderException } from '../../errors/UnknownLoaderException.js';
 
 export enum CurseforgeLoader {
   ANY = 0,
@@ -17,6 +17,8 @@ export class Curseforge implements Repository {
 
   static curseforgeLoaderFromLoader = (loader: Loader) => {
     switch (loader) {
+      case Loader.CAULDRON:
+        return CurseforgeLoader.CAULDRON;
       case Loader.FORGE:
         return CurseforgeLoader.FORGE;
       case Loader.FABRIC:

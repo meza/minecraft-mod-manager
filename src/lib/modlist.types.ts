@@ -19,10 +19,24 @@ export enum Platform {
 }
 
 export enum Loader {
-  FORGE = 'forge',
+  BUKKIT = 'bukkit',
+  BUNGEECORD = 'bungeecord',
+  CAULDRON = 'cauldron',
+  DATAPACK = 'datapack',
   FABRIC = 'fabric',
+  FOLIA = 'folia',
+  FORGE = 'forge',
+  LITELOADER = 'liteloader',
+  MODLOADER = 'modloader',
+  NEOFORGE = 'neoforge',
+  PAPER = 'paper',
+  PURPUR = 'purpur',
   QUILT = 'quilt',
-  LITELOADER = 'liteloader'
+  RIFT = 'rift',
+  SPIGOT = 'spigot',
+  SPONGE = 'sponge',
+  VELOCITY = 'velocity',
+  WATERFALL = 'waterfall',
 }
 
 export interface ModInstall {
