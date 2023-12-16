@@ -90,7 +90,7 @@
     "@vitest/coverage-v8": "0.34.6",
     "cross-env": "^7.0.3",
     "esbuild": "0.19.9",
-    "eslint": "8.55.0",
+    "eslint": "8.56.0",
     "eslint-config-tailored-tunes": "5.0.2",
     "eslint-plugin-json": "3.1.0",
     "eslint-plugin-security": "1.7.1",
