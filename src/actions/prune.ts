@@ -1,6 +1,6 @@
 import { DefaultOptions } from '../mmm.js';
 import { Logger } from '../lib/Logger.js';
-import { ensureConfiguration, readLockFile } from '../lib/config.js';
+import { ensureConfiguration, getModsFolder, readLockFile } from '../lib/config.js';
 import path from 'node:path';
 import fs from 'fs/promises';
 import { fileIsManaged } from '../lib/configurationHelper.js';
@@ -14,9 +14,9 @@ export interface PruneOptions extends DefaultOptions {
 export const prune = async (options: PruneOptions, logger: Logger) => {
   const configuration = await ensureConfiguration(options.config, logger);
   const installations = await readLockFile(options, logger);
-  const modsFolder = path.resolve(configuration.modsFolder);
+  const modsFolder = getModsFolder(options.config, configuration);
 
-  const files = await getModFiles(options.config, configuration.modsFolder);
+  const files = await getModFiles(options.config, configuration);
 
   if (files.length === 0) {
     logger.log('You have no files in your mods folder.');

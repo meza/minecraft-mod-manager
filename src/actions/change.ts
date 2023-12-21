@@ -4,7 +4,7 @@ import { testGameVersion } from './testGameVersion.js';
 import { Mod } from '../lib/modlist.types.js';
 import {
   ensureConfiguration,
-  fileExists, readLockFile,
+  fileExists, getModsFolder, readLockFile,
   writeConfigFile,
   writeLockFile
 } from '../lib/config.js';
@@ -25,7 +25,7 @@ export const changeGameVersion = async (gameVersion: string, options: VerifyUpgr
 
     if (hasInstallation(mod, installations)) {
       const installedModIndex = getInstallation(mod, installedMods);
-      const oldModPath = path.resolve(configuration.modsFolder, installedMods[installedModIndex].fileName);
+      const oldModPath = path.resolve(getModsFolder(options.config, configuration), installedMods[installedModIndex].fileName);
       if (await fileExists(oldModPath)) {
         await fs.rm(oldModPath);
       }

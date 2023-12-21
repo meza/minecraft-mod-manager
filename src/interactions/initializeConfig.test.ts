@@ -350,6 +350,7 @@ describe('The Initialization Interaction', () => {
 
   it('skips the mods folder question when it is supplied', async () => {
     const input = generateInitializeOptions().generated;
+    input.modsFolder = `/${input.modsFolder}`;
 
     vi.mocked(inquirer.prompt).mockResolvedValueOnce({});
     await initializeConfig(input, chance.word(), logger);

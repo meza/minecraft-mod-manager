@@ -4,7 +4,7 @@ import { scan, ScanOptions } from './scan.js';
 import { chance } from 'jest-chance';
 import { ModInstall, ModsJson, Platform } from '../lib/modlist.types.js';
 import { scan as scanLib } from '../lib/scan.js';
-import { ensureConfiguration, readLockFile, writeConfigFile, writeLockFile } from '../lib/config.js';
+import { ensureConfiguration, getModsFolder, readLockFile, writeConfigFile, writeLockFile } from '../lib/config.js';
 import { generateModsJson } from '../../test/modlistGenerator.js';
 import { generateScanResult, ScanResultGeneratorOverrides } from '../../test/generateScanResult.js';
 import { shouldAddScanResults } from '../interactions/shouldAddScanResults.js';
@@ -55,6 +55,7 @@ describe('The Scan action', () => {
       throw new Error('process.exit');
     });
     vi.mocked(getModFiles).mockResolvedValueOnce([]);
+    vi.mocked(getModsFolder).mockReturnValue(context.randomConfiguration.modsFolder);
   });
   describe('when there are unexpected errors', () => {
     it<LocalTestContext>('logs them correctly', async ({ options, logger }) => {

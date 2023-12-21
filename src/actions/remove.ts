@@ -1,7 +1,7 @@
 import { DefaultOptions } from '../mmm.js';
 import { Logger } from '../lib/Logger.js';
-import { ensureConfiguration, readLockFile, writeConfigFile, writeLockFile } from '../lib/config.js';
-import { findLocalMods, getInstallation, getModsDir, hasInstallation } from '../lib/configurationHelper.js';
+import { ensureConfiguration, getModsFolder, readLockFile, writeConfigFile, writeLockFile } from '../lib/config.js';
+import { findLocalMods, getInstallation, hasInstallation } from '../lib/configurationHelper.js';
 import fs from 'fs/promises';
 import path from 'path';
 import chalk from 'chalk';
@@ -14,7 +14,7 @@ export const removeAction = async (mods: string[], options: RemoveOptions, logge
   const configuration = await ensureConfiguration(options.config, logger);
   const installations = await readLockFile(options, logger);
   const matches = findLocalMods(mods, configuration);
-  const modsDir = getModsDir(options.config, configuration.modsFolder);
+  const modsDir = getModsFolder(options.config, configuration);
 
   if (options.dryRun) {
     logger.log(chalk.yellow('Running in dry-run mode. Nothing will actually be removed.'));

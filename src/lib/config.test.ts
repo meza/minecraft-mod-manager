@@ -3,7 +3,7 @@ import fs from 'node:fs/promises';
 import { chance } from 'jest-chance';
 import {
   ensureConfiguration,
-  fileExists,
+  fileExists, getModsFolder,
   initializeConfigFile,
   readConfigFile,
   readLockFile,
@@ -36,6 +36,7 @@ describe('The config library', () => {
   let logger: Logger;
   beforeEach<LocalTestContext>((context) => {
     vi.resetAllMocks();
+    vi.unstubAllGlobals();
     context.logger = new Logger({} as never);
     context.options = {
       config: 'config.json',
@@ -233,5 +234,26 @@ describe('The config library', () => {
 
       expect(actualOutput).toEqual(randomModsJson.expected);
     });
+  });
+
+  it('can resolve a relative mod folder', () => {
+    const randomModsJson = generateModsJson().generated;
+    const configPath = path.resolve('/some-path/config.json');
+    const expected = path.resolve('/some-path/mods');
+    randomModsJson.modsFolder = 'mods';
+    const actual = getModsFolder(configPath, randomModsJson);
+
+    expect(actual).toEqual(expected);
+  });
+
+  it('can resolve an absolute mod folder', () => {
+    const randomModsJson = generateModsJson().generated;
+    const configPath = '/some-path/config.json';
+    const modsFolder = '/my-ultimate-mods';
+    randomModsJson.modsFolder = modsFolder;
+    const expected = '/my-ultimate-mods';
+    const actual = getModsFolder(configPath, randomModsJson);
+
+    expect(actual).toEqual(expected);
   });
 });

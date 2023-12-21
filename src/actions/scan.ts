@@ -1,13 +1,13 @@
 import { DefaultOptions } from '../mmm.js';
 import { Logger } from '../lib/Logger.js';
-import { ensureConfiguration, readLockFile, writeConfigFile, writeLockFile } from '../lib/config.js';
+import { ensureConfiguration, getModsFolder, readLockFile, writeConfigFile, writeLockFile } from '../lib/config.js';
 import { PlatformLookupResult } from '../repositories/index.js';
 import { Mod, ModInstall, ModsJson, Platform, RemoteModDetails } from '../lib/modlist.types.js';
 import { scan as scanLib } from '../lib/scan.js';
 import chalk from 'chalk';
 import { shouldAddScanResults } from '../interactions/shouldAddScanResults.js';
 
-import { getInstallation, getModsDir } from '../lib/configurationHelper.js';
+import { getInstallation } from '../lib/configurationHelper.js';
 import { getModFiles } from '../lib/fileHelper.js';
 import path from 'path';
 
@@ -47,8 +47,8 @@ const processForeignFiles = async (
   hasResults: boolean,
   logger: Logger
 ) => {
-  const modsFolder = getModsDir(options.config, configuration.modsFolder);
-  const allFiles = await getModFiles(options.config, configuration.modsFolder);
+  const modsFolder = getModsFolder(options.config, configuration);
+  const allFiles = await getModFiles(options.config, configuration);
 
   const nonMatchedFiles = allFiles.filter((filePath) => {
     const foundIndex = dealtWith.findIndex((dealtWithFile) => {

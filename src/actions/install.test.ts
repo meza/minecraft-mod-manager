@@ -1,7 +1,7 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { install } from './install.js';
 import { fetchModDetails } from '../repositories/index.js';
-import { ensureConfiguration, readLockFile, writeConfigFile, writeLockFile } from '../lib/config.js';
+import { ensureConfiguration, getModsFolder, readLockFile, writeConfigFile, writeLockFile } from '../lib/config.js';
 import { generateRemoteModDetails } from '../../test/generateRemoteDetails.js';
 import { downloadFile } from '../lib/downloader.js';
 import { updateMod } from '../lib/updater.js';
@@ -74,6 +74,7 @@ describe('The install module', () => {
 
     // Prepare the configuration file state
     vi.mocked(ensureConfiguration).mockResolvedValueOnce(randomConfiguration);
+    vi.mocked(getModsFolder).mockReturnValue(randomConfiguration.modsFolder);
     vi.mocked(readLockFile).mockResolvedValueOnce(emptyLockFile);
 
     // Prepare the details the mod details fetcher should return
@@ -116,6 +117,7 @@ describe('The install module', () => {
 
     // Prepare the configuration file state
     vi.mocked(ensureConfiguration).mockResolvedValueOnce(randomConfiguration);
+    vi.mocked(getModsFolder).mockReturnValue(randomConfiguration.modsFolder);
     vi.mocked(readLockFile).mockResolvedValueOnce(emptyLockFile);
 
     // Prepare the details the mod details fetcher should return
@@ -140,6 +142,7 @@ describe('The install module', () => {
 
     // Prepare the configuration file state
     vi.mocked(ensureConfiguration).mockResolvedValueOnce(randomConfiguration);
+    vi.mocked(getModsFolder).mockReturnValue(randomConfiguration.modsFolder);
     vi.mocked(readLockFile).mockResolvedValueOnce([
       randomInstallation
     ]);
@@ -178,6 +181,7 @@ describe('The install module', () => {
 
     // Prepare the configuration file state
     vi.mocked(ensureConfiguration).mockResolvedValueOnce(randomConfiguration);
+    vi.mocked(getModsFolder).mockReturnValue(randomConfiguration.modsFolder);
     vi.mocked(readLockFile).mockResolvedValueOnce([
       randomInstallation
     ]);
@@ -216,6 +220,7 @@ describe('The install module', () => {
     const { randomInstalledMod, randomInstallation, randomConfiguration } = setupOneInstalledMod();
 
     vi.mocked(ensureConfiguration).mockResolvedValueOnce(randomConfiguration);
+    vi.mocked(getModsFolder).mockReturnValue(randomConfiguration.modsFolder);
     vi.mocked(readLockFile).mockResolvedValueOnce([randomInstallation]);
     vi.mocked(getHash).mockResolvedValueOnce(randomInstallation.hash);
 
@@ -233,6 +238,7 @@ describe('The install module', () => {
     randomInstalledMod.version = '1.1.0';
 
     vi.mocked(ensureConfiguration).mockResolvedValueOnce(randomConfiguration);
+    vi.mocked(getModsFolder).mockReturnValue(randomConfiguration.modsFolder);
     vi.mocked(readLockFile).mockResolvedValueOnce([randomInstallation]);
     vi.mocked(getHash).mockResolvedValueOnce(randomInstallation.hash);
 
@@ -248,6 +254,7 @@ describe('The install module', () => {
 
     // Prepare the configuration file state
     vi.mocked(ensureConfiguration).mockResolvedValueOnce(randomConfiguration);
+    vi.mocked(getModsFolder).mockReturnValue(randomConfiguration.modsFolder);
     vi.mocked(readLockFile).mockResolvedValueOnce([
       randomInstallation
     ]);
@@ -281,6 +288,7 @@ describe('The install module', () => {
       const emptyConfiguration = generateModsJson().generated;
       const emptyInstallations: ModInstall[] = [];
       vi.mocked(ensureConfiguration).mockResolvedValueOnce(emptyConfiguration);
+      vi.mocked(getModsFolder).mockReturnValue(emptyConfiguration.modsFolder);
       vi.mocked(readLockFile).mockResolvedValueOnce(emptyInstallations);
 
       const file1 = chance.word();
@@ -303,6 +311,7 @@ describe('The install module', () => {
       const emptyConfiguration = generateModsJson().generated;
       const emptyInstallations: ModInstall[] = [];
       vi.mocked(ensureConfiguration).mockResolvedValueOnce(emptyConfiguration);
+      vi.mocked(getModsFolder).mockReturnValue(emptyConfiguration.modsFolder);
       vi.mocked(readLockFile).mockResolvedValueOnce(emptyInstallations);
 
       const file1 = chance.word();
@@ -341,6 +350,7 @@ describe('The install module', () => {
       const emptyConfiguration = generateModsJson().generated;
       const emptyInstallations: ModInstall[] = [];
       vi.mocked(ensureConfiguration).mockResolvedValueOnce(emptyConfiguration);
+      vi.mocked(getModsFolder).mockReturnValue(emptyConfiguration.modsFolder);
       vi.mocked(readLockFile).mockResolvedValueOnce(emptyInstallations);
 
       vi.mocked(hasInstallation).mockReturnValueOnce(false);
@@ -379,6 +389,7 @@ describe('The install module', () => {
 
       // Prepare the configuration file state
       vi.mocked(ensureConfiguration).mockResolvedValueOnce(randomConfiguration);
+      vi.mocked(getModsFolder).mockReturnValue(randomConfiguration.modsFolder);
       vi.mocked(readLockFile).mockResolvedValueOnce([
         randomInstallation
       ]);
@@ -403,6 +414,7 @@ describe('The install module', () => {
 
       // Prepare the configuration file state
       vi.mocked(ensureConfiguration).mockResolvedValueOnce(randomConfiguration);
+      vi.mocked(getModsFolder).mockReturnValue(randomConfiguration.modsFolder);
       vi.mocked(readLockFile).mockResolvedValueOnce([
         randomInstallation
       ]);
@@ -430,6 +442,8 @@ describe('The install module', () => {
 
       // Prepare the configuration file state
       vi.mocked(ensureConfiguration).mockResolvedValueOnce(randomConfiguration);
+      vi.mocked(getModsFolder).mockReturnValue(randomConfiguration.modsFolder);
+      vi.mocked(getModsFolder).mockReturnValue(randomConfiguration.modsFolder);
       vi.mocked(readLockFile).mockResolvedValueOnce(emptyLockFile);
 
       // Prepare the details the mod details fetcher should return
@@ -456,6 +470,7 @@ describe('The install module', () => {
 
       // Prepare the configuration file state
       vi.mocked(ensureConfiguration).mockResolvedValueOnce(randomConfiguration);
+      vi.mocked(getModsFolder).mockReturnValue(randomConfiguration.modsFolder);
       vi.mocked(readLockFile).mockResolvedValueOnce(emptyLockFile);
 
       const error = new CouldNotFindModException('id', Platform.MODRINTH);
@@ -478,6 +493,7 @@ describe('The install module', () => {
 
       // Prepare the configuration file state
       vi.mocked(ensureConfiguration).mockResolvedValueOnce(randomConfiguration);
+      vi.mocked(getModsFolder).mockReturnValue(randomConfiguration.modsFolder);
       vi.mocked(readLockFile).mockResolvedValueOnce(emptyLockFile);
       const error = new NoRemoteFileFound(aModName, Platform.CURSEFORGE);
       vi.mocked(fetchModDetails).mockRejectedValueOnce(error);
@@ -500,6 +516,7 @@ describe('The install module', () => {
 
       // Prepare the configuration file state
       vi.mocked(ensureConfiguration).mockResolvedValueOnce(randomConfiguration);
+      vi.mocked(getModsFolder).mockReturnValue(randomConfiguration.modsFolder);
       vi.mocked(readLockFile).mockResolvedValueOnce(emptyLockFile);
 
       vi.mocked(fetchModDetails).mockRejectedValueOnce(error);

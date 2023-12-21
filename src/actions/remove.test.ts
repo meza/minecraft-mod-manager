@@ -4,9 +4,9 @@ import { Mod, ModInstall, ModsJson } from '../lib/modlist.types.js';
 import { generateModsJson } from '../../test/modlistGenerator.js';
 import { removeAction, RemoveOptions } from './remove.js';
 import { Logger } from '../lib/Logger.js';
-import { ensureConfiguration, readLockFile, writeConfigFile, writeLockFile } from '../lib/config.js';
+import { ensureConfiguration, getModsFolder, readLockFile, writeConfigFile, writeLockFile } from '../lib/config.js';
 import { generateModConfig } from '../../test/modConfigGenerator.js';
-import { findLocalMods, getInstallation, getModsDir, hasInstallation } from '../lib/configurationHelper.js';
+import { findLocalMods, getInstallation, hasInstallation } from '../lib/configurationHelper.js';
 import { chance } from 'jest-chance';
 import { generateModInstall } from '../../test/modInstallGenerator.js';
 import fs from 'fs/promises';
@@ -151,7 +151,7 @@ describe('The remove action', () => {
 
       const config = generateModsJson({ mods: [mod1, mod2, mod3] }).generated;
 
-      vi.mocked(getModsDir).mockReturnValue(path.resolve('/mods'));
+      vi.mocked(getModsFolder).mockReturnValue('/mods');
       vi.mocked(ensureConfiguration).mockResolvedValueOnce(config);
       vi.mocked(readLockFile).mockResolvedValueOnce([
         mod1Install,

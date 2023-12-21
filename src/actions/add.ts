@@ -2,7 +2,7 @@ import path from 'path';
 import { fetchModDetails } from '../repositories/index.js';
 import { Mod, Platform } from '../lib/modlist.types.js';
 import {
-  ensureConfiguration,
+  ensureConfiguration, getModsFolder,
   readLockFile,
   writeConfigFile,
   writeLockFile
@@ -73,7 +73,7 @@ export const add = async (platform: Platform, id: string, options: AddOptions, l
       options.version
     );
 
-    await downloadFile(modData.downloadUrl, path.resolve(configuration.modsFolder, modData.fileName));
+    await downloadFile(modData.downloadUrl, path.resolve(getModsFolder(options.config, configuration), modData.fileName));
 
     const installations = await readLockFile(options, logger);
 

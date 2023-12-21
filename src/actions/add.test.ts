@@ -1,7 +1,7 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { add } from './add.js';
 import {
-  ensureConfiguration,
+  ensureConfiguration, getModsFolder,
   readLockFile,
   writeConfigFile,
   writeLockFile
@@ -72,6 +72,7 @@ describe('The add module', async () => {
 
     // the main configuration to work with
     vi.mocked(ensureConfiguration).mockResolvedValue(context.randomConfiguration.generated);
+    vi.mocked(getModsFolder).mockReturnValue(context.randomConfiguration.generated.modsFolder);
     vi.mocked(readLockFile).mockResolvedValue([]);
 
     // the mod details returned from the repository

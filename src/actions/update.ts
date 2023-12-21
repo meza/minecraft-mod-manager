@@ -1,7 +1,7 @@
 import { DefaultOptions } from '../mmm.js';
 import {
   ensureConfiguration,
-  fileExists,
+  fileExists, getModsFolder,
   readLockFile,
   writeConfigFile,
   writeLockFile
@@ -25,6 +25,7 @@ export const update = async (options: DefaultOptions, logger: Logger) => {
 
   const installedMods = installations;
   const mods = configuration.mods;
+  const modsFolder = getModsFolder(options.config, configuration);
 
   const processMod = async (mod: Mod, index: number) => {
     try {
@@ -46,7 +47,7 @@ export const update = async (options: DefaultOptions, logger: Logger) => {
       }
 
       const installedModIndex = getInstallation(mod, installedMods);
-      const oldModPath = path.resolve(configuration.modsFolder, installedMods[installedModIndex].fileName);
+      const oldModPath = path.resolve(modsFolder, installedMods[installedModIndex].fileName);
 
       if (!await fileExists(oldModPath)) {
         logger.error(`${mod.name} (${oldModPath}) doesn't exist. Please delete the lock file and the mods folder and try again.`, 1);
@@ -55,7 +56,7 @@ export const update = async (options: DefaultOptions, logger: Logger) => {
       const installedHash = await getHash(oldModPath);
       if (modData.hash !== installedHash || modData.releaseDate > installedMods[installedModIndex].releasedOn) {
         logger.log(`${mod.name} has an update, downloading...`);
-        await updateMod(modData, oldModPath, configuration.modsFolder);
+        await updateMod(modData, oldModPath, modsFolder);
 
         installedMods[installedModIndex].hash = modData.hash;
         installedMods[installedModIndex].downloadUrl = modData.downloadUrl;

@@ -35,11 +35,6 @@ export const fileIsManaged = (file: string, installations: ModInstall[]) => {
   return result !== undefined;
 };
 
-export const getModsDir = (configPath: string, modsFolder: string) => {
-  const dir = path.resolve(path.dirname(configPath));
-  return path.isAbsolute(modsFolder) ? modsFolder : path.resolve(dir, modsFolder);
-};
-
 export const getInstallation = (mod: Mod, installations: ModInstall[]) => {
   return installations.findIndex((i) => i.id === mod.id && i.type === mod.type);
 };

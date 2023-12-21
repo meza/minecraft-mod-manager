@@ -84,3 +84,16 @@ export const ensureConfiguration = async (configPath: string, logger: Logger, qu
     throw error;
   }
 };
+
+export const getModsFolder = (configLocation: string, config: ModsJson): string => {
+  const realConfigLocation = path.resolve(configLocation);
+  const configFolder = path.dirname(realConfigLocation);
+  const configuredModsFolder = config.modsFolder;
+
+  if (path.isAbsolute(configuredModsFolder)) {
+    return configuredModsFolder;
+  }
+
+  return path.resolve(configFolder, configuredModsFolder);
+
+};

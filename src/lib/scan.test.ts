@@ -45,7 +45,7 @@ describe('The scan library', () => {
       const actual = await scan(context.config, context.randomPlatform, context.randomConfiguration, context.randomInstallations);
 
       expect(actual).toEqual([]);
-      expect(vi.mocked(getModFiles)).toHaveBeenCalledWith(context.config, randomModsFolder);
+      expect(vi.mocked(getModFiles)).toHaveBeenCalledWith(context.config, context.randomConfiguration);
     });
   });
 

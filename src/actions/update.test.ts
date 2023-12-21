@@ -8,7 +8,7 @@ import {
 } from '../../test/setupHelpers.js';
 import { update } from './update.js';
 import { getHash } from '../lib/hash.js';
-import { ensureConfiguration, readLockFile, writeConfigFile, writeLockFile } from '../lib/config.js';
+import { ensureConfiguration, getModsFolder, readLockFile, writeConfigFile, writeLockFile } from '../lib/config.js';
 import { downloadFile } from '../lib/downloader.js';
 import { fetchModDetails } from '../repositories/index.js';
 import { generateRemoteModDetails } from '../../test/generateRemoteDetails.js';
@@ -63,6 +63,7 @@ describe('The update action', () => {
 
     vi.mocked(fetchModDetails).mockResolvedValueOnce(remoteDetails.generated);
     vi.mocked(ensureConfiguration).mockResolvedValueOnce(randomConfiguration);
+    vi.mocked(getModsFolder).mockReturnValue(randomConfiguration.modsFolder);
     vi.mocked(readLockFile).mockResolvedValueOnce([randomInstallation]);
 
     assumeModFileExists(randomInstallation.fileName);
@@ -94,6 +95,7 @@ describe('The update action', () => {
 
     vi.mocked(fetchModDetails).mockResolvedValueOnce(remoteDetails.generated);
     vi.mocked(ensureConfiguration).mockResolvedValueOnce(randomConfiguration);
+    vi.mocked(getModsFolder).mockReturnValue(randomConfiguration.modsFolder);
     vi.mocked(readLockFile).mockResolvedValueOnce([randomInstallation]);
 
     assumeModFileExists(randomInstallation.fileName);
@@ -133,6 +135,7 @@ describe('The update action', () => {
     vi.mocked(ensureConfiguration).mockResolvedValueOnce(randomConfiguration);
     vi.mocked(readLockFile).mockResolvedValueOnce([randomInstallation]);
     vi.mocked(updateMod).mockResolvedValueOnce(remoteDetails.generated);
+    vi.mocked(getModsFolder).mockReturnValue(randomConfiguration.modsFolder);
 
     assumeModFileExists(randomInstallation.fileName);
 
@@ -187,6 +190,7 @@ describe('The update action', () => {
     vi.mocked(ensureConfiguration).mockResolvedValueOnce(randomConfiguration);
     vi.mocked(readLockFile).mockResolvedValueOnce([randomInstallation]);
     vi.mocked(updateMod).mockResolvedValueOnce(remoteDetails.generated);
+    vi.mocked(getModsFolder).mockReturnValue(randomConfiguration.modsFolder);
 
     assumeModFileExists(randomInstallation.fileName);
 
@@ -222,6 +226,7 @@ describe('The update action', () => {
 
     vi.mocked(fetchModDetails).mockResolvedValueOnce(remoteDetails.generated);
     vi.mocked(ensureConfiguration).mockResolvedValueOnce(randomConfiguration);
+    vi.mocked(getModsFolder).mockReturnValue(randomConfiguration.modsFolder);
     vi.mocked(readLockFile).mockResolvedValueOnce([randomInstallation]);
 
     assumeModFileExists(randomInstallation.fileName);
@@ -248,6 +253,7 @@ describe('The update action', () => {
 
     vi.mocked(fetchModDetails).mockResolvedValueOnce(remoteDetails.generated);
     vi.mocked(ensureConfiguration).mockResolvedValueOnce(randomConfiguration);
+    vi.mocked(getModsFolder).mockReturnValue(randomConfiguration.modsFolder);
     vi.mocked(readLockFile).mockResolvedValueOnce([]);
 
     await update(options, logger);
@@ -272,7 +278,9 @@ describe('The update action', () => {
 
     vi.mocked(fetchModDetails).mockResolvedValueOnce(remoteDetails.generated);
     vi.mocked(ensureConfiguration).mockResolvedValueOnce(randomConfiguration);
+    vi.mocked(getModsFolder).mockReturnValue(randomConfiguration.modsFolder);
     vi.mocked(readLockFile).mockResolvedValueOnce([randomInstallation]);
+    vi.mocked(getModsFolder).mockReturnValue(randomConfiguration.modsFolder);
 
     assumeModFileIsMissing(randomInstallation);
     const expectedPath = path.resolve(randomConfiguration.modsFolder, randomInstallation.fileName);
@@ -293,6 +301,7 @@ describe('The update action', () => {
     });
 
     vi.mocked(ensureConfiguration).mockResolvedValueOnce(randomConfiguration);
+    vi.mocked(getModsFolder).mockReturnValue(randomConfiguration.modsFolder);
     await expect(update(options, logger)).rejects.toThrow(randomErrorMessage);
   });
 

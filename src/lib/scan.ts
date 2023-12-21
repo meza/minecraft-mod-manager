@@ -92,6 +92,6 @@ export const scanFiles = async (files: string[], installations: ModInstall[], pr
 };
 
 export const scan = async (configLocation: string, prefer: Platform, configuration: ModsJson, installations: ModInstall[]) => {
-  const files = await getModFiles(configLocation, configuration.modsFolder);
+  const files = await getModFiles(configLocation, configuration);
   return scanFiles(files, installations, prefer, configuration);
 };

@@ -39,7 +39,12 @@ const mergeOptions = (options: InitializeOptions, iq: IQInternal) => {
 };
 
 const validateModsFolder = async (input: string, cwd: string) => {
-  const dir = path.resolve(cwd, input);
+  let dir = path.resolve(cwd, input);
+
+  if (path.isAbsolute(input)) {
+    dir = input;
+  }
+
   if (!await fileExists(dir)) {
     return `The folder: ${dir} does not exist. Please enter a valid one and try again.`;
   }

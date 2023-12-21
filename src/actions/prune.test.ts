@@ -3,7 +3,7 @@ import { Logger } from '../lib/Logger.js';
 import { prune, PruneOptions } from './prune.js';
 import { ModInstall, ModsJson } from '../lib/modlist.types.js';
 import { generateModsJson } from '../../test/modlistGenerator.js';
-import { ensureConfiguration, readLockFile } from '../lib/config.js';
+import { ensureConfiguration, getModsFolder, readLockFile } from '../lib/config.js';
 import { chance } from 'jest-chance';
 import { fileIsManaged } from '../lib/configurationHelper.js';
 import { shouldPruneFiles } from '../interactions/shouldPruneFiles.js';
@@ -40,6 +40,7 @@ describe('The prune action', () => {
 
     vi.mocked(ensureConfiguration).mockResolvedValueOnce(context.configuration);
     vi.mocked(readLockFile).mockResolvedValueOnce(context.installations);
+    vi.mocked(getModsFolder).mockReturnValue(context.configuration.modsFolder);
 
   });
 
