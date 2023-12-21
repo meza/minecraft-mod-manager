@@ -88,23 +88,9 @@ export const curseforgeFileToRemoteModDetails = (file: CurseforgeModFile, name: 
   };
 };
 
-export const getMod = async (projectId: string, allowedReleaseTypes: ReleaseType[], allowedGameVersion: string, loader: Loader, allowFallback: boolean): Promise<RemoteModDetails> => {
-  const url = `https://api.curseforge.com/v1/mods/${projectId}`;
+const getPotentialFiles = (files: CurseforgeModFile[], allowedGameVersion: string, allowedReleaseTypes: ReleaseType[], loader: Loader): CurseforgeModFile[] => {
 
-  const modDetailsRequest = await rateLimitingFetch(url, {
-    headers: {
-      'Accept': 'application/json',
-      'x-api-key': curseForgeApiKey
-    }
-  });
-
-  if (!modDetailsRequest.ok) {
-    throw new CouldNotFindModException(projectId, Platform.CURSEFORGE);
-  }
-
-  const modDetails = await modDetailsRequest.json();
-  const files = await getFiles(projectId, allowedGameVersion, loader);
-  const potentialFiles = files.filter((file) => {
+  return files.filter((file) => {
     return file.sortableGameVersions.find((gameVersion) => gameVersion.gameVersionName.toLowerCase() === loader.toLowerCase());
   })
     .filter((file) => {
@@ -125,6 +111,39 @@ export const getMod = async (projectId: string, allowedReleaseTypes: ReleaseType
     .sort((a, b) => {
       return a.fileDate < b.fileDate ? 1 : -1;
     });
+};
+
+export const getMod = async (
+  projectId: string,
+  allowedReleaseTypes: ReleaseType[],
+  allowedGameVersion: string,
+  loader: Loader,
+  allowFallback: boolean,
+  fixedModVersion?: string): Promise<RemoteModDetails> => {
+  const url = `https://api.curseforge.com/v1/mods/${projectId}`;
+
+  const modDetailsRequest = await rateLimitingFetch(url, {
+    headers: {
+      'Accept': 'application/json',
+      'x-api-key': curseForgeApiKey
+    }
+  });
+
+  if (!modDetailsRequest.ok) {
+    throw new CouldNotFindModException(projectId, Platform.CURSEFORGE);
+  }
+
+  const modDetails = await modDetailsRequest.json();
+  const files = await getFiles(projectId, allowedGameVersion, loader);
+  let potentialFiles = [];
+
+  if (fixedModVersion) {
+    potentialFiles = files.filter((file) => {
+      return file.fileName.toLowerCase() === fixedModVersion.toLowerCase();
+    });
+  } else {
+    potentialFiles = getPotentialFiles(files, allowedGameVersion, allowedReleaseTypes, loader);
+  }
 
   if (potentialFiles.length === 0) {
 

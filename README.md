@@ -196,11 +196,50 @@ Adding a mod also downloads the corresponding jar file.
 You can optionally specify the `--allow-version-fallback` flag to allow the tool to attempt to download the mod for
 previous versions of Minecraft if the mod doesn't support the current version.
 
+#### Installing specific versions
+
+If you want to install a specific version of a mod, you can use the `--version` flag to specify the version.
+
+`mmm add modrinth FOIvwGKz --version 1.3.1`
+
+The version of the mod has to exist for the given Minecraft version.
+
+:warning: **Modrinth and Curseforge handle versions differently**
+
+##### Modrinth
+
+When using Modrinth, you need to specify the version number as it is listed on the website.
+
+![](/doc/images/versions-modrinth.png)
+
+In the example above, `1.3.1` and `1.2.2` are the version numbers. Notice how in the filename itself it says `v1.3.1` but
+the version number communicated by Modrinth is actually `1.3.1`. You always want to use the version number that's
+communicated by Modrinth.
+
+##### Curseforge
+
+Curseforge on the other hand has no core concept of the individual mods' versions so we have to rely on the actual file names.
+
+
+Once you find the mod you want to install, you need to click on the "Files" tab and then find the version you want to
+install.
+
+![](/doc/images/versions-curseforge-1.png)
+
+You then need to click on the specific version you want to install and copy the file name.
+
+![](/doc/images/versions-curseforge-2.png)
+
+> This will change in the future as soon as Curseforge adds support for proper versioning.
+
+
+
 #### Command Line Arguments
 
-| Short | Long                     | Description                       | Value                                                        |
-|-------|--------------------------|-----------------------------------|--------------------------------------------------------------|
-| -f    | --allow-version-fallback | Whether to allow version fallback | No value needed. <br/>When it is supplied, `true` is assumed |
+| Short | Long                     | Description                       | Value                                                                        |
+|-------|--------------------------|-----------------------------------|------------------------------------------------------------------------------|
+| -f    | --allow-version-fallback | Whether to allow version fallback | No value needed. <br/>When it is supplied, `true` is assumed                 |
+| -v    | --version                | The version of the mod to add     | A valid version string for Modrinth or the version's filename for Curseforge |
 
 #### Platforms
 
@@ -275,7 +314,8 @@ use.
 The install command works off of the `modlist-lock.json` file which contains the exact version information for any given
 mod.
 
-If a `modlist-lock.json` does not exist, the install command will download the latest version of every mod. This is a
+If a `modlist-lock.json` does not exist, the install command will download the latest version of every mod unless you've set
+a specific `version` with the [add command](#installing-specific-versions). This is a
 limitation of the Minecraft modding ecosystem and the lack of enforced versioning.
 
 > If you are in charge of Modrinth or Curseforge, please mandate the use of semver!
@@ -293,7 +333,8 @@ everyone has the exact same versions of everything.
 `mmm update` or `mmm u`
 
 This will try and find newer versions of every mod defined in the `modlist.json` file that matches the given game
-version and loader. If a new mod is found, it will be downloaded and the old one will be removed. If the download fails,
+version, loader and doesn't have a fixed `version` configuration.
+If a new mod is found, it will be downloaded and the old one will be removed. If the download fails,
 the old one will be kept.
 
 You would run this command when you want to make sure that you're using the newest versions of the mods.
@@ -445,7 +486,13 @@ This is how it looks like if you followed the examples in the [`add`](#add) sect
     {
       "type": "modrinth",
       "id": "AANobbMI",
-      "name": "Sodium"
+      "name": "Sodium",
+      "version": "0.5.5"
+    },
+    {
+      "type": "modrinth",
+      "id": "YL57xq9U",
+      "name": "Iris Shaders"
     }
   ]
 }
@@ -521,6 +568,14 @@ This happens quite frequently unfortunately because mod developers either don't 
 they forget to list the supported Minecraft versions correctly.
 
 This setting will be overridable on an individual mod basis in the next release. Currently, it's a global setting.
+
+#### version _optional_
+
+For every mod you can specify a version. This is useful if you want to install a specific version of a mod and want to
+keep it that way regardless of any updates to the mod.
+
+There are subtle differences between how this works for Modrinth and Curseforge. To learn more about this, please read
+the [installing specific versions](#installing-specific-versions) section of the [add](#add) command.
 
 ### Ignore File
 

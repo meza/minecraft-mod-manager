@@ -83,6 +83,7 @@ commands.push(
   program.command('add')
     .argument('<type>', 'curseforge or modrinth')
     .argument('<id>', 'Curseforge or Modrinth Project Id')
+    .option('-v, --version <version>', 'The version of the mod to add. If not specified, the latest version will be used')
     .option('-f, --allow-version-fallback', 'Should we try to download the mod for previous Minecraft versions if they do not exists for your Minecraft Version?', false)
     .action(async (type: Platform, id: string, _options, cmd) => {
       await add(type, id, cmd.optsWithGlobals(), logger);

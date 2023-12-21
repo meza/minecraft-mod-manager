@@ -54,7 +54,8 @@ export interface Mod {
   id: string,
   allowedReleaseTypes?: ReleaseType[]
   name: string,
-  allowVersionFallback?: boolean
+  allowVersionFallback?: boolean,
+  version?: string | undefined
 }
 
 export interface ModsJson {

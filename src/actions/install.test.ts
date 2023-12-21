@@ -212,8 +212,25 @@ describe('The install module', () => {
     verifyBasics();
   });
 
-  it<LocalTestContext>('Sets the appropriate debug messages', async ({ options, logger }) => {
+  it<LocalTestContext>('Sets the appropriate debug messages for latest', async ({ options, logger }) => {
     const { randomInstalledMod, randomInstallation, randomConfiguration } = setupOneInstalledMod();
+
+    vi.mocked(ensureConfiguration).mockResolvedValueOnce(randomConfiguration);
+    vi.mocked(readLockFile).mockResolvedValueOnce([randomInstallation]);
+    vi.mocked(getHash).mockResolvedValueOnce(randomInstallation.hash);
+
+    options.debug = true;
+    randomInstalledMod.version = undefined;
+    await install(options, logger);
+
+    expect(logger.debug).toHaveBeenCalledWith(`Checking ${randomInstalledMod.name}@latest for ${randomInstalledMod.type}`);
+
+  });
+
+  it<LocalTestContext>('Sets the appropriate debug messages for specific version', async ({ options, logger }) => {
+    const { randomInstalledMod, randomInstallation, randomConfiguration } = setupOneInstalledMod();
+
+    randomInstalledMod.version = '1.1.0';
 
     vi.mocked(ensureConfiguration).mockResolvedValueOnce(randomConfiguration);
     vi.mocked(readLockFile).mockResolvedValueOnce([randomInstallation]);
@@ -222,7 +239,7 @@ describe('The install module', () => {
     options.debug = true;
     await install(options, logger);
 
-    expect(logger.debug).toHaveBeenCalledWith(`Checking ${randomInstalledMod.name} for ${randomInstalledMod.type}`);
+    expect(logger.debug).toHaveBeenCalledWith(`Checking ${randomInstalledMod.name}@1.1.0 for ${randomInstalledMod.type}`);
 
   });
 

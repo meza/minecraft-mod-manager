@@ -13,8 +13,8 @@ export class Modrinth implements Repository {
     'Authorization': modrinthApiKey
   };
 
-  fetchMod(projectId: string, allowedReleaseTypes: ReleaseType[], allowedGameVersion: string, loader: Loader, allowFallback: boolean): Promise<RemoteModDetails> {
-    return getMod(projectId, allowedReleaseTypes, allowedGameVersion, loader, allowFallback);
+  fetchMod(projectId: string, allowedReleaseTypes: ReleaseType[], allowedGameVersion: string, loader: Loader, allowFallback: boolean, fixedVersion?: string): Promise<RemoteModDetails> {
+    return getMod(projectId, allowedReleaseTypes, allowedGameVersion, loader, allowFallback, fixedVersion);
   }
 
   lookup(lookup: string[]): Promise<PlatformLookupResult[]> {

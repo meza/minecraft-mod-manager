@@ -22,6 +22,7 @@ export interface ModrinthVersion {
   loaders: string[];
   game_versions: string[];
   date_published: string;
+  version_number: string;
   version_type: ReleaseType;
   files: ModrinthFile[];
 }
@@ -77,14 +78,8 @@ const hasTheCorrectVersion = (version: ModrinthVersion, allowedGameVersion: stri
   return version.game_versions.includes(allowedGameVersion);
 };
 
-export const getMod = async (
-  projectId: string,
-  allowedReleaseTypes: ReleaseType[],
-  allowedGameVersion: string,
-  loader: Loader,
-  allowFallback: boolean): Promise<RemoteModDetails> => {
-  const { name, versions } = await getModDetails(projectId, allowedGameVersion, loader);
-  const potentialFiles = versions
+const getPotentialFiles = (versions: ModrinthVersion[], loader: Loader, allowedReleaseTypes: ReleaseType[], allowedGameVersion: string) => {
+  return versions
     .filter((version) => {
       return hasTheCorrectLoader(version, loader);
     })
@@ -97,6 +92,25 @@ export const getMod = async (
     .sort((versionA, versionB) => {
       return versionA.date_published < versionB.date_published ? 1 : -1;
     });
+};
+
+export const getMod = async (
+  projectId: string,
+  allowedReleaseTypes: ReleaseType[],
+  allowedGameVersion: string,
+  loader: Loader,
+  allowFallback: boolean,
+  fixedModVersion?: string): Promise<RemoteModDetails> => {
+
+  const { name, versions } = await getModDetails(projectId, allowedGameVersion, loader);
+  let potentialFiles = [];
+  if (fixedModVersion) {
+    potentialFiles = versions.filter((file) => {
+      return file.version_number === fixedModVersion;
+    });
+  } else {
+    potentialFiles = getPotentialFiles(versions, loader, allowedReleaseTypes, allowedGameVersion);
+  }
 
   if (potentialFiles.length === 0) {
 

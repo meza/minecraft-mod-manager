@@ -18,7 +18,8 @@ export interface RepositoryTestContext {
   allowedReleaseTypes: ReleaseType[],
   gameVersion: string,
   loader: Loader,
-  allowFallback: boolean
+  allowFallback: boolean,
+  version?: string
 }
 
 const curseforge = new Curseforge();
@@ -45,6 +46,10 @@ describe('The repository facade', () => {
     context.gameVersion = chance.pickone(['1.16.5', '1.17.1', '1.18.1', '1.18.2', '1.19']);
     context.loader = chance.pickone(Object.values(Loader));
     context.allowFallback = chance.bool();
+    if (chance.bool()) {
+      context.version = chance.word();
+    }
+
   });
 
   describe('when fetching mod details', () => {
@@ -75,7 +80,8 @@ describe('The repository facade', () => {
           context.allowedReleaseTypes,
           context.gameVersion,
           context.loader,
-          context.allowFallback
+          context.allowFallback,
+          context.version
         );
 
         expect(implementation).toBeCalledWith(
@@ -83,7 +89,8 @@ describe('The repository facade', () => {
           context.allowedReleaseTypes,
           context.gameVersion,
           context.loader,
-          context.allowFallback
+          context.allowFallback,
+          context.version
         );
       });
     });

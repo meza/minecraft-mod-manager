@@ -26,27 +26,16 @@ export const verifyBasics = () => {
 
 export const expectModDetailsHaveBeenFetchedCorrectlyForMod = (
   mod: Mod, modsJson: ModsJson, call = 1) => {
-  if (mod.allowedReleaseTypes) {
-    expect(vi.mocked(fetchModDetails)).toHaveBeenNthCalledWith(
-      call,
-      mod.type,
-      mod.id,
-      mod.allowedReleaseTypes,
-      modsJson.gameVersion,
-      modsJson.loader,
-      mod.allowVersionFallback
-    );
-  } else {
-    expect(vi.mocked(fetchModDetails)).toHaveBeenNthCalledWith(
-      call,
-      mod.type,
-      mod.id,
-      modsJson.defaultAllowedReleaseTypes,
-      modsJson.gameVersion,
-      modsJson.loader,
-      mod.allowVersionFallback
-    );
-  }
+  expect(vi.mocked(fetchModDetails)).toHaveBeenNthCalledWith(
+    call,
+    mod.type,
+    mod.id,
+    mod.allowedReleaseTypes ? mod.allowedReleaseTypes : modsJson.defaultAllowedReleaseTypes,
+    modsJson.gameVersion,
+    modsJson.loader,
+    mod.allowVersionFallback,
+    mod.version
+  );
 };
 
 export const setupOneInstalledMod = () => {
