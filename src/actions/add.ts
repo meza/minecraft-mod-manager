@@ -21,6 +21,7 @@ import { DownloadFailedException } from '../errors/DownloadFailedException.js';
 
 export interface AddOptions extends DefaultOptions {
   allowVersionFallback?: boolean;
+  version?: string | undefined;
 }
 
 const handleUnknownPlatformException = async (error: UnknownPlatformException, id: string, options: AddOptions, logger: Logger) => {
@@ -68,7 +69,9 @@ export const add = async (platform: Platform, id: string, options: AddOptions, l
       configuration.defaultAllowedReleaseTypes,
       configuration.gameVersion,
       configuration.loader,
-      !!options.allowVersionFallback);
+      !!options.allowVersionFallback,
+      options.version
+    );
 
     await downloadFile(modData.downloadUrl, path.resolve(configuration.modsFolder, modData.fileName));
 

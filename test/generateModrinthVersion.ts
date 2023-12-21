@@ -18,19 +18,21 @@ export const generateModrinthVersion = (overrides?: Partial<ModrinthVersion>): G
   }));
   const filesToGenerate = chance.integer({ min: 1, max: 3 });
   const files: ModrinthFile[] = [];
+  const versionNumber = chance.word();
 
   for (let i = 0; i < filesToGenerate; i++) {
     files.push(generateModrinthFile().generated);
   }
 
   const generated: ModrinthVersion = {
+    date_published: datePublished,
+    files: files,
+    game_versions: gameVersions,
+    loaders: loaders,
     name: name,
     project_id: projectId,
-    loaders: loaders,
-    game_versions: gameVersions,
-    date_published: datePublished,
+    version_number: versionNumber,
     version_type: versionType,
-    files: files,
     ...overrides
   };
 
@@ -41,6 +43,7 @@ export const generateModrinthVersion = (overrides?: Partial<ModrinthVersion>): G
     game_versions: gameVersions,
     date_published: datePublished,
     version_type: versionType,
+    version_number: versionNumber,
     files: files,
     ...overrides
   };

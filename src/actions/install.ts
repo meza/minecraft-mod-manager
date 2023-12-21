@@ -52,8 +52,9 @@ export const install = async (options: DefaultOptions, logger: Logger) => {
   const mods = configuration.mods;
 
   const processMod = async (mod: Mod, index: number) => {
+    const canonVersion = mod.version || 'latest';
     try {
-      logger.debug(`Checking ${mod.name} for ${mod.type}`);
+      logger.debug(`Checking ${mod.name}@${canonVersion} for ${mod.type}`);
 
       if (hasInstallation(mod, installations)) {
         const installedModIndex = getInstallation(mod, installedMods);
@@ -81,7 +82,8 @@ export const install = async (options: DefaultOptions, logger: Logger) => {
         mod.allowedReleaseTypes || configuration.defaultAllowedReleaseTypes,
         configuration.gameVersion,
         configuration.loader,
-        !!mod.allowVersionFallback
+        !!mod.allowVersionFallback,
+        mod.version
       );
 
       mods[index].name = modData.name;
