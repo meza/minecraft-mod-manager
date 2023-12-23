@@ -74,8 +74,8 @@ devDependencies:
     specifier: 10.0.1
     version: 10.0.1(semantic-release@22.0.12)
   '@semantic-release/github':
-    specifier: 9.2.5
-    version: 9.2.5(semantic-release@22.0.12)
+    specifier: 9.2.6
+    version: 9.2.6(semantic-release@22.0.12)
   '@semantic-release/npm':
     specifier: 11.0.2
     version: 11.0.2(semantic-release@22.0.12)
@@ -1371,8 +1371,8 @@ packages:
       - supports-color
     dev: true
 
-  /@semantic-release/github@9.2.5(semantic-release@22.0.12):
-    resolution: {integrity: sha512-XWumFEOHiWllekymZjeVgkQCJ4YnD8020ZspAHYIIBNX8O4d/1ldeU5iNXu6NGkKlOCokyXh13KwVP0UEMm5kw==}
+  /@semantic-release/github@9.2.6(semantic-release@22.0.12):
+    resolution: {integrity: sha512-shi+Lrf6exeNZF+sBhK+P011LSbhmIAoUEgEY6SsxF8irJ+J2stwI5jkyDQ+4gzYyDImzV6LCKdYB9FXnQRWKA==}
     engines: {node: '>=18'}
     peerDependencies:
       semantic-release: '>=20.1.0'
@@ -1387,11 +1387,11 @@ packages:
       dir-glob: 3.0.1
       globby: 14.0.0
       http-proxy-agent: 7.0.0
-      https-proxy-agent: 7.0.0
+      https-proxy-agent: 7.0.2
       issue-parser: 6.0.0
       lodash-es: 4.17.21
       mime: 4.0.0
-      p-filter: 3.0.0
+      p-filter: 4.0.0
       semantic-release: 22.0.12(typescript@5.3.3)
       url-join: 5.0.0
     transitivePeerDependencies:
@@ -1827,14 +1827,6 @@ packages:
       clean-stack: 2.2.0
       indent-string: 4.0.0
 
-  /aggregate-error@4.0.1:
-    resolution: {integrity: sha512-0poP0T7el6Vq3rstR8Mn4V/IQrpBLO6POkUSrN7RhyY+GF/InCFShQzsQ39T25gkHhLgSLByyAz+Kjb+c2L98w==}
-    engines: {node: '>=12'}
-    dependencies:
-      clean-stack: 4.2.0
-      indent-string: 5.0.0
-    dev: true
-
   /aggregate-error@5.0.0:
     resolution: {integrity: sha512-gOsf2YwSlleG6IjRYG2A7k0HmBMEo6qVNk9Bp/EaLgAJT5ngH6PXbqa4ItvnEwCm/velL5jAnQgsHsWnjhGmvw==}
     engines: {node: '>=18'}
@@ -2210,13 +2202,6 @@ packages:
   /clean-stack@2.2.0:
     resolution: {integrity: sha512-4diC9HaTE+KRAMWhDhrGOECgWZxoevMc5TlkObMqNSsVU62PYzXZ/SMTjzyGAFF1YusgxGcSWTEXBhp0CPwQ1A==}
     engines: {node: '>=6'}
-
-  /clean-stack@4.2.0:
-    resolution: {integrity: sha512-LYv6XPxoyODi36Dp976riBtSY27VmFo+MKqEU9QCCWyTrdEPDog+RWA7xQWHi6Vbp61j5c4cdzzX1NidnwtUWg==}
-    engines: {node: '>=12'}
-    dependencies:
-      escape-string-regexp: 5.0.0
-    dev: true
 
   /clean-stack@5.2.0:
     resolution: {integrity: sha512-TyUIUJgdFnCISzG5zu3291TAsE77ddchd0bepon1VVQrKLGKFED4iXFEDQ24mIPdPBbyE16PK3F8MYE1CmcBEQ==}
@@ -3734,16 +3719,6 @@ packages:
       debug: 4.3.4
     transitivePeerDependencies:
       - supports-color
-
-  /https-proxy-agent@7.0.0:
-    resolution: {integrity: sha512-0euwPCRyAPSgGdzD1IVN9nJYHtBhJwb6XPfbpQcYbPCwrBidX6GzxmchnaF4sfF/jPb74Ojx5g4yTg3sixlyPw==}
-    engines: {node: '>= 14'}
-    dependencies:
-      agent-base: 7.1.0
-      debug: 4.3.4
-    transitivePeerDependencies:
-      - supports-color
-    dev: true
 
   /https-proxy-agent@7.0.2:
     resolution: {integrity: sha512-NmLNjm6ucYwtcUmL7JQC1ZQ57LmHP4lT15FQ8D61nak1rO6DH+fz5qNK2Ap5UN4ZapYICE3/0KodcLYSPsPbaA==}
@@ -5272,11 +5247,11 @@ packages:
     engines: {node: '>=12'}
     dev: true
 
-  /p-filter@3.0.0:
-    resolution: {integrity: sha512-QtoWLjXAW++uTX67HZQz1dbTpqBfiidsB6VtQUC9iR85S120+s0T5sO6s+B5MLzFcZkrEd/DGMmCjR+f2Qpxwg==}
-    engines: {node: ^12.20.0 || ^14.13.1 || >=16.0.0}
+  /p-filter@4.0.0:
+    resolution: {integrity: sha512-3gxOrNadcyxj+YKFyRmRIEuCMGayNNJoXL7Zf1dqfdfoDsVB190bHfFfhqfcNEDFLfQP1q2uir2cBgIqnIT+cQ==}
+    engines: {node: '>=18'}
     dependencies:
-      p-map: 5.5.0
+      p-map: 7.0.0
     dev: true
 
   /p-is-promise@3.0.0:
@@ -5339,11 +5314,9 @@ packages:
     dependencies:
       aggregate-error: 3.1.0
 
-  /p-map@5.5.0:
-    resolution: {integrity: sha512-VFqfGDHlx87K66yZrNdI4YGtD70IRyd+zSvgks6mzHPRNkoKy+9EKP4SFC77/vTTQYmRmti7dvqC+m5jBrBAcg==}
-    engines: {node: '>=12'}
-    dependencies:
-      aggregate-error: 4.0.1
+  /p-map@7.0.0:
+    resolution: {integrity: sha512-EZl03dLKv3RypkrjlevZoNwQMSy4bAblWcR18zhonktnN4fUs3asFQKSe0awn982omGxamvbejqQKQYDJYHCEg==}
+    engines: {node: '>=18'}
     dev: true
 
   /p-reduce@2.1.0:
@@ -5976,7 +5949,7 @@ packages:
     dependencies:
       '@semantic-release/commit-analyzer': 11.1.0(semantic-release@22.0.12)
       '@semantic-release/error': 4.0.0
-      '@semantic-release/github': 9.2.5(semantic-release@22.0.12)
+      '@semantic-release/github': 9.2.6(semantic-release@22.0.12)
       '@semantic-release/npm': 11.0.2(semantic-release@22.0.12)
       '@semantic-release/release-notes-generator': 12.1.0(semantic-release@22.0.12)
       aggregate-error: 5.0.0
