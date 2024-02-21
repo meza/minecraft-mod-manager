@@ -346,7 +346,7 @@ date of a file being newer than the old one + the hash of the file being differe
 
 ### CHANGE
 
-`mmm change [game_version]`
+`mmm change [-f] [game_version]`
 
 This will attempt to change all the mods that are configured for the mod manager to the supplied
 minecraft version.
@@ -361,6 +361,13 @@ from the configured mods directory, changing the `gameVersion` in the `modlist.j
 `mmm install`.
 
 The exit codes of this command are identical to the [test](#test) command's.
+
+#### Command line arguments for the change function
+
+| Short | Long    | Description                                                                                                                                                                                                               | Value | Example         |
+|-------|---------|---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|-------|-----------------|
+| -f    | --force | Force the change of the game version. Deletes all the mods and attempts to install with the given game version. Use at your own risk.<br/>If a mod doesn't have support for your game version, the mod won't be installed |       | `mmm change -f` |
+
 
 ---
 

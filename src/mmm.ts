@@ -114,6 +114,7 @@ commands.push(
 
 commands.push(
   program.command('change')
+    .option('-f, --force', 'Force the change of the game version. Deletes all the mods and attempts to install with the given game version. Use at your own risk', false)
     .argument('[game_version]', 'The Minecraft version to change to', 'latest')
     .action(async (gameVersion: string, _options, cmd) => {
       await changeGameVersion(gameVersion, cmd.optsWithGlobals(), logger);

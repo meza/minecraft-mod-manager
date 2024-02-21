@@ -105,6 +105,35 @@ describe('The Upgrade Test Module', () => {
         modsInError: [randomConfiguration.mods.at(failingModIndex)]
       });
     });
+
+    describe('when the force option is used', () => {
+      it<LocalTestContext>('should report everything fine', async ({
+        randomConfiguration,
+        randomVersion,
+        logger,
+        options
+      }) => {
+        const mod1 = generateModConfig().generated;
+        const mod2 = generateModConfig().generated;
+
+        randomConfiguration.mods = [mod1, mod2];
+
+        vi.mocked(readConfigFile).mockReset();
+        vi.mocked(readConfigFile).mockResolvedValueOnce(randomConfiguration);
+
+        vi.mocked(verifyMinecraftVersion).mockResolvedValue(true);
+
+        vi.mocked(fetchModDetails).mockRejectedValueOnce(new Error());
+        vi.mocked(fetchModDetails).mockResolvedValueOnce({} as never);
+
+        const result = await verifyUpgradeIsPossible(randomVersion, { ...options, force: true }, logger);
+        expect(result).toEqual({
+          canUpgrade: true,
+          version: randomVersion,
+          modsInError: []
+        });
+      });
+    });
   });
 
   describe('when an invalid game version is used', () => {

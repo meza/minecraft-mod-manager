@@ -8,7 +8,9 @@ import { verifyMinecraftVersion } from './minecraftVersionVerifier.js';
 import { Mod } from './modlist.types.js';
 import { getLatestMinecraftVersion } from '../interactions/getLatestMinecraftVersion.js';
 
-export type VerifyUpgradeOptions = DefaultOptions;
+export type VerifyUpgradeOptions = DefaultOptions & {
+  force?: boolean;
+};
 
 export interface UpgradeVerificationResult {
   canUpgrade: boolean;
@@ -36,6 +38,14 @@ export const verifyUpgradeIsPossible = async (gameVersion: string, options: Veri
 
   const mods = configuration.mods;
   const errors: Mod[] = [];
+
+  if (options.force) {
+    return {
+      canUpgrade: true,
+      version: version,
+      modsInError: []
+    };
+  }
 
   const processMod = async (mod: Mod) => {
 

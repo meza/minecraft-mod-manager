@@ -126,7 +126,6 @@ Command {
       "parent": [Circular],
       "processedArgs": [],
       "rawArgs": [],
-      Symbol(shapeMode): false,
       Symbol(kCapture): false,
     },
     Command {
@@ -183,7 +182,6 @@ Command {
       "parent": [Circular],
       "processedArgs": [],
       "rawArgs": [],
-      Symbol(shapeMode): false,
       Symbol(kCapture): false,
     },
     Command {
@@ -240,7 +238,6 @@ Command {
       "parent": [Circular],
       "processedArgs": [],
       "rawArgs": [],
-      Symbol(shapeMode): false,
       Symbol(kCapture): false,
     },
     Command {
@@ -366,7 +363,6 @@ Command {
       "parent": [Circular],
       "processedArgs": [],
       "rawArgs": [],
-      Symbol(shapeMode): false,
       Symbol(kCapture): false,
     },
     Command {
@@ -507,7 +503,6 @@ Command {
       "parent": [Circular],
       "processedArgs": [],
       "rawArgs": [],
-      Symbol(shapeMode): false,
       Symbol(kCapture): false,
     },
     Command {
@@ -575,7 +570,6 @@ Command {
       "parent": [Circular],
       "processedArgs": [],
       "rawArgs": [],
-      Symbol(shapeMode): false,
       Symbol(kCapture): false,
     },
     Command {
@@ -601,8 +595,10 @@ Command {
       "_defaultCommandName": null,
       "_description": "",
       "_enablePositionalOptions": false,
-      "_events": {},
-      "_eventsCount": 0,
+      "_events": {
+        "option:force": [Function],
+      },
+      "_eventsCount": 1,
       "_executableDir": null,
       "_executableFile": null,
       "_executableHandler": false,
@@ -620,8 +616,12 @@ Command {
       "_lifeCycleHooks": {},
       "_maxListeners": undefined,
       "_name": "change",
-      "_optionValueSources": {},
-      "_optionValues": {},
+      "_optionValueSources": {
+        "force": "default",
+      },
+      "_optionValues": {
+        "force": false,
+      },
       "_outputConfiguration": {
         "getErrHelpWidth": [Function],
         "getOutHelpWidth": [Function],
@@ -637,11 +637,31 @@ Command {
       "_summary": "",
       "args": [],
       "commands": [],
-      "options": [],
+      "options": [
+        Option {
+          "argChoices": undefined,
+          "conflictsWith": [],
+          "defaultValue": false,
+          "defaultValueDescription": undefined,
+          "description": "Force the change of the game version. Deletes all the mods and attempts to install with the given game version. Use at your own risk",
+          "envVar": undefined,
+          "flags": "-f, --force",
+          "hidden": false,
+          "implied": undefined,
+          "long": "--force",
+          "mandatory": false,
+          "negate": false,
+          "optional": false,
+          "parseArg": undefined,
+          "presetArg": undefined,
+          "required": false,
+          "short": "-f",
+          "variadic": false,
+        },
+      ],
       "parent": [Circular],
       "processedArgs": [],
       "rawArgs": [],
-      Symbol(shapeMode): false,
       Symbol(kCapture): false,
     },
     Command {
@@ -746,7 +766,6 @@ Command {
       "parent": [Circular],
       "processedArgs": [],
       "rawArgs": [],
-      Symbol(shapeMode): false,
       Symbol(kCapture): false,
     },
     Command {
@@ -828,7 +847,6 @@ Command {
       "parent": [Circular],
       "processedArgs": [],
       "rawArgs": [],
-      Symbol(shapeMode): false,
       Symbol(kCapture): false,
     },
     Command {
@@ -921,7 +939,6 @@ Command {
       "parent": [Circular],
       "processedArgs": [],
       "rawArgs": [],
-      Symbol(shapeMode): false,
       Symbol(kCapture): false,
     },
   ],
@@ -1010,7 +1027,6 @@ Command {
   "parent": null,
   "processedArgs": [],
   "rawArgs": [],
-  Symbol(shapeMode): false,
   Symbol(kCapture): false,
 }
 `;
