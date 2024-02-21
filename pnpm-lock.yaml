@@ -83,8 +83,8 @@ devDependencies:
     specifier: 12.1.0
     version: 12.1.0(semantic-release@23.0.2)
   '@types/glob':
-    specifier: ^8.0.1
-    version: 8.0.1
+    specifier: ^8.1.0
+    version: 8.1.0
   '@types/inquirer':
     specifier: ^9.0.2
     version: 9.0.2
@@ -1491,8 +1491,8 @@ packages:
     resolution: {integrity: sha512-qQR1dr2rGIHYlJulmr8Ioq3De0Le9E4MJ5AiaeAETJJpndT1uUNHsGFK3L/UIu+rbkQSdj8J/w2bCsBZc/Y5fQ==}
     dev: true
 
-  /@types/glob@8.0.1:
-    resolution: {integrity: sha512-8bVUjXZvJacUFkJXHdyZ9iH1Eaj5V7I8c4NdH5sQJsdXkqT4CA5Dhb4yb4VE/3asyx4L9ayZr1NIhTsWHczmMw==}
+  /@types/glob@8.1.0:
+    resolution: {integrity: sha512-IO+MJPVhoqz+28h1qLAcBEH2+xHMK6MTyHJc7MTnnYb6wsoLR29POVGJ7LycmVXIqyy/4/2ShP5sUwTXuOwb/w==}
     dependencies:
       '@types/minimatch': 5.1.2
       '@types/node': 20.5.1
