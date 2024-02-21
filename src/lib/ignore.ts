@@ -6,11 +6,13 @@ import { glob } from 'glob';
 const ignored = async (rootLookupDir: string) => {
   const ignoreFileLocation = path.resolve(rootLookupDir, '.mmmignore');
   const ignoredFiles = new Set<string>();
-  if (!(await fileExists(ignoreFileLocation))) {
-    return ignoredFiles;
+  let ignoreFileContents: string[] = [];
+
+  if (await fileExists(ignoreFileLocation)) {
+    ignoreFileContents = (await fs.readFile(ignoreFileLocation)).toString().split('\n').filter((line) => line.length > 0);
   }
 
-  const patterns = (await fs.readFile(ignoreFileLocation)).toString().split('\n').filter((line) => line.length > 0);
+  const patterns = ['**/*.disabled', ...ignoreFileContents];
 
   patterns.forEach((pattern) => {
     const result = glob.sync(pattern, {
@@ -22,7 +24,6 @@ const ignored = async (rootLookupDir: string) => {
       ignoredFiles.add(ignored);
     });
   });
-
   return ignoredFiles;
 };
 

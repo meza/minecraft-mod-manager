@@ -422,6 +422,9 @@ The prune command adheres to the [.mmmignore](#ignore-file) file and will not pr
 Scans the configured mods folder and looks for files that are currently not managed by the mod manager.
 When a file is found, it will attempt to look up that file on all the supported platforms.
 
+> [!NOTE] 
+> Files ending in `.disabled` will be ignored.
+
 It will report back the findings and if executed without any extra parameters, depending on the [interactivity settings](#how-it-works),
 it will either ask you what to do or not do anything.
 
