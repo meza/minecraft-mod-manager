@@ -45,14 +45,17 @@
         "assets": [
           {
             "path": "dist/pkg/win/mmm.exe",
+            "name": "mmm for Windows",
             "label": "Minecraft Mod Manager v${nextRelease.version} for Windows"
           },
           {
             "path": "dist/pkg/macos/mmm",
+            "name": "mmm-macos",
             "label": "Minecraft Mod Manager v${nextRelease.version} for MacOS"
           },
           {
             "path": "dist/pkg/linux/mmm",
+            "name": "mmm-linux",
             "label": "Minecraft Mod Manager v${nextRelease.version} for Linux"
           }
         ]
