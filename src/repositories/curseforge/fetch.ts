@@ -88,10 +88,9 @@ export const curseforgeFileToRemoteModDetails = (file: CurseforgeModFile, name: 
   };
 };
 
-const getPotentialFiles = (files: CurseforgeModFile[], allowedGameVersion: string, allowedReleaseTypes: ReleaseType[], loader: Loader): CurseforgeModFile[] => {
-
+const getPotentialFiles = (files: CurseforgeModFile[], allowedGameVersion: string, allowedReleaseTypes: ReleaseType[]): CurseforgeModFile[] => {
   return files.filter((file) => {
-    return file.sortableGameVersions.find((gameVersion) => gameVersion.gameVersionName.toLowerCase() === loader.toLowerCase());
+    return file.sortableGameVersions.find((gameVersion) => gameVersion.gameVersionName.toLowerCase() === allowedGameVersion.toLowerCase());
   })
     .filter((file) => {
       try {
@@ -99,14 +98,6 @@ const getPotentialFiles = (files: CurseforgeModFile[], allowedGameVersion: strin
       } catch (e) {
         return false;
       }
-    })
-    .filter((file) => {
-      return file.sortableGameVersions.some((gameVersion) => {
-        if (gameVersion.gameVersion === allowedGameVersion) {
-          return true;
-        }
-        return false;
-      });
     })
     .sort((a, b) => {
       return a.fileDate < b.fileDate ? 1 : -1;
@@ -135,6 +126,7 @@ export const getMod = async (
 
   const modDetails = await modDetailsRequest.json();
   const files = await getFiles(projectId, allowedGameVersion, loader);
+
   let potentialFiles = [];
 
   if (fixedModVersion) {
@@ -142,7 +134,7 @@ export const getMod = async (
       return file.fileName.toLowerCase() === fixedModVersion.toLowerCase();
     });
   } else {
-    potentialFiles = getPotentialFiles(files, allowedGameVersion, allowedReleaseTypes, loader);
+    potentialFiles = getPotentialFiles(files, allowedGameVersion, allowedReleaseTypes);
   }
 
   if (potentialFiles.length === 0) {

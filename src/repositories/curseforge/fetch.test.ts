@@ -92,7 +92,7 @@ describe('The Curseforge repository', () => {
       fileDate: '2019-08-24T14:15:22Z',
       releaseType: Release.RELEASE,
       sortableGameVersions: [{
-        gameVersionName: context.loader,
+        gameVersionName: context.gameVersion,
         gameVersion: context.gameVersion
       }],
       // @ts-ignore
@@ -132,7 +132,7 @@ describe('The Curseforge repository', () => {
       isAvailable: true,
       sortableGameVersions: [{
         gameVersion: context.gameVersion,
-        gameVersionName: context.loader
+        gameVersionName: context.gameVersion
       }],
       releaseType: randomBadReleaseType
     });
@@ -158,7 +158,7 @@ describe('The Curseforge repository', () => {
       releaseType: Release.ALPHA,
       sortableGameVersions: [{
         gameVersion: context.gameVersion,
-        gameVersionName: context.loader
+        gameVersionName: context.gameVersion
       }],
       hashes: []
     });
@@ -182,7 +182,7 @@ describe('The Curseforge repository', () => {
       fileStatus: releasedStatus,
       releaseType: Release.RELEASE,
       sortableGameVersions: [{
-        gameVersionName: context.loader,
+        gameVersionName: 'improper version',
         gameVersion: 'improper version'
       }]
     });
@@ -227,7 +227,7 @@ describe('The Curseforge repository', () => {
     const randomFile = generateCurseforgeModFile({
       isAvailable: false,
       sortableGameVersions: [{
-        gameVersionName: context.loader,
+        gameVersionName: context.gameVersion,
         gameVersion: context.gameVersion
       }]
     });
@@ -250,7 +250,7 @@ describe('The Curseforge repository', () => {
       isAvailable: true,
       releaseType: Release.BETA,
       sortableGameVersions: [{
-        gameVersionName: context.loader,
+        gameVersionName: context.gameVersion,
         gameVersion: context.gameVersion
       }]
     });
@@ -275,7 +275,7 @@ describe('The Curseforge repository', () => {
         isAvailable: true,
         fileStatus: status,
         sortableGameVersions: [{
-          gameVersionName: context.loader,
+          gameVersionName: context.gameVersion,
           gameVersion: context.gameVersion
         }]
       });
@@ -305,7 +305,7 @@ describe('The Curseforge repository', () => {
         fileStatus: releasedStatus,
         releaseType: Release.RELEASE,
         sortableGameVersions: [{
-          gameVersionName: context.loader,
+          gameVersionName: '1.19.1',
           gameVersion: '1.19.1'
         }]
       });
@@ -343,7 +343,7 @@ describe('The Curseforge repository', () => {
         fileStatus: releasedStatus,
         releaseType: Release.RELEASE,
         sortableGameVersions: [{
-          gameVersionName: context.loader,
+          gameVersionName: '1.19',
           gameVersion: '1.19'
         }]
       });
@@ -353,7 +353,7 @@ describe('The Curseforge repository', () => {
         fileStatus: releasedStatus,
         releaseType: Release.RELEASE,
         sortableGameVersions: [{
-          gameVersionName: context.loader,
+          gameVersionName: '1.19.0',
           gameVersion: '1.19.0'
         }]
       });
@@ -388,7 +388,7 @@ describe('The Curseforge repository', () => {
       fileStatus: releasedStatus,
       releaseType: Release.RELEASE,
       sortableGameVersions: [{
-        gameVersionName: context.loader,
+        gameVersionName: context.gameVersion,
         gameVersion: context.gameVersion
       }]
     });
@@ -420,7 +420,7 @@ describe('The Curseforge repository', () => {
       fileDate: '2019-08-24T14:15:22Z',
       releaseType: Release.RELEASE,
       sortableGameVersions: [{
-        gameVersionName: context.loader,
+        gameVersionName: context.gameVersion,
         gameVersion: context.gameVersion
       }]
     });
@@ -430,7 +430,7 @@ describe('The Curseforge repository', () => {
       fileDate: '2020-08-24T14:15:22Z',
       releaseType: Release.RELEASE,
       sortableGameVersions: [{
-        gameVersionName: context.loader,
+        gameVersionName: context.gameVersion,
         gameVersion: context.gameVersion
       }]
     });
@@ -440,7 +440,7 @@ describe('The Curseforge repository', () => {
       fileDate: '2018-08-24T14:15:22Z',
       releaseType: Release.RELEASE,
       sortableGameVersions: [{
-        gameVersionName: context.loader,
+        gameVersionName: context.gameVersion,
         gameVersion: context.gameVersion
       }]
     });
@@ -450,7 +450,7 @@ describe('The Curseforge repository', () => {
       fileDate: '2018-08-24T14:15:22Z',
       releaseType: Release.RELEASE,
       sortableGameVersions: [{
-        gameVersionName: context.loader,
+        gameVersionName: context.gameVersion,
         gameVersion: context.gameVersion
       }]
     });
@@ -517,7 +517,7 @@ describe('The Curseforge repository', () => {
         fileDate: '2019-08-24T14:15:22Z',
         releaseType: Release.RELEASE,
         sortableGameVersions: [{
-          gameVersionName: context.loader,
+          gameVersionName: context.gameVersion,
           gameVersion: context.gameVersion
         }],
         fileName: '1.0.0'
@@ -528,7 +528,7 @@ describe('The Curseforge repository', () => {
         fileDate: '2020-08-24T14:15:22Z',
         releaseType: Release.RELEASE,
         sortableGameVersions: [{
-          gameVersionName: context.loader,
+          gameVersionName: context.gameVersion,
           gameVersion: context.gameVersion
         }],
         fileName: '1.1.0'
@@ -539,7 +539,7 @@ describe('The Curseforge repository', () => {
         fileDate: '2018-08-24T14:15:22Z',
         releaseType: Release.RELEASE,
         sortableGameVersions: [{
-          gameVersionName: context.loader,
+          gameVersionName: context.gameVersion,
           gameVersion: context.gameVersion
         }],
         fileName: '1.2.0'
@@ -550,7 +550,7 @@ describe('The Curseforge repository', () => {
         fileDate: '2018-08-24T14:15:22Z',
         releaseType: Release.RELEASE,
         sortableGameVersions: [{
-          gameVersionName: context.loader,
+          gameVersionName: context.gameVersion,
           gameVersion: context.gameVersion
         }],
         fileName: '1.3.0'
