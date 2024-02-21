@@ -126,6 +126,7 @@ Command {
       "parent": [Circular],
       "processedArgs": [],
       "rawArgs": [],
+      Symbol(shapeMode): false,
       Symbol(kCapture): false,
     },
     Command {
@@ -182,6 +183,7 @@ Command {
       "parent": [Circular],
       "processedArgs": [],
       "rawArgs": [],
+      Symbol(shapeMode): false,
       Symbol(kCapture): false,
     },
     Command {
@@ -238,6 +240,7 @@ Command {
       "parent": [Circular],
       "processedArgs": [],
       "rawArgs": [],
+      Symbol(shapeMode): false,
       Symbol(kCapture): false,
     },
     Command {
@@ -363,6 +366,7 @@ Command {
       "parent": [Circular],
       "processedArgs": [],
       "rawArgs": [],
+      Symbol(shapeMode): false,
       Symbol(kCapture): false,
     },
     Command {
@@ -503,6 +507,7 @@ Command {
       "parent": [Circular],
       "processedArgs": [],
       "rawArgs": [],
+      Symbol(shapeMode): false,
       Symbol(kCapture): false,
     },
     Command {
@@ -570,6 +575,7 @@ Command {
       "parent": [Circular],
       "processedArgs": [],
       "rawArgs": [],
+      Symbol(shapeMode): false,
       Symbol(kCapture): false,
     },
     Command {
@@ -662,6 +668,7 @@ Command {
       "parent": [Circular],
       "processedArgs": [],
       "rawArgs": [],
+      Symbol(shapeMode): false,
       Symbol(kCapture): false,
     },
     Command {
@@ -766,6 +773,7 @@ Command {
       "parent": [Circular],
       "processedArgs": [],
       "rawArgs": [],
+      Symbol(shapeMode): false,
       Symbol(kCapture): false,
     },
     Command {
@@ -847,6 +855,7 @@ Command {
       "parent": [Circular],
       "processedArgs": [],
       "rawArgs": [],
+      Symbol(shapeMode): false,
       Symbol(kCapture): false,
     },
     Command {
@@ -939,6 +948,7 @@ Command {
       "parent": [Circular],
       "processedArgs": [],
       "rawArgs": [],
+      Symbol(shapeMode): false,
       Symbol(kCapture): false,
     },
   ],
@@ -1027,6 +1037,7 @@ Command {
   "parent": null,
   "processedArgs": [],
   "rawArgs": [],
+  Symbol(shapeMode): false,
   Symbol(kCapture): false,
 }
 `;
