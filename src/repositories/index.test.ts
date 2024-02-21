@@ -9,8 +9,19 @@ import { Modrinth } from './modrinth/index.js';
 import { generateRandomPlatform } from '../../test/generateRandomPlatform.js';
 import { generatePlatformLookupResult } from '../../test/generatePlatformLookupResult.js';
 
-vi.mock('./modrinth/index.js');
-vi.mock('./curseforge/index.js');
+vi.mock('./modrinth/index.js', () => {
+  const Modrinth = vi.fn();
+  Modrinth.prototype.lookup = vi.fn();
+  Modrinth.prototype.fetchMod = vi.fn();
+  return { Modrinth: Modrinth };
+});
+vi.mock('./curseforge/index.js', () => {
+  const Curseforge = vi.fn();
+  Curseforge.prototype.lookup = vi.fn();
+  Curseforge.prototype.fetchMod = vi.fn();
+  return { Curseforge: Curseforge };
+
+});
 
 export interface RepositoryTestContext {
   platform: Platform,

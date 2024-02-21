@@ -126,7 +126,6 @@ Command {
       "parent": [Circular],
       "processedArgs": [],
       "rawArgs": [],
-      Symbol(shapeMode): false,
       Symbol(kCapture): false,
     },
     Command {
@@ -183,7 +182,6 @@ Command {
       "parent": [Circular],
       "processedArgs": [],
       "rawArgs": [],
-      Symbol(shapeMode): false,
       Symbol(kCapture): false,
     },
     Command {
@@ -240,7 +238,6 @@ Command {
       "parent": [Circular],
       "processedArgs": [],
       "rawArgs": [],
-      Symbol(shapeMode): false,
       Symbol(kCapture): false,
     },
     Command {
@@ -366,7 +363,6 @@ Command {
       "parent": [Circular],
       "processedArgs": [],
       "rawArgs": [],
-      Symbol(shapeMode): false,
       Symbol(kCapture): false,
     },
     Command {
@@ -507,7 +503,6 @@ Command {
       "parent": [Circular],
       "processedArgs": [],
       "rawArgs": [],
-      Symbol(shapeMode): false,
       Symbol(kCapture): false,
     },
     Command {
@@ -575,7 +570,6 @@ Command {
       "parent": [Circular],
       "processedArgs": [],
       "rawArgs": [],
-      Symbol(shapeMode): false,
       Symbol(kCapture): false,
     },
     Command {
@@ -668,7 +662,6 @@ Command {
       "parent": [Circular],
       "processedArgs": [],
       "rawArgs": [],
-      Symbol(shapeMode): false,
       Symbol(kCapture): false,
     },
     Command {
@@ -773,7 +766,6 @@ Command {
       "parent": [Circular],
       "processedArgs": [],
       "rawArgs": [],
-      Symbol(shapeMode): false,
       Symbol(kCapture): false,
     },
     Command {
@@ -855,7 +847,6 @@ Command {
       "parent": [Circular],
       "processedArgs": [],
       "rawArgs": [],
-      Symbol(shapeMode): false,
       Symbol(kCapture): false,
     },
     Command {
@@ -870,7 +861,7 @@ Command {
           "argChoices": undefined,
           "defaultValue": undefined,
           "defaultValueDescription": undefined,
-          "description": "A list of the mod(s) to remove. e.g: mmm remove mod1 mod2 \\"mod with space in its name\\"",
+          "description": "A list of the mod(s) to remove. e.g: mmm remove mod1 mod2 "mod with space in its name"",
           "parseArg": undefined,
           "required": true,
           "variadic": true,
@@ -948,7 +939,6 @@ Command {
       "parent": [Circular],
       "processedArgs": [],
       "rawArgs": [],
-      Symbol(shapeMode): false,
       Symbol(kCapture): false,
     },
   ],
@@ -1037,7 +1027,6 @@ Command {
   "parent": null,
   "processedArgs": [],
   "rawArgs": [],
-  Symbol(shapeMode): false,
   Symbol(kCapture): false,
 }
 `;
