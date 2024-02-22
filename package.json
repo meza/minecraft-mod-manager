@@ -44,7 +44,7 @@
   "dependencies": {
     "@meza/curseforge-fingerprint": "^1.1.1",
     "chalk": "^5.0.1",
-    "commander": "^11.0.0",
+    "commander": "^12.0.0",
     "core-js": "^3.25.3",
     "dotenv": "^16.0.3",
     "glob": "^10.0.0",
