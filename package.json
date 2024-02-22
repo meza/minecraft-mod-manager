@@ -106,7 +106,7 @@
     "semantic-release": "23.0.2",
     "semantic-release-export-data": "1.0.1",
     "ts-node": "10.9.2",
-    "tsx": "4.6.2",
+    "tsx": "4.7.1",
     "typescript": "5.3.3",
     "vitest": "0.34.6"
   },
