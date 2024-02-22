@@ -99,7 +99,7 @@
     "lefthook": "1.6.1",
     "mock-cwd": "1.0.0",
     "node-gyp": "^10.0.0",
-    "npm-run-all2": "5.0.0",
+    "npm-run-all2": "6.1.2",
     "pkg": "5.8.1",
     "pnpm": "8.15.2",
     "rimraf": "5.0.5",
