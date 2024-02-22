@@ -40,7 +40,7 @@ describe('The main CLI configuration', () => {
 
   it('is set up correctly', async () => {
     const { program } = await import('./mmm.js');
-    expect(program).toMatchSnapshot();
+    expect(program.helpInformation()).toMatchSnapshot();
   });
 
   it('has add hooked up to the correct function', async () => {
