@@ -53,6 +53,24 @@ describe('The prune action', () => {
     expect(logMessage).toMatchInlineSnapshot('"You have no files in your mods folder."');
   });
 
+  it<LocalTestContext>('notifies about the files to be deleted in the mods folder', async ({ options, logger }) => {
+    const file1 = "a.jar";
+    const file2 = "b.jar";
+
+    const expectedFile1 = path.resolve(configuration.modsFolder, file1);
+    const expectedFile2 = path.resolve(configuration.modsFolder, file2);
+
+    vi.mocked(getModFiles).mockResolvedValueOnce([file1, file2]);
+
+    await prune(options, logger);
+
+    const logMessages = vi.mocked(logger.log).mock.calls.map((l) => { return l[0] });
+
+    expect(logMessages[0]).toMatchInlineSnapshot('"The following files are unmanaged:"');
+    expect(logMessages[1]).toMatchInlineSnapshot('- ${expectedFile1}');
+    expect(logMessages[2]).toMatchInlineSnapshot('- ${expectedFile2}');
+  });
+
   it<LocalTestContext>('notifies about no unmanaged files in the mods folder', async ({ options, logger }) => {
     vi.mocked(getModFiles).mockResolvedValueOnce(chance.n(chance.word, chance.integer({ min: 2, max: 10 })));
     vi.mocked(fileIsManaged).mockReturnValue(true);
