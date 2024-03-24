@@ -30,6 +30,11 @@ export const prune = async (options: PruneOptions, logger: Logger) => {
   if (unmanaged.length === 0) {
     logger.log('You have no unmanaged mods in your mods folder.');
     return;
+  } else {
+    logger.log('The following files are unmanaged:');
+    for (const file of unmanaged) {
+      logger.log('- ${filePath}');
+    }
   }
 
   if (!await shouldPruneFiles(options, logger)) {
