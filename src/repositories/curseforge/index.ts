@@ -10,7 +10,8 @@ export enum CurseforgeLoader {
   CAULDRON = 2,
   LITELOADER = 3,
   FABRIC = 4,
-  QUILT = 5
+  QUILT = 5,
+  NEOFORGE = 6
 }
 
 export class Curseforge implements Repository {
@@ -25,6 +26,8 @@ export class Curseforge implements Repository {
         return CurseforgeLoader.FABRIC;
       case Loader.QUILT:
         return CurseforgeLoader.QUILT;
+      case Loader.NEOFORGE:
+        return CurseforgeLoader.NEOFORGE;
       case Loader.LITELOADER:
         return CurseforgeLoader.LITELOADER;
       default:
