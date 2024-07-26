@@ -51,7 +51,8 @@
     "inquirer": "^9.1.2",
     "log-symbols": "^6.0.0",
     "minimatch": "^9.0.0",
-    "nodejs-file-downloader": "^4.10.2"
+    "nodejs-file-downloader": "^4.10.2",
+    "zod": "^3.23.8"
   },
   "commitlint": {
     "extends": [
