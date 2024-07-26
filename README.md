@@ -189,7 +189,7 @@ Currently the 2 possible values of the platform are:
 
 ![](/doc/images/curseforge.png)
 
-**On Modrinth** you need the **Project ID** which you can find in the **bottom left hand corner** of every mod's page.
+**On Modrinth** you need the **Project SLUG** which is the last part of the URL the mod is on
 
 ![](/doc/images/modrinth.png)
 
