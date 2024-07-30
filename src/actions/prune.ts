@@ -1,4 +1,4 @@
-import { DefaultOptions } from '../mmm.js';
+import { DefaultOptions, telemetry } from '../mmm.js';
 import { Logger } from '../lib/Logger.js';
 import { ensureConfiguration, getModsFolder, readLockFile } from '../lib/config.js';
 import path from 'node:path';
@@ -12,6 +12,7 @@ export interface PruneOptions extends DefaultOptions {
 }
 
 export const prune = async (options: PruneOptions, logger: Logger) => {
+  performance.mark('prune-start');
   const configuration = await ensureConfiguration(options.config, logger);
   const installations = await readLockFile(options, logger);
   const modsFolder = getModsFolder(options.config, configuration);
@@ -41,4 +42,15 @@ export const prune = async (options: PruneOptions, logger: Logger) => {
     await fs.rm(filePath, { force: true });
     logger.log(`Deleted: ${filePath}`);
   }
+
+  performance.mark('prune-succeed');
+
+  await telemetry.captureCommand({
+    command: 'prune',
+    success: true,
+    arguments: {
+      options: options
+    },
+    duration: performance.measure('prune-duration', 'prune-start', 'prune-succeed').duration
+  });
 };

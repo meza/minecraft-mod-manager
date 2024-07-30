@@ -111,8 +111,10 @@ export const getMod = async (
   loader: Loader,
   allowFallback: boolean,
   fixedModVersion?: string): Promise<RemoteModDetails> => {
-  const url = `https://api.curseforge.com/v1/mods/${projectId}`;
 
+  performance.mark('curseforge-getmod-start');
+
+  const url = `https://api.curseforge.com/v1/mods/${projectId}`;
   const modDetailsRequest = await rateLimitingFetch(url, {
     headers: {
       'Accept': 'application/json',
@@ -144,6 +146,9 @@ export const getMod = async (
       return getMod(projectId, allowedReleaseTypes, versionDown.nextVersionToTry, loader, versionDown.canGoDown);
     }
 
+    performance.mark('curseforge-getmod-failed');
+    performance.measure(`curseforge-getmod-${projectId}-failed`, 'curseforge-getmod-start', 'curseforge-getmod-failed');
+
     throw new NoRemoteFileFound(modDetails.data.name, Platform.CURSEFORGE);
   }
 
@@ -155,9 +160,12 @@ export const getMod = async (
 
   try {
     const modData = curseforgeFileToRemoteModDetails(latestFile, modDetails.data.name);
-
+    performance.mark('curseforge-getmod-end');
+    performance.measure(`curseforge-getmod-${projectId}`, 'curseforge-getmod-start', 'curseforge-getmod-end');
     return modData;
   } catch (e) { // Catch when the hash is not found (due to curseforge error)
+    performance.mark('curseforge-getmod-failed');
+    performance.measure(`curseforge-getmod-${projectId}-failed`, 'curseforge-getmod-start', 'curseforge-getmod-failed');
     throw new NoRemoteFileFound(modDetails.data.name, Platform.CURSEFORGE);
   }
 };

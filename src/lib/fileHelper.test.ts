@@ -18,6 +18,7 @@ interface LocalTestContext {
 
 describe('The file helper module', () => {
   beforeEach<LocalTestContext>((context) => {
+    vi.resetAllMocks();
     context.rootDir = path.resolve('/', chance.word());
     context.configLocation = path.resolve(context.rootDir, chance.word());
     context.configuration = generateModsJson({ modsFolder: 'mods' }).generated;

@@ -73,10 +73,14 @@ export const initializeConfigFile = async (configPath: string, logger: Logger): 
 };
 
 export const ensureConfiguration = async (configPath: string, logger: Logger, quiet = false): Promise<ModsJson> => {
+  performance.mark('ensure-configuration-start');
   try {
-    return await readConfigFile(configPath);
+    const result = await readConfigFile(configPath);
+    performance.mark('ensure-configuration-succeed');
+    return result;
   } catch (error) {
     if (error instanceof ConfigFileNotFoundException && !quiet) {
+      performance.mark('ensure-configuration-fail');
       if (await shouldCreateConfig(configPath)) {
         return await initializeConfigFile(configPath, logger);
       }

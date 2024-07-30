@@ -1,4 +1,4 @@
-import { DefaultOptions } from '../mmm.js';
+import { DefaultOptions, telemetry } from '../mmm.js';
 import {
   ensureConfiguration,
   fileExists, getModsFolder,
@@ -18,7 +18,9 @@ import { getInstallation, hasInstallation } from '../lib/configurationHelper.js'
 import { handleFetchErrors } from '../errors/handleFetchErrors.js';
 
 export const update = async (options: DefaultOptions, logger: Logger) => {
+  performance.mark('update-start');
   await install(options, logger);
+  performance.mark('update-install-success');
 
   const configuration = await ensureConfiguration(options.config, logger);
   const installations = await readLockFile(options, logger);
@@ -77,4 +79,14 @@ export const update = async (options: DefaultOptions, logger: Logger) => {
 
   await writeLockFile(installedMods, options, logger);
   await writeConfigFile(configuration, options, logger);
+
+  performance.mark('update-succeed');
+  await telemetry.captureCommand({
+    command: 'update',
+    success: true,
+    arguments: {
+      options: options
+    },
+    duration: performance.measure('update-duration', 'update-start', 'update-succeed').duration
+  });
 };

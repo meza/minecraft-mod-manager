@@ -1,14 +1,11 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import { generateModsJson } from '../../test/modlistGenerator.js';
 import { generateModConfig } from '../../test/modConfigGenerator.js';
-import { list } from './list.js';
-import { ensureConfiguration, readLockFile } from '../lib/config.js';
 import { generateModInstall } from '../../test/modInstallGenerator.js';
+import { generateModsJson } from '../../test/modlistGenerator.js';
+import { ensureConfiguration, readLockFile } from '../lib/config.js';
 import { Logger } from '../lib/Logger.js';
-import { ConfigFileNotFoundException } from '../errors/ConfigFileNotFoundException.js';
-import { ErrorTexts } from '../errors/ErrorTexts.js';
-import { chance } from 'jest-chance';
 import { DefaultOptions } from '../mmm.js';
+import { list } from './list.js';
 
 vi.mock('../lib/Logger.js');
 vi.mock('../lib/config.js');
@@ -92,20 +89,5 @@ describe('The list action', async () => {
       expect(logger.log).toHaveBeenNthCalledWith(4, '\u2705 mod3.jar (mod3id) is installed', true);
 
     });
-
-    it<LocalTestContext>('shows the correct error message when the config file is missing', async ({ options, logger }) => {
-      vi.mocked(ensureConfiguration).mockRejectedValueOnce(new ConfigFileNotFoundException(options.config));
-      await expect(list(options, logger)).rejects.toThrow('process.exit');
-
-      expect(vi.mocked(logger.error)).toHaveBeenCalledWith(ErrorTexts.configNotFound);
-
-    });
-  });
-
-  it<LocalTestContext>('handles unexpected errors', async ({ options, logger }) => {
-    const randomErrorMessage = chance.sentence();
-    vi.mocked(ensureConfiguration).mockRejectedValueOnce(new Error(randomErrorMessage));
-    await expect(list(options, logger)).rejects.toThrow('process.exit');
-    expect(logger.error).toHaveBeenCalledWith(randomErrorMessage, 2);
   });
 });

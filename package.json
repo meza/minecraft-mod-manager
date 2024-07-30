@@ -48,10 +48,12 @@
     "core-js": "^3.25.3",
     "dotenv": "^16.0.3",
     "glob": "^10.0.0",
+    "hwid": "^0.5.0",
     "inquirer": "^9.1.2",
     "log-symbols": "^6.0.0",
     "minimatch": "^9.0.0",
-    "nodejs-file-downloader": "^4.10.2"
+    "nodejs-file-downloader": "^4.10.2",
+    "posthog-node": "^4.0.1"
   },
   "commitlint": {
     "extends": [

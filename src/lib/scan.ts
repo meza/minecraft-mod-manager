@@ -39,6 +39,7 @@ const getScanResults = async (files: string[], installations: ModInstall[]) => {
 };
 
 export const scanFiles = async (files: string[], installations: ModInstall[], prefer: Platform, configuration: ModsJson) => {
+  performance.mark('lib-scan-start');
   const lookupResults = await getScanResults(files, installations);
 
   const normalizers: Promise<ScanResults>[] = [];
@@ -65,6 +66,9 @@ export const scanFiles = async (files: string[], installations: ModInstall[], pr
 
       allDetails[i] = deets;
     }
+
+    performance.mark('lib-scan-end');
+    performance.measure('lib-scan', 'lib-scan-start', 'lib-scan-end');
 
     return {
       preferredDetails: allDetails[0],

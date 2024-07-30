@@ -9,6 +9,7 @@ import { lookup as cfLookup } from './lookup.js';
 
 vi.mock('./fetch.js');
 vi.mock('./lookup.js');
+vi.mock('../../env.js', () => ({ modrinthApiKey: 'REPL_MODRINTH_API_KEY' }));
 
 describe('The Modrinth Repository class', () => {
   beforeEach(() => {
