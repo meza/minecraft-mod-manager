@@ -17,6 +17,8 @@ import { scan } from './actions/scan.js';
 import { prune } from './actions/prune.js';
 import { removeAction } from './actions/remove.js';
 
+performance.mark('start');
+
 export const APP_NAME = 'Minecraft Mod Manager';
 export const APP_DESCRIPTION = 'Manages mods from Modrinth and Curseforge';
 export const DEFAULT_CONFIG_LOCATION = './modlist.json';
