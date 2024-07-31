@@ -1,4 +1,5 @@
 import { beforeEach, describe, it, vi, expect } from 'vitest';
+import { expectCommandStartTelemetry } from '../../test/telemetryHelper.js';
 import { Logger } from '../lib/Logger.js';
 import { prune, PruneOptions } from './prune.js';
 import { ModInstall, ModsJson } from '../lib/modlist.types.js';
@@ -24,6 +25,7 @@ vi.mock('../lib/configurationHelper.js');
 vi.mock('../interactions/shouldPruneFiles.js');
 vi.mock('../lib/fileHelper.js');
 vi.mock('fs/promises');
+vi.mock('../mmm.js');
 
 describe('The prune action', () => {
   beforeEach<LocalTestContext>((context) => {
@@ -109,5 +111,51 @@ describe('The prune action', () => {
     await prune(options, logger);
 
     expect(fs.rm).not.toHaveBeenCalled();
+  });
+
+  it<LocalTestContext>('calls the correct telemetry when prune is not needed', async ({ options, logger }) => {
+    const file1 = chance.word();
+    const file2 = chance.word();
+    const file3 = chance.word();
+
+    vi.mocked(getModFiles).mockResolvedValueOnce([file1, file2, file3]);
+    vi.mocked(getModFiles).mockResolvedValueOnce([]);
+    vi.mocked(fileIsManaged).mockReturnValue(false);
+    vi.mocked(shouldPruneFiles).mockResolvedValueOnce(false);
+
+    await prune(options, logger);
+
+    expectCommandStartTelemetry({
+      command: 'prune',
+      success: true,
+      duration: expect.any(Number),
+      arguments: {
+        options: options
+      }
+    });
+
+  });
+
+  it<LocalTestContext>('calls the correct telemetry when prune is needed', async ({ options, logger }) => {
+    const file1 = chance.word();
+    const file2 = chance.word();
+    const file3 = chance.word();
+
+    vi.mocked(getModFiles).mockResolvedValueOnce([file1, file2, file3]);
+    vi.mocked(getModFiles).mockResolvedValueOnce([]);
+    vi.mocked(fileIsManaged).mockReturnValue(false);
+    vi.mocked(shouldPruneFiles).mockResolvedValueOnce(true);
+
+    await prune(options, logger);
+
+    expectCommandStartTelemetry({
+      command: 'prune',
+      success: true,
+      duration: expect.any(Number),
+      arguments: {
+        options: options
+      }
+    });
+
   });
 });

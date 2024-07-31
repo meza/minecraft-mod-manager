@@ -1,4 +1,4 @@
-import { DefaultOptions } from '../mmm.js';
+import { DefaultOptions, telemetry } from '../mmm.js';
 import { Logger } from '../lib/Logger.js';
 import { ensureConfiguration, getModsFolder, readLockFile, writeConfigFile, writeLockFile } from '../lib/config.js';
 import { PlatformLookupResult } from '../repositories/index.js';
@@ -170,6 +170,7 @@ export const processScanResults = (scanResults: ScanResults[], configuration: Mo
 };
 
 export const scan = async (options: ScanOptions, logger: Logger) => {
+  performance.mark('scan-start');
   const configuration = await ensureConfiguration(options.config, logger);
   const installations = await readLockFile(options, logger);
   let scanResults: ScanResults[] = [];
@@ -219,8 +220,15 @@ export const scan = async (options: ScanOptions, logger: Logger) => {
 
   await processForeignFiles(options, configuration, dealtWith, hasResults, logger);
 
-  // scan during init
-  // deduce loader from the mods
-  // if the loader doesn't match, error
+  performance.mark('scan-succeed');
+
+  await telemetry.captureCommand({
+    command: 'scan',
+    success: true,
+    arguments: {
+      options: options
+    },
+    duration: performance.measure('scan-duration', 'scan-start', 'scan-succeed').duration
+  });
 
 };

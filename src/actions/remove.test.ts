@@ -1,5 +1,6 @@
 import path from 'node:path';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { expectCommandStartTelemetry } from '../../test/telemetryHelper.js';
 import { Mod, ModInstall, ModsJson } from '../lib/modlist.types.js';
 import { generateModsJson } from '../../test/modlistGenerator.js';
 import { removeAction, RemoveOptions } from './remove.js';
@@ -18,6 +19,7 @@ interface LocalTestContext {
   logger: Logger;
 }
 
+vi.mock('../mmm.js');
 vi.mock('../lib/Logger.js');
 vi.mock('../lib/config.js');
 vi.mock('../lib/configurationHelper.js');
@@ -175,6 +177,24 @@ describe('The remove action', () => {
       expect(fs.rm).toHaveBeenNthCalledWith(2, path.resolve('/mods/file2'), { force: true });
       expect(writeLockFile).toHaveBeenNthCalledWith(2, [mod3Install], options, logger);
     });
+  });
+
+  it<LocalTestContext>('calls the correct telemetry', async ({ options, logger }) => {
+    vi.mocked(findLocalMods).mockReturnValueOnce(new Set<Mod>());
+
+    const input = chance.n(chance.word, chance.integer({ min: 1, max: 10 }));
+    await removeAction(input, options, logger);
+
+    expectCommandStartTelemetry({
+      command: 'remove',
+      success: true,
+      duration: expect.any(Number),
+      arguments: {
+        mods: input,
+        options: options
+      }
+    });
+
   });
 
 });

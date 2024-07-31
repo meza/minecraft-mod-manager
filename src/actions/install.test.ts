@@ -1,4 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { expectCommandStartTelemetry } from '../../test/telemetryHelper.js';
 import { install } from './install.js';
 import { fetchModDetails } from '../repositories/index.js';
 import { ensureConfiguration, getModsFolder, readLockFile, writeConfigFile, writeLockFile } from '../lib/config.js';
@@ -44,6 +45,7 @@ vi.mock('../lib/fileHelper.js');
 vi.mock('../lib/configurationHelper.js');
 vi.mock('../lib/scan.js');
 vi.mock('./scan.js');
+vi.mock('../mmm.js');
 
 interface LocalTestContext {
   options: DefaultOptions;
@@ -229,6 +231,26 @@ describe('The install module', () => {
     await install(options, logger);
 
     expect(logger.debug).toHaveBeenCalledWith(`Checking ${randomInstalledMod.name}@latest for ${randomInstalledMod.type}`);
+
+  });
+
+  it<LocalTestContext>('calls the correct telemetry', async ({ options, logger }) => {
+    const { randomInstallation, randomConfiguration } = setupOneInstalledMod();
+
+    vi.mocked(ensureConfiguration).mockResolvedValueOnce(randomConfiguration);
+    vi.mocked(readLockFile).mockResolvedValueOnce([randomInstallation]);
+    vi.mocked(getHash).mockResolvedValueOnce(randomInstallation.hash);
+
+    await install(options, logger);
+
+    expectCommandStartTelemetry({
+      command: 'install',
+      success: true,
+      duration: expect.any(Number),
+      arguments: {
+        options: options
+      }
+    });
 
   });
 

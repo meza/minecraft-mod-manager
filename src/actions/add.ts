@@ -1,23 +1,18 @@
-import path from 'path';
-import { fetchModDetails } from '../repositories/index.js';
-import { Mod, Platform } from '../lib/modlist.types.js';
-import {
-  ensureConfiguration, getModsFolder,
-  readLockFile,
-  writeConfigFile,
-  writeLockFile
-} from '../lib/config.js';
-import { downloadFile } from '../lib/downloader.js';
-import { DefaultOptions, stop } from '../mmm.js';
-import { UnknownPlatformException } from '../errors/UnknownPlatformException.js';
-import inquirer from 'inquirer';
 import chalk from 'chalk';
+import inquirer from 'inquirer';
+import path from 'path';
 import { CouldNotFindModException } from '../errors/CouldNotFindModException.js';
+import { DownloadFailedException } from '../errors/DownloadFailedException.js';
 import { NoRemoteFileFound } from '../errors/NoRemoteFileFound.js';
-import { Logger } from '../lib/Logger.js';
+import { UnknownPlatformException } from '../errors/UnknownPlatformException.js';
 import { modNotFound } from '../interactions/modNotFound.js';
 import { noRemoteFileFound } from '../interactions/noRemoteFileFound.js';
-import { DownloadFailedException } from '../errors/DownloadFailedException.js';
+import { ensureConfiguration, getModsFolder, readLockFile, writeConfigFile, writeLockFile } from '../lib/config.js';
+import { downloadFile } from '../lib/downloader.js';
+import { Logger } from '../lib/Logger.js';
+import { Mod, Platform } from '../lib/modlist.types.js';
+import { DefaultOptions, telemetry } from '../mmm.js';
+import { fetchModDetails } from '../repositories/index.js';
 
 export interface AddOptions extends DefaultOptions {
   allowVersionFallback?: boolean;
@@ -44,7 +39,7 @@ const handleUnknownPlatformException = async (error: UnknownPlatformException, i
   ]);
 
   if (answers.platform === 'cancel') {
-    stop();
+    return;
   }
 
   // eslint-disable-next-line no-use-before-define
@@ -53,12 +48,25 @@ const handleUnknownPlatformException = async (error: UnknownPlatformException, i
 };
 
 export const add = async (platform: Platform, id: string, options: AddOptions, logger: Logger) => {
-
+  performance.mark('add-start');
   const configuration = await ensureConfiguration(options.config, logger, options.quiet);
   const modConfig = configuration.mods.find((mod: Mod) => (mod.id === id && mod.type === platform));
 
   if (modConfig) {
     logger.debug(`Mod ${id} for ${platform} already exists in the configuration`);
+    await telemetry.captureCommand({
+      command: 'add',
+      success: true,
+      arguments: {
+        options: options,
+        platform: platform,
+        id: id
+      },
+      extra: {
+        flag: 'already-exists'
+      },
+      duration: performance.measure('add-duration', 'add-start', 'add-succeed').duration
+    });
     return;
   }
 
@@ -97,8 +105,33 @@ export const add = async (platform: Platform, id: string, options: AddOptions, l
     await writeLockFile(installations, options, logger);
 
     logger.log(`${chalk.green('\u2705')} Added ${modData.name} (${id}) for ${platform}`);
+    performance.mark('add-succeed');
+
+    await telemetry.captureCommand({
+      command: 'add',
+      success: true,
+      arguments: {
+        options: options,
+        platform: platform,
+        id: id
+      },
+      duration: performance.measure('add-duration', 'add-start', 'add-succeed').duration
+    });
 
   } catch (error) {
+    performance.mark('add-failed');
+    await telemetry.captureCommand({
+      command: 'add',
+      success: false,
+      config: configuration,
+      arguments: {
+        options: options,
+        platform: platform,
+        id: id
+      },
+      error: (error as Error).message,
+      duration: performance.measure('add-duration', 'add-start', 'add-failed').duration
+    });
     if (error instanceof DownloadFailedException) {
       logger.error(error.message, 1);
     }

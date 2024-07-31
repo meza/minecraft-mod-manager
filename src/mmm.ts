@@ -10,11 +10,14 @@ import { helpUrl } from './env.js';
 import { initializeConfig } from './interactions/initializeConfig.js';
 import { Logger } from './lib/Logger.js';
 import { Loader, Platform, ReleaseType } from './lib/modlist.types.js';
+import { Telemetry } from './telemetry/telemetry.js';
 import { version } from './version.js';
 import { changeGameVersion } from './actions/change.js';
 import { scan } from './actions/scan.js';
 import { prune } from './actions/prune.js';
 import { removeAction } from './actions/remove.js';
+
+performance.mark('start');
 
 export const APP_NAME = 'Minecraft Mod Manager';
 export const APP_DESCRIPTION = 'Manages mods from Modrinth and Curseforge';
@@ -36,8 +39,10 @@ export interface DefaultOptions {
 export const program = new Command();
 
 export const logger: Logger = new Logger(program);
+export const telemetry: Telemetry = new Telemetry();
 
-export const stop = (): never => {
+export const stop = async (): Promise<never> => {
+  await telemetry.flush();
   // eslint-disable-next-line no-process-exit
   process.exit(-1);
 };
@@ -153,4 +158,3 @@ commands.push(
 program.option('-c, --config <MODLIST_JSON>', 'An alternative JSON file containing the configuration', DEFAULT_CONFIG_LOCATION);
 program.option('-q, --quiet', 'Suppress all output', false);
 program.option('-d, --debug', 'Enable debug messages', false);
-

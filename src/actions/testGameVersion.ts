@@ -8,6 +8,7 @@ import { EXIT_CODE } from '../mmm.js';
 // disabling due to https://github.com/typescript-eslint/typescript-eslint/issues/1277
 // eslint-disable-next-line consistent-return
 export const testGameVersion = async (gameVersion: string, options: VerifyUpgradeOptions, logger: Logger): Promise<UpgradeVerificationResult> | never => {
+  performance.mark('test-version-start');
   try {
     const verified = await verifyUpgradeIsPossible(gameVersion, options, logger);
     if (!verified.canUpgrade) {
@@ -19,10 +20,11 @@ export const testGameVersion = async (gameVersion: string, options: VerifyUpgrad
     }
 
     logger.log(chalk.green(`All mods have support for ${verified.version}. You can safely upgrade.`));
-
+    performance.mark('test-version-succeed');
     return verified;
 
   } catch (e) {
+    performance.mark('test-version-fail');
     if (e instanceof IncorrectMinecraftVersionException) {
       logger.error(e.message, EXIT_CODE.GENERAL_ERROR);
     }

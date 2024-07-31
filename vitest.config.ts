@@ -19,11 +19,17 @@ export default defineConfig({
     },
     globalSetup: './test/globalSetup.ts',
     dir: 'src',
-    isolate: true,
     testTimeout: 10000,
     watch: false,
     outputFile: 'reports/junit.xml',
     reporters: testReporters,
+    isolate: true,
+    // fileParallelism: false,
+    // poolOptions: {
+    //   threads: {
+    //     singleThread: true
+    //   }
+    // },
     coverage: {
       include: ['src/**/*.ts'],
       exclude: ['**/*.testGameVersion.ts', '**/__mocks__/**.*', '**/*.d.ts', '**/*.test.ts'],

@@ -1,4 +1,5 @@
 import { describe, vi, it, beforeEach, expect } from 'vitest';
+import { expectCommandStartTelemetry } from '../../test/telemetryHelper.js';
 import { Logger } from '../lib/Logger.js';
 import { chance } from 'jest-chance';
 import { DefaultOptions } from '../mmm.js';
@@ -23,6 +24,7 @@ vi.mock('./install.js');
 vi.mock('../lib/config.js');
 vi.mock('./testGameVersion.js');
 vi.mock('node:fs/promises');
+vi.mock('../mmm.js');
 
 interface LocalTestContext {
   version: string;
@@ -147,6 +149,23 @@ describe('The change action', () => {
     expect(fs.rm).toHaveBeenCalledWith(expect.stringContaining(install1.fileName));
     expect(fs.rm).toHaveBeenCalledWith(expect.stringContaining(install3.fileName));
 
+  });
+
+  it<LocalTestContext>('calls the correct telemetry', async ({ version, options, logger }) => {
+    vi.mocked(ensureConfiguration).mockResolvedValueOnce(generateModsJson().generated);
+    vi.mocked(readLockFile).mockResolvedValue([]);
+
+    await changeGameVersion(version, options, logger);
+
+    expectCommandStartTelemetry({
+      command: 'change',
+      success: true,
+      duration: expect.any(Number),
+      arguments: {
+        gameVersion: version,
+        options: options
+      }
+    });
   });
 
 });

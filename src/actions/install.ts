@@ -12,7 +12,7 @@ import { fetchModDetails } from '../repositories/index.js';
 import { downloadFile } from '../lib/downloader.js';
 import { Mod, ModInstall, ModsJson, Platform, RemoteModDetails } from '../lib/modlist.types.js';
 import { getHash } from '../lib/hash.js';
-import { DefaultOptions } from '../mmm.js';
+import { DefaultOptions, telemetry } from '../mmm.js';
 import { updateMod } from '../lib/updater.js';
 import { Logger } from '../lib/Logger.js';
 import { fileIsManaged, getInstallation, hasInstallation } from '../lib/configurationHelper.js';
@@ -51,7 +51,7 @@ const handleUnknownFiles = async (options: DefaultOptions, configuration: ModsJs
 };
 
 export const install = async (options: DefaultOptions, logger: Logger) => {
-
+  performance.mark('install-start');
   const configuration = await ensureConfiguration(options.config, logger);
   const installations = await readLockFile(options, logger);
   await handleUnknownFiles(options, configuration, installations, logger);
@@ -123,4 +123,14 @@ export const install = async (options: DefaultOptions, logger: Logger) => {
   await writeLockFile(installedMods, options, logger);
   await writeConfigFile(configuration, options, logger);
   logger.log(`${chalk.green('\u2705')} all mods are installed!`);
+  performance.mark('install-succeed');
+
+  await telemetry.captureCommand({
+    command: 'install',
+    success: true,
+    arguments: {
+      options: options
+    },
+    duration: performance.measure('install-duration', 'install-start', 'install-succeed').duration
+  });
 };

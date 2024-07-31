@@ -1,18 +1,28 @@
 import { chance } from 'jest-chance';
-import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { add } from './actions/add.js';
+import { changeGameVersion } from './actions/change.js';
 import { install } from './actions/install.js';
 import { list } from './actions/list.js';
+import { prune } from './actions/prune.js';
+import { removeAction } from './actions/remove.js';
+import { scan } from './actions/scan.js';
 import { testGameVersion } from './actions/testGameVersion.js';
 import { update } from './actions/update.js';
 import { initializeConfig } from './interactions/initializeConfig.js';
 import { Logger } from './lib/Logger.js';
 import { Platform } from './lib/modlist.types.js';
-import { changeGameVersion } from './actions/change.js';
-import { scan } from './actions/scan.js';
-import { prune } from './actions/prune.js';
-import { removeAction } from './actions/remove.js';
+import { Telemetry } from './telemetry/telemetry.js';
 
+vi.mock('./telemetry/telemetry.js', () => {
+  const telemetryInstance = {
+    flush: vi.fn()
+  };
+
+  return {
+    Telemetry: vi.fn(() => telemetryInstance)
+  };
+});
 vi.mock('./lib/Logger.js');
 vi.mock('./actions/add.js');
 vi.mock('./actions/list.js');
@@ -27,15 +37,16 @@ vi.mock('./actions/remove.js');
 
 describe('The main CLI configuration', () => {
   let logger: Logger;
+  let telemetryInstance: Telemetry;
   beforeEach(() => {
-    vi.resetModules();
-    vi.spyOn(process, 'cwd').mockReturnValue('/path/to/minecraft/installation');
-    logger = new Logger({} as never);
-  });
-
-  afterEach(() => {
     vi.resetAllMocks();
     vi.resetModules();
+    telemetryInstance = {
+      flush: vi.fn()
+    } as unknown as Telemetry;
+    vi.mocked(Telemetry).mockImplementation(() => telemetryInstance);
+    vi.spyOn(process, 'cwd').mockReturnValue('/path/to/minecraft/installation');
+    logger = new Logger({} as never);
   });
 
   it('is set up correctly', async () => {
@@ -185,7 +196,9 @@ describe('The main CLI configuration', () => {
     vi.spyOn(process, 'exit').mockImplementation(() => {
       throw new Error('process.exit');
     });
-    const { stop } = await import('./mmm.js');
-    expect(stop).toThrow(new Error('process.exit'));
+    const { stop, telemetry } = await import('./mmm.js');
+
+    await expect(stop).rejects.toThrow('process.exit');
+    expect(telemetry.flush).toHaveBeenCalledOnce();
   });
 });

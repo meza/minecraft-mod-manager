@@ -33,11 +33,14 @@ interface ModrinthMod {
 }
 
 const getName = async (projectId: string): Promise<string> => {
+  performance.mark('modrinth-getname-start');
   const url = `https://api.modrinth.com/v2/project/${projectId}`;
   const modInfoRequest = await rateLimitingFetch(url, {
     headers: Modrinth.API_HEADERS
   });
 
+  performance.mark('modrinth-getname-end');
+  performance.measure(`modrinth-getname-${projectId}`, 'modrinth-getname-start', 'modrinth-getname-end');
   if (!modInfoRequest.ok) {
     throw new CouldNotFindModException(projectId, Platform.MODRINTH);
   }
@@ -101,7 +104,7 @@ export const getMod = async (
   loader: Loader,
   allowFallback: boolean,
   fixedModVersion?: string): Promise<RemoteModDetails> => {
-
+  performance.mark('modrinth-getmod-start');
   const { name, versions } = await getModDetails(projectId, allowedGameVersion, loader);
   let potentialFiles = [];
   if (fixedModVersion) {
@@ -119,6 +122,8 @@ export const getMod = async (
       return getMod(projectId, allowedReleaseTypes, versionDown.nextVersionToTry, loader, versionDown.canGoDown);
     }
 
+    performance.mark('modrinth-getmod-failed');
+    performance.measure(`modrinth-getmod-${projectId}-failed`, 'modrinth-getmod-start', 'modrinth-getmod-failed');
     throw new NoRemoteFileFound(projectId, Platform.MODRINTH);
   }
 
@@ -131,6 +136,9 @@ export const getMod = async (
     hash: latestFile.files[0].hashes.sha1,
     downloadUrl: latestFile.files[0].url
   };
+
+  performance.mark('modrinth-getmod-end');
+  performance.measure(`modrinth-getmod-${projectId}`, 'modrinth-getmod-start', 'modrinth-getmod-end');
 
   return modData;
 };
