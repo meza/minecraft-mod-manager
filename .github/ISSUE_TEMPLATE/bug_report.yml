@@ -46,7 +46,7 @@ body:
     id: version
     attributes:
       label: What version of MMM are you running?
-      placeholder: Run mmm version to get the version number
+      placeholder: Run mmm --version to get the version number
     validations:
       required: true
   - type: textarea
