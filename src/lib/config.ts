@@ -1,12 +1,33 @@
 import fs from 'node:fs/promises';
 import path from 'path';
-import { ModInstall, ModsJson } from './modlist.types.js';
+import { ConfigFileInvalidError } from '../errors/ConfigFileInvalidError.js';
+import { Loader, ModInstall, ModsJson, Platform, ReleaseType } from './modlist.types.js';
 import { ConfigFileNotFoundException } from '../errors/ConfigFileNotFoundException.js';
 import { initializeConfig } from '../interactions/initializeConfig.js';
 import { shouldCreateConfig } from '../interactions/shouldCreateConfig.js';
 import { Logger } from './Logger.js';
 import { fileToWrite } from '../interactions/fileToWrite.js';
 import { DefaultOptions } from '../mmm.js';
+import { z } from 'zod';
+
+// Define the structure of a single mod installation
+export const ModInstallSchema = z.object({
+  id: z.string(),
+  name: z.string().optional(),
+  type: z.nativeEnum(Platform),
+  version: z.string().optional(),
+  allowVersionFallback: z.boolean().optional(),
+  allowedReleaseTypes: z.array(z.nativeEnum(ReleaseType)).optional()
+});
+
+// Define the structure of the ModsJson object
+export const ModsJsonSchema = z.object({
+  loader: z.nativeEnum(Loader), //loader values
+  gameVersion: z.string(),
+  defaultAllowedReleaseTypes: z.array(z.nativeEnum(ReleaseType)),
+  modsFolder: z.string(),
+  mods: z.array(ModInstallSchema)
+});
 
 export const fileExists = async (configPath: string) => {
   return await fs.access(configPath).then(
@@ -75,15 +96,23 @@ export const initializeConfigFile = async (configPath: string, logger: Logger): 
 export const ensureConfiguration = async (configPath: string, logger: Logger, quiet = false): Promise<ModsJson> => {
   performance.mark('ensure-configuration-start');
   try {
-    const result = await readConfigFile(configPath);
+    const config = await readConfigFile(configPath);
+    const validationResult = ModsJsonSchema.safeParse(config);
+    if (!validationResult.success) {
+      throw new ConfigFileInvalidError();
+    }
     performance.mark('ensure-configuration-succeed');
-    return result;
+    return config;
   } catch (error) {
     if (error instanceof ConfigFileNotFoundException && !quiet) {
       performance.mark('ensure-configuration-fail');
       if (await shouldCreateConfig(configPath)) {
         return await initializeConfigFile(configPath, logger);
       }
+    }
+
+    if (error instanceof ConfigFileInvalidError) {
+      logger.error('There is a problem with the configuration file, please check!', 1);
     }
     throw error;
   }

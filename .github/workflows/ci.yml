@@ -6,7 +6,9 @@ permissions:
   contents: write
   pull-requests: write
 
-on: [ push ]
+on:
+  - push
+  - pull_request
 
 env:
   LEFTHOOK: 0

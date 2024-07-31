@@ -1,3 +1,4 @@
+import chalk from 'chalk';
 import { DefaultOptions, telemetry } from '../mmm.js';
 import { Logger } from '../lib/Logger.js';
 import { ensureConfiguration, getModsFolder, readLockFile } from '../lib/config.js';
@@ -31,6 +32,11 @@ export const prune = async (options: PruneOptions, logger: Logger) => {
   if (unmanaged.length === 0) {
     logger.log('You have no unmanaged mods in your mods folder.');
     return;
+  }
+
+  logger.log('The following files are unmanaged:');
+  for (const file of unmanaged) {
+    logger.log(`${chalk.red('\u274c')} ${file}`);
   }
 
   if (!await shouldPruneFiles(options, logger)) {

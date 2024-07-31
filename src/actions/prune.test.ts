@@ -85,12 +85,16 @@ describe('The prune action', () => {
     expect(fs.rm).toHaveBeenNthCalledWith(2, expectedFile2, { force: true });
     expect(fs.rm).toHaveBeenNthCalledWith(3, expectedFile3, { force: true });
 
-    expect(vi.mocked(logger.log).mock.calls[0][0]).toContain('Deleted: ');
-    expect(vi.mocked(logger.log).mock.calls[0][0]).toContain(expectedFile1);
-    expect(vi.mocked(logger.log).mock.calls[1][0]).toContain('Deleted: ');
-    expect(vi.mocked(logger.log).mock.calls[1][0]).toContain(expectedFile2);
-    expect(vi.mocked(logger.log).mock.calls[2][0]).toContain('Deleted: ');
-    expect(vi.mocked(logger.log).mock.calls[2][0]).toContain(expectedFile3);
+    expect(vi.mocked(logger.log).mock.calls[0][0]).toContain('The following files are unmanaged:');
+    expect(vi.mocked(logger.log).mock.calls[1][0]).toContain(file1);
+    expect(vi.mocked(logger.log).mock.calls[2][0]).toContain(file2);
+    expect(vi.mocked(logger.log).mock.calls[3][0]).toContain(file3);
+    expect(vi.mocked(logger.log).mock.calls[4][0]).toContain('Deleted: ');
+    expect(vi.mocked(logger.log).mock.calls[4][0]).toContain(expectedFile1);
+    expect(vi.mocked(logger.log).mock.calls[5][0]).toContain('Deleted: ');
+    expect(vi.mocked(logger.log).mock.calls[5][0]).toContain(expectedFile2);
+    expect(vi.mocked(logger.log).mock.calls[6][0]).toContain('Deleted: ');
+    expect(vi.mocked(logger.log).mock.calls[6][0]).toContain(expectedFile3);
   });
 
   it<LocalTestContext>('doesn\'t remove files if not asked to', async ({ options, logger }) => {
@@ -105,6 +109,5 @@ describe('The prune action', () => {
     await prune(options, logger);
 
     expect(fs.rm).not.toHaveBeenCalled();
-    expect(logger.log).not.toHaveBeenCalled();
   });
 });
