@@ -101,7 +101,7 @@
     "node-gyp": "^10.0.0",
     "npm-run-all2": "6.1.2",
     "pkg": "5.8.1",
-    "pnpm": "8.15.3",
+    "pnpm": "9.6.0",
     "rimraf": "5.0.5",
     "semantic-release": "23.0.2",
     "semantic-release-export-data": "1.0.1",
