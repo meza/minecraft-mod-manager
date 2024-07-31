@@ -54,24 +54,6 @@ describe('The prune action', () => {
     expect(logMessage).toMatchInlineSnapshot('"You have no files in your mods folder."');
   });
 
-  it<LocalTestContext>('notifies about the files to be deleted in the mods folder', async ({ options, logger }) => {
-    const file1 = "a.jar";
-    const file2 = "b.jar";
-
-    const expectedFile1 = path.resolve(configuration.modsFolder, file1);
-    const expectedFile2 = path.resolve(configuration.modsFolder, file2);
-
-    vi.mocked(getModFiles).mockResolvedValueOnce([file1, file2]);
-
-    await prune(options, logger);
-
-    const logMessages = vi.mocked(logger.log).mock.calls.map((l) => { return l[0] });
-
-    expect(logMessages[0]).toMatchInlineSnapshot('"The following files are unmanaged:"');
-    expect(logMessages[1]).toMatchInlineSnapshot('- ${expectedFile1}');
-    expect(logMessages[2]).toMatchInlineSnapshot('- ${expectedFile2}');
-  });
-
   it<LocalTestContext>('notifies about no unmanaged files in the mods folder', async ({ options, logger }) => {
     vi.mocked(getModFiles).mockResolvedValueOnce(chance.n(chance.word, chance.integer({ min: 2, max: 10 })));
     vi.mocked(fileIsManaged).mockReturnValue(true);
@@ -103,12 +85,16 @@ describe('The prune action', () => {
     expect(fs.rm).toHaveBeenNthCalledWith(2, expectedFile2, { force: true });
     expect(fs.rm).toHaveBeenNthCalledWith(3, expectedFile3, { force: true });
 
-    expect(vi.mocked(logger.log).mock.calls[0][0]).toContain('Deleted: ');
-    expect(vi.mocked(logger.log).mock.calls[0][0]).toContain(expectedFile1);
-    expect(vi.mocked(logger.log).mock.calls[1][0]).toContain('Deleted: ');
-    expect(vi.mocked(logger.log).mock.calls[1][0]).toContain(expectedFile2);
-    expect(vi.mocked(logger.log).mock.calls[2][0]).toContain('Deleted: ');
-    expect(vi.mocked(logger.log).mock.calls[2][0]).toContain(expectedFile3);
+    expect(vi.mocked(logger.log).mock.calls[0][0]).toContain('The following files are unmanaged:');
+    expect(vi.mocked(logger.log).mock.calls[1][0]).toContain(file1);
+    expect(vi.mocked(logger.log).mock.calls[2][0]).toContain(file2);
+    expect(vi.mocked(logger.log).mock.calls[3][0]).toContain(file3);
+    expect(vi.mocked(logger.log).mock.calls[4][0]).toContain('Deleted: ');
+    expect(vi.mocked(logger.log).mock.calls[4][0]).toContain(expectedFile1);
+    expect(vi.mocked(logger.log).mock.calls[5][0]).toContain('Deleted: ');
+    expect(vi.mocked(logger.log).mock.calls[5][0]).toContain(expectedFile2);
+    expect(vi.mocked(logger.log).mock.calls[6][0]).toContain('Deleted: ');
+    expect(vi.mocked(logger.log).mock.calls[6][0]).toContain(expectedFile3);
   });
 
   it<LocalTestContext>('doesn\'t remove files if not asked to', async ({ options, logger }) => {
@@ -123,6 +109,5 @@ describe('The prune action', () => {
     await prune(options, logger);
 
     expect(fs.rm).not.toHaveBeenCalled();
-    expect(logger.log).not.toHaveBeenCalled();
   });
 });
