@@ -1,3 +1,4 @@
+import { NoRemoteFileFound } from '../errors/NoRemoteFileFound.js';
 import { ModInstall, ModsJson, Platform } from './modlist.types.js';
 import { fetchModDetails, lookup, LookupInput, ResultItem } from '../repositories/index.js';
 import { getHash } from './hash.js';
@@ -24,7 +25,6 @@ const getScanResults = async (files: string[], installations: ModInstall[]) => {
     found++;
     const fingerprint = curseforge.fingerprint(filePath);
     const fileSha1Hash = await getHash(filePath, Modrinth.PREFERRED_HASH);
-
     cfInput.hash.push(String(fingerprint));
     modrinthInput.hash.push(fileSha1Hash);
   });
@@ -55,16 +55,22 @@ export const scanFiles = async (files: string[], installations: ModInstall[], pr
     const allDetails = [];
 
     for (let i = 0; i < lookupResult.hits.length; i++) {
-      const deets = await fetchModDetails(
-        lookupResult.hits[i].platform,
-        lookupResult.hits[i].modId,
-        configuration.defaultAllowedReleaseTypes,
-        configuration.gameVersion,
-        configuration.loader,
-        false //TODO: Figure out how to handle this. Should scan allow fallback? Does it even matter? What's the logic here?
-      );
+      try {
+        const deets = await fetchModDetails(
+          lookupResult.hits[i].platform,
+          lookupResult.hits[i].modId,
+          configuration.defaultAllowedReleaseTypes,
+          configuration.gameVersion,
+          configuration.loader,
+          false //TODO: Figure out how to handle this. Should scan allow fallback? Does it even matter? What's the logic here?
+        );
 
-      allDetails[i] = deets;
+        allDetails[i] = deets;
+      } catch (error) {
+        if (!(error instanceof NoRemoteFileFound)) {
+          throw error;
+        }
+      }
     }
 
     performance.mark('lib-scan-end');

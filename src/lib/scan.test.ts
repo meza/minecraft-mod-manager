@@ -1,17 +1,18 @@
-import { beforeEach, describe, expect, it, vi } from 'vitest';
-import { ModInstall, ModsJson, Platform } from './modlist.types.js';
-import { generateModsJson } from '../../test/modlistGenerator.js';
-import { generateRandomPlatform } from '../../test/generateRandomPlatform.js';
-import { scan } from './scan.js';
-import { fetchModDetails, lookup } from '../repositories/index.js';
-import { chance } from 'jest-chance';
 import curseforge from '@meza/curseforge-fingerprint';
-import { getHash } from './hash.js';
-import { fileIsManaged } from './configurationHelper.js';
-import { generateResultItem } from '../../test/generateResultItem.js';
+import { chance } from 'jest-chance';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { generatePlatformLookupResult } from '../../test/generatePlatformLookupResult.js';
+import { generateRandomPlatform } from '../../test/generateRandomPlatform.js';
 import { generateRemoteModDetails } from '../../test/generateRemoteDetails.js';
+import { generateResultItem } from '../../test/generateResultItem.js';
+import { generateModsJson } from '../../test/modlistGenerator.js';
+import { NoRemoteFileFound } from '../errors/NoRemoteFileFound.js';
+import { fetchModDetails, lookup } from '../repositories/index.js';
+import { fileIsManaged } from './configurationHelper.js';
 import { getModFiles } from './fileHelper.js';
+import { getHash } from './hash.js';
+import { ModInstall, ModsJson, Platform } from './modlist.types.js';
+import { scan } from './scan.js';
 
 vi.mock('./fileHelper.js');
 vi.mock('./hash.js');
@@ -228,6 +229,34 @@ describe('The scan library', () => {
     });
 
     describe('and the mod details cannot be fetched', () => {
+      it<LocalTestContext>('skips the mods in error', async (context) => {
+        const randomModId = chance.word();
+        const randomPlatform = generateRandomPlatform();
+        const lookupResult = generateResultItem({
+          hits: [
+            generatePlatformLookupResult({
+              modId: randomModId,
+              platform: randomPlatform
+            }).generated
+          ]
+        }).generated;
+
+        vi.mocked(getModFiles).mockResolvedValueOnce([chance.word()]); // we don't care about the files
+        vi.mocked(fetchModDetails).mockRejectedValueOnce(new NoRemoteFileFound(randomModId, randomPlatform));
+        vi.mocked(lookup).mockResolvedValueOnce([lookupResult]);
+
+        const actual = await scan(context.config, context.randomPlatform, context.randomConfiguration, context.randomInstallations);
+
+        expect(actual).toEqual([{
+          preferredDetails: undefined,
+          allRemoteDetails: [],
+          localDetails: lookupResult.hits
+        }]);
+
+      });
+    });
+
+    describe('and the mod details fetching dies to an error', () => {
       it<LocalTestContext>('skips the mods in error', async (context) => {
         const lookupResult = generateResultItem({
           hits: [
