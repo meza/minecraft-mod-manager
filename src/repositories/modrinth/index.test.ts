@@ -9,6 +9,7 @@ import { lookup as cfLookup } from './lookup.js';
 
 vi.mock('./fetch.js');
 vi.mock('./lookup.js');
+vi.mock('../../env.js', () => ({ modrinthApiKey: 'REPL_MODRINTH_API_KEY' }));
 
 describe('The Modrinth Repository class', () => {
   beforeEach(() => {
@@ -32,6 +33,12 @@ describe('The Modrinth Repository class', () => {
     const loader = chance.pickone(Object.values(Loader));
     const allowFallback = chance.bool();
     const result = generateRemoteModDetails().generated;
+    let fixedVersion: string | undefined;
+
+    if (chance.bool()) {
+      fixedVersion = chance.word();
+    }
+
     vi.mocked(getMod).mockResolvedValueOnce(result);
 
     const modrinth = new Modrinth();
@@ -40,7 +47,8 @@ describe('The Modrinth Repository class', () => {
       allowedReleaseTypes,
       allowedGameVersion,
       loader,
-      allowFallback
+      allowFallback,
+      fixedVersion
     );
 
     expect(actual).toEqual(result);
@@ -50,7 +58,8 @@ describe('The Modrinth Repository class', () => {
       allowedReleaseTypes,
       allowedGameVersion,
       loader,
-      allowFallback
+      allowFallback,
+      fixedVersion
     );
   });
 

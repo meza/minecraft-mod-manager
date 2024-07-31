@@ -29,7 +29,7 @@ export interface LookupInput {
 }
 
 export interface Repository {
-  fetchMod: (projectId: string, allowedReleaseTypes: ReleaseType[], allowedGameVersion: string, loader: Loader, allowFallback: boolean) => Promise<RemoteModDetails>;
+  fetchMod: (projectId: string, allowedReleaseTypes: ReleaseType[], allowedGameVersion: string, loader: Loader, allowFallback: boolean, version?: string) => Promise<RemoteModDetails>;
   lookup: (lookup: string[]) => Promise<PlatformLookupResult[]>;
 }
 
@@ -58,6 +58,7 @@ const getRepository = (platform: Platform): Repository => {
  * @param gameVersion
  * @param loader
  * @param allowFallback
+ * @param fixedModVersion
  * @throws {CouldNotFindModException} When the mod itself cannot be found
  * @throws {NoRemoteFileFound} When a suitable file for the mod cannot be found
  */
@@ -67,11 +68,12 @@ export const fetchModDetails = async (
   allowedReleaseTypes: ReleaseType[],
   gameVersion: string,
   loader: Loader,
-  allowFallback: boolean
+  allowFallback: boolean,
+  fixedModVersion?: string
 ) => {
 
   const repository = getRepository(platform);
-  return await repository.fetchMod(id, allowedReleaseTypes, gameVersion, loader, allowFallback);
+  return await repository.fetchMod(id, allowedReleaseTypes, gameVersion, loader, allowFallback, fixedModVersion);
 
 };
 

@@ -145,7 +145,7 @@ describe('The Modrinth repository', () => {
     }).rejects.toThrow(new NoRemoteFileFound(context.id, Platform.MODRINTH));
   });
 
-  describe('when version fallback is allowed and the available version is a one lower version', () => {
+  describe('when game version fallback is allowed and the available game version is a one lower game version', () => {
 
     afterEach(() => {
       vi.resetAllMocks();
@@ -196,7 +196,7 @@ describe('The Modrinth repository', () => {
     });
   });
 
-  describe('when version fallback is allowed and the available version is the next major version', () => {
+  describe('when game version fallback is allowed and the available version is the next major game version', () => {
 
     afterEach(() => {
       vi.resetAllMocks();
@@ -287,7 +287,7 @@ describe('The Modrinth repository', () => {
     });
   });
 
-  it<RepositoryTestContext>('returns the most recent file for a given version', async (context) => {
+  it<RepositoryTestContext>('returns the most recent file for a given game version', async (context) => {
     const randomName = chance.word();
     const randomFile = generateModrinthFile().generated;
     const version = '1.19.2';
@@ -345,6 +345,78 @@ describe('The Modrinth repository', () => {
       releaseDate: randomVersion.date_published,
       hash: randomFile.hashes.sha1,
       downloadUrl: randomFile.url
+    });
+  });
+
+  describe('when a specific mod version is requested', () => {
+    it<RepositoryTestContext>('returns the correct file when the version exists', async (context) => {
+      const randomName = chance.word();
+      const randomFile = generateModrinthFile().generated;
+      const version = '1.19.2';
+      const randomVersion = generateModrinthVersion({
+        loaders: [context.loader],
+        // eslint-disable-next-line camelcase
+        version_type: ReleaseType.RELEASE,
+        // eslint-disable-next-line camelcase
+        game_versions: [version],
+        // eslint-disable-next-line camelcase
+        date_published: '2021-01-03',
+        // eslint-disable-next-line camelcase
+        version_number: '1.0.0',
+        files: [randomFile]
+      }).generated;
+      const randomVersionRedHerring = generateModrinthVersion({
+        loaders: [context.loader],
+        // eslint-disable-next-line camelcase
+        version_type: ReleaseType.RELEASE,
+        // eslint-disable-next-line camelcase
+        game_versions: [version],
+        // eslint-disable-next-line camelcase
+        date_published: '2023-01-01',
+        // eslint-disable-next-line camelcase
+        version_number: '2.0.1'
+      }).generated;
+      const randomVersionAnotherRedHerring = generateModrinthVersion({
+        loaders: [context.loader],
+        // eslint-disable-next-line camelcase
+        version_type: ReleaseType.RELEASE,
+        // eslint-disable-next-line camelcase
+        game_versions: [version],
+        // eslint-disable-next-line camelcase
+        date_published: '2021-01-12',
+        // eslint-disable-next-line camelcase
+        version_number: '1.0.2'
+      }).generated;
+      const randomVersionAnotherRedHerring2 = generateModrinthVersion({
+        loaders: [context.loader],
+        // eslint-disable-next-line camelcase
+        version_type: ReleaseType.RELEASE,
+        // eslint-disable-next-line camelcase
+        game_versions: [version],
+        // eslint-disable-next-line camelcase
+        date_published: '2021-01-02',
+        // eslint-disable-next-line camelcase
+        version_number: '0.0.3'
+      }).generated;
+
+      assumeSuccessfulDetailsFetch(randomName, [randomVersionRedHerring, randomVersion, randomVersionAnotherRedHerring, randomVersionAnotherRedHerring2]);
+
+      const actual = await getMod(
+        context.id,
+        [ReleaseType.RELEASE],
+        '1.19.2',
+        context.loader,
+        true,
+        '1.0.0'
+      );
+
+      expect(actual).toEqual({
+        name: randomName,
+        fileName: randomFile.filename,
+        releaseDate: randomVersion.date_published,
+        hash: randomFile.hashes.sha1,
+        downloadUrl: randomFile.url
+      });
     });
   });
 

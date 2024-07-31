@@ -6,7 +6,9 @@ permissions:
   contents: write
   pull-requests: write
 
-on: [ push ]
+on:
+  - push
+  - pull_request
 
 env:
   LEFTHOOK: 0
@@ -28,6 +30,7 @@ jobs:
           HELP_URL: ${{github.server_url}}/${{github.repository}}/blob/${{github.sha}}/README.md
           CURSEFORGE_API_KEY: ${{ secrets.CURSEFORGE_API_KEY }}
           MODRINTH_API_KEY: ${{ secrets.MODRINTH_API_KEY }}
+          POSTHOG_API_KEY: ${{ secrets.POSTHOG_API_KEY }}
       - run: pnpm build
       - run: pnpm build:binaries
       - run: ./scripts/binaries.sh
@@ -91,5 +94,6 @@ jobs:
           CURSEFORGE_API_KEY: ${{ secrets.CURSEFORGE_API_KEY }}
           MODRINTH_API_KEY: ${{ secrets.MODRINTH_API_KEY }}
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          POSTHOG_API_KEY: ${{ secrets.POSTHOG_API_KEY }}
           NPM_TOKEN: ${{ secrets.NPM_TOKEN }}
         run: pnpm release

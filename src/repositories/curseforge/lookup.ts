@@ -19,6 +19,7 @@ interface CurseforgeLookupResult {
 
 export const lookup = async (fingerprints: string[]): Promise<PlatformLookupResult[]> => {
   const url = 'https://api.curseforge.com/v1/fingerprints';
+  performance.mark('curseforge-lookup-start');
   const modSearchResult = await rateLimitingFetch(url, {
     headers: {
       'Accept': 'application/json',
@@ -47,6 +48,9 @@ export const lookup = async (fingerprints: string[]): Promise<PlatformLookupResu
       mod: curseforgeFileToRemoteModDetails(match.file, match.file.displayName)
     });
   });
+
+  performance.mark('curseforge-lookup-end');
+  performance.measure('curseforge-lookup', 'curseforge-lookup-start', 'curseforge-lookup-end');
 
   return result;
 };

@@ -22,6 +22,7 @@ export interface ModrinthVersion {
   loaders: string[];
   game_versions: string[];
   date_published: string;
+  version_number: string;
   version_type: ReleaseType;
   files: ModrinthFile[];
 }
@@ -32,11 +33,14 @@ interface ModrinthMod {
 }
 
 const getName = async (projectId: string): Promise<string> => {
+  performance.mark('modrinth-getname-start');
   const url = `https://api.modrinth.com/v2/project/${projectId}`;
   const modInfoRequest = await rateLimitingFetch(url, {
     headers: Modrinth.API_HEADERS
   });
 
+  performance.mark('modrinth-getname-end');
+  performance.measure(`modrinth-getname-${projectId}`, 'modrinth-getname-start', 'modrinth-getname-end');
   if (!modInfoRequest.ok) {
     throw new CouldNotFindModException(projectId, Platform.MODRINTH);
   }
@@ -77,14 +81,8 @@ const hasTheCorrectVersion = (version: ModrinthVersion, allowedGameVersion: stri
   return version.game_versions.includes(allowedGameVersion);
 };
 
-export const getMod = async (
-  projectId: string,
-  allowedReleaseTypes: ReleaseType[],
-  allowedGameVersion: string,
-  loader: Loader,
-  allowFallback: boolean): Promise<RemoteModDetails> => {
-  const { name, versions } = await getModDetails(projectId, allowedGameVersion, loader);
-  const potentialFiles = versions
+const getPotentialFiles = (versions: ModrinthVersion[], loader: Loader, allowedReleaseTypes: ReleaseType[], allowedGameVersion: string) => {
+  return versions
     .filter((version) => {
       return hasTheCorrectLoader(version, loader);
     })
@@ -97,6 +95,25 @@ export const getMod = async (
     .sort((versionA, versionB) => {
       return versionA.date_published < versionB.date_published ? 1 : -1;
     });
+};
+
+export const getMod = async (
+  projectId: string,
+  allowedReleaseTypes: ReleaseType[],
+  allowedGameVersion: string,
+  loader: Loader,
+  allowFallback: boolean,
+  fixedModVersion?: string): Promise<RemoteModDetails> => {
+  performance.mark('modrinth-getmod-start');
+  const { name, versions } = await getModDetails(projectId, allowedGameVersion, loader);
+  let potentialFiles = [];
+  if (fixedModVersion) {
+    potentialFiles = versions.filter((file) => {
+      return file.version_number === fixedModVersion;
+    });
+  } else {
+    potentialFiles = getPotentialFiles(versions, loader, allowedReleaseTypes, allowedGameVersion);
+  }
 
   if (potentialFiles.length === 0) {
 
@@ -105,6 +122,8 @@ export const getMod = async (
       return getMod(projectId, allowedReleaseTypes, versionDown.nextVersionToTry, loader, versionDown.canGoDown);
     }
 
+    performance.mark('modrinth-getmod-failed');
+    performance.measure(`modrinth-getmod-${projectId}-failed`, 'modrinth-getmod-start', 'modrinth-getmod-failed');
     throw new NoRemoteFileFound(projectId, Platform.MODRINTH);
   }
 
@@ -117,6 +136,9 @@ export const getMod = async (
     hash: latestFile.files[0].hashes.sha1,
     downloadUrl: latestFile.files[0].url
   };
+
+  performance.mark('modrinth-getmod-end');
+  performance.measure(`modrinth-getmod-${projectId}`, 'modrinth-getmod-start', 'modrinth-getmod-end');
 
   return modData;
 };

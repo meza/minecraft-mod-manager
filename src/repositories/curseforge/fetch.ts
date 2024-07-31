@@ -88,9 +88,33 @@ export const curseforgeFileToRemoteModDetails = (file: CurseforgeModFile, name: 
   };
 };
 
-export const getMod = async (projectId: string, allowedReleaseTypes: ReleaseType[], allowedGameVersion: string, loader: Loader, allowFallback: boolean): Promise<RemoteModDetails> => {
-  const url = `https://api.curseforge.com/v1/mods/${projectId}`;
+const getPotentialFiles = (files: CurseforgeModFile[], allowedGameVersion: string, allowedReleaseTypes: ReleaseType[]): CurseforgeModFile[] => {
+  return files.filter((file) => {
+    return file.sortableGameVersions.find((gameVersion) => gameVersion.gameVersionName.toLowerCase() === allowedGameVersion.toLowerCase());
+  })
+    .filter((file) => {
+      try {
+        return file.isAvailable && allowedReleaseTypes.includes(releaseTypeFromNumber(file.releaseType)) && [4, 10].includes(file.fileStatus);
+      } catch (e) {
+        return false;
+      }
+    })
+    .sort((a, b) => {
+      return a.fileDate < b.fileDate ? 1 : -1;
+    });
+};
 
+export const getMod = async (
+  projectId: string,
+  allowedReleaseTypes: ReleaseType[],
+  allowedGameVersion: string,
+  loader: Loader,
+  allowFallback: boolean,
+  fixedModVersion?: string): Promise<RemoteModDetails> => {
+
+  performance.mark('curseforge-getmod-start');
+
+  const url = `https://api.curseforge.com/v1/mods/${projectId}`;
   const modDetailsRequest = await rateLimitingFetch(url, {
     headers: {
       'Accept': 'application/json',
@@ -104,27 +128,16 @@ export const getMod = async (projectId: string, allowedReleaseTypes: ReleaseType
 
   const modDetails = await modDetailsRequest.json();
   const files = await getFiles(projectId, allowedGameVersion, loader);
-  const potentialFiles = files.filter((file) => {
-    return file.sortableGameVersions.find((gameVersion) => gameVersion.gameVersionName.toLowerCase() === loader.toLowerCase());
-  })
-    .filter((file) => {
-      try {
-        return file.isAvailable && allowedReleaseTypes.includes(releaseTypeFromNumber(file.releaseType)) && [4, 10].includes(file.fileStatus);
-      } catch (e) {
-        return false;
-      }
-    })
-    .filter((file) => {
-      return file.sortableGameVersions.some((gameVersion) => {
-        if (gameVersion.gameVersion === allowedGameVersion) {
-          return true;
-        }
-        return false;
-      });
-    })
-    .sort((a, b) => {
-      return a.fileDate < b.fileDate ? 1 : -1;
+
+  let potentialFiles = [];
+
+  if (fixedModVersion) {
+    potentialFiles = files.filter((file) => {
+      return file.fileName.toLowerCase() === fixedModVersion.toLowerCase();
     });
+  } else {
+    potentialFiles = getPotentialFiles(files, allowedGameVersion, allowedReleaseTypes);
+  }
 
   if (potentialFiles.length === 0) {
 
@@ -132,6 +145,9 @@ export const getMod = async (projectId: string, allowedReleaseTypes: ReleaseType
       const versionDown = getNextVersionDown(allowedGameVersion);
       return getMod(projectId, allowedReleaseTypes, versionDown.nextVersionToTry, loader, versionDown.canGoDown);
     }
+
+    performance.mark('curseforge-getmod-failed');
+    performance.measure(`curseforge-getmod-${projectId}-failed`, 'curseforge-getmod-start', 'curseforge-getmod-failed');
 
     throw new NoRemoteFileFound(modDetails.data.name, Platform.CURSEFORGE);
   }
@@ -144,9 +160,12 @@ export const getMod = async (projectId: string, allowedReleaseTypes: ReleaseType
 
   try {
     const modData = curseforgeFileToRemoteModDetails(latestFile, modDetails.data.name);
-
+    performance.mark('curseforge-getmod-end');
+    performance.measure(`curseforge-getmod-${projectId}`, 'curseforge-getmod-start', 'curseforge-getmod-end');
     return modData;
   } catch (e) { // Catch when the hash is not found (due to curseforge error)
+    performance.mark('curseforge-getmod-failed');
+    performance.measure(`curseforge-getmod-${projectId}-failed`, 'curseforge-getmod-start', 'curseforge-getmod-failed');
     throw new NoRemoteFileFound(modDetails.data.name, Platform.CURSEFORGE);
   }
 };

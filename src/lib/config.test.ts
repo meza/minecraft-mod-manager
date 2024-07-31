@@ -3,14 +3,14 @@ import fs from 'node:fs/promises';
 import { chance } from 'jest-chance';
 import {
   ensureConfiguration,
-  fileExists,
-  initializeConfigFile,
+  fileExists, getModsFolder,
+  initializeConfigFile, ModsJsonSchema,
   readConfigFile,
   readLockFile,
   writeConfigFile,
   writeLockFile
 } from './config.js';
-import { ModInstall, ModsJson } from './modlist.types.js';
+import { Loader, ModInstall, ModsJson, Platform, ReleaseType } from './modlist.types.js';
 import path from 'node:path';
 import { generateModInstall } from '../../test/modInstallGenerator.js';
 import { generateModsJson } from '../../test/modlistGenerator.js';
@@ -26,17 +26,18 @@ vi.mock('../interactions/shouldCreateConfig.js');
 vi.mock('../interactions/initializeConfig.js');
 vi.mock('node:fs/promises');
 vi.mock('../interactions/fileToWrite.js');
+vi.mock('../lib/Logger.js');
 
 interface LocalTestContext {
   options: DefaultOptions;
-  logger: Logger;
 }
 
 describe('The config library', () => {
   let logger: Logger;
   beforeEach<LocalTestContext>((context) => {
     vi.resetAllMocks();
-    context.logger = new Logger({} as never);
+    vi.unstubAllGlobals();
+    logger = new Logger({} as never);
     context.options = {
       config: 'config.json',
       debug: false,
@@ -44,6 +45,9 @@ describe('The config library', () => {
     };
     vi.mocked(fileToWrite).mockImplementation(async (file: string) => {
       return file;
+    });
+    vi.mocked(logger.error).mockImplementation((message) => {
+      throw new Error(message);
     });
   });
 
@@ -57,7 +61,7 @@ describe('The config library', () => {
     expect(await fileExists(chance.word())).toBeFalsy();
   });
 
-  it<LocalTestContext>('can write the config file', async ({ options, logger }) => {
+  it<LocalTestContext>('can write the config file', async ({ options }) => {
     const config = {
       something: 'value'
     } as unknown as ModsJson;
@@ -74,7 +78,7 @@ describe('The config library', () => {
     );
   });
 
-  it<LocalTestContext>('can write the lock file', async ({ options, logger }) => {
+  it<LocalTestContext>('can write the lock file', async ({ options }) => {
     const config = [{
       something: 'value'
     }] as unknown as ModInstall[];
@@ -94,7 +98,7 @@ describe('The config library', () => {
     );
   });
 
-  it<LocalTestContext>('can read the lock file when it exists', async ({ options, logger }) => {
+  it<LocalTestContext>('can read the lock file when it exists', async ({ options }) => {
     options.config = 'config.json';
     const lockfileName = 'config-lock.json';
 
@@ -106,7 +110,6 @@ describe('The config library', () => {
     vi.mocked(fs.access).mockResolvedValueOnce();
     // Return file contents
     vi.mocked(fs.readFile).mockResolvedValueOnce(lockfileContents);
-
     const actualOutput = await readLockFile(options, logger);
 
     expect(actualOutput).toEqual([randomModInstall.expected]);
@@ -118,7 +121,7 @@ describe('The config library', () => {
 
   });
 
-  it<LocalTestContext>('can returns an empty array and creates the file when the lock file does not exist', async ({ options, logger }) => {
+  it<LocalTestContext>('can returns an empty array and creates the file when the lock file does not exist', async ({ options }) => {
     options.config = 'config.json';
 
     // Make file exist
@@ -160,6 +163,31 @@ describe('The config library', () => {
     vi.mocked(fs.access).mockRejectedValueOnce(new Error());
 
     await expect(readConfigFile(configName)).rejects.toThrow(new ConfigFileNotFoundException(configName));
+  });
+
+  it('throws an error when there are misconfigurations', async () => {
+    const configName = 'config.json';
+    const invalidModsJson = {
+      loader: 'invalid_loader',
+      gameVersion: '1.16.5',
+      defaultAllowedReleaseTypes: ['invalid_release_type'],
+      modsFolder: 'mods',
+      mods: [
+        {
+          id: 'mod1',
+          platform: 'invalid_platform',
+          version: '1.0.0',
+          allowVersionFallback: true,
+          allowedReleaseTypes: ['invalid_release_type']
+        }
+      ]
+    };
+
+    const fileContents = JSON.stringify(invalidModsJson, null, 2);
+    vi.mocked(fs.access).mockResolvedValueOnce();
+    // Return config file contents
+    vi.mocked(fs.readFile).mockResolvedValueOnce(fileContents);
+    await expect(ensureConfiguration(configName, logger)).rejects.toThrowErrorMatchingSnapshot();
   });
 
   it('can initialize a new config file', async () => {
@@ -233,5 +261,69 @@ describe('The config library', () => {
 
       expect(actualOutput).toEqual(randomModsJson.expected);
     });
+  });
+
+  it('can resolve a relative mod folder', () => {
+    const randomModsJson = generateModsJson().generated;
+    const configPath = path.resolve('/some-path/config.json');
+    const expected = path.resolve('/some-path/mods');
+    randomModsJson.modsFolder = 'mods';
+    const actual = getModsFolder(configPath, randomModsJson);
+
+    expect(actual).toEqual(expected);
+  });
+
+  it('can resolve an absolute mod folder', () => {
+    const randomModsJson = generateModsJson().generated;
+    const configPath = '/some-path/config.json';
+    const modsFolder = '/my-ultimate-mods';
+    randomModsJson.modsFolder = modsFolder;
+    const expected = '/my-ultimate-mods';
+    const actual = getModsFolder(configPath, randomModsJson);
+
+    expect(actual).toEqual(expected);
+  });
+
+  it('should validate a correct ModsJson object', () => {
+    const validModsJson: ModsJson = {
+      loader: Loader.FORGE,
+      gameVersion: '1.16.5',
+      defaultAllowedReleaseTypes: [ReleaseType.RELEASE, ReleaseType.BETA],
+      modsFolder: 'mods',
+      mods: [
+        {
+          id: 'mod1',
+          type: Platform.CURSEFORGE,
+          name: 'Mod 1',
+          version: '1.0.0',
+          allowVersionFallback: true,
+          allowedReleaseTypes: [ReleaseType.RELEASE]
+        }
+      ]
+    };
+
+    const result = ModsJsonSchema.safeParse(validModsJson);
+    expect(result.success).toBe(true);
+  });
+
+  it('should invalidate an incorrect ModsJson object', () => {
+    const invalidModsJson = {
+      loader: 'invalid_loader',
+      gameVersion: '1.16.5',
+      defaultAllowedReleaseTypes: ['invalid_release_type'],
+      modsFolder: 'mods',
+      mods: [
+        {
+          id: 'mod1',
+          platform: 'invalid_platform',
+          version: '1.0.0',
+          allowVersionFallback: true,
+          allowedReleaseTypes: ['invalid_release_type']
+        }
+      ]
+    };
+
+    const result = ModsJsonSchema.safeParse(invalidModsJson);
+    expect(result.success).toBe(false);
   });
 });

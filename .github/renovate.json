@@ -5,6 +5,7 @@
   ],
   "prConcurrentLimit": 1,
   "enabledManagers": [
-    "npm"
+    "npm",
+    "github-actions"
   ]
 }

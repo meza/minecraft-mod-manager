@@ -17,7 +17,7 @@ commit-msg:
     lint-commit-msg:
       run: npx commitlint --edit
 pre-commit:
-  parallel: true
+  parallel: false
   commands:
     lint:
       run: npx pnpm lint

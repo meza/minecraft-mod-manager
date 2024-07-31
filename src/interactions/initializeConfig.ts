@@ -32,7 +32,6 @@ const mergeOptions = (options: InitializeOptions, iq: IQInternal) => {
   return {
     loader: iq.loader || options.loader,
     gameVersion: iq.gameVersion || options.gameVersion,
-    allowVersionFallback: iq.allowVersionFallback || options.allowVersionFallback,
     defaultAllowedReleaseTypes: iq.defaultAllowedReleaseTypes || options.defaultAllowedReleaseTypes?.replace(/\s/g, '').split(','),
     modsFolder: iq.modsFolder || options.modsFolder,
     mods: []
@@ -40,7 +39,12 @@ const mergeOptions = (options: InitializeOptions, iq: IQInternal) => {
 };
 
 const validateModsFolder = async (input: string, cwd: string) => {
-  const dir = path.resolve(cwd, input);
+  let dir = path.resolve(cwd, input);
+
+  if (path.isAbsolute(input)) {
+    dir = input;
+  }
+
   if (!await fileExists(dir)) {
     return `The folder: ${dir} does not exist. Please enter a valid one and try again.`;
   }
@@ -90,12 +94,6 @@ export const initializeConfig = async (options: InitializeOptions, cwd: string, 
       message: 'What exact Minecraft version are you using? (eg: 1.18.2, 1.19, 1.19.1)',
       validateText: 'Verifying the game version',
       validate: validateGameVersion
-    },
-    {
-      when: !Object.hasOwn(options, 'allowVersionFallback'),
-      name: 'allowVersionFallback',
-      type: 'confirm',
-      message: 'Should we try to download mods for previous Minecraft versions if they do not exist for your Minecraft Version?'
     },
     {
       when: !options.defaultAllowedReleaseTypes,

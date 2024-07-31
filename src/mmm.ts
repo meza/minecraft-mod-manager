@@ -10,11 +10,14 @@ import { helpUrl } from './env.js';
 import { initializeConfig } from './interactions/initializeConfig.js';
 import { Logger } from './lib/Logger.js';
 import { Loader, Platform, ReleaseType } from './lib/modlist.types.js';
+import { Telemetry } from './telemetry/telemetry.js';
 import { version } from './version.js';
 import { changeGameVersion } from './actions/change.js';
 import { scan } from './actions/scan.js';
 import { prune } from './actions/prune.js';
 import { removeAction } from './actions/remove.js';
+
+performance.mark('start');
 
 export const APP_NAME = 'Minecraft Mod Manager';
 export const APP_DESCRIPTION = 'Manages mods from Modrinth and Curseforge';
@@ -36,8 +39,10 @@ export interface DefaultOptions {
 export const program = new Command();
 
 export const logger: Logger = new Logger(program);
+export const telemetry: Telemetry = new Telemetry();
 
-export const stop = (): never => {
+export const stop = async (): Promise<never> => {
+  await telemetry.flush();
   // eslint-disable-next-line no-process-exit
   process.exit(-1);
 };
@@ -83,6 +88,8 @@ commands.push(
   program.command('add')
     .argument('<type>', 'curseforge or modrinth')
     .argument('<id>', 'Curseforge or Modrinth Project Id')
+    .option('-v, --version <version>', 'The version of the mod to add. If not specified, the latest version will be used')
+    .option('-f, --allow-version-fallback', 'Should we try to download the mod for previous Minecraft versions if they do not exists for your Minecraft Version?', false)
     .action(async (type: Platform, id: string, _options, cmd) => {
       await add(type, id, cmd.optsWithGlobals(), logger);
     })
@@ -93,7 +100,6 @@ commands.push(
   program.command('init')
     .option('-l, --loader <loader>', `Which loader would you like to use? ${Object.values(Loader).join(', ')}`)
     .option('-g, --game-version <gameVersion>', 'What exact Minecraft version are you using? (eg: 1.18.2, 1.19, 1.19.1)')
-    .option('-f, --allow-version-fallback', 'Should we try to download mods for previous Minecraft versions if they do not exists for your Minecraft Version?')
     .option('-r, --default-allowed-release-types <defaultAllowedReleaseTypes>',
       `Which types of releases would you like to consider to download? ${Object.values(ReleaseType).join(', ')} - comma separated list`)
     .option('-m, --mods-folder <modsFolder>', `where is your mods folder? (full or relative path from ${cwd})`)
@@ -113,6 +119,7 @@ commands.push(
 
 commands.push(
   program.command('change')
+    .option('-f, --force', 'Force the change of the game version. Deletes all the mods and attempts to install with the given game version. Use at your own risk', false)
     .argument('[game_version]', 'The Minecraft version to change to', 'latest')
     .action(async (gameVersion: string, _options, cmd) => {
       await changeGameVersion(gameVersion, cmd.optsWithGlobals(), logger);
@@ -151,4 +158,3 @@ commands.push(
 program.option('-c, --config <MODLIST_JSON>', 'An alternative JSON file containing the configuration', DEFAULT_CONFIG_LOCATION);
 program.option('-q, --quiet', 'Suppress all output', false);
 program.option('-d, --debug', 'Enable debug messages', false);
-

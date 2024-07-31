@@ -8,10 +8,12 @@ import { generateCurseforgeModFile } from '../../../test/generateCurseforgeModFi
 import { Platform } from '../../lib/modlist.types.js';
 import { generateRemoteModDetails } from '../../../test/generateRemoteDetails.js';
 import { curseforgeFileToRemoteModDetails } from './fetch.js';
+import { logger } from '../../mmm.js';
 
 vi.mock('../../lib/rateLimiter/index.js');
 vi.mock('../../lib/Logger.js');
 vi.mock('./fetch.js');
+vi.mock('../../mmm.js');
 
 interface LocalTestContext {
   apiKey: string;
@@ -21,7 +23,6 @@ interface LocalTestContext {
 describe('The Curseforge Lookup module', () => {
   beforeEach<LocalTestContext>((context) => {
     vi.resetAllMocks();
-    context.logger = new Logger({} as never);
     context.apiKey = chance.hash();
 
     vi.spyOn(envvars, 'curseForgeApiKey', 'get').mockReturnValue(context.apiKey);
@@ -43,10 +44,10 @@ describe('The Curseforge Lookup module', () => {
     expect(requestParams.headers).toHaveProperty('Accept', 'application/json');
     expect(requestParams.headers).toHaveProperty('Content-Type', 'application/json');
     expect(requestParams.headers).toHaveProperty('x-api-key', apiKey);
-    expect(requestParams.body).toMatchInlineSnapshot('"{\\"fingerprints\\":[\\"fingerprint1\\",\\"fingerprint2\\",\\"fingerprint3\\"]}"');
+    expect(requestParams.body).toMatchInlineSnapshot('"{"fingerprints":["fingerprint1","fingerprint2","fingerprint3"]}"');
   });
 
-  it<LocalTestContext>('logs the failed attempt correctly', async ({ logger }) => {
+  it<LocalTestContext>('logs the failed attempt correctly', async () => {
     vi.mocked(rateLimitingFetch).mockResolvedValueOnce({
       ok: false // fastest way to exit out of the function under test
     } as unknown as Response);

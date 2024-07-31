@@ -2,10 +2,9 @@ import { describe, it, expect, beforeEach } from 'vitest';
 import { generateModInstall } from '../../test/modInstallGenerator.js';
 import { Mod, ModInstall, Platform } from './modlist.types.js';
 import { generateModConfig } from '../../test/modConfigGenerator.js';
-import { fileIsManaged, findLocalMods, getInstallation, getModsDir, hasInstallation } from './configurationHelper.js';
+import { fileIsManaged, findLocalMods, getInstallation, hasInstallation } from './configurationHelper.js';
 import { chance } from 'jest-chance';
 import { generateModsJson } from '../../test/modlistGenerator.js';
-import path from 'node:path';
 
   interface LocalTestContext {
     installations: ModInstall[];
@@ -39,24 +38,6 @@ describe('The configuration helper', () => {
     expect(fileIsManaged(installations[1].fileName, installations)).toBeTruthy();
 
     expect(fileIsManaged('does-not-exist.jar', installations)).toBeFalsy();
-  });
-
-  it('can resolve a relative mod folder', () => {
-    const configPath = path.resolve('/some-path/config.json');
-    const modsFolder = 'mods';
-    const expected = path.resolve('/some-path/mods');
-    const actual = getModsDir(configPath, modsFolder);
-
-    expect(actual).toEqual(expected);
-  });
-
-  it('can resolve an absolute mod folder', () => {
-    const configPath = '/some-path/config.json';
-    const modsFolder = '/my-ultimate-mods';
-    const expected = '/my-ultimate-mods';
-    const actual = getModsDir(configPath, modsFolder);
-
-    expect(actual).toEqual(expected);
   });
 
   describe('when looking up mods', () => {

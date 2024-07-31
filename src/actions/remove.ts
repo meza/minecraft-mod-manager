@@ -1,7 +1,7 @@
-import { DefaultOptions } from '../mmm.js';
+import { DefaultOptions, telemetry } from '../mmm.js';
 import { Logger } from '../lib/Logger.js';
-import { ensureConfiguration, readLockFile, writeConfigFile, writeLockFile } from '../lib/config.js';
-import { findLocalMods, getInstallation, getModsDir, hasInstallation } from '../lib/configurationHelper.js';
+import { ensureConfiguration, getModsFolder, readLockFile, writeConfigFile, writeLockFile } from '../lib/config.js';
+import { findLocalMods, getInstallation, hasInstallation } from '../lib/configurationHelper.js';
 import fs from 'fs/promises';
 import path from 'path';
 import chalk from 'chalk';
@@ -11,10 +11,11 @@ export interface RemoveOptions extends DefaultOptions {
 }
 
 export const removeAction = async (mods: string[], options: RemoveOptions, logger: Logger) => {
+  performance.mark('remove-start');
   const configuration = await ensureConfiguration(options.config, logger);
   const installations = await readLockFile(options, logger);
   const matches = findLocalMods(mods, configuration);
-  const modsDir = getModsDir(options.config, configuration.modsFolder);
+  const modsDir = getModsFolder(options.config, configuration);
 
   if (options.dryRun) {
     logger.log(chalk.yellow('Running in dry-run mode. Nothing will actually be removed.'));
@@ -22,7 +23,9 @@ export const removeAction = async (mods: string[], options: RemoveOptions, logge
 
   for (const modToBeDeleted of matches) {
     const name = structuredClone(modToBeDeleted.name);
-
+    performance.mark('remove-mod-start', {
+      detail: name
+    });
     if (options.dryRun) {
       logger.log(`Would have removed ${name}`);
       continue;
@@ -52,5 +55,19 @@ export const removeAction = async (mods: string[], options: RemoveOptions, logge
     await writeConfigFile(configuration, options, logger);
 
     logger.log(`Removed ${name}`);
+    performance.mark('remove-mod-end', {
+      detail: name
+    });
   }
+
+  performance.mark('remove-succeed');
+  await telemetry.captureCommand({
+    command: 'remove',
+    success: true,
+    arguments: {
+      options: options,
+      mods: mods
+    },
+    duration: performance.measure('remove-duration', 'remove-start', 'remove-succeed').duration
+  });
 };

@@ -1,10 +1,11 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { expectCommandStartTelemetry } from '../../test/telemetryHelper.js';
 import { Logger } from '../lib/Logger.js';
 import { scan, ScanOptions } from './scan.js';
 import { chance } from 'jest-chance';
 import { ModInstall, ModsJson, Platform } from '../lib/modlist.types.js';
 import { scan as scanLib } from '../lib/scan.js';
-import { ensureConfiguration, readLockFile, writeConfigFile, writeLockFile } from '../lib/config.js';
+import { ensureConfiguration, getModsFolder, readLockFile, writeConfigFile, writeLockFile } from '../lib/config.js';
 import { generateModsJson } from '../../test/modlistGenerator.js';
 import { generateScanResult, ScanResultGeneratorOverrides } from '../../test/generateScanResult.js';
 import { shouldAddScanResults } from '../interactions/shouldAddScanResults.js';
@@ -25,6 +26,7 @@ vi.mock('../lib/scan.js');
 vi.mock('../lib/config');
 vi.mock('../interactions/shouldAddScanResults.js');
 vi.mock('../lib/fileHelper.js');
+vi.mock('../mmm.js');
 
 const randomModDetails = (): ScanResultGeneratorOverrides => {
   return {
@@ -55,6 +57,7 @@ describe('The Scan action', () => {
       throw new Error('process.exit');
     });
     vi.mocked(getModFiles).mockResolvedValueOnce([]);
+    vi.mocked(getModsFolder).mockReturnValue(context.randomConfiguration.modsFolder);
   });
   describe('when there are unexpected errors', () => {
     it<LocalTestContext>('logs them correctly', async ({ options, logger }) => {
@@ -387,6 +390,22 @@ describe('The Scan action', () => {
 
       expect(writtenInstallation).toContainEqual(expectedInstall);
 
+    });
+  });
+
+  it<LocalTestContext>('calls the correct telemetry', async ({ options, logger }) => {
+    vi.mocked(scanLib).mockResolvedValueOnce([]);
+
+    options.quiet = false;
+    await scan(options, logger);
+
+    expectCommandStartTelemetry({
+      command: 'scan',
+      success: true,
+      duration: expect.any(Number),
+      arguments: {
+        options: options
+      }
     });
   });
 });

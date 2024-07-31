@@ -1,13 +1,13 @@
-import { DefaultOptions } from '../mmm.js';
+import { DefaultOptions, telemetry } from '../mmm.js';
 import { Logger } from '../lib/Logger.js';
-import { ensureConfiguration, readLockFile, writeConfigFile, writeLockFile } from '../lib/config.js';
+import { ensureConfiguration, getModsFolder, readLockFile, writeConfigFile, writeLockFile } from '../lib/config.js';
 import { PlatformLookupResult } from '../repositories/index.js';
 import { Mod, ModInstall, ModsJson, Platform, RemoteModDetails } from '../lib/modlist.types.js';
 import { scan as scanLib } from '../lib/scan.js';
 import chalk from 'chalk';
 import { shouldAddScanResults } from '../interactions/shouldAddScanResults.js';
 
-import { getInstallation, getModsDir } from '../lib/configurationHelper.js';
+import { fileIsManaged, getInstallation } from '../lib/configurationHelper.js';
 import { getModFiles } from '../lib/fileHelper.js';
 import path from 'path';
 
@@ -43,14 +43,18 @@ const findInConfiguration = (platform: Platform, modId: string, configuration: M
 const processForeignFiles = async (
   options: ScanOptions,
   configuration: ModsJson,
+  installations: ModInstall[],
   dealtWith: string[],
   hasResults: boolean,
   logger: Logger
 ) => {
-  const modsFolder = getModsDir(options.config, configuration.modsFolder);
-  const allFiles = await getModFiles(options.config, configuration.modsFolder);
+  const modsFolder = getModsFolder(options.config, configuration);
+  const allFiles = await getModFiles(options.config, configuration);
 
   const nonMatchedFiles = allFiles.filter((filePath) => {
+    if (fileIsManaged(filePath, installations)) {
+      return false;
+    }
     const foundIndex = dealtWith.findIndex((dealtWithFile) => {
       return path.resolve(modsFolder, dealtWithFile) === filePath;
     });
@@ -170,6 +174,7 @@ export const processScanResults = (scanResults: ScanResults[], configuration: Mo
 };
 
 export const scan = async (options: ScanOptions, logger: Logger) => {
+  performance.mark('scan-start');
   const configuration = await ensureConfiguration(options.config, logger);
   const installations = await readLockFile(options, logger);
   let scanResults: ScanResults[] = [];
@@ -217,10 +222,17 @@ export const scan = async (options: ScanOptions, logger: Logger) => {
     dealtWith.push(managed.install.fileName);
   });
 
-  await processForeignFiles(options, configuration, dealtWith, hasResults, logger);
+  await processForeignFiles(options, configuration, installations, dealtWith, hasResults, logger);
 
-  // scan during init
-  // deduce loader from the mods
-  // if the loader doesn't match, error
+  performance.mark('scan-succeed');
+
+  await telemetry.captureCommand({
+    command: 'scan',
+    success: true,
+    arguments: {
+      options: options
+    },
+    duration: performance.measure('scan-duration', 'scan-start', 'scan-succeed').duration
+  });
 
 };

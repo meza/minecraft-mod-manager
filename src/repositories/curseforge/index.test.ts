@@ -27,6 +27,14 @@ describe('The Curseforge Repository class', () => {
       const actual = Curseforge.curseforgeLoaderFromLoader(Loader.QUILT);
       expect(actual).toEqual(CurseforgeLoader.QUILT);
     });
+    it('can identify NeoForge', () => {
+      const actual = Curseforge.curseforgeLoaderFromLoader(Loader.NEOFORGE);
+      expect(actual).toEqual(CurseforgeLoader.NEOFORGE);
+    });
+    it('can identify Liteloader', () => {
+      const actual = Curseforge.curseforgeLoaderFromLoader(Loader.LITELOADER);
+      expect(actual).toEqual(CurseforgeLoader.LITELOADER);
+    });
     it('fails on an unknown platform', () => {
       const loader = chance.word() as Loader;
       try {

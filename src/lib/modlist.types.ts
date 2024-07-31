@@ -19,9 +19,24 @@ export enum Platform {
 }
 
 export enum Loader {
-  FORGE = 'forge',
+  BUKKIT = 'bukkit',
+  BUNGEECORD = 'bungeecord',
+  CAULDRON = 'cauldron',
+  DATAPACK = 'datapack',
   FABRIC = 'fabric',
-  QUILT = 'quilt'
+  FOLIA = 'folia',
+  FORGE = 'forge',
+  LITELOADER = 'liteloader',
+  MODLOADER = 'modloader',
+  NEOFORGE = 'neoforge',
+  PAPER = 'paper',
+  PURPUR = 'purpur',
+  QUILT = 'quilt',
+  RIFT = 'rift',
+  SPIGOT = 'spigot',
+  SPONGE = 'sponge',
+  VELOCITY = 'velocity',
+  WATERFALL = 'waterfall',
 }
 
 export interface ModInstall {
@@ -39,12 +54,13 @@ export interface Mod {
   id: string,
   allowedReleaseTypes?: ReleaseType[]
   name: string,
+  allowVersionFallback?: boolean,
+  version?: string | undefined
 }
 
 export interface ModsJson {
   loader: Loader,
   gameVersion: string,
-  allowVersionFallback: boolean,
   defaultAllowedReleaseTypes: ReleaseType[],
   modsFolder: string,
   mods: Mod[]
