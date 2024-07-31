@@ -32,8 +32,7 @@ export const list = async (options: ListOptions, logger: Logger) => {
     success: true,
     arguments: options,
     extra: {
-      numberOfMods: config.mods.length,
-      perf: performance.getEntries()
+      numberOfMods: config.mods.length
     },
     duration: performance.measure('list-duration', 'list-start', 'list-succeed').duration
   });
