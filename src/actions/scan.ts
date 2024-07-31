@@ -7,7 +7,7 @@ import { scan as scanLib } from '../lib/scan.js';
 import chalk from 'chalk';
 import { shouldAddScanResults } from '../interactions/shouldAddScanResults.js';
 
-import { getInstallation } from '../lib/configurationHelper.js';
+import { fileIsManaged, getInstallation } from '../lib/configurationHelper.js';
 import { getModFiles } from '../lib/fileHelper.js';
 import path from 'path';
 
@@ -43,6 +43,7 @@ const findInConfiguration = (platform: Platform, modId: string, configuration: M
 const processForeignFiles = async (
   options: ScanOptions,
   configuration: ModsJson,
+  installations: ModInstall[],
   dealtWith: string[],
   hasResults: boolean,
   logger: Logger
@@ -51,6 +52,9 @@ const processForeignFiles = async (
   const allFiles = await getModFiles(options.config, configuration);
 
   const nonMatchedFiles = allFiles.filter((filePath) => {
+    if (fileIsManaged(filePath, installations)) {
+      return false;
+    }
     const foundIndex = dealtWith.findIndex((dealtWithFile) => {
       return path.resolve(modsFolder, dealtWithFile) === filePath;
     });
@@ -218,7 +222,7 @@ export const scan = async (options: ScanOptions, logger: Logger) => {
     dealtWith.push(managed.install.fileName);
   });
 
-  await processForeignFiles(options, configuration, dealtWith, hasResults, logger);
+  await processForeignFiles(options, configuration, installations, dealtWith, hasResults, logger);
 
   performance.mark('scan-succeed');
 
