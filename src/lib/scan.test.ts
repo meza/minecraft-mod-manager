@@ -6,6 +6,7 @@ import { generateRandomPlatform } from '../../test/generateRandomPlatform.js';
 import { generateRemoteModDetails } from '../../test/generateRemoteDetails.js';
 import { generateResultItem } from '../../test/generateResultItem.js';
 import { generateModsJson } from '../../test/modlistGenerator.js';
+import { CurseforgeDownloadUrlError } from '../errors/CurseforgeDownloadUrlError.js';
 import { NoRemoteFileFound } from '../errors/NoRemoteFileFound.js';
 import { fetchModDetails, lookup } from '../repositories/index.js';
 import { fileIsManaged } from './configurationHelper.js';
@@ -229,7 +230,33 @@ describe('The scan library', () => {
     });
 
     describe('and the mod details cannot be fetched', () => {
-      it<LocalTestContext>('skips the mods in error', async (context) => {
+      it<LocalTestContext>('skips the mods in error for the curseforge bug', async (context) => {
+        const randomModId = chance.word();
+        const randomPlatform = generateRandomPlatform();
+        const lookupResult = generateResultItem({
+          hits: [
+            generatePlatformLookupResult({
+              modId: randomModId,
+              platform: randomPlatform
+            }).generated
+          ]
+        }).generated;
+
+        vi.mocked(getModFiles).mockResolvedValueOnce([chance.word()]); // we don't care about the files
+        vi.mocked(fetchModDetails).mockRejectedValueOnce(new CurseforgeDownloadUrlError(randomModId));
+        vi.mocked(lookup).mockResolvedValueOnce([lookupResult]);
+
+        const actual = await scan(context.config, context.randomPlatform, context.randomConfiguration, context.randomInstallations);
+
+        expect(actual).toEqual([{
+          preferredDetails: undefined,
+          allRemoteDetails: [],
+          localDetails: lookupResult.hits
+        }]);
+
+      });
+
+      it<LocalTestContext>('skips the mods in error for general mod not found ', async (context) => {
         const randomModId = chance.word();
         const randomPlatform = generateRandomPlatform();
         const lookupResult = generateResultItem({

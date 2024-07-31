@@ -1,3 +1,4 @@
+import { CurseforgeDownloadUrlError } from '../errors/CurseforgeDownloadUrlError.js';
 import { NoRemoteFileFound } from '../errors/NoRemoteFileFound.js';
 import { ModInstall, ModsJson, Platform } from './modlist.types.js';
 import { fetchModDetails, lookup, LookupInput, ResultItem } from '../repositories/index.js';
@@ -67,7 +68,8 @@ export const scanFiles = async (files: string[], installations: ModInstall[], pr
 
         allDetails[i] = deets;
       } catch (error) {
-        if (!(error instanceof NoRemoteFileFound)) {
+        if (!(error instanceof CurseforgeDownloadUrlError || error instanceof NoRemoteFileFound)) {
+          // Edge case for a freak Curseforge bug and the no remote file
           throw error;
         }
       }
