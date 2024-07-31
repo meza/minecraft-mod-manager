@@ -40,6 +40,15 @@ export const prune = async (options: PruneOptions, logger: Logger) => {
   }
 
   if (!await shouldPruneFiles(options, logger)) {
+    performance.mark('prune-cancelled');
+    await telemetry.captureCommand({
+      command: 'prune',
+      success: true,
+      arguments: {
+        options: options
+      },
+      duration: performance.measure('prune-duration', 'prune-start', 'prune-cancelled').duration
+    });
     return;
   }
 

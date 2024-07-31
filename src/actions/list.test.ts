@@ -2,6 +2,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { generateModConfig } from '../../test/modConfigGenerator.js';
 import { generateModInstall } from '../../test/modInstallGenerator.js';
 import { generateModsJson } from '../../test/modlistGenerator.js';
+import { expectCommandStartTelemetry } from '../../test/telemetryHelper.js';
 import { ensureConfiguration, readLockFile } from '../lib/config.js';
 import { Logger } from '../lib/Logger.js';
 import { DefaultOptions } from '../mmm.js';
@@ -9,6 +10,7 @@ import { list } from './list.js';
 
 vi.mock('../lib/Logger.js');
 vi.mock('../lib/config.js');
+vi.mock('../mmm.js');
 
 interface LocalTestContext {
   options: DefaultOptions;
@@ -89,5 +91,21 @@ describe('The list action', async () => {
       expect(logger.log).toHaveBeenNthCalledWith(4, '\u2705 mod3.jar (mod3id) is installed', true);
 
     });
+  });
+
+  it<LocalTestContext>('calls the correct telemetry', async ({ options, logger }) => {
+
+    const randomConfig = generateModsJson().generated;
+    vi.mocked(ensureConfiguration).mockResolvedValue(randomConfig);
+
+    await list(options, logger);
+
+    expectCommandStartTelemetry({
+      command: 'list',
+      success: true,
+      duration: expect.any(Number),
+      arguments: options
+    });
+
   });
 });

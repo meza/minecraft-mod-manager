@@ -1,4 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { expectCommandStartTelemetry } from '../../test/telemetryHelper.js';
 import { Logger } from '../lib/Logger.js';
 import { scan, ScanOptions } from './scan.js';
 import { chance } from 'jest-chance';
@@ -25,6 +26,7 @@ vi.mock('../lib/scan.js');
 vi.mock('../lib/config');
 vi.mock('../interactions/shouldAddScanResults.js');
 vi.mock('../lib/fileHelper.js');
+vi.mock('../mmm.js');
 
 const randomModDetails = (): ScanResultGeneratorOverrides => {
   return {
@@ -388,6 +390,22 @@ describe('The Scan action', () => {
 
       expect(writtenInstallation).toContainEqual(expectedInstall);
 
+    });
+  });
+
+  it<LocalTestContext>('calls the correct telemetry', async ({ options, logger }) => {
+    vi.mocked(scanLib).mockResolvedValueOnce([]);
+
+    options.quiet = false;
+    await scan(options, logger);
+
+    expectCommandStartTelemetry({
+      command: 'scan',
+      success: true,
+      duration: expect.any(Number),
+      arguments: {
+        options: options
+      }
     });
   });
 });
