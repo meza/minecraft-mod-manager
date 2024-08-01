@@ -1,5 +1,4 @@
 export class Telemetry {
-
   async capture(): Promise<void> {
     return;
   }

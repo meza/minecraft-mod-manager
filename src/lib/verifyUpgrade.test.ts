@@ -6,8 +6,8 @@ import { IncorrectMinecraftVersionException } from '../errors/IncorrectMinecraft
 import { RedundantVersionException } from '../errors/RedundantVersionException.js';
 import { DefaultOptions } from '../mmm.js';
 import { fetchModDetails } from '../repositories/index.js';
-import { readConfigFile } from './config.js';
 import { Logger } from './Logger.js';
+import { readConfigFile } from './config.js';
 import { getLatestMinecraftVersion, verifyMinecraftVersion } from './minecraftVersionVerifier.js';
 import { ModsJson } from './modlist.types.js';
 import { verifyUpgradeIsPossible } from './verifyUpgrade.js';
@@ -40,7 +40,6 @@ describe('The Upgrade Test Module', () => {
     context.randomVersion = chance.pickone(['1.19.2', '1.19.3', '1.17']);
 
     vi.mocked(readConfigFile).mockResolvedValueOnce(context.randomConfiguration);
-
   });
 
   describe('when using the "latest" keyword as the version', () => {
@@ -52,7 +51,6 @@ describe('The Upgrade Test Module', () => {
 
       expect(getLatestMinecraftVersion).toHaveBeenCalledOnce();
       expect(verifyMinecraftVersion).toHaveBeenCalledWith(randomVersion);
-
     });
   });
 
@@ -68,11 +66,10 @@ describe('The Upgrade Test Module', () => {
         version: randomVersion,
         modsInError: []
       });
-
     });
   });
 
-  describe('when some mods don\'t support the given version', () => {
+  describe("when some mods don't support the given version", () => {
     it<LocalTestContext>('should report the affected mods', async ({
       randomConfiguration,
       randomVersion,
@@ -90,7 +87,8 @@ describe('The Upgrade Test Module', () => {
 
       vi.mocked(verifyMinecraftVersion).mockResolvedValue(true);
 
-      if (failingModIndex === 0) { // randomizing which mod fails just for good measure
+      if (failingModIndex === 0) {
+        // randomizing which mod fails just for good measure
         vi.mocked(fetchModDetails).mockRejectedValueOnce(new Error());
         vi.mocked(fetchModDetails).mockResolvedValueOnce({} as never);
       } else {
@@ -140,8 +138,9 @@ describe('The Upgrade Test Module', () => {
     it<LocalTestContext>('should report the invalid version', async ({ randomVersion, options, logger }) => {
       vi.mocked(verifyMinecraftVersion).mockResolvedValueOnce(false);
 
-      await expect(verifyUpgradeIsPossible(randomVersion, options, logger)).rejects.toThrow(IncorrectMinecraftVersionException);
-
+      await expect(verifyUpgradeIsPossible(randomVersion, options, logger)).rejects.toThrow(
+        IncorrectMinecraftVersionException
+      );
     });
   });
 
@@ -152,7 +151,9 @@ describe('The Upgrade Test Module', () => {
       logger
     }) => {
       vi.mocked(verifyMinecraftVersion).mockResolvedValueOnce(true);
-      await expect(verifyUpgradeIsPossible(randomConfiguration.gameVersion, options, logger)).rejects.toThrow(RedundantVersionException);
+      await expect(verifyUpgradeIsPossible(randomConfiguration.gameVersion, options, logger)).rejects.toThrow(
+        RedundantVersionException
+      );
     });
   });
 
@@ -175,7 +176,6 @@ describe('The Upgrade Test Module', () => {
       });
 
       expect(fetchModDetails).not.toHaveBeenCalled();
-
     });
   });
 
@@ -185,7 +185,6 @@ describe('The Upgrade Test Module', () => {
     logger,
     options
   }) => {
-
     const mod1 = generateModConfig();
     const mod2 = generateModConfig();
     const mod2Deets = mod2.generated;

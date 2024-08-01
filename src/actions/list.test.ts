@@ -3,8 +3,8 @@ import { generateModConfig } from '../../test/modConfigGenerator.js';
 import { generateModInstall } from '../../test/modInstallGenerator.js';
 import { generateModsJson } from '../../test/modlistGenerator.js';
 import { expectCommandStartTelemetry } from '../../test/telemetryHelper.js';
-import { ensureConfiguration, readLockFile } from '../lib/config.js';
 import { Logger } from '../lib/Logger.js';
+import { ensureConfiguration, readLockFile } from '../lib/config.js';
 import { DefaultOptions } from '../mmm.js';
 import { list } from './list.js';
 
@@ -30,12 +30,10 @@ describe('The list action', async () => {
     vi.mocked(context.logger.error).mockImplementation(() => {
       throw new Error('process.exit');
     });
-
   });
 
   describe('when all the mods are installed', () => {
     it<LocalTestContext>('it should list all the mods sorted', async ({ options, logger }) => {
-
       const randomConfig = generateModsJson().generated;
 
       const mod3 = generateModConfig({ name: 'mod3.jar', id: 'mod3id' }).generated;
@@ -60,7 +58,6 @@ describe('The list action', async () => {
       expect(logger.log).toHaveBeenNthCalledWith(2, '\u2705 mod1.jar (mod1id) is installed', true);
       expect(logger.log).toHaveBeenNthCalledWith(3, '\u2705 mod2.jar (mod2id) is installed', true);
       expect(logger.log).toHaveBeenNthCalledWith(4, '\u2705 mod3.jar (mod3id) is installed', true);
-
     });
   });
 
@@ -89,12 +86,10 @@ describe('The list action', async () => {
       expect(logger.log).toHaveBeenNthCalledWith(2, '\u2705 mod1.jar (mod1id) is installed', true);
       expect(logger.log).toHaveBeenNthCalledWith(3, '\u274c mod2.jar (mod2id) is not installed', true);
       expect(logger.log).toHaveBeenNthCalledWith(4, '\u2705 mod3.jar (mod3id) is installed', true);
-
     });
   });
 
   it<LocalTestContext>('calls the correct telemetry', async ({ options, logger }) => {
-
     const randomConfig = generateModsJson().generated;
     vi.mocked(ensureConfiguration).mockResolvedValue(randomConfig);
 
@@ -106,6 +101,5 @@ describe('The list action', async () => {
       duration: expect.any(Number),
       arguments: options
     });
-
   });
 });

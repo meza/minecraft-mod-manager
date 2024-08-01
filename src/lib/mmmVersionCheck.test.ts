@@ -1,7 +1,7 @@
-import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { hasUpdate } from './mmmVersionCheck.js';
 import { chance } from 'jest-chance';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { Logger } from './Logger.js';
+import { hasUpdate } from './mmmVersionCheck.js';
 import { rateLimitingFetch } from './rateLimiter/index.js';
 
 vi.mock('./Logger.js');
@@ -58,23 +58,25 @@ describe('The MMM Version Check module', () => {
       releasedOn: 'Sun Oct 09 2022 21:28:59 GMT+0000 (Greenwich Mean Time)'
     });
 
-    expect(logger.log).toHaveBeenCalledWith('\n[update] You are running a development version of MMM. '
-      + 'Please update to the latest release from Sun Oct 09 2022 21:28:59 GMT+0000 (Greenwich Mean Time).');
+    expect(logger.log).toHaveBeenCalledWith(
+      '\n[update] You are running a development version of MMM. ' +
+        'Please update to the latest release from Sun Oct 09 2022 21:28:59 GMT+0000 (Greenwich Mean Time).'
+    );
     expect(logger.log).toHaveBeenCalledWith('[update] You can download it from release-url\n');
-
   });
 
   it('should return the current version if there is no update', () => {
     vi.mocked(rateLimitingFetch).mockResolvedValueOnce({
       ok: true,
-      json: () => Promise.resolve([
-        // eslint-disable-next-line camelcase
-        { tag_name: 'v1.0.0', prerelease: false, draft: false, published_at: '2021-12-09T12:20:59Z' },
-        // eslint-disable-next-line camelcase
-        { tag_name: 'v0.9.0', prerelease: false, draft: false },
-        // eslint-disable-next-line camelcase
-        { tag_name: 'v0.8.0', prerelease: false, draft: false }
-      ])
+      json: () =>
+        Promise.resolve([
+          // eslint-disable-next-line camelcase
+          { tag_name: 'v1.0.0', prerelease: false, draft: false, published_at: '2021-12-09T12:20:59Z' },
+          // eslint-disable-next-line camelcase
+          { tag_name: 'v0.9.0', prerelease: false, draft: false },
+          // eslint-disable-next-line camelcase
+          { tag_name: 'v0.8.0', prerelease: false, draft: false }
+        ])
     } as Response);
     expect(hasUpdate('1.0.0', logger)).resolves.toEqual({
       hasUpdate: false,
@@ -87,14 +89,15 @@ describe('The MMM Version Check module', () => {
   it('should prioritize releases over prereleases', () => {
     vi.mocked(rateLimitingFetch).mockResolvedValueOnce({
       ok: true,
-      json: () => Promise.resolve([
-        // eslint-disable-next-line camelcase
-        { tag_name: 'v1.0.1', prerelease: true, draft: false },
-        // eslint-disable-next-line camelcase
-        { tag_name: 'v1.0.0', prerelease: false, draft: false, published_at: '2019-02-03T02:20:59Z' },
-        // eslint-disable-next-line camelcase
-        { tag_name: 'v0.8.0', prerelease: false, draft: false }
-      ])
+      json: () =>
+        Promise.resolve([
+          // eslint-disable-next-line camelcase
+          { tag_name: 'v1.0.1', prerelease: true, draft: false },
+          // eslint-disable-next-line camelcase
+          { tag_name: 'v1.0.0', prerelease: false, draft: false, published_at: '2019-02-03T02:20:59Z' },
+          // eslint-disable-next-line camelcase
+          { tag_name: 'v0.8.0', prerelease: false, draft: false }
+        ])
     } as Response);
     expect(hasUpdate('0.0.9', logger)).resolves.toEqual({
       hasUpdate: true,
@@ -116,10 +119,11 @@ describe('The MMM Version Check module', () => {
       const url = chance.url();
       vi.mocked(rateLimitingFetch).mockResolvedValueOnce({
         ok: true,
-        json: () => Promise.resolve([
-          // eslint-disable-next-line camelcase
-          { tag_name: latestVersion, prerelease: prerelease, draft: draft, html_url: url }
-        ])
+        json: () =>
+          Promise.resolve([
+            // eslint-disable-next-line camelcase
+            { tag_name: latestVersion, prerelease: prerelease, draft: draft, html_url: url }
+          ])
       } as Response);
       expect(hasUpdate(currentVersion, logger)).resolves.toEqual({
         hasUpdate: true,

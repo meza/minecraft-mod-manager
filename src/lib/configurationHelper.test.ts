@@ -1,15 +1,15 @@
-import { describe, it, expect, beforeEach } from 'vitest';
-import { generateModInstall } from '../../test/modInstallGenerator.js';
-import { Mod, ModInstall, Platform } from './modlist.types.js';
-import { generateModConfig } from '../../test/modConfigGenerator.js';
-import { fileIsManaged, findLocalMods, getInstallation, hasInstallation } from './configurationHelper.js';
 import { chance } from 'jest-chance';
+import { beforeEach, describe, expect, it } from 'vitest';
+import { generateModConfig } from '../../test/modConfigGenerator.js';
+import { generateModInstall } from '../../test/modInstallGenerator.js';
 import { generateModsJson } from '../../test/modlistGenerator.js';
+import { fileIsManaged, findLocalMods, getInstallation, hasInstallation } from './configurationHelper.js';
+import { Mod, ModInstall, Platform } from './modlist.types.js';
 
-  interface LocalTestContext {
-    installations: ModInstall[];
-    mod: Mod;
-  }
+interface LocalTestContext {
+  installations: ModInstall[];
+  mod: Mod;
+}
 
 describe('The configuration helper', () => {
   beforeEach<LocalTestContext>((context) => {
@@ -50,7 +50,6 @@ describe('The configuration helper', () => {
 
       expect(actual.size).toEqual(1);
       expect(actual).toContainEqual(toFind);
-
     });
 
     it('can find multiple mods by ID', () => {

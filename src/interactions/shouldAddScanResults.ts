@@ -1,7 +1,7 @@
+import chalk from 'chalk';
 import inquirer from 'inquirer';
 import { ScanOptions } from '../actions/scan.js';
 import { Logger } from '../lib/Logger.js';
-import chalk from 'chalk';
 
 export const shouldAddScanResults = async (options: ScanOptions, logger: Logger): Promise<boolean> => {
   if (options.add) {

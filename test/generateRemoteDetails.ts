@@ -1,5 +1,5 @@
-import { RemoteModDetails } from '../src/lib/modlist.types.js';
 import { chance } from 'jest-chance';
+import { RemoteModDetails } from '../src/lib/modlist.types.js';
 import { GeneratorResult } from './test.types.js';
 
 export const generateRemoteModDetails = (overrides?: Partial<RemoteModDetails>): GeneratorResult<RemoteModDetails> => {
@@ -16,5 +16,4 @@ export const generateRemoteModDetails = (overrides?: Partial<RemoteModDetails>):
     generated: generated,
     expected: generated
   };
-
 };

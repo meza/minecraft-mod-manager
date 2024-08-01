@@ -1,26 +1,28 @@
-import { beforeEach, describe, expect, it, vi } from 'vitest';
 import fs from 'node:fs/promises';
+import path from 'node:path';
 import { chance } from 'jest-chance';
+import * as process from 'process';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { generateModInstall } from '../../test/modInstallGenerator.js';
+import { generateModsJson } from '../../test/modlistGenerator.js';
+import { ConfigFileNotFoundException } from '../errors/ConfigFileNotFoundException.js';
+import { fileToWrite } from '../interactions/fileToWrite.js';
+import { initializeConfig } from '../interactions/initializeConfig.js';
+import { shouldCreateConfig } from '../interactions/shouldCreateConfig.js';
+import { DefaultOptions } from '../mmm.js';
+import { Logger } from './Logger.js';
 import {
+  ModsJsonSchema,
   ensureConfiguration,
-  fileExists, getModsFolder,
-  initializeConfigFile, ModsJsonSchema,
+  fileExists,
+  getModsFolder,
+  initializeConfigFile,
   readConfigFile,
   readLockFile,
   writeConfigFile,
   writeLockFile
 } from './config.js';
 import { Loader, ModInstall, ModsJson, Platform, ReleaseType } from './modlist.types.js';
-import path from 'node:path';
-import { generateModInstall } from '../../test/modInstallGenerator.js';
-import { generateModsJson } from '../../test/modlistGenerator.js';
-import { ConfigFileNotFoundException } from '../errors/ConfigFileNotFoundException.js';
-import { initializeConfig } from '../interactions/initializeConfig.js';
-import * as process from 'process';
-import { shouldCreateConfig } from '../interactions/shouldCreateConfig.js';
-import { Logger } from './Logger.js';
-import { fileToWrite } from '../interactions/fileToWrite.js';
-import { DefaultOptions } from '../mmm.js';
 
 vi.mock('../interactions/shouldCreateConfig.js');
 vi.mock('../interactions/initializeConfig.js');
@@ -72,16 +74,16 @@ describe('The config library', () => {
 
     expect(vi.mocked(fs.writeFile)).toHaveBeenCalledWith(
       path.resolve(options.config),
-      '{\n'
-      + '  "something": "value"\n'
-      + '}'
+      '{\n' + '  "something": "value"\n' + '}'
     );
   });
 
   it<LocalTestContext>('can write the lock file', async ({ options }) => {
-    const config = [{
-      something: 'value'
-    }] as unknown as ModInstall[];
+    const config = [
+      {
+        something: 'value'
+      }
+    ] as unknown as ModInstall[];
     options.config = chance.word();
     const expectedLockFilePath = path.resolve(`${options.config}-lock.json`);
 
@@ -90,11 +92,7 @@ describe('The config library', () => {
 
     expect(vi.mocked(fs.writeFile)).toHaveBeenCalledWith(
       expectedLockFilePath,
-      '[\n'
-      + '  {\n'
-      + '    "something": "value"\n'
-      + '  }\n'
-      + ']'
+      '[\n' + '  {\n' + '    "something": "value"\n' + '  }\n' + ']'
     );
   });
 
@@ -114,14 +112,12 @@ describe('The config library', () => {
 
     expect(actualOutput).toEqual([randomModInstall.expected]);
 
-    expect(vi.mocked(fs.readFile)).toHaveBeenCalledWith(
-      path.resolve(lockfileName),
-      { encoding: 'utf8' }
-    );
-
+    expect(vi.mocked(fs.readFile)).toHaveBeenCalledWith(path.resolve(lockfileName), { encoding: 'utf8' });
   });
 
-  it<LocalTestContext>('can returns an empty array and creates the file when the lock file does not exist', async ({ options }) => {
+  it<LocalTestContext>('can returns an empty array and creates the file when the lock file does not exist', async ({
+    options
+  }) => {
     options.config = 'config.json';
 
     // Make file exist
@@ -132,11 +128,7 @@ describe('The config library', () => {
     expect(actualOutput).toEqual([]);
 
     expect(vi.mocked(fs.readFile)).not.toHaveBeenCalled();
-    expect(vi.mocked(fs.writeFile)).toHaveBeenCalledWith(
-      path.resolve('config-lock.json'),
-      '[]'
-    );
-
+    expect(vi.mocked(fs.writeFile)).toHaveBeenCalledWith(path.resolve('config-lock.json'), '[]');
   });
 
   it<LocalTestContext>('can read from the config file when it exists', async ({ options }) => {
@@ -200,7 +192,6 @@ describe('The config library', () => {
 
     expect(actual).toEqual(randomConfig);
     expect(vi.mocked(initializeConfig)).toHaveBeenCalledWith({ config: configName }, process.cwd(), logger);
-
   });
 
   describe('when ensuring that a config exists', () => {

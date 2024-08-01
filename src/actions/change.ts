@@ -1,18 +1,20 @@
-import { VerifyUpgradeOptions } from '../lib/verifyUpgrade.js';
+import fs from 'node:fs/promises';
+import path from 'path';
 import { Logger } from '../lib/Logger.js';
-import { telemetry } from '../mmm.js';
-import { testGameVersion } from './testGameVersion.js';
-import { Mod } from '../lib/modlist.types.js';
 import {
   ensureConfiguration,
-  fileExists, getModsFolder, readLockFile,
+  fileExists,
+  getModsFolder,
+  readLockFile,
   writeConfigFile,
   writeLockFile
 } from '../lib/config.js';
-import path from 'path';
-import fs from 'node:fs/promises';
-import { install } from './install.js';
 import { getInstallation, hasInstallation } from '../lib/configurationHelper.js';
+import { Mod } from '../lib/modlist.types.js';
+import { VerifyUpgradeOptions } from '../lib/verifyUpgrade.js';
+import { telemetry } from '../mmm.js';
+import { install } from './install.js';
+import { testGameVersion } from './testGameVersion.js';
 
 export const changeGameVersion = async (gameVersion: string, options: VerifyUpgradeOptions, logger: Logger) => {
   performance.mark('change-start');
@@ -25,10 +27,12 @@ export const changeGameVersion = async (gameVersion: string, options: VerifyUpgr
   const installedMods = installations;
   const mods = configuration.mods;
   const removeLocalFile = async (mod: Mod) => {
-
     if (hasInstallation(mod, installations)) {
       const installedModIndex = getInstallation(mod, installedMods);
-      const oldModPath = path.resolve(getModsFolder(options.config, configuration), installedMods[installedModIndex].fileName);
+      const oldModPath = path.resolve(
+        getModsFolder(options.config, configuration),
+        installedMods[installedModIndex].fileName
+      );
       if (await fileExists(oldModPath)) {
         await fs.rm(oldModPath);
       }
@@ -56,9 +60,9 @@ export const changeGameVersion = async (gameVersion: string, options: VerifyUpgr
       gameVersion: gameVersion
     },
     extra: {
-      versionTestDuration: performance.measure('change-version-duration', 'change-start', 'change-version-succeed').duration
+      versionTestDuration: performance.measure('change-version-duration', 'change-start', 'change-version-succeed')
+        .duration
     },
     duration: performance.measure('change-duration', 'change-start', 'change-succeed').duration
   });
-
 };

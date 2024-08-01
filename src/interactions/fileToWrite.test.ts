@@ -1,12 +1,12 @@
-import { beforeEach, describe, expect, it, vi } from 'vitest';
 import fs from 'node:fs/promises';
-import { DefaultOptions } from '../mmm.js';
-import { Logger } from '../lib/Logger.js';
-import { chance } from 'jest-chance';
-import { fileExists } from '../lib/config.js';
-import { fileToWrite } from './fileToWrite.js';
 import path from 'path';
 import inquirer, { Question, QuestionCollection } from 'inquirer';
+import { chance } from 'jest-chance';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { Logger } from '../lib/Logger.js';
+import { fileExists } from '../lib/config.js';
+import { DefaultOptions } from '../mmm.js';
+import { fileToWrite } from './fileToWrite.js';
 
 vi.mock('node:fs/promises');
 vi.mock('../lib/config.js');
@@ -56,7 +56,6 @@ describe('The file writable module', () => {
       const logMessage = vi.mocked(logger.debug).mock.calls[0][0];
 
       expect(logMessage).toMatchInlineSnapshot('"Checking if the-input-file.txt is writable"');
-
     });
 
     describe('when the file is not writable', () => {

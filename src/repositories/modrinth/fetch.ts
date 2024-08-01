@@ -1,9 +1,9 @@
-import { getNextVersionDown } from '../../lib/fallbackVersion.js';
-import { Loader, Platform, ReleaseType, RemoteModDetails } from '../../lib/modlist.types.js';
 import { CouldNotFindModException } from '../../errors/CouldNotFindModException.js';
 import { NoRemoteFileFound } from '../../errors/NoRemoteFileFound.js';
-import { Modrinth } from './index.js';
+import { getNextVersionDown } from '../../lib/fallbackVersion.js';
+import { Loader, Platform, ReleaseType, RemoteModDetails } from '../../lib/modlist.types.js';
 import { rateLimitingFetch } from '../../lib/rateLimiter/index.js';
+import { Modrinth } from './index.js';
 
 export interface Hash {
   sha1: string;
@@ -28,8 +28,8 @@ export interface ModrinthVersion {
 }
 
 interface ModrinthMod {
-  name: string,
-  versions: ModrinthVersion[]
+  name: string;
+  versions: ModrinthVersion[];
 }
 
 const getName = async (projectId: string): Promise<string> => {
@@ -61,7 +61,7 @@ const getModDetails = async (projectId: string, gameVersion: string, loader: Loa
     throw new CouldNotFindModException(projectId, Platform.MODRINTH);
   }
 
-  const modVersions = await modDetailsRequest.json() as ModrinthVersion[];
+  const modVersions = (await modDetailsRequest.json()) as ModrinthVersion[];
 
   return {
     versions: modVersions,
@@ -81,7 +81,12 @@ const hasTheCorrectVersion = (version: ModrinthVersion, allowedGameVersion: stri
   return version.game_versions.includes(allowedGameVersion);
 };
 
-const getPotentialFiles = (versions: ModrinthVersion[], loader: Loader, allowedReleaseTypes: ReleaseType[], allowedGameVersion: string) => {
+const getPotentialFiles = (
+  versions: ModrinthVersion[],
+  loader: Loader,
+  allowedReleaseTypes: ReleaseType[],
+  allowedGameVersion: string
+) => {
   return versions
     .filter((version) => {
       return hasTheCorrectLoader(version, loader);
@@ -103,7 +108,8 @@ export const getMod = async (
   allowedGameVersion: string,
   loader: Loader,
   allowFallback: boolean,
-  fixedModVersion?: string): Promise<RemoteModDetails> => {
+  fixedModVersion?: string
+): Promise<RemoteModDetails> => {
   performance.mark('modrinth-getmod-start');
   const { name, versions } = await getModDetails(projectId, allowedGameVersion, loader);
   let potentialFiles = [];
@@ -116,7 +122,6 @@ export const getMod = async (
   }
 
   if (potentialFiles.length === 0) {
-
     if (allowFallback) {
       const versionDown = getNextVersionDown(allowedGameVersion);
       return getMod(projectId, allowedReleaseTypes, versionDown.nextVersionToTry, loader, versionDown.canGoDown);

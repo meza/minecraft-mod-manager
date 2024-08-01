@@ -1,18 +1,18 @@
-import { getNextVersionDown } from '../../lib/fallbackVersion.js';
-import { Loader, Platform, ReleaseType, RemoteModDetails } from '../../lib/modlist.types.js';
 import { curseForgeApiKey } from '../../env.js';
 import { CouldNotFindModException } from '../../errors/CouldNotFindModException.js';
+import { CurseforgeDownloadUrlError } from '../../errors/CurseforgeDownloadUrlError.js';
 import { NoRemoteFileFound } from '../../errors/NoRemoteFileFound.js';
+import { getNextVersionDown } from '../../lib/fallbackVersion.js';
+import { Loader, Platform, ReleaseType, RemoteModDetails } from '../../lib/modlist.types.js';
+import { rateLimitingFetch } from '../../lib/rateLimiter/index.js';
 import { InvalidReleaseTypeException } from './InvalidReleaseTypeException.js';
 import { Curseforge } from './index.js';
-import { rateLimitingFetch } from '../../lib/rateLimiter/index.js';
-import { CurseforgeDownloadUrlError } from '../../errors/CurseforgeDownloadUrlError.js';
 
 export enum HashFunctions {
   // eslint-disable-next-line no-unused-vars
   sha1 = 1,
   // eslint-disable-next-line no-unused-vars
-  md5 = 2,
+  md5 = 2
 }
 
 interface Hash {
@@ -21,8 +21,8 @@ interface Hash {
 }
 
 interface CurseForgeGameVersion {
-  gameVersionName: string,
-  gameVersion: string
+  gameVersionName: string;
+  gameVersion: string;
 }
 
 export interface CurseforgeModFile {
@@ -65,7 +65,7 @@ const getFiles = async (projectId: string, gameVersion: string, loader: Loader):
 
   const modFiles = await rateLimitingFetch(url, {
     headers: {
-      'Accept': 'application/json',
+      Accept: 'application/json',
       'x-api-key': curseForgeApiKey
     }
   });
@@ -88,14 +88,25 @@ export const curseforgeFileToRemoteModDetails = (file: CurseforgeModFile, name: 
   };
 };
 
-const getPotentialFiles = (files: CurseforgeModFile[], allowedGameVersion: string, allowedReleaseTypes: ReleaseType[]): CurseforgeModFile[] => {
-  return files.filter((file) => {
-    return file.sortableGameVersions.find((gameVersion) => gameVersion.gameVersionName.toLowerCase() === allowedGameVersion.toLowerCase());
-  })
+const getPotentialFiles = (
+  files: CurseforgeModFile[],
+  allowedGameVersion: string,
+  allowedReleaseTypes: ReleaseType[]
+): CurseforgeModFile[] => {
+  return files
+    .filter((file) => {
+      return file.sortableGameVersions.find(
+        (gameVersion) => gameVersion.gameVersionName.toLowerCase() === allowedGameVersion.toLowerCase()
+      );
+    })
     .filter((file) => {
       try {
-        return file.isAvailable && allowedReleaseTypes.includes(releaseTypeFromNumber(file.releaseType)) && [4, 10].includes(file.fileStatus);
-      } catch (e) {
+        return (
+          file.isAvailable &&
+          allowedReleaseTypes.includes(releaseTypeFromNumber(file.releaseType)) &&
+          [4, 10].includes(file.fileStatus)
+        );
+      } catch (_e) {
         return false;
       }
     })
@@ -110,14 +121,14 @@ export const getMod = async (
   allowedGameVersion: string,
   loader: Loader,
   allowFallback: boolean,
-  fixedModVersion?: string): Promise<RemoteModDetails> => {
-
+  fixedModVersion?: string
+): Promise<RemoteModDetails> => {
   performance.mark('curseforge-getmod-start');
 
   const url = `https://api.curseforge.com/v1/mods/${projectId}`;
   const modDetailsRequest = await rateLimitingFetch(url, {
     headers: {
-      'Accept': 'application/json',
+      Accept: 'application/json',
       'x-api-key': curseForgeApiKey
     }
   });
@@ -140,7 +151,6 @@ export const getMod = async (
   }
 
   if (potentialFiles.length === 0) {
-
     if (allowFallback) {
       const versionDown = getNextVersionDown(allowedGameVersion);
       return getMod(projectId, allowedReleaseTypes, versionDown.nextVersionToTry, loader, versionDown.canGoDown);
@@ -163,10 +173,10 @@ export const getMod = async (
     performance.mark('curseforge-getmod-end');
     performance.measure(`curseforge-getmod-${projectId}`, 'curseforge-getmod-start', 'curseforge-getmod-end');
     return modData;
-  } catch (e) { // Catch when the hash is not found (due to curseforge error)
+  } catch (_e) {
+    // Catch when the hash is not found (due to curseforge error)
     performance.mark('curseforge-getmod-failed');
     performance.measure(`curseforge-getmod-${projectId}-failed`, 'curseforge-getmod-start', 'curseforge-getmod-failed');
     throw new NoRemoteFileFound(modDetails.data.name, Platform.CURSEFORGE);
   }
 };
-

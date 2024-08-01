@@ -21,7 +21,7 @@
     "build:binaries": "cross-env PKG_CACHE_PATH=.cache/pkg pkg dist/mmm.cjs --no-native-build -c ./.pkgrc.json -t latest-win,latest-linux,latest-macos --options \"no-warnings\" -o dist/pkg/mmm",
     "start": "tsx src/index.ts",
     "commit": "cz",
-    "ci": "npm-run-all --parallel -c lint report",
+    "ci": "npm-run-all --parallel -c lint:* report",
     "clean": "npm-run-all clean:basics",
     "clean:all": "npm-run-all clean:basics clean:cache clean:githooks clean:dependencies clean:reports",
     "clean:basics": "rimraf dist",
@@ -29,11 +29,8 @@
     "clean:reports": "rimraf reports",
     "clean:githooks": "lefthook uninstall",
     "clean:dependencies": "rimraf node_modules",
-    "lint:specific": "eslint --ext .ts --ext .json --cache --cache-location .cache/",
-    "lint:eslint": "pnpm lint:specific src test",
-    "lint:tsc": "tsc --noEmit",
-    "lint:fix": "pnpm lint:eslint --fix && pnpm lint:tsc",
-    "lint": "npm-run-all --parallel lint:eslint lint:tsc",
+    "lint:ci": "biome ci --reporter=github .",
+    "lint": "tsc --noEmit",
     "test": "npm-run-all --parallel test:*",
     "test:unit": "vitest",
     "report": "vitest --coverage",
@@ -57,18 +54,13 @@
     "zod": "^3.23.8"
   },
   "commitlint": {
-    "extends": [
-      "@commitlint/config-conventional"
-    ],
+    "extends": ["@commitlint/config-conventional"],
     "rules": {
-      "header-max-length": [
-        0,
-        "always",
-        100
-      ]
+      "header-max-length": [0, "always", 100]
     }
   },
   "devDependencies": {
+    "@biomejs/biome": "1.8.3",
     "@commitlint/cli": "18.6.1",
     "@commitlint/config-conventional": "18.6.2",
     "@commitlint/prompt-cli": "18.6.1",
@@ -88,15 +80,9 @@
     "@types/inquirer": "^9.0.2",
     "@types/is-ci": "^3.0.0",
     "@types/node": "^20.5.1",
-    "@typescript-eslint/eslint-plugin": "7.0.1",
-    "@typescript-eslint/parser": "7.0.1",
     "@vitest/coverage-v8": "^1.3.1",
     "cross-env": "^7.0.3",
     "esbuild": "0.20.0",
-    "eslint": "8.56.0",
-    "eslint-config-tailored-tunes": "5.0.2",
-    "eslint-plugin-json": "3.1.0",
-    "eslint-plugin-security": "1.7.1",
     "is-ci": "3.0.1",
     "jest-chance": "0.2.5",
     "lefthook": "1.6.1",

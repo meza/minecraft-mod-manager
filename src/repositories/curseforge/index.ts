@@ -15,7 +15,6 @@ export enum CurseforgeLoader {
 }
 
 export class Curseforge implements Repository {
-
   static curseforgeLoaderFromLoader = (loader: Loader) => {
     switch (loader) {
       case Loader.CAULDRON:
@@ -35,7 +34,13 @@ export class Curseforge implements Repository {
     }
   };
 
-  fetchMod(projectId: string, allowedReleaseTypes: ReleaseType[], allowedGameVersion: string, loader: Loader, allowFallback: boolean): Promise<RemoteModDetails> {
+  fetchMod(
+    projectId: string,
+    allowedReleaseTypes: ReleaseType[],
+    allowedGameVersion: string,
+    loader: Loader,
+    allowFallback: boolean
+  ): Promise<RemoteModDetails> {
     return getMod(projectId, allowedReleaseTypes, allowedGameVersion, loader, allowFallback);
   }
 

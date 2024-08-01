@@ -1,19 +1,13 @@
+import path from 'node:path';
+import { expect, vi } from 'vitest';
+import { ensureConfiguration, fileExists, readLockFile, writeConfigFile, writeLockFile } from '../src/lib/config.js';
+import { downloadFile } from '../src/lib/downloader.js';
 import { Mod, ModInstall, ModsJson } from '../src/lib/modlist.types.js';
+import { updateMod } from '../src/lib/updater.js';
 import { fetchModDetails } from '../src/repositories/index.js';
-import { generateModsJson } from './modlistGenerator.js';
 import { generateModConfig } from './modConfigGenerator.js';
 import { generateModInstall } from './modInstallGenerator.js';
-import { expect, vi } from 'vitest';
-import {
-  ensureConfiguration,
-  fileExists,
-  readLockFile,
-  writeConfigFile,
-  writeLockFile
-} from '../src/lib/config.js';
-import { downloadFile } from '../src/lib/downloader.js';
-import { updateMod } from '../src/lib/updater.js';
-import path from 'node:path';
+import { generateModsJson } from './modlistGenerator.js';
 
 export const emptyLockFile: ModInstall[] = [];
 
@@ -24,8 +18,7 @@ export const verifyBasics = () => {
   expect(vi.mocked(readLockFile)).toHaveBeenCalledOnce();
 };
 
-export const expectModDetailsHaveBeenFetchedCorrectlyForMod = (
-  mod: Mod, modsJson: ModsJson, call = 1) => {
+export const expectModDetailsHaveBeenFetchedCorrectlyForMod = (mod: Mod, modsJson: ModsJson, call = 1) => {
   expect(vi.mocked(fetchModDetails)).toHaveBeenNthCalledWith(
     call,
     mod.type,

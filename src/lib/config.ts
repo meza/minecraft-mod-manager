@@ -1,14 +1,14 @@
 import fs from 'node:fs/promises';
 import path from 'path';
+import { z } from 'zod';
 import { ConfigFileInvalidError } from '../errors/ConfigFileInvalidError.js';
-import { Loader, ModInstall, ModsJson, Platform, ReleaseType } from './modlist.types.js';
 import { ConfigFileNotFoundException } from '../errors/ConfigFileNotFoundException.js';
+import { fileToWrite } from '../interactions/fileToWrite.js';
 import { initializeConfig } from '../interactions/initializeConfig.js';
 import { shouldCreateConfig } from '../interactions/shouldCreateConfig.js';
-import { Logger } from './Logger.js';
-import { fileToWrite } from '../interactions/fileToWrite.js';
 import { DefaultOptions } from '../mmm.js';
-import { z } from 'zod';
+import { Logger } from './Logger.js';
+import { Loader, ModInstall, ModsJson, Platform, ReleaseType } from './modlist.types.js';
 
 // Define the structure of a single mod installation
 export const ModInstallSchema = z.object({
@@ -68,13 +68,12 @@ export const readLockFile = async (options: DefaultOptions, logger: Logger): Pro
   await writeLockFile(emptyModLock, options, logger);
 
   return emptyModLock;
-
 };
 
 export const readConfigFile = async (configPath: string): Promise<ModsJson> => {
   const configLocation = path.resolve(configPath);
 
-  if (!await fileExists(configLocation)) {
+  if (!(await fileExists(configLocation))) {
     throw new ConfigFileNotFoundException(configLocation);
   }
 
@@ -86,9 +85,13 @@ export const readConfigFile = async (configPath: string): Promise<ModsJson> => {
 
 export const initializeConfigFile = async (configPath: string, logger: Logger): Promise<ModsJson> => {
   const runPath = process.cwd();
-  const emptyModJson = await initializeConfig({
-    config: configPath
-  }, runPath, logger);
+  const emptyModJson = await initializeConfig(
+    {
+      config: configPath
+    },
+    runPath,
+    logger
+  );
 
   return emptyModJson;
 };
@@ -128,5 +131,4 @@ export const getModsFolder = (configLocation: string, config: ModsJson): string 
   }
 
   return path.resolve(configFolder, configuredModsFolder);
-
 };

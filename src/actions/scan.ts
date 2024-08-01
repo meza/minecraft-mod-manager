@@ -1,15 +1,15 @@
-import { DefaultOptions, telemetry } from '../mmm.js';
-import { Logger } from '../lib/Logger.js';
-import { ensureConfiguration, getModsFolder, readLockFile, writeConfigFile, writeLockFile } from '../lib/config.js';
-import { PlatformLookupResult } from '../repositories/index.js';
-import { Mod, ModInstall, ModsJson, Platform, RemoteModDetails } from '../lib/modlist.types.js';
-import { scan as scanLib } from '../lib/scan.js';
 import chalk from 'chalk';
 import { shouldAddScanResults } from '../interactions/shouldAddScanResults.js';
+import { Logger } from '../lib/Logger.js';
+import { ensureConfiguration, getModsFolder, readLockFile, writeConfigFile, writeLockFile } from '../lib/config.js';
+import { Mod, ModInstall, ModsJson, Platform, RemoteModDetails } from '../lib/modlist.types.js';
+import { scan as scanLib } from '../lib/scan.js';
+import { DefaultOptions, telemetry } from '../mmm.js';
+import { PlatformLookupResult } from '../repositories/index.js';
 
+import path from 'path';
 import { fileIsManaged, getInstallation } from '../lib/configurationHelper.js';
 import { getModFiles } from '../lib/fileHelper.js';
-import path from 'path';
 
 export interface ScanOptions extends DefaultOptions {
   prefer: Platform;
@@ -36,7 +36,7 @@ export interface UnsureEntries {
 
 const findInConfiguration = (platform: Platform, modId: string, configuration: ModsJson) => {
   return configuration.mods.findIndex((configuredMod) => {
-    return (configuredMod.type === platform) && (configuredMod.id === modId);
+    return configuredMod.type === platform && configuredMod.id === modId;
   });
 };
 
@@ -61,9 +61,9 @@ const processForeignFiles = async (
     return foundIndex < 0;
   });
 
-  const hasForeignFiles = (nonMatchedFiles.length > 0);
+  const hasForeignFiles = nonMatchedFiles.length > 0;
 
-  if ((!hasResults) && (!hasForeignFiles)) {
+  if (!hasResults && !hasForeignFiles) {
     logger.log(`${chalk.green('\u2705')} All of your mods are managed by mmm.`);
     return;
   }
@@ -80,35 +80,41 @@ const processForeignFiles = async (
   }
 };
 
-export const processScanResults = (scanResults: ScanResults[], configuration: ModsJson, installations: ModInstall[], logger: Logger) => {
+export const processScanResults = (
+  scanResults: ScanResults[],
+  configuration: ModsJson,
+  installations: ModInstall[],
+  logger: Logger
+) => {
   const unmanaged: FoundEntries[] = [];
   const unsure: UnsureEntries[] = [];
 
   scanResults.forEach((hit) => {
-
     // ================================================================================================================
     // We know that `hit` has no direct matches in the lockfile, so we need to look for a configuration match
 
-    const halfMatching = hit.localDetails.map((local, index) => {
-      const modIndex = findInConfiguration(local.platform, local.modId, configuration);
-      if (modIndex < 0) {
+    const halfMatching = hit.localDetails
+      .map((local, index) => {
+        const modIndex = findInConfiguration(local.platform, local.modId, configuration);
+        if (modIndex < 0) {
+          return {
+            found: false,
+            configured: null,
+            remote: hit.allRemoteDetails[index],
+            local: local
+          };
+        }
+
         return {
-          found: false,
-          configured: null,
+          found: true,
+          configured: configuration.mods[modIndex],
           remote: hit.allRemoteDetails[index],
           local: local
         };
-      }
-
-      return {
-        found: true,
-        configured: configuration.mods[modIndex],
-        remote: hit.allRemoteDetails[index],
-        local: local
-      };
-    }).filter((result) => {
-      return result.found === true;
-    });
+      })
+      .filter((result) => {
+        return result.found === true;
+      });
 
     if (halfMatching.length > 0 && halfMatching[0].configured) {
       const installationIndex = getInstallation(halfMatching[0].configured, installations);
@@ -116,14 +122,22 @@ export const processScanResults = (scanResults: ScanResults[], configuration: Mo
       if (installationIndex > -1) {
         const installation = installations[installationIndex];
         if (halfMatching[0].local.mod.hash !== installation.hash) {
-          logger.log(`${chalk.red('\u274c')} ${halfMatching[0].remote.name} has a different version locally than what is in the lockfile`);
+          logger.log(
+            `${chalk.red('\u274c')} ${halfMatching[0].remote.name} has a different version locally than what is in the lockfile`
+          );
         }
       } else {
-        logger.log(`${chalk.red('\u274c')} ${halfMatching[0].remote.name} has a local file that isn't in the lockfile.`);
+        logger.log(
+          `${chalk.red('\u274c')} ${halfMatching[0].remote.name} has a local file that isn't in the lockfile.`
+        );
       }
 
       unsure.push({
-        configuredMod: findInConfiguration(halfMatching[0].configured?.type, halfMatching[0].configured?.id, configuration),
+        configuredMod: findInConfiguration(
+          halfMatching[0].configured?.type,
+          halfMatching[0].configured?.id,
+          configuration
+        ),
         configuredInstallation: installationIndex,
         newMod: {
           type: halfMatching[0].local.platform,
@@ -145,26 +159,26 @@ export const processScanResults = (scanResults: ScanResults[], configuration: Mo
     // ================================================================================================================
 
     if (halfMatching.length === 0) {
-      const message = chalk.green('\u2705') + `Found unmanaged mod: ${chalk.bold(chalk.whiteBright(hit.preferredDetails.name))}`;
+      const message =
+        chalk.green('\u2705') + `Found unmanaged mod: ${chalk.bold(chalk.whiteBright(hit.preferredDetails.name))}`;
       logger.log(message, true);
 
-      unmanaged.push(
-        {
-          mod: {
-            type: hit.localDetails[0].platform,
-            id: hit.localDetails[0].modId,
-            name: hit.preferredDetails.name
-          },
-          install: {
-            name: hit.preferredDetails.name,
-            type: hit.localDetails[0].platform,
-            id: hit.localDetails[0].modId,
-            fileName: hit.localDetails[0].mod.fileName,
-            hash: hit.localDetails[0].mod.hash,
-            downloadUrl: hit.localDetails[0].mod.downloadUrl,
-            releasedOn: hit.localDetails[0].mod.releaseDate
-          }
-        });
+      unmanaged.push({
+        mod: {
+          type: hit.localDetails[0].platform,
+          id: hit.localDetails[0].modId,
+          name: hit.preferredDetails.name
+        },
+        install: {
+          name: hit.preferredDetails.name,
+          type: hit.localDetails[0].platform,
+          id: hit.localDetails[0].modId,
+          fileName: hit.localDetails[0].mod.fileName,
+          hash: hit.localDetails[0].mod.hash,
+          downloadUrl: hit.localDetails[0].mod.downloadUrl,
+          releasedOn: hit.localDetails[0].mod.releaseDate
+        }
+      });
     }
   });
   return {
@@ -187,9 +201,8 @@ export const scan = async (options: ScanOptions, logger: Logger) => {
 
   const { unmanaged, unsure } = processScanResults(scanResults, configuration, installations, logger);
 
-  const hasResults = (scanResults.length > 0);
-  if (hasResults && await shouldAddScanResults(options, logger)) {
-
+  const hasResults = scanResults.length > 0;
+  if (hasResults && (await shouldAddScanResults(options, logger))) {
     unmanaged.forEach(({ mod, install }) => {
       configuration.mods.push(mod);
       installations.push(install);
@@ -204,8 +217,9 @@ export const scan = async (options: ScanOptions, logger: Logger) => {
         installations.push(result.installation);
       }
 
-      logger.log(`${chalk.green('\u2705')} Updated ${configuration.mods[result.configuredMod].name} to match the installed file`);
-
+      logger.log(
+        `${chalk.green('\u2705')} Updated ${configuration.mods[result.configuredMod].name} to match the installed file`
+      );
     });
 
     await writeConfigFile(configuration, options, logger);
@@ -234,5 +248,4 @@ export const scan = async (options: ScanOptions, logger: Logger) => {
     },
     duration: performance.measure('scan-duration', 'scan-start', 'scan-succeed').duration
   });
-
 };

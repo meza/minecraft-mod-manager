@@ -1,6 +1,6 @@
-import { describe, it, expect } from 'vitest';
-import { Queue } from './queue.js';
 import { chance } from 'jest-chance';
+import { describe, expect, it } from 'vitest';
+import { Queue } from './queue.js';
 
 interface TestType {
   prop: boolean;
@@ -44,7 +44,6 @@ describe('The queue', () => {
     expect(q.length).toEqual(0);
     expect(q.size()).toEqual(0);
     expect(q.isEmpty()).toBeTruthy();
-
   });
 
   it('can peek the top item', () => {
@@ -73,7 +72,6 @@ describe('The queue', () => {
 
     expect(q.length).toEqual(size);
     expect(q.size()).toEqual(size);
-
   });
 
   it('can clear the queue', () => {
@@ -90,6 +88,5 @@ describe('The queue', () => {
     expect(q.length).toEqual(0);
     expect(q.size()).toEqual(0);
     expect(q.isEmpty()).toBeTruthy();
-
   });
 });

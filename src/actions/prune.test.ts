@@ -1,16 +1,16 @@
-import { beforeEach, describe, it, vi, expect } from 'vitest';
-import { expectCommandStartTelemetry } from '../../test/telemetryHelper.js';
-import { Logger } from '../lib/Logger.js';
-import { prune, PruneOptions } from './prune.js';
-import { ModInstall, ModsJson } from '../lib/modlist.types.js';
-import { generateModsJson } from '../../test/modlistGenerator.js';
-import { ensureConfiguration, getModsFolder, readLockFile } from '../lib/config.js';
-import { chance } from 'jest-chance';
-import { fileIsManaged } from '../lib/configurationHelper.js';
-import { shouldPruneFiles } from '../interactions/shouldPruneFiles.js';
 import path from 'path';
 import fs from 'fs/promises';
+import { chance } from 'jest-chance';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { generateModsJson } from '../../test/modlistGenerator.js';
+import { expectCommandStartTelemetry } from '../../test/telemetryHelper.js';
+import { shouldPruneFiles } from '../interactions/shouldPruneFiles.js';
+import { Logger } from '../lib/Logger.js';
+import { ensureConfiguration, getModsFolder, readLockFile } from '../lib/config.js';
+import { fileIsManaged } from '../lib/configurationHelper.js';
 import { getModFiles } from '../lib/fileHelper.js';
+import { ModInstall, ModsJson } from '../lib/modlist.types.js';
+import { PruneOptions, prune } from './prune.js';
 
 interface LocalTestContext {
   logger: Logger;
@@ -43,7 +43,6 @@ describe('The prune action', () => {
     vi.mocked(ensureConfiguration).mockResolvedValueOnce(context.configuration);
     vi.mocked(readLockFile).mockResolvedValueOnce(context.installations);
     vi.mocked(getModsFolder).mockReturnValue(context.configuration.modsFolder);
-
   });
 
   it<LocalTestContext>('notifies about no files in the mods folder', async ({ options, logger }) => {
@@ -99,7 +98,7 @@ describe('The prune action', () => {
     expect(vi.mocked(logger.log).mock.calls[6][0]).toContain(expectedFile3);
   });
 
-  it<LocalTestContext>('doesn\'t remove files if not asked to', async ({ options, logger }) => {
+  it<LocalTestContext>("doesn't remove files if not asked to", async ({ options, logger }) => {
     const file1 = chance.word();
     const file2 = chance.word();
     const file3 = chance.word();
@@ -133,7 +132,6 @@ describe('The prune action', () => {
         options: options
       }
     });
-
   });
 
   it<LocalTestContext>('calls the correct telemetry when prune is needed', async ({ options, logger }) => {
@@ -156,6 +154,5 @@ describe('The prune action', () => {
         options: options
       }
     });
-
   });
 });

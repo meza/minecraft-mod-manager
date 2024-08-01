@@ -1,11 +1,11 @@
-import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { Loader, Platform } from '../lib/modlist.types.js';
 import inquirer from 'inquirer';
 import { chance } from 'jest-chance';
-import { generateModsJson } from '../../test/modlistGenerator.js';
-import { noRemoteFileFound } from './noRemoteFileFound.js';
-import { Logger } from '../lib/Logger.js';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { generateRandomPlatform } from '../../test/generateRandomPlatform.js';
+import { generateModsJson } from '../../test/modlistGenerator.js';
+import { Logger } from '../lib/Logger.js';
+import { Loader, Platform } from '../lib/modlist.types.js';
+import { noRemoteFileFound } from './noRemoteFileFound.js';
 
 vi.mock('../mmm.js');
 vi.mock('inquirer');
@@ -32,16 +32,19 @@ describe('The mod not found interaction', () => {
       loader: Loader.FORGE
     }).generated;
 
-    await expect(noRemoteFileFound(testModId, testPlatform, randomConfig, logger, {
-      config: 'config.json',
-      quiet: true
-    })).rejects.toThrow(new Error('process.exit'));
+    await expect(
+      noRemoteFileFound(testModId, testPlatform, randomConfig, logger, {
+        config: 'config.json',
+        quiet: true
+      })
+    ).rejects.toThrow(new Error('process.exit'));
 
     const loggerErrorCall = vi.mocked(logger.error).mock.calls[0][0];
 
-    expect(loggerErrorCall).toMatchInlineSnapshot('"Could not find a file for test-mod-id and the Minecraft version 1.16.5 for forge loader"');
+    expect(loggerErrorCall).toMatchInlineSnapshot(
+      '"Could not find a file for test-mod-id and the Minecraft version 1.16.5 for forge loader"'
+    );
     expect(vi.mocked(inquirer.prompt)).not.toHaveBeenCalled();
-
   });
 
   it('aborts when the user does not want to modify their search', async () => {
@@ -51,16 +54,17 @@ describe('The mod not found interaction', () => {
 
     vi.mocked(inquirer.prompt).mockResolvedValueOnce({ confirm: false });
 
-    await expect(noRemoteFileFound(testModId, testPlatform, randomConfig, logger, {
-      config: 'config.json',
-      quiet: false
-    })).rejects.toThrow(new Error('process.exit'));
+    await expect(
+      noRemoteFileFound(testModId, testPlatform, randomConfig, logger, {
+        config: 'config.json',
+        quiet: false
+      })
+    ).rejects.toThrow(new Error('process.exit'));
 
     const loggerErrorCall = vi.mocked(logger.error).mock.calls[0][0];
 
     expect(loggerErrorCall).toMatchInlineSnapshot('"Aborting"');
     expect(vi.mocked(inquirer.prompt)).toHaveBeenCalledTimes(1);
-
   });
 
   describe.each([
@@ -85,7 +89,6 @@ describe('The mod not found interaction', () => {
       expect(actual).toEqual({ id: 'new-mod-id', platform: expected });
 
       expect(inquirerPromptCallArgs).toMatchSnapshot();
-
     });
   });
 });

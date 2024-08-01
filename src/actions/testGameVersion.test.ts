@@ -1,12 +1,12 @@
-import { describe, vi, it, beforeEach, expect } from 'vitest';
 import { chance } from 'jest-chance';
-import { UpgradeVerificationResult, verifyUpgradeIsPossible } from '../lib/verifyUpgrade.js';
-import { testGameVersion } from './testGameVersion.js';
-import { Logger } from '../lib/Logger.js';
-import { DefaultOptions } from '../mmm.js';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { generateModConfig } from '../../test/modConfigGenerator.js';
 import { IncorrectMinecraftVersionException } from '../errors/IncorrectMinecraftVersionException.js';
 import { RedundantVersionException } from '../errors/RedundantVersionException.js';
+import { Logger } from '../lib/Logger.js';
+import { UpgradeVerificationResult, verifyUpgradeIsPossible } from '../lib/verifyUpgrade.js';
+import { DefaultOptions } from '../mmm.js';
+import { testGameVersion } from './testGameVersion.js';
 
 vi.mock('../lib/verifyUpgrade.js');
 vi.mock('../lib/Logger.js');
@@ -28,11 +28,9 @@ describe('The test action', () => {
       debug: false,
       quiet: false
     };
-
   });
   describe('when the mods can be upgraded safely', () => {
     it<LocalTestContext>('should report success for the given version', async ({ options, logger, version }) => {
-
       const result = {
         canUpgrade: true,
         version: version
@@ -48,7 +46,6 @@ describe('The test action', () => {
       expect(logMessage).toContain('You can safely upgrade.');
 
       expect(actual).toBe(result);
-
     });
   });
 
@@ -83,7 +80,6 @@ describe('The test action', () => {
       await testGameVersion('bad-version', options, logger);
 
       expect(logger.error).toHaveBeenCalledWith('The specified Minecraft version (bad-version) is not valid.', 1);
-
     });
   });
 
@@ -93,8 +89,7 @@ describe('The test action', () => {
 
       await testGameVersion('redundant-version', options, logger);
 
-      expect(logger.error).toHaveBeenCalledWith('You\'re already using (redundant-version).', 2);
-
+      expect(logger.error).toHaveBeenCalledWith("You're already using (redundant-version).", 2);
     });
   });
 });

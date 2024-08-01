@@ -1,9 +1,9 @@
 import { PlatformLookupResult } from '../index.js';
 
-import { Modrinth } from './index.js';
-import { ModrinthFile, ModrinthVersion } from './fetch.js';
 import { Platform, RemoteModDetails } from '../../lib/modlist.types.js';
 import { rateLimitingFetch } from '../../lib/rateLimiter/index.js';
+import { ModrinthFile, ModrinthVersion } from './fetch.js';
+import { Modrinth } from './index.js';
 
 const startLookup = async (hash: string) => {
   const url = `https://api.modrinth.com/v2/version_file/${hash}?algorithm=sha1`;
@@ -14,7 +14,7 @@ const startLookup = async (hash: string) => {
     throw new Error(response.statusText);
   }
 
-  return await response.json() as ModrinthVersion;
+  return (await response.json()) as ModrinthVersion;
 };
 
 export const lookup = async (hashes: string[]): Promise<PlatformLookupResult[]> => {
@@ -29,7 +29,6 @@ export const lookup = async (hashes: string[]): Promise<PlatformLookupResult[]> 
   const results: PlatformLookupResult[] = [];
 
   settledQueue.forEach((lookup) => {
-
     if (lookup.status === 'rejected') {
       return;
     }
@@ -56,5 +55,4 @@ export const lookup = async (hashes: string[]): Promise<PlatformLookupResult[]> 
   performance.measure('modrinth-lookup', 'modrinth-lookup-start', 'modrinth-lookup-end');
 
   return results;
-
 };

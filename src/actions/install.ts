@@ -1,4 +1,7 @@
+import path from 'path';
 import chalk from 'chalk';
+import { handleFetchErrors } from '../errors/handleFetchErrors.js';
+import { Logger } from '../lib/Logger.js';
 import {
   ensureConfiguration,
   fileExists,
@@ -7,18 +10,15 @@ import {
   writeConfigFile,
   writeLockFile
 } from '../lib/config.js';
-import path from 'path';
-import { fetchModDetails } from '../repositories/index.js';
-import { downloadFile } from '../lib/downloader.js';
-import { Mod, ModInstall, ModsJson, Platform, RemoteModDetails } from '../lib/modlist.types.js';
-import { getHash } from '../lib/hash.js';
-import { DefaultOptions, telemetry } from '../mmm.js';
-import { updateMod } from '../lib/updater.js';
-import { Logger } from '../lib/Logger.js';
 import { fileIsManaged, getInstallation, hasInstallation } from '../lib/configurationHelper.js';
-import { handleFetchErrors } from '../errors/handleFetchErrors.js';
+import { downloadFile } from '../lib/downloader.js';
 import { getModFiles } from '../lib/fileHelper.js';
+import { getHash } from '../lib/hash.js';
+import { Mod, ModInstall, ModsJson, Platform, RemoteModDetails } from '../lib/modlist.types.js';
 import { scanFiles } from '../lib/scan.js';
+import { updateMod } from '../lib/updater.js';
+import { DefaultOptions, telemetry } from '../mmm.js';
+import { fetchModDetails } from '../repositories/index.js';
 import { processScanResults } from './scan.js';
 
 const getMod = async (moddata: RemoteModDetails, modsFolder: string) => {
@@ -31,7 +31,12 @@ const getMod = async (moddata: RemoteModDetails, modsFolder: string) => {
   };
 };
 
-const handleUnknownFiles = async (options: DefaultOptions, configuration: ModsJson, installations: ModInstall[], logger: Logger) => {
+const handleUnknownFiles = async (
+  options: DefaultOptions,
+  configuration: ModsJson,
+  installations: ModInstall[],
+  logger: Logger
+) => {
   //const modsFolder = getModsDir(options.config, configuration.modsFolder);
   const allFiles = await getModFiles(options.config, configuration);
   const nonManagedFiles = allFiles.filter((filePath) => {
@@ -67,9 +72,12 @@ export const install = async (options: DefaultOptions, logger: Logger) => {
       if (hasInstallation(mod, installations)) {
         const installedModIndex = getInstallation(mod, installedMods);
 
-        const modPath = path.resolve(getModsFolder(options.config, configuration), installedMods[installedModIndex].fileName);
+        const modPath = path.resolve(
+          getModsFolder(options.config, configuration),
+          installedMods[installedModIndex].fileName
+        );
 
-        if (!await fileExists(modPath)) {
+        if (!(await fileExists(modPath))) {
           logger.log(`${mod.name} doesn't exist, downloading from ${installedMods[installedModIndex].type}`);
           await downloadFile(installedMods[installedModIndex].downloadUrl, modPath);
           return;
@@ -113,7 +121,6 @@ export const install = async (options: DefaultOptions, logger: Logger) => {
     } catch (error) {
       handleFetchErrors(error as Error, mod, logger);
     }
-
   };
 
   const promises = mods.map(processMod);

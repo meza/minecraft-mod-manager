@@ -1,7 +1,5 @@
 {
   "pkg": {
-    "assets": [
-      "./node_modules/@meza/curseforge-fingerprint/**"
-    ]
+    "assets": ["./node_modules/@meza/curseforge-fingerprint/**"]
   }
 }

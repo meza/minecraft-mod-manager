@@ -1,8 +1,8 @@
-import { DefaultOptions } from '../mmm.js';
-import { fileExists } from '../lib/config.js';
 import * as path from 'path';
-import { ConfigFileAlreadyExistsException } from '../errors/ConfigFileAlreadyExistsException.js';
 import inquirer from 'inquirer';
+import { ConfigFileAlreadyExistsException } from '../errors/ConfigFileAlreadyExistsException.js';
+import { fileExists } from '../lib/config.js';
+import { DefaultOptions } from '../mmm.js';
 
 const addNewToFilename = (filename: string) => {
   const ext = path.extname(filename);

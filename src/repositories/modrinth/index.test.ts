@@ -1,10 +1,10 @@
-import { beforeEach, describe, it, vi, expect } from 'vitest';
-import { Modrinth } from './index.js';
-import { Loader, ReleaseType } from '../../lib/modlist.types.js';
 import { chance } from 'jest-chance';
-import { getMod } from './fetch.js';
-import { generateRemoteModDetails } from '../../../test/generateRemoteDetails.js';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { generatePlatformLookupResult } from '../../../test/generatePlatformLookupResult.js';
+import { generateRemoteModDetails } from '../../../test/generateRemoteDetails.js';
+import { Loader, ReleaseType } from '../../lib/modlist.types.js';
+import { getMod } from './fetch.js';
+import { Modrinth } from './index.js';
 import { lookup as cfLookup } from './lookup.js';
 
 vi.mock('./fetch.js');
@@ -73,6 +73,5 @@ describe('The Modrinth Repository class', () => {
 
     expect(vi.mocked(cfLookup)).toHaveBeenCalledWith(lookupInput);
     expect(actual).toBe(result);
-
   });
 });

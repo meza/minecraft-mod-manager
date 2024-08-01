@@ -1,18 +1,18 @@
-import { beforeEach, describe, expect, it, vi } from 'vitest';
-import { expectCommandStartTelemetry } from '../../test/telemetryHelper.js';
-import { Logger } from '../lib/Logger.js';
-import { scan, ScanOptions } from './scan.js';
+import path from 'path';
 import { chance } from 'jest-chance';
-import { ModInstall, ModsJson, Platform } from '../lib/modlist.types.js';
-import { scan as scanLib } from '../lib/scan.js';
-import { ensureConfiguration, getModsFolder, readLockFile, writeConfigFile, writeLockFile } from '../lib/config.js';
-import { generateModsJson } from '../../test/modlistGenerator.js';
-import { generateScanResult, ScanResultGeneratorOverrides } from '../../test/generateScanResult.js';
-import { shouldAddScanResults } from '../interactions/shouldAddScanResults.js';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { ScanResultGeneratorOverrides, generateScanResult } from '../../test/generateScanResult.js';
 import { generateModConfig } from '../../test/modConfigGenerator.js';
 import { generateModInstall } from '../../test/modInstallGenerator.js';
+import { generateModsJson } from '../../test/modlistGenerator.js';
+import { expectCommandStartTelemetry } from '../../test/telemetryHelper.js';
+import { shouldAddScanResults } from '../interactions/shouldAddScanResults.js';
+import { Logger } from '../lib/Logger.js';
+import { ensureConfiguration, getModsFolder, readLockFile, writeConfigFile, writeLockFile } from '../lib/config.js';
 import { getModFiles } from '../lib/fileHelper.js';
-import path from 'path';
+import { ModInstall, ModsJson, Platform } from '../lib/modlist.types.js';
+import { scan as scanLib } from '../lib/scan.js';
+import { ScanOptions, scan } from './scan.js';
 
 interface LocalTestContext {
   logger: Logger;
@@ -66,7 +66,6 @@ describe('The Scan action', () => {
       await expect(scan(options, logger)).rejects.toThrow('process.exit');
 
       expect(logger.error).toHaveBeenCalledWith(error, 2);
-
     });
   });
 
@@ -96,7 +95,6 @@ describe('The Scan action', () => {
     expect(logMessage[0]).toContain(name);
     expect(logMessage[0]).toContain('Found unmanaged mod: ');
     expect(logMessage[1]).toBeTruthy(); //we log even when in quiet mode
-
   });
 
   it<LocalTestContext>('properly logs all found mods', async ({ options, logger }) => {
@@ -114,11 +112,10 @@ describe('The Scan action', () => {
     const logCalls = vi.mocked(logger.log).mock.calls;
 
     logCalls.forEach((call) => {
-      expect(call[0]).toContain(('Found unmanaged mod: '));
+      expect(call[0]).toContain('Found unmanaged mod: ');
     });
 
     expect(vi.mocked(logger.log)).toHaveBeenCalledTimes(amountToGenerate);
-
   });
 
   it<LocalTestContext>('should add the new results', async (context) => {
@@ -201,7 +198,6 @@ describe('The Scan action', () => {
       releasedOn: randomResult3.localDetails[0].mod.releaseDate,
       type: details3.platform
     });
-
   });
 
   describe('when there are unrecognizable files in the mods folder', () => {
@@ -211,11 +207,7 @@ describe('The Scan action', () => {
     it<LocalTestContext>('logs things correctly no scan results but foreign files', async ({ options, logger }) => {
       const randomModName = chance.word();
       vi.mocked(scanLib).mockResolvedValueOnce([]);
-      vi.mocked(getModFiles).mockResolvedValueOnce([
-        'first-bad-mod-x',
-        'second-bad-mod-y',
-        randomModName
-      ]);
+      vi.mocked(getModFiles).mockResolvedValueOnce(['first-bad-mod-x', 'second-bad-mod-y', randomModName]);
 
       await scan(options, logger);
       const logCalls = vi.mocked(logger.log).mock.calls;
@@ -229,20 +221,13 @@ describe('The Scan action', () => {
       expect(logCalls[2][0]).toMatchInlineSnapshot('"  ❌ first-bad-mod-x"');
       expect(logCalls[3][0]).toMatchInlineSnapshot('"  ❌ second-bad-mod-y"');
       expect(logCalls[4][0]).toContain(randomModName);
-
     });
 
     it<LocalTestContext>('logs things correctly with scan results and foreign files', async ({ options, logger }) => {
       const randomModName = chance.word();
-      vi.mocked(scanLib).mockResolvedValueOnce([generateScanResult(
-        { name: 'hi there' }
-      ).generated]);
+      vi.mocked(scanLib).mockResolvedValueOnce([generateScanResult({ name: 'hi there' }).generated]);
       vi.mocked(shouldAddScanResults).mockResolvedValueOnce(false);
-      vi.mocked(getModFiles).mockResolvedValueOnce([
-        'first-bad-mod',
-        'second-bad-mod',
-        randomModName
-      ]);
+      vi.mocked(getModFiles).mockResolvedValueOnce(['first-bad-mod', 'second-bad-mod', randomModName]);
 
       await scan(options, logger);
       const logCalls = vi.mocked(logger.log).mock.calls;
@@ -256,7 +241,6 @@ describe('The Scan action', () => {
       expect(logCalls[2][0]).toMatchInlineSnapshot('"  ❌ first-bad-mod"');
       expect(logCalls[3][0]).toMatchInlineSnapshot('"  ❌ second-bad-mod"');
       expect(logCalls[4][0]).toContain(randomModName);
-
     });
   });
 
@@ -267,11 +251,7 @@ describe('The Scan action', () => {
       vi.mocked(readLockFile).mockReset();
     });
 
-    it<LocalTestContext>('finds the files that it is unsure of', async ({
-      options,
-      logger,
-      randomConfiguration
-    }) => {
+    it<LocalTestContext>('finds the files that it is unsure of', async ({ options, logger, randomConfiguration }) => {
       const modsDir = '/mods';
 
       const mod1name = 'mod1-name';
@@ -321,16 +301,16 @@ describe('The Scan action', () => {
       await scan(options, logger);
       const logCalls = vi.mocked(logger.log).mock.calls;
 
-      expect(logCalls[0][0]).toMatchInlineSnapshot('"❌ mod1-name has a different version locally than what is in the lockfile"');
-      expect(logCalls[1][0]).toMatchInlineSnapshot('"❌ mod3-name has a different version locally than what is in the lockfile"');
+      expect(logCalls[0][0]).toMatchInlineSnapshot(
+        '"❌ mod1-name has a different version locally than what is in the lockfile"'
+      );
+      expect(logCalls[1][0]).toMatchInlineSnapshot(
+        '"❌ mod3-name has a different version locally than what is in the lockfile"'
+      );
       expect(logCalls[2][0]).toMatchInlineSnapshot('"❌ mod4-name has a local file that isn\'t in the lockfile."');
     });
 
-    it<LocalTestContext>('corrects the unsure ones', async ({
-      options,
-      logger,
-      randomConfiguration
-    }) => {
+    it<LocalTestContext>('corrects the unsure ones', async ({ options, logger, randomConfiguration }) => {
       const modsDir = '/mods';
 
       const mod1name = 'mod1-name';
@@ -389,7 +369,6 @@ describe('The Scan action', () => {
       };
 
       expect(writtenInstallation).toContainEqual(expectedInstall);
-
     });
   });
 

@@ -1,10 +1,10 @@
-import { beforeEach, describe, vi, it, expect } from 'vitest';
-import * as fs from 'fs/promises';
-import { generateModsJson } from '../../test/modlistGenerator.js';
-import { notIgnored } from './ignore.js';
-import { chance } from 'jest-chance';
 import path from 'path';
+import * as fs from 'fs/promises';
+import { chance } from 'jest-chance';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { generateModsJson } from '../../test/modlistGenerator.js';
 import { getModFiles } from './fileHelper.js';
+import { notIgnored } from './ignore.js';
 import { ModsJson } from './modlist.types.js';
 
 vi.mock('./ignore.js');
@@ -30,13 +30,15 @@ describe('The file helper module', () => {
     await getModFiles(configLocation, configuration);
 
     expect(fs.readdir).toHaveBeenCalledWith(path.resolve(rootDir, 'mods'));
-
   });
 
   it<LocalTestContext>('applies the ignore filter', async ({ configLocation, rootDir, configuration }) => {
-    const foundFiles = chance.n(() => {
-      return path.resolve(rootDir, 'mods', chance.word());
-    }, chance.integer({ min: 2, max: 20 }));
+    const foundFiles = chance.n(
+      () => {
+        return path.resolve(rootDir, 'mods', chance.word());
+      },
+      chance.integer({ min: 2, max: 20 })
+    );
     const notIgnoredFiles = chance.n(chance.word, chance.integer({ min: 2, max: 20 }));
     vi.mocked(fs.readdir).mockResolvedValueOnce(foundFiles);
     vi.mocked(notIgnored).mockResolvedValueOnce(notIgnoredFiles);

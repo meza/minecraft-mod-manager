@@ -1,15 +1,15 @@
+import path from 'path';
 import chalk from 'chalk';
 import inquirer from 'inquirer';
-import path from 'path';
 import { CouldNotFindModException } from '../errors/CouldNotFindModException.js';
 import { DownloadFailedException } from '../errors/DownloadFailedException.js';
 import { NoRemoteFileFound } from '../errors/NoRemoteFileFound.js';
 import { UnknownPlatformException } from '../errors/UnknownPlatformException.js';
 import { modNotFound } from '../interactions/modNotFound.js';
 import { noRemoteFileFound } from '../interactions/noRemoteFileFound.js';
+import { Logger } from '../lib/Logger.js';
 import { ensureConfiguration, getModsFolder, readLockFile, writeConfigFile, writeLockFile } from '../lib/config.js';
 import { downloadFile } from '../lib/downloader.js';
-import { Logger } from '../lib/Logger.js';
 import { Mod, Platform } from '../lib/modlist.types.js';
 import { DefaultOptions, telemetry } from '../mmm.js';
 import { fetchModDetails } from '../repositories/index.js';
@@ -19,12 +19,19 @@ export interface AddOptions extends DefaultOptions {
   version?: string | undefined;
 }
 
-const handleUnknownPlatformException = async (error: UnknownPlatformException, id: string, options: AddOptions, logger: Logger) => {
+const handleUnknownPlatformException = async (
+  error: UnknownPlatformException,
+  id: string,
+  options: AddOptions,
+  logger: Logger
+) => {
   const platformUsed = error.platform;
   const platformList = Object.values(Platform);
 
   if (options.quiet === true) {
-    logger.error(`Unknown platform "${chalk.whiteBright(platformUsed)}". Please use one of the following: ${chalk.whiteBright(platformList.join(', '))}`);
+    logger.error(
+      `Unknown platform "${chalk.whiteBright(platformUsed)}". Please use one of the following: ${chalk.whiteBright(platformList.join(', '))}`
+    );
   }
 
   const answers = await inquirer.prompt([
@@ -33,8 +40,9 @@ const handleUnknownPlatformException = async (error: UnknownPlatformException, i
       name: 'platform',
       default: false,
       choices: [...platformList, 'cancel'],
-      message: chalk.redBright(`The platform you entered (${chalk.whiteBright(platformUsed)}) is not a valid platform.\n`)
-        + chalk.whiteBright('Would you like to retry with a valid one?')
+      message:
+        chalk.redBright(`The platform you entered (${chalk.whiteBright(platformUsed)}) is not a valid platform.\n`) +
+        chalk.whiteBright('Would you like to retry with a valid one?')
     }
   ]);
 
@@ -44,13 +52,12 @@ const handleUnknownPlatformException = async (error: UnknownPlatformException, i
 
   // eslint-disable-next-line no-use-before-define
   await add(answers.platform, id, options, logger);
-
 };
 
 export const add = async (platform: Platform, id: string, options: AddOptions, logger: Logger) => {
   performance.mark('add-start');
   const configuration = await ensureConfiguration(options.config, logger, options.quiet);
-  const modConfig = configuration.mods.find((mod: Mod) => (mod.id === id && mod.type === platform));
+  const modConfig = configuration.mods.find((mod: Mod) => mod.id === id && mod.type === platform);
 
   if (modConfig) {
     logger.debug(`Mod ${id} for ${platform} already exists in the configuration`);
@@ -81,7 +88,10 @@ export const add = async (platform: Platform, id: string, options: AddOptions, l
       options.version
     );
 
-    await downloadFile(modData.downloadUrl, path.resolve(getModsFolder(options.config, configuration), modData.fileName));
+    await downloadFile(
+      modData.downloadUrl,
+      path.resolve(getModsFolder(options.config, configuration), modData.fileName)
+    );
 
     const installations = await readLockFile(options, logger);
 
@@ -117,7 +127,6 @@ export const add = async (platform: Platform, id: string, options: AddOptions, l
       },
       duration: performance.measure('add-duration', 'add-start', 'add-succeed').duration
     });
-
   } catch (error) {
     performance.mark('add-failed');
     await telemetry.captureCommand({
@@ -147,15 +156,17 @@ export const add = async (platform: Platform, id: string, options: AddOptions, l
     }
 
     if (error instanceof NoRemoteFileFound) {
-      const {
-        id: newId,
-        platform: newPlatform
-      } = await noRemoteFileFound(id, platform, configuration, logger, options);
+      const { id: newId, platform: newPlatform } = await noRemoteFileFound(
+        id,
+        platform,
+        configuration,
+        logger,
+        options
+      );
       await add(newPlatform, newId, options, logger);
       return;
     }
 
     logger.error((error as Error).message, 2);
   }
-
 };

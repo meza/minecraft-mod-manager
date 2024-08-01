@@ -1,13 +1,13 @@
-import { describe, it, vi, beforeEach, expect } from 'vitest';
-import { rateLimitingFetch } from '../../lib/rateLimiter/index.js';
 import { chance } from 'jest-chance';
-import { lookup } from './lookup.js';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { generateModrinthFile } from '../../../test/generateModrinthFile.js';
+import { generateModrinthVersion } from '../../../test/generateModrinthVersion.js';
 import { Logger } from '../../lib/Logger.js';
 import { Platform } from '../../lib/modlist.types.js';
-import { generateModrinthVersion } from '../../../test/generateModrinthVersion.js';
-import { Modrinth } from './index.js';
-import { generateModrinthFile } from '../../../test/generateModrinthFile.js';
+import { rateLimitingFetch } from '../../lib/rateLimiter/index.js';
 import { Hash } from './fetch.js';
+import { Modrinth } from './index.js';
+import { lookup } from './lookup.js';
 
 vi.mock('../../lib/rateLimiter/index.js');
 vi.mock('../../lib/Logger.js');
@@ -30,12 +30,23 @@ describe('The Curseforge Lookup module', () => {
 
     const actual = await lookup(['fingerprint1', 'fingerprint2', 'fingerprint3']);
 
-    expect(rateLimitingFetch).toHaveBeenNthCalledWith(1, 'https://api.modrinth.com/v2/version_file/fingerprint1?algorithm=sha1', { headers: Modrinth.API_HEADERS });
-    expect(rateLimitingFetch).toHaveBeenNthCalledWith(2, 'https://api.modrinth.com/v2/version_file/fingerprint2?algorithm=sha1', { headers: Modrinth.API_HEADERS });
-    expect(rateLimitingFetch).toHaveBeenNthCalledWith(3, 'https://api.modrinth.com/v2/version_file/fingerprint3?algorithm=sha1', { headers: Modrinth.API_HEADERS });
+    expect(rateLimitingFetch).toHaveBeenNthCalledWith(
+      1,
+      'https://api.modrinth.com/v2/version_file/fingerprint1?algorithm=sha1',
+      { headers: Modrinth.API_HEADERS }
+    );
+    expect(rateLimitingFetch).toHaveBeenNthCalledWith(
+      2,
+      'https://api.modrinth.com/v2/version_file/fingerprint2?algorithm=sha1',
+      { headers: Modrinth.API_HEADERS }
+    );
+    expect(rateLimitingFetch).toHaveBeenNthCalledWith(
+      3,
+      'https://api.modrinth.com/v2/version_file/fingerprint3?algorithm=sha1',
+      { headers: Modrinth.API_HEADERS }
+    );
 
     expect(actual).toEqual([]);
-
   });
 
   it<LocalTestContext>('transforms the response correctly', async () => {
@@ -50,7 +61,7 @@ describe('The Curseforge Lookup module', () => {
 
     vi.mocked(rateLimitingFetch).mockResolvedValueOnce({
       ok: true,
-      json: async () => (modVersion)
+      json: async () => modVersion
     } as unknown as Response);
     const actual = await lookup([randomHash]);
 

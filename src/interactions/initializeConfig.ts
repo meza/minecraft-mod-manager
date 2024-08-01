@@ -1,20 +1,20 @@
-import { DefaultOptions } from '../mmm.js';
-import { Loader, ModsJson, ReleaseType } from '../lib/modlist.types.js';
-import inquirer from 'inquirer';
-import { fileExists, writeConfigFile } from '../lib/config.js';
 import path from 'node:path';
-import { verifyMinecraftVersion } from '../lib/minecraftVersionVerifier.js';
+import inquirer from 'inquirer';
 import { IncorrectMinecraftVersionException } from '../errors/IncorrectMinecraftVersionException.js';
+import { Logger } from '../lib/Logger.js';
+import { fileExists, writeConfigFile } from '../lib/config.js';
+import { verifyMinecraftVersion } from '../lib/minecraftVersionVerifier.js';
+import { Loader, ModsJson, ReleaseType } from '../lib/modlist.types.js';
+import { DefaultOptions } from '../mmm.js';
 import { configFile } from './configFileOverwrite.js';
 import { getLatestMinecraftVersion } from './getLatestMinecraftVersion.js';
-import { Logger } from '../lib/Logger.js';
 
 export interface InitializeOptions extends DefaultOptions {
-  loader?: Loader,
-  gameVersion?: string,
-  allowVersionFallback?: boolean,
-  defaultAllowedReleaseTypes?: string,
-  modsFolder?: string
+  loader?: Loader;
+  gameVersion?: string;
+  allowVersionFallback?: boolean;
+  defaultAllowedReleaseTypes?: string;
+  modsFolder?: string;
 }
 
 interface IQInternal extends ModsJson {
@@ -32,7 +32,8 @@ const mergeOptions = (options: InitializeOptions, iq: IQInternal) => {
   return {
     loader: iq.loader || options.loader,
     gameVersion: iq.gameVersion || options.gameVersion,
-    defaultAllowedReleaseTypes: iq.defaultAllowedReleaseTypes || options.defaultAllowedReleaseTypes?.replace(/\s/g, '').split(','),
+    defaultAllowedReleaseTypes:
+      iq.defaultAllowedReleaseTypes || options.defaultAllowedReleaseTypes?.replace(/\s/g, '').split(','),
     modsFolder: iq.modsFolder || options.modsFolder,
     mods: []
   };
@@ -45,7 +46,7 @@ const validateModsFolder = async (input: string, cwd: string) => {
     dir = input;
   }
 
-  if (!await fileExists(dir)) {
+  if (!(await fileExists(dir))) {
     return `The folder: ${dir} does not exist. Please enter a valid one and try again.`;
   }
   return true;
@@ -59,7 +60,7 @@ const validateInput = async (options: InitializeOptions, cwd: string) => {
    * to properly communicate the errors and offer solutions.
    */
   if (options.gameVersion) {
-    if (!await verifyMinecraftVersion(options.gameVersion)) {
+    if (!(await verifyMinecraftVersion(options.gameVersion))) {
       throw new IncorrectMinecraftVersionException(options.gameVersion);
     }
   }
@@ -114,11 +115,10 @@ export const initializeConfig = async (options: InitializeOptions, cwd: string, 
       }
     }
   ];
-  const iq = await inquirer.prompt(prompts) as IQInternal;
+  const iq = (await inquirer.prompt(prompts)) as IQInternal;
   const answers = mergeOptions(options, iq) as ModsJson;
 
   await writeConfigFile(answers, options, logger);
 
   return answers as ModsJson;
 };
-

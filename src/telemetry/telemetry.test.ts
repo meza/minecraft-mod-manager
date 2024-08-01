@@ -1,8 +1,8 @@
-import { describe, it, beforeEach, expect, vi } from 'vitest';
+import { getHWID } from 'hwid';
+import { PostHog } from 'posthog-node';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { ModsJson } from '../lib/modlist.types.js';
 import { Telemetry } from './telemetry.js';
-import { PostHog } from 'posthog-node';
-import { getHWID } from 'hwid';
 
 vi.mock('posthog-node');
 vi.mock('../env.ts', () => ({ posthogApiKey: 'REPLACED_KEY' }));

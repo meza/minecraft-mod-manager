@@ -13,9 +13,9 @@ import { NoRemoteFileFound } from '../errors/NoRemoteFileFound.js';
 import { UnknownPlatformException } from '../errors/UnknownPlatformException.js';
 import { modNotFound } from '../interactions/modNotFound.js';
 import { noRemoteFileFound } from '../interactions/noRemoteFileFound.js';
+import { Logger } from '../lib/Logger.js';
 import { ensureConfiguration, getModsFolder, readLockFile, writeConfigFile, writeLockFile } from '../lib/config.js';
 import { downloadFile } from '../lib/downloader.js';
-import { Logger } from '../lib/Logger.js';
 import { ModInstall, ModsJson, Platform, RemoteModDetails } from '../lib/modlist.types.js';
 import { fetchModDetails } from '../repositories/index.js';
 import { add } from './add.js';
@@ -83,10 +83,7 @@ describe('The add module', async () => {
     vi.clearAllMocks();
   });
 
-  it<LocalTestContext>('should add a mod to the configuration', async (
-    { randomConfiguration, randomModDetails }
-  ) => {
-
+  it<LocalTestContext>('should add a mod to the configuration', async ({ randomConfiguration, randomModDetails }) => {
     const randomPlatform = chance.pickone(['fabric', 'forge']);
     const randomModId = chance.word();
 
@@ -105,15 +102,9 @@ describe('The add module', async () => {
       }
     });
 
-    expect(
-      vi.mocked(ensureConfiguration),
-      'did not read the configuration file'
-    ).toHaveBeenCalledTimes(1);
+    expect(vi.mocked(ensureConfiguration), 'did not read the configuration file').toHaveBeenCalledTimes(1);
 
-    expect(
-      vi.mocked(fetchModDetails),
-      'fetching the mod details during adding didn\'t happen'
-    ).toHaveBeenCalledTimes(1);
+    expect(vi.mocked(fetchModDetails), "fetching the mod details during adding didn't happen").toHaveBeenCalledTimes(1);
 
     const expectedConfiguration = {
       ...randomConfiguration.expected,
@@ -143,16 +134,15 @@ describe('The add module', async () => {
       'Writing the configuration file after adding a mod has failed'
     ).toHaveBeenCalledWith(expectedConfiguration, options, logger);
 
-    expect(
-      vi.mocked(writeLockFile),
-      'Writing the lock file after adding a mod has failed'
-    ).toHaveBeenCalledWith(expectedLockFile, options, logger);
+    expect(vi.mocked(writeLockFile), 'Writing the lock file after adding a mod has failed').toHaveBeenCalledWith(
+      expectedLockFile,
+      options,
+      logger
+    );
 
-    expect(
-      logger.log,
-      'The log message was not logged'
-    ).toHaveBeenCalledWith(`✅ Added ${randomModDetails.expected.name} (${randomModId}) for ${randomPlatform}`);
-
+    expect(logger.log, 'The log message was not logged').toHaveBeenCalledWith(
+      `✅ Added ${randomModDetails.expected.name} (${randomModId}) for ${randomPlatform}`
+    );
   });
 
   it<LocalTestContext>('should skip the download if the mod already exists', async (context) => {
@@ -173,10 +163,9 @@ describe('The add module', async () => {
       'Fetched the mod details even though the mod already exists'
     ).toHaveBeenCalledTimes(0);
 
-    expect(
-      vi.mocked(downloadFile),
-      'The download was called even though the mod already exists'
-    ).toHaveBeenCalledTimes(0);
+    expect(vi.mocked(downloadFile), 'The download was called even though the mod already exists').toHaveBeenCalledTimes(
+      0
+    );
 
     expectCommandStartTelemetry({
       command: 'add',
@@ -194,7 +183,6 @@ describe('The add module', async () => {
   });
 
   it<LocalTestContext>('should send the correct debug message', async (context) => {
-
     const randomPlatform = Platform.MODRINTH;
     const randomModId = 'another-mod-id';
 
@@ -207,13 +195,14 @@ describe('The add module', async () => {
 
     await add(randomPlatform, randomModId, { config: 'config.json', debug: chance.bool() }, logger);
 
-    expect(
-      logger.debug,
-      'The debug message was not logged'
-    ).toHaveBeenCalledWith('Mod another-mod-id for modrinth already exists in the configuration');
+    expect(logger.debug, 'The debug message was not logged').toHaveBeenCalledWith(
+      'Mod another-mod-id for modrinth already exists in the configuration'
+    );
   });
 
-  it<LocalTestContext>('should report when a file cannot be found for the version and exit', async ({ randomConfiguration }) => {
+  it<LocalTestContext>('should report when a file cannot be found for the version and exit', async ({
+    randomConfiguration
+  }) => {
     const randomPlatform = Platform.CURSEFORGE;
     const randomModId = chance.word();
     const randomAllowVersion = chance.bool();
@@ -231,14 +220,25 @@ describe('The add module', async () => {
       platform: Platform.MODRINTH
     });
 
-    await expect(add(randomPlatform, randomModId, { config: 'config.json', allowVersionFallback: randomAllowVersion, version: randomVersion }, logger)).rejects.toThrow(new Error('process.exit'));
+    await expect(
+      add(
+        randomPlatform,
+        randomModId,
+        { config: 'config.json', allowVersionFallback: randomAllowVersion, version: randomVersion },
+        logger
+      )
+    ).rejects.toThrow(new Error('process.exit'));
 
-    expect(fetchModDetails).toHaveBeenNthCalledWith(2, Platform.MODRINTH, 'another-mod-id',
+    expect(fetchModDetails).toHaveBeenNthCalledWith(
+      2,
+      Platform.MODRINTH,
+      'another-mod-id',
       randomConfiguration.expected.defaultAllowedReleaseTypes,
       randomConfiguration.expected.gameVersion,
       randomConfiguration.expected.loader,
       randomAllowVersion,
-      randomVersion);
+      randomVersion
+    );
     expect(noRemoteFileFound).toHaveBeenCalledWith(randomModId, randomPlatform, randomConfiguration.expected, logger, {
       config: 'config.json',
       allowVersionFallback: randomAllowVersion,
@@ -291,7 +291,6 @@ describe('The add module', async () => {
   });
 
   it('should report unexpected errors', async () => {
-
     const randomErrorMessage = chance.sentence();
     const randomPlatform = getRandomPlatform();
     const randomMod = chance.word();
@@ -300,10 +299,11 @@ describe('The add module', async () => {
     vi.mocked(fetchModDetails).mockReset();
     vi.mocked(fetchModDetails).mockRejectedValueOnce(error);
 
-    await expect(add(randomPlatform, randomMod, { config: 'config.json' }, logger)).rejects.toThrow(new Error('process.exit'));
+    await expect(add(randomPlatform, randomMod, { config: 'config.json' }, logger)).rejects.toThrow(
+      new Error('process.exit')
+    );
 
     expect(logger.error).toHaveBeenCalledWith(randomErrorMessage, 2);
-
   });
 
   describe('when an incorrect platform is chosen in interactive mode', async () => {
@@ -361,7 +361,6 @@ describe('The add module', async () => {
         expect(vi.mocked(fetchModDetails)).toHaveBeenCalledTimes(2);
         expect(vi.mocked(ensureConfiguration)).toHaveBeenCalledTimes(2);
         expect(vi.mocked(writeConfigFile)).toHaveBeenCalledTimes(1);
-
       });
     });
   });
@@ -371,12 +370,21 @@ describe('The add module', async () => {
       const wrongPlatformText = assumeWrongPlatform('very-wrong-platform');
       const randomModId = chance.word();
 
-      await expect(add(wrongPlatformText, randomModId, {
-        config: 'config.json',
-        quiet: true
-      }, logger)).rejects.toThrow(new Error('process.exit'));
+      await expect(
+        add(
+          wrongPlatformText,
+          randomModId,
+          {
+            config: 'config.json',
+            quiet: true
+          },
+          logger
+        )
+      ).rejects.toThrow(new Error('process.exit'));
 
-      expect(logger.error).toHaveBeenCalledWith('Unknown platform "very-wrong-platform". Please use one of the following: curseforge, modrinth');
+      expect(logger.error).toHaveBeenCalledWith(
+        'Unknown platform "very-wrong-platform". Please use one of the following: curseforge, modrinth'
+      );
 
       // These mean that the add hasn't been recursively called
       expect(vi.mocked(ensureConfiguration)).toHaveBeenCalledTimes(1);
@@ -385,9 +393,8 @@ describe('The add module', async () => {
     });
   });
 
-  describe('when the mod can\'t be found', async () => {
+  describe("when the mod can't be found", async () => {
     it('it should handle with the correct interaction', async () => {
-
       const secondRandomMod = generateRemoteModDetails();
 
       vi.mocked(modNotFound).mockResolvedValueOnce({
@@ -410,7 +417,6 @@ describe('The add module', async () => {
       expect(vi.mocked(downloadFile)).toHaveBeenCalledOnce();
       expect(vi.mocked(writeConfigFile)).toHaveBeenCalledOnce();
       expect(vi.mocked(writeLockFile)).toHaveBeenCalledOnce();
-
     });
   });
 
@@ -429,7 +435,6 @@ describe('The add module', async () => {
       expect(message).toContain(url);
       expect(message).toContain('Error downloading file: ');
       expect(message).toContain('please try again');
-
     });
   });
 });

@@ -1,8 +1,8 @@
-import { Logger } from '../lib/Logger.js';
-import { DefaultOptions } from '../mmm.js';
 import chalk from 'chalk';
-import { ModsJson, Platform } from '../lib/modlist.types.js';
 import inquirer from 'inquirer';
+import { Logger } from '../lib/Logger.js';
+import { ModsJson, Platform } from '../lib/modlist.types.js';
+import { DefaultOptions } from '../mmm.js';
 
 interface NoRemoteFileFoundInteractionResult {
   platform: Platform;
@@ -16,8 +16,9 @@ export const noRemoteFileFound = async (
   logger: Logger,
   options: DefaultOptions
 ): Promise<NoRemoteFileFoundInteractionResult> => {
-  const errorText = `Could not find a file for ${modName} and the Minecraft version ${chalk.whiteBright(configuration.gameVersion)} `
-    + `for ${chalk.whiteBright(configuration.loader)} loader`;
+  const errorText =
+    `Could not find a file for ${modName} and the Minecraft version ${chalk.whiteBright(configuration.gameVersion)} ` +
+    `for ${chalk.whiteBright(configuration.loader)} loader`;
 
   if (options.quiet === true) {
     logger.error(errorText);
@@ -50,5 +51,4 @@ export const noRemoteFileFound = async (
     id: newModName,
     platform: newPlatform
   };
-
 };

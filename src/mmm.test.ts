@@ -57,12 +57,7 @@ describe('The main CLI configuration', () => {
   it('has add hooked up to the correct function', async () => {
     const { program } = await import('./mmm.js');
     vi.mocked(add).mockResolvedValueOnce();
-    await program.parse([
-      '',
-      '',
-      chance.pickone(['add', 'a']),
-      chance.pickone(Object.values(Platform)),
-      chance.word()]);
+    await program.parse(['', '', chance.pickone(['add', 'a']), chance.pickone(Object.values(Platform)), chance.word()]);
     expect(vi.mocked(add)).toHaveBeenCalledOnce();
   });
 
@@ -70,11 +65,7 @@ describe('The main CLI configuration', () => {
     const { program } = await import('./mmm.js');
 
     vi.mocked(list).mockResolvedValueOnce();
-    await program.parse([
-      '',
-      '',
-      chance.pickone(['list', 'ls'])
-    ]);
+    await program.parse(['', '', chance.pickone(['list', 'ls'])]);
     expect(vi.mocked(list)).toHaveBeenCalledOnce();
   });
 
@@ -82,11 +73,7 @@ describe('The main CLI configuration', () => {
     const { program } = await import('./mmm.js');
 
     vi.mocked(install).mockResolvedValueOnce();
-    await program.parse([
-      '',
-      '',
-      chance.pickone(['install', 'i'])
-    ]);
+    await program.parse(['', '', chance.pickone(['install', 'i'])]);
     expect(vi.mocked(install)).toHaveBeenCalledOnce();
   });
 
@@ -94,11 +81,7 @@ describe('The main CLI configuration', () => {
     const { program } = await import('./mmm.js');
 
     vi.mocked(update).mockResolvedValueOnce();
-    await program.parse([
-      '',
-      '',
-      chance.pickone(['update', 'u'])
-    ]);
+    await program.parse(['', '', chance.pickone(['update', 'u'])]);
     expect(vi.mocked(update)).toHaveBeenCalledOnce();
   });
 
@@ -106,89 +89,54 @@ describe('The main CLI configuration', () => {
     const { program } = await import('./mmm.js');
 
     vi.mocked(initializeConfig).mockResolvedValueOnce(expect.anything());
-    await program.parse([
-      '',
-      '',
-      chance.pickone(['init'])
-    ]);
+    await program.parse(['', '', chance.pickone(['init'])]);
     expect(vi.mocked(initializeConfig)).toHaveBeenCalledOnce();
   });
 
   it('has the test hooked up to the correct function', async () => {
     const { program } = await import('./mmm.js');
     vi.mocked(testGameVersion).mockResolvedValueOnce(expect.anything());
-    await program.parse([
-      '',
-      '',
-      chance.pickone(['test', 't'])
-    ]);
+    await program.parse(['', '', chance.pickone(['test', 't'])]);
     expect(testGameVersion).toHaveBeenCalledOnce();
   });
 
   it('has the change hooked up to the correct function', async () => {
     const { program } = await import('./mmm.js');
     vi.mocked(changeGameVersion).mockResolvedValueOnce(expect.anything());
-    await program.parse([
-      '',
-      '',
-      chance.pickone(['change'])
-    ]);
+    await program.parse(['', '', chance.pickone(['change'])]);
     expect(changeGameVersion).toHaveBeenCalledOnce();
   });
 
   it('has the scan hooked up to the correct function', async () => {
     const { program } = await import('./mmm.js');
     vi.mocked(scan).mockResolvedValueOnce(expect.anything());
-    await program.parse([
-      '',
-      '',
-      chance.pickone(['scan'])
-    ]);
+    await program.parse(['', '', chance.pickone(['scan'])]);
     expect(scan).toHaveBeenCalledOnce();
   });
 
   it('has the prune hooked up to the correct function', async () => {
     const { program } = await import('./mmm.js');
     vi.mocked(prune).mockResolvedValueOnce(expect.anything());
-    await program.parse([
-      '',
-      '',
-      chance.pickone(['prune'])
-    ]);
+    await program.parse(['', '', chance.pickone(['prune'])]);
     expect(prune).toHaveBeenCalledOnce();
   });
 
   it('has the remove action hooked up to the correct function', async () => {
     const { program } = await import('./mmm.js');
     vi.mocked(removeAction).mockResolvedValueOnce(expect.anything());
-    await program.parse([
-      '',
-      '',
-      chance.pickone(['remove']),
-      []
-    ]);
+    await program.parse(['', '', chance.pickone(['remove']), []]);
     expect(removeAction).toHaveBeenCalledOnce();
   });
 
   it('sets the logger to quiet when the quiet option is supplied', async () => {
     const { program } = await import('./mmm.js');
-    await program.parse([
-      '',
-      '',
-      chance.pickone(['-q', '--quiet']),
-      chance.pickone(['init'])
-    ]);
+    await program.parse(['', '', chance.pickone(['-q', '--quiet']), chance.pickone(['init'])]);
     expect(logger.flagQuiet).toHaveBeenCalledOnce();
   });
 
   it('sets the logger to debug when the debug option is supplied', async () => {
     const { program } = await import('./mmm.js');
-    await program.parse([
-      '',
-      '',
-      chance.pickone(['-d', '--debug']),
-      chance.pickone(['init'])
-    ]);
+    await program.parse(['', '', chance.pickone(['-d', '--debug']), chance.pickone(['init'])]);
     expect(logger.flagDebug).toHaveBeenCalledOnce();
   });
 

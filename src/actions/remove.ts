@@ -1,10 +1,10 @@
-import { DefaultOptions, telemetry } from '../mmm.js';
+import path from 'path';
+import chalk from 'chalk';
+import fs from 'fs/promises';
 import { Logger } from '../lib/Logger.js';
 import { ensureConfiguration, getModsFolder, readLockFile, writeConfigFile, writeLockFile } from '../lib/config.js';
 import { findLocalMods, getInstallation, hasInstallation } from '../lib/configurationHelper.js';
-import fs from 'fs/promises';
-import path from 'path';
-import chalk from 'chalk';
+import { DefaultOptions, telemetry } from '../mmm.js';
 
 export interface RemoveOptions extends DefaultOptions {
   dryRun: boolean;
@@ -48,7 +48,7 @@ export const removeAction = async (mods: string[], options: RemoveOptions, logge
     }
 
     const modIndex = configuration.mods.findIndex((mod) => {
-      return (mod.id === modToBeDeleted.id) && (mod.type === modToBeDeleted.type);
+      return mod.id === modToBeDeleted.id && mod.type === modToBeDeleted.type;
     });
 
     configuration.mods.splice(modIndex, 1);

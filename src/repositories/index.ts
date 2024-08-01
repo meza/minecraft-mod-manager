@@ -1,5 +1,5 @@
-import { Loader, Platform, ReleaseType, RemoteModDetails } from '../lib/modlist.types.js';
 import { UnknownPlatformException } from '../errors/UnknownPlatformException.js';
+import { Loader, Platform, ReleaseType, RemoteModDetails } from '../lib/modlist.types.js';
 import { Curseforge } from './curseforge/index.js';
 import { Modrinth } from './modrinth/index.js';
 
@@ -29,7 +29,14 @@ export interface LookupInput {
 }
 
 export interface Repository {
-  fetchMod: (projectId: string, allowedReleaseTypes: ReleaseType[], allowedGameVersion: string, loader: Loader, allowFallback: boolean, version?: string) => Promise<RemoteModDetails>;
+  fetchMod: (
+    projectId: string,
+    allowedReleaseTypes: ReleaseType[],
+    allowedGameVersion: string,
+    loader: Loader,
+    allowFallback: boolean,
+    version?: string
+  ) => Promise<RemoteModDetails>;
   lookup: (lookup: string[]) => Promise<PlatformLookupResult[]>;
 }
 
@@ -71,10 +78,8 @@ export const fetchModDetails = async (
   allowFallback: boolean,
   fixedModVersion?: string
 ) => {
-
   const repository = getRepository(platform);
   return await repository.fetchMod(id, allowedReleaseTypes, gameVersion, loader, allowFallback, fixedModVersion);
-
 };
 
 export const lookup = async (lookup: LookupInput[]): Promise<ResultItem[]> => {
@@ -85,8 +90,7 @@ export const lookup = async (lookup: LookupInput[]): Promise<ResultItem[]> => {
   const lookups: Promise<PlatformLookupResult[]>[] = [];
 
   Object.values(Platform).map((platform) => {
-
-    const specificInput = lookup.find(l => l.platform === platform);
+    const specificInput = lookup.find((l) => l.platform === platform);
 
     if (!specificInput) {
       return;
@@ -119,7 +123,6 @@ export const lookup = async (lookup: LookupInput[]): Promise<ResultItem[]> => {
         consolidatedResult[targetIndex].hits.push(match);
       }
     });
-
   });
 
   return consolidatedResult;

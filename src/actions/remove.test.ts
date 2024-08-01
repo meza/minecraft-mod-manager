@@ -1,16 +1,16 @@
 import path from 'node:path';
+import fs from 'fs/promises';
+import { chance } from 'jest-chance';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import { expectCommandStartTelemetry } from '../../test/telemetryHelper.js';
-import { Mod, ModInstall, ModsJson } from '../lib/modlist.types.js';
+import { generateModConfig } from '../../test/modConfigGenerator.js';
+import { generateModInstall } from '../../test/modInstallGenerator.js';
 import { generateModsJson } from '../../test/modlistGenerator.js';
-import { removeAction, RemoveOptions } from './remove.js';
+import { expectCommandStartTelemetry } from '../../test/telemetryHelper.js';
 import { Logger } from '../lib/Logger.js';
 import { ensureConfiguration, getModsFolder, readLockFile, writeConfigFile, writeLockFile } from '../lib/config.js';
-import { generateModConfig } from '../../test/modConfigGenerator.js';
 import { findLocalMods, getInstallation, hasInstallation } from '../lib/configurationHelper.js';
-import { chance } from 'jest-chance';
-import { generateModInstall } from '../../test/modInstallGenerator.js';
-import fs from 'fs/promises';
+import { Mod, ModInstall, ModsJson } from '../lib/modlist.types.js';
+import { RemoveOptions, removeAction } from './remove.js';
 
 interface LocalTestContext {
   configuration: ModsJson;
@@ -26,7 +26,6 @@ vi.mock('../lib/configurationHelper.js');
 vi.mock('fs/promises');
 
 describe('The remove action', () => {
-
   beforeEach<LocalTestContext>((context) => {
     vi.resetAllMocks();
 
@@ -42,7 +41,6 @@ describe('The remove action', () => {
 
     vi.mocked(ensureConfiguration).mockResolvedValueOnce(context.configuration);
     vi.mocked(readLockFile).mockResolvedValueOnce(context.installations);
-
   });
 
   it<LocalTestContext>('passes the correct inputs to the locator', async ({ options, logger, configuration }) => {
@@ -53,7 +51,6 @@ describe('The remove action', () => {
 
     expect(findLocalMods).toHaveBeenCalledOnce();
     expect(findLocalMods).toHaveBeenCalledWith(input, configuration);
-
   });
 
   describe('when in dry-run mode', () => {
@@ -119,10 +116,7 @@ describe('The remove action', () => {
   });
 
   describe('when there are local files for the mods', () => {
-    it<LocalTestContext>('removes everything', async ({
-      options,
-      logger
-    }) => {
+    it<LocalTestContext>('removes everything', async ({ options, logger }) => {
       vi.mocked(ensureConfiguration).mockReset();
       vi.mocked(readLockFile).mockReset();
       vi.mocked(getInstallation).mockRestore();
@@ -155,11 +149,7 @@ describe('The remove action', () => {
 
       vi.mocked(getModsFolder).mockReturnValue('/mods');
       vi.mocked(ensureConfiguration).mockResolvedValueOnce(config);
-      vi.mocked(readLockFile).mockResolvedValueOnce([
-        mod1Install,
-        mod2Install,
-        mod3Install
-      ]);
+      vi.mocked(readLockFile).mockResolvedValueOnce([mod1Install, mod2Install, mod3Install]);
 
       vi.mocked(hasInstallation).mockReturnValue(true);
       vi.mocked(getInstallation).mockReturnValue(0);
@@ -194,7 +184,5 @@ describe('The remove action', () => {
         options: options
       }
     });
-
   });
-
 });

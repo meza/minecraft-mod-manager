@@ -1,5 +1,5 @@
-import { afterEach, describe, expect, it, vi } from 'vitest';
 import * as process from 'process';
+import { afterEach, describe, expect, it, vi } from 'vitest';
 
 describe('The environment variables', () => {
   afterEach(() => {

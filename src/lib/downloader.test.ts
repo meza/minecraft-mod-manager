@@ -1,9 +1,9 @@
-import { afterEach, describe, expect, it, vi } from 'vitest';
-import { chance } from 'jest-chance';
 import path from 'node:path';
+import { chance } from 'jest-chance';
 import { default as Downloader } from 'nodejs-file-downloader';
-import { downloadFile } from './downloader.js';
+import { afterEach, describe, expect, it, vi } from 'vitest';
 import { DownloadFailedException } from '../errors/DownloadFailedException.js';
+import { downloadFile } from './downloader.js';
 
 vi.mock('nodejs-file-downloader');
 
@@ -34,7 +34,6 @@ describe('The downloader facade', () => {
       cloneFiles: false,
       maxAttempts: 3
     });
-
   });
 
   it('should throw an error if the download fails', async () => {
@@ -50,6 +49,5 @@ describe('The downloader facade', () => {
     await expect(async () => {
       await downloadFile(url, destination);
     }).rejects.toThrow(new DownloadFailedException(url));
-
   });
 });

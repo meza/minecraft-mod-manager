@@ -1,21 +1,22 @@
-import { DefaultOptions, telemetry } from '../mmm.js';
+import path from 'path';
+import { Logger } from '../lib/Logger.js';
 import {
   ensureConfiguration,
-  fileExists, getModsFolder,
+  fileExists,
+  getModsFolder,
   readLockFile,
   writeConfigFile,
   writeLockFile
 } from '../lib/config.js';
-import { Mod } from '../lib/modlist.types.js';
-import path from 'path';
 import { getHash } from '../lib/hash.js';
+import { Mod } from '../lib/modlist.types.js';
 import { updateMod } from '../lib/updater.js';
+import { DefaultOptions, telemetry } from '../mmm.js';
 import { fetchModDetails } from '../repositories/index.js';
 import { install } from './install.js';
-import { Logger } from '../lib/Logger.js';
 
-import { getInstallation, hasInstallation } from '../lib/configurationHelper.js';
 import { handleFetchErrors } from '../errors/handleFetchErrors.js';
+import { getInstallation, hasInstallation } from '../lib/configurationHelper.js';
 
 export const update = async (options: DefaultOptions, logger: Logger) => {
   performance.mark('update-start');
@@ -45,14 +46,20 @@ export const update = async (options: DefaultOptions, logger: Logger) => {
       mods[index].name = modData.name;
 
       if (!hasInstallation(mod, installations)) {
-        logger.error(`${mod.name} doesn't seem to be installed. Please delete the lock file and the mods folder and try again.`, 1);
+        logger.error(
+          `${mod.name} doesn't seem to be installed. Please delete the lock file and the mods folder and try again.`,
+          1
+        );
       }
 
       const installedModIndex = getInstallation(mod, installedMods);
       const oldModPath = path.resolve(modsFolder, installedMods[installedModIndex].fileName);
 
-      if (!await fileExists(oldModPath)) {
-        logger.error(`${mod.name} (${oldModPath}) doesn't exist. Please delete the lock file and the mods folder and try again.`, 1);
+      if (!(await fileExists(oldModPath))) {
+        logger.error(
+          `${mod.name} (${oldModPath}) doesn't exist. Please delete the lock file and the mods folder and try again.`,
+          1
+        );
       }
 
       const installedHash = await getHash(oldModPath);

@@ -4,8 +4,8 @@ import { modNotFound } from './modNotFound.js';
 
 import inquirer from 'inquirer';
 import { chance } from 'jest-chance';
-import { Logger } from '../lib/Logger.js';
 import { generateRandomPlatform } from '../../test/generateRandomPlatform.js';
+import { Logger } from '../lib/Logger.js';
 
 vi.mock('../mmm.js');
 vi.mock('inquirer');
@@ -28,16 +28,17 @@ describe('The mod not found interaction', () => {
     const testPlatform = Platform.CURSEFORGE;
     const testModId = 'test-mod-id';
 
-    await expect(modNotFound(testModId, testPlatform, logger, {
-      config: 'config.json',
-      quiet: true
-    })).rejects.toThrow(new Error('process.exit'));
+    await expect(
+      modNotFound(testModId, testPlatform, logger, {
+        config: 'config.json',
+        quiet: true
+      })
+    ).rejects.toThrow(new Error('process.exit'));
 
     const loggerErrorCall = vi.mocked(logger.error).mock.calls[0][0];
 
     expect(loggerErrorCall).toMatchInlineSnapshot('"Mod "test-mod-id" for curseforge does not exist"');
     expect(vi.mocked(inquirer.prompt)).not.toHaveBeenCalled();
-
   });
 
   it('aborts when the user does not want to modify their search', async () => {
@@ -46,16 +47,17 @@ describe('The mod not found interaction', () => {
 
     vi.mocked(inquirer.prompt).mockResolvedValueOnce({ confirm: false });
 
-    await expect(modNotFound(testModId, testPlatform, logger, {
-      config: 'config.json',
-      quiet: false
-    })).rejects.toThrow(new Error('process.exit'));
+    await expect(
+      modNotFound(testModId, testPlatform, logger, {
+        config: 'config.json',
+        quiet: false
+      })
+    ).rejects.toThrow(new Error('process.exit'));
 
     const loggerErrorCall = vi.mocked(logger.error).mock.calls[0][0];
 
     expect(loggerErrorCall).toMatchInlineSnapshot('"Aborting"');
     expect(vi.mocked(inquirer.prompt)).toHaveBeenCalledTimes(1);
-
   });
 
   it('asks the user for a new mod id and platform when the user wants to modify their search', async () => {
@@ -90,6 +92,5 @@ describe('The mod not found interaction', () => {
         },
       ]
     `);
-
   });
 });

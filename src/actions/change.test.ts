@@ -1,23 +1,23 @@
-import { describe, vi, it, beforeEach, expect } from 'vitest';
+import fs from 'node:fs/promises';
+import { chance } from 'jest-chance';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { generateModConfig } from '../../test/modConfigGenerator.js';
+import { generateModInstall } from '../../test/modInstallGenerator.js';
+import { generateModsJson } from '../../test/modlistGenerator.js';
 import { expectCommandStartTelemetry } from '../../test/telemetryHelper.js';
 import { Logger } from '../lib/Logger.js';
-import { chance } from 'jest-chance';
-import { DefaultOptions } from '../mmm.js';
-import { changeGameVersion } from './change.js';
-import { generateModsJson } from '../../test/modlistGenerator.js';
 import {
-  fileExists,
   ensureConfiguration,
+  fileExists,
+  getModsFolder,
   readLockFile,
   writeConfigFile,
-  writeLockFile,
-  getModsFolder
+  writeLockFile
 } from '../lib/config.js';
+import { DefaultOptions } from '../mmm.js';
+import { changeGameVersion } from './change.js';
 import { install } from './install.js';
 import { testGameVersion } from './testGameVersion.js';
-import { generateModInstall } from '../../test/modInstallGenerator.js';
-import fs from 'node:fs/promises';
-import { generateModConfig } from '../../test/modConfigGenerator.js';
 
 vi.mock('../lib/Logger.js');
 vi.mock('./install.js');
@@ -33,7 +33,6 @@ interface LocalTestContext {
 }
 
 describe('The change action', () => {
-
   beforeEach<LocalTestContext>((context) => {
     vi.resetAllMocks();
 
@@ -92,7 +91,6 @@ describe('The change action', () => {
   });
 
   it<LocalTestContext>('removes the local installations', async ({ version, options, logger }) => {
-
     vi.mocked(fileExists).mockResolvedValue(true);
 
     const install1 = generateModInstall({ fileName: 'mymod1' }).generated;
@@ -100,14 +98,16 @@ describe('The change action', () => {
     const install3 = generateModInstall({ fileName: 'mymod3' }).generated;
 
     vi.mocked(readLockFile).mockResolvedValueOnce([install1, install2, install3]);
-    vi.mocked(ensureConfiguration).mockResolvedValueOnce(generateModsJson({
-      mods: [
-        generateModConfig({ id: install1.id, type: install1.type }).generated,
-        generateModConfig({ id: install2.id, type: install2.type }).generated,
-        generateModConfig({ id: install3.id, type: install3.type }).generated
-      ],
-      modsFolder: '/mods'
-    }).generated);
+    vi.mocked(ensureConfiguration).mockResolvedValueOnce(
+      generateModsJson({
+        mods: [
+          generateModConfig({ id: install1.id, type: install1.type }).generated,
+          generateModConfig({ id: install2.id, type: install2.type }).generated,
+          generateModConfig({ id: install3.id, type: install3.type }).generated
+        ],
+        modsFolder: '/mods'
+      }).generated
+    );
     vi.mocked(getModsFolder).mockReturnValue('/mods');
 
     await changeGameVersion(version, options, logger);
@@ -117,11 +117,9 @@ describe('The change action', () => {
     expect(fs.rm).toHaveBeenCalledWith(expect.stringContaining(install1.fileName));
     expect(fs.rm).toHaveBeenCalledWith(expect.stringContaining(install2.fileName));
     expect(fs.rm).toHaveBeenCalledWith(expect.stringContaining(install3.fileName));
-
   });
 
   it<LocalTestContext>('ignores mods that are not installed', async ({ version, options, logger }) => {
-
     vi.mocked(fileExists).mockResolvedValue(true);
 
     const install1 = generateModInstall({ fileName: 'mymod1' }).generated;
@@ -130,14 +128,16 @@ describe('The change action', () => {
 
     vi.mocked(readLockFile).mockResolvedValueOnce([install1, install3]);
 
-    vi.mocked(ensureConfiguration).mockResolvedValue(generateModsJson({
-      modsFolder: '/mods',
-      mods: [
-        generateModConfig({ id: install1.id, type: install1.type }).generated,
-        generateModConfig({ id: install2.id, type: install2.type }).generated,
-        generateModConfig({ id: install3.id, type: install3.type }).generated
-      ]
-    }).generated);
+    vi.mocked(ensureConfiguration).mockResolvedValue(
+      generateModsJson({
+        modsFolder: '/mods',
+        mods: [
+          generateModConfig({ id: install1.id, type: install1.type }).generated,
+          generateModConfig({ id: install2.id, type: install2.type }).generated,
+          generateModConfig({ id: install3.id, type: install3.type }).generated
+        ]
+      }).generated
+    );
     vi.mocked(getModsFolder).mockReturnValue('/mods');
 
     await changeGameVersion(version, options, logger);
@@ -148,7 +148,6 @@ describe('The change action', () => {
 
     expect(fs.rm).toHaveBeenCalledWith(expect.stringContaining(install1.fileName));
     expect(fs.rm).toHaveBeenCalledWith(expect.stringContaining(install3.fileName));
-
   });
 
   it<LocalTestContext>('calls the correct telemetry', async ({ version, options, logger }) => {
@@ -167,5 +166,4 @@ describe('The change action', () => {
       }
     });
   });
-
 });

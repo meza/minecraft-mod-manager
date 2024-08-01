@@ -1,7 +1,7 @@
 import chalk from 'chalk';
 import { GithubReleasesNotFoundException } from '../errors/GithubReleasesNotFoundException.js';
-import { Logger } from './Logger.js';
 import { version } from '../version.js';
+import { Logger } from './Logger.js';
 import { rateLimitingFetch } from './rateLimiter/index.js';
 
 interface GithubRelease {
@@ -16,10 +16,10 @@ interface GithubRelease {
 }
 
 export interface UpdateResult {
-  hasUpdate: boolean,
-  latestVersion: string,
-  latestVersionUrl: string,
-  releasedOn: string
+  hasUpdate: boolean;
+  latestVersion: string;
+  latestVersionUrl: string;
+  releasedOn: string;
 }
 
 const prepareRelease = (release: GithubRelease) => {
@@ -42,7 +42,7 @@ const githubReleases = async () => {
 };
 
 const isFirstLetterANumber = (input: string) => {
-  return (/^\d/).test(input);
+  return /^\d/.test(input);
 };
 
 const formatDateFromTimeString = (timeString: string) => {
@@ -68,7 +68,6 @@ export const hasUpdate = async (currentVersion: string, logger: Logger): Promise
   try {
     const releases = await githubReleases();
     latestVersion = releases[0];
-
   } catch (error) {
     if (!(error instanceof GithubReleasesNotFoundException)) {
       throw error;
@@ -76,7 +75,13 @@ export const hasUpdate = async (currentVersion: string, logger: Logger): Promise
   }
   const releasedOn = formatDateFromTimeString(latestVersion.published_at);
   if (!isFirstLetterANumber(currentVersion)) {
-    logger.log(chalk.bgYellowBright(chalk.black(`\n[update] You are running a development version of MMM. Please update to the latest release from ${releasedOn}.`)));
+    logger.log(
+      chalk.bgYellowBright(
+        chalk.black(
+          `\n[update] You are running a development version of MMM. Please update to the latest release from ${releasedOn}.`
+        )
+      )
+    );
     logger.log(chalk.bgYellowBright(chalk.black(`[update] You can download it from ${latestVersion.html_url}\n`)));
     return {
       hasUpdate: false,

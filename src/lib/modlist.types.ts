@@ -36,32 +36,32 @@ export enum Loader {
   SPIGOT = 'spigot',
   SPONGE = 'sponge',
   VELOCITY = 'velocity',
-  WATERFALL = 'waterfall',
+  WATERFALL = 'waterfall'
 }
 
 export interface ModInstall {
-  type: Platform,
-  id: string,
-  name: string,
-  fileName: string,
-  releasedOn: string,
-  hash: string,
-  downloadUrl: string,
+  type: Platform;
+  id: string;
+  name: string;
+  fileName: string;
+  releasedOn: string;
+  hash: string;
+  downloadUrl: string;
 }
 
 export interface Mod {
-  type: Platform,
-  id: string,
-  allowedReleaseTypes?: ReleaseType[]
-  name: string,
-  allowVersionFallback?: boolean,
-  version?: string | undefined
+  type: Platform;
+  id: string;
+  allowedReleaseTypes?: ReleaseType[];
+  name: string;
+  allowVersionFallback?: boolean;
+  version?: string | undefined;
 }
 
 export interface ModsJson {
-  loader: Loader,
-  gameVersion: string,
-  defaultAllowedReleaseTypes: ReleaseType[],
-  modsFolder: string,
-  mods: Mod[]
+  loader: Loader;
+  gameVersion: string;
+  defaultAllowedReleaseTypes: ReleaseType[];
+  modsFolder: string;
+  mods: Mod[];
 }

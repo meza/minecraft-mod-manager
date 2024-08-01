@@ -1,7 +1,7 @@
 import path from 'path';
-import { fileExists } from './config.js';
 import * as fs from 'fs/promises';
 import { glob } from 'glob';
+import { fileExists } from './config.js';
 
 const ignored = async (rootLookupDir: string) => {
   const ignoreFileLocation = path.resolve(rootLookupDir, '.mmmignore');
@@ -9,7 +9,10 @@ const ignored = async (rootLookupDir: string) => {
   let ignoreFileContents: string[] = [];
 
   if (await fileExists(ignoreFileLocation)) {
-    ignoreFileContents = (await fs.readFile(ignoreFileLocation)).toString().split('\n').filter((line) => line.length > 0);
+    ignoreFileContents = (await fs.readFile(ignoreFileLocation))
+      .toString()
+      .split('\n')
+      .filter((line) => line.length > 0);
   }
 
   const patterns = ['**/*.disabled', ...ignoreFileContents];

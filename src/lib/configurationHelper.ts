@@ -1,6 +1,6 @@
-import { Mod, ModInstall, ModsJson } from './modlist.types.js';
 import path from 'path';
 import { minimatch } from 'minimatch';
+import { Mod, ModInstall, ModsJson } from './modlist.types.js';
 
 export const findLocalMods = (lookup: string[], configuration: ModsJson) => {
   const matches: Set<Mod> = new Set<Mod>();

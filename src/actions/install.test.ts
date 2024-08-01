@@ -1,13 +1,8 @@
+import { chance } from 'jest-chance';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import { expectCommandStartTelemetry } from '../../test/telemetryHelper.js';
-import { install } from './install.js';
-import { fetchModDetails } from '../repositories/index.js';
-import { ensureConfiguration, getModsFolder, readLockFile, writeConfigFile, writeLockFile } from '../lib/config.js';
 import { generateRemoteModDetails } from '../../test/generateRemoteDetails.js';
-import { downloadFile } from '../lib/downloader.js';
-import { updateMod } from '../lib/updater.js';
-import { getHash } from '../lib/hash.js';
-import { handleFetchErrors } from '../errors/handleFetchErrors.js';
+import { generateScanResult } from '../../test/generateScanResult.js';
+import { generateModsJson } from '../../test/modlistGenerator.js';
 import {
   assumeModFileExists,
   assumeModFileIsMissing,
@@ -19,19 +14,24 @@ import {
   setupOneUninstalledMod,
   verifyBasics
 } from '../../test/setupHelpers.js';
-import { Logger } from '../lib/Logger.js';
-import { chance } from 'jest-chance';
-import { DownloadFailedException } from '../errors/DownloadFailedException.js';
+import { expectCommandStartTelemetry } from '../../test/telemetryHelper.js';
 import { CouldNotFindModException } from '../errors/CouldNotFindModException.js';
-import { ModInstall, Platform } from '../lib/modlist.types.js';
+import { DownloadFailedException } from '../errors/DownloadFailedException.js';
 import { NoRemoteFileFound } from '../errors/NoRemoteFileFound.js';
-import { DefaultOptions } from '../mmm.js';
-import { getModFiles } from '../lib/fileHelper.js';
-import { generateModsJson } from '../../test/modlistGenerator.js';
+import { handleFetchErrors } from '../errors/handleFetchErrors.js';
+import { Logger } from '../lib/Logger.js';
+import { ensureConfiguration, getModsFolder, readLockFile, writeConfigFile, writeLockFile } from '../lib/config.js';
 import { fileIsManaged, getInstallation, hasInstallation } from '../lib/configurationHelper.js';
+import { downloadFile } from '../lib/downloader.js';
+import { getModFiles } from '../lib/fileHelper.js';
+import { getHash } from '../lib/hash.js';
+import { ModInstall, Platform } from '../lib/modlist.types.js';
 import { scanFiles } from '../lib/scan.js';
-import { FoundEntries, processScanResults, UnsureEntries } from './scan.js';
-import { generateScanResult } from '../../test/generateScanResult.js';
+import { updateMod } from '../lib/updater.js';
+import { DefaultOptions } from '../mmm.js';
+import { fetchModDetails } from '../repositories/index.js';
+import { install } from './install.js';
+import { FoundEntries, UnsureEntries, processScanResults } from './scan.js';
 
 vi.mock('../lib/Logger.js');
 vi.mock('../repositories/index.js');
@@ -53,7 +53,6 @@ interface LocalTestContext {
 }
 
 describe('The install module', () => {
-
   beforeEach<LocalTestContext>((context) => {
     vi.resetAllMocks();
     context.options = {
@@ -70,7 +69,6 @@ describe('The install module', () => {
   });
 
   it<LocalTestContext>('installs a new mod with no release type override', async ({ options, logger }) => {
-
     const { randomConfiguration, randomUninstalledMod } = setupOneUninstalledMod();
     delete randomUninstalledMod.allowedReleaseTypes;
 
@@ -91,30 +89,34 @@ describe('The install module', () => {
 
     // Verify our expectations
     expectModDetailsHaveBeenFetchedCorrectlyForMod(randomUninstalledMod, randomConfiguration);
-    expect(logger.log).toHaveBeenCalledWith(`${randomUninstalledMod.name} doesn't exist, downloading from ${randomUninstalledMod.type}`);
+    expect(logger.log).toHaveBeenCalledWith(
+      `${randomUninstalledMod.name} doesn't exist, downloading from ${randomUninstalledMod.type}`
+    );
 
     expect(vi.mocked(writeConfigFile)).toHaveBeenCalledWith(randomConfiguration, options, logger);
-    expect(vi.mocked(writeLockFile)).toHaveBeenCalledWith([
-      {
-        id: randomUninstalledMod.id,
-        type: randomUninstalledMod.type,
-        name: randomUninstalledMod.name,
-        fileName: remoteDetails.fileName,
-        releasedOn: remoteDetails.releaseDate,
-        hash: remoteDetails.hash,
-        downloadUrl: remoteDetails.downloadUrl
-      }
-    ], options, logger);
+    expect(vi.mocked(writeLockFile)).toHaveBeenCalledWith(
+      [
+        {
+          id: randomUninstalledMod.id,
+          type: randomUninstalledMod.type,
+          name: randomUninstalledMod.name,
+          fileName: remoteDetails.fileName,
+          releasedOn: remoteDetails.releaseDate,
+          hash: remoteDetails.hash,
+          downloadUrl: remoteDetails.downloadUrl
+        }
+      ],
+      options,
+      logger
+    );
 
     expect(vi.mocked(downloadFile)).toHaveBeenCalledOnce();
     expect(vi.mocked(fetchModDetails)).toHaveBeenCalledOnce();
 
     verifyBasics();
-
   });
 
   it<LocalTestContext>('installs a new mod with a release type override', async ({ options, logger }) => {
-
     const { randomConfiguration, randomUninstalledMod } = setupOneUninstalledMod();
 
     // Prepare the configuration file state
@@ -135,19 +137,15 @@ describe('The install module', () => {
 
     // Verify our expectations
     expectModDetailsHaveBeenFetchedCorrectlyForMod(randomUninstalledMod, randomConfiguration);
-
   });
 
   it<LocalTestContext>('downloads a missing mod', async ({ options, logger }) => {
-
     const { randomConfiguration, randomInstalledMod, randomInstallation } = setupOneInstalledMod();
 
     // Prepare the configuration file state
     vi.mocked(ensureConfiguration).mockResolvedValueOnce(randomConfiguration);
     vi.mocked(getModsFolder).mockReturnValue(randomConfiguration.modsFolder);
-    vi.mocked(readLockFile).mockResolvedValueOnce([
-      randomInstallation
-    ]);
+    vi.mocked(readLockFile).mockResolvedValueOnce([randomInstallation]);
 
     // Prepare the download mock
     assumeSuccessfulDownload();
@@ -167,15 +165,12 @@ describe('The install module', () => {
     );
 
     expect(vi.mocked(writeConfigFile)).toHaveBeenCalledWith(randomConfiguration, options, logger);
-    expect(vi.mocked(writeLockFile)).toHaveBeenCalledWith([
-      randomInstallation
-    ], options, logger);
+    expect(vi.mocked(writeLockFile)).toHaveBeenCalledWith([randomInstallation], options, logger);
 
     expect(vi.mocked(downloadFile)).toHaveBeenCalledOnce();
     expect(vi.mocked(fetchModDetails)).not.toHaveBeenCalled();
 
     verifyBasics();
-
   });
 
   it<LocalTestContext>('downloads a mod with a different hash', async ({ options, logger }) => {
@@ -184,9 +179,7 @@ describe('The install module', () => {
     // Prepare the configuration file state
     vi.mocked(ensureConfiguration).mockResolvedValueOnce(randomConfiguration);
     vi.mocked(getModsFolder).mockReturnValue(randomConfiguration.modsFolder);
-    vi.mocked(readLockFile).mockResolvedValueOnce([
-      randomInstallation
-    ]);
+    vi.mocked(readLockFile).mockResolvedValueOnce([randomInstallation]);
 
     vi.mocked(hasInstallation).mockReturnValueOnce(true);
     vi.mocked(getInstallation).mockReturnValueOnce(0);
@@ -202,14 +195,10 @@ describe('The install module', () => {
     await install(options, logger);
 
     // Verify our expectations
-    expect(logger.log).toHaveBeenCalledWith(
-      `${randomInstalledMod.name} has hash mismatch, downloading from source`
-    );
+    expect(logger.log).toHaveBeenCalledWith(`${randomInstalledMod.name} has hash mismatch, downloading from source`);
 
     expect(vi.mocked(writeConfigFile)).toHaveBeenCalledWith(randomConfiguration, options, logger);
-    expect(vi.mocked(writeLockFile)).toHaveBeenCalledWith([
-      randomInstallation
-    ], options, logger);
+    expect(vi.mocked(writeLockFile)).toHaveBeenCalledWith([randomInstallation], options, logger);
 
     expect(vi.mocked(updateMod)).toHaveBeenCalledOnce();
     expect(vi.mocked(downloadFile)).not.toHaveBeenCalled();
@@ -230,8 +219,9 @@ describe('The install module', () => {
     randomInstalledMod.version = undefined;
     await install(options, logger);
 
-    expect(logger.debug).toHaveBeenCalledWith(`Checking ${randomInstalledMod.name}@latest for ${randomInstalledMod.type}`);
-
+    expect(logger.debug).toHaveBeenCalledWith(
+      `Checking ${randomInstalledMod.name}@latest for ${randomInstalledMod.type}`
+    );
   });
 
   it<LocalTestContext>('calls the correct telemetry', async ({ options, logger }) => {
@@ -251,7 +241,6 @@ describe('The install module', () => {
         options: options
       }
     });
-
   });
 
   it<LocalTestContext>('Sets the appropriate debug messages for specific version', async ({ options, logger }) => {
@@ -268,8 +257,9 @@ describe('The install module', () => {
     randomInstalledMod.version = undefined;
     await install(options, logger);
 
-    expect(logger.debug).toHaveBeenCalledWith(`Checking ${randomInstalledMod.name}@latest for ${randomInstalledMod.type}`);
-
+    expect(logger.debug).toHaveBeenCalledWith(
+      `Checking ${randomInstalledMod.name}@latest for ${randomInstalledMod.type}`
+    );
   });
 
   it<LocalTestContext>('Sets the appropriate debug messages for specific version', async ({ options, logger }) => {
@@ -284,8 +274,9 @@ describe('The install module', () => {
     options.debug = true;
     await install(options, logger);
 
-    expect(logger.debug).toHaveBeenCalledWith(`Checking ${randomInstalledMod.name}@1.1.0 for ${randomInstalledMod.type}`);
-
+    expect(logger.debug).toHaveBeenCalledWith(
+      `Checking ${randomInstalledMod.name}@1.1.0 for ${randomInstalledMod.type}`
+    );
   });
 
   it<LocalTestContext>('handles the case when there is nothing to do', async ({ options, logger }) => {
@@ -294,9 +285,7 @@ describe('The install module', () => {
     // Prepare the configuration file state
     vi.mocked(ensureConfiguration).mockResolvedValueOnce(randomConfiguration);
     vi.mocked(getModsFolder).mockReturnValue(randomConfiguration.modsFolder);
-    vi.mocked(readLockFile).mockResolvedValueOnce([
-      randomInstallation
-    ]);
+    vi.mocked(readLockFile).mockResolvedValueOnce([randomInstallation]);
 
     vi.mocked(hasInstallation).mockReturnValueOnce(true);
     vi.mocked(getInstallation).mockReturnValueOnce(0);
@@ -343,7 +332,6 @@ describe('The install module', () => {
       expect(fileIsManaged).toHaveBeenCalledTimes(2);
       expect(fileIsManaged).toHaveBeenNthCalledWith(1, file1, emptyInstallations);
       expect(fileIsManaged).toHaveBeenNthCalledWith(2, file2, emptyInstallations);
-
     });
 
     it<LocalTestContext>('scans and processes only the non managed files', async ({ options, logger }) => {
@@ -371,18 +359,8 @@ describe('The install module', () => {
       await install(options, logger);
 
       expect(scanFiles).toHaveBeenCalledOnce();
-      expect(scanFiles).toHaveBeenCalledWith(
-        [file2, file3],
-        emptyInstallations,
-        Platform.MODRINTH,
-        emptyConfiguration
-      );
-      expect(processScanResults).toHaveBeenCalledWith(
-        scanResults,
-        emptyConfiguration,
-        emptyInstallations,
-        logger
-      );
+      expect(scanFiles).toHaveBeenCalledWith([file2, file3], emptyInstallations, Platform.MODRINTH, emptyConfiguration);
+      expect(processScanResults).toHaveBeenCalledWith(scanResults, emptyConfiguration, emptyInstallations, logger);
     });
 
     it<LocalTestContext>('exits as expected when there are unsure matches', async ({ options, logger }) => {
@@ -417,7 +395,6 @@ describe('The install module', () => {
         "
         Please fix the unresolved issues above manually or by running mmm scan, then try again."
       `);
-
     });
   });
 
@@ -429,9 +406,7 @@ describe('The install module', () => {
       // Prepare the configuration file state
       vi.mocked(ensureConfiguration).mockResolvedValueOnce(randomConfiguration);
       vi.mocked(getModsFolder).mockReturnValue(randomConfiguration.modsFolder);
-      vi.mocked(readLockFile).mockResolvedValueOnce([
-        randomInstallation
-      ]);
+      vi.mocked(readLockFile).mockResolvedValueOnce([randomInstallation]);
 
       vi.mocked(hasInstallation).mockReturnValueOnce(true);
       vi.mocked(getInstallation).mockReturnValueOnce(0);
@@ -454,9 +429,7 @@ describe('The install module', () => {
       // Prepare the configuration file state
       vi.mocked(ensureConfiguration).mockResolvedValueOnce(randomConfiguration);
       vi.mocked(getModsFolder).mockReturnValue(randomConfiguration.modsFolder);
-      vi.mocked(readLockFile).mockResolvedValueOnce([
-        randomInstallation
-      ]);
+      vi.mocked(readLockFile).mockResolvedValueOnce([randomInstallation]);
 
       vi.mocked(hasInstallation).mockReturnValueOnce(true);
       vi.mocked(getInstallation).mockReturnValueOnce(0);
@@ -492,9 +465,8 @@ describe('The install module', () => {
       const error = new DownloadFailedException(url);
       vi.mocked(downloadFile).mockRejectedValueOnce(error);
 
-      await (install(options, logger));
+      await install(options, logger);
       expect(handleFetchErrors).toHaveBeenCalledWith(error, randomUninstalledMod, logger);
-
     });
   });
 

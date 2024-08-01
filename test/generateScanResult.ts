@@ -1,11 +1,11 @@
-import { GeneratorResult } from './test.types.js';
+import { chance } from 'jest-chance';
 import { ScanResults } from '../src/actions/scan.js';
-import { RemoteModDetails, Platform } from '../src/lib/modlist.types.js';
-import { generateRemoteModDetails } from './generateRemoteDetails.js';
+import { Platform, RemoteModDetails } from '../src/lib/modlist.types.js';
 import { PlatformLookupResult } from '../src/repositories/index.js';
 import { generatePlatformLookupResult } from './generatePlatformLookupResult.js';
-import { chance } from 'jest-chance';
 import { generateRandomPlatform } from './generateRandomPlatform.js';
+import { generateRemoteModDetails } from './generateRemoteDetails.js';
+import { GeneratorResult } from './test.types.js';
 
 export interface ScanResultGeneratorOverrides {
   name?: string | undefined;
@@ -22,10 +22,13 @@ export const generateScanResult = (overrides?: ScanResultGeneratorOverrides): Ge
     name: name
   } as Partial<RemoteModDetails>).generated;
 
-  const localDetails: PlatformLookupResult = generatePlatformLookupResult({
-    platform: platform,
-    modId: modId
-  } as Partial<PlatformLookupResult>, { name: name } as Partial<RemoteModDetails>).generated;
+  const localDetails: PlatformLookupResult = generatePlatformLookupResult(
+    {
+      platform: platform,
+      modId: modId
+    } as Partial<PlatformLookupResult>,
+    { name: name } as Partial<RemoteModDetails>
+  ).generated;
 
   return {
     generated: {

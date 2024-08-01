@@ -8,12 +8,10 @@ export const updateMod = async (
   modPath: string,
   modsFolder: string
 ): Promise<ModInstall | RemoteModDetails> => {
-
   const newPath = path.resolve(modsFolder, mod.fileName);
   await downloadFile(mod.downloadUrl, newPath);
   if (modPath !== newPath) {
     await fs.rm(modPath);
   }
   return mod;
-
 };

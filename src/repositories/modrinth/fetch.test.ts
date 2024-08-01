@@ -1,13 +1,13 @@
-import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { RepositoryTestContext } from '../index.test.js';
-import { Loader, Platform, ReleaseType } from '../../lib/modlist.types.js';
 import { chance } from 'jest-chance';
-import { getMod, ModrinthVersion } from './fetch.js';
-import { CouldNotFindModException } from '../../errors/CouldNotFindModException.js';
-import { generateModrinthVersion } from '../../../test/generateModrinthVersion.js';
-import { NoRemoteFileFound } from '../../errors/NoRemoteFileFound.js';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { generateModrinthFile } from '../../../test/generateModrinthFile.js';
+import { generateModrinthVersion } from '../../../test/generateModrinthVersion.js';
+import { CouldNotFindModException } from '../../errors/CouldNotFindModException.js';
+import { NoRemoteFileFound } from '../../errors/NoRemoteFileFound.js';
+import { Loader, Platform, ReleaseType } from '../../lib/modlist.types.js';
 import { rateLimitingFetch } from '../../lib/rateLimiter/index.js';
+import { RepositoryTestContext } from '../index.test.js';
+import { ModrinthVersion, getMod } from './fetch.js';
 
 vi.mock('../../lib/rateLimiter/index.js');
 const assumeFailedModFetch = () => {
@@ -19,9 +19,10 @@ const assumeFailedModFetch = () => {
 const assumeSuccessfulModFetch = (name: string) => {
   vi.mocked(rateLimitingFetch).mockResolvedValueOnce({
     ok: true,
-    json: () => Promise.resolve({
-      title: name
-    })
+    json: () =>
+      Promise.resolve({
+        title: name
+      })
   } as Response); // name fetch
 };
 
@@ -41,14 +42,16 @@ const assumeSuccessfulDetailsFetch = (name: string, data: ModrinthVersion[]) => 
 };
 
 describe('The Modrinth repository', () => {
-
   beforeEach<RepositoryTestContext>((context) => {
     context.platform = Platform.MODRINTH;
     context.id = chance.word();
-    context.allowedReleaseTypes = chance.pickset(Object.values(ReleaseType), chance.integer({
-      min: 1,
-      max: Object.keys(ReleaseType).length
-    }));
+    context.allowedReleaseTypes = chance.pickset(
+      Object.values(ReleaseType),
+      chance.integer({
+        min: 1,
+        max: Object.keys(ReleaseType).length
+      })
+    );
     context.gameVersion = chance.pickone(['1.16.5', '1.17.1', '1.18.1', '1.18.2', '1.19']);
     context.loader = chance.pickone(Object.values(Loader));
     context.allowFallback = false;
@@ -123,13 +126,7 @@ describe('The Modrinth repository', () => {
     assumeSuccessfulDetailsFetch(randomName, [randomVersion]);
 
     await expect(async () => {
-      await getMod(
-        context.id,
-        context.allowedReleaseTypes,
-        'correct-version',
-        context.loader,
-        context.allowFallback
-      );
+      await getMod(context.id, context.allowedReleaseTypes, 'correct-version', context.loader, context.allowFallback);
     }).rejects.toThrow(new NoRemoteFileFound(context.id, Platform.MODRINTH));
   });
 
@@ -141,12 +138,17 @@ describe('The Modrinth repository', () => {
     assumeSuccessfulDetailsFetch(randomName, [randomVersion]);
 
     await expect(async () => {
-      await getMod(context.id, [ReleaseType.BETA, ReleaseType.RELEASE], context.gameVersion, context.loader, context.allowFallback);
+      await getMod(
+        context.id,
+        [ReleaseType.BETA, ReleaseType.RELEASE],
+        context.gameVersion,
+        context.loader,
+        context.allowFallback
+      );
     }).rejects.toThrow(new NoRemoteFileFound(context.id, Platform.MODRINTH));
   });
 
   describe('when game version fallback is allowed and the available game version is a one lower game version', () => {
-
     afterEach(() => {
       vi.resetAllMocks();
     });
@@ -178,13 +180,7 @@ describe('The Modrinth repository', () => {
       assumeSuccessfulDetailsFetch(randomName, [randomVersionRedHerring]);
       assumeSuccessfulDetailsFetch(randomName, [versionToFind]);
 
-      const actual = await getMod(
-        context.id,
-        [ReleaseType.RELEASE],
-        '1.19.2',
-        context.loader,
-        true
-      );
+      const actual = await getMod(context.id, [ReleaseType.RELEASE], '1.19.2', context.loader, true);
 
       expect(actual).toEqual({
         name: randomName,
@@ -197,7 +193,6 @@ describe('The Modrinth repository', () => {
   });
 
   describe('when game version fallback is allowed and the available version is the next major game version', () => {
-
     afterEach(() => {
       vi.resetAllMocks();
     });
@@ -230,13 +225,7 @@ describe('The Modrinth repository', () => {
       assumeSuccessfulDetailsFetch(randomName, [randomVersionRedHerring]);
       assumeSuccessfulDetailsFetch(randomName, [versionToFind]);
 
-      const actual = await getMod(
-        context.id,
-        [ReleaseType.RELEASE],
-        '1.19.2',
-        context.loader,
-        true
-      );
+      const actual = await getMod(context.id, [ReleaseType.RELEASE], '1.19.2', context.loader, true);
 
       expect(actual).toEqual({
         name: randomName,
@@ -270,13 +259,7 @@ describe('The Modrinth repository', () => {
 
     assumeSuccessfulDetailsFetch(randomName, [randomVersionRedHerring, randomVersion]);
 
-    const actual = await getMod(
-      context.id,
-      [ReleaseType.RELEASE],
-      '1.19.2',
-      context.loader,
-      true
-    );
+    const actual = await getMod(context.id, [ReleaseType.RELEASE], '1.19.2', context.loader, true);
 
     expect(actual).toEqual({
       name: randomName,
@@ -329,15 +312,14 @@ describe('The Modrinth repository', () => {
       date_published: '2021-01-02'
     }).generated;
 
-    assumeSuccessfulDetailsFetch(randomName, [randomVersionRedHerring, randomVersion, randomVersionAnotherRedHerring, randomVersionAnotherRedHerring2]);
+    assumeSuccessfulDetailsFetch(randomName, [
+      randomVersionRedHerring,
+      randomVersion,
+      randomVersionAnotherRedHerring,
+      randomVersionAnotherRedHerring2
+    ]);
 
-    const actual = await getMod(
-      context.id,
-      [ReleaseType.RELEASE],
-      '1.19.2',
-      context.loader,
-      true
-    );
+    const actual = await getMod(context.id, [ReleaseType.RELEASE], '1.19.2', context.loader, true);
 
     expect(actual).toEqual({
       name: randomName,
@@ -399,16 +381,14 @@ describe('The Modrinth repository', () => {
         version_number: '0.0.3'
       }).generated;
 
-      assumeSuccessfulDetailsFetch(randomName, [randomVersionRedHerring, randomVersion, randomVersionAnotherRedHerring, randomVersionAnotherRedHerring2]);
+      assumeSuccessfulDetailsFetch(randomName, [
+        randomVersionRedHerring,
+        randomVersion,
+        randomVersionAnotherRedHerring,
+        randomVersionAnotherRedHerring2
+      ]);
 
-      const actual = await getMod(
-        context.id,
-        [ReleaseType.RELEASE],
-        '1.19.2',
-        context.loader,
-        true,
-        '1.0.0'
-      );
+      const actual = await getMod(context.id, [ReleaseType.RELEASE], '1.19.2', context.loader, true, '1.0.0');
 
       expect(actual).toEqual({
         name: randomName,
@@ -419,5 +399,4 @@ describe('The Modrinth repository', () => {
       });
     });
   });
-
 });

@@ -1,15 +1,20 @@
-import { Logger } from '../lib/Logger.js';
-import { DefaultOptions } from '../mmm.js';
 import chalk from 'chalk';
-import { Platform } from '../lib/modlist.types.js';
 import inquirer from 'inquirer';
+import { Logger } from '../lib/Logger.js';
+import { Platform } from '../lib/modlist.types.js';
+import { DefaultOptions } from '../mmm.js';
 
 interface ModNofFoundInteractionResult {
   platform: Platform;
   id: string;
 }
 
-export const modNotFound = async (modName: string, platform: Platform, logger: Logger, options: DefaultOptions): Promise<ModNofFoundInteractionResult> => {
+export const modNotFound = async (
+  modName: string,
+  platform: Platform,
+  logger: Logger,
+  options: DefaultOptions
+): Promise<ModNofFoundInteractionResult> => {
   const errorText = `Mod "${chalk.whiteBright(modName)}" for ${chalk.whiteBright(platform)} does not exist`;
   if (options.quiet === true) {
     logger.error(errorText);
@@ -47,5 +52,4 @@ export const modNotFound = async (modName: string, platform: Platform, logger: L
     id: newModName,
     platform: newPlatform
   };
-
 };

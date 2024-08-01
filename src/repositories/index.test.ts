@@ -1,13 +1,13 @@
-import { beforeEach, describe, expect, it, vi } from 'vitest';
-import { Loader, Platform, ReleaseType } from '../lib/modlist.types.js';
 import { chance } from 'jest-chance';
-import { fetchModDetails, lookup, LookupInput, PlatformLookupResult } from './index.js';
-import { UnknownPlatformException } from '../errors/UnknownPlatformException.js';
-import { generateRemoteModDetails } from '../../test/generateRemoteDetails.js';
-import { Curseforge } from './curseforge/index.js';
-import { Modrinth } from './modrinth/index.js';
-import { generateRandomPlatform } from '../../test/generateRandomPlatform.js';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { generatePlatformLookupResult } from '../../test/generatePlatformLookupResult.js';
+import { generateRandomPlatform } from '../../test/generateRandomPlatform.js';
+import { generateRemoteModDetails } from '../../test/generateRemoteDetails.js';
+import { UnknownPlatformException } from '../errors/UnknownPlatformException.js';
+import { Loader, Platform, ReleaseType } from '../lib/modlist.types.js';
+import { Curseforge } from './curseforge/index.js';
+import { LookupInput, PlatformLookupResult, fetchModDetails, lookup } from './index.js';
+import { Modrinth } from './modrinth/index.js';
 
 vi.mock('./modrinth/index.js', () => {
   const Modrinth = vi.fn();
@@ -20,17 +20,16 @@ vi.mock('./curseforge/index.js', () => {
   Curseforge.prototype.lookup = vi.fn();
   Curseforge.prototype.fetchMod = vi.fn();
   return { Curseforge: Curseforge };
-
 });
 
 export interface RepositoryTestContext {
-  platform: Platform,
-  id: string,
-  allowedReleaseTypes: ReleaseType[],
-  gameVersion: string,
-  loader: Loader,
-  allowFallback: boolean,
-  version?: string
+  platform: Platform;
+  id: string;
+  allowedReleaseTypes: ReleaseType[];
+  gameVersion: string;
+  loader: Loader;
+  allowFallback: boolean;
+  version?: string;
 }
 
 const curseforge = new Curseforge();
@@ -50,17 +49,19 @@ describe('The repository facade', () => {
 
     context.platform = generateRandomPlatform();
     context.id = chance.word();
-    context.allowedReleaseTypes = chance.pickset(Object.values(ReleaseType), chance.integer({
-      min: 1,
-      max: Object.keys(ReleaseType).length
-    }));
+    context.allowedReleaseTypes = chance.pickset(
+      Object.values(ReleaseType),
+      chance.integer({
+        min: 1,
+        max: Object.keys(ReleaseType).length
+      })
+    );
     context.gameVersion = chance.pickone(['1.16.5', '1.17.1', '1.18.1', '1.18.2', '1.19']);
     context.loader = chance.pickone(Object.values(Loader));
     context.allowFallback = chance.bool();
     if (chance.bool()) {
       context.version = chance.word();
     }
-
   });
 
   describe('when fetching mod details', () => {
@@ -131,7 +132,6 @@ describe('The repository facade', () => {
 
       expect(vi.mocked(implementation)).toBeCalledWith(randomHashes);
       expect(actual).toEqual([]);
-
     });
 
     it('ignores incorrect platforms', async () => {
@@ -227,11 +227,14 @@ describe('The repository facade', () => {
       it('ignores the failure', async () => {
         const randomHash = chance.hash();
 
-        const lookupResult2 = generatePlatformLookupResult({
-          platform: Platform.CURSEFORGE
-        }, {
-          hash: randomHash
-        }).generated;
+        const lookupResult2 = generatePlatformLookupResult(
+          {
+            platform: Platform.CURSEFORGE
+          },
+          {
+            hash: randomHash
+          }
+        ).generated;
 
         vi.mocked(modrinth.lookup).mockRejectedValueOnce(new Error('test error'));
         vi.mocked(curseforge.lookup).mockResolvedValueOnce([lookupResult2]);

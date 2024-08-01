@@ -1,10 +1,10 @@
-import { describe, it, expect, beforeEach, vi } from 'vitest';
-import { notIgnored } from './ignore.js';
 import path from 'path';
-import { fileExists } from './config.js';
-import { chance } from 'jest-chance';
-import { glob } from 'glob';
 import * as fs from 'fs/promises';
+import { glob } from 'glob';
+import { chance } from 'jest-chance';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { fileExists } from './config.js';
+import { notIgnored } from './ignore.js';
 
 interface LocalTestContext {
   configLocation: string;
@@ -20,7 +20,7 @@ describe('The ignore module', () => {
     vi.resetAllMocks();
   });
 
-  describe('when the ignore file doesn\'t exist', () => {
+  describe("when the ignore file doesn't exist", () => {
     it<LocalTestContext>('returns the full input', async ({ configLocation }) => {
       vi.mocked(fileExists).mockResolvedValueOnce(false);
 
@@ -66,19 +66,10 @@ describe('The ignore module', () => {
   it<LocalTestContext>('can return the not ignored files', async () => {
     vi.mocked(fileExists).mockResolvedValueOnce(true);
     vi.mocked(fs.readFile).mockResolvedValueOnce('doesntmatter');
-    vi.mocked(glob.sync).mockReturnValue([
-      '/mods/a.jar',
-      '/mods/c.jar'
-    ]);
+    vi.mocked(glob.sync).mockReturnValue(['/mods/a.jar', '/mods/c.jar']);
 
-    const actual = await notIgnored('/', [
-      '/mods/a.jar',
-      '/mods/b.jar',
-      '/mods/c.jar'
-    ]);
+    const actual = await notIgnored('/', ['/mods/a.jar', '/mods/b.jar', '/mods/c.jar']);
 
-    expect(actual).toEqual([
-      '/mods/b.jar'
-    ]);
+    expect(actual).toEqual(['/mods/b.jar']);
   });
 });

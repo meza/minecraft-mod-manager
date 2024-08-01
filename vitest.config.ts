@@ -1,5 +1,5 @@
-import { defineConfig } from 'vitest/config';
 import isCi from 'is-ci';
+import { defineConfig } from 'vitest/config';
 
 const testReporters = ['default'];
 const coverageReporters = ['text'];

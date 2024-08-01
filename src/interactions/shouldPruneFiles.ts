@@ -1,7 +1,7 @@
+import chalk from 'chalk';
+import inquirer from 'inquirer';
 import { PruneOptions } from '../actions/prune.js';
 import { Logger } from '../lib/Logger.js';
-import inquirer from 'inquirer';
-import chalk from 'chalk';
 
 export const shouldPruneFiles = async (options: PruneOptions, logger: Logger) => {
   if (options.force) {
@@ -10,7 +10,10 @@ export const shouldPruneFiles = async (options: PruneOptions, logger: Logger) =>
 
   if (options.quiet) {
     logger.log('There are files to prune but you are using --quiet.', true);
-    logger.log(chalk.yellowBright('Use mmm prune --quiet --force to prune all the files without any interaction'), true);
+    logger.log(
+      chalk.yellowBright('Use mmm prune --quiet --force to prune all the files without any interaction'),
+      true
+    );
     return false;
   }
 

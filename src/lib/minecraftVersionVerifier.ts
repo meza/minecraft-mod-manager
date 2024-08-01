@@ -2,19 +2,19 @@ import { MinecraftVersionsCouldNotBeFetchedException } from '../errors/Minecraft
 import { rateLimitingFetch } from './rateLimiter/index.js';
 
 export interface MinecraftVersionInfo {
-  id: string,
-  type: 'release' | 'snapshot',
-  url: string,
-  time: string,
-  releaseTime: string
+  id: string;
+  type: 'release' | 'snapshot';
+  url: string;
+  time: string;
+  releaseTime: string;
 }
 
 export interface MinecraftVersionsApi {
   latest: {
-    release: string,
-    snapshot: string
-  },
-  versions: MinecraftVersionInfo[]
+    release: string;
+    snapshot: string;
+  };
+  versions: MinecraftVersionInfo[];
 }
 
 const listMinecraftVersions = async (): Promise<MinecraftVersionsApi> => {
@@ -43,7 +43,7 @@ export const verifyMinecraftVersion = async (input: string): Promise<boolean> =>
     const { versions } = await listMinecraftVersions();
 
     return versions.some(({ id }) => id === input);
-  } catch (e) {
+  } catch (_e) {
     return true;
   }
 };

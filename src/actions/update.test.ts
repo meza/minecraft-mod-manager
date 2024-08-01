@@ -1,4 +1,8 @@
+import * as path from 'path';
+import { chance } from 'jest-chance';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { generateRemoteModDetails } from '../../test/generateRemoteDetails.js';
+import { generateModInstall } from '../../test/modInstallGenerator.js';
 import {
   assumeModFileExists,
   assumeModFileIsMissing,
@@ -7,20 +11,16 @@ import {
   verifyBasics
 } from '../../test/setupHelpers.js';
 import { expectCommandStartTelemetry } from '../../test/telemetryHelper.js';
-import { update } from './update.js';
-import { getHash } from '../lib/hash.js';
+import { handleFetchErrors } from '../errors/handleFetchErrors.js';
+import { Logger } from '../lib/Logger.js';
 import { ensureConfiguration, getModsFolder, readLockFile, writeConfigFile, writeLockFile } from '../lib/config.js';
 import { downloadFile } from '../lib/downloader.js';
-import { fetchModDetails } from '../repositories/index.js';
-import { generateRemoteModDetails } from '../../test/generateRemoteDetails.js';
-import { install } from './install.js';
-import { chance } from 'jest-chance';
+import { getHash } from '../lib/hash.js';
 import { updateMod } from '../lib/updater.js';
-import * as path from 'path';
-import { generateModInstall } from '../../test/modInstallGenerator.js';
-import { Logger } from '../lib/Logger.js';
 import { DefaultOptions } from '../mmm.js';
-import { handleFetchErrors } from '../errors/handleFetchErrors.js';
+import { fetchModDetails } from '../repositories/index.js';
+import { install } from './install.js';
+import { update } from './update.js';
 
 vi.mock('../repositories/index.js');
 vi.mock('../lib/downloader.js');
@@ -38,7 +38,6 @@ interface LocalTestContext {
 }
 
 describe('The update action', () => {
-
   beforeEach<LocalTestContext>((context) => {
     vi.resetAllMocks();
     context.logger = new Logger({} as never);
@@ -137,7 +136,6 @@ describe('The update action', () => {
     await update(options, logger);
 
     expectModDetailsHaveBeenFetchedCorrectlyForMod(randomInstalledMod, randomConfiguration);
-
   });
 
   it<LocalTestContext>('can update based on hashes', async ({ options, logger }) => {
@@ -269,8 +267,9 @@ describe('The update action', () => {
     await update(options, logger);
 
     // Verify our expectations
-    expect(logger.debug).toHaveBeenCalledWith(`[update] Checking ${randomInstalledMod.name} for ${randomInstalledMod.type}`);
-
+    expect(logger.debug).toHaveBeenCalledWith(
+      `[update] Checking ${randomInstalledMod.name} for ${randomInstalledMod.type}`
+    );
   });
 
   it<LocalTestContext>('prints the correct error when an installation is not found', async ({ options, logger }) => {
@@ -294,12 +293,16 @@ describe('The update action', () => {
     const message = vi.mocked(logger.error).mock.calls[0][0];
     const errorCode = vi.mocked(logger.error).mock.calls[0][1];
 
-    expect(message).toMatchInlineSnapshot('"random mod name doesn\'t seem to be installed. Please delete the lock file and the mods folder and try again."');
+    expect(message).toMatchInlineSnapshot(
+      '"random mod name doesn\'t seem to be installed. Please delete the lock file and the mods folder and try again."'
+    );
     expect(errorCode).toEqual(1);
-
   });
 
-  it<LocalTestContext>('prints the correct error when the original mod file does not exist', async ({ options, logger }) => {
+  it<LocalTestContext>('prints the correct error when the original mod file does not exist', async ({
+    options,
+    logger
+  }) => {
     const { randomConfiguration, randomInstallation, randomInstalledMod } = setupOneInstalledMod();
 
     const remoteDetails = generateRemoteModDetails({
@@ -319,8 +322,10 @@ describe('The update action', () => {
 
     await update(options, logger);
     // Verify our expectations
-    expect(logger.error).toHaveBeenCalledWith(`${randomInstalledMod.name} (${expectedPath}) doesn't exist. Please delete the lock file and the mods folder and try again.`, 1);
-
+    expect(logger.error).toHaveBeenCalledWith(
+      `${randomInstalledMod.name} (${expectedPath}) doesn't exist. Please delete the lock file and the mods folder and try again.`,
+      1
+    );
   });
 
   it<LocalTestContext>('handles unexpected errors', async ({ options, logger }) => {
@@ -336,5 +341,4 @@ describe('The update action', () => {
     vi.mocked(getModsFolder).mockReturnValue(randomConfiguration.modsFolder);
     await expect(update(options, logger)).rejects.toThrow(randomErrorMessage);
   });
-
 });

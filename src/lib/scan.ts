@@ -1,13 +1,13 @@
-import { CurseforgeDownloadUrlError } from '../errors/CurseforgeDownloadUrlError.js';
-import { NoRemoteFileFound } from '../errors/NoRemoteFileFound.js';
-import { ModInstall, ModsJson, Platform } from './modlist.types.js';
-import { fetchModDetails, lookup, LookupInput, ResultItem } from '../repositories/index.js';
-import { getHash } from './hash.js';
-import { Modrinth } from '../repositories/modrinth/index.js';
 import curseforge from '@meza/curseforge-fingerprint';
 import { ScanResults } from '../actions/scan.js';
+import { CurseforgeDownloadUrlError } from '../errors/CurseforgeDownloadUrlError.js';
+import { NoRemoteFileFound } from '../errors/NoRemoteFileFound.js';
+import { LookupInput, ResultItem, fetchModDetails, lookup } from '../repositories/index.js';
+import { Modrinth } from '../repositories/modrinth/index.js';
 import { fileIsManaged } from './configurationHelper.js';
 import { getModFiles } from './fileHelper.js';
+import { getHash } from './hash.js';
+import { ModInstall, ModsJson, Platform } from './modlist.types.js';
 
 const getScanResults = async (files: string[], installations: ModInstall[]) => {
   const cfInput: LookupInput = {
@@ -39,7 +39,12 @@ const getScanResults = async (files: string[], installations: ModInstall[]) => {
   return lookupResults;
 };
 
-export const scanFiles = async (files: string[], installations: ModInstall[], prefer: Platform, configuration: ModsJson) => {
+export const scanFiles = async (
+  files: string[],
+  installations: ModInstall[],
+  prefer: Platform,
+  configuration: ModsJson
+) => {
   performance.mark('lib-scan-start');
   const lookupResults = await getScanResults(files, installations);
 
@@ -47,7 +52,8 @@ export const scanFiles = async (files: string[], installations: ModInstall[], pr
 
   const normalizeResults = async (lookupResult: ResultItem): Promise<ScanResults> => {
     lookupResult.hits.sort((hit1, hit2) => {
-      if (hit1.platform === prefer && hit2.platform !== prefer) { // there can't be 2 identical hits from the same platform
+      if (hit1.platform === prefer && hit2.platform !== prefer) {
+        // there can't be 2 identical hits from the same platform
         return -1;
       }
       return 1;
@@ -103,7 +109,12 @@ export const scanFiles = async (files: string[], installations: ModInstall[], pr
   return result;
 };
 
-export const scan = async (configLocation: string, prefer: Platform, configuration: ModsJson, installations: ModInstall[]) => {
+export const scan = async (
+  configLocation: string,
+  prefer: Platform,
+  configuration: ModsJson,
+  installations: ModInstall[]
+) => {
   const files = await getModFiles(configLocation, configuration);
   return scanFiles(files, installations, prefer, configuration);
 };
