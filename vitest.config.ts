@@ -13,10 +13,8 @@ if (!isCi) {
 }
 
 export default defineConfig({
+  cacheDir: '.cache',
   test: {
-    cache: {
-      dir: '.cache/.vitest'
-    },
     globalSetup: './test/globalSetup.ts',
     dir: 'src',
     testTimeout: 10000,
@@ -24,12 +22,6 @@ export default defineConfig({
     outputFile: 'reports/junit.xml',
     reporters: testReporters,
     isolate: true,
-    // fileParallelism: false,
-    // poolOptions: {
-    //   threads: {
-    //     singleThread: true
-    //   }
-    // },
     coverage: {
       include: ['src/**/*.ts'],
       exclude: ['**/*.testGameVersion.ts', '**/__mocks__/**.*', '**/*.d.ts', '**/*.test.ts'],

@@ -7,8 +7,7 @@ Manages mods from Modrinth and Curseforge
 
 Options:
   -V, --version                    output the version number
-  -c, --config <MODLIST_JSON>      An alternative JSON file containing the
-                                   configuration (default: "./modlist.json")
+  -c, --config <MODLIST_JSON>      An alternative JSON file containing the configuration (default: "./modlist.json")
   -q, --quiet                      Suppress all output (default: false)
   -d, --debug                      Enable debug messages (default: false)
   -h, --help                       display help for command
@@ -21,12 +20,9 @@ Commands:
   init [options]
   test|t [game_version]
   change [options] [game_version]
-  scan [options]                   Scans the mod directory and attempts to find
-                                   the mods on the supported mod platforms.
-  prune [options]                  Prunes the mod directory from all the
-                                   unmanaged files.
-  remove [options] <mods...>       Removes one or more mods from both the
-                                   config and the filesystem.
+  scan [options]                   Scans the mod directory and attempts to find the mods on the supported mod platforms.
+  prune [options]                  Prunes the mod directory from all the unmanaged files.
+  remove [options] <mods...>       Removes one or more mods from both the config and the filesystem.
   help [command]                   display help for command
 "
 `;
