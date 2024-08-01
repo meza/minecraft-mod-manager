@@ -9,8 +9,8 @@ importers:
   .:
     dependencies:
       '@meza/curseforge-fingerprint':
-        specifier: ^1.1.41
-        version: 1.1.41
+        specifier: 1.1.42
+        version: 1.1.42
       chalk:
         specifier: ^5.0.1
         version: 5.0.1
@@ -839,8 +839,8 @@ packages:
     resolution: {integrity: sha512-Y+ZetaNapyIs+sgHqCac3GUrlH/Npp/EKEvQsxRqNx15PsXesdaTk8QjARldjSPrH+jslTTVARMGykWn5/HdGA==}
     hasBin: true
 
-  '@meza/curseforge-fingerprint@1.1.41':
-    resolution: {integrity: sha512-SPXuVli2j5nRy3ljLm04hDbadgamk++1er3/0pIqr6l8oncZWZBHVs2OWX6RZ7M59smHp9xt8SNTZwf0I5Yb4g==}
+  '@meza/curseforge-fingerprint@1.1.42':
+    resolution: {integrity: sha512-fTtrS4ustviuAIA2v71UYBaczwp4zzyL89Dog8ZZEejLQGNBVGpmx95xVZG7MPPwCq6wertDFbR4ttlqmSuR0g==}
 
   '@meza/tsconfig-base@1.1.0':
     resolution: {integrity: sha512-ScbUVyNon6sR5Vf84Y8ndzHjWQe1zhQK55VN7APS4U6yks9GBnhTm6l+ZuQ0fK9i8bzJ4nImnzZNE+BQ6cE8zw==}
@@ -2446,10 +2446,6 @@ packages:
 
   loupe@3.1.1:
     resolution: {integrity: sha512-edNu/8D5MKVfGVFRhFf8aAxiTM6Wumfz5XsaatSxlD3w4R1d/WEKUTydCdPGbl9K7QG/Ca3GnDV2sIKIpXRQcw==}
-
-  lru-cache@10.0.1:
-    resolution: {integrity: sha512-IJ4uwUTi2qCccrioU6g9g/5rvvVl13bsdczUUcqbciD9iLr095yj8DQKdObriEvuNSx325N1rV1O0sJFszx75g==}
-    engines: {node: 14 || >=16.14}
 
   lru-cache@10.4.3:
     resolution: {integrity: sha512-JNAzZcXrCt42VGLuYz0zfAzDfAvJWW6AfYlDBQyDV5DClI2m5sAmK+OIO7s59XfsRsWHp02jAJrRadPRGTt6SQ==}
@@ -4394,7 +4390,7 @@ snapshots:
       inquirer: 8.2.4
       marked: 4.1.1
 
-  '@meza/curseforge-fingerprint@1.1.41':
+  '@meza/curseforge-fingerprint@1.1.42':
     dependencies:
       '@types/node': 18.19.3
       bindings: 1.5.0
@@ -4427,7 +4423,7 @@ snapshots:
       agent-base: 7.1.0
       http-proxy-agent: 7.0.0
       https-proxy-agent: 7.0.2
-      lru-cache: 10.0.1
+      lru-cache: 10.4.3
       socks-proxy-agent: 8.0.2
     transitivePeerDependencies:
       - supports-color
@@ -4838,7 +4834,7 @@ snapshots:
 
   agent-base@7.1.0:
     dependencies:
-      debug: 4.3.4
+      debug: 4.3.6
     transitivePeerDependencies:
       - supports-color
 
@@ -5014,8 +5010,8 @@ snapshots:
     dependencies:
       '@npmcli/fs': 3.1.0
       fs-minipass: 3.0.3
-      glob: 10.3.10
-      lru-cache: 10.0.1
+      glob: 10.4.5
+      lru-cache: 10.4.3
       minipass: 7.0.4
       minipass-collect: 2.0.1
       minipass-flush: 1.0.5
@@ -5571,7 +5567,7 @@ snapshots:
 
   fs-minipass@3.0.3:
     dependencies:
-      minipass: 7.0.4
+      minipass: 7.1.2
 
   fs.realpath@1.0.0: {}
 
@@ -6161,8 +6157,6 @@ snapshots:
     dependencies:
       get-func-name: 2.0.2
 
-  lru-cache@10.0.1: {}
-
   lru-cache@10.4.3: {}
 
   lru-cache@6.0.0:
@@ -6326,7 +6320,7 @@ snapshots:
 
   minipass-collect@2.0.1:
     dependencies:
-      minipass: 7.0.4
+      minipass: 7.1.2
 
   minipass-fetch@2.1.2:
     dependencies:
@@ -6413,7 +6407,7 @@ snapshots:
 
   node-abi@3.31.0:
     dependencies:
-      semver: 7.5.4
+      semver: 7.6.0
 
   node-emoji@2.1.3:
     dependencies:
@@ -6674,7 +6668,7 @@ snapshots:
 
   path-scurry@1.10.1:
     dependencies:
-      lru-cache: 10.0.1
+      lru-cache: 10.4.3
       minipass: 6.0.2
 
   path-scurry@1.11.1:
@@ -7053,7 +7047,7 @@ snapshots:
   socks-proxy-agent@8.0.2:
     dependencies:
       agent-base: 7.1.0
-      debug: 4.3.4
+      debug: 4.3.6
       socks: 2.7.1
     transitivePeerDependencies:
       - supports-color
