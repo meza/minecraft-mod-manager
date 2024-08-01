@@ -81,12 +81,14 @@ export const scanFiles = async (
       }
     }
 
+    const finalDetails = allDetails.filter((deets) => deets !== undefined);
+
     performance.mark('lib-scan-end');
     performance.measure('lib-scan', 'lib-scan-start', 'lib-scan-end');
 
     return {
-      preferredDetails: allDetails[0],
-      allRemoteDetails: allDetails,
+      preferredDetails: finalDetails[0],
+      allRemoteDetails: finalDetails,
       localDetails: lookupResult.hits
     };
   };

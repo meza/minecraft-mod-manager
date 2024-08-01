@@ -221,6 +221,51 @@ describe('The repository facade', () => {
         expect(actual[0].hits).toContainEqual(lookupResult1);
         expect(actual[0].hits).toContainEqual(lookupResult2);
       });
+
+      it<RepositoryTestContext>('ignores results wihtout a download url', async () => {
+        const randomHash = chance.hash();
+        const input: LookupInput[] = [
+          {
+            platform: Platform.CURSEFORGE,
+            hash: [randomHash]
+          },
+          {
+            platform: Platform.MODRINTH,
+            hash: [randomHash]
+          }
+        ];
+        const remoteModDetails1 = generateRemoteModDetails({
+          hash: randomHash
+        }).generated;
+
+        // @ts-ignore
+        remoteModDetails1.downloadUrl = null;
+
+        const lookupResult1 = generatePlatformLookupResult({
+          mod: remoteModDetails1,
+          modId: chance.word(),
+          platform: Platform.CURSEFORGE
+        }).generated;
+
+        const remoteModDetails2 = generateRemoteModDetails({
+          hash: randomHash
+        }).generated;
+        const lookupResult2 = generatePlatformLookupResult({
+          mod: remoteModDetails2,
+          modId: chance.word(),
+          platform: Platform.MODRINTH
+        }).generated;
+
+        vi.mocked(curseforge.lookup).mockResolvedValueOnce([lookupResult1]);
+        vi.mocked(modrinth.lookup).mockResolvedValueOnce([lookupResult2]);
+
+        const actual = await lookup(input);
+
+        expect(actual.length).toEqual(1);
+        expect(actual[0].sha1Hash).toEqual(randomHash);
+        expect(actual[0].hits.length).toEqual(1);
+        expect(actual[0].hits).toContainEqual(lookupResult2);
+      });
     });
 
     describe('when a lookup fails', () => {

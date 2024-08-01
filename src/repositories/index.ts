@@ -112,6 +112,9 @@ export const lookup = async (lookup: LookupInput[]): Promise<ResultItem[]> => {
     const platformResult: PlatformLookupResult[] = platformLookupResult.value;
 
     platformResult.forEach((match) => {
+      if (match.mod.downloadUrl === null) {
+        return;
+      }
       const hash = match.mod.hash;
       const targetIndex = consolidatedResult.findIndex((i) => i.sha1Hash === hash);
       if (targetIndex === -1) {
