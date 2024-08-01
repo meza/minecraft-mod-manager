@@ -169,9 +169,11 @@ Loaders are the mod loader systems that help you run mods.
 
 Both Modrinth and Curseforge support a different set of loaders. `mmm` supports all the loaders that are supported by these platforms.
 
+> If you want to see a loader added, please open an issue on GitHub.
+
 ##### Supported by Curseforge AND Modrinth BOTH:
 
-`fabric`, `forge`, `quilt`, `liteloader`
+`fabric`, `forge`, `quilt`, `liteloader`, `neoforge`
 
 ##### Supported by Curseforge ONLY:
 
@@ -179,7 +181,7 @@ Both Modrinth and Curseforge support a different set of loaders. `mmm` supports 
 
 ##### Supported by Modrinth ONLY:
 
-`bukkit`, `bungeecord`, `datapack`, `folia`, `modloader`, `neoforge`, `paper`, `purpur`, `rift`, `spigot`, `sponge`, `velocity`, `waterfall`
+`bukkit`, `bungeecord`, `datapack`, `folia`, `modloader`, `paper`, `purpur`, `rift`, `spigot`, `sponge`, `velocity`, `waterfall`
 
 ---
 
