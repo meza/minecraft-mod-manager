@@ -1,14 +1,16 @@
 import { IncorrectMinecraftVersionException } from '../errors/IncorrectMinecraftVersionException.js';
 import { RedundantVersionException } from '../errors/RedundantVersionException.js';
+import { getLatestMinecraftVersion } from '../interactions/getLatestMinecraftVersion.js';
 import { DefaultOptions } from '../mmm.js';
 import { fetchModDetails } from '../repositories/index.js';
-import { readConfigFile } from './config.js';
 import { Logger } from './Logger.js';
+import { readConfigFile } from './config.js';
 import { verifyMinecraftVersion } from './minecraftVersionVerifier.js';
 import { Mod } from './modlist.types.js';
-import { getLatestMinecraftVersion } from '../interactions/getLatestMinecraftVersion.js';
 
-export type VerifyUpgradeOptions = DefaultOptions;
+export type VerifyUpgradeOptions = DefaultOptions & {
+  force?: boolean;
+};
 
 export interface UpgradeVerificationResult {
   canUpgrade: boolean;
@@ -16,7 +18,11 @@ export interface UpgradeVerificationResult {
   modsInError: Mod[];
 }
 
-export const verifyUpgradeIsPossible = async (gameVersion: string, options: VerifyUpgradeOptions, logger: Logger): Promise<UpgradeVerificationResult> => {
+export const verifyUpgradeIsPossible = async (
+  gameVersion: string,
+  options: VerifyUpgradeOptions,
+  logger: Logger
+): Promise<UpgradeVerificationResult> => {
   let version = gameVersion;
 
   if (gameVersion.toLowerCase() === 'latest') {
@@ -37,8 +43,15 @@ export const verifyUpgradeIsPossible = async (gameVersion: string, options: Veri
   const mods = configuration.mods;
   const errors: Mod[] = [];
 
-  const processMod = async (mod: Mod) => {
+  if (options.force) {
+    return {
+      canUpgrade: true,
+      version: version,
+      modsInError: []
+    };
+  }
 
+  const processMod = async (mod: Mod) => {
     logger.debug(`Checking ${mod.name} for ${mod.type} for ${version}`);
     try {
       await fetchModDetails(
@@ -47,13 +60,12 @@ export const verifyUpgradeIsPossible = async (gameVersion: string, options: Veri
         mod.allowedReleaseTypes || configuration.defaultAllowedReleaseTypes,
         version,
         configuration.loader,
-        configuration.allowVersionFallback
+        !!mod.allowVersionFallback
       );
     } catch {
       errors.push(mod);
     }
     return;
-
   };
   const promises = mods.map(processMod);
 

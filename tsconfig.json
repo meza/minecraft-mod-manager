@@ -15,27 +15,15 @@
     "sourceRoot": "src",
     "noPropertyAccessFromIndexSignature": false,
     "preserveSymlinks": false,
-    "typeRoots": [
-      "./node_modules/@types",
-      "./src/types"
-    ]
+    "typeRoots": ["./node_modules/@types", "./src/types"]
   },
   "linterOptions": {
-    "exclude": [
-      "lib/murmurhash3.ts"
-    ]
+    "exclude": ["lib/murmurhash3.ts"]
   },
-  "include": [
-    "src/**/*.ts",
-    "test/**/*.ts"
-  ],
-  "exclude": [
-    "node_modules"
-  ],
+  "include": ["src/**/*.ts", "test/**/*.ts"],
+  "exclude": ["node_modules"],
   "ts-node": {
     "files": true
   },
-  "files": [
-    "src/types/environment.d.ts"
-  ]
+  "files": ["src/types/environment.d.ts"]
 }

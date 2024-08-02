@@ -1,17 +1,16 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import { generateModsJson } from '../../test/modlistGenerator.js';
 import { generateModConfig } from '../../test/modConfigGenerator.js';
-import { list } from './list.js';
-import { ensureConfiguration, readLockFile } from '../lib/config.js';
 import { generateModInstall } from '../../test/modInstallGenerator.js';
+import { generateModsJson } from '../../test/modlistGenerator.js';
+import { expectCommandStartTelemetry } from '../../test/telemetryHelper.js';
 import { Logger } from '../lib/Logger.js';
-import { ConfigFileNotFoundException } from '../errors/ConfigFileNotFoundException.js';
-import { ErrorTexts } from '../errors/ErrorTexts.js';
-import { chance } from 'jest-chance';
+import { ensureConfiguration, readLockFile } from '../lib/config.js';
 import { DefaultOptions } from '../mmm.js';
+import { list } from './list.js';
 
 vi.mock('../lib/Logger.js');
 vi.mock('../lib/config.js');
+vi.mock('../mmm.js');
 
 interface LocalTestContext {
   options: DefaultOptions;
@@ -31,12 +30,10 @@ describe('The list action', async () => {
     vi.mocked(context.logger.error).mockImplementation(() => {
       throw new Error('process.exit');
     });
-
   });
 
   describe('when all the mods are installed', () => {
     it<LocalTestContext>('it should list all the mods sorted', async ({ options, logger }) => {
-
       const randomConfig = generateModsJson().generated;
 
       const mod3 = generateModConfig({ name: 'mod3.jar', id: 'mod3id' }).generated;
@@ -61,7 +58,6 @@ describe('The list action', async () => {
       expect(logger.log).toHaveBeenNthCalledWith(2, '\u2705 mod1.jar (mod1id) is installed', true);
       expect(logger.log).toHaveBeenNthCalledWith(3, '\u2705 mod2.jar (mod2id) is installed', true);
       expect(logger.log).toHaveBeenNthCalledWith(4, '\u2705 mod3.jar (mod3id) is installed', true);
-
     });
   });
 
@@ -90,22 +86,20 @@ describe('The list action', async () => {
       expect(logger.log).toHaveBeenNthCalledWith(2, '\u2705 mod1.jar (mod1id) is installed', true);
       expect(logger.log).toHaveBeenNthCalledWith(3, '\u274c mod2.jar (mod2id) is not installed', true);
       expect(logger.log).toHaveBeenNthCalledWith(4, '\u2705 mod3.jar (mod3id) is installed', true);
-
-    });
-
-    it<LocalTestContext>('shows the correct error message when the config file is missing', async ({ options, logger }) => {
-      vi.mocked(ensureConfiguration).mockRejectedValueOnce(new ConfigFileNotFoundException(options.config));
-      await expect(list(options, logger)).rejects.toThrow('process.exit');
-
-      expect(vi.mocked(logger.error)).toHaveBeenCalledWith(ErrorTexts.configNotFound);
-
     });
   });
 
-  it<LocalTestContext>('handles unexpected errors', async ({ options, logger }) => {
-    const randomErrorMessage = chance.sentence();
-    vi.mocked(ensureConfiguration).mockRejectedValueOnce(new Error(randomErrorMessage));
-    await expect(list(options, logger)).rejects.toThrow('process.exit');
-    expect(logger.error).toHaveBeenCalledWith(randomErrorMessage, 2);
+  it<LocalTestContext>('calls the correct telemetry', async ({ options, logger }) => {
+    const randomConfig = generateModsJson().generated;
+    vi.mocked(ensureConfiguration).mockResolvedValue(randomConfig);
+
+    await list(options, logger);
+
+    expectCommandStartTelemetry({
+      command: 'list',
+      success: true,
+      duration: expect.any(Number),
+      arguments: options
+    });
   });
 });

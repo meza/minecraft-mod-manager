@@ -1,17 +1,24 @@
-import chalk from 'chalk';
-import { ensureConfiguration, fileExists, readLockFile, writeConfigFile, writeLockFile } from '../lib/config.js';
 import path from 'path';
-import { fetchModDetails } from '../repositories/index.js';
-import { downloadFile } from '../lib/downloader.js';
-import { Mod, ModInstall, ModsJson, Platform, RemoteModDetails } from '../lib/modlist.types.js';
-import { getHash } from '../lib/hash.js';
-import { DefaultOptions } from '../mmm.js';
-import { updateMod } from '../lib/updater.js';
-import { Logger } from '../lib/Logger.js';
-import { fileIsManaged, getInstallation, hasInstallation } from '../lib/configurationHelper.js';
+import chalk from 'chalk';
 import { handleFetchErrors } from '../errors/handleFetchErrors.js';
+import { Logger } from '../lib/Logger.js';
+import {
+  ensureConfiguration,
+  fileExists,
+  getModsFolder,
+  readLockFile,
+  writeConfigFile,
+  writeLockFile
+} from '../lib/config.js';
+import { fileIsManaged, getInstallation, hasInstallation } from '../lib/configurationHelper.js';
+import { downloadFile } from '../lib/downloader.js';
 import { getModFiles } from '../lib/fileHelper.js';
+import { getHash } from '../lib/hash.js';
+import { Mod, ModInstall, ModsJson, Platform, RemoteModDetails } from '../lib/modlist.types.js';
 import { scanFiles } from '../lib/scan.js';
+import { updateMod } from '../lib/updater.js';
+import { DefaultOptions, telemetry } from '../mmm.js';
+import { fetchModDetails } from '../repositories/index.js';
 import { processScanResults } from './scan.js';
 
 const getMod = async (moddata: RemoteModDetails, modsFolder: string) => {
@@ -24,9 +31,14 @@ const getMod = async (moddata: RemoteModDetails, modsFolder: string) => {
   };
 };
 
-const handleUnknownFiles = async (options: DefaultOptions, configuration: ModsJson, installations: ModInstall[], logger: Logger) => {
+const handleUnknownFiles = async (
+  options: DefaultOptions,
+  configuration: ModsJson,
+  installations: ModInstall[],
+  logger: Logger
+) => {
   //const modsFolder = getModsDir(options.config, configuration.modsFolder);
-  const allFiles = await getModFiles(options.config, configuration.modsFolder);
+  const allFiles = await getModFiles(options.config, configuration);
   const nonManagedFiles = allFiles.filter((filePath) => {
     return !fileIsManaged(filePath, installations);
   });
@@ -44,23 +56,28 @@ const handleUnknownFiles = async (options: DefaultOptions, configuration: ModsJs
 };
 
 export const install = async (options: DefaultOptions, logger: Logger) => {
-
+  performance.mark('install-start');
   const configuration = await ensureConfiguration(options.config, logger);
   const installations = await readLockFile(options, logger);
   await handleUnknownFiles(options, configuration, installations, logger);
   const installedMods = installations;
   const mods = configuration.mods;
+  const modsFolder = getModsFolder(options.config, configuration);
 
   const processMod = async (mod: Mod, index: number) => {
+    const canonVersion = mod.version || 'latest';
     try {
-      logger.debug(`Checking ${mod.name} for ${mod.type}`);
+      logger.debug(`Checking ${mod.name}@${canonVersion} for ${mod.type}`);
 
       if (hasInstallation(mod, installations)) {
         const installedModIndex = getInstallation(mod, installedMods);
 
-        const modPath = path.resolve(configuration.modsFolder, installedMods[installedModIndex].fileName);
+        const modPath = path.resolve(
+          getModsFolder(options.config, configuration),
+          installedMods[installedModIndex].fileName
+        );
 
-        if (!await fileExists(modPath)) {
+        if (!(await fileExists(modPath))) {
           logger.log(`${mod.name} doesn't exist, downloading from ${installedMods[installedModIndex].type}`);
           await downloadFile(installedMods[installedModIndex].downloadUrl, modPath);
           return;
@@ -69,7 +86,7 @@ export const install = async (options: DefaultOptions, logger: Logger) => {
         const installedHash = await getHash(modPath);
         if (installedMods[installedModIndex].hash !== installedHash) {
           logger.log(`${mod.name} has hash mismatch, downloading from source`);
-          await updateMod(installedMods[installedModIndex], modPath, configuration.modsFolder);
+          await updateMod(installedMods[installedModIndex], modPath, modsFolder);
           return;
         }
         return;
@@ -81,14 +98,15 @@ export const install = async (options: DefaultOptions, logger: Logger) => {
         mod.allowedReleaseTypes || configuration.defaultAllowedReleaseTypes,
         configuration.gameVersion,
         configuration.loader,
-        configuration.allowVersionFallback
+        !!mod.allowVersionFallback,
+        mod.version
       );
 
       mods[index].name = modData.name;
 
       // no installation exists
       logger.log(`${mod.name} doesn't exist, downloading from ${mod.type}`);
-      const dlData = await getMod(modData, configuration.modsFolder);
+      const dlData = await getMod(modData, modsFolder);
 
       installedMods.push({
         name: modData.name,
@@ -103,7 +121,6 @@ export const install = async (options: DefaultOptions, logger: Logger) => {
     } catch (error) {
       handleFetchErrors(error as Error, mod, logger);
     }
-
   };
 
   const promises = mods.map(processMod);
@@ -113,4 +130,14 @@ export const install = async (options: DefaultOptions, logger: Logger) => {
   await writeLockFile(installedMods, options, logger);
   await writeConfigFile(configuration, options, logger);
   logger.log(`${chalk.green('\u2705')} all mods are installed!`);
+  performance.mark('install-succeed');
+
+  await telemetry.captureCommand({
+    command: 'install',
+    success: true,
+    arguments: {
+      options: options
+    },
+    duration: performance.measure('install-duration', 'install-start', 'install-succeed').duration
+  });
 };

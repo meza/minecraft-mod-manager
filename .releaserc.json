@@ -16,9 +16,19 @@
     }
   ],
   "plugins": [
-    "@semantic-release/commit-analyzer",
+    [
+      "@semantic-release/commit-analyzer",
+      {
+        "preset": "conventionalcommits"
+      }
+    ],
     "semantic-release-export-data",
-    "@semantic-release/release-notes-generator",
+    [
+      "@semantic-release/release-notes-generator",
+      {
+        "preset": "conventionalcommits"
+      }
+    ],
     [
       "@semantic-release/changelog",
       {
@@ -37,7 +47,7 @@
       {
         "assets": [
           {
-            "path": "dist/*-windows.zip",
+            "path": "dist/pkg/win/mmm.exe",
             "label": "Minecraft Mod Manager v${nextRelease.version} for Windows"
           },
           {

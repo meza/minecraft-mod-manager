@@ -1,15 +1,16 @@
 import path from 'node:path';
-import { beforeEach, describe, expect, it, vi } from 'vitest';
-import { Mod, ModInstall, ModsJson } from '../lib/modlist.types.js';
-import { generateModsJson } from '../../test/modlistGenerator.js';
-import { removeAction, RemoveOptions } from './remove.js';
-import { Logger } from '../lib/Logger.js';
-import { ensureConfiguration, readLockFile, writeConfigFile, writeLockFile } from '../lib/config.js';
-import { generateModConfig } from '../../test/modConfigGenerator.js';
-import { findLocalMods, getInstallation, getModsDir, hasInstallation } from '../lib/configurationHelper.js';
-import { chance } from 'jest-chance';
-import { generateModInstall } from '../../test/modInstallGenerator.js';
 import fs from 'fs/promises';
+import { chance } from 'jest-chance';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { generateModConfig } from '../../test/modConfigGenerator.js';
+import { generateModInstall } from '../../test/modInstallGenerator.js';
+import { generateModsJson } from '../../test/modlistGenerator.js';
+import { expectCommandStartTelemetry } from '../../test/telemetryHelper.js';
+import { Logger } from '../lib/Logger.js';
+import { ensureConfiguration, getModsFolder, readLockFile, writeConfigFile, writeLockFile } from '../lib/config.js';
+import { findLocalMods, getInstallation, hasInstallation } from '../lib/configurationHelper.js';
+import { Mod, ModInstall, ModsJson } from '../lib/modlist.types.js';
+import { RemoveOptions, removeAction } from './remove.js';
 
 interface LocalTestContext {
   configuration: ModsJson;
@@ -18,13 +19,13 @@ interface LocalTestContext {
   logger: Logger;
 }
 
+vi.mock('../mmm.js');
 vi.mock('../lib/Logger.js');
 vi.mock('../lib/config.js');
 vi.mock('../lib/configurationHelper.js');
 vi.mock('fs/promises');
 
 describe('The remove action', () => {
-
   beforeEach<LocalTestContext>((context) => {
     vi.resetAllMocks();
 
@@ -40,7 +41,6 @@ describe('The remove action', () => {
 
     vi.mocked(ensureConfiguration).mockResolvedValueOnce(context.configuration);
     vi.mocked(readLockFile).mockResolvedValueOnce(context.installations);
-
   });
 
   it<LocalTestContext>('passes the correct inputs to the locator', async ({ options, logger, configuration }) => {
@@ -51,7 +51,6 @@ describe('The remove action', () => {
 
     expect(findLocalMods).toHaveBeenCalledOnce();
     expect(findLocalMods).toHaveBeenCalledWith(input, configuration);
-
   });
 
   describe('when in dry-run mode', () => {
@@ -117,10 +116,7 @@ describe('The remove action', () => {
   });
 
   describe('when there are local files for the mods', () => {
-    it<LocalTestContext>('removes everything', async ({
-      options,
-      logger
-    }) => {
+    it<LocalTestContext>('removes everything', async ({ options, logger }) => {
       vi.mocked(ensureConfiguration).mockReset();
       vi.mocked(readLockFile).mockReset();
       vi.mocked(getInstallation).mockRestore();
@@ -151,13 +147,9 @@ describe('The remove action', () => {
 
       const config = generateModsJson({ mods: [mod1, mod2, mod3] }).generated;
 
-      vi.mocked(getModsDir).mockReturnValue(path.resolve('/mods'));
+      vi.mocked(getModsFolder).mockReturnValue('/mods');
       vi.mocked(ensureConfiguration).mockResolvedValueOnce(config);
-      vi.mocked(readLockFile).mockResolvedValueOnce([
-        mod1Install,
-        mod2Install,
-        mod3Install
-      ]);
+      vi.mocked(readLockFile).mockResolvedValueOnce([mod1Install, mod2Install, mod3Install]);
 
       vi.mocked(hasInstallation).mockReturnValue(true);
       vi.mocked(getInstallation).mockReturnValue(0);
@@ -177,4 +169,20 @@ describe('The remove action', () => {
     });
   });
 
+  it<LocalTestContext>('calls the correct telemetry', async ({ options, logger }) => {
+    vi.mocked(findLocalMods).mockReturnValueOnce(new Set<Mod>());
+
+    const input = chance.n(chance.word, chance.integer({ min: 1, max: 10 }));
+    await removeAction(input, options, logger);
+
+    expectCommandStartTelemetry({
+      command: 'remove',
+      success: true,
+      duration: expect.any(Number),
+      arguments: {
+        mods: input,
+        options: options
+      }
+    });
+  });
 });

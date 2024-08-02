@@ -1,13 +1,11 @@
-import { beforeEach, describe, it, vi, expect } from 'vitest';
-import {
-  getLatestMinecraftVersion as getLatestMinecraftVersionLib
-} from '../lib/minecraftVersionVerifier.js';
-import { chance } from 'jest-chance';
-import { getLatestMinecraftVersion } from './getLatestMinecraftVersion.js';
-import { Logger } from '../lib/Logger.js';
-import { DefaultOptions } from '../mmm.js';
-import { findQuestion } from '../../test/inquirerHelper.js';
 import inquirer from 'inquirer';
+import { chance } from 'jest-chance';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { findQuestion } from '../../test/inquirerHelper.js';
+import { Logger } from '../lib/Logger.js';
+import { getLatestMinecraftVersion as getLatestMinecraftVersionLib } from '../lib/minecraftVersionVerifier.js';
+import { DefaultOptions } from '../mmm.js';
+import { getLatestMinecraftVersion } from './getLatestMinecraftVersion.js';
 
 vi.mock('../lib/minecraftVersionVerifier.js');
 vi.mock('../lib/Logger.js');
@@ -57,7 +55,9 @@ describe('The latest Minecraft Version Interaction', () => {
       const exitCode = vi.mocked(logger.error).mock.calls[0][1];
 
       expect(exitCode).toEqual(1);
-      expect(errorMessage).toMatchInlineSnapshot('"The Minecraft APIs are down and the latest minecraft version could not be determined."');
+      expect(errorMessage).toMatchInlineSnapshot(
+        '"The Minecraft APIs are down and the latest minecraft version could not be determined."'
+      );
     });
   });
 

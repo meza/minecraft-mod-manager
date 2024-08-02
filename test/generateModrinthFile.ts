@@ -1,9 +1,8 @@
+import { chance } from 'jest-chance';
 import { ModrinthFile } from '../src/repositories/modrinth/fetch.js';
 import { GeneratorResult } from './test.types.js';
-import { chance } from 'jest-chance';
 
 export const generateModrinthFile = (overrides?: Partial<ModrinthFile>): GeneratorResult<ModrinthFile> => {
-
   const hashes = {
     sha1: chance.hash({ length: 40, casing: 'upper' }),
     sha512: chance.hash({ length: 128, casing: 'upper' })

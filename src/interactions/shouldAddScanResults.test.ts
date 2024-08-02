@@ -1,9 +1,9 @@
-import { describe, vi, it, expect, beforeEach } from 'vitest';
-import { shouldAddScanResults } from './shouldAddScanResults.js';
+import inquirer from 'inquirer';
+import { chance } from 'jest-chance';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { ScanOptions } from '../actions/scan.js';
 import { Logger } from '../lib/Logger.js';
-import { chance } from 'jest-chance';
-import inquirer from 'inquirer';
+import { shouldAddScanResults } from './shouldAddScanResults.js';
 
 vi.mock('inquirer');
 vi.mock('../lib/Logger.js');
@@ -17,22 +17,27 @@ describe('The should add scan results interaction', () => {
     vi.resetAllMocks();
 
     context.logger = new Logger({} as never);
-
   });
 
   it<LocalTestContext>('returns true if the add is already set', async ({ logger }) => {
-    const actual = await shouldAddScanResults({
-      add: true
-    } as ScanOptions, logger);
+    const actual = await shouldAddScanResults(
+      {
+        add: true
+      } as ScanOptions,
+      logger
+    );
 
     expect(actual).toBeTruthy();
   });
 
   it<LocalTestContext>('should log out the help message when not in add mode but in quiet mode', async ({ logger }) => {
-    const actual = await shouldAddScanResults({
-      add: false,
-      quiet: true
-    } as ScanOptions, logger);
+    const actual = await shouldAddScanResults(
+      {
+        add: false,
+        quiet: true
+      } as ScanOptions,
+      logger
+    );
 
     expect(actual).toBeFalsy();
     expect(vi.mocked(logger.log).mock.calls[0][0]).toMatchInlineSnapshot(`
@@ -45,10 +50,13 @@ describe('The should add scan results interaction', () => {
     const randomResponse = chance.bool();
     vi.mocked(inquirer.prompt).mockResolvedValueOnce({ add: randomResponse });
 
-    const actual = await shouldAddScanResults({
-      add: false,
-      quiet: false
-    } as ScanOptions, logger);
+    const actual = await shouldAddScanResults(
+      {
+        add: false,
+        quiet: false
+      } as ScanOptions,
+      logger
+    );
 
     expect(vi.mocked(inquirer.prompt).mock.calls[0]).toMatchInlineSnapshot(`
       [
@@ -61,6 +69,5 @@ describe('The should add scan results interaction', () => {
       ]
     `);
     expect(actual).toEqual(randomResponse);
-
   });
 });

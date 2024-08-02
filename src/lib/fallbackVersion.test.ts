@@ -1,5 +1,5 @@
-import { getNextVersionDown, NextVersionInfo } from './fallbackVersion.js';
 import { beforeEach, describe, expect, it } from 'vitest';
+import { NextVersionInfo, getNextVersionDown } from './fallbackVersion.js';
 
 describe('The getNextVersionDown function', () => {
   let version: string;

@@ -1,14 +1,15 @@
-import { beforeEach, describe, it, vi, expect } from 'vitest';
-import { Modrinth } from './index.js';
-import { Loader, ReleaseType } from '../../lib/modlist.types.js';
 import { chance } from 'jest-chance';
-import { getMod } from './fetch.js';
-import { generateRemoteModDetails } from '../../../test/generateRemoteDetails.js';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { generatePlatformLookupResult } from '../../../test/generatePlatformLookupResult.js';
+import { generateRemoteModDetails } from '../../../test/generateRemoteDetails.js';
+import { Loader, ReleaseType } from '../../lib/modlist.types.js';
+import { getMod } from './fetch.js';
+import { Modrinth } from './index.js';
 import { lookup as cfLookup } from './lookup.js';
 
 vi.mock('./fetch.js');
 vi.mock('./lookup.js');
+vi.mock('../../env.js', () => ({ modrinthApiKey: 'REPL_MODRINTH_API_KEY' }));
 
 describe('The Modrinth Repository class', () => {
   beforeEach(() => {
@@ -32,6 +33,12 @@ describe('The Modrinth Repository class', () => {
     const loader = chance.pickone(Object.values(Loader));
     const allowFallback = chance.bool();
     const result = generateRemoteModDetails().generated;
+    let fixedVersion: string | undefined;
+
+    if (chance.bool()) {
+      fixedVersion = chance.word();
+    }
+
     vi.mocked(getMod).mockResolvedValueOnce(result);
 
     const modrinth = new Modrinth();
@@ -40,7 +47,8 @@ describe('The Modrinth Repository class', () => {
       allowedReleaseTypes,
       allowedGameVersion,
       loader,
-      allowFallback
+      allowFallback,
+      fixedVersion
     );
 
     expect(actual).toEqual(result);
@@ -50,7 +58,8 @@ describe('The Modrinth Repository class', () => {
       allowedReleaseTypes,
       allowedGameVersion,
       loader,
-      allowFallback
+      allowFallback,
+      fixedVersion
     );
   });
 
@@ -64,6 +73,5 @@ describe('The Modrinth Repository class', () => {
 
     expect(vi.mocked(cfLookup)).toHaveBeenCalledWith(lookupInput);
     expect(actual).toBe(result);
-
   });
 });

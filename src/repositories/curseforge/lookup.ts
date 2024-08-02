@@ -1,10 +1,10 @@
-import { curseForgeApiKey } from '../../env.js';
-import { curseforgeFileToRemoteModDetails, CurseforgeModFile } from './fetch.js';
-import { PlatformLookupResult } from '../index.js';
-import { Platform } from '../../lib/modlist.types.js';
-import { logger } from '../../mmm.js';
-import { rateLimitingFetch } from '../../lib/rateLimiter/index.js';
 import chalk from 'chalk';
+import { curseForgeApiKey } from '../../env.js';
+import { Platform } from '../../lib/modlist.types.js';
+import { rateLimitingFetch } from '../../lib/rateLimiter/index.js';
+import { logger } from '../../mmm.js';
+import { PlatformLookupResult } from '../index.js';
+import { CurseforgeModFile, curseforgeFileToRemoteModDetails } from './fetch.js';
 
 interface CurseforgeLookupMatches {
   id: number;
@@ -14,20 +14,21 @@ interface CurseforgeLookupResult {
   data: {
     exactMatches: CurseforgeLookupMatches[];
     exactFingerprints: number[];
-  }
+  };
 }
 
 export const lookup = async (fingerprints: string[]): Promise<PlatformLookupResult[]> => {
   const url = 'https://api.curseforge.com/v1/fingerprints';
+  performance.mark('curseforge-lookup-start');
   const modSearchResult = await rateLimitingFetch(url, {
     headers: {
-      'Accept': 'application/json',
+      Accept: 'application/json',
       'Content-Type': 'application/json',
       'x-api-key': curseForgeApiKey
     },
     method: 'POST',
     body: JSON.stringify({
-      'fingerprints': fingerprints
+      fingerprints: fingerprints
     })
   });
 
@@ -47,6 +48,9 @@ export const lookup = async (fingerprints: string[]): Promise<PlatformLookupResu
       mod: curseforgeFileToRemoteModDetails(match.file, match.file.displayName)
     });
   });
+
+  performance.mark('curseforge-lookup-end');
+  performance.measure('curseforge-lookup', 'curseforge-lookup-start', 'curseforge-lookup-end');
 
   return result;
 };

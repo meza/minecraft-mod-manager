@@ -1,17 +1,17 @@
+import * as path from 'path';
+import inquirer from 'inquirer';
+import { chance } from 'jest-chance';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { generateInitializeOptions } from '../../test/initializeOptionsGenerator.js';
-import { initializeConfig, InitializeOptions } from './initializeConfig.js';
-import inquirer from 'inquirer';
-import { fileExists, writeConfigFile } from '../lib/config.js';
-import { chance } from 'jest-chance';
-import { verifyMinecraftVersion } from '../lib/minecraftVersionVerifier.js';
-import { IncorrectMinecraftVersionException } from '../errors/IncorrectMinecraftVersionException.js';
-import * as path from 'path';
-import { configFile } from './configFileOverwrite.js';
-import { Loader, ReleaseType } from '../lib/modlist.types.js';
 import { findQuestion } from '../../test/inquirerHelper.js';
+import { IncorrectMinecraftVersionException } from '../errors/IncorrectMinecraftVersionException.js';
 import { Logger } from '../lib/Logger.js';
+import { fileExists, writeConfigFile } from '../lib/config.js';
+import { verifyMinecraftVersion } from '../lib/minecraftVersionVerifier.js';
+import { Loader, ReleaseType } from '../lib/modlist.types.js';
+import { configFile } from './configFileOverwrite.js';
 import { getLatestMinecraftVersion } from './getLatestMinecraftVersion.js';
+import { InitializeOptions, initializeConfig } from './initializeConfig.js';
 
 vi.mock('../lib/minecraftVersionVerifier.js');
 vi.mock('./configFileOverwrite.js');
@@ -35,7 +35,6 @@ describe('The Initialization Interaction', () => {
   });
 
   it('should use the submitted options', async () => {
-
     vi.mocked(inquirer.prompt).mockResolvedValueOnce({});
     vi.mocked(verifyMinecraftVersion).mockResolvedValueOnce(true);
     vi.mocked(inquirer.prompt).mockResolvedValueOnce({});
@@ -53,11 +52,9 @@ describe('The Initialization Interaction', () => {
 
     expect(actual).toEqual(expected);
     expect(vi.mocked(writeConfigFile)).toHaveBeenLastCalledWith(expected, inputOptions.generated, logger);
-
   });
 
   describe('and the game version is supplied', () => {
-
     describe('when the correct version is supplied', () => {
       it('it should be successfully verified from the command line', async () => {
         vi.mocked(verifyMinecraftVersion).mockReset();
@@ -66,7 +63,6 @@ describe('The Initialization Interaction', () => {
         const inputOptions = generateInitializeOptions();
 
         await expect(initializeConfig(inputOptions.generated, chance.word(), logger)).resolves.not.toThrow();
-
       });
 
       it('it should be successfully verified from the interactive ui', async () => {
@@ -85,7 +81,6 @@ describe('The Initialization Interaction', () => {
         const actual = await verifierFunction!(chance.word());
 
         expect(actual).toBeTruthy();
-
       });
     });
 
@@ -118,7 +113,6 @@ describe('The Initialization Interaction', () => {
         const actual = await verifierFunction!(chance.word());
 
         expect(actual).toMatchInlineSnapshot('"The game version is invalid. Please enter a valid game version"');
-
       });
     });
   });
@@ -142,7 +136,6 @@ describe('The Initialization Interaction', () => {
         await expect(initializeConfig(inputOptions.generated, root, logger)).resolves.not.toThrow();
 
         expect(fileExists).toHaveBeenCalledWith(location);
-
       });
       it('it should be verified from the interactive ui', async () => {
         const root = '/' + chance.word();
@@ -209,7 +202,7 @@ describe('The Initialization Interaction', () => {
     });
   });
 
-  it('asks for the loader when the loader isn\'t supplied', async () => {
+  it("asks for the loader when the loader isn't supplied", async () => {
     const input = generateInitializeOptions().generated;
     delete input.loader;
 
@@ -223,9 +216,24 @@ describe('The Initialization Interaction', () => {
     expect(findQuestion(inquirer.prompt, 'loader')).toMatchInlineSnapshot(`
       {
         "choices": [
-          "forge",
+          "bukkit",
+          "bungeecord",
+          "cauldron",
+          "datapack",
           "fabric",
+          "folia",
+          "forge",
+          "liteloader",
+          "modloader",
+          "neoforge",
+          "paper",
+          "purpur",
           "quilt",
+          "rift",
+          "spigot",
+          "sponge",
+          "velocity",
+          "waterfall",
         ],
         "message": "Which loader would you like to use?",
         "name": "loader",
@@ -243,35 +251,7 @@ describe('The Initialization Interaction', () => {
     expect(findQuestion(inquirer.prompt, 'loader').when).toBeFalsy();
   });
 
-  it('asks for the version fallback when it isn\'t supplied', async () => {
-    const input = generateInitializeOptions().generated;
-    delete input.allowVersionFallback;
-
-    vi.mocked(inquirer.prompt).mockResolvedValueOnce({
-      allowVersionFallback: chance.bool()
-    });
-    await initializeConfig(input, chance.word(), logger);
-
-    expect(findQuestion(inquirer.prompt, 'allowVersionFallback')).toMatchInlineSnapshot(`
-      {
-        "message": "Should we try to download mods for previous Minecraft versions if they do not exist for your Minecraft Version?",
-        "name": "allowVersionFallback",
-        "type": "confirm",
-        "when": true,
-      }
-    `);
-  });
-
-  it('skips the version fallback question when it is supplied', async () => {
-    const input = generateInitializeOptions().generated;
-
-    vi.mocked(inquirer.prompt).mockResolvedValueOnce({});
-    await initializeConfig(input, chance.word(), logger);
-
-    expect(findQuestion(inquirer.prompt, 'allowVersionFallback').when).toBeFalsy();
-  });
-
-  it('asks for the release types when they aren\'t supplied', async () => {
+  it("asks for the release types when they aren't supplied", async () => {
     const input = generateInitializeOptions().generated;
     delete input.defaultAllowedReleaseTypes;
 
@@ -305,10 +285,10 @@ describe('The Initialization Interaction', () => {
     vi.mocked(inquirer.prompt).mockResolvedValueOnce({});
     await initializeConfig(input, chance.word(), logger);
 
-    expect(findQuestion(inquirer.prompt, 'allowVersionFallback').when).toBeFalsy();
+    expect(findQuestion(inquirer.prompt, 'defaultAllowedReleaseTypes').when).toBeFalsy();
   });
 
-  it('asks for the game version when it isn\'t supplied', async () => {
+  it("asks for the game version when it isn't supplied", async () => {
     const input = generateInitializeOptions().generated;
     delete input.gameVersion;
 
@@ -339,7 +319,7 @@ describe('The Initialization Interaction', () => {
     expect(findQuestion(inquirer.prompt, 'gameVersion').when).toBeFalsy();
   });
 
-  it('asks for the mods folder when it isn\'t supplied', async () => {
+  it("asks for the mods folder when it isn't supplied", async () => {
     const input = generateInitializeOptions().generated;
     delete input.modsFolder;
 
@@ -363,11 +343,11 @@ describe('The Initialization Interaction', () => {
 
   it('skips the mods folder question when it is supplied', async () => {
     const input = generateInitializeOptions().generated;
+    input.modsFolder = `/${input.modsFolder}`;
 
     vi.mocked(inquirer.prompt).mockResolvedValueOnce({});
     await initializeConfig(input, chance.word(), logger);
 
     expect(findQuestion(inquirer.prompt, 'modsFolder').when).toBeFalsy();
   });
-
 });

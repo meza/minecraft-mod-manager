@@ -1,9 +1,9 @@
-import { afterEach, describe, expect, it, vi } from 'vitest';
-import { fileExists } from '../lib/config.js';
-import { ConfigFileAlreadyExistsException } from '../errors/ConfigFileAlreadyExistsException.js';
 import path from 'path';
-import { chance } from 'jest-chance';
 import inquirer, { Question } from 'inquirer';
+import { chance } from 'jest-chance';
+import { afterEach, describe, expect, it, vi } from 'vitest';
+import { ConfigFileAlreadyExistsException } from '../errors/ConfigFileAlreadyExistsException.js';
+import { fileExists } from '../lib/config.js';
 import { configFile } from './configFileOverwrite.js';
 
 vi.mock('inquirer');
@@ -46,7 +46,6 @@ describe('The Config Overwrite Interaction', () => {
           const actual = await configFile(inputOptions, root);
 
           expect(actual).toEqual(location);
-
         });
       });
 
@@ -134,8 +133,12 @@ describe('The Config Overwrite Interaction', () => {
 
     await configFile(inputOptions, chance.word());
 
-    expect((vi.mocked(inquirer.prompt).mock.calls[0][0] as Question).message).toMatchInlineSnapshot('"The config file test.json already exists. Would you like to overwrite it?"');
-    expect((vi.mocked(inquirer.prompt).mock.calls[1][0] as Question).message).toMatchInlineSnapshot('"Please enter a new config file name"');
+    expect((vi.mocked(inquirer.prompt).mock.calls[0][0] as Question).message).toMatchInlineSnapshot(
+      '"The config file test.json already exists. Would you like to overwrite it?"'
+    );
+    expect((vi.mocked(inquirer.prompt).mock.calls[1][0] as Question).message).toMatchInlineSnapshot(
+      '"Please enter a new config file name"'
+    );
   });
 
   it('should show the correct types', async () => {

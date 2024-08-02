@@ -1,17 +1,19 @@
-import { describe, it, vi, beforeEach, expect } from 'vitest';
-import { rateLimitingFetch } from '../../lib/rateLimiter/index.js';
-import * as envvars from '../../env.js';
 import { chance } from 'jest-chance';
-import { lookup } from './lookup.js';
-import { Logger } from '../../lib/Logger.js';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { generateCurseforgeModFile } from '../../../test/generateCurseforgeModFile.js';
-import { Platform } from '../../lib/modlist.types.js';
 import { generateRemoteModDetails } from '../../../test/generateRemoteDetails.js';
+import * as envvars from '../../env.js';
+import { Logger } from '../../lib/Logger.js';
+import { Platform } from '../../lib/modlist.types.js';
+import { rateLimitingFetch } from '../../lib/rateLimiter/index.js';
+import { logger } from '../../mmm.js';
 import { curseforgeFileToRemoteModDetails } from './fetch.js';
+import { lookup } from './lookup.js';
 
 vi.mock('../../lib/rateLimiter/index.js');
 vi.mock('../../lib/Logger.js');
 vi.mock('./fetch.js');
+vi.mock('../../mmm.js');
 
 interface LocalTestContext {
   apiKey: string;
@@ -21,7 +23,6 @@ interface LocalTestContext {
 describe('The Curseforge Lookup module', () => {
   beforeEach<LocalTestContext>((context) => {
     vi.resetAllMocks();
-    context.logger = new Logger({} as never);
     context.apiKey = chance.hash();
 
     vi.spyOn(envvars, 'curseForgeApiKey', 'get').mockReturnValue(context.apiKey);
@@ -43,10 +44,12 @@ describe('The Curseforge Lookup module', () => {
     expect(requestParams.headers).toHaveProperty('Accept', 'application/json');
     expect(requestParams.headers).toHaveProperty('Content-Type', 'application/json');
     expect(requestParams.headers).toHaveProperty('x-api-key', apiKey);
-    expect(requestParams.body).toMatchInlineSnapshot('"{\\"fingerprints\\":[\\"fingerprint1\\",\\"fingerprint2\\",\\"fingerprint3\\"]}"');
+    expect(requestParams.body).toMatchInlineSnapshot(
+      '"{"fingerprints":["fingerprint1","fingerprint2","fingerprint3"]}"'
+    );
   });
 
-  it<LocalTestContext>('logs the failed attempt correctly', async ({ logger }) => {
+  it<LocalTestContext>('logs the failed attempt correctly', async () => {
     vi.mocked(rateLimitingFetch).mockResolvedValueOnce({
       ok: false // fastest way to exit out of the function under test
     } as unknown as Response);
@@ -81,10 +84,7 @@ describe('The Curseforge Lookup module', () => {
     } as unknown as Response);
     const actual = await lookup([fingerprint]);
 
-    expect(vi.mocked(curseforgeFileToRemoteModDetails)).toHaveBeenCalledWith(
-      modFile,
-      modFile.displayName
-    );
+    expect(vi.mocked(curseforgeFileToRemoteModDetails)).toHaveBeenCalledWith(modFile, modFile.displayName);
 
     expect(actual.length).toEqual(1);
     expect(actual[0].platform).toEqual(Platform.CURSEFORGE);

@@ -1,11 +1,11 @@
-import { beforeEach, describe, vi, it, expect } from 'vitest';
-import { RateLimit, rateLimitingFetch } from './index.js';
 import { chance } from 'jest-chance';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { MaximumRetriesReached } from './MaximumRetriesReached.js';
+import { RateLimit, rateLimitingFetch } from './index.js';
 import { Queue } from './queue.js';
 
-import * as queueExports from './queue.js';
 import { FetchJob } from './FetchJob.js';
+import * as queueExports from './queue.js';
 
 interface LocalTestContext {
   rateLimit: RateLimit;
@@ -34,13 +34,14 @@ describe('The Rate Limiting Library', () => {
       maxAttempts: 3
     };
     context.input = chance.url({ protocol: 'https' });
-    context.randomResponse = (success = true) => ({
-      ok: success,
-      headers: {
-        has: vi.fn().mockReturnValue(false),
-        get: vi.fn()
-      }
-    } as unknown as Response);
+    context.randomResponse = (success = true) =>
+      ({
+        ok: success,
+        headers: {
+          has: vi.fn().mockReturnValue(false),
+          get: vi.fn()
+        }
+      }) as unknown as Response;
   });
 
   it<LocalTestContext>('can resolve successfully', async ({ randomResponse, init, input, rateLimit }) => {
@@ -54,10 +55,12 @@ describe('The Rate Limiting Library', () => {
   it<LocalTestContext>('can reject successfully', async ({ randomResponse, init, input }) => {
     const response = randomResponse(false);
     vi.mocked(fetch).mockResolvedValue(response);
-    await expect(rateLimitingFetch(input, init, {
-      timeBetweenCalls: 0,
-      maxAttempts: 3
-    })).rejects.toThrow(MaximumRetriesReached);
+    await expect(
+      rateLimitingFetch(input, init, {
+        timeBetweenCalls: 0,
+        maxAttempts: 3
+      })
+    ).rejects.toThrow(MaximumRetriesReached);
 
     expect(fetch).toHaveBeenCalledTimes(3); //maxAttempts amount of times
   });
@@ -65,10 +68,12 @@ describe('The Rate Limiting Library', () => {
   it<LocalTestContext>('can throw successfully', async ({ init, input }) => {
     const error = new Error('happens rarely');
     vi.mocked(fetch).mockRejectedValue(error);
-    await expect(rateLimitingFetch(input, init, {
-      maxAttempts: 3,
-      timeBetweenCalls: 0
-    })).rejects.toThrow(error);
+    await expect(
+      rateLimitingFetch(input, init, {
+        maxAttempts: 3,
+        timeBetweenCalls: 0
+      })
+    ).rejects.toThrow(error);
 
     expect(fetch).toHaveBeenCalledTimes(1); //regardless of max retries, we reject after the first
   });
@@ -90,7 +95,6 @@ describe('The Rate Limiting Library', () => {
 
     expect(actual1).toBe(response1);
     expect(actual2).toBe(response2);
-
   });
 
   it<LocalTestContext>('can queue multiple requests to the same host', async ({ randomResponse, init }) => {
@@ -109,10 +113,7 @@ describe('The Rate Limiting Library', () => {
       timeBetweenCalls: 500 //set it to high to make sure different inputs don't queue
     };
 
-    const promises = [
-      rateLimitingFetch(url, init, retry),
-      rateLimitingFetch(url)
-    ];
+    const promises = [rateLimitingFetch(url, init, retry), rateLimitingFetch(url)];
 
     await Promise.all(promises);
 
@@ -130,10 +131,13 @@ describe('The Rate Limiting Library', () => {
      * This is mainly to cover a very slim edge case that should never happen.
      */
     vi.useFakeTimers();
-    vi.spyOn(queueExports, 'Queue').mockImplementation(() => ({
-      dequeue: () => undefined,
-      enqueue: () => {}
-    } as unknown as Queue<FetchJob>));
+    vi.spyOn(queueExports, 'Queue').mockImplementation(
+      () =>
+        ({
+          dequeue: () => undefined,
+          enqueue: () => {}
+        }) as unknown as Queue<FetchJob>
+    );
 
     rateLimitingFetch(input);
 
@@ -141,5 +145,4 @@ describe('The Rate Limiting Library', () => {
 
     expect(fetch).not.toHaveBeenCalled();
   });
-
 });

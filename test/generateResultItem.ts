@@ -1,7 +1,7 @@
-import { GeneratorResult } from './test.types.js';
-import { ResultItem } from '../src/repositories/index.js';
 import { chance } from 'jest-chance';
+import { ResultItem } from '../src/repositories/index.js';
 import { generatePlatformLookupResult } from './generatePlatformLookupResult.js';
+import { GeneratorResult } from './test.types.js';
 
 const generateHits = (numberOfHits = 1) => {
   return chance.n(() => {

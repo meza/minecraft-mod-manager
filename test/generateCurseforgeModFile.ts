@@ -1,9 +1,10 @@
-import { CurseforgeModFile, HashFunctions } from '../src/repositories/curseforge/fetch.js';
 import { chance } from 'jest-chance';
+import { CurseforgeModFile, HashFunctions } from '../src/repositories/curseforge/fetch.js';
 import { GeneratorResult } from './test.types.js';
 
-export const generateCurseforgeModFile = (overrides?: Partial<CurseforgeModFile>): GeneratorResult<CurseforgeModFile> => {
-
+export const generateCurseforgeModFile = (
+  overrides?: Partial<CurseforgeModFile>
+): GeneratorResult<CurseforgeModFile> => {
   const displayName = chance.word();
   const fileDate = chance.date().toISOString();
   const releaseType = chance.integer({ min: 1, max: 3 });
@@ -61,5 +62,4 @@ export const generateCurseforgeModFile = (overrides?: Partial<CurseforgeModFile>
     generated: generated,
     expected: expected
   };
-
 };

@@ -1,13 +1,13 @@
-import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { chance } from 'jest-chance';
-import { curseforgeFileToRemoteModDetails, CurseforgeModFile, getMod, HashFunctions } from './fetch.js';
-import { Loader, Platform, ReleaseType, RemoteModDetails } from '../../lib/modlist.types.js';
-import { RepositoryTestContext } from '../index.test.js';
-import { CouldNotFindModException } from '../../errors/CouldNotFindModException.js';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { generateCurseforgeModFile } from '../../../test/generateCurseforgeModFile.js';
-import { NoRemoteFileFound } from '../../errors/NoRemoteFileFound.js';
-import { rateLimitingFetch } from '../../lib/rateLimiter/index.js';
+import { CouldNotFindModException } from '../../errors/CouldNotFindModException.js';
 import { CurseforgeDownloadUrlError } from '../../errors/CurseforgeDownloadUrlError.js';
+import { NoRemoteFileFound } from '../../errors/NoRemoteFileFound.js';
+import { Loader, Platform, ReleaseType, RemoteModDetails } from '../../lib/modlist.types.js';
+import { rateLimitingFetch } from '../../lib/rateLimiter/index.js';
+import { RepositoryTestContext } from '../index.test.js';
+import { CurseforgeModFile, HashFunctions, curseforgeFileToRemoteModDetails, getMod } from './fetch.js';
 
 enum Release {
   ALPHA = 3,
@@ -18,6 +18,7 @@ enum Release {
 vi.mock('../../lib/rateLimiter/index.js');
 
 const releasedStatus = 10;
+const testLoaders = [Loader.FORGE, Loader.FABRIC, Loader.QUILT, Loader.LITELOADER, Loader.CAULDRON];
 
 const assumeFailedModFetch = () => {
   vi.mocked(rateLimitingFetch).mockResolvedValue({
@@ -28,44 +29,49 @@ const assumeFailedModFetch = () => {
 const assumeSuccessfulModFetch = (modName: string, latestFiles: CurseforgeModFile[]) => {
   vi.mocked(rateLimitingFetch).mockResolvedValueOnce({
     ok: true,
-    json: () => Promise.resolve({
-      data: {
-        name: modName
-      }
-    })
+    json: () =>
+      Promise.resolve({
+        data: {
+          name: modName
+        }
+      })
   } as Response);
 
   vi.mocked(rateLimitingFetch).mockResolvedValueOnce({
     ok: true,
-    json: () => Promise.resolve({
-      data: latestFiles
-    })
+    json: () =>
+      Promise.resolve({
+        data: latestFiles
+      })
   } as Response);
 };
 
 describe('The Curseforge repository', () => {
-
   beforeEach<RepositoryTestContext>((context) => {
     vi.resetAllMocks();
     context.platform = Platform.CURSEFORGE;
     context.id = chance.word();
-    context.allowedReleaseTypes = chance.pickset(Object.values(ReleaseType), chance.integer({
-      min: 1,
-      max: Object.keys(ReleaseType).length
-    }));
+    context.allowedReleaseTypes = chance.pickset(
+      Object.values(ReleaseType),
+      chance.integer({
+        min: 1,
+        max: Object.keys(ReleaseType).length
+      })
+    );
     context.gameVersion = chance.pickone(['1.16.5', '1.17.1', '1.18.1', '1.18.2', '1.19']);
-    context.loader = chance.pickone(Object.values(Loader));
+    context.loader = chance.pickone(testLoaders);
     context.allowFallback = false;
   });
 
   it<RepositoryTestContext>('throws an error when the mod details could not be fetched', async (context) => {
     vi.mocked(rateLimitingFetch).mockResolvedValueOnce({
       ok: true,
-      json: () => Promise.resolve({
-        data: {
-          name: chance.word()
-        }
-      })
+      json: () =>
+        Promise.resolve({
+          data: {
+            name: chance.word()
+          }
+        })
     } as Response);
 
     vi.mocked(rateLimitingFetch).mockResolvedValueOnce({
@@ -73,13 +79,7 @@ describe('The Curseforge repository', () => {
     } as Response);
 
     await expect(async () => {
-      await getMod(
-        context.id,
-        context.allowedReleaseTypes,
-        context.gameVersion,
-        context.loader,
-        context.allowFallback
-      );
+      await getMod(context.id, context.allowedReleaseTypes, context.gameVersion, context.loader, context.allowFallback);
     }).rejects.toThrow(new CouldNotFindModException(context.id, context.platform));
   });
 
@@ -90,37 +90,27 @@ describe('The Curseforge repository', () => {
       fileStatus: releasedStatus,
       fileDate: '2019-08-24T14:15:22Z',
       releaseType: Release.RELEASE,
-      sortableGameVersions: [{
-        gameVersionName: context.loader,
-        gameVersion: context.gameVersion
-      }],
+      sortableGameVersions: [
+        {
+          gameVersionName: context.gameVersion,
+          gameVersion: context.gameVersion
+        }
+      ],
       // @ts-ignore
       downloadUrl: null
     });
 
-    assumeSuccessfulModFetch(randomName, [
-      randomFile1.generated
-    ]);
+    assumeSuccessfulModFetch(randomName, [randomFile1.generated]);
 
-    await expect(getMod(
-      context.id,
-      [ReleaseType.RELEASE],
-      context.gameVersion,
-      context.loader,
-      context.allowFallback
-    )).rejects.toThrow(new CurseforgeDownloadUrlError(randomName));
+    await expect(
+      getMod(context.id, [ReleaseType.RELEASE], context.gameVersion, context.loader, context.allowFallback)
+    ).rejects.toThrow(new CurseforgeDownloadUrlError(randomName));
   });
 
   it<RepositoryTestContext>('throws an error when the files cannot be fetched', async (context) => {
     assumeFailedModFetch();
     await expect(async () => {
-      await getMod(
-        context.id,
-        context.allowedReleaseTypes,
-        context.gameVersion,
-        context.loader,
-        context.allowFallback
-      );
+      await getMod(context.id, context.allowedReleaseTypes, context.gameVersion, context.loader, context.allowFallback);
     }).rejects.toThrow(new CouldNotFindModException(context.id, context.platform));
   });
 
@@ -129,23 +119,19 @@ describe('The Curseforge repository', () => {
     const randomBadReleaseType = chance.integer({ min: 4, max: 100 });
     const randomFile = generateCurseforgeModFile({
       isAvailable: true,
-      sortableGameVersions: [{
-        gameVersion: context.gameVersion,
-        gameVersionName: context.loader
-      }],
+      sortableGameVersions: [
+        {
+          gameVersion: context.gameVersion,
+          gameVersionName: context.gameVersion
+        }
+      ],
       releaseType: randomBadReleaseType
     });
 
     assumeSuccessfulModFetch(randomName, [randomFile.generated]);
 
     await expect(async () => {
-      await getMod(
-        context.id,
-        context.allowedReleaseTypes,
-        context.gameVersion,
-        context.loader,
-        context.allowFallback
-      );
+      await getMod(context.id, context.allowedReleaseTypes, context.gameVersion, context.loader, context.allowFallback);
     }).rejects.toThrow(new NoRemoteFileFound(randomName, context.platform));
   });
 
@@ -155,22 +141,18 @@ describe('The Curseforge repository', () => {
       isAvailable: true,
       fileStatus: releasedStatus,
       releaseType: Release.ALPHA,
-      sortableGameVersions: [{
-        gameVersion: context.gameVersion,
-        gameVersionName: context.loader
-      }],
+      sortableGameVersions: [
+        {
+          gameVersion: context.gameVersion,
+          gameVersionName: context.gameVersion
+        }
+      ],
       hashes: []
     });
     assumeSuccessfulModFetch(randomName, [randomFile.generated]);
 
     await expect(async () => {
-      await getMod(
-        context.id,
-        [ReleaseType.ALPHA],
-        context.gameVersion,
-        context.loader,
-        false
-      );
+      await getMod(context.id, [ReleaseType.ALPHA], context.gameVersion, context.loader, false);
     }).rejects.toThrow(new NoRemoteFileFound(randomName, context.platform));
   });
 
@@ -180,66 +162,52 @@ describe('The Curseforge repository', () => {
       isAvailable: true,
       fileStatus: releasedStatus,
       releaseType: Release.RELEASE,
-      sortableGameVersions: [{
-        gameVersionName: context.loader,
-        gameVersion: 'improper version'
-      }]
+      sortableGameVersions: [
+        {
+          gameVersionName: 'improper version',
+          gameVersion: 'improper version'
+        }
+      ]
     });
     assumeSuccessfulModFetch(randomName, [randomFile.generated]);
 
     await expect(async () => {
-      await getMod(
-        context.id,
-        [ReleaseType.RELEASE],
-        context.gameVersion,
-        context.loader,
-        context.allowFallback
-      );
+      await getMod(context.id, [ReleaseType.RELEASE], context.gameVersion, context.loader, context.allowFallback);
     }).rejects.toThrow(new NoRemoteFileFound(randomName, context.platform));
-
   });
 
   it<RepositoryTestContext>('throws an error when no files match the requested loader', async (context) => {
     const randomName = chance.word();
     const randomFile = generateCurseforgeModFile({
-      sortableGameVersions: [{
-        gameVersionName: 'no real loader',
-        gameVersion: context.gameVersion
-      }]
+      sortableGameVersions: [
+        {
+          gameVersionName: 'no real loader',
+          gameVersion: context.gameVersion
+        }
+      ]
     });
     assumeSuccessfulModFetch(randomName, [randomFile.generated]);
 
     await expect(async () => {
-      await getMod(
-        context.id,
-        context.allowedReleaseTypes,
-        context.gameVersion,
-        context.loader,
-        context.allowFallback
-      );
+      await getMod(context.id, context.allowedReleaseTypes, context.gameVersion, context.loader, context.allowFallback);
     }).rejects.toThrow(new NoRemoteFileFound(randomName, context.platform));
-
   });
 
   it<RepositoryTestContext>('throws an error when no files are available', async (context) => {
     const randomName = chance.word();
     const randomFile = generateCurseforgeModFile({
       isAvailable: false,
-      sortableGameVersions: [{
-        gameVersionName: context.loader,
-        gameVersion: context.gameVersion
-      }]
+      sortableGameVersions: [
+        {
+          gameVersionName: context.gameVersion,
+          gameVersion: context.gameVersion
+        }
+      ]
     });
     assumeSuccessfulModFetch(randomName, [randomFile.generated]);
 
     await expect(async () => {
-      await getMod(
-        context.id,
-        context.allowedReleaseTypes,
-        context.gameVersion,
-        context.loader,
-        context.allowFallback
-      );
+      await getMod(context.id, context.allowedReleaseTypes, context.gameVersion, context.loader, context.allowFallback);
     }).rejects.toThrow(new NoRemoteFileFound(randomName, context.platform));
   });
 
@@ -248,23 +216,18 @@ describe('The Curseforge repository', () => {
     const randomFile = generateCurseforgeModFile({
       isAvailable: true,
       releaseType: Release.BETA,
-      sortableGameVersions: [{
-        gameVersionName: context.loader,
-        gameVersion: context.gameVersion
-      }]
+      sortableGameVersions: [
+        {
+          gameVersionName: context.gameVersion,
+          gameVersion: context.gameVersion
+        }
+      ]
     });
     assumeSuccessfulModFetch(randomName, [randomFile.generated]);
 
     await expect(async () => {
-      await getMod(
-        context.id,
-        [ReleaseType.RELEASE],
-        context.gameVersion,
-        context.loader,
-        context.allowFallback
-      );
+      await getMod(context.id, [ReleaseType.RELEASE], context.gameVersion, context.loader, context.allowFallback);
     }).rejects.toThrow(new NoRemoteFileFound(randomName, context.platform));
-
   });
 
   describe.each([1, 2, 3, 5, 6, 7, 8, 9, 11, 12, 13, 14, 15])('when the file status is %i', (status) => {
@@ -273,10 +236,12 @@ describe('The Curseforge repository', () => {
       const randomFile = generateCurseforgeModFile({
         isAvailable: true,
         fileStatus: status,
-        sortableGameVersions: [{
-          gameVersionName: context.loader,
-          gameVersion: context.gameVersion
-        }]
+        sortableGameVersions: [
+          {
+            gameVersionName: context.gameVersion,
+            gameVersion: context.gameVersion
+          }
+        ]
       });
       assumeSuccessfulModFetch(randomName, [randomFile.generated]);
 
@@ -292,7 +257,7 @@ describe('The Curseforge repository', () => {
     });
   });
 
-  describe('when version fallback is allowed and the available version is one lower version', () => {
+  describe('when game version fallback is allowed and the available game version is one lower game version', () => {
     beforeEach<RepositoryTestContext>((context) => {
       context.allowFallback = true;
     });
@@ -303,21 +268,17 @@ describe('The Curseforge repository', () => {
         isAvailable: true,
         fileStatus: releasedStatus,
         releaseType: Release.RELEASE,
-        sortableGameVersions: [{
-          gameVersionName: context.loader,
-          gameVersion: '1.19.1'
-        }]
+        sortableGameVersions: [
+          {
+            gameVersionName: '1.19.1',
+            gameVersion: '1.19.1'
+          }
+        ]
       });
       assumeSuccessfulModFetch(randomName, []);
       assumeSuccessfulModFetch(randomName, [randomFile.generated]);
 
-      const actual = await getMod(
-        context.id,
-        [ReleaseType.RELEASE],
-        '1.19.2',
-        context.loader,
-        true
-      );
+      const actual = await getMod(context.id, [ReleaseType.RELEASE], '1.19.2', context.loader, true);
 
       expect(actual).toEqual({
         name: randomName,
@@ -326,11 +287,10 @@ describe('The Curseforge repository', () => {
         hash: randomFile.generated.hashes.find((hash) => hash.algo === HashFunctions.sha1)?.value,
         downloadUrl: randomFile.generated.downloadUrl
       });
-
     });
   });
 
-  describe('when version fallback is allowed and the available version is the previous major version', () => {
+  describe('when game version fallback is allowed and the available game version is the previous major game version', () => {
     beforeEach<RepositoryTestContext>((context) => {
       context.allowFallback = true;
     });
@@ -341,33 +301,31 @@ describe('The Curseforge repository', () => {
         isAvailable: true,
         fileStatus: releasedStatus,
         releaseType: Release.RELEASE,
-        sortableGameVersions: [{
-          gameVersionName: context.loader,
-          gameVersion: '1.19'
-        }]
+        sortableGameVersions: [
+          {
+            gameVersionName: '1.19',
+            gameVersion: '1.19'
+          }
+        ]
       });
 
       const redHerring = generateCurseforgeModFile({
         isAvailable: true,
         fileStatus: releasedStatus,
         releaseType: Release.RELEASE,
-        sortableGameVersions: [{
-          gameVersionName: context.loader,
-          gameVersion: '1.19.0'
-        }]
+        sortableGameVersions: [
+          {
+            gameVersionName: '1.19.0',
+            gameVersion: '1.19.0'
+          }
+        ]
       });
 
       assumeSuccessfulModFetch(randomName, []);
       assumeSuccessfulModFetch(randomName, [redHerring.generated]);
       assumeSuccessfulModFetch(randomName, [randomFile.generated]);
 
-      const actual = await getMod(
-        context.id,
-        [ReleaseType.RELEASE],
-        '1.19.2',
-        context.loader,
-        true
-      );
+      const actual = await getMod(context.id, [ReleaseType.RELEASE], '1.19.2', context.loader, true);
 
       expect(actual).toEqual({
         name: randomName,
@@ -376,7 +334,6 @@ describe('The Curseforge repository', () => {
         hash: randomFile.generated.hashes.find((hash) => hash.algo === HashFunctions.sha1)?.value,
         downloadUrl: randomFile.generated.downloadUrl
       });
-
     });
   });
 
@@ -386,10 +343,12 @@ describe('The Curseforge repository', () => {
       isAvailable: true,
       fileStatus: releasedStatus,
       releaseType: Release.RELEASE,
-      sortableGameVersions: [{
-        gameVersionName: context.loader,
-        gameVersion: context.gameVersion
-      }]
+      sortableGameVersions: [
+        {
+          gameVersionName: context.gameVersion,
+          gameVersion: context.gameVersion
+        }
+      ]
     });
     assumeSuccessfulModFetch(randomName, [randomFile.generated]);
 
@@ -408,50 +367,57 @@ describe('The Curseforge repository', () => {
       hash: randomFile.generated.hashes.find((hash) => hash.algo === HashFunctions.sha1)?.value,
       downloadUrl: randomFile.generated.downloadUrl
     });
-
   });
 
-  it<RepositoryTestContext>('returns the most recent file for a given version', async (context) => {
+  it<RepositoryTestContext>('returns the most recent file for a given game version', async (context) => {
     const randomName = chance.word();
     const randomFile1 = generateCurseforgeModFile({
       isAvailable: true,
       fileStatus: releasedStatus,
       fileDate: '2019-08-24T14:15:22Z',
       releaseType: Release.RELEASE,
-      sortableGameVersions: [{
-        gameVersionName: context.loader,
-        gameVersion: context.gameVersion
-      }]
+      sortableGameVersions: [
+        {
+          gameVersionName: context.gameVersion,
+          gameVersion: context.gameVersion
+        }
+      ]
     });
     const randomFile2 = generateCurseforgeModFile({
       isAvailable: true,
       fileStatus: releasedStatus,
       fileDate: '2020-08-24T14:15:22Z',
       releaseType: Release.RELEASE,
-      sortableGameVersions: [{
-        gameVersionName: context.loader,
-        gameVersion: context.gameVersion
-      }]
+      sortableGameVersions: [
+        {
+          gameVersionName: context.gameVersion,
+          gameVersion: context.gameVersion
+        }
+      ]
     });
     const randomFile3 = generateCurseforgeModFile({
       isAvailable: true,
       fileStatus: releasedStatus,
       fileDate: '2018-08-24T14:15:22Z',
       releaseType: Release.RELEASE,
-      sortableGameVersions: [{
-        gameVersionName: context.loader,
-        gameVersion: context.gameVersion
-      }]
+      sortableGameVersions: [
+        {
+          gameVersionName: context.gameVersion,
+          gameVersion: context.gameVersion
+        }
+      ]
     });
     const randomFile4 = generateCurseforgeModFile({
       isAvailable: true,
       fileStatus: releasedStatus,
       fileDate: '2018-08-24T14:15:22Z',
       releaseType: Release.RELEASE,
-      sortableGameVersions: [{
-        gameVersionName: context.loader,
-        gameVersion: context.gameVersion
-      }]
+      sortableGameVersions: [
+        {
+          gameVersionName: context.gameVersion,
+          gameVersion: context.gameVersion
+        }
+      ]
     });
     assumeSuccessfulModFetch(randomName, [
       randomFile1.generated,
@@ -475,7 +441,6 @@ describe('The Curseforge repository', () => {
       hash: randomFile2.generated.hashes.find((hash) => hash.algo === HashFunctions.sha1)?.value,
       downloadUrl: randomFile2.generated.downloadUrl
     });
-
   });
 
   it('can convert a CF file to Remote Mod Details', () => {
@@ -504,7 +469,86 @@ describe('The Curseforge repository', () => {
     expect(actual.fileName).toEqual(randomFileName);
     expect(actual.releaseDate).toEqual(randomFileDate);
     expect(actual.downloadUrl).toEqual(randomDownloadUrl);
-
   });
 
+  describe('when a specific mod version is requested', () => {
+    it<RepositoryTestContext>('returns the correct version', async (context) => {
+      const randomName = chance.word();
+      const randomFile1 = generateCurseforgeModFile({
+        isAvailable: true,
+        fileStatus: releasedStatus,
+        fileDate: '2019-08-24T14:15:22Z',
+        releaseType: Release.RELEASE,
+        sortableGameVersions: [
+          {
+            gameVersionName: context.gameVersion,
+            gameVersion: context.gameVersion
+          }
+        ],
+        fileName: '1.0.0'
+      });
+      const randomFile2 = generateCurseforgeModFile({
+        isAvailable: true,
+        fileStatus: releasedStatus,
+        fileDate: '2020-08-24T14:15:22Z',
+        releaseType: Release.RELEASE,
+        sortableGameVersions: [
+          {
+            gameVersionName: context.gameVersion,
+            gameVersion: context.gameVersion
+          }
+        ],
+        fileName: '1.1.0'
+      });
+      const randomFile3 = generateCurseforgeModFile({
+        isAvailable: true,
+        fileStatus: releasedStatus,
+        fileDate: '2018-08-24T14:15:22Z',
+        releaseType: Release.RELEASE,
+        sortableGameVersions: [
+          {
+            gameVersionName: context.gameVersion,
+            gameVersion: context.gameVersion
+          }
+        ],
+        fileName: '1.2.0'
+      });
+      const randomFile4 = generateCurseforgeModFile({
+        isAvailable: true,
+        fileStatus: releasedStatus,
+        fileDate: '2018-08-24T14:15:22Z',
+        releaseType: Release.RELEASE,
+        sortableGameVersions: [
+          {
+            gameVersionName: context.gameVersion,
+            gameVersion: context.gameVersion
+          }
+        ],
+        fileName: '1.3.0'
+      });
+      assumeSuccessfulModFetch(randomName, [
+        randomFile1.generated,
+        randomFile2.generated,
+        randomFile3.generated,
+        randomFile4.generated
+      ]);
+
+      const actual = await getMod(
+        context.id,
+        [ReleaseType.RELEASE],
+        context.gameVersion,
+        context.loader,
+        context.allowFallback,
+        '1.2.0'
+      );
+
+      expect(actual).toEqual({
+        name: randomName,
+        fileName: randomFile3.generated.fileName,
+        releaseDate: randomFile3.generated.fileDate,
+        hash: randomFile3.generated.hashes.find((hash) => hash.algo === HashFunctions.sha1)?.value,
+        downloadUrl: randomFile3.generated.downloadUrl
+      });
+    });
+  });
 });

@@ -1,12 +1,12 @@
+import { chance } from 'jest-chance';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { generateModConfig } from '../../test/modConfigGenerator.js';
 import { Logger } from '../lib/Logger.js';
 import { Mod } from '../lib/modlist.types.js';
-import { generateModConfig } from '../../test/modConfigGenerator.js';
 import { CouldNotFindModException } from './CouldNotFindModException.js';
-import { handleFetchErrors } from './handleFetchErrors.js';
-import { NoRemoteFileFound } from './NoRemoteFileFound.js';
 import { DownloadFailedException } from './DownloadFailedException.js';
-import { chance } from 'jest-chance';
+import { NoRemoteFileFound } from './NoRemoteFileFound.js';
+import { handleFetchErrors } from './handleFetchErrors.js';
 
 interface LocalTestContext {
   logger: Logger;
@@ -50,7 +50,7 @@ describe('The mod fetch error handler', () => {
     expect(logMessage).toContain(randomMod.name);
     expect(logMessage).toContain(randomMod.id);
     expect(logMessage).toContain(randomMod.type);
-    expect(logMessage).toContain('doesn\'t serve the required file for');
+    expect(logMessage).toContain("doesn't serve the required file for");
     expect(logMessage).toContain('anymore. Please update it.');
 
     expect(logCall[1]).toBeTruthy();
@@ -76,5 +76,4 @@ describe('The mod fetch error handler', () => {
       handleFetchErrors(error, randomMod, logger);
     }).toThrow(error);
   });
-
 });

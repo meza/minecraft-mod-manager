@@ -1,15 +1,16 @@
-import { beforeEach, describe, it, vi, expect } from 'vitest';
-import { Logger } from '../lib/Logger.js';
-import { prune, PruneOptions } from './prune.js';
-import { ModInstall, ModsJson } from '../lib/modlist.types.js';
-import { generateModsJson } from '../../test/modlistGenerator.js';
-import { ensureConfiguration, readLockFile } from '../lib/config.js';
-import { chance } from 'jest-chance';
-import { fileIsManaged } from '../lib/configurationHelper.js';
-import { shouldPruneFiles } from '../interactions/shouldPruneFiles.js';
 import path from 'path';
 import fs from 'fs/promises';
+import { chance } from 'jest-chance';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { generateModsJson } from '../../test/modlistGenerator.js';
+import { expectCommandStartTelemetry } from '../../test/telemetryHelper.js';
+import { shouldPruneFiles } from '../interactions/shouldPruneFiles.js';
+import { Logger } from '../lib/Logger.js';
+import { ensureConfiguration, getModsFolder, readLockFile } from '../lib/config.js';
+import { fileIsManaged } from '../lib/configurationHelper.js';
 import { getModFiles } from '../lib/fileHelper.js';
+import { ModInstall, ModsJson } from '../lib/modlist.types.js';
+import { PruneOptions, prune } from './prune.js';
 
 interface LocalTestContext {
   logger: Logger;
@@ -24,6 +25,7 @@ vi.mock('../lib/configurationHelper.js');
 vi.mock('../interactions/shouldPruneFiles.js');
 vi.mock('../lib/fileHelper.js');
 vi.mock('fs/promises');
+vi.mock('../mmm.js');
 
 describe('The prune action', () => {
   beforeEach<LocalTestContext>((context) => {
@@ -40,7 +42,7 @@ describe('The prune action', () => {
 
     vi.mocked(ensureConfiguration).mockResolvedValueOnce(context.configuration);
     vi.mocked(readLockFile).mockResolvedValueOnce(context.installations);
-
+    vi.mocked(getModsFolder).mockReturnValue(context.configuration.modsFolder);
   });
 
   it<LocalTestContext>('notifies about no files in the mods folder', async ({ options, logger }) => {
@@ -84,15 +86,19 @@ describe('The prune action', () => {
     expect(fs.rm).toHaveBeenNthCalledWith(2, expectedFile2, { force: true });
     expect(fs.rm).toHaveBeenNthCalledWith(3, expectedFile3, { force: true });
 
-    expect(vi.mocked(logger.log).mock.calls[0][0]).toContain('Deleted: ');
-    expect(vi.mocked(logger.log).mock.calls[0][0]).toContain(expectedFile1);
-    expect(vi.mocked(logger.log).mock.calls[1][0]).toContain('Deleted: ');
-    expect(vi.mocked(logger.log).mock.calls[1][0]).toContain(expectedFile2);
-    expect(vi.mocked(logger.log).mock.calls[2][0]).toContain('Deleted: ');
-    expect(vi.mocked(logger.log).mock.calls[2][0]).toContain(expectedFile3);
+    expect(vi.mocked(logger.log).mock.calls[0][0]).toContain('The following files are unmanaged:');
+    expect(vi.mocked(logger.log).mock.calls[1][0]).toContain(file1);
+    expect(vi.mocked(logger.log).mock.calls[2][0]).toContain(file2);
+    expect(vi.mocked(logger.log).mock.calls[3][0]).toContain(file3);
+    expect(vi.mocked(logger.log).mock.calls[4][0]).toContain('Deleted: ');
+    expect(vi.mocked(logger.log).mock.calls[4][0]).toContain(expectedFile1);
+    expect(vi.mocked(logger.log).mock.calls[5][0]).toContain('Deleted: ');
+    expect(vi.mocked(logger.log).mock.calls[5][0]).toContain(expectedFile2);
+    expect(vi.mocked(logger.log).mock.calls[6][0]).toContain('Deleted: ');
+    expect(vi.mocked(logger.log).mock.calls[6][0]).toContain(expectedFile3);
   });
 
-  it<LocalTestContext>('doesn\'t remove files if not asked to', async ({ options, logger }) => {
+  it<LocalTestContext>("doesn't remove files if not asked to", async ({ options, logger }) => {
     const file1 = chance.word();
     const file2 = chance.word();
     const file3 = chance.word();
@@ -104,6 +110,49 @@ describe('The prune action', () => {
     await prune(options, logger);
 
     expect(fs.rm).not.toHaveBeenCalled();
-    expect(logger.log).not.toHaveBeenCalled();
+  });
+
+  it<LocalTestContext>('calls the correct telemetry when prune is not needed', async ({ options, logger }) => {
+    const file1 = chance.word();
+    const file2 = chance.word();
+    const file3 = chance.word();
+
+    vi.mocked(getModFiles).mockResolvedValueOnce([file1, file2, file3]);
+    vi.mocked(getModFiles).mockResolvedValueOnce([]);
+    vi.mocked(fileIsManaged).mockReturnValue(false);
+    vi.mocked(shouldPruneFiles).mockResolvedValueOnce(false);
+
+    await prune(options, logger);
+
+    expectCommandStartTelemetry({
+      command: 'prune',
+      success: true,
+      duration: expect.any(Number),
+      arguments: {
+        options: options
+      }
+    });
+  });
+
+  it<LocalTestContext>('calls the correct telemetry when prune is needed', async ({ options, logger }) => {
+    const file1 = chance.word();
+    const file2 = chance.word();
+    const file3 = chance.word();
+
+    vi.mocked(getModFiles).mockResolvedValueOnce([file1, file2, file3]);
+    vi.mocked(getModFiles).mockResolvedValueOnce([]);
+    vi.mocked(fileIsManaged).mockReturnValue(false);
+    vi.mocked(shouldPruneFiles).mockResolvedValueOnce(true);
+
+    await prune(options, logger);
+
+    expectCommandStartTelemetry({
+      command: 'prune',
+      success: true,
+      duration: expect.any(Number),
+      arguments: {
+        options: options
+      }
+    });
   });
 });

@@ -3,7 +3,7 @@ import fs from 'node:fs/promises';
 import { fileExists } from './config.js';
 
 export const getHash = async (file: string, algorithm = 'sha1') => {
-  if (!await fileExists(file)) {
+  if (!(await fileExists(file))) {
     throw new Error(`File (${file}) does not exist, can't determine the hash`);
   }
 

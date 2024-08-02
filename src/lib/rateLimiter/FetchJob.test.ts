@@ -1,9 +1,9 @@
-import { beforeEach, describe, vi, it, expect } from 'vitest';
-import { RateLimit } from './index.js';
-import { FetchJob } from './FetchJob.js';
 import { chance } from 'jest-chance';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { FetchJob } from './FetchJob.js';
 import { MaximumRetriesReached } from './MaximumRetriesReached.js';
 import { Retrying } from './Retrying.js';
+import { RateLimit } from './index.js';
 
 interface LocalTestContext {
   testRateLimit: RateLimit;
@@ -27,7 +27,6 @@ describe('The FetchJob class', () => {
     const job = new FetchJob(randomDomain, {}, testRateLimit);
 
     expect(job.host()).toEqual(new URL(randomDomain).host);
-
   });
 
   it<LocalTestContext>('returns the default retry rate', ({ randomDomain, testRateLimit }) => {
@@ -51,7 +50,6 @@ describe('The FetchJob class', () => {
     const actual = await job.execute();
 
     expect(actual).toBe(randomResponse);
-
   });
 
   it<LocalTestContext>('rejects properly', async ({ randomDomain, testRateLimit }) => {
@@ -62,7 +60,6 @@ describe('The FetchJob class', () => {
     const job = new FetchJob(randomDomain, {}, testRateLimit);
 
     await expect(job.execute()).rejects.toThrow(randomReason);
-
   });
 
   it<LocalTestContext>('calls the response handler on success', async ({ randomDomain, testRateLimit }) => {
@@ -95,10 +92,14 @@ describe('The FetchJob class', () => {
     vi.mocked(fetch).mockResolvedValueOnce(randomResponse);
     const handler = vi.fn();
 
-    const job = new FetchJob(randomDomain, {}, {
-      timeBetweenCalls: 0,
-      maxAttempts: 1
-    });
+    const job = new FetchJob(
+      randomDomain,
+      {},
+      {
+        timeBetweenCalls: 0,
+        maxAttempts: 1
+      }
+    );
 
     job.onError(handler);
 
@@ -123,10 +124,14 @@ describe('The FetchJob class', () => {
 
     vi.mocked(fetch).mockResolvedValueOnce(randomResponse);
 
-    const job = new FetchJob(randomDomain, {}, {
-      timeBetweenCalls: 0,
-      maxAttempts: 1
-    });
+    const job = new FetchJob(
+      randomDomain,
+      {},
+      {
+        timeBetweenCalls: 0,
+        maxAttempts: 1
+      }
+    );
 
     try {
       await job.execute();
@@ -135,7 +140,6 @@ describe('The FetchJob class', () => {
       expect(e).toBeInstanceOf(MaximumRetriesReached);
       expect((e as MaximumRetriesReached).response()).toBe(randomResponse);
     }
-
   });
 
   it<LocalTestContext>('can retry', async ({ randomDomain }) => {
@@ -149,10 +153,14 @@ describe('The FetchJob class', () => {
     vi.mocked(fetch).mockResolvedValue(randomResponse);
     const handler = vi.fn();
 
-    const job = new FetchJob(randomDomain, {}, {
-      timeBetweenCalls: 0,
-      maxAttempts: 3 // how many attempts to try
-    });
+    const job = new FetchJob(
+      randomDomain,
+      {},
+      {
+        timeBetweenCalls: 0,
+        maxAttempts: 3 // how many attempts to try
+      }
+    );
     job.onError(handler);
 
     await expect(job.execute()).rejects.toThrow(Retrying); //attempt 1
@@ -173,10 +181,14 @@ describe('The FetchJob class', () => {
 
     vi.mocked(fetch).mockResolvedValue(randomResponse);
 
-    const job = new FetchJob(randomDomain, {}, {
-      timeBetweenCalls: 0,
-      maxAttempts: 3 // how many attempts to try
-    });
+    const job = new FetchJob(
+      randomDomain,
+      {},
+      {
+        timeBetweenCalls: 0,
+        maxAttempts: 3 // how many attempts to try
+      }
+    );
 
     vi.mocked(randomResponse.headers.has).mockReturnValue(true);
     vi.mocked(randomResponse.headers.get).mockReturnValueOnce('1');
@@ -189,7 +201,6 @@ describe('The FetchJob class', () => {
     expect(vi.mocked(randomResponse.headers.has)).toHaveBeenCalledWith('X-Ratelimit-Remaining');
     expect(vi.mocked(randomResponse.headers.get)).toHaveBeenNthCalledWith(1, 'X-Ratelimit-Remaining');
     expect(vi.mocked(randomResponse.headers.get)).toHaveBeenNthCalledWith(2, 'X-Ratelimit-Reset');
-
   });
 
   it<LocalTestContext>('sets the retry time to the default time if there is none', async ({ randomDomain }) => {
@@ -203,10 +214,14 @@ describe('The FetchJob class', () => {
 
     vi.mocked(fetch).mockResolvedValue(randomResponse);
 
-    const job = new FetchJob(randomDomain, {}, {
-      timeBetweenCalls: 0,
-      maxAttempts: 3 // how many attempts to try
-    });
+    const job = new FetchJob(
+      randomDomain,
+      {},
+      {
+        timeBetweenCalls: 0,
+        maxAttempts: 3 // how many attempts to try
+      }
+    );
 
     vi.mocked(randomResponse.headers.has).mockReturnValue(true);
     vi.mocked(randomResponse.headers.get).mockReturnValueOnce('1');
@@ -215,7 +230,6 @@ describe('The FetchJob class', () => {
     await expect(job.execute()).rejects.toThrow(Retrying);
 
     expect(job.retryIn()).toEqual(61000);
-
   });
 
   it<LocalTestContext>('ignores the retry if it is high enough', async ({ randomDomain }) => {
@@ -229,10 +243,14 @@ describe('The FetchJob class', () => {
 
     vi.mocked(fetch).mockResolvedValue(randomResponse);
 
-    const job = new FetchJob(randomDomain, {}, {
-      timeBetweenCalls: 0,
-      maxAttempts: 3 // how many attempts to try
-    });
+    const job = new FetchJob(
+      randomDomain,
+      {},
+      {
+        timeBetweenCalls: 0,
+        maxAttempts: 3 // how many attempts to try
+      }
+    );
 
     vi.mocked(randomResponse.headers.has).mockReturnValue(true);
     vi.mocked(randomResponse.headers.get).mockReturnValueOnce('11');
@@ -245,7 +263,5 @@ describe('The FetchJob class', () => {
     expect(vi.mocked(randomResponse.headers.has)).toHaveBeenCalledWith('X-Ratelimit-Remaining');
     expect(vi.mocked(randomResponse.headers.get)).toHaveBeenNthCalledWith(1, 'X-Ratelimit-Remaining');
     expect(vi.mocked(randomResponse.headers.get)).toHaveBeenNthCalledWith(2, 'X-Ratelimit-Reset');
-
   });
-
 });

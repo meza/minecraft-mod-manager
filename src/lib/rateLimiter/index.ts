@@ -1,6 +1,6 @@
-import { Queue } from './queue.js';
 import { FetchJob } from './FetchJob.js';
 import { Retrying } from './Retrying.js';
+import { Queue } from './queue.js';
 
 export interface RateLimit {
   maxAttempts: number;
@@ -50,7 +50,7 @@ const mark = (forHost: string, newState: boolean) => {
 };
 
 const getQueue = (forHost: string): Queue<FetchJob> => {
-  const index = queues.findIndex(q => q.host === forHost);
+  const index = queues.findIndex((q) => q.host === forHost);
 
   if (index === -1) {
     const newQueue = new Queue<FetchJob>();
@@ -74,7 +74,8 @@ const processQueue = (host: string, queue: Queue<FetchJob>) => {
 
   mark(host, true);
 
-  item.execute()
+  item
+    .execute()
     .catch((e) => {
       if (e instanceof Retrying) {
         queue.enqueue(item);
@@ -91,7 +92,11 @@ const processQueue = (host: string, queue: Queue<FetchJob>) => {
     });
 };
 
-export const rateLimitingFetch = (input: RequestInfo | URL, init?: RequestInit, rateLimit?: RateLimit): Promise<Response> => {
+export const rateLimitingFetch = (
+  input: RequestInfo | URL,
+  init?: RequestInit,
+  rateLimit?: RateLimit
+): Promise<Response> => {
   const request = new Request(input);
   const host = new URL(request.url).hostname;
   const jobs = getQueue(host);

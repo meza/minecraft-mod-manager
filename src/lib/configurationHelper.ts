@@ -1,6 +1,6 @@
-import { Mod, ModInstall, ModsJson } from './modlist.types.js';
 import path from 'path';
 import { minimatch } from 'minimatch';
+import { Mod, ModInstall, ModsJson } from './modlist.types.js';
 
 export const findLocalMods = (lookup: string[], configuration: ModsJson) => {
   const matches: Set<Mod> = new Set<Mod>();
@@ -33,11 +33,6 @@ export const fileIsManaged = (file: string, installations: ModInstall[]) => {
   });
 
   return result !== undefined;
-};
-
-export const getModsDir = (configPath: string, modsFolder: string) => {
-  const dir = path.resolve(path.dirname(configPath));
-  return path.isAbsolute(modsFolder) ? modsFolder : path.resolve(dir, modsFolder);
 };
 
 export const getInstallation = (mod: Mod, installations: ModInstall[]) => {

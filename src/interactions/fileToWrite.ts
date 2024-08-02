@@ -1,15 +1,15 @@
-import path from 'node:path';
 import fs from 'node:fs/promises';
-import inquirer from 'inquirer';
-import { fileExists } from '../lib/config.js';
+import path from 'node:path';
 import chalk from 'chalk';
-import { DefaultOptions } from '../mmm.js';
+import inquirer from 'inquirer';
 import { Logger } from '../lib/Logger.js';
+import { fileExists } from '../lib/config.js';
+import { DefaultOptions } from '../mmm.js';
 
 const isFileWritable = async (filePath: string) => {
   let absolutePath = path.resolve(filePath);
 
-  if (!await fileExists(filePath)) {
+  if (!(await fileExists(filePath))) {
     absolutePath = path.resolve(path.dirname(filePath));
   }
 

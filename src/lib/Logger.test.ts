@@ -1,17 +1,16 @@
-import { beforeEach, describe, expect, it, vi } from 'vitest';
-import { Logger } from './Logger.js';
 import { Command } from 'commander';
 import { chance } from 'jest-chance';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { Logger } from './Logger.js';
 
 vi.mock('commander');
 
 interface TestContext {
-  program: Command,
-  randomMessage: string,
+  program: Command;
+  randomMessage: string;
 }
 
 describe('The logger', () => {
-
   beforeEach<TestContext>((context) => {
     context.program = new Command();
     context.randomMessage = chance.sentence();
@@ -19,8 +18,7 @@ describe('The logger', () => {
 
   it<TestContext>('should log to the console in normal mode', ({ program, randomMessage }) => {
     const logger = new Logger(program);
-    const logSpy = vi.spyOn(console, 'log').mockImplementation(() => {
-    });
+    const logSpy = vi.spyOn(console, 'log').mockImplementation(() => {});
 
     logger.log(randomMessage);
 
@@ -29,8 +27,7 @@ describe('The logger', () => {
 
   it<TestContext>('should not debug to the console in normal mode', ({ program, randomMessage }) => {
     const logger = new Logger(program);
-    const debugSpy = vi.spyOn(console, 'debug').mockImplementation(() => {
-    });
+    const debugSpy = vi.spyOn(console, 'debug').mockImplementation(() => {});
 
     logger.debug(randomMessage);
 
@@ -56,8 +53,7 @@ describe('The logger', () => {
   describe('when the quiet mode', () => {
     it<TestContext>('should not log to the console', ({ program, randomMessage }) => {
       const logger = new Logger(program);
-      const logSpy = vi.spyOn(console, 'log').mockImplementation(() => {
-      });
+      const logSpy = vi.spyOn(console, 'log').mockImplementation(() => {});
 
       logger.flagQuiet();
       logger.log(randomMessage);
@@ -67,8 +63,7 @@ describe('The logger', () => {
 
     it<TestContext>('should log to the console when forced', ({ program, randomMessage }) => {
       const logger = new Logger(program);
-      const logSpy = vi.spyOn(console, 'log').mockImplementation(() => {
-      });
+      const logSpy = vi.spyOn(console, 'log').mockImplementation(() => {});
 
       logger.flagQuiet();
       logger.log(randomMessage, true);
@@ -80,8 +75,7 @@ describe('The logger', () => {
   describe('when in debug mode', () => {
     it<TestContext>('should debug to the console', ({ program, randomMessage }) => {
       const logger = new Logger(program);
-      const debugSpy = vi.spyOn(console, 'debug').mockImplementation(() => {
-      });
+      const debugSpy = vi.spyOn(console, 'debug').mockImplementation(() => {});
 
       logger.flagDebug();
       logger.debug(randomMessage);
@@ -91,8 +85,7 @@ describe('The logger', () => {
 
     it<TestContext>('should log to the console even in quiet mode', ({ program, randomMessage }) => {
       const logger = new Logger(program);
-      const logSpy = vi.spyOn(console, 'log').mockImplementation(() => {
-      });
+      const logSpy = vi.spyOn(console, 'log').mockImplementation(() => {});
 
       logger.flagDebug();
       logger.flagQuiet();

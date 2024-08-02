@@ -1,7 +1,7 @@
-import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { getLatestMinecraftVersion, verifyMinecraftVersion } from './minecraftVersionVerifier.js';
 import { chance } from 'jest-chance';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { MinecraftVersionsCouldNotBeFetchedException } from '../errors/MinecraftVersionsCouldNotBeFetchedException.js';
+import { getLatestMinecraftVersion, verifyMinecraftVersion } from './minecraftVersionVerifier.js';
 import { rateLimitingFetch } from './rateLimiter/index.js';
 
 vi.mock('./rateLimiter/index.js');
@@ -12,7 +12,9 @@ describe('The Minecraft version verifier module', () => {
 
   afterEach(() => {
     expect(vi.mocked(rateLimitingFetch)).toHaveBeenCalledOnce();
-    expect(vi.mocked(rateLimitingFetch)).toHaveBeenCalledWith('https://launchermeta.mojang.com/mc/game/version_manifest.json');
+    expect(vi.mocked(rateLimitingFetch)).toHaveBeenCalledWith(
+      'https://launchermeta.mojang.com/mc/game/version_manifest.json'
+    );
     vi.resetAllMocks();
   });
 
@@ -127,6 +129,5 @@ describe('The Minecraft version verifier module', () => {
     const isValid = await verifyMinecraftVersion(randomVersion);
 
     expect(isValid).toBe(true);
-
   });
 });

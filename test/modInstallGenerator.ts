@@ -1,10 +1,9 @@
-import { ModInstall } from '../src/lib/modlist.types.js';
-import { GeneratorResult } from './test.types.js';
 import { chance } from 'jest-chance';
+import { ModInstall } from '../src/lib/modlist.types.js';
 import { generateRandomPlatform } from './generateRandomPlatform.js';
+import { GeneratorResult } from './test.types.js';
 
 export const generateModInstall = (overrides?: Partial<ModInstall>): GeneratorResult<ModInstall> => {
-
   const fileName = chance.word();
   const releasedOn = chance.date({ string: true });
   const hash = chance.hash();

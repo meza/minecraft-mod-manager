@@ -31,5 +31,4 @@ export class Queue<T> {
   clear() {
     this.data = [];
   }
-
 }

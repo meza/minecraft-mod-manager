@@ -1,6 +1,6 @@
-import { RateLimit } from './index.js';
 import { MaximumRetriesReached } from './MaximumRetriesReached.js';
 import { Retrying } from './Retrying.js';
+import { RateLimit } from './index.js';
 
 export class FetchJob {
   private tries = 0;

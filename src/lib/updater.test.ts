@@ -1,10 +1,10 @@
+import fs from 'node:fs/promises';
+import path from 'node:path';
+import { chance } from 'jest-chance';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { generateModInstall } from '../../test/modInstallGenerator.js';
-import { chance } from 'jest-chance';
-import path from 'node:path';
-import { updateMod } from './updater.js';
 import { downloadFile } from './downloader.js';
-import fs from 'node:fs/promises';
+import { updateMod } from './updater.js';
 
 vi.mock('node:fs/promises');
 vi.mock('./downloader.js');
@@ -14,7 +14,6 @@ const assumeDownloadSuccessful = () => {
 };
 
 describe('The updater module', () => {
-
   afterEach(() => {
     vi.resetAllMocks();
   });
@@ -32,7 +31,6 @@ describe('The updater module', () => {
 
     expect(vi.mocked(downloadFile)).toHaveBeenCalledWith(randomMod.downloadUrl, expectedNewPath);
     expect(vi.mocked(fs.rm)).toHaveBeenCalledWith(originalPath);
-
   });
 
   it('should safely update to the same file file', async () => {
@@ -47,7 +45,5 @@ describe('The updater module', () => {
 
     expect(vi.mocked(downloadFile)).toHaveBeenCalledWith(randomMod.downloadUrl, expectedNewPath);
     expect(vi.mocked(fs.rm)).not.toHaveBeenCalled();
-
   });
-
 });

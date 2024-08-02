@@ -1,11 +1,11 @@
-import { beforeEach, describe, it, vi, expect } from 'vitest';
-import { Curseforge, CurseforgeLoader } from './index.js';
-import { Loader, ReleaseType } from '../../lib/modlist.types.js';
 import { chance } from 'jest-chance';
-import { UnknownLoaderException } from '../../errors/UnknownLoaderException.js';
-import { getMod } from './fetch.js';
-import { generateRemoteModDetails } from '../../../test/generateRemoteDetails.js';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { generatePlatformLookupResult } from '../../../test/generatePlatformLookupResult.js';
+import { generateRemoteModDetails } from '../../../test/generateRemoteDetails.js';
+import { UnknownLoaderException } from '../../errors/UnknownLoaderException.js';
+import { Loader, ReleaseType } from '../../lib/modlist.types.js';
+import { getMod } from './fetch.js';
+import { Curseforge, CurseforgeLoader } from './index.js';
 import { lookup as cfLookup } from './lookup.js';
 
 vi.mock('./fetch.js');
@@ -26,6 +26,14 @@ describe('The Curseforge Repository class', () => {
     it('can identify Quilt', () => {
       const actual = Curseforge.curseforgeLoaderFromLoader(Loader.QUILT);
       expect(actual).toEqual(CurseforgeLoader.QUILT);
+    });
+    it('can identify NeoForge', () => {
+      const actual = Curseforge.curseforgeLoaderFromLoader(Loader.NEOFORGE);
+      expect(actual).toEqual(CurseforgeLoader.NEOFORGE);
+    });
+    it('can identify Liteloader', () => {
+      const actual = Curseforge.curseforgeLoaderFromLoader(Loader.LITELOADER);
+      expect(actual).toEqual(CurseforgeLoader.LITELOADER);
     });
     it('fails on an unknown platform', () => {
       const loader = chance.word() as Loader;
@@ -49,13 +57,7 @@ describe('The Curseforge Repository class', () => {
     vi.mocked(getMod).mockResolvedValueOnce(result);
 
     const curseforge = new Curseforge();
-    const actual = await curseforge.fetchMod(
-      projectId,
-      allowedReleaseTypes,
-      allowedGameVersion,
-      loader,
-      allowFallback
-    );
+    const actual = await curseforge.fetchMod(projectId, allowedReleaseTypes, allowedGameVersion, loader, allowFallback);
 
     expect(actual).toEqual(result);
     expect(vi.mocked(getMod)).toHaveBeenCalledOnce();
@@ -78,6 +80,5 @@ describe('The Curseforge Repository class', () => {
 
     expect(vi.mocked(cfLookup)).toHaveBeenCalledWith(lookupInput);
     expect(actual).toBe(result);
-
   });
 });
