@@ -1,3 +1,0 @@
-// Vitest Snapshot v1, https://vitest.dev/guide/snapshot.html
-
-exports[`The config library > throws an error when there are misconfigurations 1`] = `[Error: There is a problem with the configuration file, please check!]`;
