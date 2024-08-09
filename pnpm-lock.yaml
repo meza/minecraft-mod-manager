@@ -106,8 +106,8 @@ importers:
         specifier: 9.0.2
         version: 9.0.2
       '@types/is-ci':
-        specifier: 3.0.0
-        version: 3.0.0
+        specifier: 3.0.4
+        version: 3.0.4
       '@types/node':
         specifier: 20.5.1
         version: 20.5.1
@@ -1135,8 +1135,8 @@ packages:
   '@types/inquirer@9.0.2':
     resolution: {integrity: sha512-MQc3adiIh/rDxLkjnvL03rSvuHg+/dKif4dn/MRsnE+oU1bAdyuDbW0w+ewR1M/M/u/Z0YAbw7NZYCpgQ5SW8A==}
 
-  '@types/is-ci@3.0.0':
-    resolution: {integrity: sha512-Q0Op0hdWbYd1iahB+IFNQcWXFq4O0Q5MwQP7uN0souuQ4rPg1vEYcnIOfr1gY+M+6rc8FGoRaBO1mOOvL29sEQ==}
+  '@types/is-ci@3.0.4':
+    resolution: {integrity: sha512-AkCYCmwlXeuH89DagDCzvCAyltI2v9lh3U3DqSg/GrBYoReAaWwxfXCqMx9UV5MajLZ4ZFwZzV4cABGIxk2XRw==}
 
   '@types/marked@4.0.7':
     resolution: {integrity: sha512-eEAhnz21CwvKVW+YvRvcTuFKNU9CV1qH+opcgVK3pIMI6YZzDm6gc8o2vHjldFk6MGKt5pueSB7IOpvpx5Qekw==}
@@ -4665,7 +4665,7 @@ snapshots:
       '@types/through': 0.0.30
       rxjs: 7.8.1
 
-  '@types/is-ci@3.0.0':
+  '@types/is-ci@3.0.4':
     dependencies:
       ci-info: 3.4.0
 
