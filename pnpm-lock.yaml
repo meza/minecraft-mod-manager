@@ -36,8 +36,8 @@ importers:
         specifier: 6.0.0
         version: 6.0.0
       minimatch:
-        specifier: 9.0.5
-        version: 9.0.5
+        specifier: 10.0.1
+        version: 10.0.1
       nodejs-file-downloader:
         specifier: 4.13.0
         version: 4.13.0
