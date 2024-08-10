@@ -86,7 +86,7 @@
     "esbuild": "0.23.0",
     "is-ci": "3.0.1",
     "jest-chance": "0.2.5",
-    "lefthook": "1.6.1",
+    "lefthook": "1.7.11",
     "mock-cwd": "1.0.0",
     "node-gyp": "10.2.0",
     "npm-run-all2": "6.2.2",
@@ -95,7 +95,7 @@
     "semantic-release": "24.0.0",
     "semantic-release-export-data": "1.1.0",
     "ts-node": "10.9.2",
-    "tsx": "4.7.1",
+    "tsx": "4.16.5",
     "typescript": "5.5.4",
     "vitest": "2.0.5"
   },
