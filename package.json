@@ -93,7 +93,7 @@
     "pnpm": "9.6.0",
     "rimraf": "6.0.1",
     "semantic-release": "24.0.0",
-    "semantic-release-export-data": "1.0.1",
+    "semantic-release-export-data": "1.1.0",
     "ts-node": "10.9.2",
     "tsx": "4.7.1",
     "typescript": "5.3.3",
