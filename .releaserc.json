@@ -13,10 +13,6 @@
     {
       "name": "alpha",
       "prerelease": true
-    },
-    {
-      "name": "dependency-update",
-      "prerelease": true
     }
   ],
   "plugins": [
