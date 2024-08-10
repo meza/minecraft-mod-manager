@@ -39,8 +39,8 @@ importers:
         specifier: 9.0.5
         version: 9.0.5
       nodejs-file-downloader:
-        specifier: 4.10.2
-        version: 4.10.2
+        specifier: 4.13.0
+        version: 4.13.0
       posthog-node:
         specifier: ^4.0.1
         version: 4.0.1
@@ -2492,8 +2492,8 @@ packages:
     engines: {node: ^12.13 || ^14.13 || >=16}
     hasBin: true
 
-  nodejs-file-downloader@4.10.2:
-    resolution: {integrity: sha512-pTVlytER/4wxcIpEhLXoqhuJ7WH1+xSFNLbI0wPmbwH3pWlJRRebb1Kbu91mz1CyOJmO4sj6YLH1wkF1B6efrQ==}
+  nodejs-file-downloader@4.13.0:
+    resolution: {integrity: sha512-nI2fKnmJWWFZF6SgMPe1iBodKhfpztLKJTtCtNYGhm/9QXmWa/Pk9Sv00qHgzEvNLe1x7hjGDRor7gcm/ChaIQ==}
 
   nopt@6.0.0:
     resolution: {integrity: sha512-ZwLpbTgdhuZUnZzjd7nb1ZV+4DoiC6/sfiVKok72ym/4Tlf+DFdlHYmT2JPmcNNWV6Pi3SDf1kT+A4r9RTuT9g==}
@@ -6010,7 +6010,7 @@ snapshots:
       - bluebird
       - supports-color
 
-  nodejs-file-downloader@4.10.2:
+  nodejs-file-downloader@4.13.0:
     dependencies:
       follow-redirects: 1.15.6
       https-proxy-agent: 5.0.1
