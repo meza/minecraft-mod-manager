@@ -30,8 +30,8 @@ importers:
         specifier: 0.5.0
         version: 0.5.0
       inquirer:
-        specifier: 10.1.6
-        version: 10.1.6
+        specifier: 10.1.8
+        version: 10.1.8
       log-symbols:
         specifier: 6.0.0
         version: 6.0.0
@@ -1944,8 +1944,8 @@ packages:
     resolution: {integrity: sha512-QQnnxNyfvmHFIsj7gkPcYymR8Jdw/o7mp5ZFihxn6h8Ci6fh3Dx4E1gPjpQEpIuPo9XVNY/ZUwh4BPMjGyL01g==}
     engines: {node: ^14.17.0 || ^16.13.0 || >=18.0.0}
 
-  inquirer@10.1.6:
-    resolution: {integrity: sha512-TDqkT2B9MpzzsuJYi139mJDmhRwE9iJejdIy4hWIDmBkmkg8aKB0O4F2/Dz1Zex77zyqm9GrYK1xFhlD6yn4zg==}
+  inquirer@10.1.8:
+    resolution: {integrity: sha512-syxGpOzLyqVeZi1KDBjRTnCn5PiGWySGHP0BbqXbqsEK0ckkZk3egAepEWslUjZXj0rhkUapVXM/IpADWe4D6w==}
     engines: {node: '>=18'}
 
   inquirer@8.2.4:
@@ -5469,7 +5469,7 @@ snapshots:
 
   ini@4.1.1: {}
 
-  inquirer@10.1.6:
+  inquirer@10.1.8:
     dependencies:
       '@inquirer/prompts': 5.3.8
       '@inquirer/type': 1.5.2
