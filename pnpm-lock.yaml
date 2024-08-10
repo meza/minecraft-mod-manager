@@ -18,11 +18,11 @@ importers:
         specifier: 12.1.0
         version: 12.1.0
       core-js:
-        specifier: 3.25.3
-        version: 3.25.3
+        specifier: 3.37.1
+        version: 3.37.1
       dotenv:
-        specifier: 16.0.3
-        version: 16.0.3
+        specifier: 16.4.5
+        version: 16.4.5
       glob:
         specifier: 11.0.0
         version: 11.0.0
@@ -1394,8 +1394,8 @@ packages:
     resolution: {integrity: sha512-lOETlkIeYSJWcbbcvjRKGxVMXJR+8+OQb/mTPbA4ObPMytYIsUbuOE0Jzy60hjARYszq1id0j8KgVhC+WGZVTg==}
     engines: {node: '>=12'}
 
-  core-js@3.25.3:
-    resolution: {integrity: sha512-y1hvKXmPHvm5B7w4ln1S4uc9eV/O5+iFExSRUimnvIph11uaizFR8LFMdONN8hG3P2pipUfX4Y/fR8rAEtcHcQ==}
+  core-js@3.37.1:
+    resolution: {integrity: sha512-Xn6qmxrQZyB0FFY8E3bgRXei3lWDJHhvI+u0q9TKIYM49G8pAr0FgnnrFRAmsbptZL1yxRADVXn+x5AGsbBfyw==}
 
   core-util-is@1.0.3:
     resolution: {integrity: sha512-ZQBvi1DcpJ4GDqanjucZ2Hj3wEO5pZDS89BWbkcrvdxksJorwUDDZamX9ldFkp9aw2lmBDLgkObEA4DWNJ9FYQ==}
@@ -1517,8 +1517,8 @@ packages:
     resolution: {integrity: sha512-QM8q3zDe58hqUqjraQOmzZ1LIH9SWQJTlEKCH4kJ2oQvLZk7RbQXvtDM2XEq3fwkV9CCvvH4LA0AV+ogFsBM2Q==}
     engines: {node: '>=8'}
 
-  dotenv@16.0.3:
-    resolution: {integrity: sha512-7GO6HghkA5fYG9TYnNxi14/7K9f5occMlp3zXAuSxn7CKCxt9xbNWG7yF8hTCSUchlfWSe3uLmlPfigevRItzQ==}
+  dotenv@16.4.5:
+    resolution: {integrity: sha512-ZmdL2rui+eB2YwhsWzjInR8LldtZHGDoQ1ugH85ppHKwpUHL7j7rN0Ti9NCnGiQbhaZ11FpR+7ao1dNsmduNUg==}
     engines: {node: '>=12'}
 
   duplexer2@0.1.4:
@@ -4096,7 +4096,7 @@ snapshots:
       '@types/node': 18.19.3
       chalk: 4.1.2
       commander: 9.4.1
-      core-js: 3.25.3
+      core-js: 3.37.1
       inquirer: 8.2.4
       marked: 4.1.1
 
@@ -4104,7 +4104,7 @@ snapshots:
     dependencies:
       '@types/node': 18.19.3
       bindings: 1.5.0
-      core-js: 3.25.3
+      core-js: 3.37.1
       node-gyp: 9.3.1
       node-gyp-build: 4.6.0
       prebuild-install: 7.1.1
@@ -4883,7 +4883,7 @@ snapshots:
 
   convert-hrtime@5.0.0: {}
 
-  core-js@3.25.3: {}
+  core-js@3.37.1: {}
 
   core-util-is@1.0.3: {}
 
@@ -4983,7 +4983,7 @@ snapshots:
     dependencies:
       is-obj: 2.0.0
 
-  dotenv@16.0.3: {}
+  dotenv@16.4.5: {}
 
   duplexer2@0.1.4:
     dependencies:
