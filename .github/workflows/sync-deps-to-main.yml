@@ -1,0 +1,25 @@
+name: Sync Deps to Main
+on:
+  schedule:
+    - cron: '9 0 * * 4'
+
+jobs:
+  sync-branches:
+    runs-on: ubuntu-latest
+    name: Syncing dependencies
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v2
+      - name: Set up Node
+        uses: actions/setup-node@v1
+        with:
+          node-version: 12
+      - name: Opening pull request
+        id: pull
+        uses: tretuna/sync-branches@1.4.0
+        with:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          FROM_BRANCH: "dependency-update"
+          TO_BRANCH: "main"
+          PULL_REQUEST_TITLE: "chore: sync deps to main"
+          PULL_REQUEST_AUTO_MERGE_METHOD: "merge"
