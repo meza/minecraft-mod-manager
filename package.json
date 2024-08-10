@@ -82,6 +82,7 @@
     "@types/is-ci": "3.0.4",
     "@types/node": "20.14.14",
     "@vitest/coverage-v8": "2.0.5",
+    "conventional-changelog-conventionalcommits": "^8.0.0",
     "cross-env": "7.0.3",
     "esbuild": "0.23.0",
     "is-ci": "3.0.1",
