@@ -44,7 +44,7 @@
     "commander": "12.1.0",
     "core-js": "3.25.3",
     "dotenv": "16.0.3",
-    "glob": "10.2.7",
+    "glob": "11.0.0",
     "hwid": "0.5.0",
     "inquirer": "9.1.2",
     "log-symbols": "6.0.0",
