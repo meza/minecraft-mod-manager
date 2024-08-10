@@ -12,8 +12,8 @@ importers:
         specifier: 1.1.42
         version: 1.1.42
       chalk:
-        specifier: 5.0.1
-        version: 5.0.1
+        specifier: 5.3.0
+        version: 5.3.0
       commander:
         specifier: 12.1.0
         version: 12.1.0
@@ -1238,10 +1238,6 @@ packages:
   chalk@4.1.2:
     resolution: {integrity: sha512-oKnbhFyRIXpUuez8iBMmyEa4nbj4IOQyuhc/wy9kY7/WVPcwIO9VA668Pu8RkO7+0G76SLROeyw9CpQ061i4mA==}
     engines: {node: '>=10'}
-
-  chalk@5.0.1:
-    resolution: {integrity: sha512-Fo07WOYGqMfCWHOzSXOt2CxDbC6skS/jO9ynEcmpANMoPrD+W1r1K6Vx7iNm+AQmETU1Xr2t+n8nzkV9t6xh3w==}
-    engines: {node: ^12.17.0 || ^14.13 || >=16.0.0}
 
   chalk@5.3.0:
     resolution: {integrity: sha512-dLitG79d+GV1Nb/VYcCDFivJeK1hiukt9QjRNVOsUtTy1rR1YJsmpGGTZ3qJos+uw7WmWF4wUwBd9jxjocFC2w==}
@@ -4749,8 +4745,6 @@ snapshots:
       ansi-styles: 4.3.0
       supports-color: 7.2.0
 
-  chalk@5.0.1: {}
-
   chalk@5.3.0: {}
 
   chance@1.1.9: {}
@@ -5543,7 +5537,7 @@ snapshots:
   inquirer@9.1.2:
     dependencies:
       ansi-escapes: 5.0.0
-      chalk: 5.0.1
+      chalk: 5.3.0
       cli-cursor: 4.0.0
       cli-width: 4.1.0
       external-editor: 3.1.0
@@ -5810,7 +5804,7 @@ snapshots:
 
   log-symbols@5.1.0:
     dependencies:
-      chalk: 5.0.1
+      chalk: 5.3.0
       is-unicode-supported: 1.3.0
 
   log-symbols@6.0.0:
@@ -6185,7 +6179,7 @@ snapshots:
   ora@6.1.2:
     dependencies:
       bl: 5.0.0
-      chalk: 5.0.1
+      chalk: 5.3.0
       cli-cursor: 4.0.0
       cli-spinners: 2.7.0
       is-interactive: 2.0.0
