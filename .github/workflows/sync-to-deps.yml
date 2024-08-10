@@ -22,4 +22,5 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           FROM_BRANCH: "main"
           TO_BRANCH: "dependency-update"
+          PULL_REQUEST_TITLE: "chore: sync main to deps"
           PULL_REQUEST_AUTO_MERGE_METHOD: "merge"
