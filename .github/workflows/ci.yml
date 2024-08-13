@@ -36,7 +36,7 @@ jobs:
       - run: ./scripts/binaries.sh
 
       - name: Upload build artifacts
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4
         with:
           if-no-files-found: error
           name: Dev Binaries for testing purposes
