@@ -61,9 +61,9 @@
   },
   "devDependencies": {
     "@biomejs/biome": "1.8.3",
-    "@commitlint/cli": "19.3.0",
+    "@commitlint/cli": "19.4.0",
     "@commitlint/config-conventional": "19.2.2",
-    "@commitlint/prompt-cli": "19.3.1",
+    "@commitlint/prompt-cli": "19.4.0",
     "@faker-js/faker": "8.4.1",
     "@liudonghua123/pkg": "6.0.1",
     "@meza/adr-tools": "1.0.10",
