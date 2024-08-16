@@ -14,7 +14,7 @@
     "lineWidth": 120,
     "lineEnding": "lf",
     "include": ["**/*.ts", "**/*.json"],
-    "ignore": [".cache/**"],
+    "ignore": [".cache/**", "**/*.snap"],
     "attributePosition": "auto"
   },
   "files": { "include": ["**/*.ts", "**/*.json"] },
