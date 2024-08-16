@@ -1,7 +1,7 @@
 name: Sync Deps to Main
 on:
   schedule:
-    - cron: '9 0 * * 4'
+    - cron: '0 9 1 * *'
 
 jobs:
   sync-branches:
