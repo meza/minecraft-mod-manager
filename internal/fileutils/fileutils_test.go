@@ -1,9 +1,9 @@
 package fileutils
 
 import (
+	"github.com/spf13/afero"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
-	"os"
 	"testing"
 )
 
@@ -12,15 +12,15 @@ type MockFileIO struct {
 }
 
 func TestFileExists(t *testing.T) {
-	mockIO := new(MockFileIO)
+	mockIO := afero.NewMemMapFs()
 
 	t.Run("file exists", func(t *testing.T) {
-		mockIO.On("Stat", mock.Anything).Return(nil, nil)
-		assert.True(t, FileExists("somepath"))
+		err := afero.WriteFile(mockIO, "/somepath", []byte("test"), 0644)
+		assert.Nil(t, err)
+		assert.True(t, FileExists("/somepath", mockIO))
 	})
 
 	t.Run("file does not exist", func(t *testing.T) {
-		mockIO.On("Stat", mock.Anything).Return(nil, os.ErrNotExist)
-		assert.False(t, FileExists("somepath"))
+		assert.False(t, FileExists("/somepath2", mockIO))
 	})
 }

@@ -524,3 +524,142 @@ func TestGetFilesForProjectWhenApiCallFails(t *testing.T) {
 	assert.Equal(t, "Get \"invalid_url/mods/123456/files?index=0\": unsupported protocol scheme \"\"", errors.Unwrap(err).Error())
 	assert.Nil(t, project)
 }
+
+func TestGetFingerprintsMatchesWithOneExactMatch(t *testing.T) {
+	mockResponse := `{
+		"data": {
+			"exactMatches": [
+				{
+					"id": 110,
+					"file": {
+						"id": 110,
+            "modId": 111,
+						"displayName": "string",
+						"fileName": "string",
+						"fileDate": "2019-08-24T14:15:22Z",
+						"fileFingerprint": 1234
+					}
+				}
+			],
+			"unmatchedFingerprints": []
+		}
+	}`
+
+	mockServer := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.URL.Path != "/fingerprints/432" {
+			t.Errorf("Expected path '/fingerprints/432', got '%s'", r.URL.Path)
+		}
+
+		if r.Header.Get("x-api-key") != "mock_curseforge_api_key" {
+			t.Errorf("Expected x-api-key header to be 'mock_curseforge_api_key', got '%s'", r.Header.Get("Authorization"))
+		}
+		w.Header().Set("Content-Type", "application/json")
+		w.WriteHeader(http.StatusOK)
+		w.Write([]byte(mockResponse))
+	}))
+	defer mockServer.Close()
+
+	err := os.Setenv("CURSEFORGE_API_URL", mockServer.URL)
+	assert.NoError(t, err)
+	defer os.Unsetenv("CURSEFORGE_API_URL")
+
+	err = os.Setenv("CURSEFORGE_API_KEY", "mock_curseforge_api_key")
+	assert.NoError(t, err)
+	defer os.Unsetenv("CURSEFORGE_API_KEY")
+
+	client := &Client{client: mockServer.Client()}
+	fingerprints := []int{1234}
+
+	result, err := GetFingerprintsMatches(fingerprints, client)
+	assert.NoError(t, err)
+	assert.Len(t, result.Matches, 1)
+	assert.Len(t, result.Unmatched, 0)
+	assert.Equal(t, 110, result.Matches[0].Id)
+	assert.Equal(t, 111, result.Matches[0].ProjectId)
+	assert.Equal(t, "string", result.Matches[0].DisplayName)
+}
+
+func TestGetFingerprintsMatchesWithMultipleExactMatches(t *testing.T) {
+	mockResponse := `{
+		"data": {
+			"exactMatches": [
+				{
+					"id": 0,
+					"file": {
+						"id": 20,
+            "modId": 200,
+						"displayName": "string1",
+						"fileName": "string1",
+						"fileDate": "2019-08-24T14:15:22Z",
+						"fileFingerprint": 123456
+					}
+				},
+				{
+					"id": 1,
+					"file": {
+						"id": 21,
+            "modId": 210,
+						"displayName": "string2",
+						"fileName": "string2",
+						"fileDate": "2019-08-24T14:15:22Z",
+						"fileFingerprint": 1234567
+					}
+				}
+			],
+			"unmatchedFingerprints": []
+		}
+	}`
+
+	mockServer := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "application/json")
+		w.WriteHeader(http.StatusOK)
+		w.Write([]byte(mockResponse))
+	}))
+	defer mockServer.Close()
+
+	err := os.Setenv("CURSEFORGE_API_URL", mockServer.URL)
+	assert.NoError(t, err)
+	defer os.Unsetenv("CURSEFORGE_API_URL")
+
+	client := &Client{client: mockServer.Client()}
+	fingerprints := []int{123456, 1234567}
+
+	result, err := GetFingerprintsMatches(fingerprints, client)
+	assert.NoError(t, err)
+	assert.Len(t, result.Matches, 2)
+	assert.Len(t, result.Unmatched, 0)
+	assert.Equal(t, 20, result.Matches[0].Id)
+	assert.Equal(t, 200, result.Matches[0].ProjectId)
+	assert.Equal(t, 21, result.Matches[1].Id)
+	assert.Equal(t, 210, result.Matches[1].ProjectId)
+}
+
+func TestGetFingerprintsMatchesWithNoExactMatches(t *testing.T) {
+	mockResponse := `{
+		"data": {
+			"exactMatches": [],
+			"unmatchedFingerprints": [0, 1]
+		}
+	}`
+
+	mockServer := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "application/json")
+		w.WriteHeader(http.StatusOK)
+		w.Write([]byte(mockResponse))
+	}))
+	defer mockServer.Close()
+
+	err := os.Setenv("CURSEFORGE_API_URL", mockServer.URL)
+	assert.NoError(t, err)
+	defer os.Unsetenv("CURSEFORGE_API_URL")
+
+	client := &Client{client: mockServer.Client()}
+	fingerprints := []int{0, 1}
+
+	result, err := GetFingerprintsMatches(fingerprints, client)
+	assert.NoError(t, err)
+	assert.Len(t, result.Matches, 0)
+	assert.Len(t, result.Unmatched, 2)
+	assert.Equal(t, 0, result.Unmatched[0])
+	assert.Equal(t, 1, result.Unmatched[1])
+}

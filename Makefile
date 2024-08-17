@@ -29,9 +29,19 @@ else
 	@if exist $(BUILD_DIR) rmdir /S /Q $(BUILD_DIR)
 endif
 
+
 # Create build directory
+ifeq ($(PLATFORM), Unix)
+
+BUILD_DIR:
+	@if [ ! -d "$(BUILD_DIR)" ]; then mkdir -p $(BUILD_DIR); fi
+
+else
+
 BUILD_DIR:
 	@if not exist $(BUILD_DIR) mkdir $(BUILD_DIR)
+
+endif
 
 # Build for all platforms
 build: BUILD_DIR build-darwin build-linux build-windows
