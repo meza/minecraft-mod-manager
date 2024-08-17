@@ -675,6 +675,37 @@ It should look something like this:
 
 ![](/doc/images/multimc.png)
 
+## Using your own API keys
+
+You can override the modrinth and curseforge API keys by setting the `MODRINTH_API_KEY` and `CURSEFORGE_API_KEY` environment variables.
+
+You can use whatever means exist on your operating system to set these variables. For example, on Windows you can use the
+`set` command:
+
+```cmd
+set MODRINTH_API_KEY=your-api-key
+set CURSEFORGE_API_KEY=your-api-key
+```
+
+On Linux and MacOS you can use the `export` command:
+
+```bash
+export MODRINTH_API_KEY=your-api-key
+export CURSEFORGE_API_KEY=your-api-key
+```
+
+You can also set these variables in a .env file in the same directory as the `modlist.json` file.
+
+```env
+MODRINTH_API_KEY=your-api-key
+CURSEFORGE_API_KEY=your-api-key
+```
+Under normal circumstances, you should not need to set these variables. The tool will work without them. However, if you
+run into rate limiting issues or are using private projects, you can set these variables to your own API keys.
+
+> **Please be aware that the API keys are sensitive information. Do not share them with anyone.**
+
+
 <br/><hr/>
 
 ## <p align="center">Contribute to the project</p>

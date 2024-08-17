@@ -1,6 +1,4 @@
 {
   "$schema": "https://docs.renovatebot.com/renovate-schema.json",
-  "extends": ["github>stateshifters/renovate-common"],
-  "prConcurrentLimit": 1,
-  "enabledManagers": ["npm", "github-actions"]
+  "extends": ["github>stateshifters/renovate-common"]
 }
