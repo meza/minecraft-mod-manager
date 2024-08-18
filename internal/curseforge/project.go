@@ -22,10 +22,7 @@ func GetProject(projectId string, client httpClient.Doer) (*Project, error) {
 	defer region.End()
 
 	url := fmt.Sprintf("%s/mods/%s", GetBaseUrl(), projectId)
-	request, err := http.NewRequest(http.MethodGet, url, nil)
-	if err != nil {
-		return nil, err
-	}
+	request, _ := http.NewRequest(http.MethodGet, url, nil)
 
 	response, err := client.Do(request)
 	if err != nil {
@@ -47,7 +44,7 @@ func GetProject(projectId string, client httpClient.Doer) (*Project, error) {
 	var projectResponse getProjectResponse
 	err = json.NewDecoder(response.Body).Decode(&projectResponse)
 	if err != nil {
-		return nil, err
+		return nil, globalErrors.ProjectApiErrorWrap(errors.Wrap(err, "failed to decode response body"), projectId, models.CURSEFORGE)
 	}
 
 	return &projectResponse.Data, nil

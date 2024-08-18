@@ -48,10 +48,7 @@ func getPaginatedFilesForProject(projectId int, client httpClient.Doer, cursor i
 	defer region.End()
 
 	url := fmt.Sprintf("%s/mods/%d/files?index=%d", GetBaseUrl(), projectId, cursor)
-	request, err := http.NewRequest(http.MethodGet, url, nil)
-	if err != nil {
-		return nil, err
-	}
+	request, _ := http.NewRequest(http.MethodGet, url, nil)
 
 	response, err := client.Do(request)
 	if err != nil {
@@ -73,7 +70,7 @@ func getPaginatedFilesForProject(projectId int, client httpClient.Doer, cursor i
 	var filesResponse getFilesResponse
 	err = json.NewDecoder(response.Body).Decode(&filesResponse)
 	if err != nil {
-		return nil, err
+		return nil, globalErrors.ProjectApiErrorWrap(errors.Wrap(err, "failed to decode response body"), strconv.Itoa(projectId), models.CURSEFORGE)
 	}
 
 	return &filesResponse, nil
@@ -110,23 +107,31 @@ func GetFingerprintsMatches(fingerprints []int, client httpClient.Doer) (*Finger
 
 	body, _ := json.Marshal(getFingerprintsRequest{Fingerprints: fingerprints})
 	request, _ := http.NewRequest(http.MethodPost, url, bytes.NewBuffer(body))
-
 	request.Header.Add("Content-Type", "application/json")
 
 	response, err := client.Do(request)
 	if err != nil {
-		return nil, globalErrors.ProjectApiErrorWrap(err, "fingerprints", models.CURSEFORGE)
+		return nil, &FingerprintApiError{
+			Lookup: fingerprints,
+			Err:    err,
+		}
 	}
 	defer response.Body.Close()
 
 	if response.StatusCode != http.StatusOK {
-		return nil, globalErrors.ProjectApiErrorWrap(errors.Errorf("unexpected status code: %d", response.StatusCode), "fingerprints", models.CURSEFORGE)
+		return nil, &FingerprintApiError{
+			Lookup: fingerprints,
+			Err:    errors.Errorf("unexpected status code: %d", response.StatusCode),
+		}
 	}
 
 	var fingerprintsResponse getFingerprintsMatchesResponse
 	err = json.NewDecoder(response.Body).Decode(&fingerprintsResponse)
 	if err != nil {
-		return nil, err
+		return nil, &FingerprintApiError{
+			Lookup: fingerprints,
+			Err:    errors.Wrap(err, "failed to decode response body"),
+		}
 	}
 
 	result := &FingerprintResult{

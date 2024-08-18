@@ -251,6 +251,35 @@ func TestGetProjectWhenProjectApiUnknownStatus(t *testing.T) {
 	assert.Nil(t, project)
 }
 
+func TestGetProjectWhenProjectApiCorruptedBody(t *testing.T) {
+
+	// Create a mock server
+	mockServer := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "application/json")
+		w.WriteHeader(http.StatusOK)
+		w.Write([]byte(`{"data": {`))
+	}))
+	defer mockServer.Close()
+
+	err1 := os.Setenv("CURSEFORGE_API_URL", mockServer.URL)
+	if err1 != nil {
+		t.Fatalf("Failed to set environment variable: %v", err1)
+		return
+	}
+
+	defer func() { os.Unsetenv("CURSEFORGE_API_URL") }()
+
+	// Call the function
+	project, err := GetProject("AABBCCDD", &Client{
+		client: mockServer.Client(),
+	})
+
+	// Assertions
+	assert.Error(t, err)
+	assert.Equal(t, "failed to decode response body: unexpected EOF", errors.Unwrap(err).Error())
+	assert.Nil(t, project)
+}
+
 func TestGetProjectWhenApiCallFails(t *testing.T) {
 
 	// Create a mock server

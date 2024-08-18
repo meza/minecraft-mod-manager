@@ -496,6 +496,35 @@ func TestGetFilesForProjectWhenProjectApiUnknownStatus(t *testing.T) {
 	assert.Nil(t, project)
 }
 
+func TestGetFilesForProjectWhenProjectApiCorruptBody(t *testing.T) {
+
+	// Create a mock server
+	mockServer := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "application/json")
+		w.WriteHeader(http.StatusOK)
+		w.Write([]byte(`{`))
+	}))
+	defer mockServer.Close()
+
+	err1 := os.Setenv("CURSEFORGE_API_URL", mockServer.URL)
+	if err1 != nil {
+		t.Fatalf("Failed to set environment variable: %v", err1)
+		return
+	}
+
+	defer func() { os.Unsetenv("CURSEFORGE_API_URL") }()
+
+	// Call the function
+	project, err := GetFilesForProject(12345, &Client{
+		client: mockServer.Client(),
+	})
+
+	// Assertions
+	assert.Error(t, err)
+	assert.Equal(t, "failed to decode response body: unexpected EOF", errors.Unwrap(err).Error())
+	assert.Nil(t, project)
+}
+
 func TestGetFilesForProjectWhenApiCallFails(t *testing.T) {
 
 	// Create a mock server
@@ -662,4 +691,62 @@ func TestGetFingerprintsMatchesWithNoExactMatches(t *testing.T) {
 	assert.Len(t, result.Unmatched, 2)
 	assert.Equal(t, 0, result.Unmatched[0])
 	assert.Equal(t, 1, result.Unmatched[1])
+}
+
+func TestGetFingerprintsMatchesWithApiFailure(t *testing.T) {
+
+	mockServer := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {}))
+	defer mockServer.Close()
+
+	err := os.Setenv("CURSEFORGE_API_URL", "invalid_url")
+	assert.NoError(t, err)
+	defer os.Unsetenv("CURSEFORGE_API_URL")
+
+	client := &Client{client: mockServer.Client()}
+	fingerprints := []int{0, 1}
+
+	result, err := GetFingerprintsMatches(fingerprints, client)
+	assert.ErrorContains(t, err, "Post \"invalid_url/fingerprints/432\": unsupported protocol scheme \"\"")
+	assert.Nil(t, result)
+}
+
+func TestGetFingerprintsMatchesWithNotFound(t *testing.T) {
+
+	mockServer := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "application/json")
+		w.WriteHeader(http.StatusNotFound)
+	}))
+	defer mockServer.Close()
+
+	err := os.Setenv("CURSEFORGE_API_URL", mockServer.URL)
+	assert.NoError(t, err)
+	defer os.Unsetenv("CURSEFORGE_API_URL")
+
+	client := &Client{client: mockServer.Client()}
+	fingerprints := []int{0, 1}
+
+	result, err := GetFingerprintsMatches(fingerprints, client)
+	assert.ErrorContains(t, err, "unexpected status code: 404")
+	assert.Nil(t, result)
+}
+
+func TestGetFingerprintsMatchesWithCorruptedBody(t *testing.T) {
+
+	mockServer := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "application/json")
+		w.WriteHeader(http.StatusOK)
+		w.Write([]byte(`{`))
+	}))
+	defer mockServer.Close()
+
+	err := os.Setenv("CURSEFORGE_API_URL", mockServer.URL)
+	assert.NoError(t, err)
+	defer os.Unsetenv("CURSEFORGE_API_URL")
+
+	client := &Client{client: mockServer.Client()}
+	fingerprints := []int{0, 1}
+
+	result, err := GetFingerprintsMatches(fingerprints, client)
+	assert.ErrorContains(t, err, "unexpected EOF")
+	assert.Nil(t, result)
 }
