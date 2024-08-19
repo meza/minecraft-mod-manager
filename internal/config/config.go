@@ -6,57 +6,41 @@ import (
 	"fmt"
 	"github.com/meza/minecraft-mod-manager/internal/fileutils"
 	"github.com/meza/minecraft-mod-manager/internal/models"
-	"os"
+	"github.com/spf13/afero"
 	"path/filepath"
 )
-
-type ConfigFileInvalidError struct {
-	Err error
-}
-
-type ConfigFileNotFoundException struct {
-	Path string
-	Err  error
-}
-
-func (e *ConfigFileInvalidError) Error() string {
-	return fmt.Sprintf("Configuration file is invalid: %s", e.Err)
-}
-
-func (e *ConfigFileNotFoundException) Error() string {
-	return fmt.Sprintf("Configuration file not found: %s", e.Path)
-}
 
 func getLockfileName(configPath string) string {
 	return filepath.Join(filepath.Dir(configPath), filepath.Base(configPath)+"-lock.json")
 }
 
-func writeConfigFile(config models.ModsJson, configPath string) error {
+func writeConfigFile(config models.ModsJson, configPath string, fs afero.Fs) error {
 	data, err := json.MarshalIndent(config, "", "  ")
 	if err != nil {
 		return err
 	}
-	return os.WriteFile(configPath, data, 0644)
+	return afero.WriteFile(fs, configPath, data, 0644)
 }
 
-func writeLockFile(config []models.ModInstall, configPath string) error {
+func writeLockFile(config []models.ModInstall, configPath string, fs afero.Fs) error {
 	data, err := json.MarshalIndent(config, "", "  ")
 	if err != nil {
 		return err
 	}
-	return os.WriteFile(configPath, data, 0644)
+	return afero.WriteFile(fs, configPath, data, 0644)
 }
 
-func readLockFile(configPath string) ([]models.ModInstall, error) {
+func EnsureLockFile(configPath string, filesystem ...afero.Fs) ([]models.ModInstall, error) {
+	fs := initFilesystem(filesystem...)
 	lockFilePath := getLockfileName(configPath)
 	if !fileutils.FileExists(lockFilePath) {
 		emptyModLock := []models.ModInstall{}
-		if err := writeLockFile(emptyModLock, lockFilePath); err != nil {
+		if err := writeLockFile(emptyModLock, lockFilePath, fs); err != nil {
 			return nil, err
 		}
 		return emptyModLock, nil
 	}
-	data, err := os.ReadFile(lockFilePath)
+	data, err := afero.ReadFile(fs, lockFilePath)
 	if err != nil {
 		return nil, err
 	}
@@ -67,13 +51,14 @@ func readLockFile(configPath string) ([]models.ModInstall, error) {
 	return config, nil
 }
 
-func readConfigFile(configPath string) (models.ModsJson, error) {
-	if !fileutils.FileExists(configPath) {
+func readConfigFile(configPath string, fs afero.Fs) (models.ModsJson, error) {
+	if !fileutils.FileExists(configPath, fs) {
 		return models.ModsJson{}, &ConfigFileNotFoundException{Path: configPath}
 	}
-	data, err := os.ReadFile(configPath)
+
+	data, err := afero.ReadFile(fs, configPath)
 	if err != nil {
-		return models.ModsJson{}, err
+		return models.ModsJson{}, fmt.Errorf("failed to read configuration file: %w", err)
 	}
 	var config models.ModsJson
 	if err := json.Unmarshal(data, &config); err != nil {
@@ -82,7 +67,7 @@ func readConfigFile(configPath string) (models.ModsJson, error) {
 	return config, nil
 }
 
-func initializeConfigFile(configPath string) (models.ModsJson, error) {
+func initializeConfigFile(configPath string, fs afero.Fs) (models.ModsJson, error) {
 	// Placeholder for actual initialization logic
 	emptyModJson := models.ModsJson{
 		Loader:                     models.FORGE,
@@ -91,21 +76,30 @@ func initializeConfigFile(configPath string) (models.ModsJson, error) {
 		ModsFolder:                 "mods",
 		Mods:                       []models.ModInstall{},
 	}
-	if err := writeConfigFile(emptyModJson, configPath); err != nil {
+	if err := writeConfigFile(emptyModJson, configPath, fs); err != nil {
 		return models.ModsJson{}, err
 	}
 	return emptyModJson, nil
 }
 
-func EnsureConfiguration(configPath string, quiet bool) (models.ModsJson, error) {
-	config, err := readConfigFile(configPath)
+func initFilesystem(filesystem ...afero.Fs) afero.Fs {
+	if len(filesystem) > 0 {
+		return filesystem[0]
+	}
+
+	return afero.NewOsFs()
+}
+
+func EnsureConfiguration(configPath string, quiet bool, filesystem ...afero.Fs) (models.ModsJson, error) {
+	fs := initFilesystem(filesystem...)
+	config, err := readConfigFile(configPath, fs)
 	if err != nil {
 		var cf *ConfigFileNotFoundException
 		if errors.As(err, &cf) && !quiet {
 			// Placeholder for user interaction logic
 			shouldCreateConfig := true // Assume user wants to create config
 			if shouldCreateConfig {
-				return initializeConfigFile(configPath)
+				return initializeConfigFile(configPath, fs)
 			}
 		}
 		return models.ModsJson{}, err
@@ -114,9 +108,9 @@ func EnsureConfiguration(configPath string, quiet bool) (models.ModsJson, error)
 	return config, nil
 }
 
-func getModsFolder(configPath string, config models.ModsJson) string {
+func GetModsFolder(configPath string, config models.ModsJson) string {
 	if filepath.IsAbs(config.ModsFolder) {
 		return config.ModsFolder
 	}
-	return filepath.Join(filepath.Dir(configPath), config.ModsFolder)
+	return filepath.Join(filepath.Dir(filepath.FromSlash(configPath)), config.ModsFolder)
 }
