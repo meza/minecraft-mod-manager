@@ -7,46 +7,44 @@ import (
 	"github.com/meza/minecraft-mod-manager/internal/models"
 	"github.com/spf13/afero"
 	"path/filepath"
+	"strings"
 )
 
 func getLockfileName(configPath string) string {
-	return filepath.Join(filepath.Dir(configPath), filepath.Base(configPath)+"-lock.json")
+	return filepath.Join(filepath.Dir(configPath), strings.TrimSuffix(filepath.Base(configPath), ".json")+"-lock.json")
 }
 
 func writeConfigFile(config models.ModsJson, configPath string, fs afero.Fs) error {
-	data, err := json.MarshalIndent(config, "", "  ")
-	if err != nil {
-		return err
-	}
+	data, _ := json.MarshalIndent(config, "", "  ")
 	return afero.WriteFile(fs, configPath, data, 0644)
 }
 
 func writeLockFile(config []models.ModInstall, configPath string, fs afero.Fs) error {
-	data, err := json.MarshalIndent(config, "", "  ")
-	if err != nil {
-		return err
-	}
+	data, _ := json.MarshalIndent(config, "", "  ")
 	return afero.WriteFile(fs, configPath, data, 0644)
 }
 
 func EnsureLockFile(configPath string, filesystem ...afero.Fs) ([]models.ModInstall, error) {
 	fs := initFilesystem(filesystem...)
 	lockFilePath := getLockfileName(configPath)
-	if !fileutils.FileExists(lockFilePath) {
-		emptyModLock := []models.ModInstall{}
+	if !fileutils.FileExists(lockFilePath, fs) {
+		var emptyModLock []models.ModInstall
 		if err := writeLockFile(emptyModLock, lockFilePath, fs); err != nil {
 			return nil, err
 		}
 		return emptyModLock, nil
 	}
+
 	data, err := afero.ReadFile(fs, lockFilePath)
 	if err != nil {
 		return nil, err
 	}
+
 	var config []models.ModInstall
 	if err := json.Unmarshal(data, &config); err != nil {
 		return nil, err
 	}
+
 	return config, nil
 }
 
