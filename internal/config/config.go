@@ -2,7 +2,6 @@ package config
 
 import (
 	"encoding/json"
-	"errors"
 	"fmt"
 	"github.com/meza/minecraft-mod-manager/internal/fileutils"
 	"github.com/meza/minecraft-mod-manager/internal/models"
@@ -67,11 +66,11 @@ func readConfigFile(configPath string, fs afero.Fs) (models.ModsJson, error) {
 	return config, nil
 }
 
-func initializeConfigFile(configPath string, fs afero.Fs) (models.ModsJson, error) {
-	// Placeholder for actual initialization logic
+func InitializeConfigFile(configPath string, filesystem ...afero.Fs) (models.ModsJson, error) {
+	fs := initFilesystem(filesystem...)
 	emptyModJson := models.ModsJson{
 		Loader:                     models.FORGE,
-		GameVersion:                "1.16.5",
+		GameVersion:                "1.21.1",
 		DefaultAllowedReleaseTypes: []models.ReleaseType{models.Release, models.Beta},
 		ModsFolder:                 "mods",
 		Mods:                       []models.ModInstall{},
@@ -90,21 +89,13 @@ func initFilesystem(filesystem ...afero.Fs) afero.Fs {
 	return afero.NewOsFs()
 }
 
-func EnsureConfiguration(configPath string, quiet bool, filesystem ...afero.Fs) (models.ModsJson, error) {
+func GetConfiguration(configPath string, quiet bool, filesystem ...afero.Fs) (models.ModsJson, error) {
 	fs := initFilesystem(filesystem...)
 	config, err := readConfigFile(configPath, fs)
 	if err != nil {
-		var cf *ConfigFileNotFoundException
-		if errors.As(err, &cf) && !quiet {
-			// Placeholder for user interaction logic
-			shouldCreateConfig := true // Assume user wants to create config
-			if shouldCreateConfig {
-				return initializeConfigFile(configPath, fs)
-			}
-		}
 		return models.ModsJson{}, err
 	}
-	// Placeholder for validation logic
+
 	return config, nil
 }
 

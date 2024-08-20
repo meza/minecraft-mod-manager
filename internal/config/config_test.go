@@ -49,8 +49,7 @@ func TestGetModsFolder(t *testing.T) {
 
 func TestEnsureConfigurationNotExistingInQuiet(t *testing.T) {
 	fs := afero.NewMemMapFs()
-
-	_, err := EnsureConfiguration(filepath.FromSlash("/modlist.json"), true, fs)
+	_, err := GetConfiguration(filepath.FromSlash("/modlist.json"), true, fs)
 
 	var cf *ConfigFileNotFoundException
 	assert.ErrorAs(t, err, &cf)
@@ -58,11 +57,29 @@ func TestEnsureConfigurationNotExistingInQuiet(t *testing.T) {
 }
 
 func TestEnsureConfigurationReadIssues(t *testing.T) {
-	fs := afero.NewMemMapFs()
-	configFile := "modlist"
-	_, err := EnsureConfiguration(configFile, true, fs)
+	configFile := filepath.Join(t.TempDir(), "config")
+	_ = os.Mkdir(configFile, 0755)
+	_, err := GetConfiguration(configFile, true)
+
+	defer os.Remove(configFile)
 
 	assert.ErrorContains(t, err, "failed to read configuration file")
-	assert.ErrorContains(t, err, "file does not exist")
 
+}
+
+func TestEnsureConfigurationMalformedJson(t *testing.T) {
+	fs := afero.NewMemMapFs()
+	_ = afero.WriteFile(fs, "/modlist.json", []byte("malformed json"), 0644)
+	_, err := GetConfiguration(filepath.FromSlash("/modlist.json"), true, fs)
+
+	assert.ErrorContains(t, err, "invalid character")
+}
+
+func TestEnsureConfiguration(t *testing.T) {
+	fs := afero.NewMemMapFs()
+	_ = afero.WriteFile(fs, "/modlist.json", []byte(`{"modsFolder": "./mods"}`), 0644)
+	config, err := GetConfiguration(filepath.FromSlash("/modlist.json"), true, fs)
+
+	assert.NoError(t, err)
+	assert.Equal(t, "./mods", config.ModsFolder)
 }
