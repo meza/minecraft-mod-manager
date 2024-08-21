@@ -9,8 +9,11 @@ pre-commit:
    gotidy:
      tags: backend versions
      run: go mod tidy
+     stage_fixed: true
    govet:
      tags: backend style
      files: git ls-files -m
      glob: "*.go"
      run: go vet {files}
+     stage_fixed: true
+
