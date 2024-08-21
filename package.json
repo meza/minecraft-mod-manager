@@ -50,7 +50,7 @@
     "log-symbols": "6.0.0",
     "minimatch": "10.0.1",
     "nodejs-file-downloader": "4.13.0",
-    "posthog-node": "4.0.1",
+    "posthog-node": "4.1.0",
     "zod": "3.23.8"
   },
   "commitlint": {
