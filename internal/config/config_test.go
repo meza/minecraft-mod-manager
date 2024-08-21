@@ -121,7 +121,7 @@ func TestEnsureLockFile(t *testing.T) {
 		empty, err := EnsureLockFile(filepath.FromSlash("/modlist.json"), fs)
 
 		assert.NoError(t, err)
-		assert.Equal(t, []models.ModInstall(nil), empty)
+		assert.Equal(t, []models.ModInstall{}, empty)
 
 		data, err := afero.ReadFile(fs, filepath.FromSlash("/modlist-lock.json"))
 		assert.NoError(t, err)
@@ -136,11 +136,41 @@ func TestEnsureLockFile(t *testing.T) {
 		assert.ErrorContains(t, err, "operation not permitted")
 	})
 
-	t.Run("Lock file read error", func(t *testing.T) {
+	t.Run("Lock file parse error", func(t *testing.T) {
 		fs := afero.NewMemMapFs()
 		_ = afero.WriteFile(fs, filepath.FromSlash("/modlist-lock.json"), []byte("malformed json"), 0644)
 		_, err := EnsureLockFile(filepath.FromSlash("/modlist.json"), fs)
 
 		assert.ErrorContains(t, err, "invalid character")
+	})
+
+	t.Run("Lock file read error", func(t *testing.T) {
+		fs := afero.NewOsFs()
+		configFile := filepath.Join(t.TempDir(), "modlist.json")
+		err := afero.WriteFile(fs, configFile, []byte(`{"modsFolder": "./mods"}`), 0644)
+		defer os.RemoveAll(configFile)
+
+		assert.NoError(t, err)
+
+		lockFile := filepath.Join(filepath.Dir(configFile), "modlist-lock.json")
+		err = fs.Mkdir(lockFile, 0755)
+		defer os.RemoveAll(lockFile)
+
+		assert.NoError(t, err)
+
+		_, err = EnsureLockFile(configFile, fs)
+		assert.ErrorContains(t, err, "failed to read lock file")
+
+	})
+
+	t.Run("happy path", func(t *testing.T) {
+		fs := afero.NewMemMapFs()
+		_ = afero.WriteFile(fs, "/modlist.json", []byte(`{"modsFolder": "./mods"}`), 0644)
+		_ = afero.WriteFile(fs, "/modlist-lock.json", []byte(`[{"id": "1", "name": "mod1", "type": "modrinth"}]`), 0644)
+		lock, err := EnsureLockFile(filepath.FromSlash("/modlist.json"), fs)
+
+		assert.NoError(t, err)
+		assert.Equal(t, []models.ModInstall{{Id: "1", Name: "mod1", Type: "modrinth"}}, lock)
+
 	})
 }

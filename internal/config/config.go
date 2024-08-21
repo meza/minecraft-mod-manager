@@ -28,7 +28,7 @@ func EnsureLockFile(configPath string, filesystem ...afero.Fs) ([]models.ModInst
 	fs := initFilesystem(filesystem...)
 	lockFilePath := getLockfileName(configPath)
 	if !fileutils.FileExists(lockFilePath, fs) {
-		var emptyModLock []models.ModInstall
+		emptyModLock := make([]models.ModInstall, 0)
 		if err := writeLockFile(emptyModLock, lockFilePath, fs); err != nil {
 			return nil, err
 		}
@@ -37,7 +37,7 @@ func EnsureLockFile(configPath string, filesystem ...afero.Fs) ([]models.ModInst
 
 	data, err := afero.ReadFile(fs, lockFilePath)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("failed to read lock file: %w", err)
 	}
 
 	var config []models.ModInstall
