@@ -63,3 +63,15 @@ build-windows: BUILD_DIR
 	@set GOOS=windows
 	@set GOARCH=amd64
 	$(GO_BUILD) $(BUILD_DIR)/windows/$(EXECUTABLE_NAME).exe cmd/$(APP_NAME)/main.go
+
+test:
+	go test ./internal/...
+
+coverage:
+	go test ./internal/... -coverprofile=coverage.out
+
+coverage-enforce: coverage
+	go tool cover -func=coverage.out | awk '/^total:/ { if ($$3 != "100.0%") { print "Coverage is not 100%: " $$3; exit 1 } else { print "Coverage is 100%"; exit 0 } }'
+
+coverage-html: coverage
+	go tool cover -html=coverage.out -o coverage.html

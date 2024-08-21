@@ -7,6 +7,8 @@ mods
 .idea
 .env
 .cache
+*.out
+coverage.html
 
 # Created by https://www.gitignore.io/api/intellij,node,windows,linux,osx,eclipse,netbeans,visualcode
 # Edit at https://www.gitignore.io/?templates=intellij,node,windows,linux,osx,eclipse,netbeans,visualcode

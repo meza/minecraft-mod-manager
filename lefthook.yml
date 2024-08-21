@@ -6,6 +6,9 @@
 pre-commit:
  parallel: true
  commands:
+   coverage:
+     tags: backend test
+     run: make coverage-enforce
    gotidy:
      tags: backend versions
      run: go mod tidy
