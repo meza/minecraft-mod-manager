@@ -2,13 +2,11 @@ package fileutils
 
 import (
 	"github.com/spf13/afero"
+	"path/filepath"
 )
 
 func FileExists(path string, filesystem ...afero.Fs) bool {
-	fs := afero.NewOsFs()
-	if len(filesystem) > 0 {
-		fs = filesystem[0]
-	}
+	fs := InitFilesystem(filesystem...)
 
 	exists, _ := afero.Exists(fs, path)
 	return exists
@@ -20,4 +18,23 @@ func InitFilesystem(filesystem ...afero.Fs) afero.Fs {
 	}
 
 	return afero.NewOsFs()
+}
+
+func ListFilesInDir(path string, filesystem ...afero.Fs) ([]string, error) {
+	fs := InitFilesystem(filesystem...)
+
+	files, err := afero.ReadDir(fs, path)
+	if err != nil {
+		return nil, err
+	}
+
+	var fileNames []string
+	for _, file := range files {
+		if file.IsDir() {
+			continue
+		}
+		fileNames = append(fileNames, filepath.Join(path, file.Name()))
+	}
+
+	return fileNames, nil
 }
