@@ -13,3 +13,11 @@ func FileExists(path string, filesystem ...afero.Fs) bool {
 	exists, _ := afero.Exists(fs, path)
 	return exists
 }
+
+func InitFilesystem(filesystem ...afero.Fs) afero.Fs {
+	if len(filesystem) > 0 {
+		return filesystem[0]
+	}
+
+	return afero.NewOsFs()
+}

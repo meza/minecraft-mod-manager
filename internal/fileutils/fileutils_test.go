@@ -24,3 +24,15 @@ func TestFileExists(t *testing.T) {
 		assert.False(t, FileExists("/somepath2", mockIO))
 	})
 }
+
+func TestInitFilesystem(t *testing.T) {
+	mockIO := afero.NewMemMapFs()
+
+	t.Run("default filesystem", func(t *testing.T) {
+		assert.Equal(t, afero.NewOsFs(), InitFilesystem())
+	})
+
+	t.Run("custom filesystem", func(t *testing.T) {
+		assert.Equal(t, mockIO, InitFilesystem(mockIO))
+	})
+}

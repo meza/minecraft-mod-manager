@@ -25,7 +25,7 @@ func writeLockFile(config []models.ModInstall, configPath string, fs afero.Fs) e
 }
 
 func EnsureLockFile(configPath string, filesystem ...afero.Fs) ([]models.ModInstall, error) {
-	fs := initFilesystem(filesystem...)
+	fs := fileutils.InitFilesystem(filesystem...)
 	lockFilePath := getLockfileName(configPath)
 	if !fileutils.FileExists(lockFilePath, fs) {
 		emptyModLock := make([]models.ModInstall, 0)
@@ -65,7 +65,7 @@ func readConfigFile(configPath string, fs afero.Fs) (models.ModsJson, error) {
 }
 
 func InitializeConfigFile(configPath string, filesystem ...afero.Fs) (models.ModsJson, error) {
-	fs := initFilesystem(filesystem...)
+	fs := fileutils.InitFilesystem(filesystem...)
 	emptyModJson := models.ModsJson{
 		Loader:                     models.FORGE,
 		GameVersion:                "1.21.1",
@@ -79,16 +79,8 @@ func InitializeConfigFile(configPath string, filesystem ...afero.Fs) (models.Mod
 	return emptyModJson, nil
 }
 
-func initFilesystem(filesystem ...afero.Fs) afero.Fs {
-	if len(filesystem) > 0 {
-		return filesystem[0]
-	}
-
-	return afero.NewOsFs()
-}
-
 func GetConfiguration(configPath string, quiet bool, filesystem ...afero.Fs) (models.ModsJson, error) {
-	fs := initFilesystem(filesystem...)
+	fs := fileutils.InitFilesystem(filesystem...)
 	config, err := readConfigFile(configPath, fs)
 	if err != nil {
 		return models.ModsJson{}, err
