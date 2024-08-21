@@ -1,6 +1,7 @@
 package fileutils
 
 import (
+	"fmt"
 	"github.com/spf13/afero"
 	"path/filepath"
 )
@@ -25,7 +26,7 @@ func ListFilesInDir(path string, filesystem ...afero.Fs) ([]string, error) {
 
 	files, err := afero.ReadDir(fs, path)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("failed to list files in directory: %w", err)
 	}
 
 	var fileNames []string

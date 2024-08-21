@@ -59,7 +59,7 @@ func TestListFilesInDir(t *testing.T) {
 		dirPath := filepath.FromSlash("/nonexistentdir")
 
 		files, err := ListFilesInDir(dirPath, fs)
-		assert.Error(t, err)
+		assert.ErrorContains(t, err, "failed to list files in directory")
 		assert.Nil(t, files)
 	})
 
