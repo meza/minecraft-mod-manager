@@ -1,0 +1,16 @@
+# EXAMPLE USAGE:
+#
+#   Refer for explanation to following link:
+#   https://github.com/evilmartians/lefthook/blob/master/docs/configuration.md
+#
+pre-commit:
+ parallel: true
+ commands:
+   gotidy:
+     tags: backend versions
+     run: go mod tidy
+   govet:
+     tags: backend style
+     files: git ls-files -m
+     glob: "*.go"
+     run: go vet {files}
