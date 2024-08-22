@@ -111,14 +111,14 @@ func TestEnsureLockFile(t *testing.T) {
 	t.Run("Happy Path", func(t *testing.T) {
 		fs := afero.NewMemMapFs()
 		_ = afero.WriteFile(fs, "/modlist.lock", []byte{}, 0644)
-		_, err := EnsureLockFile(filepath.FromSlash("/modlist.json"), fs)
+		_, err := GetLockFile(filepath.FromSlash("/modlist.json"), fs)
 
 		assert.NoError(t, err)
 	})
 
 	t.Run("Lock file not found", func(t *testing.T) {
 		fs := afero.NewMemMapFs()
-		empty, err := EnsureLockFile(filepath.FromSlash("/modlist.json"), fs)
+		empty, err := GetLockFile(filepath.FromSlash("/modlist.json"), fs)
 
 		assert.NoError(t, err)
 		assert.Equal(t, []models.ModInstall{}, empty)
@@ -131,7 +131,7 @@ func TestEnsureLockFile(t *testing.T) {
 
 	t.Run("Lock file unwritable", func(t *testing.T) {
 		fs := afero.NewReadOnlyFs(afero.NewOsFs())
-		_, err := EnsureLockFile(filepath.FromSlash("/modlist.json"), fs)
+		_, err := GetLockFile(filepath.FromSlash("/modlist.json"), fs)
 
 		assert.ErrorContains(t, err, "operation not permitted")
 	})
@@ -139,7 +139,7 @@ func TestEnsureLockFile(t *testing.T) {
 	t.Run("Lock file parse error", func(t *testing.T) {
 		fs := afero.NewMemMapFs()
 		_ = afero.WriteFile(fs, filepath.FromSlash("/modlist-lock.json"), []byte("malformed json"), 0644)
-		_, err := EnsureLockFile(filepath.FromSlash("/modlist.json"), fs)
+		_, err := GetLockFile(filepath.FromSlash("/modlist.json"), fs)
 
 		assert.ErrorContains(t, err, "invalid character")
 	})
@@ -158,7 +158,7 @@ func TestEnsureLockFile(t *testing.T) {
 
 		assert.NoError(t, err)
 
-		_, err = EnsureLockFile(configFile, fs)
+		_, err = GetLockFile(configFile, fs)
 		assert.ErrorContains(t, err, "failed to read lock file")
 
 	})
@@ -167,7 +167,7 @@ func TestEnsureLockFile(t *testing.T) {
 		fs := afero.NewMemMapFs()
 		_ = afero.WriteFile(fs, "/modlist.json", []byte(`{"modsFolder": "./mods"}`), 0644)
 		_ = afero.WriteFile(fs, "/modlist-lock.json", []byte(`[{"id": "1", "name": "mod1", "type": "modrinth"}]`), 0644)
-		lock, err := EnsureLockFile(filepath.FromSlash("/modlist.json"), fs)
+		lock, err := GetLockFile(filepath.FromSlash("/modlist.json"), fs)
 
 		assert.NoError(t, err)
 		assert.Equal(t, []models.ModInstall{{Id: "1", Name: "mod1", Type: "modrinth"}}, lock)

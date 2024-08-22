@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"golang.org/x/time/rate"
 	"net/http"
+	"runtime/trace"
 	"time"
 )
 
@@ -24,7 +25,9 @@ type RLHTTPClient struct {
 }
 
 func (client *RLHTTPClient) Do(request *http.Request) (*http.Response, error) {
-	ctx := context.Background()
+	ctx := context.WithValue(context.Background(), "url", request.URL)
+	region := trace.StartRegion(ctx, "rate-limited-http-call")
+	defer region.End()
 	retryConfig := RetryConfig{
 		MaxRetries: 3,
 		Interval:   1 * time.Second,
@@ -38,13 +41,16 @@ func (client *RLHTTPClient) Do(request *http.Request) (*http.Response, error) {
 	var err error
 
 	for attempt := 0; attempt <= retryConfig.MaxRetries; attempt++ {
+		attemptRegion := trace.StartRegion(context.WithValue(ctx, "attempt number", attempt), "rate-limited-http-call-attempt")
 		err = client.Ratelimiter.Wait(ctx) // This is a blocking call. Honors the rate limit
 		if err != nil {
+			attemptRegion.End()
 			return nil, fmt.Errorf("rate limit burst exceeded %w", err)
 		}
 
 		response, err = client.client.Do(request)
 		if err != nil {
+			attemptRegion.End()
 			return nil, err
 		}
 
@@ -52,11 +58,13 @@ func (client *RLHTTPClient) Do(request *http.Request) (*http.Response, error) {
 		if response.StatusCode >= 500 && response.StatusCode < 600 {
 			if attempt < retryConfig.MaxRetries {
 				time.Sleep(retryConfig.Interval)
+				attemptRegion.End()
 				continue
 			}
 		}
 
 		// If the response is successful or a non-retryable error occurs, return the response or error
+		attemptRegion.End()
 		break
 	}
 

@@ -1,12 +1,14 @@
 package httpClient
 
 import (
+	"context"
 	"fmt"
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/meza/minecraft-mod-manager/internal/fileutils"
 	"github.com/spf13/afero"
 	"io"
 	"net/http"
+	"runtime/trace"
 )
 
 type progressWriter struct {
@@ -34,6 +36,10 @@ type Sender interface {
 }
 
 func DownloadFile(url string, filepath string, client Doer, program Sender, filesystem ...afero.Fs) error {
+	ctx := context.WithValue(context.Background(), "url", url)
+	region := trace.StartRegion(ctx, "download-file")
+	defer region.End()
+
 	fs := fileutils.InitFilesystem(filesystem...)
 	request, _ := http.NewRequest("GET", url, nil)
 	response, err := client.Do(request)
