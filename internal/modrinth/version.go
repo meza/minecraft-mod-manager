@@ -1,15 +1,14 @@
 package modrinth
 
 import (
-	"context"
 	"encoding/json"
 	"fmt"
+	"github.com/meza/minecraft-mod-manager/cmd/perf"
 	"github.com/meza/minecraft-mod-manager/internal/globalErrors"
 	"github.com/meza/minecraft-mod-manager/internal/httpClient"
 	"github.com/meza/minecraft-mod-manager/internal/models"
 	"github.com/pkg/errors"
 	"net/http"
-	"runtime/trace"
 	"time"
 )
 
@@ -84,8 +83,9 @@ type VersionHashLookup struct {
 }
 
 func GetVersionsForProject(lookup *VersionLookup, client httpClient.Doer) (Versions, error) {
-	ctx := context.WithValue(context.Background(), "lookup", lookup)
-	region := trace.StartRegion(ctx, "modrinth-search-version")
+	region := perf.StartRegionWithDetils("modrinth-search-version", &perf.PerformanceDetails{
+		"projectId": lookup.ProjectId,
+	})
 	defer region.End()
 
 	gameVersionsJSON, _ := json.Marshal(lookup.GameVersions)
@@ -117,8 +117,9 @@ func GetVersionsForProject(lookup *VersionLookup, client httpClient.Doer) (Versi
 }
 
 func GetVersionForHash(lookup *VersionHashLookup, client httpClient.Doer) (*Version, error) {
-	ctx := context.WithValue(context.Background(), "lookup", lookup)
-	region := trace.StartRegion(ctx, "modrinth-hash-lookup")
+	region := perf.StartRegionWithDetils("modrinth-hash-lookup", &perf.PerformanceDetails{
+		"hash": lookup.hash,
+	})
 	defer region.End()
 
 	url := fmt.Sprintf("%s/v2/version_file/%s?algorithm=%s", GetBaseUrl(), lookup.hash, lookup.algorithm)

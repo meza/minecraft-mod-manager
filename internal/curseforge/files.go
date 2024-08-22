@@ -2,15 +2,14 @@ package curseforge
 
 import (
 	"bytes"
-	"context"
 	"encoding/json"
 	"fmt"
+	"github.com/meza/minecraft-mod-manager/cmd/perf"
 	"github.com/meza/minecraft-mod-manager/internal/globalErrors"
 	"github.com/meza/minecraft-mod-manager/internal/httpClient"
 	"github.com/meza/minecraft-mod-manager/internal/models"
 	"github.com/pkg/errors"
 	"net/http"
-	"runtime/trace"
 	"strconv"
 )
 
@@ -43,8 +42,10 @@ type getFingerprintsMatchesResponse struct {
 }
 
 func getPaginatedFilesForProject(projectId int, client httpClient.Doer, cursor int) (*getFilesResponse, error) {
-	ctx := context.WithValue(context.Background(), "projectId", projectId)
-	region := trace.StartRegion(ctx, "curseforge-getproject")
+	region := perf.StartRegionWithDetils("curseforge-getproject", &perf.PerformanceDetails{
+		"projectId": projectId,
+		"cursor":    cursor,
+	})
 	defer region.End()
 
 	url := fmt.Sprintf("%s/mods/%d/files?index=%d", GetBaseUrl(), projectId, cursor)
@@ -97,8 +98,9 @@ func GetFilesForProject(projectId int, client httpClient.Doer) ([]File, error) {
 }
 
 func GetFingerprintsMatches(fingerprints []int, client httpClient.Doer) (*FingerprintResult, error) {
-	ctx := context.WithValue(context.Background(), "fingerprints", fingerprints)
-	region := trace.StartRegion(ctx, "curseforge-getfingerprints")
+	region := perf.StartRegionWithDetils("curseforge-getfingerprints", &perf.PerformanceDetails{
+		"fingerprints": fingerprints,
+	})
 	defer region.End()
 
 	gameId := Minecraft

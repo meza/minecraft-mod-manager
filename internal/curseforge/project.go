@@ -1,15 +1,14 @@
 package curseforge
 
 import (
-	"context"
 	"encoding/json"
 	"fmt"
+	"github.com/meza/minecraft-mod-manager/cmd/perf"
 	"github.com/meza/minecraft-mod-manager/internal/globalErrors"
 	"github.com/meza/minecraft-mod-manager/internal/httpClient"
 	"github.com/meza/minecraft-mod-manager/internal/models"
 	"github.com/pkg/errors"
 	"net/http"
-	"runtime/trace"
 )
 
 type getProjectResponse struct {
@@ -17,8 +16,9 @@ type getProjectResponse struct {
 }
 
 func GetProject(projectId string, client httpClient.Doer) (*Project, error) {
-	ctx := context.WithValue(context.Background(), "projectId", projectId)
-	region := trace.StartRegion(ctx, "curseforge-getproject")
+	region := perf.StartRegionWithDetils("curseforge-getproject", &perf.PerformanceDetails{
+		"projectId": projectId,
+	})
 	defer region.End()
 
 	url := fmt.Sprintf("%s/mods/%s", GetBaseUrl(), projectId)

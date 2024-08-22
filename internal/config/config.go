@@ -1,14 +1,13 @@
 package config
 
 import (
-	"context"
 	"encoding/json"
 	"fmt"
+	"github.com/meza/minecraft-mod-manager/cmd/perf"
 	"github.com/meza/minecraft-mod-manager/internal/fileutils"
 	"github.com/meza/minecraft-mod-manager/internal/models"
 	"github.com/spf13/afero"
 	"path/filepath"
-	"runtime/trace"
 	"strings"
 )
 
@@ -27,8 +26,7 @@ func writeLockFile(config []models.ModInstall, configPath string, fs afero.Fs) e
 }
 
 func GetLockFile(configPath string, filesystem ...afero.Fs) ([]models.ModInstall, error) {
-	ctx := context.Background()
-	region := trace.StartRegion(ctx, "get-lockfile")
+	region := perf.StartRegion("get-lockfile")
 	defer region.End()
 	fs := fileutils.InitFilesystem(filesystem...)
 	lockFilePath := getLockfileName(configPath)
@@ -70,8 +68,7 @@ func readConfigFile(configPath string, fs afero.Fs) (models.ModsJson, error) {
 }
 
 func InitializeConfigFile(configPath string, filesystem ...afero.Fs) (models.ModsJson, error) {
-	ctx := context.Background()
-	region := trace.StartRegion(ctx, "init-configuration")
+	region := perf.StartRegion("init-configuration")
 	defer region.End()
 	fs := fileutils.InitFilesystem(filesystem...)
 	emptyModJson := models.ModsJson{
@@ -88,8 +85,7 @@ func InitializeConfigFile(configPath string, filesystem ...afero.Fs) (models.Mod
 }
 
 func GetConfiguration(configPath string, quiet bool, filesystem ...afero.Fs) (models.ModsJson, error) {
-	ctx := context.Background()
-	region := trace.StartRegion(ctx, "get-configuration")
+	region := perf.StartRegion("get-configuration")
 	defer region.End()
 	fs := fileutils.InitFilesystem(filesystem...)
 	config, err := readConfigFile(configPath, fs)

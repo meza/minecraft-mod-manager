@@ -3,9 +3,9 @@ package httpClient
 import (
 	"context"
 	"fmt"
+	"github.com/meza/minecraft-mod-manager/cmd/perf"
 	"golang.org/x/time/rate"
 	"net/http"
-	"runtime/trace"
 	"time"
 )
 
@@ -26,7 +26,9 @@ type RLHTTPClient struct {
 
 func (client *RLHTTPClient) Do(request *http.Request) (*http.Response, error) {
 	ctx := context.WithValue(context.Background(), "url", request.URL)
-	region := trace.StartRegion(ctx, "rate-limited-http-call")
+	region := perf.StartRegionWithDetils("rate-limited-http-call", &perf.PerformanceDetails{
+		"url": request.URL.String(),
+	})
 	defer region.End()
 	retryConfig := RetryConfig{
 		MaxRetries: 3,
@@ -41,7 +43,10 @@ func (client *RLHTTPClient) Do(request *http.Request) (*http.Response, error) {
 	var err error
 
 	for attempt := 0; attempt <= retryConfig.MaxRetries; attempt++ {
-		attemptRegion := trace.StartRegion(context.WithValue(ctx, "attempt number", attempt), "rate-limited-http-call-attempt")
+		attemptRegion := perf.StartRegionWithDetils("rate-limited-http-call-attempt", &perf.PerformanceDetails{
+			"attemptNumber": attempt,
+			"url":           request.URL.String(),
+		})
 		err = client.Ratelimiter.Wait(ctx) // This is a blocking call. Honors the rate limit
 		if err != nil {
 			attemptRegion.End()

@@ -1,13 +1,12 @@
 package modrinth
 
 import (
-	"context"
 	"fmt"
+	"github.com/meza/minecraft-mod-manager/cmd/perf"
 	"github.com/meza/minecraft-mod-manager/internal/environment"
 	"github.com/meza/minecraft-mod-manager/internal/httpClient"
 	"net/http"
 	"os"
-	"runtime/trace"
 )
 
 type Client struct {
@@ -15,9 +14,9 @@ type Client struct {
 }
 
 func (modrinthClient *Client) Do(request *http.Request) (*http.Response, error) {
-	ctx := context.Background()
-	region := trace.StartRegion(ctx, "modrinth-api-call")
-	defer region.End()
+	defer perf.StartRegionWithDetils("modrinth-api-call", &perf.PerformanceDetails{
+		"url": request.URL.String(),
+	}).End()
 	headers := map[string]string{
 		"user-agent":    fmt.Sprintf("github_com/meza/minecraft-mod-manager/%s", environment.AppVersion()),
 		"Accept":        "application/json",
