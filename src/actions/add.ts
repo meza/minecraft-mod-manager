@@ -60,6 +60,7 @@ export const add = async (platform: Platform, id: string, options: AddOptions, l
   const modConfig = configuration.mods.find((mod: Mod) => mod.id === id && mod.type === platform);
 
   if (modConfig) {
+    performance.mark('add-failed');
     logger.debug(`Mod ${id} for ${platform} already exists in the configuration`);
     await telemetry.captureCommand({
       command: 'add',
@@ -72,7 +73,7 @@ export const add = async (platform: Platform, id: string, options: AddOptions, l
       extra: {
         flag: 'already-exists'
       },
-      duration: performance.measure('add-duration', 'add-start', 'add-succeed').duration
+      duration: performance.measure('add-duration', 'add-start', 'add-failed').duration
     });
     return;
   }
