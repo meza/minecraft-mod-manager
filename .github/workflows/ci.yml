@@ -24,11 +24,14 @@ jobs:
           go-version: '1.22.6'
           GH_TOKEN: ${{ secrets.GH_TOKEN }}
 
+      - name: Download translations
+        uses: locize/download@v1
+        with:
+          path: ./internal/i18n/localise
+          api-key: ${{ secrets.LOCIZE_API_KEY }}
+          project-id: ${{ secrets.LOCIZE_PROJECT_ID }}
       - name: Build Languages
-        run: |
-          echo "apiKey=${{secrets.LOCIZE_API_KEY}}" > .locize
-          echo "projectId=${{secrets.LOCIZE_PROJECT_ID}}" >> .locize
-          make lang-sync
+        run: go run cmd/lang/buildLang.go
 
       - uses: meza/action-go-test@main
 
