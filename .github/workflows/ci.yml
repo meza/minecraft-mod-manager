@@ -28,7 +28,7 @@ jobs:
         run: |
           echo "apiKey=${{secrets.LOCIZE_API_KEY}}" > .locize
           echo "projectId=${{secrets.LOCIZE_PROJECT_ID}}" >> .locize
-          make lang sync
+          make lang-sync
 
       - uses: meza/action-go-test@main
 
