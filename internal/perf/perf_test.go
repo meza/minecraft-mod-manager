@@ -62,6 +62,28 @@ func TestStartRegionAndEnd(t *testing.T) {
 	assert.Equal(t, MeasureType, measureEntry.Type)
 }
 
+func TestStartRegionWithoutDetailsAndEnd(t *testing.T) {
+	ClearPerformanceLog()
+	region := StartRegion("test-region")
+	time.Sleep(10 * time.Millisecond)
+	region.End()
+
+	perfLog := GetPerformanceLog()
+
+	startEntry := perfLog[len(perfLog)-3]
+	endEntry := perfLog[len(perfLog)-2]
+	measureEntry := perfLog[len(perfLog)-1]
+
+	assert.Equal(t, "test-region", startEntry.Name)
+	assert.Equal(t, MarkType, startEntry.Type)
+
+	assert.Equal(t, "test-region-end", endEntry.Name)
+	assert.Equal(t, MarkType, endEntry.Type)
+
+	assert.Equal(t, "test-region-duration", measureEntry.Name)
+	assert.Equal(t, MeasureType, measureEntry.Type)
+}
+
 func TestGetAllMeasurements(t *testing.T) {
 	ClearPerformanceLog()
 	// Add entries using Mark and Measure functions

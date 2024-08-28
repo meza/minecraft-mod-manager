@@ -3,10 +3,10 @@ package modrinth
 import (
 	"encoding/json"
 	"fmt"
-	"github.com/meza/minecraft-mod-manager/cmd/perf"
 	"github.com/meza/minecraft-mod-manager/internal/globalErrors"
 	"github.com/meza/minecraft-mod-manager/internal/httpClient"
 	"github.com/meza/minecraft-mod-manager/internal/models"
+	"github.com/meza/minecraft-mod-manager/internal/perf"
 	"github.com/pkg/errors"
 	"net/http"
 	"time"

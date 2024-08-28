@@ -22,3 +22,26 @@ const (
 	VELOCITY   Loader = "velocity"
 	WATERFALL  Loader = "waterfall"
 )
+
+func AllLoaders() []Loader {
+	return []Loader{
+		BUKKIT,
+		BUNGEECORD,
+		CAULDRON,
+		DATAPACK,
+		FABRIC,
+		FOLIA,
+		FORGE,
+		LITELOADER,
+		MODLOADER,
+		NEOFORGE,
+		PAPER,
+		PURPUR,
+		QUILT,
+		RIFT,
+		SPIGOT,
+		SPONGE,
+		VELOCITY,
+		WATERFALL,
+	}
+}

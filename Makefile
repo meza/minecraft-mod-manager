@@ -4,6 +4,7 @@
 APP_NAME := minecraft-mod-manager
 EXECUTABLE_NAME := mmm
 
+
 # Build output directory
 BUILD_DIR := build
 
@@ -50,19 +51,19 @@ build: BUILD_DIR build-darwin build-linux build-windows
 build-darwin: BUILD_DIR
 	@set GOOS=darwin
 	@set GOARCH=amd64
-	$(GO_BUILD) $(BUILD_DIR)/darwin/$(EXECUTABLE_NAME) cmd/$(APP_NAME)/main.go
+	$(GO_BUILD) $(BUILD_DIR)/darwin/$(EXECUTABLE_NAME) main.go
 
 # Build for Linux
 build-linux: BUILD_DIR
 	@set GOOS=linux
 	@set GOARCH=amd64
-	$(GO_BUILD) $(BUILD_DIR)/linux/$(EXECUTABLE_NAME) cmd/$(APP_NAME)/main.go
+	$(GO_BUILD) $(BUILD_DIR)/linux/$(EXECUTABLE_NAME) main.go
 
 # Build for Windows
 build-windows: BUILD_DIR
 	@set GOOS=windows
 	@set GOARCH=amd64
-	$(GO_BUILD) $(BUILD_DIR)/windows/$(EXECUTABLE_NAME).exe cmd/$(APP_NAME)/main.go
+	$(GO_BUILD) $(BUILD_DIR)/windows/$(EXECUTABLE_NAME).exe main.go
 
 test:
 	go test ./internal/...
@@ -75,3 +76,7 @@ coverage-enforce: coverage
 
 coverage-html: coverage
 	go tool cover -html=coverage.out -o coverage.html
+
+lang-sync:
+	locize sync --ver latest --compare-modification-time true --update-values true --format flat --path ./internal/i18n/localise
+	go run cmd/lang/buildLang.go
