@@ -17,7 +17,7 @@ jobs:
   release:
     runs-on: ubuntu-latest
     steps:
-      - uses: meza/action-go-ci@main
+      - uses: meza/action-go-setup@main
         id: go
         name: Set up Go
         with:
@@ -29,6 +29,8 @@ jobs:
           echo "apiKey=${{secrets.LOCIZE_API_KEY}}" > .locize
           echo "projectId=${{secrets.LOCIZE_PROJECT_ID}}" >> .locize
           make lang sync
+
+      - uses: meza/action-go-test@main
 
       - name: Build Distributables
         run: make build
