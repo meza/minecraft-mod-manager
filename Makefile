@@ -21,27 +21,24 @@ run:
 	go run cmd/$(APP_NAME)/main.go
 
 # Clean build directory
+ifeq ($(PLATFORM), Unix)
 clean:
 	go clean -cache -modcache -i -r
-
-ifeq ($(PLATFORM), Unix)
-	@if [ -d "$(BUILD_DIR)" ]; then rm -rf $(BUILD_DIR); fi
+	if [ -d "$(BUILD_DIR)" ]; then rm -rf $(BUILD_DIR); fi
 else
+clean:
+	go clean -cache -modcache -i -r
 	@if exist $(BUILD_DIR) rmdir /S /Q $(BUILD_DIR)
 endif
 
 
 # Create build directory
 ifeq ($(PLATFORM), Unix)
-
 BUILD_DIR:
-	@if [ ! -d "$(BUILD_DIR)" ]; then mkdir -p $(BUILD_DIR); fi
-
+	if [ ! -d "$(BUILD_DIR)" ]; then mkdir -p $(BUILD_DIR); fi
 else
-
 BUILD_DIR:
 	@if not exist $(BUILD_DIR) mkdir $(BUILD_DIR)
-
 endif
 
 # Build for all platforms
