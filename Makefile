@@ -3,13 +3,42 @@
 # Application name
 APP_NAME := minecraft-mod-manager
 EXECUTABLE_NAME := mmm
-
-
-# Build output directory
 BUILD_DIR := build
-
-# Go build command
 GO_BUILD := go build -o
+
+ifeq ($(OS),Windows_NT)
+        OSFLAG  := WIN
+        OSFAMILY := Windows
+        CCFLAGS += -D WIN32
+        ifeq ($(PROCESSOR_ARCHITEW6432),AMD64)
+                CCFLAGS += -D AMD64
+        else
+                ifeq ($(PROCESSOR_ARCHITECTURE),AMD64)
+                        CCFLAGS += -D AMD64
+                endif
+                ifeq ($(PROCESSOR_ARCHITECTURE),x86)
+                        CCFLAGS += -D IA32
+                endif
+        endif
+else
+        UNAME_S := $(shell uname -s)
+        OSFAMILY := Unix
+        ifeq ($(UNAME_S),Linux)
+                OSFLAG := Linux
+                CCFLAGS += -D LINUX
+        endif
+        ifeq ($(UNAME_S),Darwin)
+                OSFLAG := Darwin
+                CCFLAGS += -D OSX
+        endif
+                UNAME_P := $(shell uname -p)
+        ifeq ($(UNAME_P),x86_64)
+                CCFLAGS += -D AMD64
+        endif
+        ifneq ($(filter %86,$(UNAME_P)),)
+                CCFLAGS += -D IA32
+        endif
+endif
 
 # Targets
 .PHONY: all clean build build-darwin build-linux build-windows
@@ -21,7 +50,7 @@ run:
 	go run cmd/$(APP_NAME)/main.go
 
 # Clean build directory
-ifeq ($(PLATFORM), Unix)
+ifeq ($(OSFAMILY), Unix)
 clean:
 	go clean -cache -modcache -i -r
 	if [ -d "$(BUILD_DIR)" ]; then rm -rf $(BUILD_DIR); fi
@@ -33,7 +62,7 @@ endif
 
 
 # Create build directory
-ifeq ($(PLATFORM), Unix)
+ifeq ($(OSFAMILY), Unix)
 BUILD_DIR:
 	if [ ! -d "$(BUILD_DIR)" ]; then mkdir -p $(BUILD_DIR); fi
 else
