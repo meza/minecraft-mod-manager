@@ -142,8 +142,8 @@ importers:
         specifier: 6.2.2
         version: 6.2.2
       pnpm:
-        specifier: 9.7.1
-        version: 9.7.1
+        specifier: 9.8.0
+        version: 9.8.0
       rimraf:
         specifier: 6.0.1
         version: 6.0.1
@@ -2813,8 +2813,8 @@ packages:
     resolution: {integrity: sha512-C+VUP+8jis7EsQZIhDYmS5qlNtjv2yP4SNtjXK9AP1ZcTRlnSfuumaTnRfYZnYgUUYVIKqL0fRvmUGDV2fmp6g==}
     engines: {node: '>=4'}
 
-  pnpm@9.7.1:
-    resolution: {integrity: sha512-+vNEry1splxMXIwiJOp3qBpeiFnLxOBrFRHdzi8BUVEkMd0Z5q/zHyxqj18qztm9InPh/tfdTeGGiYQFnSxCRw==}
+  pnpm@9.8.0:
+    resolution: {integrity: sha512-jkw1UPtQDoCNvDC7DOTdHrYU4wscVSRfIRWR7CzfnGEcq9NOE2S0L1ZL1Us5Re0PSdYdG78uyb10uGb83HIydg==}
     engines: {node: '>=18.12'}
     hasBin: true
 
@@ -6281,7 +6281,7 @@ snapshots:
       find-up: 2.1.0
       load-json-file: 4.0.0
 
-  pnpm@9.7.1: {}
+  pnpm@9.8.0: {}
 
   postcss@8.4.41:
     dependencies:
