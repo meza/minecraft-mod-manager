@@ -14,7 +14,7 @@ type Client struct {
 }
 
 func (curseforgeClient *Client) Do(request *http.Request) (*http.Response, error) {
-	region := perf.StartRegionWithDetils("curseforge-api-call", &perf.PerformanceDetails{
+	region := perf.StartRegionWithDetails("curseforge-api-call", &perf.PerformanceDetails{
 		"url": request.URL.String(),
 	})
 	defer region.End()

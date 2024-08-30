@@ -3,6 +3,7 @@ package minecraft
 import (
 	"encoding/json"
 	"github.com/meza/minecraft-mod-manager/internal/httpClient"
+	"github.com/meza/minecraft-mod-manager/internal/perf"
 	"net/http"
 	"time"
 )
@@ -25,14 +26,16 @@ type versionManifest struct {
 	Versions []version `json:"versions"`
 }
 
+var versionManifestUrl = "https://launchermeta.mojang.com/mc/game/version_manifest.json"
+
 func getMinecraftVersionManifest(client httpClient.Doer) (*versionManifest, error) {
-	const versionManifestUrl = "https://launchermeta.mojang.com/mc/game/version_manifest.json"
+	defer perf.StartRegion("getMinecraftVersionManifest").End()
 
 	request, _ := http.NewRequest("GET", versionManifestUrl, nil)
 
 	response, err := client.Do(request)
 	if err != nil {
-		return nil, err
+		return nil, ManifestNotFound
 	}
 
 	defer response.Body.Close()
@@ -40,27 +43,29 @@ func getMinecraftVersionManifest(client httpClient.Doer) (*versionManifest, erro
 	var manifest versionManifest
 	err = json.NewDecoder(response.Body).Decode(&manifest)
 	if err != nil {
-		return nil, err
+		return nil, ManifestNotFound
 	}
 
 	return &manifest, nil
 }
 
-func GetLatestVersion(client httpClient.Doer) string {
+func GetLatestVersion(client httpClient.Doer) (string, error) {
 	manifest, err := getMinecraftVersionManifest(client)
 
 	if err != nil {
-		return ""
+		return "", CouldNotDetermineLatestVersion
 	}
 
-	return manifest.Latest.Release
+	return manifest.Latest.Release, nil
 }
 
 func IsValidVersion(version string, client httpClient.Doer) bool {
 	manifest, err := getMinecraftVersionManifest(client)
 
 	if err != nil {
-		panic(err)
+		// If we couldn't get the manifest, we can't determine if the version is valid
+		// so we return true to allow the user to try to download the version anyway
+		return true
 	}
 
 	for _, v := range manifest.Versions {
@@ -73,7 +78,11 @@ func IsValidVersion(version string, client httpClient.Doer) bool {
 }
 
 func GetAllMineCraftVersions(client httpClient.Doer) []string {
-	manifest, _ := getMinecraftVersionManifest(client)
+	manifest, err := getMinecraftVersionManifest(client)
+
+	if err != nil {
+		return []string{}
+	}
 
 	versions := make([]string, 0)
 	for _, v := range manifest.Versions {

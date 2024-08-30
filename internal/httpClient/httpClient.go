@@ -26,7 +26,7 @@ type RLHTTPClient struct {
 
 func (client *RLHTTPClient) Do(request *http.Request) (*http.Response, error) {
 	ctx := context.WithValue(context.Background(), "url", request.URL)
-	region := perf.StartRegionWithDetils("rate-limited-http-call", &perf.PerformanceDetails{
+	region := perf.StartRegionWithDetails("rate-limited-http-call", &perf.PerformanceDetails{
 		"url": request.URL.String(),
 	})
 	defer region.End()
@@ -43,7 +43,7 @@ func (client *RLHTTPClient) Do(request *http.Request) (*http.Response, error) {
 	var err error
 
 	for attempt := 0; attempt <= retryConfig.MaxRetries; attempt++ {
-		attemptRegion := perf.StartRegionWithDetils("rate-limited-http-call-attempt", &perf.PerformanceDetails{
+		attemptRegion := perf.StartRegionWithDetails("rate-limited-http-call-attempt", &perf.PerformanceDetails{
 			"attemptNumber": attempt,
 			"url":           request.URL.String(),
 		})

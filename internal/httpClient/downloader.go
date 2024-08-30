@@ -35,7 +35,7 @@ type Sender interface {
 }
 
 func DownloadFile(url string, filepath string, client Doer, program Sender, filesystem ...afero.Fs) error {
-	region := perf.StartRegionWithDetils("download-file", &perf.PerformanceDetails{
+	region := perf.StartRegionWithDetails("download-file", &perf.PerformanceDetails{
 		"file": url,
 	})
 	defer region.End()

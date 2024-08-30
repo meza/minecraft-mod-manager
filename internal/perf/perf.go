@@ -71,10 +71,10 @@ func GetAllMeasurements() PerformanceLog {
 }
 
 func StartRegion(marker string) *PerformanceRegion {
-	return StartRegionWithDetils(marker, nil)
+	return StartRegionWithDetails(marker, nil)
 }
 
-func StartRegionWithDetils(marker string, details *PerformanceDetails) *PerformanceRegion {
+func StartRegionWithDetails(marker string, details *PerformanceDetails) *PerformanceRegion {
 	ctx := context.Background()
 	ctx = context.WithValue(ctx, "details", details)
 

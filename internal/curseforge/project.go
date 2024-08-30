@@ -16,7 +16,7 @@ type getProjectResponse struct {
 }
 
 func GetProject(projectId string, client httpClient.Doer) (*Project, error) {
-	region := perf.StartRegionWithDetils("curseforge-getproject", &perf.PerformanceDetails{
+	region := perf.StartRegionWithDetails("curseforge-getproject", &perf.PerformanceDetails{
 		"projectId": projectId,
 	})
 	defer region.End()

@@ -19,7 +19,9 @@ func TestMinecraft(t *testing.T) {
 		}))
 		defer mockServer.Close()
 
-		assert.Equal(t, "1.21.2", GetLatestVersion(mockServer.Client()))
+		ver, _ := GetLatestVersion(mockServer.Client())
+
+		assert.Equal(t, "1.21.2", ver)
 	})
 
 	t.Run("IsValidVersion", func(t *testing.T) {
@@ -92,5 +94,44 @@ func TestMinecraft(t *testing.T) {
 		defer mockServer.Close()
 
 		assert.Equal(t, []string{"24w34a", "24w33a", "1.21.1"}, GetAllMineCraftVersions(mockServer.Client()))
+	})
+
+	t.Run("GetLatestVersion_Error", func(t *testing.T) {
+		mockServer, _ := httpstest.NewServer([]string{
+			"launchermeta.mojang.com",
+		}, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			if r.URL.Path != "/mc/game/version_manifest.json" {
+				t.Fatalf("unexpected path: %s", r.URL.Path)
+			}
+			http.Error(w, "not found", http.StatusNotFound)
+		}))
+		defer mockServer.Close()
+
+		ver, err := GetLatestVersion(mockServer.Client())
+
+		assert.Empty(t, ver)
+		assert.ErrorIs(t, err, CouldNotDetermineLatestVersion)
+	})
+
+	t.Run("IsValidVersion_Error", func(t *testing.T) {
+		mockServer, _ := httpstest.NewServer([]string{
+			"launchermeta.mojang.com",
+		}, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			if r.URL.Path != "/mc/game/version_manifest.json" {
+				t.Fatalf("unexpected path: %s", r.URL.Path)
+			}
+			http.Error(w, "not found", http.StatusNotFound)
+		}))
+		defer mockServer.Close()
+
+		assert.True(t, IsValidVersion("1.21.1", mockServer.Client()))
+	})
+
+	t.Run("GetAllMineCraftVersions_Error", func(t *testing.T) {
+		versionManifestUrl = "xxx"
+		mockServer, _ := httpstest.NewServer([]string{}, nil)
+		defer mockServer.Close()
+
+		assert.Empty(t, GetAllMineCraftVersions(mockServer.Client()))
 	})
 }

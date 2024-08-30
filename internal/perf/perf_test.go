@@ -42,7 +42,7 @@ func TestMeasure(t *testing.T) {
 func TestStartRegionAndEnd(t *testing.T) {
 	ClearPerformanceLog()
 	details := &PerformanceDetails{"key": "value"}
-	region := StartRegionWithDetils("test-region", details)
+	region := StartRegionWithDetails("test-region", details)
 	time.Sleep(10 * time.Millisecond)
 	region.End()
 

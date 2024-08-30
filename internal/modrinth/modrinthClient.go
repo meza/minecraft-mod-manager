@@ -14,7 +14,7 @@ type Client struct {
 }
 
 func (modrinthClient *Client) Do(request *http.Request) (*http.Response, error) {
-	defer perf.StartRegionWithDetils("modrinth-api-call", &perf.PerformanceDetails{
+	defer perf.StartRegionWithDetails("modrinth-api-call", &perf.PerformanceDetails{
 		"url": request.URL.String(),
 	}).End()
 	headers := map[string]string{
