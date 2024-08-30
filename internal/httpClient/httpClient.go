@@ -3,7 +3,7 @@ package httpClient
 import (
 	"context"
 	"fmt"
-	"github.com/meza/minecraft-mod-manager/cmd/perf"
+	"github.com/meza/minecraft-mod-manager/internal/perf"
 	"golang.org/x/time/rate"
 	"net/http"
 	"time"

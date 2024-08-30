@@ -7,3 +7,11 @@ const (
 	Beta    ReleaseType = "beta"
 	Release ReleaseType = "release"
 )
+
+func AllReleaseTypes() []ReleaseType {
+	return []ReleaseType{
+		Alpha,
+		Beta,
+		Release,
+	}
+}

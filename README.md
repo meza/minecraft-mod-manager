@@ -4,9 +4,12 @@
 <p align="center">
   <a href="https://github.com/users/meza/projects/5/views/4" target="_blank">Roadmap</a> |
   <a href="https://github.com/users/meza/projects/5/views/1" target="_blank">Project Board</a> |
-  <a href="https://github.com/meza/minecraft-mod-manager/milestones" target="_blank">Upcoming Milestones</a></p>
+  <a href="https://github.com/meza/minecraft-mod-manager/milestones" target="_blank">Upcoming Milestones</a>
+  <br/><br/></p>
 
-<br/><br/>
+<p align="center">
+<img src="https://img.shields.io/badge/dynamic/json.svg?style=plastic&color=2096F3&label=locize&query=%24.translatedPercentage&url=https://api.locize.app/badgedata/f946883c-b1ab-4486-90f2-68cf6c25026f&suffix=%+translated&link=https://www.locize.com" />
+</p>
 
 Minecraft Mod Manager is a helpful utility for players, modpack creators and server owners who want to keep their
 Minecraft mods up to date without the need for a launcher or having to manually check and download new files.
@@ -32,6 +35,16 @@ Upcoming features:
 
 It's purposefully made to have a very explicit configuration file to avoid any "magic". This allows you to have full
 control over the mods that are installed.
+
+<p align="center">
+<strong>Minecraft Mod Manager</strong> strives to be a tool that is easy to use and understand.
+<br/>We've partnered with Locize who are sponsoring the project's translation efforts.
+<br/>
+<br/>
+<img src="/doc/images/locizeSponsor.svg" alt="Sponsored by Locize">
+<br/>
+Thanks, Localize ❤️
+</p>
 
 ---
 

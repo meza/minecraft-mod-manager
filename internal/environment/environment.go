@@ -20,6 +20,15 @@ func CurseforgeApiKey() string {
 	return "REPL_CURSEFORGE_API_KEY"
 }
 
+func PosthogApiKey() string {
+	key, present := os.LookupEnv("POSTHOG_API_KEY")
+	if present {
+		return key
+	}
+
+	return "REPL_POSTHOG_API_KEY"
+}
+
 func AppVersion() string {
 	return "REPL_VERSION"
 }

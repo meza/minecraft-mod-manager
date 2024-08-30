@@ -3,6 +3,11 @@
 #   Refer for explanation to following link:
 #   https://github.com/evilmartians/lefthook/blob/master/docs/configuration.md
 #
+pre-push:
+  commands:
+    langsync:
+      tags: backend lang
+      run: make lang-sync
 pre-commit:
  parallel: true
  commands:

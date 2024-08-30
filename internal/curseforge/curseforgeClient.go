@@ -2,9 +2,9 @@ package curseforge
 
 import (
 	"fmt"
-	"github.com/meza/minecraft-mod-manager/cmd/perf"
 	"github.com/meza/minecraft-mod-manager/internal/environment"
 	"github.com/meza/minecraft-mod-manager/internal/httpClient"
+	"github.com/meza/minecraft-mod-manager/internal/perf"
 	"net/http"
 	"os"
 )

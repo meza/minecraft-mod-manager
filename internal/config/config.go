@@ -3,9 +3,9 @@ package config
 import (
 	"encoding/json"
 	"fmt"
-	"github.com/meza/minecraft-mod-manager/cmd/perf"
 	"github.com/meza/minecraft-mod-manager/internal/fileutils"
 	"github.com/meza/minecraft-mod-manager/internal/models"
+	"github.com/meza/minecraft-mod-manager/internal/perf"
 	"github.com/spf13/afero"
 	"path/filepath"
 	"strings"

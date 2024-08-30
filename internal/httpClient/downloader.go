@@ -3,8 +3,8 @@ package httpClient
 import (
 	"fmt"
 	tea "github.com/charmbracelet/bubbletea"
-	"github.com/meza/minecraft-mod-manager/cmd/perf"
 	"github.com/meza/minecraft-mod-manager/internal/fileutils"
+	"github.com/meza/minecraft-mod-manager/internal/perf"
 	"github.com/spf13/afero"
 	"io"
 	"net/http"

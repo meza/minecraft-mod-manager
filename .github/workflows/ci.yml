@@ -1,0 +1,46 @@
+name: Verify and Release
+
+permissions:
+  issues: write
+  checks: write
+  contents: write
+  pull-requests: write
+
+on:
+  - push
+  - pull_request
+
+env:
+  LEFTHOOK: 0
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: meza/action-go-setup@main
+        id: go
+        name: Set up Go
+        with:
+          go-version: '1.22.6'
+          GH_TOKEN: ${{ secrets.GH_TOKEN }}
+
+      - name: Download translations
+        uses: locize/download@v1
+        with:
+          path: ./internal/i18n/localise
+          api-key: ${{ secrets.LOCIZE_API_KEY }}
+          project-id: ${{ secrets.LOCIZE_PROJECT_ID }}
+      - name: Build Languages
+        run: go run cmd/lang/buildLang.go
+
+      - uses: meza/action-go-test@main
+
+      - name: Build Distributables
+        run: make build
+
+#      - name: Release
+#        if: ${{ steps.go.outputs.new-release-published == 'true'  }}
+#        env:
+#          GH_TOKEN: ${{ secrets.GH_TOKEN }}
+#        run: |
+#          npx semantic-release
