@@ -5,9 +5,16 @@ import (
 	"github.com/meza/minecraft-mod-manager/internal/environment"
 	"github.com/meza/minecraft-mod-manager/internal/models"
 	"github.com/posthog/posthog-go"
+	"io"
+	"os"
 )
 
-var singleClient *Client
+type Client interface {
+	io.Closer
+	Enqueue(posthog.Message) error
+}
+
+var singleClient Client
 var machineId string
 
 type CommandTelemetry struct {
@@ -18,19 +25,22 @@ type CommandTelemetry struct {
 	Extra   map[string]interface{} `json:"extra,omitempty"`
 }
 
-type Client struct {
-	PosthogClient posthog.Client
+func getMachineId() string {
+	envMachineId, hasEnvId := os.LookupEnv("MACHINE_ID")
+
+	if hasEnvId {
+		return envMachineId
+	}
+
+	machineId, _ = machineid.ID()
+	return machineId
 }
 
-func (c *Client) Close() {
-	_ = c.PosthogClient.Close()
-}
-
-func initClient() *Client {
+func initClient() Client {
 	if singleClient != nil {
 		return singleClient
 	}
-	machineId, _ = machineid.ID()
+	machineId = getMachineId()
 
 	pc, _ := posthog.NewWithConfig(
 		environment.PosthogApiKey(),
@@ -38,19 +48,18 @@ func initClient() *Client {
 			Endpoint: "https://eu.i.posthog.com",
 		},
 	)
-	singleClient = &Client{
-		PosthogClient: pc,
-	}
+	singleClient = pc
 	return singleClient
 }
 
 func Capture(event string, properties map[string]interface{}) {
 	client := initClient()
-	_ = client.PosthogClient.Enqueue(posthog.Capture{
+	_ = client.Enqueue(posthog.Capture{
 		Event:      event,
 		DistinctId: machineId,
 		Properties: properties,
 	})
+	_ = client.Close()
 }
 
 func CaptureCommand(command CommandTelemetry) {
