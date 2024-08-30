@@ -2,8 +2,8 @@
 modlist-lock.json
 .mmmignore
 mods
-internal/i18n/lang/**/*.json
-internal/i18n/localise/**/*.json
+internal/i18n/lang
+internal/i18n/localise
 .locize
 
 ## GENERATED
