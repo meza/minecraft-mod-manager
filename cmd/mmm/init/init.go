@@ -17,14 +17,14 @@ func Command() *cobra.Command {
 	}
 
 	cmd.Flags().StringP("loader", "l", "", i18n.T("cmd.init.usage.loader", i18n.Tvars{
-		"loaders": getAllLoaders(),
+		Data: &i18n.TData{"loaders": getAllLoaders()},
 	}))
 	cmd.Flags().StringP("release-types", "r", "", i18n.T("cmd.init.usage.release-types", i18n.Tvars{
-		"releaseTypes": getAllReleaseTypes(),
+		Data: &i18n.TData{"releaseTypes": getAllReleaseTypes()},
 	}))
 	cmd.Flags().StringP("game-version", "g", "", i18n.T("cmd.init.usage.game-version"))
 	cmd.Flags().StringP("mods-folder", "m", "", i18n.T("cmd.init.usage.mods-folder", i18n.Tvars{
-		"cwd": getCurrentWorkingDirectory(),
+		Data: &i18n.TData{"cwd": getCurrentWorkingDirectory()},
 	}))
 	return cmd
 }

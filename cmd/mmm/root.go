@@ -40,7 +40,7 @@ func translateDefaultHelpFacilities(rootCmd *cobra.Command) {
 		cmd.InitDefaultHelpFlag()
 		flags := cmd.Flags()
 		flags.Lookup("help").Usage = i18n.T("cmd.help.template", i18n.Tvars{
-			"command": cmd.Name(),
+			Data: &i18n.TData{"command": cmd.Name()},
 		})
 	}
 
@@ -50,13 +50,13 @@ func translateDefaultHelpFacilities(rootCmd *cobra.Command) {
 	if e == nil {
 		helpCmd.Short = i18n.T("cmd.help.usage.short")
 		helpCmd.Long = i18n.T("cmd.help.usage.long", i18n.Tvars{
-			"appName": rootCmd.Name(),
+			Data: &i18n.TData{"appName": rootCmd.Name()},
 		})
 		helpCmd.Run = func(c *cobra.Command, args []string) {
 			cmd, _, e := c.Root().Find(args)
 			if cmd == nil || e != nil {
 				c.PrintErrln(i18n.T("cmd.help.error", i18n.Tvars{
-					"topic": fmt.Sprintf("%#q", args),
+					Data: &i18n.TData{"topic": fmt.Sprintf("%#q", args)},
 				}) + "\n")
 				cobra.CheckErr(c.Root().Usage())
 			} else {

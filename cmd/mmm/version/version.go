@@ -12,8 +12,8 @@ import (
 func Command() *cobra.Command {
 	versionCmd := &cobra.Command{
 		Use: "version",
-		Short: i18n.T("cmd.version.short", map[string]any{
-			"appName": constants.APP_NAME,
+		Short: i18n.T("cmd.version.short", i18n.Tvars{
+			Data: &i18n.TData{"appName": constants.APP_NAME},
 		}),
 		Run: func(cmd *cobra.Command, args []string) {
 			fmt.Println(environment.AppVersion())
