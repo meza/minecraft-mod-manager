@@ -30,3 +30,16 @@ func TestReleaseTypeMarshalJSON(t *testing.T) {
 		})
 	}
 }
+
+func TestAllReleaseTypes(t *testing.T) {
+	expected := []ReleaseType{Alpha, Beta, Release}
+	actual := AllReleaseTypes()
+	if len(expected) != len(actual) {
+		t.Fatalf("expected %v, got %v", expected, actual)
+	}
+	for i, e := range expected {
+		if e != actual[i] {
+			t.Fatalf("expected %v, got %v", e, actual[i])
+		}
+	}
+}
