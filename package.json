@@ -91,7 +91,7 @@
     "mock-cwd": "1.0.0",
     "node-gyp": "10.2.0",
     "npm-run-all2": "6.2.2",
-    "pnpm": "9.9.0",
+    "pnpm": "9.10.0",
     "rimraf": "6.0.1",
     "semantic-release": "24.1.0",
     "semantic-release-export-data": "1.1.0",
