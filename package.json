@@ -81,7 +81,7 @@
     "@types/inquirer": "9.0.7",
     "@types/is-ci": "3.0.4",
     "@types/node": "20.16.5",
-    "@vitest/coverage-v8": "2.0.5",
+    "@vitest/coverage-v8": "2.1.0",
     "conventional-changelog-conventionalcommits": "8.0.0",
     "cross-env": "7.0.3",
     "esbuild": "0.23.1",
@@ -98,7 +98,7 @@
     "ts-node": "10.9.2",
     "tsx": "4.19.1",
     "typescript": "5.6.2",
-    "vitest": "2.0.5"
+    "vitest": "2.1.0"
   },
   "repository": {
     "type": "git",
