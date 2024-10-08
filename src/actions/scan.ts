@@ -132,28 +132,30 @@ export const processScanResults = (
         );
       }
 
-      unsure.push({
-        configuredMod: findInConfiguration(
-          halfMatching[0].configured?.type,
-          halfMatching[0].configured?.id,
-          configuration
-        ),
-        configuredInstallation: installationIndex,
-        newMod: {
-          type: halfMatching[0].local.platform,
-          id: halfMatching[0].local.modId,
-          name: halfMatching[0].remote.name
-        } as Mod,
-        installation: {
-          hash: halfMatching[0].local.mod.hash,
-          fileName: halfMatching[0].local.mod.fileName,
-          name: halfMatching[0].remote.name,
-          type: halfMatching[0].local.platform,
-          id: halfMatching[0].local.modId,
-          releasedOn: halfMatching[0].local.mod.releaseDate,
-          downloadUrl: halfMatching[0].local.mod.downloadUrl
-        } as ModInstall
-      });
+      if (halfMatching[0].remote) {
+        unsure.push({
+          configuredMod: findInConfiguration(
+            halfMatching[0].configured?.type,
+            halfMatching[0].configured?.id,
+            configuration
+          ),
+          configuredInstallation: installationIndex,
+          newMod: {
+            type: halfMatching[0].local.platform,
+            id: halfMatching[0].local.modId,
+            name: halfMatching[0].remote.name
+          } as Mod,
+          installation: {
+            hash: halfMatching[0].local.mod.hash,
+            fileName: halfMatching[0].local.mod.fileName,
+            name: halfMatching[0].remote.name,
+            type: halfMatching[0].local.platform,
+            id: halfMatching[0].local.modId,
+            releasedOn: halfMatching[0].local.mod.releaseDate,
+            downloadUrl: halfMatching[0].local.mod.downloadUrl
+          } as ModInstall
+        });
+      }
     }
 
     // ================================================================================================================
