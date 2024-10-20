@@ -10,14 +10,14 @@ require (
 	github.com/denisbrodbeck/machineid v1.0.1
 	github.com/jeandeaual/go-locale v0.0.0-20240223122105-ce5225dcaa49
 	github.com/joho/godotenv v1.5.1
-	github.com/nicksnyder/go-i18n/v2 v2.4.0
+	github.com/nicksnyder/go-i18n/v2 v2.4.1
 	github.com/pkg/errors v0.9.1
 	github.com/posthog/posthog-go v1.2.24
 	github.com/spf13/afero v1.11.0
 	github.com/spf13/cobra v1.8.1
 	github.com/stretchr/testify v1.9.0
 	golang.org/x/term v0.23.0
-	golang.org/x/text v0.17.0
+	golang.org/x/text v0.19.0
 	golang.org/x/time v0.6.0
 	shanhu.io/g v0.0.0-20240812005415-1ae7504cde0e
 )
