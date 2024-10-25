@@ -90,7 +90,7 @@
     "lefthook": "1.7.21",
     "mock-cwd": "1.0.0",
     "node-gyp": "10.2.0",
-    "npm-run-all2": "6.2.3",
+    "npm-run-all2": "6.2.4",
     "pnpm": "9.12.2",
     "rimraf": "6.0.1",
     "semantic-release": "24.1.2",
