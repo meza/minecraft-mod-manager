@@ -87,7 +87,7 @@
     "esbuild": "0.24.0",
     "is-ci": "3.0.1",
     "jest-chance": "0.2.5",
-    "lefthook": "1.8.4",
+    "lefthook": "1.8.5",
     "mock-cwd": "1.0.0",
     "node-gyp": "10.2.0",
     "npm-run-all2": "7.0.1",
