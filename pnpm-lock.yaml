@@ -61,8 +61,8 @@ importers:
         specifier: 19.6.1
         version: 19.6.1(@types/node@22.10.2)(typescript@5.7.2)
       '@faker-js/faker':
-        specifier: 9.2.0
-        version: 9.2.0
+        specifier: 9.3.0
+        version: 9.3.0
       '@liudonghua123/pkg':
         specifier: 6.0.1
         version: 6.0.1(encoding@0.1.13)
@@ -792,8 +792,8 @@ packages:
     cpu: [x64]
     os: [win32]
 
-  '@faker-js/faker@9.2.0':
-    resolution: {integrity: sha512-ulqQu4KMr1/sTFIYvqSdegHT8NIkt66tFAkugGnHA+1WAfEn6hMzNR+svjXGFRVLnapxvej67Z/LwchFrnLBUg==}
+  '@faker-js/faker@9.3.0':
+    resolution: {integrity: sha512-r0tJ3ZOkMd9xsu3VRfqlFR6cz0V/jFYRswAIpC+m/DIfAUXq7g8N7wTAlhSANySXYGKzGryfDXwtwsY8TxEIDw==}
     engines: {node: '>=18.0.0', npm: '>=9.0.0'}
 
   '@fastify/busboy@2.1.1':
@@ -4260,7 +4260,7 @@ snapshots:
   '@esbuild/win32-x64@0.24.2':
     optional: true
 
-  '@faker-js/faker@9.2.0': {}
+  '@faker-js/faker@9.3.0': {}
 
   '@fastify/busboy@2.1.1': {}
 
