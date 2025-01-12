@@ -24,7 +24,7 @@ describe('The ignore module', () => {
     it<LocalTestContext>('returns the full input', async ({ configLocation }) => {
       vi.mocked(fileExists).mockResolvedValueOnce(false);
 
-      const files: string[] = chance.n(chance.word, chance.integer({ min: 1, max: 10 }));
+      const files: string[] = chance.n(() => chance.word() + '.jar', chance.integer({ min: 1, max: 10 }));
       vi.mocked(glob.sync).mockReturnValue(files.map((file) => path.resolve('/', file)));
 
       const result = await notIgnored(configLocation, files);

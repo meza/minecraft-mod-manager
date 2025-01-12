@@ -31,12 +31,16 @@ const ignored = async (rootLookupDir: string) => {
 };
 
 export const notIgnored = async (rootLookupDir: string, files: string[]): Promise<string[]> => {
+  const jarFiles = files.filter((file) => {
+    return file.slice(-4) === '.jar';
+  });
   const ignoredFiles = await ignored(rootLookupDir);
+
   if (ignoredFiles.size === 0) {
-    return files;
+    return jarFiles;
   }
 
-  return files.filter((file) => {
+  return jarFiles.filter((file) => {
     return !ignoredFiles.has(file);
   });
 };
