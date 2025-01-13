@@ -1,11 +1,11 @@
-import inquirer from 'inquirer';
+import { confirm } from '@inquirer/prompts';
 import { chance } from 'jest-chance';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { PruneOptions } from '../actions/prune.js';
 import { Logger } from '../lib/Logger.js';
 import { shouldPruneFiles } from './shouldPruneFiles.js';
 
-vi.mock('inquirer');
+vi.mock('@inquirer/prompts');
 vi.mock('../lib/Logger.js');
 
 interface LocalTestContext {
@@ -52,7 +52,7 @@ describe('The should prune files interaction', () => {
 
   it<LocalTestContext>('should invoke inqurer properly when needed', async ({ logger }) => {
     const randomResponse = chance.bool();
-    vi.mocked(inquirer.prompt).mockResolvedValueOnce({ delete: randomResponse });
+    vi.mocked(confirm).mockResolvedValueOnce(randomResponse);
 
     const actual = await shouldPruneFiles(
       {
@@ -62,13 +62,11 @@ describe('The should prune files interaction', () => {
       logger
     );
 
-    expect(vi.mocked(inquirer.prompt).mock.calls[0]).toMatchInlineSnapshot(`
+    expect(vi.mocked(confirm).mock.calls[0]).toMatchInlineSnapshot(`
       [
         {
           "default": true,
           "message": "Do you want to delete these files?",
-          "name": "delete",
-          "type": "confirm",
         },
       ]
     `);

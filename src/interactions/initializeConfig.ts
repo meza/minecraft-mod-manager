@@ -1,5 +1,5 @@
 import path from 'node:path';
-import inquirer from 'inquirer';
+import { checkbox, input, select } from '@inquirer/prompts';
 import { IncorrectMinecraftVersionException } from '../errors/IncorrectMinecraftVersionException.js';
 import { Logger } from '../lib/Logger.js';
 import { fileExists, writeConfigFile } from '../lib/config.js';
@@ -17,7 +17,12 @@ export interface InitializeOptions extends DefaultOptions {
   modsFolder?: string;
 }
 
-interface IQInternal extends ModsJson {
+interface AnswersInternal {
+  loader?: Loader;
+  gameVersion?: string;
+  allowVersionFallback?: boolean;
+  defaultAllowedReleaseTypes?: string[];
+  modsFolder?: string;
   config: string;
 }
 
@@ -28,7 +33,7 @@ const validateGameVersion = async (input: string): Promise<boolean | string> => 
   return 'The game version is invalid. Please enter a valid game version';
 };
 
-const mergeOptions = (options: InitializeOptions, iq: IQInternal) => {
+const mergeOptions = (options: InitializeOptions, iq: AnswersInternal) => {
   return {
     loader: iq.loader || options.loader,
     gameVersion: iq.gameVersion || options.gameVersion,
@@ -41,7 +46,6 @@ const mergeOptions = (options: InitializeOptions, iq: IQInternal) => {
 
 const validateModsFolder = async (input: string, cwd: string) => {
   let dir = path.resolve(cwd, input);
-
   if (path.isAbsolute(input)) {
     dir = input;
   }
@@ -79,46 +83,66 @@ export const initializeConfig = async (options: InitializeOptions, cwd: string, 
 
   const latestMinercraftDefault = await getLatestMinecraftVersion(options, logger);
 
-  const prompts = [
-    {
-      when: !options.loader,
-      name: 'loader',
-      type: 'list',
+  const answers: AnswersInternal = {
+    config: options.config
+  };
+
+  if (!options.loader) {
+    answers.loader = await select({
       message: 'Which loader would you like to use?',
       choices: Object.values(Loader)
-    },
-    {
-      when: !options.gameVersion,
-      name: 'gameVersion',
-      type: 'input',
+    });
+  }
+
+  if (!options.gameVersion) {
+    answers.gameVersion = await input({
       default: latestMinercraftDefault,
       message: 'What exact Minecraft version are you using? (eg: 1.18.2, 1.19, 1.19.1)',
-      validateText: 'Verifying the game version',
       validate: validateGameVersion
-    },
-    {
-      when: !options.defaultAllowedReleaseTypes,
-      name: 'defaultAllowedReleaseTypes',
-      type: 'checkbox',
-      choices: Object.values(ReleaseType),
-      default: [ReleaseType.RELEASE, ReleaseType.BETA],
-      message: 'Which types of releases would you like to consider to download?'
-    },
-    {
-      when: !options.modsFolder,
-      name: 'modsFolder',
-      type: 'input',
+    });
+  }
+
+  if (!options.defaultAllowedReleaseTypes) {
+    answers.defaultAllowedReleaseTypes = await checkbox({
+      message: 'Which types of releases would you like to consider to download?',
+      choices: getReleaseTypeChoices([ReleaseType.RELEASE, ReleaseType.BETA])
+    });
+  }
+
+  if (!options.modsFolder) {
+    answers.modsFolder = await input({
       default: './mods',
       message: `where is your mods folder? (full or relative path from ${cwd}):`,
       validate: async (input: string) => {
         return validateModsFolder(input, cwd);
       }
+    });
+  }
+
+  const answersOut = mergeOptions(options, answers) as ModsJson;
+
+  await writeConfigFile(answersOut, options, logger);
+
+  return answersOut as ModsJson;
+};
+
+interface Choice {
+  name: string;
+  value: string;
+  checked?: boolean;
+}
+
+const getReleaseTypeChoices = (defaults: ReleaseType[]): Choice[] => {
+  return Object.values(ReleaseType).map((value) => {
+    const choice: Choice = {
+      name: value,
+      value: value
+    };
+
+    if (defaults.includes(value)) {
+      choice.checked = true;
     }
-  ];
-  const iq = (await inquirer.prompt(prompts)) as IQInternal;
-  const answers = mergeOptions(options, iq) as ModsJson;
 
-  await writeConfigFile(answers, options, logger);
-
-  return answers as ModsJson;
+    return choice;
+  });
 };

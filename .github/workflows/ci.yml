@@ -12,6 +12,8 @@ on:
 
 env:
   LEFTHOOK: 0
+  CLI_WIDTH: 120
+  COLUMNS: 120
 
 jobs:
   build-push-artifacts:

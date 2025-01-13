@@ -15,7 +15,7 @@
     "lineEnding": "lf",
     "attributePosition": "auto"
   },
-  "files": { "include": ["**/*.ts", "**/*.json"], "ignore": [".cache/**", "**/*.snap"] },
+  "files": { "include": ["**/*.ts", "**/*.json"], "ignore": [".cache/**", "**/*.snap", "*.snap"] },
   "linter": {
     "enabled": true,
     "rules": {

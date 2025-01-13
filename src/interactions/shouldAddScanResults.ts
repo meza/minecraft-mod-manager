@@ -1,5 +1,5 @@
+import { confirm } from '@inquirer/prompts';
 import chalk from 'chalk';
-import inquirer from 'inquirer';
 import { ScanOptions } from '../actions/scan.js';
 import { Logger } from '../lib/Logger.js';
 
@@ -13,12 +13,8 @@ export const shouldAddScanResults = async (options: ScanOptions, logger: Logger)
     return false;
   }
 
-  const answers = await inquirer.prompt({
-    type: 'confirm',
-    name: 'add',
+  return confirm({
     message: 'Do you want to add these mods and/or make changes to your config?',
     default: true
   });
-
-  return answers.add;
 };

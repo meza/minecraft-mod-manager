@@ -1,7 +1,6 @@
-import inquirer from 'inquirer';
+import { input } from '@inquirer/prompts';
 import { chance } from 'jest-chance';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import { findQuestion } from '../../test/inquirerHelper.js';
 import { Logger } from '../lib/Logger.js';
 import { getLatestMinecraftVersion as getLatestMinecraftVersionLib } from '../lib/minecraftVersionVerifier.js';
 import { DefaultOptions } from '../mmm.js';
@@ -9,7 +8,7 @@ import { getLatestMinecraftVersion } from './getLatestMinecraftVersion.js';
 
 vi.mock('../lib/minecraftVersionVerifier.js');
 vi.mock('../lib/Logger.js');
-vi.mock('inquirer');
+vi.mock('@inquirer/prompts');
 
 interface LocalTestContext {
   logger: Logger;
@@ -66,17 +65,13 @@ describe('The latest Minecraft Version Interaction', () => {
       const error = chance.word();
       const version = chance.word();
       vi.mocked(getLatestMinecraftVersionLib).mockRejectedValueOnce(error);
-      vi.mocked(inquirer.prompt).mockResolvedValueOnce({
-        gameVersion: version
-      });
+      vi.mocked(input).mockResolvedValueOnce(version);
 
       const actual = await getLatestMinecraftVersion(options, logger);
 
-      expect(findQuestion(inquirer.prompt, 'gameVersion')).toMatchInlineSnapshot(`
+      expect(vi.mocked(input).mock.calls[0][0]).toMatchInlineSnapshot(`
         {
           "message": "The Minecraft APIs are down. What is the latest Minecraft version? (for example: 1.19.3, 1.20)",
-          "name": "gameVersion",
-          "type": "input",
         }
       `);
 
