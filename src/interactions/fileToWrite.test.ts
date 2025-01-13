@@ -1,6 +1,6 @@
 import fs from 'node:fs/promises';
 import path from 'path';
-import inquirer, { Question, QuestionCollection } from 'inquirer';
+import { input } from '@inquirer/prompts';
 import { chance } from 'jest-chance';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { Logger } from '../lib/Logger.js';
@@ -11,7 +11,7 @@ import { fileToWrite } from './fileToWrite.js';
 vi.mock('node:fs/promises');
 vi.mock('../lib/config.js');
 vi.mock('../lib/Logger.js');
-vi.mock('inquirer');
+vi.mock('@inquirer/prompts');
 
 interface LocalTestContext {
   options: DefaultOptions;
@@ -81,27 +81,20 @@ describe('The file writable module', () => {
         const inputPath = '/a/path/to/modlist2.json';
         const suppliedPath = '/a/path/after/the/interaction.json';
 
-        vi.mocked(inquirer.prompt).mockResolvedValueOnce({
-          filePath: suppliedPath
-        });
+        vi.mocked(input).mockResolvedValueOnce(suppliedPath);
 
         const actual = await fileToWrite(inputPath, options, logger);
 
         expect(actual).toEqual(suppliedPath);
 
-        const inquirerParams = vi.mocked(inquirer.prompt).mock.calls[0][0];
+        const inquirerParams = vi.mocked(input).mock.calls[0][0];
 
         expect(inquirerParams).toMatchInlineSnapshot(`
-          [
-            {
-              "default": "/a/path/to/modlist2.json",
-              "message": "/a/path/to/modlist2.json is not writable, please choose another one",
-              "name": "filePath",
-              "type": "input",
-              "validate": [Function],
-              "validationText": "Checking if file is writable",
-            },
-          ]
+          {
+            "default": "/a/path/to/modlist2.json",
+            "message": "/a/path/to/modlist2.json is not writable, please choose another one",
+            "validate": [Function],
+          }
         `);
       });
 
@@ -109,13 +102,11 @@ describe('The file writable module', () => {
         const inputPath = '/a/path/to/modlist2.json';
         const suppliedPath = '/a/path/after/the/interaction.json';
 
-        vi.mocked(inquirer.prompt).mockResolvedValueOnce({
-          filePath: suppliedPath
-        });
+        vi.mocked(input).mockResolvedValueOnce(suppliedPath);
 
         await fileToWrite(inputPath, options, logger);
 
-        const inquirerParams = (vi.mocked(inquirer.prompt).mock.calls[0][0] as QuestionCollection[])[0] as Question;
+        const inquirerParams = vi.mocked(input).mock.calls[0][0];
         const validator = inquirerParams.validate;
 
         vi.mocked(fileExists).mockReset();
@@ -134,13 +125,11 @@ describe('The file writable module', () => {
         const inputPath = '/a/path/to/modlist2.json';
         const suppliedPath = '/a/path/after/the/interaction.json';
 
-        vi.mocked(inquirer.prompt).mockResolvedValueOnce({
-          filePath: suppliedPath
-        });
+        vi.mocked(input).mockResolvedValueOnce(suppliedPath);
 
         await fileToWrite(inputPath, options, logger);
 
-        const inquirerParams = (vi.mocked(inquirer.prompt).mock.calls[0][0] as QuestionCollection[])[0] as Question;
+        const inquirerParams = vi.mocked(input).mock.calls[0][0];
         const validator = inquirerParams.validate;
 
         vi.mocked(fileExists).mockReset();

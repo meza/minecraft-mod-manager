@@ -1,5 +1,5 @@
+import { confirm } from '@inquirer/prompts';
 import chalk from 'chalk';
-import inquirer from 'inquirer';
 import { PruneOptions } from '../actions/prune.js';
 import { Logger } from '../lib/Logger.js';
 
@@ -17,12 +17,8 @@ export const shouldPruneFiles = async (options: PruneOptions, logger: Logger) =>
     return false;
   }
 
-  const answers = await inquirer.prompt({
-    type: 'confirm',
-    name: 'delete',
+  return confirm({
     message: 'Do you want to delete these files?',
     default: true
   });
-
-  return answers.delete;
 };

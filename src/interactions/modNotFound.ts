@@ -1,5 +1,5 @@
+import { confirm, input, select } from '@inquirer/prompts';
 import chalk from 'chalk';
-import inquirer from 'inquirer';
 import { Logger } from '../lib/Logger.js';
 import { Platform } from '../lib/modlist.types.js';
 import { DefaultOptions } from '../mmm.js';
@@ -20,33 +20,24 @@ export const modNotFound = async (
     logger.error(errorText);
   }
 
-  const answers = await inquirer.prompt([
-    {
-      name: 'confirm',
-      type: 'confirm',
-      message: `${errorText}. Would you like to modify your search?`,
-      default: true
-    }
-  ]);
+  const answer: boolean = await confirm({
+    message: `${errorText}. Would you like to modify your search?`,
+    default: true
+  });
 
-  if (answers.confirm === false) {
+  if (answer === false) {
     logger.error('Aborting', 0);
   }
 
-  const { newModName, newPlatform } = await inquirer.prompt([
-    {
-      name: 'newPlatform',
-      type: 'list',
-      message: 'Which platform would you like to use?',
-      choices: Object.values(Platform),
-      default: platform
-    },
-    {
-      type: 'input',
-      name: 'newModName',
-      message: 'What is the project id of the mod you want to add?'
-    }
-  ]);
+  const newPlatform: Platform = await select({
+    message: 'Which platform would you like to use?',
+    choices: Object.values(Platform),
+    default: platform
+  });
+
+  const newModName = await input({
+    message: 'What is the project id of the mod you want to add?'
+  });
 
   return {
     id: newModName,

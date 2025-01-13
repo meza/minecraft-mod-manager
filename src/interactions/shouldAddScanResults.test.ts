@@ -1,11 +1,11 @@
-import inquirer from 'inquirer';
+import { confirm } from '@inquirer/prompts';
 import { chance } from 'jest-chance';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { ScanOptions } from '../actions/scan.js';
 import { Logger } from '../lib/Logger.js';
 import { shouldAddScanResults } from './shouldAddScanResults.js';
 
-vi.mock('inquirer');
+vi.mock('@inquirer/prompts');
 vi.mock('../lib/Logger.js');
 
 interface LocalTestContext {
@@ -48,7 +48,7 @@ describe('The should add scan results interaction', () => {
 
   it<LocalTestContext>('should invoke inqurer properly when needed', async ({ logger }) => {
     const randomResponse = chance.bool();
-    vi.mocked(inquirer.prompt).mockResolvedValueOnce({ add: randomResponse });
+    vi.mocked(confirm).mockResolvedValueOnce(randomResponse);
 
     const actual = await shouldAddScanResults(
       {
@@ -58,13 +58,11 @@ describe('The should add scan results interaction', () => {
       logger
     );
 
-    expect(vi.mocked(inquirer.prompt).mock.calls[0]).toMatchInlineSnapshot(`
+    expect(vi.mocked(confirm).mock.calls[0]).toMatchInlineSnapshot(`
       [
         {
           "default": true,
           "message": "Do you want to add these mods and/or make changes to your config?",
-          "name": "add",
-          "type": "confirm",
         },
       ]
     `);

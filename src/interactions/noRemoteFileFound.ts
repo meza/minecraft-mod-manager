@@ -1,5 +1,5 @@
+import { confirm, input } from '@inquirer/prompts';
 import chalk from 'chalk';
-import inquirer from 'inquirer';
 import { Logger } from '../lib/Logger.js';
 import { ModsJson, Platform } from '../lib/modlist.types.js';
 import { DefaultOptions } from '../mmm.js';
@@ -26,26 +26,18 @@ export const noRemoteFileFound = async (
 
   const newPlatform = platform === Platform.CURSEFORGE ? Platform.MODRINTH : Platform.CURSEFORGE;
 
-  const answers = await inquirer.prompt([
-    {
-      name: 'confirm',
-      type: 'confirm',
-      message: `${errorText}. Would you like to try on ${newPlatform}?`,
-      default: true
-    }
-  ]);
+  const answer = await confirm({
+    message: `${errorText}. Would you like to try on ${newPlatform}?`,
+    default: true
+  });
 
-  if (answers.confirm === false) {
+  if (answer === false) {
     logger.error('Aborting', 0);
   }
 
-  const { newModName } = await inquirer.prompt([
-    {
-      type: 'input',
-      name: 'newModName',
-      message: `What is the project id of the mod you want to add on ${newPlatform}?`
-    }
-  ]);
+  const newModName = await input({
+    message: `What is the project id of the mod you want to add on ${newPlatform}?`
+  });
 
   return {
     id: newModName,
