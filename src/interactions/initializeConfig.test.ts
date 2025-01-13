@@ -121,7 +121,7 @@ describe('The Initialization Interaction', () => {
     describe('when an existing folder is given', () => {
       it('it should be successfully verified from the command line', async () => {
         const root = '/' + chance.word();
-        const folder = chance.word();
+        const folder = path.resolve('/' + chance.word());
         const location = path.resolve(root, folder);
         const inputOptions = generateInitializeOptions({
           modsFolder: folder

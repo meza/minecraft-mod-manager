@@ -46,7 +46,6 @@ const mergeOptions = (options: InitializeOptions, iq: AnswersInternal) => {
 
 const validateModsFolder = async (input: string, cwd: string) => {
   let dir = path.resolve(cwd, input);
-
   if (path.isAbsolute(input)) {
     dir = input;
   }

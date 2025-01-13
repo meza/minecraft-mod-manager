@@ -65,7 +65,7 @@ describe('The MMM Version Check module', () => {
     expect(logger.log).toHaveBeenCalledWith('[update] You can download it from release-url\n');
   });
 
-  it('should return the current version if there is no update', () => {
+  it('should return the current version if there is no update', async () => {
     vi.mocked(rateLimitingFetch).mockResolvedValueOnce({
       ok: true,
       json: () =>
@@ -78,7 +78,7 @@ describe('The MMM Version Check module', () => {
           { tag_name: 'v0.8.0', prerelease: false, draft: false }
         ])
     } as Response);
-    expect(hasUpdate('1.0.0', logger)).resolves.toEqual({
+    await expect(hasUpdate('1.0.0', logger)).resolves.toEqual({
       hasUpdate: false,
       latestVersion: 'v1.0.0',
       latestVersionUrl: undefined,
@@ -86,7 +86,7 @@ describe('The MMM Version Check module', () => {
     });
   });
 
-  it('should prioritize releases over prereleases', () => {
+  it('should prioritize releases over prereleases', async () => {
     vi.mocked(rateLimitingFetch).mockResolvedValueOnce({
       ok: true,
       json: () =>
@@ -99,7 +99,7 @@ describe('The MMM Version Check module', () => {
           { tag_name: 'v0.8.0', prerelease: false, draft: false }
         ])
     } as Response);
-    expect(hasUpdate('0.0.9', logger)).resolves.toEqual({
+    await expect(hasUpdate('0.0.9', logger)).resolves.toEqual({
       hasUpdate: true,
       latestVersion: 'v1.0.0',
       latestVersionUrl: undefined,
@@ -115,7 +115,7 @@ describe('The MMM Version Check module', () => {
       { currentVersion: '1.0.0', latestVersion: 'v1.0.1', name: 'patch' },
       { currentVersion: '1.0.0', latestVersion: 'v1.1.0', name: 'minor' },
       { currentVersion: '1.0.0', latestVersion: 'v2.0.0', name: 'major' }
-    ])('should return the new version when there is a $name update', ({ currentVersion, latestVersion }) => {
+    ])('should return the new version when there is a $name update', async ({ currentVersion, latestVersion }) => {
       const url = chance.url();
       vi.mocked(rateLimitingFetch).mockResolvedValueOnce({
         ok: true,
@@ -125,7 +125,7 @@ describe('The MMM Version Check module', () => {
             { tag_name: latestVersion, prerelease: prerelease, draft: draft, html_url: url }
           ])
       } as Response);
-      expect(hasUpdate(currentVersion, logger)).resolves.toEqual({
+      await expect(hasUpdate(currentVersion, logger)).resolves.toEqual({
         hasUpdate: true,
         latestVersion: latestVersion,
         latestVersionUrl: url,
