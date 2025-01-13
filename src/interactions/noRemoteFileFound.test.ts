@@ -1,4 +1,4 @@
-import inquirer from 'inquirer';
+import { confirm, input } from '@inquirer/prompts';
 import { chance } from 'jest-chance';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { generateRandomPlatform } from '../../test/generateRandomPlatform.js';
@@ -7,8 +7,8 @@ import { Logger } from '../lib/Logger.js';
 import { Loader, Platform } from '../lib/modlist.types.js';
 import { noRemoteFileFound } from './noRemoteFileFound.js';
 
+vi.mock('@inquirer/prompts');
 vi.mock('../mmm.js');
-vi.mock('inquirer');
 vi.mock('../lib/Logger.js');
 
 describe('The mod not found interaction', () => {
@@ -44,7 +44,8 @@ describe('The mod not found interaction', () => {
     expect(loggerErrorCall).toMatchInlineSnapshot(
       '"Could not find a file for test-mod-id and the Minecraft version 1.16.5 for forge loader"'
     );
-    expect(vi.mocked(inquirer.prompt)).not.toHaveBeenCalled();
+    expect(vi.mocked(confirm)).not.toHaveBeenCalled();
+    expect(vi.mocked(input)).not.toHaveBeenCalled();
   });
 
   it('aborts when the user does not want to modify their search', async () => {
@@ -52,7 +53,7 @@ describe('The mod not found interaction', () => {
     const testModId = chance.word();
     const randomConfig = generateModsJson().generated;
 
-    vi.mocked(inquirer.prompt).mockResolvedValueOnce({ confirm: false });
+    vi.mocked(confirm).mockResolvedValueOnce(false);
 
     await expect(
       noRemoteFileFound(testModId, testPlatform, randomConfig, logger, {
@@ -64,27 +65,28 @@ describe('The mod not found interaction', () => {
     const loggerErrorCall = vi.mocked(logger.error).mock.calls[0][0];
 
     expect(loggerErrorCall).toMatchInlineSnapshot('"Aborting"');
-    expect(vi.mocked(inquirer.prompt)).toHaveBeenCalledTimes(1);
+    expect(vi.mocked(confirm)).toHaveBeenCalledTimes(1);
+    expect(vi.mocked(input)).not.toHaveBeenCalled();
   });
 
   describe.each([
-    { input: Platform.CURSEFORGE, expected: Platform.MODRINTH },
-    { input: Platform.MODRINTH, expected: Platform.CURSEFORGE }
-  ])('when the user wants to modify their search for $input', ({ input, expected }) => {
+    { userInput: Platform.CURSEFORGE, expected: Platform.MODRINTH },
+    { userInput: Platform.MODRINTH, expected: Platform.CURSEFORGE }
+  ])('when the user wants to modify their search for $input', ({ userInput, expected }) => {
     it(`it asks for ${expected} when they come from ${input}`, async () => {
-      const testPlatform = input;
+      const testPlatform = userInput;
       const testModId = chance.word();
       const randomConfig = generateModsJson().generated;
 
-      vi.mocked(inquirer.prompt).mockResolvedValueOnce({ confirm: true });
-      vi.mocked(inquirer.prompt).mockResolvedValueOnce({ newModName: 'new-mod-id' });
+      vi.mocked(confirm).mockResolvedValueOnce(true);
+      vi.mocked(input).mockResolvedValueOnce('new-mod-id');
 
       const actual = await noRemoteFileFound(testModId, testPlatform, randomConfig, logger, {
         config: 'config.json',
         quiet: false
       });
 
-      const inquirerPromptCallArgs = vi.mocked(inquirer.prompt).mock.calls[1][0];
+      const inquirerPromptCallArgs = vi.mocked(input).mock.calls[0][0];
 
       expect(actual).toEqual({ id: 'new-mod-id', platform: expected });
 

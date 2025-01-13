@@ -1,5 +1,5 @@
 import * as path from 'path';
-import inquirer from 'inquirer';
+import { confirm, input } from '@inquirer/prompts';
 import { ConfigFileAlreadyExistsException } from '../errors/ConfigFileAlreadyExistsException.js';
 import { fileExists } from '../lib/config.js';
 import { DefaultOptions } from '../mmm.js';
@@ -26,17 +26,13 @@ export const configFile = async (options: DefaultOptions, cwd: string) => {
     }
 
     const newConfigName = addNewToFilename(options.config);
-    const { overwrite } = await inquirer.prompt({
-      type: 'confirm',
-      name: 'overwrite',
+    const overwrite = await confirm({
       message: `The config file ${options.config} already exists. Would you like to overwrite it?`,
       default: false
     });
 
     if (!overwrite) {
-      const { newConfig } = await inquirer.prompt({
-        type: 'input',
-        name: 'newConfig',
+      const newConfig = await input({
         message: 'Please enter a new config file name',
         default: newConfigName,
         validate: validateConfigName

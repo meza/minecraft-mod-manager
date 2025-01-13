@@ -1,12 +1,12 @@
 import path from 'path';
-import inquirer, { Question } from 'inquirer';
+import { confirm, input } from '@inquirer/prompts';
 import { chance } from 'jest-chance';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { ConfigFileAlreadyExistsException } from '../errors/ConfigFileAlreadyExistsException.js';
 import { fileExists } from '../lib/config.js';
 import { configFile } from './configFileOverwrite.js';
 
-vi.mock('inquirer');
+vi.mock('@inquirer/prompts');
 vi.mock('../lib/config.js', () => ({
   fileExists: vi.fn().mockResolvedValue(false),
   writeConfigFile: vi.fn()
@@ -36,7 +36,7 @@ describe('The Config Overwrite Interaction', () => {
           const location = path.resolve(root, filename);
 
           vi.mocked(fileExists).mockResolvedValue(true);
-          vi.mocked(inquirer.prompt).mockResolvedValueOnce({ overwrite: true }); // for the config question
+          vi.mocked(confirm).mockResolvedValueOnce(true); // for the config question
 
           const inputOptions = {
             config: filename,
@@ -57,8 +57,8 @@ describe('The Config Overwrite Interaction', () => {
           const newLocation = path.resolve(root, newFilename);
 
           vi.mocked(fileExists).mockResolvedValue(true);
-          vi.mocked(inquirer.prompt).mockResolvedValueOnce({ overwrite: false }); // for the config question
-          vi.mocked(inquirer.prompt).mockResolvedValueOnce({ newConfig: newFilename }); // for the config question
+          vi.mocked(confirm).mockResolvedValueOnce(false); // for the config question
+          vi.mocked(input).mockResolvedValueOnce(newFilename); // for the config question
 
           const inputOptions = {
             config: filename,
@@ -72,8 +72,8 @@ describe('The Config Overwrite Interaction', () => {
 
         it('it identifies existing files when it validates the user input correctly', async () => {
           vi.mocked(fileExists).mockResolvedValue(true);
-          vi.mocked(inquirer.prompt).mockResolvedValueOnce({ overwrite: false }); // for the config question
-          vi.mocked(inquirer.prompt).mockResolvedValueOnce({ newConfig: chance.word() }); // for the config question
+          vi.mocked(confirm).mockResolvedValueOnce(false); // for the config question
+          vi.mocked(input).mockResolvedValueOnce(chance.word()); // for the config question
 
           const inputOptions = { config: chance.word() };
 
@@ -81,7 +81,7 @@ describe('The Config Overwrite Interaction', () => {
 
           // The only way to ensure the correct validator function has been wired up is to run it
           // We grab the actual submitted callback from inquirer
-          const validatorFunction = (vi.mocked(inquirer.prompt).mock.calls[1][0] as Question).validate;
+          const validatorFunction = vi.mocked(input).mock.calls[0][0].validate;
 
           const filename = chance.word();
 
@@ -97,8 +97,8 @@ describe('The Config Overwrite Interaction', () => {
 
         it('it identifies non existing files when it validates the user input correctly', async () => {
           vi.mocked(fileExists).mockResolvedValue(true);
-          vi.mocked(inquirer.prompt).mockResolvedValueOnce({ overwrite: false }); // for the config question
-          vi.mocked(inquirer.prompt).mockResolvedValueOnce({ newConfig: chance.word() }); // for the config question
+          vi.mocked(confirm).mockResolvedValueOnce(false); // for the config question
+          vi.mocked(input).mockResolvedValueOnce(chance.word()); // for the config question
 
           const inputOptions = { config: chance.word() };
 
@@ -106,7 +106,7 @@ describe('The Config Overwrite Interaction', () => {
 
           // The only way to ensure the correct validator function has been wired up is to run it
           // We grab the actual submitted callback from inquirer
-          const validatorFunction = (vi.mocked(inquirer.prompt).mock.calls[1][0] as Question).validate;
+          const validatorFunction = vi.mocked(input).mock.calls[0][0].validate;
 
           const filename = chance.word();
 
@@ -126,32 +126,17 @@ describe('The Config Overwrite Interaction', () => {
   it('should show the correct messages', async () => {
     const originalFile = 'test.json';
     vi.mocked(fileExists).mockResolvedValue(true);
-    vi.mocked(inquirer.prompt).mockResolvedValueOnce({ overwrite: false }); // for the config question
-    vi.mocked(inquirer.prompt).mockResolvedValueOnce({ newConfig: chance.word() }); // for the config question
+    vi.mocked(confirm).mockResolvedValueOnce(false); // for the config question
+    vi.mocked(input).mockResolvedValueOnce(chance.word()); // for the config question
 
     const inputOptions = { config: originalFile };
 
     await configFile(inputOptions, chance.word());
 
-    expect((vi.mocked(inquirer.prompt).mock.calls[0][0] as Question).message).toMatchInlineSnapshot(
+    expect(vi.mocked(confirm).mock.calls[0][0].message).toMatchInlineSnapshot(
       '"The config file test.json already exists. Would you like to overwrite it?"'
     );
-    expect((vi.mocked(inquirer.prompt).mock.calls[1][0] as Question).message).toMatchInlineSnapshot(
-      '"Please enter a new config file name"'
-    );
-  });
-
-  it('should show the correct types', async () => {
-    vi.mocked(fileExists).mockResolvedValue(true);
-    vi.mocked(inquirer.prompt).mockResolvedValueOnce({ overwrite: false }); // for the config question
-    vi.mocked(inquirer.prompt).mockResolvedValueOnce({ newConfig: chance.word() }); // for the config question
-
-    const inputOptions = { config: chance.word() };
-
-    await configFile(inputOptions, chance.word());
-
-    expect((vi.mocked(inquirer.prompt).mock.calls[0][0] as Question).type).toMatchInlineSnapshot('"confirm"');
-    expect((vi.mocked(inquirer.prompt).mock.calls[1][0] as Question).type).toMatchInlineSnapshot('"input"');
+    expect(vi.mocked(input).mock.calls[0][0].message).toMatchInlineSnapshot('"Please enter a new config file name"');
   });
 
   it('should show the correct default for the new file', async () => {
@@ -159,13 +144,13 @@ describe('The Config Overwrite Interaction', () => {
     const expectedFileName = 'test2-new.json';
 
     vi.mocked(fileExists).mockResolvedValue(true);
-    vi.mocked(inquirer.prompt).mockResolvedValueOnce({ overwrite: false }); // for the config question
-    vi.mocked(inquirer.prompt).mockResolvedValueOnce({ newConfig: chance.word() }); // for the config question
+    vi.mocked(confirm).mockResolvedValueOnce(false); // for the config question
+    vi.mocked(input).mockResolvedValueOnce(chance.word()); // for the config question
 
     const inputOptions = { config: filename };
 
     await configFile(inputOptions, chance.word());
 
-    expect((vi.mocked(inquirer.prompt).mock.calls[1][0] as Question).default).toEqual(expectedFileName);
+    expect(vi.mocked(input).mock.calls[0][0].default).toEqual(expectedFileName);
   });
 });

@@ -1,6 +1,6 @@
 import path from 'path';
+import { select } from '@inquirer/prompts';
 import chalk from 'chalk';
-import inquirer from 'inquirer';
 import { CouldNotFindModException } from '../errors/CouldNotFindModException.js';
 import { DownloadFailedException } from '../errors/DownloadFailedException.js';
 import { NoRemoteFileFound } from '../errors/NoRemoteFileFound.js';
@@ -34,24 +34,20 @@ const handleUnknownPlatformException = async (
     );
   }
 
-  const answers = await inquirer.prompt([
-    {
-      type: 'list',
-      name: 'platform',
-      default: false,
-      choices: [...platformList, 'cancel'],
-      message:
-        chalk.redBright(`The platform you entered (${chalk.whiteBright(platformUsed)}) is not a valid platform.\n`) +
-        chalk.whiteBright('Would you like to retry with a valid one?')
-    }
-  ]);
+  const selectedPlatform = await select({
+    default: false,
+    choices: [...platformList, 'cancel'],
+    message:
+      chalk.redBright(`The platform you entered (${chalk.whiteBright(platformUsed)}) is not a valid platform.\n`) +
+      chalk.whiteBright('Would you like to retry with a valid one?')
+  });
 
-  if (answers.platform === 'cancel') {
+  if (selectedPlatform === 'cancel') {
     return;
   }
 
   // eslint-disable-next-line no-use-before-define
-  await add(answers.platform, id, options, logger);
+  await add(selectedPlatform as Platform, id, options, logger);
 };
 
 export const add = async (platform: Platform, id: string, options: AddOptions, logger: Logger) => {
