@@ -1,3 +1,4 @@
+import { BigIntStats, Stats } from 'node:fs';
 import path from 'path';
 import * as fs from 'fs/promises';
 import { chance } from 'jest-chance';
@@ -30,6 +31,26 @@ describe('The file helper module', () => {
     await getModFiles(configLocation, configuration);
 
     expect(fs.readdir).toHaveBeenCalledWith(path.resolve(rootDir, 'mods'));
+  });
+
+  it<LocalTestContext>('ignores all directories', async ({ configLocation, rootDir, configuration }) => {
+    const foundFiles = chance.n(
+      () => {
+        return path.resolve(rootDir, 'mods', chance.word() + '.jar');
+      },
+      chance.integer({ min: 2, max: 20 })
+    );
+    const mockStatSync = vi.mocked(fs.stat);
+
+    mockStatSync.mockResolvedValue({
+      isDirectory: () => true
+    } as unknown as Stats | BigIntStats);
+
+    vi.mocked(fs.readdir).mockResolvedValueOnce(foundFiles);
+
+    const actual = await getModFiles(configLocation, configuration);
+
+    expect(actual).toEqual([]);
   });
 
   it<LocalTestContext>('applies the ignore filter', async ({ configLocation, rootDir, configuration }) => {
