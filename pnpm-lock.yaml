@@ -21,8 +21,8 @@ importers:
         specifier: 12.1.0
         version: 12.1.0
       core-js:
-        specifier: 3.39.0
-        version: 3.39.0
+        specifier: 3.40.0
+        version: 3.40.0
       dotenv:
         specifier: 16.4.7
         version: 16.4.7
@@ -1620,8 +1620,8 @@ packages:
     resolution: {integrity: sha512-lOETlkIeYSJWcbbcvjRKGxVMXJR+8+OQb/mTPbA4ObPMytYIsUbuOE0Jzy60hjARYszq1id0j8KgVhC+WGZVTg==}
     engines: {node: '>=12'}
 
-  core-js@3.39.0:
-    resolution: {integrity: sha512-raM0ew0/jJUqkJ0E6e8UDtl+y/7ktFivgWvqw8dNSQeNWoSDLvQ1H/RN3aPXB9tBd4/FhyR4RDPGhsNIMsAn7g==}
+  core-js@3.40.0:
+    resolution: {integrity: sha512-7vsMc/Lty6AGnn7uFpYT56QesI5D2Y/UkgKounk87OP9Z2H9Z8kj6jzcSGAxFmUtDOS0ntK6lbQz+Nsa0Jj6mQ==}
 
   core-util-is@1.0.3:
     resolution: {integrity: sha512-ZQBvi1DcpJ4GDqanjucZ2Hj3wEO5pZDS89BWbkcrvdxksJorwUDDZamX9ldFkp9aw2lmBDLgkObEA4DWNJ9FYQ==}
@@ -4472,7 +4472,7 @@ snapshots:
       '@types/node': 18.19.54
       chalk: 4.1.2
       commander: 9.5.0
-      core-js: 3.39.0
+      core-js: 3.40.0
       inquirer: 8.2.6
       marked: 4.3.0
 
@@ -4480,7 +4480,7 @@ snapshots:
     dependencies:
       '@types/node': 18.19.54
       bindings: 1.5.0
-      core-js: 3.39.0
+      core-js: 3.40.0
       node-gyp: 9.4.1
       node-gyp-build: 4.8.2
       prebuild-install: 7.1.2
@@ -5250,7 +5250,7 @@ snapshots:
 
   convert-hrtime@5.0.0: {}
 
-  core-js@3.39.0: {}
+  core-js@3.40.0: {}
 
   core-util-is@1.0.3: {}
 
