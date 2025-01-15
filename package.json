@@ -51,7 +51,7 @@
     "minimatch": "10.0.1",
     "nodejs-file-downloader": "4.13.0",
     "posthog-node": "4.3.2",
-    "zod": "3.23.8"
+    "zod": "3.24.1"
   },
   "commitlint": {
     "extends": ["@commitlint/config-conventional"],
