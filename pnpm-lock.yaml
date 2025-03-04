@@ -61,8 +61,8 @@ importers:
         specifier: 19.7.0
         version: 19.7.0(@types/node@22.10.5)(typescript@5.7.3)
       '@faker-js/faker':
-        specifier: 9.3.0
-        version: 9.3.0
+        specifier: 9.5.0
+        version: 9.5.0
       '@inquirer/testing':
         specifier: ^2.1.40
         version: 2.1.40(@types/node@22.10.5)
@@ -796,8 +796,8 @@ packages:
     cpu: [x64]
     os: [win32]
 
-  '@faker-js/faker@9.3.0':
-    resolution: {integrity: sha512-r0tJ3ZOkMd9xsu3VRfqlFR6cz0V/jFYRswAIpC+m/DIfAUXq7g8N7wTAlhSANySXYGKzGryfDXwtwsY8TxEIDw==}
+  '@faker-js/faker@9.5.0':
+    resolution: {integrity: sha512-3qbjLv+fzuuCg3umxc9/7YjrEXNaKwHgmig949nfyaTx8eL4FAsvFbu+1JcFUj1YAXofhaDn6JdEUBTYuk0Ssw==}
     engines: {node: '>=18.0.0', npm: '>=9.0.0'}
 
   '@fastify/busboy@2.1.1':
@@ -4274,7 +4274,7 @@ snapshots:
   '@esbuild/win32-x64@0.24.2':
     optional: true
 
-  '@faker-js/faker@9.3.0': {}
+  '@faker-js/faker@9.5.0': {}
 
   '@fastify/busboy@2.1.1': {}
 
