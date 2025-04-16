@@ -1,13 +1,8 @@
-import inquirer from 'inquirer';
+import { confirm } from '@inquirer/prompts';
 
 export const shouldCreateConfig = async (configLocation: string): Promise<boolean> => {
-  const answers = await inquirer.prompt([
-    {
-      type: 'confirm',
-      name: 'create',
-      default: true,
-      message: `The config file: (${configLocation}) does not exist. Should we create it?`
-    }
-  ]);
-  return answers.create;
+  return confirm({
+    default: true,
+    message: `The config file: (${configLocation}) does not exist. Should we create it?`
+  });
 };

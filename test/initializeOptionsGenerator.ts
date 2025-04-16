@@ -1,6 +1,6 @@
 import { chance } from 'jest-chance';
 import { InitializeOptions } from '../src/interactions/initializeConfig.js';
-import { Loader, Platform } from '../src/lib/modlist.types.js';
+import { Loader, ReleaseType } from '../src/lib/modlist.types.js';
 import { GeneratorResult } from './test.types.js';
 
 export const generateInitializeOptions = (
@@ -9,10 +9,10 @@ export const generateInitializeOptions = (
   const loader = chance.pickone(Object.values(Loader));
   const gameVersion = chance.word();
   const defaultAllowedReleaseTypes = chance.pickset(
-    Object.values(Platform),
+    Object.values(ReleaseType),
     chance.integer({
       min: 1,
-      max: Object.keys(Platform).length
+      max: Object.keys(ReleaseType).length
     })
   );
   const modsFolder = chance.word();

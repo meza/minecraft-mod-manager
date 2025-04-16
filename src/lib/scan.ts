@@ -24,9 +24,13 @@ const getScanResults = async (files: string[], installations: ModInstall[]) => {
       return;
     }
     found++;
-    const fingerprint = curseforge.fingerprint(filePath);
+    try {
+      const fingerprint = curseforge.fingerprint(filePath);
+      cfInput.hash.push(String(fingerprint));
+    } catch (_) {
+      //ignore
+    }
     const fileSha1Hash = await getHash(filePath, Modrinth.PREFERRED_HASH);
-    cfInput.hash.push(String(fingerprint));
     modrinthInput.hash.push(fileSha1Hash);
   });
 

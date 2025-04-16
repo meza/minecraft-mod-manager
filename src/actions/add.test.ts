@@ -1,4 +1,4 @@
-import inquirer from 'inquirer';
+import { select } from '@inquirer/prompts';
 import { chance } from 'jest-chance';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { generateRandomPlatform } from '../../test/generateRandomPlatform.js';
@@ -25,7 +25,7 @@ vi.mock('../mmm.js');
 vi.mock('../lib/config.js');
 vi.mock('../repositories/index.js');
 vi.mock('../lib/downloader.js');
-vi.mock('inquirer');
+vi.mock('@inquirer/prompts');
 vi.mock('../interactions/shouldCreateConfig.js');
 vi.mock('../interactions/modNotFound.ts');
 vi.mock('../interactions/noRemoteFileFound.js');
@@ -312,15 +312,16 @@ describe('The add module', async () => {
         const wrongPlatformText = assumeWrongPlatform();
         const randomModId = chance.word();
 
-        vi.mocked(inquirer.prompt).mockResolvedValueOnce({ platform: 'cancel' });
+        vi.mocked(select).mockResolvedValueOnce('cancel');
 
         await expect(add(wrongPlatformText, randomModId, { config: 'config.json' }, logger)).resolves.toBeUndefined();
 
         // @ts-ignore anyone with a fix for this?
-        const inquirerOptions = vi.mocked(inquirer.prompt).mock.calls[0][0][0];
+        const inquirerOptions = vi.mocked(select).mock.calls[0][0];
+        const sortableChoices = inquirerOptions.choices as string[];
 
-        expect(inquirerOptions.choices.sort()).toEqual(['cancel', ...Object.values(Platform)].sort());
-        expect(vi.mocked(inquirer.prompt)).toHaveBeenCalledTimes(1);
+        expect(sortableChoices.sort()).toEqual(['cancel', ...Object.values(Platform)].sort());
+        expect(vi.mocked(select)).toHaveBeenCalledTimes(1);
         // These mean that the add hasn't been recursively called
         expect(vi.mocked(ensureConfiguration)).toHaveBeenCalledTimes(1);
         expect(vi.mocked(fetchModDetails)).toHaveBeenCalledTimes(1);
@@ -337,7 +338,7 @@ describe('The add module', async () => {
 
         // we select a correct platform through the prompt
         const randomPlatform = getRandomPlatform();
-        vi.mocked(inquirer.prompt).mockResolvedValueOnce({ platform: randomPlatform });
+        vi.mocked(select).mockResolvedValueOnce(randomPlatform);
 
         // upon 2nd invocation of the fetch, return a correct response
         vi.mocked(fetchModDetails).mockResolvedValueOnce(context.randomModDetails.generated);

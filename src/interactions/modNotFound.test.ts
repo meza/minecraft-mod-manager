@@ -2,13 +2,13 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { Platform } from '../lib/modlist.types.js';
 import { modNotFound } from './modNotFound.js';
 
-import inquirer from 'inquirer';
+import { confirm, input, select } from '@inquirer/prompts';
 import { chance } from 'jest-chance';
 import { generateRandomPlatform } from '../../test/generateRandomPlatform.js';
 import { Logger } from '../lib/Logger.js';
 
 vi.mock('../mmm.js');
-vi.mock('inquirer');
+vi.mock('@inquirer/prompts');
 vi.mock('../lib/Logger.js');
 
 describe('The mod not found interaction', () => {
@@ -38,14 +38,16 @@ describe('The mod not found interaction', () => {
     const loggerErrorCall = vi.mocked(logger.error).mock.calls[0][0];
 
     expect(loggerErrorCall).toMatchInlineSnapshot('"Mod "test-mod-id" for curseforge does not exist"');
-    expect(vi.mocked(inquirer.prompt)).not.toHaveBeenCalled();
+    expect(vi.mocked(input)).not.toHaveBeenCalled();
+    expect(vi.mocked(confirm)).not.toHaveBeenCalled();
+    expect(vi.mocked(select)).not.toHaveBeenCalled();
   });
 
   it('aborts when the user does not want to modify their search', async () => {
     const testPlatform = generateRandomPlatform();
     const testModId = chance.word();
 
-    vi.mocked(inquirer.prompt).mockResolvedValueOnce({ confirm: false });
+    vi.mocked(confirm).mockResolvedValueOnce(false);
 
     await expect(
       modNotFound(testModId, testPlatform, logger, {
@@ -57,40 +59,40 @@ describe('The mod not found interaction', () => {
     const loggerErrorCall = vi.mocked(logger.error).mock.calls[0][0];
 
     expect(loggerErrorCall).toMatchInlineSnapshot('"Aborting"');
-    expect(vi.mocked(inquirer.prompt)).toHaveBeenCalledTimes(1);
+    expect(vi.mocked(confirm)).toHaveBeenCalledTimes(1);
+    expect(vi.mocked(input)).not.toHaveBeenCalled();
+    expect(vi.mocked(select)).not.toHaveBeenCalled();
   });
 
   it('asks the user for a new mod id and platform when the user wants to modify their search', async () => {
     const testPlatform = Platform.MODRINTH;
     const testModId = chance.word();
 
-    vi.mocked(inquirer.prompt).mockResolvedValueOnce({ confirm: true });
-    vi.mocked(inquirer.prompt).mockResolvedValueOnce({ newPlatform: Platform.CURSEFORGE, newModName: 'new-mod-id' });
+    vi.mocked(confirm).mockResolvedValueOnce(true);
+    vi.mocked(select).mockResolvedValueOnce(Platform.CURSEFORGE);
+    vi.mocked(input).mockResolvedValueOnce('new-mod-id');
 
     const actual = await modNotFound(testModId, testPlatform, logger, { config: 'config.json', quiet: false });
 
-    const inquirerPromptCallArgs = vi.mocked(inquirer.prompt).mock.calls[1][0];
-
     expect(actual).toEqual({ id: 'new-mod-id', platform: Platform.CURSEFORGE });
 
-    expect(inquirerPromptCallArgs).toMatchInlineSnapshot(`
-      [
-        {
-          "choices": [
-            "curseforge",
-            "modrinth",
-          ],
-          "default": "modrinth",
-          "message": "Which platform would you like to use?",
-          "name": "newPlatform",
-          "type": "list",
-        },
-        {
-          "message": "What is the project id of the mod you want to add?",
-          "name": "newModName",
-          "type": "input",
-        },
-      ]
+    const selectArgs = vi.mocked(select).mock.calls[0][0];
+    const inputArgs = vi.mocked(input).mock.calls[0][0];
+
+    expect(selectArgs).toMatchInlineSnapshot(`
+      {
+        "choices": [
+          "curseforge",
+          "modrinth",
+        ],
+        "default": "modrinth",
+        "message": "Which platform would you like to use?",
+      }
+    `);
+    expect(inputArgs).toMatchInlineSnapshot(`
+      {
+        "message": "What is the project id of the mod you want to add?",
+      }
     `);
   });
 });

@@ -98,6 +98,53 @@ describe('The scan library', () => {
       // do we call the modrinth hasher with the correct values?
       expect(getHash).toHaveBeenCalledOnce();
       expect(getHash).toHaveBeenCalledWith(expectedPath, 'sha1');
+
+      expect(vi.mocked(lookup)).toHaveBeenCalledWith([
+        {
+          platform: Platform.CURSEFORGE,
+          hash: [randomFingerprint.toString()]
+        },
+        {
+          platform: Platform.MODRINTH,
+          hash: [randomHash]
+        }
+      ]);
+    });
+
+    it<LocalTestContext>('handles curseforge dying well', async (context) => {
+      const randomModsFolder = 'mods-folder';
+      const randomFileName = chance.word();
+      const randomHash = chance.hash();
+      const expectedPath = randomFileName;
+
+      context.randomConfiguration.modsFolder = randomModsFolder;
+      vi.mocked(getModFiles).mockResolvedValueOnce([randomFileName]);
+      vi.mocked(fileIsManaged).mockReturnValueOnce(false); // non-managed path
+      vi.mocked(curseforge.fingerprint).mockImplementation(() => {
+        throw new Error('test-error');
+      });
+
+      vi.mocked(getHash).mockResolvedValueOnce(randomHash);
+
+      vi.mocked(lookup).mockResolvedValueOnce([]); // we don't care about the return just yet
+
+      await scan(context.config, context.randomPlatform, context.randomConfiguration, context.randomInstallations);
+
+      //expectations
+      // do we call the curseforge fingerprint with the correct values?
+      expect(curseforge.fingerprint).toHaveBeenCalledOnce();
+      expect(curseforge.fingerprint).toHaveBeenCalledWith(expectedPath); // whatever comes from the getModFiles
+
+      expect(vi.mocked(lookup)).toHaveBeenCalledWith([
+        {
+          hash: [],
+          platform: Platform.CURSEFORGE
+        },
+        {
+          platform: Platform.MODRINTH,
+          hash: [randomHash]
+        }
+      ]);
     });
 
     it<LocalTestContext>('passes the correct inputs to the lookup', async (context) => {
