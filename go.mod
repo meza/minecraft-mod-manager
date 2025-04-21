@@ -5,7 +5,7 @@ go 1.22.6
 require (
 	github.com/charmbracelet/bubbles v0.19.0
 	github.com/charmbracelet/bubbletea v0.27.1
-	github.com/charmbracelet/huh v0.5.3
+	github.com/charmbracelet/huh v0.7.0
 	github.com/charmbracelet/x/term v0.2.0
 	github.com/denisbrodbeck/machineid v1.0.1
 	github.com/jeandeaual/go-locale v0.0.0-20240223122105-ce5225dcaa49
