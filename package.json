@@ -64,7 +64,7 @@
     "@commitlint/cli": "19.8.1",
     "@commitlint/config-conventional": "19.8.1",
     "@commitlint/prompt-cli": "19.8.1",
-    "@faker-js/faker": "9.6.0",
+    "@faker-js/faker": "9.8.0",
     "@inquirer/testing": "^2.1.40",
     "@liudonghua123/pkg": "6.0.1",
     "@meza/adr-tools": "1.0.10",
