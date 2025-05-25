@@ -45,7 +45,7 @@
     "commander": "12.1.0",
     "core-js": "3.41.0",
     "dotenv": "16.4.7",
-    "glob": "11.0.1",
+    "glob": "11.0.2",
     "hwid": "0.5.0",
     "log-symbols": "7.0.0",
     "minimatch": "10.0.1",
