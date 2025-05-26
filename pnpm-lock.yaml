@@ -115,8 +115,8 @@ importers:
         specifier: 2.1.9
         version: 2.1.9(vitest@2.1.9(@types/node@22.15.19))
       conventional-changelog-conventionalcommits:
-        specifier: 8.0.0
-        version: 8.0.0
+        specifier: 9.0.0
+        version: 9.0.0
       cross-env:
         specifier: 7.0.3
         version: 7.0.3
@@ -1493,8 +1493,8 @@ packages:
     resolution: {integrity: sha512-NKXYmMR/Hr1DevQegFB4MwfM5Vv0m4UIxKZTTYuD98lpTknaZlSRrDOG4X7wIXpGkfsYxZTghUN+Qq+T0YQI7w==}
     engines: {node: '>=16'}
 
-  conventional-changelog-conventionalcommits@8.0.0:
-    resolution: {integrity: sha512-eOvlTO6OcySPyyyk8pKz2dP4jjElYunj9hn9/s0OB+gapTO8zwS9UQWrZ1pmF2hFs3vw1xhonOLGcGjy/zgsuA==}
+  conventional-changelog-conventionalcommits@9.0.0:
+    resolution: {integrity: sha512-5e48V0+DsWvQBEnnbBFhYQwYDzFPXVrakGPP1uSxekDkr5d7YWrmaWsgJpKFR0SkXmxK6qQr9O42uuLb9wpKxA==}
     engines: {node: '>=18'}
 
   conventional-changelog-writer@8.0.0:
@@ -5079,7 +5079,7 @@ snapshots:
     dependencies:
       compare-func: 2.0.0
 
-  conventional-changelog-conventionalcommits@8.0.0:
+  conventional-changelog-conventionalcommits@9.0.0:
     dependencies:
       compare-func: 2.0.0
 
