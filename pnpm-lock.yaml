@@ -42,8 +42,8 @@ importers:
         specifier: 4.13.0
         version: 4.13.0
       posthog-node:
-        specifier: 4.10.1
-        version: 4.10.1
+        specifier: 4.17.1
+        version: 4.17.1
       zod:
         specifier: 3.25.17
         version: 3.25.17
@@ -1293,8 +1293,8 @@ packages:
     resolution: {integrity: sha512-+q/t7Ekv1EDY2l6Gda6LLiX14rU9TV20Wa3ofeQmwPFZbOMo9DXrLbOjFaaclkXKWidIaopwAObQDqwWtGUjqg==}
     engines: {node: '>= 4.0.0'}
 
-  axios@1.7.7:
-    resolution: {integrity: sha512-S4kL7XrjgBmvdGut0sN3yJxqYzrDOnivkBiN0OFs6hLiUam3UPvswUo0kqGyhqUZGEOytHyumEdXsAkgCOUf3Q==}
+  axios@1.9.0:
+    resolution: {integrity: sha512-re4CqKTJaURpzbLHtIi6XpDv20/CnpXOtjRY5/CU32L8gU8ek9UIivcfvSWvmKEngmVbrUtPpdDwWDWL7DNHvg==}
 
   balanced-match@1.0.2:
     resolution: {integrity: sha512-3oSeUO0TMV67hN1AmbXsK4yaqU7tjiHlbxRDZOpH0KW9+CeX4bRAaX0Anxt0tx2MrpRpWwQaPwIlISEJhYU5Pw==}
@@ -2956,8 +2956,8 @@ packages:
     resolution: {integrity: sha512-56rxCq7G/XfB4EkXq9Egn5GCqugWvDFjafDOThIdMBsI15iqPqR5r15TfSr1YPYeEI19YeaXMCbY6u88Y76GLQ==}
     engines: {node: ^10 || ^12 || >=14}
 
-  posthog-node@4.10.1:
-    resolution: {integrity: sha512-rEzVszfaOkUFTjEabDcRLJNRqMwTOeU1WpqKgQEDV3x82O4ODifkvkoCERaPxl/ossi1NtqKXBOZ+XnhQ19pNQ==}
+  posthog-node@4.17.1:
+    resolution: {integrity: sha512-cVlQPOwOPjakUnrueKRCQe1m2Ku+XzKaOos7Tn/zDZkkZFeBT/byP7tbNf7LiwhaBRWFBRowZZb/MsTtSRaorg==}
     engines: {node: '>=15.0.0'}
 
   prebuild-install@7.1.1:
@@ -4859,7 +4859,7 @@ snapshots:
 
   at-least-node@1.0.0: {}
 
-  axios@1.7.7:
+  axios@1.9.0:
     dependencies:
       follow-redirects: 1.15.9
       form-data: 4.0.0
@@ -6494,9 +6494,9 @@ snapshots:
       picocolors: 1.1.0
       source-map-js: 1.2.1
 
-  posthog-node@4.10.1:
+  posthog-node@4.17.1:
     dependencies:
-      axios: 1.7.7
+      axios: 1.9.0
     transitivePeerDependencies:
       - debug
 
