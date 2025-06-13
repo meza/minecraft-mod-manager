@@ -70,8 +70,8 @@ importers:
         specifier: 6.0.1
         version: 6.0.1(encoding@0.1.13)
       '@meza/adr-tools':
-        specifier: 1.0.10
-        version: 1.0.10
+        specifier: 1.0.12
+        version: 1.0.12
       '@meza/tsconfig-base':
         specifier: 1.1.0
         version: 1.1.0
@@ -831,8 +831,8 @@ packages:
     resolution: {integrity: sha512-u89Ac3kgWral2i0tvD+w7bYbqgts8sSq5LFs9qJflnk5pv4FIAsq/HpCJAkKRW8n5F+bUDCfdQq9Op6z34cHOA==}
     hasBin: true
 
-  '@meza/adr-tools@1.0.10':
-    resolution: {integrity: sha512-Y+ZetaNapyIs+sgHqCac3GUrlH/Npp/EKEvQsxRqNx15PsXesdaTk8QjARldjSPrH+jslTTVARMGykWn5/HdGA==}
+  '@meza/adr-tools@1.0.12':
+    resolution: {integrity: sha512-dV9q7xKz2FqAirBJrGjHrCOH/9Z9j0eh1IkR1t8odr9d6XaXCG+1IVUqfx0OD0qdgcNcjvbhUiIfhR5JzrqNZg==}
     hasBin: true
 
   '@meza/curseforge-fingerprint@1.1.42':
@@ -1119,14 +1119,11 @@ packages:
   '@types/glob@8.1.0':
     resolution: {integrity: sha512-IO+MJPVhoqz+28h1qLAcBEH2+xHMK6MTyHJc7MTnnYb6wsoLR29POVGJ7LycmVXIqyy/4/2ShP5sUwTXuOwb/w==}
 
-  '@types/inquirer@8.2.10':
-    resolution: {integrity: sha512-IdD5NmHyVjWM8SHWo/kPBgtzXatwPkfwzyP3fN1jF2g9BWt5WO+8hL2F4o2GKIYsU40PpqeevuUWvkS/roXJkA==}
+  '@types/inquirer@9.0.8':
+    resolution: {integrity: sha512-CgPD5kFGWsb8HJ5K7rfWlifao87m4ph8uioU7OTncJevmE/VLIqAAjfQtko578JZg7/f69K4FgqYym3gNr7DeA==}
 
   '@types/is-ci@3.0.4':
     resolution: {integrity: sha512-AkCYCmwlXeuH89DagDCzvCAyltI2v9lh3U3DqSg/GrBYoReAaWwxfXCqMx9UV5MajLZ4ZFwZzV4cABGIxk2XRw==}
-
-  '@types/marked@4.3.2':
-    resolution: {integrity: sha512-a79Yc3TOk6dGdituy8hmTTJXjOkZ7zsFYV10L337ttq/rec8lRMDBpV7fL3uLx6TgbFCa5DU/h8FmIBQPSbU0w==}
 
   '@types/minimatch@5.1.2':
     resolution: {integrity: sha512-K0VQKziLUWkVKiRVrx4a40iPaxTUefQmjtkQofBkYRcoaaL/8rhwDWww9qWbrgicNOgnpIsMxyNIUM4+n6dUIA==}
@@ -1464,10 +1461,6 @@ packages:
   commander@12.1.0:
     resolution: {integrity: sha512-Vw8qHK3bZM9y/P10u3Vib8o/DdkvA2OtPtZvD871QKjy74Wj1WSKFILMPRPSdUSx5RFK1arlJzEtA4PkFgnbuA==}
     engines: {node: '>=18'}
-
-  commander@9.5.0:
-    resolution: {integrity: sha512-KRs7WVDKg86PWiuAqhDrAQnTXZKraVcCc6vFdL14qrZ/DcWwuRo7VoiYXalXO7S5GKpqYiVEwCbgFDfxNHKJBQ==}
-    engines: {node: ^12.20.0 || >=14}
 
   compare-func@2.0.0:
     resolution: {integrity: sha512-zHig5N+tPWARooBnb0Zx1MFcdfpyJrfTJ3Y5L+IFvUm8rM74hHz66z0gw0x4tijh5CorKkKUCnW82R2vmpeCRA==}
@@ -4317,15 +4310,14 @@ snapshots:
       - encoding
       - supports-color
 
-  '@meza/adr-tools@1.0.10':
+  '@meza/adr-tools@1.0.12':
     dependencies:
-      '@types/inquirer': 8.2.10
-      '@types/marked': 4.3.2
-      '@types/node': 18.19.54
-      chalk: 4.1.2
-      commander: 9.5.0
+      '@types/inquirer': 9.0.8
+      '@types/node': 22.15.21
+      chalk: 5.4.1
+      commander: 12.1.0
       core-js: 3.42.0
-      inquirer: 8.2.6
+      inquirer: 9.3.7
       marked: 4.3.0
 
   '@meza/curseforge-fingerprint@1.1.42':
@@ -4677,7 +4669,7 @@ snapshots:
       '@types/minimatch': 5.1.2
       '@types/node': 22.15.21
 
-  '@types/inquirer@8.2.10':
+  '@types/inquirer@9.0.8':
     dependencies:
       '@types/through': 0.0.33
       rxjs: 7.8.1
@@ -4685,8 +4677,6 @@ snapshots:
   '@types/is-ci@3.0.4':
     dependencies:
       ci-info: 3.9.0
-
-  '@types/marked@4.3.2': {}
 
   '@types/minimatch@5.1.2': {}
 
@@ -5050,8 +5040,6 @@ snapshots:
       delayed-stream: 1.0.0
 
   commander@12.1.0: {}
-
-  commander@9.5.0: {}
 
   compare-func@2.0.0:
     dependencies:
