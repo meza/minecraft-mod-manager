@@ -67,7 +67,7 @@ func TestDownloadFile(t *testing.T) {
 			w.Write([]byte("file content"))
 		}))
 
-		err := DownloadFile("http://example.com", "/invalid/path/testfile", mockServer.Client(), &MockProgram{}, fs)
+		err := DownloadFile(mockServer.URL, "/invalid/path/testfile", mockServer.Client(), &MockProgram{}, fs)
 		assert.ErrorContains(t, err, "failed to create file")
 	})
 

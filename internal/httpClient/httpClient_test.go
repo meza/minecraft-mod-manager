@@ -1,6 +1,7 @@
 package httpClient
 
 import (
+	"fmt"
 	"github.com/stretchr/testify/assert"
 	"golang.org/x/time/rate"
 	"net/http"
@@ -8,6 +9,12 @@ import (
 	"testing"
 	"time"
 )
+
+type roundTripFunc func(*http.Request) (*http.Response, error)
+
+func (f roundTripFunc) RoundTrip(req *http.Request) (*http.Response, error) {
+	return f(req)
+}
 
 func TestRLHTTPClient_Fetch(t *testing.T) {
 	// Create a mock server
@@ -220,8 +227,15 @@ func TestRLHTTPClient_Fetch(t *testing.T) {
 			Interval:   1 * time.Second,
 		}
 
-		// Create a new HTTP request
-		req, err := http.NewRequest("GET", "https://nope", nil)
+		// Use a custom HTTP client that always returns an error
+		client.client = &http.Client{
+			Transport: roundTripFunc(func(req *http.Request) (*http.Response, error) {
+				return nil, fmt.Errorf("round trip error")
+			}),
+		}
+
+		// Create a new HTTP request (URL doesn't matter as the transport fails)
+		req, err := http.NewRequest("GET", "https://example.com", nil)
 		assert.NoError(t, err)
 
 		// Test the Do method
