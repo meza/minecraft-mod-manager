@@ -12,7 +12,7 @@ require (
 	github.com/jeandeaual/go-locale v0.0.0-20240223122105-ce5225dcaa49
 	github.com/joho/godotenv v1.5.1
 	github.com/muesli/termenv v0.16.0
-	github.com/nicksnyder/go-i18n/v2 v2.4.1
+	github.com/nicksnyder/go-i18n/v2 v2.6.0
 	github.com/pkg/errors v0.9.1
 	github.com/posthog/posthog-go v1.5.12
 	github.com/spf13/afero v1.14.0
