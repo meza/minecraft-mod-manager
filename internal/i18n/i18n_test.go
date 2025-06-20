@@ -3,8 +3,11 @@ package i18n
 import (
 	"embed"
 	"errors"
-	"github.com/stretchr/testify/assert"
+	"os"
 	"testing"
+
+	"github.com/stretchr/testify/assert"
+	"golang.org/x/text/language"
 )
 
 type MockLocaleProvider struct {
@@ -13,6 +16,12 @@ type MockLocaleProvider struct {
 
 func (m MockLocaleProvider) GetLocales() ([]string, error) {
 	return nil, errors.New("mock error")
+}
+
+type FakeLocaleProvider struct{}
+
+func (f FakeLocaleProvider) GetLocales() ([]string, error) {
+	return []string{"fr_FR", "de_DE"}, nil
 }
 
 //go:embed __fixtures__/*.json
@@ -154,4 +163,38 @@ func TestFallbackToEnglish(t *testing.T) {
 		actual := T("test.simple")
 		assert.Equal(t, "Hello World", actual)
 	})
+}
+
+func TestGetUserLocalesNoLang(t *testing.T) {
+	enFS = testData
+	langDir = "__fixtures__"
+	localeProvider = MockLocaleProvider{}
+
+	oldLang := os.Getenv("LANG")
+	os.Unsetenv("LANG")
+	t.Cleanup(func() { os.Setenv("LANG", oldLang) })
+
+	locales := getUserLocales()
+	assert.Equal(t, []string{language.English.String()}, locales)
+}
+
+func TestGetUserLocalesProviderSuccess(t *testing.T) {
+	enFS = testData
+	langDir = "__fixtures__"
+	localeProvider = FakeLocaleProvider{}
+
+	oldLang := os.Getenv("LANG")
+	os.Unsetenv("LANG")
+	t.Cleanup(func() { os.Setenv("LANG", oldLang) })
+
+	locales := getUserLocales()
+	assert.Contains(t, locales, "fr_FR")
+	assert.Contains(t, locales, "de_DE")
+}
+
+func TestDefaultLocaleProvider(t *testing.T) {
+	provider := DefaultLocaleProvider{}
+	locales, err := provider.GetLocales()
+	assert.NoError(t, err)
+	assert.NotNil(t, locales)
 }
