@@ -38,12 +38,9 @@ control over the mods that are installed.
 
 <p align="center">
 <strong>Minecraft Mod Manager</strong> strives to be a tool that is easy to use and understand.
-<br/>We've partnered with Locize who are sponsoring the project's translation efforts.
+<br/>You can help translate it on Crowdin.
 <br/>
 <br/>
-<img src="/doc/images/locizeSponsor.svg" alt="Sponsored by Locize">
-<br/>
-Thanks, Localize ❤️
 </p>
 
 ---
