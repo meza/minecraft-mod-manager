@@ -2,6 +2,7 @@ package telemetry
 
 import (
 	"errors"
+	"os"
 	"testing"
 
 	"github.com/meza/minecraft-mod-manager/internal/models"
@@ -33,6 +34,10 @@ func TestGetMachineId(t *testing.T) {
 	})
 
 	t.Run("Machine ID is not set", func(t *testing.T) {
+		old := os.Getenv("MACHINE_ID")
+		os.Unsetenv("MACHINE_ID")
+		t.Cleanup(func() { os.Setenv("MACHINE_ID", old) })
+
 		mid := getMachineId()
 		assert.NotEmpty(t, mid)
 		assert.NotEqual(t, "test-machine-id", mid)
