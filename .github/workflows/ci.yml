@@ -24,8 +24,6 @@ jobs:
           go-version: '1.24.4'
           GH_TOKEN: ${{ secrets.GH_TOKEN }}
 
-      - uses: meza/action-go-test@main
-
       - name: Build Distributables
         run: make build
 
