@@ -2,9 +2,9 @@ package init
 
 import (
 	"fmt"
-	tea "github.com/charmbracelet/bubbletea"
 	"github.com/meza/minecraft-mod-manager/internal/i18n"
 	"github.com/meza/minecraft-mod-manager/internal/models"
+	"github.com/meza/minecraft-mod-manager/internal/tui"
 	"github.com/spf13/cobra"
 	"os"
 )
@@ -37,7 +37,7 @@ func runTUI(cmd *cobra.Command, _ []string) {
 		cmd.Flag("mods-folder").Value.String(),
 	)
 
-	_, err := tea.NewProgram(model).Run()
+	err := tui.RunApp([]tui.Component{{Name: "Init", Model: model}})
 	if err != nil {
 		fmt.Println("Error running program:", err)
 		os.Exit(1)

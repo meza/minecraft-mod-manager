@@ -1,0 +1,31 @@
+
+[TestNewAppModel - 1]
+──────────────────                       
+                    content              
+  List                                   
+  ❯ Init                                 
+                                         
+                                         
+    ↑/k                                  
+  key.help.up •                          
+  ↓/j                                    
+  key.help.down                          
+  • /                                    
+  key.help.filte                         
+  r • key.esc                            
+  key.help.clear                         
+  _filter •                              
+  key.enter                              
+  key.help.apply                         
+  _filter •                              
+  key.esc                                
+  key.help.cance                         
+  l • q                                  
+  key.help.quit                          
+  • ?                                    
+  key.help.more                          
+                                         
+                                         
+──────────────────                       
+↑/↓ Navigate • ↵ Select • Q Quit • H Help
+---
