@@ -10,6 +10,8 @@ This document outlines the planned structure for the Bubbletea based interface.
 
 ## Layout
 1. **Header** – shows "Minecraft Mod Manager" and the current version.
+   The header uses an ASCII banner rendered with `go-figure` and is centered
+   across the available terminal width.
 2. **Main Menu** – list of operations:
    - init
    - add
@@ -24,6 +26,8 @@ This document outlines the planned structure for the Bubbletea based interface.
 3. **Footer** – help text for key bindings (`↑/↓` to move, `enter` to select, `q` to quit).
 
 Each menu entry opens a dedicated Bubbletea model that implements the logic described in the docs under `docs/commands/`.
+
+The `init` entry launches the existing initialization TUI from `cmd/mmm/init`.
 
 ## Implementation Notes
 - Models must remain testable and free from side effects.

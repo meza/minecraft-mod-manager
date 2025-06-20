@@ -27,7 +27,10 @@ You currently can
 - [automatically recognize manually added files](#scan)
 ### Terminal UI
 
-Running `mmm` without a subcommand opens an interactive terminal interface. Use the arrow keys to navigate and `q` to quit.
+Running `mmm` without a subcommand opens a fullscreen terminal UI.
+The top of the screen shows a large "Minecraft Mod Manager" banner.
+Use the arrow keys to navigate the menu and press `Enter` to activate a command.
+Press `q` to quit.
 
 
 Upcoming features:

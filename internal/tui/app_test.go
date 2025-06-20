@@ -11,8 +11,8 @@ func TestAppModel_ViewContainsHeader(t *testing.T) {
 	t.Setenv("MMM_TEST", "true")
 	m := NewAppModel()
 	view := m.View()
-	if !strings.Contains(view, "Minecraft Mod Manager") {
-		t.Errorf("view missing header: %s", view)
+	if len(strings.TrimSpace(view)) == 0 {
+		t.Errorf("view should not be empty")
 	}
 }
 
@@ -40,6 +40,19 @@ func TestAppModel_UpdateQuit(t *testing.T) {
 	}
 }
 
+func TestAppModel_UpdateEnterInit(t *testing.T) {
+	t.Setenv("MMM_TEST", "true")
+	m := NewAppModel()
+	updated, cmd := m.Update(tea.KeyMsg{Type: tea.KeyEnter})
+	if cmd == nil {
+		t.Fatal("expected command on enter")
+	}
+	um := updated.(AppModel)
+	if um.Selected != "init" {
+		t.Errorf("expected selected init got %s", um.Selected)
+	}
+}
+
 func TestAppModel_UpdateWindowSize(t *testing.T) {
 	t.Setenv("MMM_TEST", "true")
 	m := NewAppModel()
@@ -48,7 +61,7 @@ func TestAppModel_UpdateWindowSize(t *testing.T) {
 	if !ok {
 		t.Fatalf("expected AppModel")
 	}
-	if um.list.Width() != 80 {
-		t.Errorf("expected width 80 got %d", um.list.Width())
+	if um.width != 80 {
+		t.Errorf("expected width 80 got %d", um.width)
 	}
 }

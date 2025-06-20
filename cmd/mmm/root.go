@@ -22,8 +22,17 @@ func Command() *cobra.Command {
 		Version: environment.AppVersion(),
 		RunE: func(cmd *cobra.Command, _ []string) error {
 			program := tea.NewProgram(tui.NewAppModel())
-			_, err := program.Run()
-			return err
+			model, err := program.Run()
+			if err != nil {
+				return err
+			}
+			if app, ok := model.(tui.AppModel); ok {
+				switch app.Selected {
+				case "init":
+					_, _ = tea.NewProgram(initCmd.NewModel("", "", "", "")).Run()
+				}
+			}
+			return nil
 		},
 	}
 
