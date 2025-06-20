@@ -18,7 +18,7 @@ require (
 	github.com/spf13/afero v1.14.0
 	github.com/spf13/cobra v1.9.1
 	github.com/stretchr/testify v1.10.0
-	golang.org/x/term v0.23.0
+	golang.org/x/term v0.32.0
 	golang.org/x/text v0.23.0
 	golang.org/x/time v0.12.0
 	shanhu.io/g v0.0.0-20240812005415-1ae7504cde0e
