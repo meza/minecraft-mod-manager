@@ -95,10 +95,10 @@ test:
 	go test ./internal/...
 
 coverage:
-	go test ./internal/... -coverprofile=coverage.out
+	go test ./internal/... -coverprofile="coverage.out"
 
 coverage-enforce: coverage
-	go tool cover -func=coverage.out | awk '/^total:/ { if ($$3 != "100.0%") { print "Coverage is not 100%: " $$3; exit 1 } else { print "Coverage is 100%"; exit 0 } }'
+	go tool cover -func="coverage.out" | go run tools/coverage_enforce.go
 
 coverage-html: coverage
-	go tool cover -html=coverage.out -o coverage.html
+	go tool cover -html="coverage.out" -o coverage.html
