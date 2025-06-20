@@ -1,7 +1,6 @@
 package version
 
 import (
-	"fmt"
 	"github.com/meza/minecraft-mod-manager/internal/constants"
 	"github.com/meza/minecraft-mod-manager/internal/environment"
 	"github.com/meza/minecraft-mod-manager/internal/i18n"
@@ -15,8 +14,8 @@ func Command() *cobra.Command {
 		Short: i18n.T("cmd.version.short", i18n.Tvars{
 			Data: &i18n.TData{"appName": constants.APP_NAME},
 		}),
-		Run: func(cmd *cobra.Command, args []string) {
-			fmt.Println(environment.AppVersion())
+		Run: func(cmd *cobra.Command, _ []string) {
+			cmd.Println(environment.AppVersion())
 		},
 	}
 

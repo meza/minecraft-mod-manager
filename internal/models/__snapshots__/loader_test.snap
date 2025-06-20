@@ -1,0 +1,4 @@
+
+[TestAllLoaders - 1]
+[]models.Loader{"bukkit", "bungeecord", "cauldron", "datapack", "fabric", "folia", "forge", "liteloader", "modloader", "neoforge", "paper", "purpur", "quilt", "rift", "spigot", "sponge", "velocity", "waterfall"}
+---

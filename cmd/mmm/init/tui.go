@@ -1,73 +1,87 @@
 package init
 
 import (
-	"fmt"
 	tea "github.com/charmbracelet/bubbletea"
-	"github.com/charmbracelet/huh"
-	"github.com/charmbracelet/x/term"
-	"github.com/meza/minecraft-mod-manager/internal/models"
-	"github.com/meza/minecraft-mod-manager/internal/tui"
-	"os"
+	"strings"
 )
 
-type options struct {
-	loader       models.Loader
-	gameVersion  string
-	releaseTypes []models.ReleaseType
-	modsFolder   string
+type state int
+
+const (
+	stateLoader state = iota
+	stateGameVersion
+	done
+)
+
+type CommandModel struct {
+	state               state
+	loaderQuestion      LoaderModel
+	gameVersionQuestion GameVersionModel
 }
 
-type Model struct {
-	form    *huh.Form
-	options options
+func (m CommandModel) Init() tea.Cmd {
+	return nil
 }
 
-func (m Model) Init() tea.Cmd {
-	return m.form.Init()
-}
+func (m CommandModel) View() string {
+	stringBuilder := strings.Builder{}
+	stringBuilder.WriteString(m.loaderQuestion.View())
 
-func (m Model) View() string {
-	if m.form.State == huh.StateCompleted {
-		return fmt.Sprintf(
-			"You selected: %s with Minecraft version %s and the allowedRelease types %s",
-			m.selectedLoader(),
-			m.selectedGameVersion(),
-			m.selectedReleaseTypes(),
-		)
+	switch m.state {
+	case stateLoader:
+		return stringBuilder.String()
+	case stateGameVersion:
+		stringBuilder.WriteString("\n")
+		stringBuilder.WriteString(m.gameVersionQuestion.View())
+	case done:
+		stringBuilder.WriteString("\n")
+		stringBuilder.WriteString(m.gameVersionQuestion.View())
 	}
-	return m.form.View()
+
+	stringBuilder.WriteString("\n")
+	stringBuilder.WriteString("\n")
+	return stringBuilder.String()
+
 }
 
-func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
+func (m CommandModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
+	var cmds []tea.Cmd
+
+	var cmd tea.Cmd
+
 	switch msg := msg.(type) {
+	case LoaderSelectedMessage:
+		m.state = stateGameVersion
+	case GameVersionSelectedMessage:
+		m.state = done
 	case tea.KeyMsg:
-		if msg.String() == "q" {
-			return m, tea.Quit
+		switch msg.String() {
+		case "ctrl+c":
+			cmds = append(cmds, tea.Quit)
 		}
 	}
-	form, cmd := m.form.Update(msg)
-	if f, ok := form.(*huh.Form); ok {
-		m.form = f
-	}
 
-	return m, cmd
+	switch m.state {
+	case stateLoader:
+		m.loaderQuestion, cmd = m.loaderQuestion.Update(msg)
+	case stateGameVersion:
+		m.gameVersionQuestion, cmd = m.gameVersionQuestion.Update(msg)
+	default:
+		return m, tea.Quit
+	}
+	cmds = append(cmds, cmd)
+
+	return m, tea.Batch(cmds...)
 }
 
-func NewModel(loader string, gameVersion string, releaseTypes string, modsFolder string) *Model {
-	loaderVal := models.Loader(loader)
-	_, height, _ := term.GetSize(os.Stdout.Fd())
-	loaderGroup := huh.NewGroup(loaderInput()).WithHide(isValidLoader(loaderVal))
-	gameVersionGroup := huh.NewGroup(gameVersionInput()).WithHide(isValidGameVersion(gameVersion))
-	releaseTypesGroup := huh.NewGroup(releaseTypesInput()).WithHide(isValidReleaseTypes(releaseTypes))
-	modsFolderGroup := huh.NewGroup(getModsFolderInput()).WithHide(isValidModsFolder(modsFolder)).WithHeight(height)
+func NewModel(loader string, gameVersion string, releaseTypes string, modsFolder string) *CommandModel {
+	model := &CommandModel{
+		loaderQuestion:      NewLoaderModel(loader),
+		gameVersionQuestion: NewGameVersionModel(gameVersion),
+		//selectedReleaseTypes: parseReleaseTypes(releaseTypes),
 
-	return &Model{
-		options: options{
-			loader:       loaderVal,
-			gameVersion:  gameVersion,
-			releaseTypes: parseReleaseTypes(releaseTypes),
-			modsFolder:   modsFolder,
-		},
-		form: huh.NewForm(loaderGroup, gameVersionGroup, releaseTypesGroup, modsFolderGroup).WithKeyMap(tui.KeyMap()),
 	}
+
+	return model
+
 }

@@ -13,7 +13,7 @@ func Command() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "init",
 		Short: i18n.T("cmd.init.short"),
-		Run:   doInit,
+		Run:   runTUI,
 	}
 
 	cmd.Flags().StringP("loader", "l", "", i18n.T("cmd.init.usage.loader", i18n.Tvars{
@@ -29,13 +29,16 @@ func Command() *cobra.Command {
 	return cmd
 }
 
-func doInit(cmd *cobra.Command, args []string) {
-	loader := cmd.Flag("loader").Value.String()
-	gameVersion := cmd.Flag("game-version").Value.String()
-	releaseTypes := cmd.Flag("release-types").Value.String()
-	modsFolder := cmd.Flag("mods-folder").Value.String()
+func runTUI(cmd *cobra.Command, _ []string) {
+	model := NewModel(
+		cmd.Flag("loader").Value.String(),
+		cmd.Flag("game-version").Value.String(),
+		cmd.Flag("release-types").Value.String(),
+		cmd.Flag("mods-folder").Value.String(),
+	)
 
-	if _, err := tea.NewProgram(NewModel(loader, gameVersion, releaseTypes, modsFolder)).Run(); err != nil {
+	_, err := tea.NewProgram(model).Run()
+	if err != nil {
 		fmt.Println("Error running program:", err)
 		os.Exit(1)
 	}
@@ -54,7 +57,7 @@ func getAllReleaseTypes() string {
 	var releaseTypeList string
 
 	for i, releaseType := range releaseTypes {
-		releaseTypeList += fmt.Sprintf("%s", string(releaseType))
+		releaseTypeList += fmt.Sprintf("%s", releaseType)
 		if i < len(releaseTypes)-1 {
 			releaseTypeList += ", "
 		}

@@ -1,0 +1,117 @@
+
+[TestTranslatedListKeyMap - 1]
+list.KeyMap{
+    CursorUp: key.Binding{
+        keys:     {"up", "k"},
+        help:     key.Help{Key:"↑/k", Desc:"key.help.up"},
+        disabled: false,
+    },
+    CursorDown: key.Binding{
+        keys:     {"down", "j"},
+        help:     key.Help{Key:"↓/j", Desc:"key.help.down"},
+        disabled: false,
+    },
+    NextPage: key.Binding{
+        keys:     {"right", "l", "key.pgdown", "f", "d"},
+        help:     key.Help{Key:"→/l/key.pgdown", Desc:"key.help.page_next"},
+        disabled: false,
+    },
+    PrevPage: key.Binding{
+        keys:     {"left", "h", "key.pgup", "b", "u"},
+        help:     key.Help{Key:"←/h/key.pgup", Desc:"key.help.page_previous"},
+        disabled: false,
+    },
+    GoToStart: key.Binding{
+        keys:     {"home", "g"},
+        help:     key.Help{Key:"g/key.home", Desc:"key.help.go_to_start"},
+        disabled: false,
+    },
+    GoToEnd: key.Binding{
+        keys:     {"end", "G"},
+        help:     key.Help{Key:"G/key.end", Desc:"key.help.go_to_end"},
+        disabled: false,
+    },
+    Filter: key.Binding{
+        keys:     {"/"},
+        help:     key.Help{Key:"/", Desc:"key.help.filter"},
+        disabled: false,
+    },
+    ClearFilter: key.Binding{
+        keys:     {"esc"},
+        help:     key.Help{Key:"key.esc", Desc:"key.help.clear_filter"},
+        disabled: false,
+    },
+    CancelWhileFiltering: key.Binding{
+        keys:     {"esc"},
+        help:     key.Help{Key:"key.esc", Desc:"key.help.cancel"},
+        disabled: false,
+    },
+    AcceptWhileFiltering: key.Binding{
+        keys:     {"enter", "tab", "shift_tab", "ctrl+k", "up", "ctrl+j", "down"},
+        help:     key.Help{Key:"key.enter", Desc:"key.help.apply_filter"},
+        disabled: false,
+    },
+    ShowFullHelp: key.Binding{
+        keys:     {"?"},
+        help:     key.Help{Key:"?", Desc:"key.help.more"},
+        disabled: false,
+    },
+    CloseFullHelp: key.Binding{
+        keys:     {"?"},
+        help:     key.Help{Key:"?", Desc:"key.help.close_help"},
+        disabled: false,
+    },
+    Quit: key.Binding{
+        keys:     {"q", "esc"},
+        help:     key.Help{Key:"q", Desc:"key.help.quit"},
+        disabled: false,
+    },
+    ForceQuit: key.Binding{
+        keys:     {"ctrl+c"},
+        help:     key.Help{},
+        disabled: false,
+    },
+}
+---
+
+[TestTranslatedInputKeyMap - 1]
+[]key.Binding{
+    {
+        keys:     {"tab"},
+        help:     key.Help{Key:"key.tab", Desc:"key.help.complete"},
+        disabled: false,
+    },
+    {
+        keys:     {"enter"},
+        help:     key.Help{Key:"key.enter", Desc:"key.help.accept"},
+        disabled: false,
+    },
+    {
+        keys:     {"ctrl+c/esc"},
+        help:     key.Help{Key:"key.ctrl_c/key.esc", Desc:"key.help.quit"},
+        disabled: false,
+    },
+}
+---
+
+[TestTranslatedInputKeyMap - 2]
+[][]key.Binding{
+    {
+        {
+            keys:     {"tab"},
+            help:     key.Help{Key:"key.tab", Desc:"key.help.complete"},
+            disabled: false,
+        },
+        {
+            keys:     {"enter"},
+            help:     key.Help{Key:"key.enter", Desc:"key.help.accept"},
+            disabled: false,
+        },
+        {
+            keys:     {"ctrl+c/esc"},
+            help:     key.Help{Key:"key.ctrl_c/key.esc", Desc:"key.help.quit"},
+            disabled: false,
+        },
+    },
+}
+---

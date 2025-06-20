@@ -1,0 +1,140 @@
+{
+  "app.description": {
+    "other": "Verwaltet Mods von Modrinth und Curseforge"
+  },
+  "cmd.help.error": {
+    "other": "Unbekanntes Hilfethema: {{.topic}}"
+  },
+  "cmd.help.template": {
+    "other": "Hilfe für den Befehl {{.command}} erhalten"
+  },
+  "cmd.help.usage.long": {
+    "other": "Help gibt Hilfe zu einem beliebigen Befehl der Anwendung.\nFür mehr Information einfach {{.appName}} help [command] eingeben."
+  },
+  "cmd.help.usage.short": {
+    "other": "Hilfe für den any Befehl erhalten"
+  },
+  "cmd.init.short": {
+    "other": "Initialisiert die Mod Manager Konfiguration"
+  },
+  "cmd.init.tui.game-version.invalid": {
+    "other": "Diese Minecraft-Version existiert nicht"
+  },
+  "cmd.init.tui.game-version.question": {
+    "other": "Welche genaue Minecraft-Version wird verwendet?"
+  },
+  "cmd.init.tui.loader.invalid": {
+    "other": "Ungültiger Loader angegeben"
+  },
+  "cmd.init.tui.loader.question": {
+    "other": "Welcher Loader soll verwendet werden?"
+  },
+  "cmd.init.tui.mods-folder.question": {
+    "other": "In welchem Ordner werden die Mods gespeichert?"
+  },
+  "cmd.init.tui.release-types.question": {
+    "other": "Welche Arten von Releases sollen heruntergeladen werden?"
+  },
+  "cmd.init.usage.game-version": {
+    "other": "Welche genaue Minecraft-Version wird verwendet? (Z.B.: 1.18.2, 1.19, 1.19.1)"
+  },
+  "cmd.init.usage.loader": {
+    "other": "Welcher Loader soll verwendet werden? Mögliche Optionen: {{.loaders}}"
+  },
+  "cmd.init.usage.mods-folder": {
+    "other": "Wo befindet sich der mods-Ordner? (Absoluter oder relativer Pfad ausgehend von {{.cwd}})"
+  },
+  "cmd.init.usage.release-types": {
+    "other": "Welche Arten von Releases sollen heruntergeladen werden können? (Durch Komma getrennte Liste)\nMögliche Optionen: {{.releaseTypes}}"
+  },
+  "cmd.version.short": {
+    "other": "Gibt die Versionsnummer von {{.appName}} aus"
+  },
+  "key.ctrl_c": {
+    "other": "Strg+C"
+  },
+  "key.ctrl_j": {
+    "other": "Strg+J"
+  },
+  "key.ctrl_k": {
+    "other": "STRG+K"
+  },
+  "key.down": {
+    "other": "Abwärts"
+  },
+  "key.enter": {
+    "other": "Eingabetaste"
+  },
+  "key.esc": {
+    "other": "Esc"
+  },
+  "key.help.accept": {
+    "other": "Bestätigen"
+  },
+  "key.help.apply_filter": {
+    "other": "Filter anwenden"
+  },
+  "key.help.cancel": {
+    "other": "Abbrechen"
+  },
+  "key.help.clear_filter": {
+    "other": "Filter leeren"
+  },
+  "key.help.close_help": {
+    "other": "Hilfe schließen"
+  },
+  "key.help.complete": {
+    "other": "Fertigstellen"
+  },
+  "key.help.down": {
+    "other": "Abwärts"
+  },
+  "key.help.filter": {
+    "other": "Filter"
+  },
+  "key.help.go_to_end": {
+    "other": "zum Ende springen"
+  },
+  "key.help.go_to_start": {
+    "other": "zum Start springen"
+  },
+  "key.help.more": {
+    "other": "mehr"
+  },
+  "key.help.page_next": {
+    "other": "nächste Seite"
+  },
+  "key.help.page_previous": {
+    "other": "vorherige Seite"
+  },
+  "key.help.quit": {
+    "other": "Beenden"
+  },
+  "key.help.up": {
+    "other": "Aufwärts"
+  },
+  "key.home": {
+    "other": "Pos1"
+  },
+  "key.left": {
+    "other": "Links"
+  },
+  "key.pgdown": {
+    "other": "Bild ↓"
+  },
+  "key.pgup": {
+    "other": "Bild ↑"
+  },
+  "key.right": {
+    "other": "Rechts"
+  },
+  "key.shift_tab": {
+    "other": "Umschalt+Tab"
+  },
+  "key.tab": {
+    "other": "Tab"
+  },
+  "key.up": {
+    "other": "Aufwärts"
+  }
+}

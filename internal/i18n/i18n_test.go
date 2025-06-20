@@ -30,6 +30,14 @@ func TestSimpleTranslations(t *testing.T) {
 		assert.Equal(t, "Hello World", actual)
 	})
 
+	t.Run("simple translation for tests", func(t *testing.T) {
+		//Assuming that all systems running the tests have
+		//English as their default language
+		t.Setenv("MMM_TEST", "true")
+		actual := T("test.simple")
+		assert.Equal(t, "test.simple", actual)
+	})
+
 	t.Run("simple translation to german", func(t *testing.T) {
 		//Assuming that all systems running the tests have
 		//English as their default language
@@ -80,6 +88,22 @@ func TestPluralsTranslations(t *testing.T) {
 		})
 		assert.Equal(t, "One message: in English but in German", one)
 
+	})
+
+	t.Run("plurals in test", func(t *testing.T) {
+		//Assuming that all systems running the tests have
+		//English as their default language
+		t.Setenv("MMM_TEST", "true")
+		noPlural := T("test.multiple", Tvars{
+			Data: &TData{"injectedData": "in English"},
+		})
+		assert.Equal(t, "test.multiple, Arg 1: {Count: 0, Data: &map[injectedData:in English]}", noPlural)
+
+		one := T("test.multiple", Tvars{
+			Count: 1,
+			Data:  &TData{"injectedData": "in English1"},
+		})
+		assert.Equal(t, "test.multiple, Arg 1: {Count: 1, Data: &map[injectedData:in English1]}", one)
 	})
 
 }

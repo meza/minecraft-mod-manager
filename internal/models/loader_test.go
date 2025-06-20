@@ -3,18 +3,14 @@ package models
 import (
 	"encoding/json"
 	"fmt"
+	"github.com/gkampitakis/go-snaps/snaps"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
 )
 
 func TestAllLoaders(t *testing.T) {
-	expected := []Loader{
-		BUKKIT, BUNGEECORD, CAULDRON, DATAPACK, FABRIC, FOLIA, FORGE, LITELOADER,
-		MODLOADER, NEOFORGE, PAPER, PURPUR, QUILT, RIFT, SPIGOT, SPONGE, VELOCITY, WATERFALL,
-	}
-	actual := AllLoaders()
-	assert.Equal(t, expected, actual, "AllLoaders should return all defined loaders")
+	snaps.MatchSnapshot(t, AllLoaders())
 }
 
 func TestLoaderMarshalJSON(t *testing.T) {
@@ -46,6 +42,9 @@ func TestLoaderMarshalJSON(t *testing.T) {
 
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
+
+			assert.Equal(t, test.expected, test.loader.String(), "string value mismatch")
+
 			actual, err := json.Marshal(test.loader)
 			assert.NoError(t, err, "unexpected error during marshaling")
 			assert.Equal(t, fmt.Sprintf(`"%s"`, test.expected), string(actual), "marshaled value mismatch")

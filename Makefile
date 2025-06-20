@@ -106,3 +106,6 @@ coverage-html: coverage
 lang-sync:
 	locize sync --ver latest --compare-modification-time true --update-values true --format flat --path ./internal/i18n/localise
 	go run cmd/lang/buildLang.go
+
+lang-build:
+	go run cmd/lang/buildLang.go

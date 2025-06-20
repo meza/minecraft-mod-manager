@@ -9,6 +9,7 @@ import (
 
 func TestMinecraft(t *testing.T) {
 	t.Run("GetLatestVersion_1", func(t *testing.T) {
+		latestManifest = nil
 		mockServer, _ := httpstest.NewServer([]string{
 			"launchermeta.mojang.com",
 		}, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
@@ -25,6 +26,7 @@ func TestMinecraft(t *testing.T) {
 	})
 
 	t.Run("IsValidVersion", func(t *testing.T) {
+		latestManifest = nil
 		mockServer, _ := httpstest.NewServer([]string{
 			"launchermeta.mojang.com",
 		}, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
@@ -57,12 +59,14 @@ func TestMinecraft(t *testing.T) {
 
 		assert.True(t, IsValidVersion("1.21.1", mockServer.Client()))
 		assert.False(t, IsValidVersion("1.21.2", mockServer.Client()))
+		assert.False(t, IsValidVersion("", mockServer.Client()))
 		assert.False(t, IsValidVersion("1.21.3", mockServer.Client()))
 		assert.True(t, IsValidVersion("24w33a", mockServer.Client()))
 
 	})
 
 	t.Run("GetAllMineCraftVersions", func(t *testing.T) {
+		latestManifest = nil
 		mockServer, _ := httpstest.NewServer([]string{
 			"launchermeta.mojang.com",
 		}, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
@@ -97,6 +101,7 @@ func TestMinecraft(t *testing.T) {
 	})
 
 	t.Run("GetLatestVersion_Error", func(t *testing.T) {
+		latestManifest = nil
 		mockServer, _ := httpstest.NewServer([]string{
 			"launchermeta.mojang.com",
 		}, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
@@ -114,6 +119,7 @@ func TestMinecraft(t *testing.T) {
 	})
 
 	t.Run("IsValidVersion_Error", func(t *testing.T) {
+		latestManifest = nil
 		mockServer, _ := httpstest.NewServer([]string{
 			"launchermeta.mojang.com",
 		}, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
@@ -128,10 +134,37 @@ func TestMinecraft(t *testing.T) {
 	})
 
 	t.Run("GetAllMineCraftVersions_Error", func(t *testing.T) {
+		latestManifest = nil
+		oldUrl := versionManifestUrl
 		versionManifestUrl = "xxx"
 		mockServer, _ := httpstest.NewServer([]string{}, nil)
 		defer mockServer.Close()
+		defer func() { versionManifestUrl = oldUrl }()
 
 		assert.Empty(t, GetAllMineCraftVersions(mockServer.Client()))
+	})
+
+	t.Run("Caching", func(t *testing.T) {
+		latestManifest = nil
+		callCount := 0
+		mockServer, _ := httpstest.NewServer([]string{
+			"launchermeta.mojang.com",
+		}, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			callCount++
+			w.Write([]byte(`{"latest":{"release":"1.21.2"}}`))
+		}))
+		defer mockServer.Close()
+
+		client := mockServer.Client()
+
+		// First call to populate the cache
+		_, err := getMinecraftVersionManifest(client)
+		assert.NoError(t, err)
+
+		// Second call should use the cached manifest
+		_, err = getMinecraftVersionManifest(client)
+		assert.NoError(t, err)
+
+		assert.Equal(t, 1, callCount, "server should be called only once")
 	})
 }

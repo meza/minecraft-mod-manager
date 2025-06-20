@@ -8,6 +8,7 @@ import (
 	i18nLib "github.com/nicksnyder/go-i18n/v2/i18n"
 	"golang.org/x/text/language"
 	"os"
+	"strings"
 )
 
 type LocaleProvider interface {
@@ -63,6 +64,12 @@ func setup() {
 
 func T(key string, args ...Tvars) string {
 
+	_, present := os.LookupEnv("MMM_TEST")
+
+	if present {
+		return formatKeyAndArgs(key, args...)
+	}
+
 	if localizer == nil {
 		setup()
 	}
@@ -108,4 +115,15 @@ func getUserLocales() []string {
 		}
 	}
 	return locales
+}
+
+func formatKeyAndArgs(key string, args ...Tvars) string {
+	var sb strings.Builder
+	sb.WriteString(key)
+
+	for i, arg := range args {
+		sb.WriteString(fmt.Sprintf(", Arg %d: {Count: %d, Data: %v}", i+1, arg.Count, arg.Data))
+	}
+
+	return sb.String()
 }

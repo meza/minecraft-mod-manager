@@ -2,7 +2,6 @@
 modlist-lock.json
 .mmmignore
 mods
-internal/i18n/lang
 internal/i18n/localise
 .locize
 

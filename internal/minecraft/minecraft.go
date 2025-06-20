@@ -27,9 +27,13 @@ type versionManifest struct {
 }
 
 var versionManifestUrl = "https://launchermeta.mojang.com/mc/game/version_manifest.json"
+var latestManifest *versionManifest
 
 func getMinecraftVersionManifest(client httpClient.Doer) (*versionManifest, error) {
 	defer perf.StartRegion("getMinecraftVersionManifest").End()
+	if latestManifest != nil {
+		return latestManifest, nil
+	}
 
 	request, _ := http.NewRequest("GET", versionManifestUrl, nil)
 
@@ -45,8 +49,8 @@ func getMinecraftVersionManifest(client httpClient.Doer) (*versionManifest, erro
 	if err != nil {
 		return nil, ManifestNotFound
 	}
-
-	return &manifest, nil
+	latestManifest = &manifest
+	return latestManifest, nil
 }
 
 func GetLatestVersion(client httpClient.Doer) (string, error) {
@@ -60,6 +64,10 @@ func GetLatestVersion(client httpClient.Doer) (string, error) {
 }
 
 func IsValidVersion(version string, client httpClient.Doer) bool {
+	if version == "" {
+		return false
+	}
+
 	manifest, err := getMinecraftVersionManifest(client)
 
 	if err != nil {
