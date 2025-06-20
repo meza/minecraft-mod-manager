@@ -1,10 +1,10 @@
 
 [TestNewAppModel - 1]
-──────────────────                       
-                    content              
-  ❯ Init                                 
-                                         
-                                         
-──────────────────                       
-↑/↓ Navigate • ↵ Select • Q Quit • H Help
+──────────────────                                      
+                     Select a command from the sidebar  
+  ❯ Init                                                
+                                                        
+                                                        
+──────────────────                                      
+↑/↓ Navigate • ↵ Select • Q Quit • H Help               
 ---

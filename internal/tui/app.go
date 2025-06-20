@@ -19,7 +19,7 @@ type Component struct {
 type AppModel struct {
 	width, height int
 	sidebar       list.Model
-	content       tea.Model
+    content       tea.Model
 	components    []Component
 }
 
@@ -40,11 +40,10 @@ func NewAppModel(components []Component) *AppModel {
 	l.Styles.PaginationStyle = PaginationStyle
 	l.KeyMap = TranslatedListKeyMap()
 
-	return &AppModel{
-		sidebar:    l,
-		content:    components[0].Model,
-		components: components,
-	}
+        return &AppModel{
+                sidebar:    l,
+                components: components,
+        }
 }
 
 func (m AppModel) Init() tea.Cmd { return nil }
@@ -58,10 +57,11 @@ func (m AppModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		m.sidebar.SetHeight(msg.Height - 1)
 	case tea.KeyMsg:
 		switch msg.String() {
-		case "enter":
-			if idx := m.sidebar.Index(); idx >= 0 && idx < len(m.components) {
-				m.content = m.components[idx].Model
-			}
+                case "enter":
+                        if idx := m.sidebar.Index(); idx >= 0 && idx < len(m.components) {
+                                m.content = m.components[idx].Model
+                                cmds = append(cmds, m.content.Init())
+                        }
 		case "q", "ctrl+c":
 			return m, tea.Quit
 		}
@@ -78,11 +78,17 @@ func (m AppModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 }
 
 func (m AppModel) View() string {
-	sidebar := SidebarStyle.Render(m.sidebar.View())
-	main := MainStyle.Width(m.width - sidebarWidth - 2).Height(m.height - 1).Render(m.content.View())
-	body := lipgloss.JoinHorizontal(lipgloss.Top, sidebar, main)
-	footer := FooterStyle.Width(m.width).Render("↑/↓ Navigate • ↵ Select • Q Quit • H Help")
-	return lipgloss.JoinVertical(lipgloss.Left, body, footer)
+        sidebar := SidebarStyle.Render(m.sidebar.View())
+        var content string
+        if m.content != nil {
+                content = m.content.View()
+        } else {
+                content = PlaceholderStyle.Render("Select a command from the sidebar")
+        }
+        main := MainStyle.Width(m.width - sidebarWidth - 2).Height(m.height - 1).Render(content)
+        body := lipgloss.JoinHorizontal(lipgloss.Top, sidebar, main)
+        footer := FooterStyle.Width(m.width).Render("↑/↓ Navigate • ↵ Select • Q Quit • H Help")
+        return lipgloss.JoinVertical(lipgloss.Left, body, footer)
 }
 
 type menuItem string
