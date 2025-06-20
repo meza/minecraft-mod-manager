@@ -1,1 +1,5 @@
-{}
+{
+  "tui.header": {
+    "other": "Minecraft Mod Manager"
+  }
+}

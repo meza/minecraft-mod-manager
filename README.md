@@ -25,6 +25,10 @@ You currently can
 - [automatically update mods](#update)
 - [change minecraft versions and uppdate the mods](#change)
 - [automatically recognize manually added files](#scan)
+### Terminal UI
+
+Running `mmm` without a subcommand opens an interactive terminal interface. Use the arrow keys to navigate and `q` to quit.
+
 
 Upcoming features:
 

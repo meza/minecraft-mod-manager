@@ -136,5 +136,8 @@
   },
   "key.up": {
     "other": "up"
+  },
+  "tui.header": {
+    "other": "Minecraft Mod Manager"
   }
 }

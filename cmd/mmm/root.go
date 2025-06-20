@@ -2,11 +2,13 @@ package mmm
 
 import (
 	"fmt"
+	tea "github.com/charmbracelet/bubbletea"
 	initCmd "github.com/meza/minecraft-mod-manager/cmd/mmm/init"
 	"github.com/meza/minecraft-mod-manager/cmd/mmm/version"
 	"github.com/meza/minecraft-mod-manager/internal/constants"
 	"github.com/meza/minecraft-mod-manager/internal/environment"
 	"github.com/meza/minecraft-mod-manager/internal/i18n"
+	"github.com/meza/minecraft-mod-manager/internal/tui"
 	"github.com/spf13/cobra"
 	"golang.org/x/term"
 	"os"
@@ -18,6 +20,11 @@ func Command() *cobra.Command {
 		Use:     constants.COMMAND_NAME,
 		Short:   i18n.T("app.description"),
 		Version: environment.AppVersion(),
+		RunE: func(cmd *cobra.Command, _ []string) error {
+			program := tea.NewProgram(tui.NewAppModel())
+			_, err := program.Run()
+			return err
+		},
 	}
 
 	rootCmd.SetVersionTemplate("{{.Version}}\n")
