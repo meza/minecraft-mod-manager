@@ -36,8 +36,7 @@ func runTUI(cmd *cobra.Command, _ []string) {
 		cmd.Flag("release-types").Value.String(),
 		cmd.Flag("mods-folder").Value.String(),
 	)
-
-	err := tui.RunApp([]tui.Component{{Name: "Init", Model: model}})
+	err := tui.RunApp([]tui.Component{{Name: i18n.T("cmd.init.short"), Model: model}})
 	if err != nil {
 		fmt.Println("Error running program:", err)
 		os.Exit(1)
@@ -78,4 +77,11 @@ func getAllLoaders() string {
 	}
 
 	return loaderList
+}
+
+func Component() tui.Component {
+	return tui.Component{
+		Name:  i18n.T("cmd.init.short"),
+		Model: NewModel("", "", "", ""),
+	}
 }

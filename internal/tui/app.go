@@ -32,6 +32,8 @@ func NewAppModel(components []Component) *AppModel {
 	l := list.New(items, menuDelegate{}, sidebarWidth, 0)
 	l.SetShowStatusBar(false)
 	l.SetFilteringEnabled(false)
+	l.SetShowTitle(false)
+	l.SetShowHelp(false)
 	l.Styles.Title = TitleStyle
 	l.Styles.TitleBar = TitleStyle
 	l.Styles.HelpStyle = HelpStyle
