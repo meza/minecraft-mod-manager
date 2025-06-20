@@ -3,7 +3,7 @@ module github.com/meza/minecraft-mod-manager
 go 1.22.6
 
 require (
-	github.com/charmbracelet/bubbles v0.19.0
+	github.com/charmbracelet/bubbles v0.21.0
 	github.com/charmbracelet/bubbletea v0.27.1
 	github.com/charmbracelet/lipgloss v0.13.0
 	github.com/charmbracelet/x/term v0.2.0
