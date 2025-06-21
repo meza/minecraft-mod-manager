@@ -21,6 +21,8 @@ type LoaderModel struct {
 	Value models.Loader
 }
 
+var termSizeFn = term.GetSize
+
 func (m LoaderModel) Init() tea.Cmd {
 	return nil
 }
@@ -66,6 +68,13 @@ func (m LoaderModel) loaderSelected() tea.Cmd {
 	}
 }
 
+func (m LoaderModel) Help() string { return m.list.Help.View(m.list) }
+
+func (m LoaderModel) SetSize(width, _ int) LoaderModel {
+	m.list.SetWidth(width)
+	return m
+}
+
 type itemDelegate struct{}
 
 func (d itemDelegate) Height() int                             { return 1 }
@@ -92,7 +101,7 @@ type loaderType string
 func (i loaderType) FilterValue() string { return "" }
 
 func NewLoaderModel(loader string) LoaderModel {
-	width, _, _ := term.GetSize(os.Stdout.Fd())
+	width, _, _ := termSizeFn(os.Stdout.Fd())
 
 	loaderOptions := models.AllLoaders()
 	items := make([]list.Item, 0)

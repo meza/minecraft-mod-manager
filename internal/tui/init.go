@@ -8,13 +8,16 @@ import (
 type state int
 
 const (
-	stateLoader state = iota
+	stateModsFolder state = iota
+	stateLoader
 	stateGameVersion
 	done
 )
 
 type InitModel struct {
 	state               state
+	width, height       int
+	modsFolderQuestion  ModsFolderModel
 	loaderQuestion      LoaderModel
 	gameVersionQuestion GameVersionModel
 }
@@ -22,26 +25,18 @@ type InitModel struct {
 func (m InitModel) Init() tea.Cmd {
 	return nil
 }
-
 func (m InitModel) View() string {
-	stringBuilder := strings.Builder{}
-	stringBuilder.WriteString(m.loaderQuestion.View())
-
-	switch m.state {
-	case stateLoader:
-		return stringBuilder.String()
-	case stateGameVersion:
-		stringBuilder.WriteString("\n")
-		stringBuilder.WriteString(m.gameVersionQuestion.View())
-	case done:
-		stringBuilder.WriteString("\n")
-		stringBuilder.WriteString(m.gameVersionQuestion.View())
+	var sb strings.Builder
+	sb.WriteString(m.modsFolderQuestion.View())
+	if m.state >= stateLoader {
+		sb.WriteString("\n")
+		sb.WriteString(m.loaderQuestion.View())
 	}
-
-	stringBuilder.WriteString("\n")
-	stringBuilder.WriteString("\n")
-	return stringBuilder.String()
-
+	if m.state >= stateGameVersion {
+		sb.WriteString("\n")
+		sb.WriteString(m.gameVersionQuestion.View())
+	}
+	return sb.String()
 }
 
 func (m InitModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
@@ -50,6 +45,8 @@ func (m InitModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	var cmd tea.Cmd
 
 	switch msg := msg.(type) {
+	case ModsFolderSelectedMessage:
+		m.state = stateLoader
 	case LoaderSelectedMessage:
 		m.state = stateGameVersion
 	case GameVersionSelectedMessage:
@@ -62,6 +59,8 @@ func (m InitModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	}
 
 	switch m.state {
+	case stateModsFolder:
+		m.modsFolderQuestion, cmd = m.modsFolderQuestion.Update(msg)
 	case stateLoader:
 		m.loaderQuestion, cmd = m.loaderQuestion.Update(msg)
 	case stateGameVersion:
@@ -76,6 +75,7 @@ func (m InitModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 
 func NewInitModel(loader string, gameVersion string, releaseTypes string, modsFolder string) *InitModel {
 	model := &InitModel{
+		modsFolderQuestion:  NewModsFolderModel(modsFolder),
 		loaderQuestion:      NewLoaderModel(loader),
 		gameVersionQuestion: NewGameVersionModel(gameVersion),
 		//selectedReleaseTypes: parseReleaseTypes(releaseTypes),
@@ -84,4 +84,25 @@ func NewInitModel(loader string, gameVersion string, releaseTypes string, modsFo
 
 	return model
 
+}
+
+func (m InitModel) Help() string {
+	switch m.state {
+	case stateModsFolder:
+		return m.modsFolderQuestion.Help()
+	case stateLoader:
+		return m.loaderQuestion.Help()
+	case stateGameVersion:
+		return m.gameVersionQuestion.Help()
+	default:
+		return ""
+	}
+}
+
+func (m *InitModel) SetSize(width, height int) {
+	m.width, m.height = width, height
+	ws := tea.WindowSizeMsg{Width: width, Height: height}
+	m.modsFolderQuestion, _ = m.modsFolderQuestion.Update(ws)
+	m.loaderQuestion, _ = m.loaderQuestion.Update(ws)
+	m.gameVersionQuestion, _ = m.gameVersionQuestion.Update(ws)
 }

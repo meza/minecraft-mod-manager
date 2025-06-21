@@ -23,6 +23,8 @@ type GameVersionModel struct {
 	Value  string
 }
 
+var validVersionFn = minecraft.IsValidVersion
+
 func (m GameVersionModel) Init() tea.Cmd {
 	return nil
 }
@@ -121,8 +123,15 @@ func isValidMinecraftVersion(value string) error {
 		return fmt.Errorf(i18n.T("cmd.init.tui.game-version.error"))
 	}
 
-	if !minecraft.IsValidVersion(value, http.DefaultClient) {
+	if !validVersionFn(value, http.DefaultClient) {
 		return fmt.Errorf(i18n.T("cmd.init.tui.game-version.invalid"))
 	}
 	return nil
+}
+
+func (m GameVersionModel) Help() string { return m.help.View(m.keymap) }
+
+func (m GameVersionModel) SetSize(width, _ int) GameVersionModel {
+	m.input.Width = width
+	return m
 }
