@@ -7,6 +7,26 @@
 
 ## Core Development Principles
 
+### Project philosophy
+
+- The project is meant to be used in automated settings on the command line. Therefore when it is executed with a specific command and all of its required arguments, it should do exactly what the user expects it to do with no user interface.
+- When the user runs the tool with no arguments, it should start the interactive terminal user interface (TUI) that allows the user to interactively select what they want to do.
+- The tool should focus on providing a good and inclusive user experience, with clear error messages and helpful prompts.
+
+### Design Principles
+
+- **Simplicity**: Keep the codebase simple and easy to understand.
+- **Consistency**: Follow established patterns and conventions throughout the codebase.
+- **Testability**: Ensure that all code is easily testable, with a focus on unit tests.
+- **Maintainability**: Write code that is easy to maintain and extend in the future.
+- **Documentation**: Keep documentation up to date and clear, especially for new features and changes.
+- **Error Handling**: Implement robust error handling to provide clear feedback to users and developers.
+- **Performance**: Optimize for performance where necessary, but prioritize clarity and maintainability.
+- **Security**: Follow best practices for security, especially when handling user data or network requests.
+- **Modularity**: Structure the code in a modular way to allow for easy updates and changes without affecting the entire codebase.
+- **Monitoring**: Using the telemetry system to monitor usage patterns and improve the user experience based on real data.
+- **Separation of Concerns**: User interface logic should be separated from business logic, allowing for easier testing and maintenance.
+
 ### Commit Guidelines
 
 When constructing commit messages, please adhere to the following guidelines:
