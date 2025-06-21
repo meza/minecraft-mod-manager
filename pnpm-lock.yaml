@@ -64,8 +64,8 @@ importers:
         specifier: 9.8.0
         version: 9.8.0
       '@inquirer/testing':
-        specifier: 2.1.40
-        version: 2.1.40(@types/node@22.15.31)
+        specifier: 2.1.47
+        version: 2.1.47(@types/node@22.15.31)
       '@liudonghua123/pkg':
         specifier: 6.0.1
         version: 6.0.1(encoding@0.1.13)
@@ -775,11 +775,14 @@ packages:
       '@types/node':
         optional: true
 
-  '@inquirer/testing@2.1.40':
-    resolution: {integrity: sha512-QgDwJYDGa5cz/sS4aRKiy1H850967IOAP+E26JUerhMHQgj6EH8jUtRkUxb0MTjTBCeY2XQxGRpYWmro+wSv0w==}
+  '@inquirer/testing@2.1.47':
+    resolution: {integrity: sha512-hcMbU8XjIZeeWp6nojSCZ59DEaFy7nO2K0h6Plqg2WJDkt4XZ0kzwVbLF3aEgw4+DlNBNhE73xCWfpKp7DhRyg==}
     engines: {node: '>=18'}
     peerDependencies:
       '@types/node': '>=18'
+    peerDependenciesMeta:
+      '@types/node':
+        optional: true
 
   '@inquirer/type@3.0.7':
     resolution: {integrity: sha512-PfunHQcjwnju84L+ycmcMKB/pTPIngjUJvfnRhKY6FKPuYXlM4aQCb/nIdTFR6BEhMjFvngzvng/vBAJMZpLSA==}
@@ -4217,13 +4220,13 @@ snapshots:
     optionalDependencies:
       '@types/node': 22.15.31
 
-  '@inquirer/testing@2.1.40(@types/node@22.15.31)':
+  '@inquirer/testing@2.1.47(@types/node@22.15.31)':
     dependencies:
       '@inquirer/type': 3.0.7(@types/node@22.15.31)
-      '@types/node': 22.15.31
       ansi-escapes: 4.3.2
       mute-stream: 2.0.0
-      strip-ansi: 6.0.1
+    optionalDependencies:
+      '@types/node': 22.15.31
 
   '@inquirer/type@3.0.7(@types/node@22.15.31)':
     optionalDependencies:
