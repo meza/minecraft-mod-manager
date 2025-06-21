@@ -1,4 +1,4 @@
-package init
+package tui
 
 import (
 	"fmt"
@@ -7,7 +7,6 @@ import (
 	"github.com/charmbracelet/x/term"
 	"github.com/meza/minecraft-mod-manager/internal/i18n"
 	"github.com/meza/minecraft-mod-manager/internal/models"
-	"github.com/meza/minecraft-mod-manager/internal/tui"
 	"io"
 	"os"
 )
@@ -52,7 +51,7 @@ func (m LoaderModel) Update(msg tea.Msg) (LoaderModel, tea.Cmd) {
 func (m LoaderModel) View() string {
 
 	if m.Value != "" {
-		return fmt.Sprintf("%s %s", m.Title(), tui.SelectedItemStyle.Render(string(m.Value)))
+		return fmt.Sprintf("%s %s", m.Title(), SelectedItemStyle.Render(string(m.Value)))
 	}
 	return m.list.View()
 }
@@ -81,11 +80,11 @@ func (d itemDelegate) Render(w io.Writer, m list.Model, itemIndex int, listItem 
 	itemLine := fmt.Sprintf("%s", item)
 
 	if itemIndex == m.Index() {
-		fmt.Fprint(w, tui.SelectedItemStyle.Render("❯ "+itemLine))
+		fmt.Fprint(w, SelectedItemStyle.Render("❯ "+itemLine))
 		return
 	}
 
-	fmt.Fprint(w, tui.ItemStyle.Render(itemLine))
+	fmt.Fprint(w, ItemStyle.Render(itemLine))
 }
 
 type loaderType string
@@ -103,14 +102,14 @@ func NewLoaderModel(loader string) LoaderModel {
 	}
 
 	listModel := list.New(items, itemDelegate{}, width, 14)
-	listModel.Title = tui.QuestionStyle.Render("? ") + tui.TitleStyle.Render(i18n.T("cmd.init.tui.loader.question"))
+	listModel.Title = QuestionStyle.Render("? ") + TitleStyle.Render(i18n.T("cmd.init.tui.loader.question"))
 	listModel.SetShowStatusBar(false)
 	listModel.SetShowTitle(true)
-	listModel.Styles.Title = tui.TitleStyle
-	listModel.Styles.TitleBar = tui.TitleStyle
-	listModel.Styles.PaginationStyle = tui.PaginationStyle
-	listModel.Styles.HelpStyle = tui.HelpStyle
-	listModel.KeyMap = tui.TranslatedListKeyMap()
+	listModel.Styles.Title = TitleStyle
+	listModel.Styles.TitleBar = TitleStyle
+	listModel.Styles.PaginationStyle = PaginationStyle
+	listModel.Styles.HelpStyle = HelpStyle
+	listModel.KeyMap = TranslatedListKeyMap()
 
 	model := LoaderModel{
 		list: listModel,

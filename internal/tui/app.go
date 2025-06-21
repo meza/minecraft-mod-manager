@@ -61,8 +61,6 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			if msg.String() == "q" || msg.String() == "Q" {
 				return m, tea.Quit
 			}
-		default:
-			panic("unhandled default case")
 		}
 
 	case tea.WindowSizeMsg:
@@ -73,7 +71,6 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 }
 
 func (m model) modlistStatusText() string {
-	//return "shit"
 	if m.modlistPresent {
 		return "Yes"
 	}

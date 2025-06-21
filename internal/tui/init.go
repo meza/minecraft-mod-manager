@@ -1,4 +1,4 @@
-package init
+package tui
 
 import (
 	tea "github.com/charmbracelet/bubbletea"
@@ -13,17 +13,17 @@ const (
 	done
 )
 
-type CommandModel struct {
+type InitModel struct {
 	state               state
 	loaderQuestion      LoaderModel
 	gameVersionQuestion GameVersionModel
 }
 
-func (m CommandModel) Init() tea.Cmd {
+func (m InitModel) Init() tea.Cmd {
 	return nil
 }
 
-func (m CommandModel) View() string {
+func (m InitModel) View() string {
 	stringBuilder := strings.Builder{}
 	stringBuilder.WriteString(m.loaderQuestion.View())
 
@@ -44,7 +44,7 @@ func (m CommandModel) View() string {
 
 }
 
-func (m CommandModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
+func (m InitModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	var cmds []tea.Cmd
 
 	var cmd tea.Cmd
@@ -74,8 +74,8 @@ func (m CommandModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	return m, tea.Batch(cmds...)
 }
 
-func NewModel(loader string, gameVersion string, releaseTypes string, modsFolder string) *CommandModel {
-	model := &CommandModel{
+func NewInitModel(loader string, gameVersion string, releaseTypes string, modsFolder string) *InitModel {
+	model := &InitModel{
 		loaderQuestion:      NewLoaderModel(loader),
 		gameVersionQuestion: NewGameVersionModel(gameVersion),
 		//selectedReleaseTypes: parseReleaseTypes(releaseTypes),
