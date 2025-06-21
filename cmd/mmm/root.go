@@ -7,6 +7,7 @@ import (
 	"github.com/meza/minecraft-mod-manager/internal/constants"
 	"github.com/meza/minecraft-mod-manager/internal/environment"
 	"github.com/meza/minecraft-mod-manager/internal/i18n"
+	"github.com/meza/minecraft-mod-manager/internal/tui"
 	"github.com/spf13/cobra"
 	"golang.org/x/term"
 	"os"
@@ -18,7 +19,9 @@ func Command() *cobra.Command {
 		Use:     constants.COMMAND_NAME,
 		Short:   i18n.T("app.description"),
 		Version: environment.AppVersion(),
+		RunE:    runRoot,
 	}
+	cobra.MousetrapHelpText = "" // allow the app to run in windows by clicking the exe
 
 	rootCmd.SetVersionTemplate("{{.Version}}\n")
 	rootCmd.AddCommand(initCmd.Command())
@@ -77,4 +80,9 @@ func fixFlagUsageAlignment(rootCmd *cobra.Command) {
 
 func Execute() error {
 	return Command().Execute()
+}
+
+func runRoot(_ *cobra.Command, _ []string) error {
+	_, err := tui.RunApp().Run()
+	return err
 }
