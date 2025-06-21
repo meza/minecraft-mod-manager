@@ -17,12 +17,23 @@ type LoaderSelectedMessage struct {
 
 type LoaderModel struct {
 	tea.Model
-	list  list.Model
-	Value models.Loader
+	list    list.Model
+	Value   models.Loader
+	focused bool
 }
 
 func (m LoaderModel) Init() tea.Cmd {
 	return nil
+}
+
+func (m LoaderModel) Focus() {
+	m.focused = true
+	m.list.SetShowHelp(true)
+}
+
+func (m LoaderModel) Blur() {
+	m.focused = false
+	m.list.SetShowHelp(false)
 }
 
 func (m LoaderModel) Update(msg tea.Msg) (LoaderModel, tea.Cmd) {
@@ -64,6 +75,13 @@ func (m LoaderModel) loaderSelected() tea.Cmd {
 	return func() tea.Msg {
 		return LoaderSelectedMessage{Loader: m.Value}
 	}
+}
+
+func (m LoaderModel) HelpView() string {
+	if m.focused {
+		return m.list.Help.View(m.list)
+	}
+	return ""
 }
 
 type itemDelegate struct{}

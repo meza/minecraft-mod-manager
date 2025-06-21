@@ -50,3 +50,13 @@ func TestRunApp(t *testing.T) {
 		t.Fatalf("expected program")
 	}
 }
+
+func TestUpdateBranches(t *testing.T) {
+	m := model{wizard: NewInitModel("", "", "", "")}
+	_, _ = m.Update(modlistStatusMsg(true))
+	_, _ = m.Update(cwdMsg("/tmp"))
+	_, _ = m.Update(tea.KeyMsg{Type: tea.KeyCtrlC})
+	_, _ = m.Update(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune{'q'}})
+	_, _ = m.Update(tea.WindowSizeMsg{Width: 10, Height: 5})
+	_ = m.View()
+}

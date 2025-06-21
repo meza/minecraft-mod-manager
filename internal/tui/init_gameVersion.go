@@ -16,16 +16,20 @@ type GameVersionSelectedMessage struct {
 
 type GameVersionModel struct {
 	tea.Model
-	input  textinput.Model
-	help   help.Model
-	keymap TranslatedInputKeyMap
-	error  error
-	Value  string
+	input   textinput.Model
+	help    help.Model
+	keymap  TranslatedInputKeyMap
+	error   error
+	Value   string
+	focused bool
 }
 
 func (m GameVersionModel) Init() tea.Cmd {
 	return nil
 }
+
+func (m GameVersionModel) Focus() { m.focused = true }
+func (m GameVersionModel) Blur()  { m.focused = false }
 
 func (m GameVersionModel) Update(msg tea.Msg) (GameVersionModel, tea.Cmd) {
 	var cmd tea.Cmd
@@ -80,7 +84,10 @@ func (m GameVersionModel) View() string {
 		errorString = ErrorStyle.Render(" <- " + m.error.Error())
 	}
 
-	return fmt.Sprintf("%s%s\n\n%s", m.input.View(), errorString, m.help.View(m.keymap))
+	if m.focused {
+		return fmt.Sprintf("%s%s\n\n%s", m.input.View(), errorString, m.help.View(m.keymap))
+	}
+	return fmt.Sprintf("%s%s", m.input.View(), errorString)
 }
 
 func (m GameVersionModel) gameVersionSelected() tea.Cmd {
@@ -88,6 +95,13 @@ func (m GameVersionModel) gameVersionSelected() tea.Cmd {
 	return func() tea.Msg {
 		return GameVersionSelectedMessage{GameVersion: m.Value}
 	}
+}
+
+func (m GameVersionModel) HelpView() string {
+	if m.focused {
+		return m.help.View(m.keymap)
+	}
+	return ""
 }
 
 func NewGameVersionModel(gameVersion string) GameVersionModel {
@@ -108,6 +122,7 @@ func NewGameVersionModel(gameVersion string) GameVersionModel {
 		help:   help.New(),
 		keymap: TranslatedInputKeyMap{},
 	}
+	model.Focus()
 
 	if minecraft.IsValidVersion(gameVersion, http.DefaultClient) {
 		model.Value = gameVersion

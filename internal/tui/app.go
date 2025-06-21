@@ -15,6 +15,7 @@ type model struct {
 	width, height  int
 	modlistPresent bool
 	cwd            string
+	wizard         *InitModel
 }
 
 func cwdCmd() tea.Cmd {
@@ -66,6 +67,19 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	case tea.WindowSizeMsg:
 		m.width = msg.Width
 		m.height = msg.Height
+		if m.wizard != nil {
+			contentWidth := m.width - SidebarStyle.GetWidth()
+			m.wizard.SetSize(contentWidth)
+		}
+	}
+	if m.wizard != nil {
+		var cmd tea.Cmd
+		var mdl tea.Model
+		mdl, cmd = m.wizard.Update(msg)
+		if w, ok := mdl.(*InitModel); ok {
+			m.wizard = w
+		}
+		return m, cmd
 	}
 	return m, nil
 }
@@ -100,12 +114,20 @@ func (m model) View() string {
 		PaddingTop(0).
 		Render("Sidebar")
 
-	content := lipgloss.NewStyle().
-		Width(m.width-lipgloss.Width(sidebar)).
+	contentWidth := m.width - lipgloss.Width(sidebar)
+	var content string
+	if m.wizard != nil {
+		m.wizard.SetSize(contentWidth)
+		content = m.wizard.View()
+	} else {
+		content = "content"
+	}
+	content = lipgloss.NewStyle().
+		Width(contentWidth).
 		Height(m.height-lipgloss.Height(header)-lipgloss.Height(footer)).
 		Align(lipgloss.Left, lipgloss.Top).
 		PaddingTop(0).
-		Render("content")
+		Render(content)
 
 	main := lipgloss.JoinHorizontal(lipgloss.Top, sidebar, content)
 
@@ -113,5 +135,5 @@ func (m model) View() string {
 }
 
 func RunApp() *tea.Program {
-	return tea.NewProgram(model{}, tea.WithAltScreen())
+	return tea.NewProgram(model{wizard: NewInitModel("", "", "", "")}, tea.WithAltScreen())
 }
