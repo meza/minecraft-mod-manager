@@ -15,4 +15,18 @@ var (
 	HelpStyle         = list.DefaultStyles().HelpStyle.PaddingLeft(2).PaddingBottom(1)
 	PlaceholderStyle  = lipgloss.NewStyle().Foreground(lipgloss.Color("#767676")).PaddingLeft(1)
 	ErrorStyle        = lipgloss.NewStyle().Foreground(lipgloss.Color("#ff0000")).Bold(true)
+
+	SidebarStyle = lipgloss.NewStyle().
+			Padding(1, 2).
+			Width(18).
+			Border(lipgloss.NormalBorder(), true, false, true, false).
+			BorderForeground(lipgloss.Color("240")).
+			Background(lipgloss.Color("235"))
+
+	MainStyle = lipgloss.NewStyle().
+			Padding(1, 2)
+
+	FooterStyle = lipgloss.NewStyle().
+			Foreground(lipgloss.Color("250")).
+			Background(lipgloss.Color("236"))
 )

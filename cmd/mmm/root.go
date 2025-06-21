@@ -7,6 +7,7 @@ import (
 	"github.com/meza/minecraft-mod-manager/internal/constants"
 	"github.com/meza/minecraft-mod-manager/internal/environment"
 	"github.com/meza/minecraft-mod-manager/internal/i18n"
+	"github.com/meza/minecraft-mod-manager/internal/tui"
 	"github.com/spf13/cobra"
 	"golang.org/x/term"
 	"os"
@@ -18,6 +19,7 @@ func Command() *cobra.Command {
 		Use:     constants.COMMAND_NAME,
 		Short:   i18n.T("app.description"),
 		Version: environment.AppVersion(),
+		RunE:    runRoot,
 	}
 
 	rootCmd.SetVersionTemplate("{{.Version}}\n")
@@ -73,6 +75,12 @@ func fixFlagUsageAlignment(rootCmd *cobra.Command) {
 	usageTemplate := rootCmd.UsageTemplate()
 	usageTemplate = strings.ReplaceAll(usageTemplate, ".FlagUsages", fmt.Sprintf(".FlagUsagesWrapped %d", width))
 	rootCmd.SetUsageTemplate(usageTemplate)
+}
+
+func runRoot(_ *cobra.Command, _ []string) error {
+	return tui.RunApp([]tui.Component{
+		initCmd.Component(),
+	})
 }
 
 func Execute() error {

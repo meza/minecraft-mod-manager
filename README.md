@@ -99,7 +99,7 @@ For the best results, put the downloaded executable into your minecraft folder i
 
 ## Running
 
-To use the tool, **you need to have a command line / terminal open** and be in the folder where the tool is.
+To use the tool, **you need to have a command line / terminal open** and be in the folder where the tool is. Running `mmm` without any arguments will open a navigable interface where you can trigger the available commands.
 
 <details>
 <summary>Click for help with opening a terminal in Windows</summary>
