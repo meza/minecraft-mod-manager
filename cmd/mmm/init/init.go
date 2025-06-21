@@ -5,6 +5,7 @@ import (
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/meza/minecraft-mod-manager/internal/i18n"
 	"github.com/meza/minecraft-mod-manager/internal/models"
+	"github.com/meza/minecraft-mod-manager/internal/tui"
 	"github.com/spf13/cobra"
 	"os"
 )
@@ -30,7 +31,7 @@ func Command() *cobra.Command {
 }
 
 func runTUI(cmd *cobra.Command, _ []string) {
-	model := NewModel(
+	model := tui.NewInitModel(
 		cmd.Flag("loader").Value.String(),
 		cmd.Flag("game-version").Value.String(),
 		cmd.Flag("release-types").Value.String(),

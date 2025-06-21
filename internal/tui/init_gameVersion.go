@@ -1,4 +1,4 @@
-package init
+package tui
 
 import (
 	"fmt"
@@ -7,7 +7,6 @@ import (
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/meza/minecraft-mod-manager/internal/i18n"
 	"github.com/meza/minecraft-mod-manager/internal/minecraft"
-	"github.com/meza/minecraft-mod-manager/internal/tui"
 	"net/http"
 )
 
@@ -19,7 +18,7 @@ type GameVersionModel struct {
 	tea.Model
 	input  textinput.Model
 	help   help.Model
-	keymap tui.TranslatedInputKeyMap
+	keymap TranslatedInputKeyMap
 	error  error
 	Value  string
 }
@@ -72,13 +71,13 @@ func (m GameVersionModel) Update(msg tea.Msg) (GameVersionModel, tea.Cmd) {
 
 func (m GameVersionModel) View() string {
 	if m.Value != "" {
-		return fmt.Sprintf("%s%s", m.input.Prompt, tui.SelectedItemStyle.Render(m.Value))
+		return fmt.Sprintf("%s%s", m.input.Prompt, SelectedItemStyle.Render(m.Value))
 	}
 
 	errorString := ""
 
 	if m.error != nil {
-		errorString = tui.ErrorStyle.Render(" <- " + m.error.Error())
+		errorString = ErrorStyle.Render(" <- " + m.error.Error())
 	}
 
 	return fmt.Sprintf("%s%s\n\n%s", m.input.View(), errorString, m.help.View(m.keymap))
@@ -97,9 +96,9 @@ func NewGameVersionModel(gameVersion string) GameVersionModel {
 	allVersions := minecraft.GetAllMineCraftVersions(http.DefaultClient)
 
 	m := textinput.New()
-	m.Prompt = tui.QuestionStyle.Render("? ") + tui.TitleStyle.Render(i18n.T("cmd.init.tui.game-version.question")) + " "
+	m.Prompt = QuestionStyle.Render("? ") + TitleStyle.Render(i18n.T("cmd.init.tui.game-version.question")) + " "
 	m.Placeholder = latestVersion
-	m.PlaceholderStyle = tui.PlaceholderStyle
+	m.PlaceholderStyle = PlaceholderStyle
 	m.ShowSuggestions = true
 	m.SetSuggestions(allVersions)
 	m.Focus()
@@ -107,7 +106,7 @@ func NewGameVersionModel(gameVersion string) GameVersionModel {
 	model := GameVersionModel{
 		input:  m,
 		help:   help.New(),
-		keymap: tui.TranslatedInputKeyMap{},
+		keymap: TranslatedInputKeyMap{},
 	}
 
 	if minecraft.IsValidVersion(gameVersion, http.DefaultClient) {
