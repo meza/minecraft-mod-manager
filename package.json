@@ -93,7 +93,7 @@
     "npm-run-all2": "8.0.4",
     "pnpm": "10.12.4",
     "rimraf": "6.0.1",
-    "semantic-release": "24.2.5",
+    "semantic-release": "24.2.6",
     "semantic-release-export-data": "1.1.0",
     "ts-node": "10.9.2",
     "tsx": "4.20.3",
