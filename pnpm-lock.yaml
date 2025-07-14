@@ -21,8 +21,8 @@ importers:
         specifier: 12.1.0
         version: 12.1.0
       core-js:
-        specifier: 3.43.0
-        version: 3.43.0
+        specifier: 3.44.0
+        version: 3.44.0
       dotenv:
         specifier: 16.6.1
         version: 16.6.1
@@ -1521,8 +1521,8 @@ packages:
   core-js@3.42.0:
     resolution: {integrity: sha512-Sz4PP4ZA+Rq4II21qkNqOEDTDrCvcANId3xpIgB34NDkWc3UduWj2dqEtN9yZIq8Dk3HyPI33x9sqqU5C8sr0g==}
 
-  core-js@3.43.0:
-    resolution: {integrity: sha512-N6wEbTTZSYOY2rYAn85CuvWWkCK6QweMn7/4Nr3w+gDBeBhk/x4EJeY6FPo4QzDoJZxVTv8U7CMvgWk6pOHHqA==}
+  core-js@3.44.0:
+    resolution: {integrity: sha512-aFCtd4l6GvAXwVEh3XbbVqJGHDJt0OZRa+5ePGx3LLwi12WfexqQxcsohb2wgsa/92xtl19Hd66G/L+TaAxDMw==}
 
   core-util-is@1.0.3:
     resolution: {integrity: sha512-ZQBvi1DcpJ4GDqanjucZ2Hj3wEO5pZDS89BWbkcrvdxksJorwUDDZamX9ldFkp9aw2lmBDLgkObEA4DWNJ9FYQ==}
@@ -4330,7 +4330,7 @@ snapshots:
     dependencies:
       '@types/node': 18.19.54
       bindings: 1.5.0
-      core-js: 3.43.0
+      core-js: 3.44.0
       node-gyp: 9.4.1
       node-gyp-build: 4.8.2
       prebuild-install: 7.1.2
@@ -5086,7 +5086,7 @@ snapshots:
 
   core-js@3.42.0: {}
 
-  core-js@3.43.0: {}
+  core-js@3.44.0: {}
 
   core-util-is@1.0.3: {}
 
