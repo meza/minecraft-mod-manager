@@ -42,8 +42,8 @@ importers:
         specifier: 4.13.0
         version: 4.13.0
       posthog-node:
-        specifier: 5.2.1
-        version: 5.2.1
+        specifier: 5.3.1
+        version: 5.3.1
       zod:
         specifier: 3.25.75
         version: 3.25.75
@@ -2949,8 +2949,8 @@ packages:
     resolution: {integrity: sha512-56rxCq7G/XfB4EkXq9Egn5GCqugWvDFjafDOThIdMBsI15iqPqR5r15TfSr1YPYeEI19YeaXMCbY6u88Y76GLQ==}
     engines: {node: ^10 || ^12 || >=14}
 
-  posthog-node@5.2.1:
-    resolution: {integrity: sha512-rhIDgu9CBmYa8dOYmc4E/lcqlp7asnjV4FpQweDUz84RUoQP33cWqsMXkxgCNhiR3SXnzn2g7O82oIIps1qjFw==}
+  posthog-node@5.3.1:
+    resolution: {integrity: sha512-rCGf5Od7+lLHYLQvkBXrHt2Q8vuf0hzs95HLzDwqLQMltNxatqDxK1vPWbpa5YoEUxhiGoikTQ1cEbqCkEV+kA==}
     engines: {node: '>=20'}
 
   prebuild-install@7.1.1:
@@ -6468,7 +6468,7 @@ snapshots:
       picocolors: 1.1.0
       source-map-js: 1.2.1
 
-  posthog-node@5.2.1: {}
+  posthog-node@5.3.1: {}
 
   prebuild-install@7.1.1:
     dependencies:
