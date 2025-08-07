@@ -9,8 +9,8 @@ importers:
   .:
     dependencies:
       '@inquirer/prompts':
-        specifier: 7.7.0
-        version: 7.7.0(@types/node@22.17.0)
+        specifier: 7.8.0
+        version: 7.8.0(@types/node@22.17.0)
       '@meza/curseforge-fingerprint':
         specifier: 1.1.42
         version: 1.1.42
@@ -732,8 +732,8 @@ packages:
       '@types/node':
         optional: true
 
-  '@inquirer/prompts@7.7.0':
-    resolution: {integrity: sha512-8/7fOJA/Q5qqxznIvYjEvUCeRE6pncc1OHEmeA5JdNIKfOBC3a0EE5lFBofTWK/WXKfsjMkIz28y/uL6A3frYA==}
+  '@inquirer/prompts@7.8.0':
+    resolution: {integrity: sha512-JHwGbQ6wjf1dxxnalDYpZwZxUEosT+6CPGD9Zh4sm9WXdtUp9XODCQD3NjSTmu+0OAyxWXNOqf0spjIymJa2Tw==}
     engines: {node: '>=18'}
     peerDependencies:
       '@types/node': '>=18'
@@ -750,8 +750,8 @@ packages:
       '@types/node':
         optional: true
 
-  '@inquirer/search@3.0.17':
-    resolution: {integrity: sha512-CuBU4BAGFqRYors4TNCYzy9X3DpKtgIW4Boi0WNkm4Ei1hvY9acxKdBdyqzqBCEe4YxSdaQQsasJlFlUJNgojw==}
+  '@inquirer/search@3.1.0':
+    resolution: {integrity: sha512-PMk1+O/WBcYJDq2H7foV0aAZSmDdkzZB9Mw2v/DmONRJopwA/128cS9M/TXWLKKdEQKZnKwBzqu2G4x/2Nqx8Q==}
     engines: {node: '>=18'}
     peerDependencies:
       '@types/node': '>=18'
@@ -4148,7 +4148,7 @@ snapshots:
     optionalDependencies:
       '@types/node': 22.17.0
 
-  '@inquirer/prompts@7.7.0(@types/node@22.17.0)':
+  '@inquirer/prompts@7.8.0(@types/node@22.17.0)':
     dependencies:
       '@inquirer/checkbox': 4.2.0(@types/node@22.17.0)
       '@inquirer/confirm': 5.1.14(@types/node@22.17.0)
@@ -4158,7 +4158,7 @@ snapshots:
       '@inquirer/number': 3.0.17(@types/node@22.17.0)
       '@inquirer/password': 4.0.17(@types/node@22.17.0)
       '@inquirer/rawlist': 4.1.5(@types/node@22.17.0)
-      '@inquirer/search': 3.0.17(@types/node@22.17.0)
+      '@inquirer/search': 3.1.0(@types/node@22.17.0)
       '@inquirer/select': 4.3.1(@types/node@22.17.0)
     optionalDependencies:
       '@types/node': 22.17.0
@@ -4171,7 +4171,7 @@ snapshots:
     optionalDependencies:
       '@types/node': 22.17.0
 
-  '@inquirer/search@3.0.17(@types/node@22.17.0)':
+  '@inquirer/search@3.1.0(@types/node@22.17.0)':
     dependencies:
       '@inquirer/core': 10.1.15(@types/node@22.17.0)
       '@inquirer/figures': 1.0.13
