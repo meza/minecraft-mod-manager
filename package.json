@@ -39,7 +39,7 @@
     "prepare": "lefthook install"
   },
   "dependencies": {
-    "@inquirer/prompts": "7.7.0",
+    "@inquirer/prompts": "7.8.0",
     "@meza/curseforge-fingerprint": "1.1.42",
     "chalk": "5.4.1",
     "commander": "12.1.0",
