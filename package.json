@@ -41,7 +41,7 @@
   "dependencies": {
     "@inquirer/prompts": "7.8.2",
     "@meza/curseforge-fingerprint": "1.1.42",
-    "chalk": "5.5.0",
+    "chalk": "5.6.0",
     "commander": "12.1.0",
     "core-js": "3.45.0",
     "dotenv": "16.6.1",
