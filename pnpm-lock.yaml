@@ -136,8 +136,8 @@ importers:
         specifier: 1.0.0
         version: 1.0.0
       node-gyp:
-        specifier: 11.3.0
-        version: 11.3.0
+        specifier: 11.4.1
+        version: 11.4.1
       npm-run-all2:
         specifier: 8.0.4
         version: 8.0.4
@@ -2634,8 +2634,8 @@ packages:
     resolution: {integrity: sha512-IRUxE4BVsHWXkV/SFOut4qTlagw2aM8T5/vnTsmrHJvVoKueJHRc/JaFND7QDDc61kLYUJ6qlZM3sqTSyx2dTw==}
     hasBin: true
 
-  node-gyp@11.3.0:
-    resolution: {integrity: sha512-9J0+C+2nt3WFuui/mC46z2XCZ21/cKlFDuywULmseD/LlmnOrSeEAE4c/1jw6aybXLmpZnQY3/LmOJfgyHIcng==}
+  node-gyp@11.4.1:
+    resolution: {integrity: sha512-GiVxQ1e4TdZSSVmFDYUn6uUsrEUP68pa8C/xBzCfL/FcLHa4reWrxxTP7tRGhNdviYrNsL5kRolBL5LNYEutCw==}
     engines: {node: ^18.17.0 || >=20.5.0}
     hasBin: true
 
@@ -6213,7 +6213,7 @@ snapshots:
 
   node-gyp-build@4.8.2: {}
 
-  node-gyp@11.3.0:
+  node-gyp@11.4.1:
     dependencies:
       env-paths: 2.2.1
       exponential-backoff: 3.1.1
