@@ -100,8 +100,8 @@ importers:
         specifier: 13.0.0
         version: 13.0.0(semantic-release@25.0.0(typescript@5.9.3))
       '@semantic-release/release-notes-generator':
-        specifier: 14.0.3
-        version: 14.0.3(semantic-release@25.0.0(typescript@5.9.3))
+        specifier: 14.1.0
+        version: 14.1.0(semantic-release@25.0.0(typescript@5.9.3))
       '@types/glob':
         specifier: 9.0.0
         version: 9.0.0
@@ -1083,12 +1083,6 @@ packages:
   '@semantic-release/npm@13.0.0':
     resolution: {integrity: sha512-7RIx9nUdUekYbIZ0dG7k7G/iSvUCZb03LmmBPFqAQEhPVC+BnHfhFxj5ewSNP6zMUsYaEQSckcOhKD8AuS/EzQ==}
     engines: {node: ^22.14.0 || >= 24.10.0}
-    peerDependencies:
-      semantic-release: '>=20.1.0'
-
-  '@semantic-release/release-notes-generator@14.0.3':
-    resolution: {integrity: sha512-XxAZRPWGwO5JwJtS83bRdoIhCiYIx8Vhr+u231pQAsdFIAbm19rSVJLdnBN+Avvk7CKvNQE/nJ4y7uqKH6WTiw==}
-    engines: {node: '>=20.8.1'}
     peerDependencies:
       semantic-release: '>=20.1.0'
 
@@ -4632,22 +4626,6 @@ snapshots:
       semantic-release: 25.0.0(typescript@5.9.3)
       semver: 7.6.3
       tempy: 3.1.0
-
-  '@semantic-release/release-notes-generator@14.0.3(semantic-release@25.0.0(typescript@5.9.3))':
-    dependencies:
-      conventional-changelog-angular: 8.0.0
-      conventional-changelog-writer: 8.0.0
-      conventional-commits-filter: 5.0.0
-      conventional-commits-parser: 6.0.0
-      debug: 4.3.7
-      get-stream: 7.0.1
-      import-from-esm: 2.0.0
-      into-stream: 7.0.0
-      lodash-es: 4.17.21
-      read-package-up: 11.0.0
-      semantic-release: 25.0.0(typescript@5.9.3)
-    transitivePeerDependencies:
-      - supports-color
 
   '@semantic-release/release-notes-generator@14.1.0(semantic-release@25.0.0(typescript@5.9.3))':
     dependencies:
