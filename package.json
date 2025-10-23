@@ -89,7 +89,7 @@
     "jest-chance": "0.2.5",
     "lefthook": "1.12.3",
     "mock-cwd": "1.0.0",
-    "node-gyp": "11.4.2",
+    "node-gyp": "11.5.0",
     "npm-run-all2": "8.0.4",
     "pnpm": "10.15.1",
     "rimraf": "6.0.1",
