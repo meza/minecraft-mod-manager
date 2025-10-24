@@ -151,8 +151,8 @@ importers:
         specifier: 25.0.0
         version: 25.0.0(typescript@5.9.3)
       semantic-release-export-data:
-        specifier: 1.1.1
-        version: 1.1.1(semantic-release@25.0.0(typescript@5.9.3))
+        specifier: 1.2.0
+        version: 1.2.0(semantic-release@25.0.0(typescript@5.9.3))
       ts-node:
         specifier: 10.9.2
         version: 10.9.2(@types/node@22.17.0)(typescript@5.9.3)
@@ -3124,10 +3124,10 @@ packages:
   sanitize-filename@1.6.3:
     resolution: {integrity: sha512-y/52Mcy7aw3gRm7IrcGDFx/bCk4AhRh2eI9luHOQM86nZsqwiRkkq2GekHXBBD+SmPidc8i2PqtYZl+pWJ8Oeg==}
 
-  semantic-release-export-data@1.1.1:
-    resolution: {integrity: sha512-cjhc6g7Vl4tRRD6eA593EyMiQaOvazsziabdzPqsf0OAKoIQSL2eynS2jaJhbdxiu4msZreZ+XcU5FU9FAZbeA==}
+  semantic-release-export-data@1.2.0:
+    resolution: {integrity: sha512-/9+yQWFieiN0KB7YA0TTCXHml7d2tlNLkprLjUOKf8XDQlJ6ZK9gkw0dJJ/8/kBzeuUPq8aZR2n0rYmuYCz7Xg==}
     peerDependencies:
-      semantic-release: '>=18'
+      semantic-release: '>=20'
 
   semantic-release@25.0.0:
     resolution: {integrity: sha512-JL2hY7b1hBli5FS98nAXH0OwfRsgdywuUVhKktyJOHu9tUO0wJGWNpQL69SDhJ5Uwp63rtIvGvy7ZDy4C3RsXg==}
@@ -6678,7 +6678,7 @@ snapshots:
     dependencies:
       truncate-utf8-bytes: 1.0.2
 
-  semantic-release-export-data@1.1.1(semantic-release@25.0.0(typescript@5.9.3)):
+  semantic-release-export-data@1.2.0(semantic-release@25.0.0(typescript@5.9.3)):
     dependencies:
       semantic-release: 25.0.0(typescript@5.9.3)
 
