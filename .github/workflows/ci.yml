@@ -20,7 +20,7 @@ jobs:
     name: 📦 Build artifacts for the commit (for internal use only)
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
       - name: Set up node
         uses: ./.github/actions/setup/
         with:
@@ -48,7 +48,7 @@ jobs:
     name: 🔎 Lint and Test
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
       - name: Set up node
         uses: ./.github/actions/setup/
         with:
@@ -86,7 +86,7 @@ jobs:
     name: Release
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
       - name: Set up node
         uses: ./.github/actions/setup/
 
