@@ -14,8 +14,11 @@ type Client interface {
 	Enqueue(posthog.Message) error
 }
 
-var singleClient Client
-var machineId string
+var (
+	singleClient     Client
+	machineId        string
+	machineIDFetcher = machineid.ID
+)
 
 type CommandTelemetry struct {
 	Command string                 `json:"command"`
@@ -32,8 +35,14 @@ func getMachineId() string {
 		return envMachineId
 	}
 
-	machineId, _ = machineid.ID()
-	return machineId
+	if machineIDFetcher != nil {
+		if fetchedID, err := machineIDFetcher(); err == nil && fetchedID != "" {
+			machineId = fetchedID
+			return machineId
+		}
+	}
+
+	return "unknown-machine"
 }
 
 func initClient() Client {

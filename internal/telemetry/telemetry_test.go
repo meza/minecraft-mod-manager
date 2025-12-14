@@ -29,18 +29,33 @@ func (m *MockClient) Enqueue(msg posthog.Message) error {
 func TestGetMachineId(t *testing.T) {
 	t.Run("Machine ID is set", func(t *testing.T) {
 		t.Setenv("MACHINE_ID", "test-machine-id")
+		machineIDFetcher = nil
 		assert.Equal(t, "test-machine-id", getMachineId())
 
 	})
 
-	t.Run("Machine ID is not set", func(t *testing.T) {
+	t.Run("Machine ID fetched from machineIDFetcher", func(t *testing.T) {
+		machineIDFetcher = func() (string, error) {
+			return "fetched-machine-id", nil
+		}
 		old := os.Getenv("MACHINE_ID")
 		os.Unsetenv("MACHINE_ID")
 		t.Cleanup(func() { os.Setenv("MACHINE_ID", old) })
 
 		mid := getMachineId()
-		assert.NotEmpty(t, mid)
-		assert.NotEqual(t, "test-machine-id", mid)
+		assert.Equal(t, "fetched-machine-id", mid)
+	})
+
+	t.Run("Machine ID falls back when fetcher fails", func(t *testing.T) {
+		machineIDFetcher = func() (string, error) {
+			return "", errors.New("failed")
+		}
+		old := os.Getenv("MACHINE_ID")
+		os.Unsetenv("MACHINE_ID")
+		t.Cleanup(func() { os.Setenv("MACHINE_ID", old) })
+
+		mid := getMachineId()
+		assert.Equal(t, "unknown-machine", mid)
 	})
 }
 

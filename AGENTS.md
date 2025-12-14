@@ -30,7 +30,7 @@ Follow our established [Golang Coding Standards](https://raw.githubusercontent.c
 
 - The Go port will use the Bubble Tea ecosystem for [TUI functionality](./docs/tui-design-doc.md). Familiarize yourself with [Bubble Tea](https://github.com/charmbracelet/bubbletea), [Lip Gloss](https://github.com/charmbracelet/lipgloss), [Bubbles](https://github.com/charmbracelet/bubbles) and optionally [Huh](https://github.com/charmbracelet/huh) where relevant.
 - Testing will be done using Go's built-in testing framework along with any necessary libraries to ensure 100% coverage.
-- We use makefiles for build automation. Refer to the existing `Makefile` for commands related to building, testing, and coverage enforcement.
+- We use makefiles for build automation. Refer to the existing `Makefile` for commands related to building, testing, and coverage enforcement, and **always invoke the documented `make` targets (e.g., `make test`, `make coverage`, `make build`) instead of calling toolchain binaries directly**. This ensures we honor repo-specific flags and hooks.
 
 ## Knowledge Material
 
