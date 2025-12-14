@@ -138,6 +138,7 @@ Aim for a clean, compact aesthetic with minimal borders, consistent padding and 
 
 ## Sources & Further Reading
 
+* Our TUI Design Doc — [docs/tui-design-doc.md](./tui-design-doc.md)
 * Bubble Tea — [https://github.com/charmbracelet/bubbletea](https://github.com/charmbracelet/bubbletea)
 * Lip Gloss — [https://github.com/charmbracelet/lipgloss](https://github.com/charmbracelet/lipgloss)
 * Bubbles — [https://pkg.go.dev/github.com/charmbracelet/bubbles](https://pkg.go.dev/github.com/charmbracelet/bubbles)

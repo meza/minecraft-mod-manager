@@ -1,9 +1,29 @@
 # Agent Guidance
 
+## Persona
+
+You must inhabit the role described in this file: https://raw.githubusercontent.com/meza/agent-docs/refs/heads/main/Engineer.md
+You must make all attempts to acquire it and incorporate it into your responses.
+
+## Project Overview
+
 - Refer to `docs/requirements-go-port.md` for an overview of the current Node implementation and expectations for the Go port.
 - See `docs/commands/README.md` for detailed behaviour of each CLI command.
 - Review `docs/platform-apis.md` for specifics on interacting with CurseForge and Modrinth.
 - Keep documentation in sync with features.
+
+### Tooling
+
+- The Go port will use the Bubble Tea ecosystem for [TUI functionality](./docs/tui-design-doc.md). Familiarize yourself with [Bubble Tea](https://github.com/charmbracelet/bubbletea), [Lip Gloss](https://github.com/charmbracelet/lipgloss), [Bubbles](https://github.com/charmbracelet/bubbles) and optionally [Huh](https://github.com/charmbracelet/huh) where relevant.
+- Testing will be done using Go's built-in testing framework along with any necessary libraries to ensure 100% coverage.
+- We use makefiles for build automation. Refer to the existing `Makefile` for commands related to building, testing, and coverage enforcement.
+
+## Knowledge Material
+
+- ALWAYS check the docs/ folder for relevant information before answering questions or writing code.
+- ALWAYS read the documentation of the tooling and libraries used in the project. DO NOT ASSUME that you know how these work, as we are using newer versions of them than you might be used to.
+- For the Charm ecosystem, refer to the official documentation and examples provided in their GitHub repositories - you can find them linked above and feel free to clone them into /tmp for reference if needed.
+- ALWAYS check existing code for patterns and conventions before adding new code.
 
 ## Core Development Principles
 
@@ -27,37 +47,6 @@
 - **Monitoring**: Using the telemetry system to monitor usage patterns and improve the user experience based on real data.
 - **Separation of Concerns**: User interface logic should be separated from business logic, allowing for easier testing and maintenance.
 
-### Commit Guidelines
-
-When constructing commit messages, please adhere to the following guidelines:
-
-**ALL commits MUST use [Conventional Commits](https://www.conventionalcommits.org/en/v1.0.0/) specification.**
-
-- Format: `<type>[optional scope]: <description>`
-- Types: `feat`, `fix`, `docs`, `style`, `refactor`, `test`, `chore`
-- Examples:
-  - `feat: add new mod scanning functionality`
-  - `fix: resolve version check error handling`
-  - `test: add comprehensive tests for config validation`
-  - `docs: update README with new installation steps`
-  - - `refactor: improve code structure without changing behavior`
-  - `chore: anything that does not belong in the other categories`
-
-**Commits not following this specification will be rejected.**
-
-Ensure that commit types are chosen carefully, as they directly impact the software
-version; only use `fix` or `feat` for changes that affect user-facing behavior,
-and all commits must strictly follow the conventional commit format.
-
-**Commit Message contents:**
-
-The commit message should describe the value of the change, not the implementation details.
-- **Good**: "fix: made the resource handling of the backup process hog the system less"
-- **Bad**: "fix: added ionice and nice to the duply config"
-- **Good**: "feat: added the option to schedule backups for the client containers"
-- **Bad**: "feat: moved cron jobs to a script"
-
-
 ### Test Coverage Requirements (STRICT)
 
 **100% test coverage is mandatory - this is the bare minimum.**
@@ -70,7 +59,6 @@ The commit message should describe the value of the change, not the implementati
 
 If you think a test needs to be removed or disabled, stop and ask for guidance first.
 
-
 #### Software Hygiene
 - **Boy Scout Rule**: Leave code cleaner than you found it
 - Clear separation of concerns
@@ -82,8 +70,7 @@ If you think a test needs to be removed or disabled, stop and ask for guidance f
 ### Documentation
 
 - Update README.md when adding new functionality
-- Maintain consistent language and style
-
+- Maintain consistent language and style based on the documentation guidelines within your persona instructions
 
 ## When in Doubt
 
@@ -101,16 +88,15 @@ If you think a test needs to be removed or disabled, stop and ask for guidance f
 1. **Write tests first**: Follow TDD principles where possible
 2. **Implement changes**: Make minimal, focused changes
 3. **Verify continuously**: Run the relevant tests frequently during development
-4. **Commit with conventional messages**: Follow the commit format strictly
-5. **Final verification**: Follow the quality gates below before submitting
+4. **Final verification**: Follow the quality gates below before submitting
+5. **Report to the team**: Notify the team of your changes for review. They will provide feedback and they will commit them when ready.
 
-## Quality Gates
+## Verification
 
-Before any pull request:
+Before saying that you're ready:
 - [ ] Ensure tests pass (`./make test`)
 - [ ] Ensure coverage is 100% (`./make coverage-enforce`)
 - [ ] Ensure build (`./make build`)
-- [ ] Conventional commit format used
 - [ ] Documentation updated if needed
 
 **Remember: These are not suggestions - they are requirements. Adherence to these standards is mandatory for all contributions.**
