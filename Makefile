@@ -47,7 +47,7 @@ endif
 all: clean build
 
 run:
-	go run cmd/$(APP_NAME)/main.go
+	go run .
 
 # Clean build directory
 ifeq ($(OSFAMILY), Unix)
