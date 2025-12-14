@@ -1,176 +1,129 @@
 package config
 
 import (
+	"errors"
+	"io"
+	"net/http"
+	"path/filepath"
+	"strings"
+	"testing"
+
+	"github.com/meza/minecraft-mod-manager/internal/minecraft"
 	"github.com/meza/minecraft-mod-manager/internal/models"
 	"github.com/spf13/afero"
 	"github.com/stretchr/testify/assert"
-	"os"
-	"path/filepath"
-	"testing"
 )
 
-func home() string {
-	home, _ := os.UserHomeDir()
-	return home
+type doerFunc func(request *http.Request) (*http.Response, error)
+
+func (d doerFunc) Do(request *http.Request) (*http.Response, error) {
+	return d(request)
 }
 
-func TestGetModsFolder(t *testing.T) {
-	tests := []struct {
-		name       string
-		configPath string
-		config     models.ModsJson
-		expected   string
-	}{
-		{
-			name:       "Absolute Mods Folder",
-			configPath: filepath.FromSlash("/home/user/.minecraft/modlist.json"),
-			config: models.ModsJson{
-				ModsFolder: filepath.Join(home(), "mods"),
-			},
-			expected: filepath.Join(home(), "mods"),
-		},
-		{
-			name:       "Relative Mods Folder",
-			configPath: filepath.FromSlash("/home/user/.minecraft/modlist.json"),
-			config: models.ModsJson{
-				ModsFolder: "./mods",
-			},
-			expected: filepath.FromSlash("/home/user/.minecraft/mods"),
-		},
-	}
-
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			result := GetModsFolder(tt.configPath, tt.config)
-			assert.Equal(t, tt.expected, result)
-		})
+func latestMinecraftVersionClient(version string) doerFunc {
+	return func(request *http.Request) (*http.Response, error) {
+		body := io.NopCloser(strings.NewReader(`{"latest":{"release":"` + version + `","snapshot":"x"},"versions":[]}`))
+		return &http.Response{StatusCode: http.StatusOK, Body: body}, nil
 	}
 }
 
-func TestEnsureConfiguration(t *testing.T) {
-	t.Run("Happy Path", func(t *testing.T) {
-		fs := afero.NewMemMapFs()
-		_ = afero.WriteFile(fs, "/modlist.json", []byte(`{"modsFolder": "./mods"}`), 0644)
-		config, err := GetConfiguration(filepath.FromSlash("/modlist.json"), true, fs)
-
-		assert.NoError(t, err)
-		assert.Equal(t, "./mods", config.ModsFolder)
-	})
-
-	t.Run("Malformed JSON", func(t *testing.T) {
-		fs := afero.NewMemMapFs()
-		_ = afero.WriteFile(fs, "/modlist.json", []byte("malformed json"), 0644)
-		_, err := GetConfiguration(filepath.FromSlash("/modlist.json"), true, fs)
-
-		assert.ErrorContains(t, err, "invalid character")
-	})
-
-	t.Run("Configuration read issue", func(t *testing.T) {
-		configFile := filepath.Join(t.TempDir(), "config")
-		_ = os.Mkdir(configFile, 0755)
-		_, err := GetConfiguration(configFile, true)
-
-		defer os.Remove(configFile)
-
-		assert.ErrorContains(t, err, "failed to read configuration file")
-	})
-
-	t.Run("Configuration file not found", func(t *testing.T) {
-		fs := afero.NewMemMapFs()
-		_, err := GetConfiguration(filepath.FromSlash("/modlist.json"), true, fs)
-
-		var cf *ConfigFileNotFoundException
-		assert.ErrorAs(t, err, &cf)
-	})
-
-}
-
-func TestInitializeConfigFile(t *testing.T) {
+func TestReadConfigMissingFileReturnsNotFound(t *testing.T) {
 	fs := afero.NewMemMapFs()
-	config, err := InitializeConfigFile(filepath.FromSlash("/modlist.json"), fs)
+	meta := NewMetadata(filepath.FromSlash("/modlist.json"))
 
-	assert.NoError(t, err)
-	assert.Equal(t, "mods", config.ModsFolder)
-
-	data, err := afero.ReadFile(fs, filepath.FromSlash("/modlist.json"))
-	assert.NoError(t, err)
-
-	assert.JSONEq(t, `{"loader":"forge","gameVersion":"1.21.1","defaultAllowedReleaseTypes":["release","beta"],"modsFolder":"mods","mods":[]}`, string(data))
-
-	t.Run("File Unwritable", func(t *testing.T) {
-		file := filepath.Join(t.TempDir(), "config")
-		fs := afero.NewReadOnlyFs(afero.NewOsFs())
-		_, err := InitializeConfigFile(file, fs)
-
-		assert.ErrorContains(t, err, "operation not permitted")
-	})
-
+	_, err := ReadConfig(fs, meta)
+	var notFound *ConfigFileNotFoundException
+	assert.ErrorAs(t, err, &notFound)
 }
 
-func TestEnsureLockFile(t *testing.T) {
-	t.Run("Happy Path", func(t *testing.T) {
-		fs := afero.NewMemMapFs()
-		_ = afero.WriteFile(fs, "/modlist.lock", []byte{}, 0644)
-		_, err := GetLockFile(filepath.FromSlash("/modlist.json"), fs)
+func TestReadConfigMalformedJSONReturnsInvalid(t *testing.T) {
+	fs := afero.NewMemMapFs()
+	meta := NewMetadata(filepath.FromSlash("/modlist.json"))
+	_ = afero.WriteFile(fs, meta.ConfigPath, []byte("not json"), 0644)
 
-		assert.NoError(t, err)
+	_, err := ReadConfig(fs, meta)
+	var invalid *ConfigFileInvalidError
+	assert.ErrorAs(t, err, &invalid)
+}
+
+func TestInitConfigUsesLatestMinecraftVersionAndReadConfigRoundTrip(t *testing.T) {
+	fs := afero.NewMemMapFs()
+	meta := NewMetadata(filepath.FromSlash("/modlist.json"))
+
+	minecraft.ClearManifestCache()
+	created, err := InitConfig(fs, meta, latestMinecraftVersionClient("9.9.9"))
+	assert.NoError(t, err)
+	assert.Equal(t, "9.9.9", created.GameVersion)
+
+	read, err := ReadConfig(fs, meta)
+	assert.NoError(t, err)
+	assert.Equal(t, created, read)
+}
+
+func TestWriteConfigOverwrites(t *testing.T) {
+	fs := afero.NewMemMapFs()
+	meta := NewMetadata(filepath.FromSlash("/modlist.json"))
+
+	minecraft.ClearManifestCache()
+	created, err := InitConfig(fs, meta, latestMinecraftVersionClient("1.21.1"))
+	assert.NoError(t, err)
+
+	created.GameVersion = "1.20.1"
+	err = WriteConfig(fs, meta, created)
+	assert.NoError(t, err)
+
+	read, err := ReadConfig(fs, meta)
+	assert.NoError(t, err)
+	assert.Equal(t, "1.20.1", read.GameVersion)
+}
+
+func TestReadConfigReturnsErrorWhenPathIsDirectory(t *testing.T) {
+	fs := afero.NewMemMapFs()
+	meta := NewMetadata(filepath.FromSlash("/modlist.json"))
+	assert.NoError(t, fs.Mkdir(meta.ConfigPath, 0755))
+
+	_, err := ReadConfig(fs, meta)
+	assert.Error(t, err)
+}
+
+func TestReadConfigReturnsReadErrorWhenPathIsDirectoryOnOsFs(t *testing.T) {
+	configDir := filepath.Join(t.TempDir(), "modlist.json")
+	assert.NoError(t, afero.NewOsFs().MkdirAll(configDir, 0755))
+	meta := NewMetadata(configDir)
+
+	_, err := ReadConfig(afero.NewOsFs(), meta)
+	assert.Error(t, err)
+}
+
+func TestWriteConfigReturnsErrorWhenPathIsDirectory(t *testing.T) {
+	fs := afero.NewReadOnlyFs(afero.NewMemMapFs())
+	meta := NewMetadata(filepath.FromSlash("/modlist.json"))
+
+	err := WriteConfig(fs, meta, models.ModsJson{Loader: models.FABRIC})
+	assert.Error(t, err)
+}
+
+func TestInitConfigReturnsErrorWhenPathIsDirectory(t *testing.T) {
+	fs := afero.NewReadOnlyFs(afero.NewMemMapFs())
+	meta := NewMetadata(filepath.FromSlash("/modlist.json"))
+
+	minecraft.ClearManifestCache()
+	_, err := InitConfig(fs, meta, latestMinecraftVersionClient("1.21.1"))
+	assert.Error(t, err)
+}
+
+func TestInitConfigErrorsWhenLatestMinecraftVersionErrors(t *testing.T) {
+	fs := afero.NewMemMapFs()
+	meta := NewMetadata(filepath.FromSlash("/modlist.json"))
+
+	minecraftClient := doerFunc(func(request *http.Request) (*http.Response, error) {
+		return nil, errors.New("network down")
 	})
 
-	t.Run("Lock file not found", func(t *testing.T) {
-		fs := afero.NewMemMapFs()
-		empty, err := GetLockFile(filepath.FromSlash("/modlist.json"), fs)
-
-		assert.NoError(t, err)
-		assert.Equal(t, []models.ModInstall{}, empty)
-
-		data, err := afero.ReadFile(fs, filepath.FromSlash("/modlist-lock.json"))
-		assert.NoError(t, err)
-		assert.JSONEq(t, "[]", string(data))
-
-	})
-
-	t.Run("Lock file unwritable", func(t *testing.T) {
-		fs := afero.NewReadOnlyFs(afero.NewOsFs())
-		_, err := GetLockFile(filepath.FromSlash("/modlist.json"), fs)
-
-		assert.ErrorContains(t, err, "operation not permitted")
-	})
-
-	t.Run("Lock file parse error", func(t *testing.T) {
-		fs := afero.NewMemMapFs()
-		_ = afero.WriteFile(fs, filepath.FromSlash("/modlist-lock.json"), []byte("malformed json"), 0644)
-		_, err := GetLockFile(filepath.FromSlash("/modlist.json"), fs)
-
-		assert.ErrorContains(t, err, "invalid character")
-	})
-
-	t.Run("Lock file read error", func(t *testing.T) {
-		fs := afero.NewOsFs()
-		configFile := filepath.Join(t.TempDir(), "modlist.json")
-		err := afero.WriteFile(fs, configFile, []byte(`{"modsFolder": "./mods"}`), 0644)
-		defer os.RemoveAll(configFile)
-
-		assert.NoError(t, err)
-
-		lockFile := filepath.Join(filepath.Dir(configFile), "modlist-lock.json")
-		err = fs.Mkdir(lockFile, 0755)
-		defer os.RemoveAll(lockFile)
-
-		assert.NoError(t, err)
-
-		_, err = GetLockFile(configFile, fs)
-		assert.ErrorContains(t, err, "failed to read lock file")
-
-	})
-
-	t.Run("happy path", func(t *testing.T) {
-		fs := afero.NewMemMapFs()
-		_ = afero.WriteFile(fs, "/modlist.json", []byte(`{"modsFolder": "./mods"}`), 0644)
-		_ = afero.WriteFile(fs, "/modlist-lock.json", []byte(`[{"id": "1", "name": "mod1", "type": "modrinth"}]`), 0644)
-		lock, err := GetLockFile(filepath.FromSlash("/modlist.json"), fs)
-
-		assert.NoError(t, err)
-		assert.Equal(t, []models.ModInstall{{Id: "1", Name: "mod1", Type: "modrinth"}}, lock)
-
-	})
+	minecraft.ClearManifestCache()
+	_, err := InitConfig(fs, meta, minecraftClient)
+	assert.Error(t, err)
+	exists, existsErr := afero.Exists(fs, meta.ConfigPath)
+	assert.NoError(t, existsErr)
+	assert.False(t, exists)
 }

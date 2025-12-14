@@ -20,6 +20,10 @@ func Command() *cobra.Command {
 		Version: environment.AppVersion(),
 	}
 
+	rootCmd.PersistentFlags().StringP("config", "c", "./modlist.json", "An alternative JSON file containing the configuration")
+	rootCmd.PersistentFlags().BoolP("quiet", "q", false, "Suppress all output")
+	rootCmd.PersistentFlags().BoolP("debug", "d", false, "Enable debug messages")
+
 	rootCmd.SetVersionTemplate("{{.Version}}\n")
 	rootCmd.AddCommand(initCmd.Command())
 	rootCmd.AddCommand(version.Command())

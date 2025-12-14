@@ -113,7 +113,7 @@ build-windows: build-dirs
 	$(GO_BUILD) $(BUILD_DIR)/windows/$(EXECUTABLE_NAME).exe main.go
 
 test:
-	go test ./internal/...
+	go test ./...
 
 coverage:
 	go test ./internal/... -coverprofile="coverage.out"

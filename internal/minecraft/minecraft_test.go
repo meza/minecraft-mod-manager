@@ -9,7 +9,7 @@ import (
 
 func TestMinecraft(t *testing.T) {
 	t.Run("GetLatestVersion_1", func(t *testing.T) {
-		latestManifest = nil
+		ClearManifestCache()
 		mockServer, _ := httpstest.NewServer([]string{
 			"launchermeta.mojang.com",
 		}, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
@@ -26,7 +26,7 @@ func TestMinecraft(t *testing.T) {
 	})
 
 	t.Run("IsValidVersion", func(t *testing.T) {
-		latestManifest = nil
+		ClearManifestCache()
 		mockServer, _ := httpstest.NewServer([]string{
 			"launchermeta.mojang.com",
 		}, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
@@ -66,7 +66,7 @@ func TestMinecraft(t *testing.T) {
 	})
 
 	t.Run("GetAllMineCraftVersions", func(t *testing.T) {
-		latestManifest = nil
+		ClearManifestCache()
 		mockServer, _ := httpstest.NewServer([]string{
 			"launchermeta.mojang.com",
 		}, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
@@ -101,7 +101,7 @@ func TestMinecraft(t *testing.T) {
 	})
 
 	t.Run("GetLatestVersion_Error", func(t *testing.T) {
-		latestManifest = nil
+		ClearManifestCache()
 		mockServer, _ := httpstest.NewServer([]string{
 			"launchermeta.mojang.com",
 		}, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
@@ -119,7 +119,7 @@ func TestMinecraft(t *testing.T) {
 	})
 
 	t.Run("IsValidVersion_Error", func(t *testing.T) {
-		latestManifest = nil
+		ClearManifestCache()
 		mockServer, _ := httpstest.NewServer([]string{
 			"launchermeta.mojang.com",
 		}, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
@@ -134,7 +134,7 @@ func TestMinecraft(t *testing.T) {
 	})
 
 	t.Run("GetAllMineCraftVersions_Error", func(t *testing.T) {
-		latestManifest = nil
+		ClearManifestCache()
 		oldUrl := versionManifestUrl
 		versionManifestUrl = "xxx"
 		mockServer, _ := httpstest.NewServer([]string{}, nil)
@@ -145,7 +145,7 @@ func TestMinecraft(t *testing.T) {
 	})
 
 	t.Run("Caching", func(t *testing.T) {
-		latestManifest = nil
+		ClearManifestCache()
 		callCount := 0
 		mockServer, _ := httpstest.NewServer([]string{
 			"launchermeta.mojang.com",
@@ -165,6 +165,12 @@ func TestMinecraft(t *testing.T) {
 		_, err = getMinecraftVersionManifest(client)
 		assert.NoError(t, err)
 
-		assert.Equal(t, 1, callCount, "server should be called only once")
+		ClearManifestCache()
+
+		// Third call should refetch after clearing cache
+		_, err = getMinecraftVersionManifest(client)
+		assert.NoError(t, err)
+
+		assert.Equal(t, 2, callCount, "server should be called twice (cache cleared once)")
 	})
 }

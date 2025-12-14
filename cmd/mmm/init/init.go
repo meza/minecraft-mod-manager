@@ -39,7 +39,7 @@ func runTUI(cmd *cobra.Command, _ []string) {
 
 	_, err := tea.NewProgram(model).Run()
 	if err != nil {
-		fmt.Println("Error running program:", err)
+		cmd.PrintErrln("Error running program:", err)
 		os.Exit(1)
 	}
 }

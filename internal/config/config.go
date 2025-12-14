@@ -3,102 +3,63 @@ package config
 import (
 	"encoding/json"
 	"fmt"
-	"github.com/meza/minecraft-mod-manager/internal/fileutils"
+
+	"github.com/meza/minecraft-mod-manager/internal/httpClient"
+	"github.com/meza/minecraft-mod-manager/internal/minecraft"
 	"github.com/meza/minecraft-mod-manager/internal/models"
 	"github.com/meza/minecraft-mod-manager/internal/perf"
 	"github.com/spf13/afero"
-	"path/filepath"
-	"strings"
 )
 
-func getLockfileName(configPath string) string {
-	return filepath.Join(filepath.Dir(configPath), strings.TrimSuffix(filepath.Base(configPath), ".json")+"-lock.json")
-}
-
-func writeConfigFile(config models.ModsJson, configPath string, fs afero.Fs) error {
-	data, _ := json.MarshalIndent(config, "", "  ")
-	return afero.WriteFile(fs, configPath, data, 0644)
-}
-
-func writeLockFile(config []models.ModInstall, configPath string, fs afero.Fs) error {
-	data, _ := json.MarshalIndent(config, "", "  ")
-	return afero.WriteFile(fs, configPath, data, 0644)
-}
-
-func GetLockFile(configPath string, filesystem ...afero.Fs) ([]models.ModInstall, error) {
-	region := perf.StartRegion("get-lockfile")
+func ReadConfig(fs afero.Fs, meta Metadata) (models.ModsJson, error) {
+	region := perf.StartRegion("config-read")
 	defer region.End()
-	fs := fileutils.InitFilesystem(filesystem...)
-	lockFilePath := getLockfileName(configPath)
-	if !fileutils.FileExists(lockFilePath, fs) {
-		emptyModLock := make([]models.ModInstall, 0)
-		if err := writeLockFile(emptyModLock, lockFilePath, fs); err != nil {
-			return nil, err
-		}
-		return emptyModLock, nil
+
+	exists, _ := afero.Exists(fs, meta.ConfigPath)
+	if !exists {
+		return models.ModsJson{}, &ConfigFileNotFoundException{Path: meta.ConfigPath}
 	}
 
-	data, err := afero.ReadFile(fs, lockFilePath)
-	if err != nil {
-		return nil, fmt.Errorf("failed to read lock file: %w", err)
-	}
-
-	var config []models.ModInstall
-	if err := json.Unmarshal(data, &config); err != nil {
-		return nil, err
-	}
-
-	return config, nil
-}
-
-func readConfigFile(configPath string, fs afero.Fs) (models.ModsJson, error) {
-	if !fileutils.FileExists(configPath, fs) {
-		return models.ModsJson{}, &ConfigFileNotFoundException{Path: configPath}
-	}
-
-	data, err := afero.ReadFile(fs, configPath)
+	data, err := afero.ReadFile(fs, meta.ConfigPath)
 	if err != nil {
 		return models.ModsJson{}, fmt.Errorf("failed to read configuration file: %w", err)
 	}
+
 	var config models.ModsJson
 	if err := json.Unmarshal(data, &config); err != nil {
-		return models.ModsJson{}, err
+		return models.ModsJson{}, &ConfigFileInvalidError{Err: err}
 	}
+
 	return config, nil
 }
 
-func InitializeConfigFile(configPath string, filesystem ...afero.Fs) (models.ModsJson, error) {
-	region := perf.StartRegion("init-configuration")
+func WriteConfig(fs afero.Fs, meta Metadata, config models.ModsJson) error {
+	region := perf.StartRegion("config-write")
 	defer region.End()
-	fs := fileutils.InitFilesystem(filesystem...)
-	emptyModJson := models.ModsJson{
-		Loader:                     models.FORGE,
-		GameVersion:                "1.21.1",
+
+	data, _ := json.MarshalIndent(config, "", "  ")
+	return afero.WriteFile(fs, meta.ConfigPath, data, 0644)
+}
+
+func InitConfig(fs afero.Fs, meta Metadata, minecraftClient httpClient.Doer) (models.ModsJson, error) {
+	region := perf.StartRegion("config-init")
+	defer region.End()
+
+	latest, err := minecraft.GetLatestVersion(minecraftClient)
+	if err != nil {
+		return models.ModsJson{}, err
+	}
+
+	config := models.ModsJson{
+		Loader:                     models.FABRIC,
+		GameVersion:                latest,
 		DefaultAllowedReleaseTypes: []models.ReleaseType{models.Release, models.Beta},
 		ModsFolder:                 "mods",
 		Mods:                       []models.Mod{},
 	}
-	if err := writeConfigFile(emptyModJson, configPath, fs); err != nil {
+
+	if err := WriteConfig(fs, meta, config); err != nil {
 		return models.ModsJson{}, err
 	}
-	return emptyModJson, nil
-}
-
-func GetConfiguration(configPath string, quiet bool, filesystem ...afero.Fs) (models.ModsJson, error) {
-	region := perf.StartRegion("get-configuration")
-	defer region.End()
-	fs := fileutils.InitFilesystem(filesystem...)
-	config, err := readConfigFile(configPath, fs)
-	if err != nil {
-		return models.ModsJson{}, err
-	}
-
 	return config, nil
-}
-
-func GetModsFolder(configPath string, config models.ModsJson) string {
-	if filepath.IsAbs(config.ModsFolder) {
-		return config.ModsFolder
-	}
-	return filepath.Join(filepath.Dir(filepath.FromSlash(configPath)), config.ModsFolder)
 }

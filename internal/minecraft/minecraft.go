@@ -29,6 +29,10 @@ type versionManifest struct {
 var versionManifestUrl = "https://launchermeta.mojang.com/mc/game/version_manifest.json"
 var latestManifest *versionManifest
 
+func ClearManifestCache() {
+	latestManifest = nil
+}
+
 func getMinecraftVersionManifest(client httpClient.Doer) (*versionManifest, error) {
 	defer perf.StartRegion("getMinecraftVersionManifest").End()
 	if latestManifest != nil {
