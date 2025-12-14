@@ -5,6 +5,7 @@ APP_NAME := minecraft-mod-manager
 EXECUTABLE_NAME := mmm
 BUILD_DIR := build
 GO_BUILD := go build -o
+CROSS_CGO_ENABLED ?= 0
 
 ifeq ($(OS),Windows_NT)
         OSFLAG  := WIN
@@ -40,6 +41,17 @@ else
         endif
 endif
 
+# Cross-platform helper for creating directories.
+ifeq ($(OSFAMILY), Unix)
+define MKDIR_P
+	mkdir -p "$(1)"
+endef
+else
+define MKDIR_P
+	powershell -NoProfile -Command "New-Item -ItemType Directory -Force -Path '$(1)' | Out-Null"
+endef
+endif
+
 # Targets
 .PHONY: all clean build build-darwin build-linux build-windows
 
@@ -70,25 +82,34 @@ BUILD_DIR:
 	@if not exist $(BUILD_DIR) mkdir $(BUILD_DIR)
 endif
 
+# Create build subdirectories
+build-dirs: BUILD_DIR
+	$(call MKDIR_P,$(BUILD_DIR)/darwin)
+	$(call MKDIR_P,$(BUILD_DIR)/linux)
+	$(call MKDIR_P,$(BUILD_DIR)/windows)
+
 # Build for all platforms
-build: BUILD_DIR build-darwin build-linux build-windows
+build: build-dirs build-darwin build-linux build-windows
 
 # Build for macOS
-build-darwin: BUILD_DIR
-	@set GOOS=darwin
-	@set GOARCH=amd64
+build-darwin: export GOOS := darwin
+build-darwin: export GOARCH := amd64
+build-darwin: export CGO_ENABLED := $(CROSS_CGO_ENABLED)
+build-darwin: build-dirs
 	$(GO_BUILD) $(BUILD_DIR)/darwin/$(EXECUTABLE_NAME) main.go
 
 # Build for Linux
-build-linux: BUILD_DIR
-	@set GOOS=linux
-	@set GOARCH=amd64
+build-linux: export GOOS := linux
+build-linux: export GOARCH := amd64
+build-linux: export CGO_ENABLED := $(CROSS_CGO_ENABLED)
+build-linux: build-dirs
 	$(GO_BUILD) $(BUILD_DIR)/linux/$(EXECUTABLE_NAME) main.go
 
 # Build for Windows
-build-windows: BUILD_DIR
-	@set GOOS=windows
-	@set GOARCH=amd64
+build-windows: export GOOS := windows
+build-windows: export GOARCH := amd64
+build-windows: export CGO_ENABLED := $(CROSS_CGO_ENABLED)
+build-windows: build-dirs
 	$(GO_BUILD) $(BUILD_DIR)/windows/$(EXECUTABLE_NAME).exe main.go
 
 test:
