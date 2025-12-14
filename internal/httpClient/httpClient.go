@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"github.com/meza/minecraft-mod-manager/internal/perf"
 	"golang.org/x/time/rate"
+	"io"
 	"net/http"
 	"time"
 )
@@ -62,6 +63,7 @@ func (client *RLHTTPClient) Do(request *http.Request) (*http.Response, error) {
 		// Check if the response status is a server error (5xx)
 		if response.StatusCode >= 500 && response.StatusCode < 600 {
 			if attempt < retryConfig.MaxRetries {
+				drainAndClose(response.Body)
 				time.Sleep(retryConfig.Interval)
 				attemptRegion.End()
 				continue
@@ -89,4 +91,13 @@ func NoRetries() *RetryConfig {
 		MaxRetries: 0,
 		Interval:   0,
 	}
+}
+
+func drainAndClose(body io.ReadCloser) {
+	if body == nil {
+		return
+	}
+
+	_, _ = io.Copy(io.Discard, body)
+	_ = body.Close()
 }

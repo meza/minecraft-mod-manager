@@ -6,6 +6,7 @@ import (
 	"golang.org/x/time/rate"
 	"net/http"
 	"net/http/httptest"
+	"strings"
 	"testing"
 	"time"
 )
@@ -14,6 +15,45 @@ type roundTripFunc func(*http.Request) (*http.Response, error)
 
 func (f roundTripFunc) RoundTrip(req *http.Request) (*http.Response, error) {
 	return f(req)
+}
+
+type sequenceTransport struct {
+	responses []*http.Response
+	callCount int
+}
+
+func (t *sequenceTransport) RoundTrip(req *http.Request) (*http.Response, error) {
+	if t.callCount >= len(t.responses) {
+		return nil, fmt.Errorf("no response configured for call %d", t.callCount)
+	}
+	resp := t.responses[t.callCount]
+	t.callCount++
+	return resp, nil
+}
+
+type trackingBody struct {
+	reader *strings.Reader
+	read   bool
+	closed bool
+}
+
+func newTrackingBody(payload string) *trackingBody {
+	return &trackingBody{
+		reader: strings.NewReader(payload),
+	}
+}
+
+func (b *trackingBody) Read(p []byte) (int, error) {
+	n, err := b.reader.Read(p)
+	if n > 0 {
+		b.read = true
+	}
+	return n, err
+}
+
+func (b *trackingBody) Close() error {
+	b.closed = true
+	return nil
 }
 
 func TestRLHTTPClient_Fetch(t *testing.T) {
@@ -242,5 +282,62 @@ func TestRLHTTPClient_Fetch(t *testing.T) {
 		resp, err := client.Do(req)
 		assert.Error(t, err)
 		assert.Nil(t, resp)
+	})
+}
+
+func TestRLHTTPClient_ClosesResponseBodiesBeforeRetry(t *testing.T) {
+	firstFailureBody := newTrackingBody("first failure body")
+	secondFailureBody := newTrackingBody("second failure body")
+	successBody := newTrackingBody("success body")
+
+	transport := &sequenceTransport{
+		responses: []*http.Response{
+			{
+				StatusCode: http.StatusInternalServerError,
+				Body:       firstFailureBody,
+				Header:     make(http.Header),
+			},
+			{
+				StatusCode: http.StatusBadGateway,
+				Body:       secondFailureBody,
+				Header:     make(http.Header),
+			},
+			{
+				StatusCode: http.StatusOK,
+				Body:       successBody,
+				Header:     make(http.Header),
+			},
+		},
+	}
+
+	client := NewRLClient(rate.NewLimiter(rate.Inf, 0))
+	client.RetryConfig = &RetryConfig{MaxRetries: 2, Interval: 0}
+	client.client = &http.Client{
+		Transport: transport,
+	}
+
+	req, err := http.NewRequest("GET", "https://example.com/retry", nil)
+	assert.NoError(t, err)
+
+	resp, err := client.Do(req)
+	assert.NoError(t, err)
+	assert.Equal(t, http.StatusOK, resp.StatusCode)
+	t.Cleanup(func() {
+		if resp != nil && resp.Body != nil {
+			resp.Body.Close()
+		}
+	})
+
+	assert.Equal(t, 3, transport.callCount)
+	assert.True(t, firstFailureBody.closed, "first failure body must be closed before retry")
+	assert.True(t, secondFailureBody.closed, "second failure body must be closed before retry")
+	assert.True(t, firstFailureBody.read, "first failure body should be drained to allow connection reuse")
+	assert.True(t, secondFailureBody.read, "second failure body should be drained to allow connection reuse")
+	assert.False(t, successBody.closed, "successful response body should remain open for the caller")
+}
+
+func TestDrainAndCloseHandlesNilBody(t *testing.T) {
+	assert.NotPanics(t, func() {
+		drainAndClose(nil)
 	})
 }

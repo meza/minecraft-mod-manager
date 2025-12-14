@@ -7,3 +7,5 @@
 ### 2025-12-14 16:03 - CLI bd --no-db ready works; API-only failure scoped to MCP. Use CLI for ready list until fix.
 ### 2025-12-14 16:21 - mmm-23 now active; release prepare script rewrites internal/environment.go placeholders (version + API keys + HELP_URL) but Go build still hardcodes REPL_* defaults—need ldflags-driven versioning + env helpers wired into CLI/help output.
 ### 2025-12-14 16:30 - Wired HELP_URL helper + Cobra help footer mirroring Node CLI; ended up keeping helper as placeholder-only (no runtime env lookup) because release scripts still replace REPL_* directly; tests cover footer contains REPL_HELP_URL.
+### 2025-12-14 17:08 - Ready list reviewed; plan to tackle mmm-21 (retry body leak) next since it's the lone P1 bug blocking network stability work.
+### 2025-12-14 17:12 - mmm-21 resolved via `drainAndClose` helper + regression test checking retry responses are drained/closed; remembered to cover nil bodies to keep coverage at 100%.

@@ -113,14 +113,18 @@ If you think a test needs to be removed or disabled, stop and ask for guidance f
 
 ## Verification
 
+- [ ] Review every line of code for adherence to coding standards
+- [ ] Attempt to simplify or improve any code in the changeset for clarity and maintainability
 - [ ] Ensure `go fmt ./...` passes
 - [ ] Ensure tests pass (`./make test`)
 - [ ] Ensure coverage is 100% (`./make coverage-enforce`)
 - [ ] Ensure build (`./make build`)
 - [ ] Documentation updated if needed
+- [ ] The team/user has reviewed the changes and explicitly asked for completion
 
 ## IMPORTANT
 
 - Refer to the existing `Makefile` for commands related to building, testing, and coverage enforcement, and **always invoke the documented `make` targets (e.g., `make test`, `make coverage`, `make build`) instead of calling toolchain binaries directly**. This ensures we honor repo-specific flags and hooks.
 - Evaluate your methods and thinking against this document at all times. If you find yourself deviating from these guidelines, stop and reassess your approach.
 - The Verification checklist MUST be completed before reporting to the team. It's not a suggestion, it's not a guideline—it's a HARD requirement.
+- You may not call a task finished yourself. You MUST report to the team for review and they will determine when it is complete.
