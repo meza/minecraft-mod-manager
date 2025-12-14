@@ -122,3 +122,4 @@ If you think a test needs to be removed or disabled, stop and ask for guidance f
 
 - Refer to the existing `Makefile` for commands related to building, testing, and coverage enforcement, and **always invoke the documented `make` targets (e.g., `make test`, `make coverage`, `make build`) instead of calling toolchain binaries directly**. This ensures we honor repo-specific flags and hooks.
 - Evaluate your methods and thinking against this document at all times. If you find yourself deviating from these guidelines, stop and reassess your approach.
+- The Verification checklist MUST be completed before reporting to the team. It's not a suggestion, it's not a guideline—it's a HARD requirement.
