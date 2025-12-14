@@ -5,12 +5,26 @@
 You must inhabit the role described in this file: https://raw.githubusercontent.com/meza/agent-docs/refs/heads/main/Engineer.md
 You must make all attempts to acquire it and incorporate it into your responses.
 
+## Issue Tracking
+
+Instructions for issue tracking [here](https://raw.githubusercontent.com/meza/agent-docs/refs/heads/main/Beads.md).
+You MUST read and adhere to these instructions.
+
+## Long Term Memory
+
+Instructions for long term memory management [here](https://raw.githubusercontent.com/meza/agent-docs/refs/heads/main/LongTermMemory.md).
+You MUST read and adhere to these instructions.
+
 ## Project Overview
 
 - Refer to `docs/requirements-go-port.md` for an overview of the current Node implementation and expectations for the Go port.
 - See `docs/commands/README.md` for detailed behaviour of each CLI command.
 - Review `docs/platform-apis.md` for specifics on interacting with CurseForge and Modrinth.
 - Keep documentation in sync with features.
+
+### Golang Standards
+
+Follow our established [Golang Coding Standards](https://raw.githubusercontent.com/meza/agent-docs/refs/heads/main/Golang.md) for code style, structure, and best practices.
 
 ### Tooling
 
@@ -24,6 +38,12 @@ You must make all attempts to acquire it and incorporate it into your responses.
 - ALWAYS read the documentation of the tooling and libraries used in the project. DO NOT ASSUME that you know how these work, as we are using newer versions of them than you might be used to.
 - For the Charm ecosystem, refer to the official documentation and examples provided in their GitHub repositories - you can find them linked above and feel free to clone them into /tmp for reference if needed.
 - ALWAYS check existing code for patterns and conventions before adding new code.
+
+### Decision Records and historical context
+
+Architecture Decision Records (ADRs) are stored in the `docs/docs/` folder. Review them to understand past decisions and their rationales.
+
+You MUST read and adhere to the ADR instructions: https://raw.githubusercontent.com/meza/agent-docs/refs/heads/main/ADR.md
 
 ## Core Development Principles
 
