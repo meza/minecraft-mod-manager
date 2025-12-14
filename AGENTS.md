@@ -113,10 +113,12 @@ If you think a test needs to be removed or disabled, stop and ask for guidance f
 
 ## Verification
 
-Before saying that you're ready:
 - [ ] Ensure tests pass (`./make test`)
 - [ ] Ensure coverage is 100% (`./make coverage-enforce`)
 - [ ] Ensure build (`./make build`)
 - [ ] Documentation updated if needed
 
-**Remember: These are not suggestions - they are requirements. Adherence to these standards is mandatory for all contributions.**
+## IMPORTANT
+
+- Refer to the existing `Makefile` for commands related to building, testing, and coverage enforcement, and **always invoke the documented `make` targets (e.g., `make test`, `make coverage`, `make build`) instead of calling toolchain binaries directly**. This ensures we honor repo-specific flags and hooks.
+- Evaluate your methods and thinking against this document at all times. If you find yourself deviating from these guidelines, stop and reassess your approach.
