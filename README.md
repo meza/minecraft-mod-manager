@@ -151,6 +151,20 @@ or
 mmm -c ./my-config.json install
 ```
 
+### Telemetry
+
+Minecraft Mod Manager records anonymized command metadata with [PostHog](https://posthog.com) so we know which flows succeed and where bugs cluster. Events only include the command name, success/failure, and non-sensitive diagnostics. Telemetry is best-effort and never blocks a command.
+
+Opt out anytime by setting an environment variable before running the CLI. For example:
+
+```bash
+# macOS/Linux
+MMM_DISABLE_TELEMETRY=1 mmm list
+
+# Windows PowerShell
+$env:MMM_DISABLE_TELEMETRY=1; mmm list
+```
+
 ### INIT
 
 `mmm init`

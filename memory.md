@@ -9,3 +9,8 @@
 ### 2025-12-14 16:30 - Wired HELP_URL helper + Cobra help footer mirroring Node CLI; ended up keeping helper as placeholder-only (no runtime env lookup) because release scripts still replace REPL_* directly; tests cover footer contains REPL_HELP_URL.
 ### 2025-12-14 17:08 - Ready list reviewed; plan to tackle mmm-21 (retry body leak) next since it's the lone P1 bug blocking network stability work.
 ### 2025-12-14 17:12 - mmm-21 resolved via `drainAndClose` helper + regression test checking retry responses are drained/closed; remembered to cover nil bodies to keep coverage at 100%.
+### 2025-12-14 17:27 - Ready queue now elevates mmm-17 (telemetry lifecycle redesign) as sole P1; plan to tackle it next before moving on to CLI/global flag work.
+### 2025-12-14 17:37 - Reworking telemetry lifecycle for mmm-17: introduce Init/Capture/Shutdown APIs with session-scoped PostHog client, signal-driven flushing in `main.go`, and new `MMM_DISABLE_TELEMETRY` opt-out plus docs/telemetry.md for future TUI guidance.
+### 2025-12-14 17:48 - Added shared `internal/lifecycle` signal manager so telemetry (and future subsystems) register handlers once; `main.go` now triggers lifecycle instead of calling telemetry directly.
+### 2025-12-14 18:06 - Explicit reminder: must adhere to provided instructions and guidelines perfectly.
+### 2025-12-14 19:05 - Reinforced: instructions are absolute (no edits to historical docs, keep user-facing docs simple) and must be followed without improvisation; refer to memory before every action.
