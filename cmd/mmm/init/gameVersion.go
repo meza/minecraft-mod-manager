@@ -119,11 +119,11 @@ func NewGameVersionModel(gameVersion string) GameVersionModel {
 
 func isValidMinecraftVersion(value string) error {
 	if value == "" {
-		return fmt.Errorf(i18n.T("cmd.init.tui.game-version.error"))
+		return fmt.Errorf("%s", i18n.T("cmd.init.tui.game-version.error"))
 	}
 
 	if !minecraft.IsValidVersion(value, http.DefaultClient) {
-		return fmt.Errorf(i18n.T("cmd.init.tui.game-version.invalid"))
+		return fmt.Errorf("%s", i18n.T("cmd.init.tui.game-version.invalid"))
 	}
 	return nil
 }
