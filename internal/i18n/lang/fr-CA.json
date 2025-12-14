@@ -1,1 +1,5 @@
-{}
+{
+  "cmd.help.more_info": {
+    "other": "Pour plus d'informations, visitez : {{.helpUrl}}"
+  }
+}

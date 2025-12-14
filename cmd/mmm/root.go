@@ -25,6 +25,7 @@ func Command() *cobra.Command {
 	rootCmd.AddCommand(version.Command())
 
 	translateDefaultHelpFacilities(rootCmd)
+	appendHelpURLFooter(rootCmd)
 	fixFlagUsageAlignment(rootCmd)
 
 	return rootCmd
@@ -73,6 +74,15 @@ func fixFlagUsageAlignment(rootCmd *cobra.Command) {
 	usageTemplate := rootCmd.UsageTemplate()
 	usageTemplate = strings.ReplaceAll(usageTemplate, ".FlagUsages", fmt.Sprintf(".FlagUsagesWrapped %d", width))
 	rootCmd.SetUsageTemplate(usageTemplate)
+}
+
+func appendHelpURLFooter(rootCmd *cobra.Command) {
+	template := strings.TrimRight(rootCmd.HelpTemplate(), "\n")
+	footer := i18n.T("cmd.help.more_info", i18n.Tvars{
+		Data: &i18n.TData{"helpUrl": environment.HelpURL()},
+	})
+
+	rootCmd.SetHelpTemplate(template + "\n\n" + footer + "\n")
 }
 
 func Execute() error {

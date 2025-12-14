@@ -32,3 +32,7 @@ func PosthogApiKey() string {
 func AppVersion() string {
 	return "REPL_VERSION"
 }
+
+func HelpURL() string {
+	return "REPL_HELP_URL"
+}

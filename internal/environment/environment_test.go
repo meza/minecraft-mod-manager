@@ -69,3 +69,7 @@ func TestAppVersion(t *testing.T) {
 	actual := AppVersion()
 	assert.Equal(t, expected, actual)
 }
+
+func TestHelpURL(t *testing.T) {
+	assert.Equal(t, "REPL_HELP_URL", HelpURL())
+}

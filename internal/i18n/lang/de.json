@@ -8,6 +8,9 @@
   "cmd.help.template": {
     "other": "Hilfe für den Befehl {{.command}} erhalten"
   },
+  "cmd.help.more_info": {
+    "other": "Weitere Informationen findest du unter: {{.helpUrl}}"
+  },
   "cmd.help.usage.long": {
     "other": "Help gibt Hilfe zu einem beliebigen Befehl der Anwendung.\nFür mehr Information einfach {{.appName}} help [command] eingeben."
   },
