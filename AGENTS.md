@@ -113,6 +113,7 @@ If you think a test needs to be removed or disabled, stop and ask for guidance f
 
 ## Verification
 
+- [ ] Ensure `go fmt ./...` passes
 - [ ] Ensure tests pass (`./make test`)
 - [ ] Ensure coverage is 100% (`./make coverage-enforce`)
 - [ ] Ensure build (`./make build`)
