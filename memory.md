@@ -1,2 +1,5 @@
 ### 2025-12-14 14:23 - Established Go parity plan with detailed beads backlog referencing Node repo. Epic mmm-1 now encodes execution order; each task notes to consult epic; P1 audit (mmm-14) blocks epic.
 ### 2025-12-14 15:03 - bd --no-db ignores blockers in ready output; rely on issue dependencies/epic order instead of ready list until DB bug fixed.
+### 2025-12-14 15:27 - New session kicked off; need to identify next beads issue for Go port despite ready cmd bug—cross-reference epic ordering before picking work.
+### 2025-12-14 15:37 - Completed mmm-14 audit; logged gaps for config schema (mmm-18), Makefile (mmm-19), locale detection (mmm-20), HTTP retry leaks (mmm-21), init TUI networking (mmm-22), and environment metadata (mmm-23). Prioritize these before jumping into parity work.
+### 2025-12-14 15:49 - mmm-18 fixed: ModsJson.mods now uses []models.Mod (config entries) instead of lock-style ModInstall; default config seeded with []models.Mod. README updated to reflect per-mod allowVersionFallback (no global flag).

@@ -495,7 +495,6 @@ This is how it looks like if you followed the examples in the [`add`](#add) sect
     "release",
     "beta"
   ],
-  "allowVersionFallback": true,
   "mods": [
     {
       "type": "curseforge",
@@ -579,8 +578,7 @@ To lock Fabric Api to only release versions when everything else could be beta t
 
 #### allowVersionFallback _optional_
 
-This is a field that exist due to the chaotic nature of Minecraft mod versioning. Setting this `true` will do the
-following:
+Every mod entry may optionally include `allowVersionFallback`. Setting it to `true` for a mod entry will:
 
 - If a suitable mod isn't found for the given Minecraft version, say 1.19.2, it will try for 1.19.1 (the previous minor
   version)
@@ -589,7 +587,7 @@ following:
 This happens quite frequently unfortunately because mod developers either don't update their mods but they still work or
 they forget to list the supported Minecraft versions correctly.
 
-This setting will be overridable on an individual mod basis in the next release. Currently, it's a global setting.
+If `allowVersionFallback` is omitted, the CLI assumes `false` for that mod. There is currently no global fallback flag.
 
 #### version _optional_
 

@@ -5,5 +5,5 @@ type ModsJson struct {
 	GameVersion                string        `json:"gameVersion"`
 	DefaultAllowedReleaseTypes []ReleaseType `json:"defaultAllowedReleaseTypes"`
 	ModsFolder                 string        `json:"modsFolder"`
-	Mods                       []ModInstall  `json:"mods"`
+	Mods                       []Mod         `json:"mods"`
 }

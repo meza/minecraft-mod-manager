@@ -76,7 +76,7 @@ func InitializeConfigFile(configPath string, filesystem ...afero.Fs) (models.Mod
 		GameVersion:                "1.21.1",
 		DefaultAllowedReleaseTypes: []models.ReleaseType{models.Release, models.Beta},
 		ModsFolder:                 "mods",
-		Mods:                       []models.ModInstall{},
+		Mods:                       []models.Mod{},
 	}
 	if err := writeConfigFile(emptyModJson, configPath, fs); err != nil {
 		return models.ModsJson{}, err
