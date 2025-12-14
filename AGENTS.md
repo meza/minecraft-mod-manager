@@ -13,7 +13,7 @@ You MUST read and adhere to these instructions.
 ## Long Term Memory
 
 Instructions for long term memory management [here](https://raw.githubusercontent.com/meza/agent-docs/refs/heads/main/LongTermMemory.md).
-You MUST read and adhere to these instructions.
+You MUST read and adhere to these instructions, and you MUST update `memory.md` during the session—not just at the end. Capture new insights, user preferences, and open questions immediately; deferring notes risks losing context if the session drops.
 
 ## Project Overview
 
