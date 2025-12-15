@@ -40,6 +40,8 @@ Follow our established [Golang Coding Standards](https://raw.githubusercontent.c
 ## Knowledge Material
 
 - ALWAYS check the docs/ folder for relevant information before answering questions or writing code.
+- The `docs/specs` folder contains design specifications for various components of the project. You MUST read and adhere to these specifications when working on related components.
+- You must NOT change any design specification files in the `docs/specs` folder or the [requirements-go-port.md](/docs/requirements-go-port.md) file without explicit permission.
 - ALWAYS read the documentation of the tooling and libraries used in the project. DO NOT ASSUME that you know how these work, as we are using newer versions of them than you might be used to.
 - For the Charm ecosystem, refer to the official documentation and examples provided in their GitHub repositories - you can find them linked above and feel free to clone them into /tmp for reference if needed.
 - ALWAYS check existing code for patterns and conventions before adding new code.
