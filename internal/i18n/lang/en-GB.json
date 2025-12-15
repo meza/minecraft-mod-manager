@@ -1,143 +1,49 @@
 {
-  "app.description": {
-    "other": "Manages mods from Modrinth and Curseforge"
-  },
-  "cmd.help.error": {
-    "other": "Unknown help topic: {{.topic}}"
-  },
-  "cmd.help.template": {
-    "other": "Get help for the {{.command}} command"
-  },
-  "cmd.help.more_info": {
-    "other": "For more information, visit: {{.helpUrl}}"
-  },
-  "cmd.help.usage.long": {
-    "other": "Help provides help for any command in the application.\nSimply type {{.appName}} help [command] for more information."
-  },
-  "cmd.help.usage.short": {
-    "other": "Get help for the any command"
-  },
-  "cmd.init.short": {
-    "other": "Initialize the mod manager configuration"
-  },
-  "cmd.init.tui.game-version.invalid": {
-    "other": "That Minecraft version does not exist"
-  },
-  "cmd.init.tui.game-version.question": {
-    "other": "What exact Minecraft version are you using? (eg: 1.18.2, 1.19, 1.19.1)"
-  },
-  "cmd.init.tui.loader.invalid": {
-    "other": "Invalid Loader supplied"
-  },
-  "cmd.init.tui.loader.question": {
-    "other": "Which loader would you like to use?"
-  },
-  "cmd.init.tui.mods-folder.question": {
-    "other": "Where is your mods folder? (full or relative path from the current directory):"
-  },
-  "cmd.init.tui.release-types.question": {
-    "other": "Which types of releases would you like to consider to download?"
-  },
-  "cmd.init.usage.game-version": {
-    "other": "What exact Minecraft version are you using? (eg: 1.18.2, 1.19, 1.19.1)"
-  },
-  "cmd.init.usage.loader": {
-    "other": "Which loader do you want to use?\nPossible options: {{.loaders}}"
-  },
-  "cmd.init.usage.mods-folder": {
-    "other": "Where is your mods folder? (full or relative path from {{.cwd}})"
-  },
-  "cmd.init.usage.release-types": {
-    "other": "Which types of releases would you like to consider to download? (comma-separated list)\nPossible options: {{.releaseTypes}}"
-  },
-  "cmd.version.short": {
-    "other": "Print the version number of {{.appName}}"
-  },
-  "key.ctrl_c": {
-    "other": "ctrl+c"
-  },
-  "key.ctrl_j": {
-    "other": "ctrl+j"
-  },
-  "key.ctrl_k": {
-    "other": "ctrl+k"
-  },
-  "key.down": {
-    "other": "down"
-  },
-  "key.enter": {
-    "other": "enter"
-  },
-  "key.esc": {
-    "other": "esc"
-  },
-  "key.help.accept": {
-    "other": "accept"
-  },
-  "key.help.apply_filter": {
-    "other": "apply filter"
-  },
-  "key.help.cancel": {
-    "other": "cancel"
-  },
-  "key.help.clear_filter": {
-    "other": "clear filter"
-  },
-  "key.help.close_help": {
-    "other": "close help"
-  },
-  "key.help.complete": {
-    "other": "complete"
-  },
-  "key.help.down": {
-    "other": "down"
-  },
-  "key.help.filter": {
-    "other": "filter"
-  },
-  "key.help.go_to_end": {
-    "other": "go to end"
-  },
-  "key.help.go_to_start": {
-    "other": "go to start"
-  },
-  "key.help.more": {
-    "other": "more"
-  },
-  "key.help.page_next": {
-    "other": "next page"
-  },
-  "key.help.page_previous": {
-    "other": "previous page"
-  },
-  "key.help.quit": {
-    "other": "quit"
-  },
-  "key.help.up": {
-    "other": "up"
-  },
-  "key.home": {
-    "other": "home"
-  },
-  "key.left": {
-    "other": "left"
-  },
-  "key.pgdown": {
-    "other": "pgdn"
-  },
-  "key.pgup": {
-    "other": "pgup"
-  },
-  "key.right": {
-    "other": "right"
-  },
-  "key.shift_tab": {
-    "other": "shift+tab"
-  },
-  "key.tab": {
-    "other": "tab"
-  },
-  "key.up": {
-    "other": "up"
-  }
+  "app.description": "Manages mods from Modrinth and Curseforge",
+  "cmd.help.error": "Unknown help topic: {topic}",
+  "cmd.help.template": "Get help for the {command} command",
+  "cmd.help.more_info": "For more information, visit: {helpUrl}",
+  "cmd.help.usage.long": "Help provides help for any command in the application.\nSimply type {appName} help [command] for more information.",
+  "cmd.help.usage.short": "Get help for the any command",
+  "cmd.init.short": "Initialize the mod manager configuration",
+  "cmd.init.tui.game-version.invalid": "That Minecraft version does not exist",
+  "cmd.init.tui.game-version.question": "What exact Minecraft version are you using? (eg: 1.18.2, 1.19, 1.19.1)",
+  "cmd.init.tui.loader.invalid": "Invalid Loader supplied",
+  "cmd.init.tui.loader.question": "Which loader would you like to use?",
+  "cmd.init.tui.mods-folder.question": "Where is your mods folder? (full or relative path from the current directory):",
+  "cmd.init.tui.release-types.question": "Which types of releases would you like to consider to download?",
+  "cmd.init.usage.game-version": "What exact Minecraft version are you using? (eg: 1.18.2, 1.19, 1.19.1)",
+  "cmd.init.usage.loader": "Which loader do you want to use?\nPossible options: {loaders}",
+  "cmd.init.usage.mods-folder": "Where is your mods folder? (full or relative path from {cwd})",
+  "cmd.init.usage.release-types": "Which types of releases would you like to consider to download? (comma-separated list)\nPossible options: {releaseTypes}",
+  "cmd.version.short": "Print the version number of {appName}",
+  "key.ctrl_c": "ctrl+c",
+  "key.ctrl_j": "ctrl+j",
+  "key.ctrl_k": "ctrl+k",
+  "key.down": "down",
+  "key.enter": "enter",
+  "key.esc": "esc",
+  "key.help.accept": "accept",
+  "key.help.apply_filter": "apply filter",
+  "key.help.cancel": "cancel",
+  "key.help.clear_filter": "clear filter",
+  "key.help.close_help": "close help",
+  "key.help.complete": "complete",
+  "key.help.down": "down",
+  "key.help.filter": "filter",
+  "key.help.go_to_end": "go to end",
+  "key.help.go_to_start": "go to start",
+  "key.help.more": "more",
+  "key.help.page_next": "next page",
+  "key.help.page_previous": "previous page",
+  "key.help.quit": "quit",
+  "key.help.up": "up",
+  "key.home": "home",
+  "key.left": "left",
+  "key.pgdown": "pgdn",
+  "key.pgup": "pgup",
+  "key.right": "right",
+  "key.shift_tab": "shift+tab",
+  "key.tab": "tab",
+  "key.up": "up"
 }

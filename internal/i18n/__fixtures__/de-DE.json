@@ -1,0 +1,4 @@
+{
+  "test.simple": "Hello World but in German",
+  "test.multiple": "{count, plural, one {One message: {injectedData} but in German} two {Two messages: {injectedData} but in German} few {A few messages: {injectedData} but in German} many {Many messages: {injectedData} but in German} other {Other message {injectedData} but in German} }"
+}

@@ -2,13 +2,13 @@ package i18n
 
 import (
 	"embed"
-	"encoding/json"
 	"fmt"
 	"os"
+	"path/filepath"
 	"strings"
 
 	goLocale "github.com/jeandeaual/go-locale"
-	i18nLib "github.com/nicksnyder/go-i18n/v2/i18n"
+	i18nLib "github.com/kaptinlin/go-i18n"
 	"golang.org/x/text/language"
 )
 
@@ -25,8 +25,10 @@ func (d DefaultLocaleProvider) GetLocales() ([]string, error) {
 //go:embed lang/*.json
 var enFS embed.FS
 
+const defaultLocale = "en-GB"
+
 var localizer *i18nLib.Localizer
-var bundle *i18nLib.Bundle
+var bundle *i18nLib.I18n
 var langDir = "lang"
 var localeProvider LocaleProvider
 
@@ -43,24 +45,35 @@ func setup() {
 		localeProvider = DefaultLocaleProvider{}
 	}
 
-	bundle = i18nLib.NewBundle(language.BritishEnglish)
-	bundle.RegisterUnmarshalFunc("json", json.Unmarshal)
-
 	files, err := enFS.ReadDir(langDir)
 	if err != nil {
 		panic(err)
 	}
 
+	availableLocales := []string{defaultLocale}
+
 	for _, file := range files {
 		if !file.IsDir() {
-			// The path is a URL Path, not an OS dependent file path
-			langFilePath := fmt.Sprintf("%s/%s", langDir, file.Name())
-			_, _ = bundle.LoadMessageFileFS(enFS, langFilePath)
+			name := file.Name()
+			locale := strings.TrimSuffix(name, filepath.Ext(name))
+			if strings.EqualFold(locale, defaultLocale) {
+				continue
+			}
+			availableLocales = append(availableLocales, locale)
 		}
 	}
 
-	locales := getUserLocales()
-	localizer = i18nLib.NewLocalizer(bundle, locales...)
+	bundle = i18nLib.NewBundle(
+		i18nLib.WithDefaultLocale(defaultLocale),
+		i18nLib.WithLocales(availableLocales...),
+	)
+
+	if err := bundle.LoadFS(enFS, fmt.Sprintf("%s/*.json", langDir)); err != nil {
+		panic(err)
+	}
+
+	userLocales := buildLocalizerLocales(getUserLocales())
+	localizer = bundle.NewLocalizer(userLocales...)
 }
 
 func T(key string, args ...Tvars) string {
@@ -75,31 +88,32 @@ func T(key string, args ...Tvars) string {
 		setup()
 	}
 
-	messageConfig := i18nLib.LocalizeConfig{
-		MessageID: key,
-	}
-
-	if len(args) == 1 {
-		messageConfig.TemplateData = args[0].Data
-		messageConfig.PluralCount = args[0].Count
-	}
-
 	if len(args) > 1 {
 		panic("Too many arguments")
 	}
 
-	localizationUsingJson, err := localizer.Localize(&messageConfig)
-	if err != nil {
-		return key
+	if len(args) == 0 {
+		return localizer.Get(key)
 	}
-	return localizationUsingJson
+
+	vars := make(map[string]interface{})
+
+	if args[0].Data != nil {
+		for k, v := range *args[0].Data {
+			vars[k] = v
+		}
+	}
+	vars["count"] = args[0].Count
+
+	localization := localizer.Get(key, i18nLib.Vars(vars))
+	return localization
 }
 
 func getUserLocales() []string {
-	key, present := os.LookupEnv("LANG")
+	envLocale, present := os.LookupEnv("LANG")
 
 	if present {
-		return []string{key}
+		return []string{envLocale}
 	}
 
 	detectedLocales, err := localeProvider.GetLocales()
@@ -112,6 +126,9 @@ func getUserLocales() []string {
 
 	locales := make([]string, 0, len(detectedLocales))
 	for _, localeName := range detectedLocales {
+		if localeName == "" {
+			continue
+		}
 		locales = append(locales, localeName)
 	}
 	return locales
@@ -126,4 +143,36 @@ func formatKeyAndArgs(key string, args ...Tvars) string {
 	}
 
 	return sb.String()
+}
+
+func buildLocalizerLocales(rawLocales []string) []string {
+	locales := make([]string, 0, len(rawLocales)*2)
+	seen := make(map[string]struct{}, len(rawLocales)*2)
+
+	for _, localeName := range rawLocales {
+		if localeName == "" {
+			continue
+		}
+
+		tag, err := language.Parse(localeName)
+		if err != nil {
+			continue
+		}
+
+		canonical := tag.String()
+		if _, ok := seen[canonical]; !ok {
+			locales = append(locales, canonical)
+			seen[canonical] = struct{}{}
+		}
+
+		if base, _ := tag.Base(); base.String() != "" {
+			baseStr := base.String()
+			if _, ok := seen[baseStr]; !ok {
+				locales = append(locales, baseStr)
+				seen[baseStr] = struct{}{}
+			}
+		}
+	}
+
+	return locales
 }

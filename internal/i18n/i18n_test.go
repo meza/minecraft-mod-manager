@@ -24,8 +24,17 @@ func (f FakeLocaleProvider) GetLocales() ([]string, error) {
 	return []string{"fr_FR", "de_DE"}, nil
 }
 
+type EmptyLocaleProvider struct{}
+
+func (f EmptyLocaleProvider) GetLocales() ([]string, error) {
+	return []string{"", "es_ES"}, nil
+}
+
 //go:embed __fixtures__/*.json
 var testData embed.FS
+
+//go:embed __fixtures_invalid__/*.json
+var invalidLocales embed.FS
 
 func TestSimpleTranslations(t *testing.T) {
 	enFS = testData
@@ -140,6 +149,39 @@ func TestBadLangDir(t *testing.T) {
 	})
 }
 
+func TestInvalidLocaleFiles(t *testing.T) {
+	enFS = invalidLocales
+	langDir = "__fixtures_invalid__"
+	localizer = nil
+	bundle = nil
+
+	assert.Panics(t, func() {
+		setup()
+	})
+}
+
+func TestSetupKeepsDefaultFirst(t *testing.T) {
+	originalFS := enFS
+	originalLangDir := langDir
+
+	enFS = testData
+	langDir = "__fixtures__"
+	localizer = nil
+	bundle = nil
+
+	t.Cleanup(func() {
+		enFS = originalFS
+		langDir = originalLangDir
+		localizer = nil
+		bundle = nil
+	})
+
+	setup()
+
+	supported := bundle.SupportedLanguages()
+	assert.Equal(t, defaultLocale, supported[0].String())
+}
+
 func TestWrongNumberOfArguments(t *testing.T) {
 	enFS = testData
 	langDir = "__fixtures__"
@@ -197,4 +239,25 @@ func TestDefaultLocaleProvider(t *testing.T) {
 	locales, err := provider.GetLocales()
 	assert.NoError(t, err)
 	assert.NotNil(t, locales)
+}
+
+func TestBuildLocalizerLocales(t *testing.T) {
+	locales := buildLocalizerLocales([]string{"fr_FR", "de_DE", "fr_FR", ""})
+	assert.Equal(t, []string{"fr-FR", "fr", "de-DE", "de"}, locales)
+
+	withInvalid := buildLocalizerLocales([]string{"fr_FR", "???"})
+	assert.Equal(t, []string{"fr-FR", "fr"}, withInvalid)
+}
+
+func TestGetUserLocalesSkipsEmptyEntries(t *testing.T) {
+	enFS = testData
+	langDir = "__fixtures__"
+	localeProvider = EmptyLocaleProvider{}
+
+	oldLang := os.Getenv("LANG")
+	os.Unsetenv("LANG")
+	t.Cleanup(func() { os.Setenv("LANG", oldLang) })
+
+	locales := getUserLocales()
+	assert.Equal(t, []string{"es_ES"}, locales)
 }

@@ -11,8 +11,8 @@ require (
 	github.com/gkampitakis/go-snaps v0.5.14
 	github.com/jeandeaual/go-locale v0.0.0-20240223122105-ce5225dcaa49
 	github.com/joho/godotenv v1.5.1
+	github.com/kaptinlin/go-i18n v0.1.2
 	github.com/muesli/termenv v0.16.0
-	github.com/nicksnyder/go-i18n/v2 v2.6.0
 	github.com/pkg/errors v0.9.1
 	github.com/posthog/posthog-go v1.6.5
 	github.com/spf13/afero v1.14.0
@@ -34,7 +34,10 @@ require (
 	github.com/erikgeiser/coninput v0.0.0-20211004153227-1c3628e74d0f // indirect
 	github.com/gkampitakis/ciinfo v0.3.3 // indirect
 	github.com/gkampitakis/go-diff v1.3.2 // indirect
+	github.com/goccy/go-json v0.10.3 // indirect
 	github.com/goccy/go-yaml v1.18.0 // indirect
+	github.com/gotnospirit/makeplural v0.0.0-20180622080156-a5f48d94d976 // indirect
+	github.com/gotnospirit/messageformat v0.0.0-20221001023931-dfe49f1eb092 // indirect
 	github.com/hashicorp/golang-lru/v2 v2.0.7 // indirect
 	github.com/inconshreveable/mousetrap v1.1.0 // indirect
 	github.com/kr/pretty v0.3.1 // indirect
