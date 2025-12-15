@@ -24,16 +24,16 @@
     "other": "That Minecraft version does not exist"
   },
   "cmd.init.tui.game-version.question": {
-    "other": "What exact Minecraft version are you using?"
+    "other": "What exact Minecraft version are you using? (eg: 1.18.2, 1.19, 1.19.1)"
   },
   "cmd.init.tui.loader.invalid": {
     "other": "Invalid Loader supplied"
   },
   "cmd.init.tui.loader.question": {
-    "other": "Which loader do you want to use?"
+    "other": "Which loader would you like to use?"
   },
   "cmd.init.tui.mods-folder.question": {
-    "other": "Where will the mods be stored?"
+    "other": "Where is your mods folder? (full or relative path from the current directory):"
   },
   "cmd.init.tui.release-types.question": {
     "other": "Which types of releases would you like to consider to download?"

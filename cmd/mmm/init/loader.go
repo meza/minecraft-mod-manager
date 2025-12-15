@@ -119,6 +119,12 @@ func NewLoaderModel(loader string) LoaderModel {
 	loaderVal := models.Loader(loader)
 	if isValidLoader(loaderVal) {
 		model.Value = loaderVal
+		for idx, item := range items {
+			if item.(loaderType) == loaderType(loaderVal) {
+				model.list.Select(idx)
+				break
+			}
+		}
 	}
 
 	return model

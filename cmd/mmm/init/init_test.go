@@ -2,11 +2,15 @@ package init
 
 import (
 	"bytes"
+	"fmt"
 	"io"
 	"net/http"
+	"os"
 	"path/filepath"
 	"strings"
 	"testing"
+
+	tea "github.com/charmbracelet/bubbletea"
 
 	"github.com/meza/minecraft-mod-manager/internal/config"
 	"github.com/meza/minecraft-mod-manager/internal/minecraft"
@@ -265,4 +269,220 @@ func TestParseReleaseTypes(t *testing.T) {
 		_, err := parseReleaseTypes([]string{""})
 		assert.ErrorContains(t, err, "release types cannot be empty")
 	})
+}
+
+func TestGameVersionModelAllowsOfflineEntry(t *testing.T) {
+	minecraft.ClearManifestCache()
+
+	offlineDoer := doerFunc(func(_ *http.Request) (*http.Response, error) {
+		return nil, fmt.Errorf("offline")
+	})
+
+	model := NewGameVersionModel(offlineDoer, "")
+	model.input.SetValue("1.2.3")
+
+	updated, cmd := model.Update(tea.KeyMsg{Type: tea.KeyEnter})
+	assert.Equal(t, "1.2.3", updated.Value)
+
+	msg := cmd()
+	assert.IsType(t, GameVersionSelectedMessage{}, msg)
+	assert.Equal(t, "1.2.3", msg.(GameVersionSelectedMessage).GameVersion)
+}
+
+func TestGameVersionModelUsesPlaceholderWhenEmpty(t *testing.T) {
+	minecraft.ClearManifestCache()
+
+	model := NewGameVersionModel(manifestDoer([]string{"1.21.1"}), "")
+	model.input.SetValue("")
+
+	updated, cmd := model.Update(tea.KeyMsg{Type: tea.KeyEnter})
+	assert.Equal(t, "1.21.1", updated.Value)
+
+	msg := cmd()
+	assert.IsType(t, GameVersionSelectedMessage{}, msg)
+	assert.Equal(t, "1.21.1", msg.(GameVersionSelectedMessage).GameVersion)
+}
+
+func TestReleaseTypesModelRequiresSelection(t *testing.T) {
+	model := NewReleaseTypesModel([]models.ReleaseType{})
+
+	updated, cmd := model.Update(tea.KeyMsg{Type: tea.KeyEnter})
+	assert.Nil(t, cmd)
+	assert.ErrorContains(t, updated.error, "release types cannot be empty")
+
+	updated, _ = updated.Update(tea.KeyMsg{Type: tea.KeySpace})
+	assert.NotEmpty(t, updated.values())
+
+	finished, cmd := updated.Update(tea.KeyMsg{Type: tea.KeyEnter})
+	assert.NotNil(t, cmd)
+
+	msg := cmd().(ReleaseTypesSelectedMessage)
+	assert.Equal(t, finished.Value, msg.ReleaseTypes)
+}
+
+func TestCommandModelProgression(t *testing.T) {
+	minecraft.ClearManifestCache()
+
+	fs := afero.NewMemMapFs()
+	meta := config.NewMetadata(filepath.FromSlash("/cfg/modlist.json"))
+	assert.NoError(t, fs.MkdirAll(filepath.Dir(meta.ConfigPath), 0755))
+	assert.NoError(t, fs.MkdirAll(meta.ModsFolderPath(models.ModsJson{ModsFolder: "mods"}), 0755))
+
+	model := NewModel(initOptions{
+		ConfigPath:   meta.ConfigPath,
+		ModsFolder:   "mods",
+		ReleaseTypes: []models.ReleaseType{models.Release},
+	}, initDeps{
+		fs:              fs,
+		minecraftClient: manifestDoer([]string{"1.21.1"}),
+	}, meta)
+
+	current := *model
+
+	next, _ := current.Update(LoaderSelectedMessage{Loader: models.FABRIC})
+	current = next.(CommandModel)
+
+	next, _ = current.Update(GameVersionSelectedMessage{GameVersion: "1.21.1"})
+	current = next.(CommandModel)
+
+	next, _ = current.Update(ReleaseTypesSelectedMessage{ReleaseTypes: []models.ReleaseType{models.Release, models.Beta}})
+	current = next.(CommandModel)
+
+	finalModel, cmd := current.Update(ModsFolderSelectedMessage{ModsFolder: "mods"})
+	assert.Equal(t, done, finalModel.(CommandModel).state)
+	assert.NotNil(t, cmd)
+
+	result := finalModel.(CommandModel).result
+	assert.Equal(t, models.FABRIC, result.Loader)
+	assert.Equal(t, "1.21.1", result.GameVersion)
+	assert.Equal(t, []models.ReleaseType{models.Release, models.Beta}, result.ReleaseTypes)
+	assert.Equal(t, "mods", result.ModsFolder)
+}
+
+func TestModsFolderModelUsesPlaceholderWhenEmpty(t *testing.T) {
+	fs := afero.NewMemMapFs()
+	meta := config.NewMetadata(filepath.FromSlash("/cfg/modlist.json"))
+	assert.NoError(t, fs.MkdirAll(filepath.Dir(meta.ConfigPath), 0755))
+	assert.NoError(t, fs.MkdirAll(meta.ModsFolderPath(models.ModsJson{ModsFolder: "mods"}), 0755))
+
+	model := NewModsFolderModel("mods", meta, fs, false)
+	model.input.SetValue("")
+
+	updated, cmd := model.Update(tea.KeyMsg{Type: tea.KeyEnter})
+	assert.Equal(t, "mods", updated.Value)
+
+	msg := cmd()
+	assert.IsType(t, ModsFolderSelectedMessage{}, msg)
+	assert.Equal(t, "mods", msg.(ModsFolderSelectedMessage).ModsFolder)
+}
+
+func TestViewHidesProvidedQuestions(t *testing.T) {
+	t.Setenv("MMM_TEST", "true")
+	fs := afero.NewMemMapFs()
+	meta := config.NewMetadata(filepath.FromSlash("/cfg/modlist.json"))
+	assert.NoError(t, fs.MkdirAll(filepath.Dir(meta.ConfigPath), 0755))
+	assert.NoError(t, fs.MkdirAll(meta.ModsFolderPath(models.ModsJson{ModsFolder: "mods"}), 0755))
+
+	model := NewModel(initOptions{
+		ConfigPath:   meta.ConfigPath,
+		Loader:       models.FABRIC,
+		GameVersion:  "1.21.1",
+		ReleaseTypes: []models.ReleaseType{models.Release},
+		ModsFolder:   "mods",
+		Provided: providedFlags{
+			Loader:       true,
+			GameVersion:  true,
+			ReleaseTypes: true,
+			ModsFolder:   true,
+		},
+	}, initDeps{
+		fs:              fs,
+		minecraftClient: manifestDoer([]string{"1.21.1"}),
+	}, meta)
+
+	view := model.View()
+	assert.Equal(t, "", view)
+}
+
+func TestShouldUseTUI(t *testing.T) {
+	reader := fdReaderStub{Reader: strings.NewReader("")}
+	writer := &fdWriterStub{}
+
+	assert.False(t, shouldUseTUI(initOptions{
+		Loader: models.FABRIC,
+		Provided: providedFlags{
+			Loader:       true,
+			GameVersion:  true,
+			ReleaseTypes: true,
+			ModsFolder:   true,
+		},
+	}, reader, writer))
+
+	assert.Equal(t, isTerminalReader(reader) && isTerminalWriter(writer), shouldUseTUI(initOptions{Loader: ""}, reader, writer))
+	assert.False(t, shouldUseTUI(initOptions{Quiet: false}, bytes.NewBuffer(nil), &bytes.Buffer{}))
+	assert.False(t, shouldUseTUI(initOptions{Quiet: true}, reader, writer))
+}
+
+func TestNormalizeGameVersion(t *testing.T) {
+	t.Run("leaves explicit version untouched", func(t *testing.T) {
+		minecraft.ClearManifestCache()
+		opts, err := normalizeGameVersion(initOptions{
+			GameVersion: "1.21.1",
+		}, initDeps{minecraftClient: manifestDoer([]string{"1.21.1"})}, true)
+		assert.NoError(t, err)
+		assert.Equal(t, "1.21.1", opts.GameVersion)
+	})
+
+	t.Run("resolves latest when provided flag set to latest", func(t *testing.T) {
+		minecraft.ClearManifestCache()
+		opts, err := normalizeGameVersion(initOptions{
+			GameVersion: "latest",
+			Provided:    providedFlags{GameVersion: true},
+		}, initDeps{minecraftClient: manifestDoer([]string{"2.0.0"})}, false)
+		assert.NoError(t, err)
+		assert.Equal(t, "2.0.0", opts.GameVersion)
+	})
+
+	t.Run("defaults to asking when default latest cannot resolve", func(t *testing.T) {
+		minecraft.ClearManifestCache()
+		opts, err := normalizeGameVersion(initOptions{
+			GameVersion: "latest",
+			Provided:    providedFlags{GameVersion: false},
+		}, initDeps{minecraftClient: doerFunc(func(_ *http.Request) (*http.Response, error) {
+			return nil, fmt.Errorf("offline")
+		})}, true)
+		assert.NoError(t, err)
+		assert.Equal(t, "", opts.GameVersion)
+	})
+
+	t.Run("errors when provided latest cannot resolve", func(t *testing.T) {
+		minecraft.ClearManifestCache()
+		_, err := normalizeGameVersion(initOptions{
+			GameVersion: "latest",
+			Provided:    providedFlags{GameVersion: true},
+		}, initDeps{minecraftClient: doerFunc(func(_ *http.Request) (*http.Response, error) {
+			return nil, fmt.Errorf("offline")
+		})}, true)
+		assert.Error(t, err)
+	})
+}
+
+type fdReaderStub struct {
+	io.Reader
+}
+
+func (fdReaderStub) Fd() uintptr {
+	return os.Stdin.Fd()
+}
+
+type fdWriterStub struct {
+	buf bytes.Buffer
+}
+
+func (w *fdWriterStub) Write(p []byte) (int, error) {
+	return w.buf.Write(p)
+}
+
+func (fdWriterStub) Fd() uintptr {
+	return os.Stdout.Fd()
 }

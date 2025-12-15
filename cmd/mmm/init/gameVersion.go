@@ -2,13 +2,16 @@ package init
 
 import (
 	"fmt"
+	"strings"
+
 	"github.com/charmbracelet/bubbles/help"
 	"github.com/charmbracelet/bubbles/textinput"
 	tea "github.com/charmbracelet/bubbletea"
+
+	"github.com/meza/minecraft-mod-manager/internal/httpClient"
 	"github.com/meza/minecraft-mod-manager/internal/i18n"
 	"github.com/meza/minecraft-mod-manager/internal/minecraft"
 	"github.com/meza/minecraft-mod-manager/internal/tui"
-	"net/http"
 )
 
 type GameVersionSelectedMessage struct {
@@ -22,6 +25,8 @@ type GameVersionModel struct {
 	keymap tui.TranslatedInputKeyMap
 	error  error
 	Value  string
+
+	validate func(string) error
 }
 
 func (m GameVersionModel) Init() tea.Cmd {
@@ -43,14 +48,23 @@ func (m GameVersionModel) Update(msg tea.Msg) (GameVersionModel, tea.Cmd) {
 		case "esc":
 			return m, tea.Quit
 		case "enter":
-			if m.input.Value() != "" {
-				err := isValidMinecraftVersion(m.input.Value())
-				if err != nil {
-					m.error = err
-				} else {
-					m.Value = m.input.Value()
-					return m, m.gameVersionSelected()
-				}
+			value := strings.TrimSpace(m.input.Value())
+			if value == "" {
+				value = strings.TrimSpace(m.input.Placeholder)
+			}
+
+			if value == "" {
+				m.error = fmt.Errorf("%s", i18n.T("cmd.init.tui.game-version.error"))
+				return m, nil
+			}
+
+			err := m.validate(value)
+			if err != nil {
+				m.error = err
+			} else {
+				m.Value = value
+				m.input.SetValue(value)
+				return m, m.gameVersionSelected()
 			}
 		case "tab":
 			if m.input.Focused() {
@@ -91,16 +105,17 @@ func (m GameVersionModel) gameVersionSelected() tea.Cmd {
 	}
 }
 
-func NewGameVersionModel(gameVersion string) GameVersionModel {
-
-	latestVersion, _ := minecraft.GetLatestVersion(http.DefaultClient)
-	allVersions := minecraft.GetAllMineCraftVersions(http.DefaultClient)
+func NewGameVersionModel(minecraftClient httpClient.Doer, gameVersion string) GameVersionModel {
+	latestVersion, _ := minecraft.GetLatestVersion(minecraftClient)
+	allVersions := minecraft.GetAllMineCraftVersions(minecraftClient)
 
 	m := textinput.New()
 	m.Prompt = tui.QuestionStyle.Render("? ") + tui.TitleStyle.Render(i18n.T("cmd.init.tui.game-version.question")) + " "
 	m.Placeholder = latestVersion
 	m.PlaceholderStyle = tui.PlaceholderStyle
-	m.ShowSuggestions = true
+	if len(allVersions) > 0 {
+		m.ShowSuggestions = true
+	}
 	m.SetSuggestions(allVersions)
 	m.Focus()
 
@@ -108,21 +123,24 @@ func NewGameVersionModel(gameVersion string) GameVersionModel {
 		input:  m,
 		help:   help.New(),
 		keymap: tui.TranslatedInputKeyMap{},
+		validate: func(value string) error {
+			return validateMinecraftVersion(value, minecraftClient)
+		},
 	}
 
-	if minecraft.IsValidVersion(gameVersion, http.DefaultClient) {
+	if gameVersion != "" && !strings.EqualFold(gameVersion, "latest") && model.validate(gameVersion) == nil {
 		model.Value = gameVersion
+		model.input.SetValue(gameVersion)
 	}
 
 	return model
 }
-
-func isValidMinecraftVersion(value string) error {
+func validateMinecraftVersion(value string, client httpClient.Doer) error {
 	if value == "" {
 		return fmt.Errorf("%s", i18n.T("cmd.init.tui.game-version.error"))
 	}
 
-	if !minecraft.IsValidVersion(value, http.DefaultClient) {
+	if !minecraft.IsValidVersion(value, client) {
 		return fmt.Errorf("%s", i18n.T("cmd.init.tui.game-version.invalid"))
 	}
 	return nil

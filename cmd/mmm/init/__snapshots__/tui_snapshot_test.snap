@@ -1,0 +1,152 @@
+
+[TestInitTUIStateSnapshots/loader - 1]
+? cmd.init.tui.loader.question                             
+❯ bukkit                                                   
+  bungeecord                                               
+  cauldron                                                 
+  datapack                                                 
+  fabric                                                   
+  folia                                                    
+  forge                                                    
+  liteloader                                               
+                                                           
+  •••                                                      
+                                                           
+  ↑/k key.help.up • ↓/j key.help.down • / key.help.filter …
+                                                           
+---
+
+[TestInitTUIStateSnapshots/game_version - 1]
+? cmd.init.tui.loader.question fabric
+? cmd.init.tui.game-version.question 1.21.1 
+
+key.tab key.help.complete • key.enter key.help.accept • key.ctrl_c/key.esc key.help.quit
+---
+
+[TestInitTUIStateSnapshots/release_types - 1]
+? cmd.init.tui.loader.question fabric
+? cmd.init.tui.game-version.question 1.21.1
+? cmd.init.tui.release-types.question                      
+❯   alpha                                                  
+    beta                                                   
+  ✓ release                                                
+                                                           
+                                                           
+                                                           
+                                                           
+                                                           
+                                                           
+                                                           
+                                                           
+  ↑/k key.help.up • ↓/j key.help.down • / key.help.filter …
+                                                           
+---
+
+[TestInitTUIStateSnapshots/mods_folder - 1]
+? cmd.init.tui.loader.question fabric
+? cmd.init.tui.game-version.question 1.21.1
+? cmd.init.tui.release-types.question                      
+❯   alpha                                                  
+    beta                                                   
+  ✓ release                                                
+                                                           
+                                                           
+                                                           
+                                                           
+                                                           
+                                                           
+                                                           
+                                                           
+  ↑/k key.help.up • ↓/j key.help.down • / key.help.filter …
+                                                           
+? cmd.init.tui.mods-folder.question mods        
+
+key.tab key.help.complete • key.enter key.help.accept • key.ctrl_c/key.esc key.help.quit
+---
+
+[TestInitTUIStateSnapshots/done - 1]
+? cmd.init.tui.loader.question fabric
+? cmd.init.tui.game-version.question 1.21.1
+? cmd.init.tui.release-types.question                      
+❯   alpha                                                  
+    beta                                                   
+  ✓ release                                                
+                                                           
+                                                           
+                                                           
+                                                           
+                                                           
+                                                           
+                                                           
+                                                           
+  ↑/k key.help.up • ↓/j key.help.down • / key.help.filter …
+                                                           
+? cmd.init.tui.mods-folder.question mods
+---
+
+[TestInitTUIErrorSnapshots/game_version_invalid - 1]
+? cmd.init.tui.loader.question fabric
+? cmd.init.tui.game-version.question invalid  <- cmd.init.tui.game-version.invalid
+
+key.tab key.help.complete • key.enter key.help.accept • key.ctrl_c/key.esc key.help.quit
+---
+
+[TestInitTUIErrorSnapshots/release_types_empty - 1]
+? cmd.init.tui.loader.question fabric
+? cmd.init.tui.game-version.question 1.21.1
+? cmd.init.tui.release-types.question                      
+❯   alpha                                                  
+    beta                                                   
+  ✓ release                                                
+                                                           
+                                                           
+                                                           
+                                                           
+                                                           
+                                                           
+                                                           
+                                                           
+  ↑/k key.help.up • ↓/j key.help.down • / key.help.filter …
+                                                           
+release types cannot be empty
+---
+
+[TestInitTUIErrorSnapshots/mods_folder_missing - 1]
+? cmd.init.tui.loader.question fabric
+? cmd.init.tui.game-version.question 1.21.1
+? cmd.init.tui.release-types.question                      
+❯   alpha                                                  
+    beta                                                   
+  ✓ release                                                
+                                                           
+                                                           
+                                                           
+                                                           
+                                                           
+                                                           
+                                                           
+                                                           
+  ↑/k key.help.up • ↓/j key.help.down • / key.help.filter …
+                                                           
+? cmd.init.tui.mods-folder.question missing         <- mods folder does not exist: /cfg/missing
+
+key.tab key.help.complete • key.enter key.help.accept • key.ctrl_c/key.esc key.help.quit
+---
+
+[TestInitTUIQuietNoTTYSnapshot - 1]
+                                                                                                                                                                                         
+❯ bukkit                                                                                                                                                                                 
+  bungeecord                                                                                                                                                                             
+  cauldron                                                                                                                                                                               
+  datapack                                                                                                                                                                               
+  fabric                                                                                                                                                                                 
+  folia                                                                                                                                                                                  
+  forge                                                                                                                                                                                  
+  liteloader                                                                                                                                                                             
+  modloader                                                                                                                                                                              
+                                                                                                                                                                                         
+  1/2                                                                                                                                                                                    
+                                                                                                                                                                                         
+  ↑/k key.help.up • ↓/j key.help.down • / key.help.filter • key.esc key.help.clear_filter • key.enter key.help.apply_filter • key.esc key.help.cancel • q key.help.quit • ? key.help.more
+                                                                                                                                                                                         
+---

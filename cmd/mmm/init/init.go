@@ -8,6 +8,7 @@ import (
 	"os"
 	"strings"
 
+	tea "github.com/charmbracelet/bubbletea"
 	"github.com/meza/minecraft-mod-manager/internal/config"
 	"github.com/meza/minecraft-mod-manager/internal/httpClient"
 	"github.com/meza/minecraft-mod-manager/internal/i18n"
@@ -16,6 +17,7 @@ import (
 	"github.com/meza/minecraft-mod-manager/internal/models"
 	"github.com/spf13/afero"
 	"github.com/spf13/cobra"
+	"golang.org/x/term"
 )
 
 func Command() *cobra.Command {
@@ -66,7 +68,7 @@ func Command() *cobra.Command {
 				return err
 			}
 
-			_, err = initWithDeps(initOptions{
+			options := initOptions{
 				ConfigPath:   configPath,
 				Quiet:        quiet,
 				Debug:        debug,
@@ -74,7 +76,32 @@ func Command() *cobra.Command {
 				GameVersion:  gameVersion,
 				ReleaseTypes: releaseTypes,
 				ModsFolder:   modsFolder,
-			}, deps)
+				Provided: providedFlags{
+					Loader:       cmd.Flags().Changed("loader"),
+					GameVersion:  cmd.Flags().Changed("game-version"),
+					ReleaseTypes: cmd.Flags().Changed("release-types"),
+					ModsFolder:   cmd.Flags().Changed("mods-folder"),
+				},
+			}
+
+			meta := config.NewMetadata(configPath)
+
+			useTUI := shouldUseTUI(options, cmd.InOrStdin(), cmd.OutOrStdout())
+
+			options, err = normalizeGameVersion(options, deps, useTUI)
+			if err != nil {
+				return err
+			}
+
+			if useTUI {
+				updated, err := runInteractiveInit(cmd, options, deps, meta)
+				if err != nil {
+					return err
+				}
+				options = updated
+			}
+
+			_, err = initWithDeps(options, deps)
 			return err
 		},
 	}
@@ -104,6 +131,14 @@ type initOptions struct {
 	GameVersion  string
 	ReleaseTypes []models.ReleaseType
 	ModsFolder   string
+	Provided     providedFlags
+}
+
+type providedFlags struct {
+	Loader       bool
+	GameVersion  bool
+	ReleaseTypes bool
+	ModsFolder   bool
 }
 
 type initDeps struct {
@@ -159,6 +194,126 @@ func readLine(reader io.Reader) (string, error) {
 	return scanner.Text(), nil
 }
 
+type fdReader interface {
+	Fd() uintptr
+}
+
+type fdWriter interface {
+	Fd() uintptr
+}
+
+func shouldUseTUI(options initOptions, in io.Reader, out io.Writer) bool {
+	if options.Quiet {
+		return false
+	}
+	return isTerminalReader(in) && isTerminalWriter(out)
+}
+
+func isTerminalReader(reader io.Reader) bool {
+	if r, ok := reader.(fdReader); ok {
+		return term.IsTerminal(int(r.Fd()))
+	}
+	return false
+}
+
+func isTerminalWriter(writer io.Writer) bool {
+	if w, ok := writer.(fdWriter); ok {
+		return term.IsTerminal(int(w.Fd()))
+	}
+	return false
+}
+
+func runInteractiveInit(cmd *cobra.Command, options initOptions, deps initDeps, meta config.Metadata) (initOptions, error) {
+	model := NewModel(options, deps, meta)
+
+	if model.state == done {
+		return model.result, nil
+	}
+
+	programOptions := []tea.ProgramOption{
+		tea.WithInput(cmd.InOrStdin()),
+		tea.WithOutput(cmd.OutOrStdout()),
+	}
+
+	if !isTerminalReader(cmd.InOrStdin()) || !isTerminalWriter(cmd.OutOrStdout()) {
+		programOptions = append(programOptions, tea.WithoutRenderer())
+	}
+
+	program := tea.NewProgram(model, programOptions...)
+	result, err := program.Run()
+	if err != nil {
+		return options, err
+	}
+
+	var finalModel CommandModel
+	switch typed := result.(type) {
+	case *CommandModel:
+		finalModel = *typed
+	case CommandModel:
+		finalModel = typed
+	default:
+		return options, fmt.Errorf("interactive init failed")
+	}
+
+	if finalModel.err != nil {
+		return options, finalModel.err
+	}
+
+	if finalModel.state != done {
+		return options, fmt.Errorf("init cancelled")
+	}
+
+	return finalModel.result, nil
+}
+
+func normalizeGameVersion(options initOptions, deps initDeps, interactive bool) (initOptions, error) {
+	if options.GameVersion == "" {
+		return options, nil
+	}
+
+	if strings.EqualFold(options.GameVersion, "latest") {
+		if interactive && !options.Provided.GameVersion {
+			options.GameVersion = ""
+			return options, nil
+		}
+
+		latest, err := minecraft.GetLatestVersion(deps.minecraftClient)
+		if err != nil {
+			return options, err
+		}
+		options.GameVersion = latest
+	}
+
+	return options, nil
+}
+
+func validateModsFolder(fs afero.Fs, meta config.Metadata, modsFolder string) (string, error) {
+	modsFolder = strings.TrimSpace(modsFolder)
+	if modsFolder == "" {
+		return "", fmt.Errorf("mods folder cannot be empty")
+	}
+
+	modsFolderConfig := models.ModsJson{ModsFolder: modsFolder}
+	modsFolderPath := meta.ModsFolderPath(modsFolderConfig)
+	modsFolderExists, err := afero.Exists(fs, modsFolderPath)
+	if err != nil {
+		return "", err
+	}
+	if !modsFolderExists {
+		return "", fmt.Errorf("mods folder does not exist: %s", modsFolderPath)
+	}
+
+	isDir, err := afero.IsDir(fs, modsFolderPath)
+	if err != nil {
+		return "", err
+	}
+	if !isDir {
+		return "", fmt.Errorf("mods folder is not a directory: %s", modsFolderPath)
+	}
+
+	return modsFolderPath, nil
+}
+
 func initWithDeps(options initOptions, deps initDeps) (config.Metadata, error) {
 	if options.Loader == "" {
 		return config.Metadata{}, fmt.Errorf("init requires flag: -l/--loader")
@@ -196,22 +351,8 @@ func initWithDeps(options initOptions, deps initDeps) (config.Metadata, error) {
 		}
 	}
 
-	modsFolderConfig := models.ModsJson{ModsFolder: options.ModsFolder}
-	modsFolderPath := meta.ModsFolderPath(modsFolderConfig)
-	modsFolderExists, err := afero.Exists(deps.fs, modsFolderPath)
-	if err != nil {
+	if _, err := validateModsFolder(deps.fs, meta, options.ModsFolder); err != nil {
 		return config.Metadata{}, err
-	}
-	if !modsFolderExists {
-		return config.Metadata{}, fmt.Errorf("mods folder does not exist: %s", modsFolderPath)
-	}
-
-	isDir, err := afero.IsDir(deps.fs, modsFolderPath)
-	if err != nil {
-		return config.Metadata{}, err
-	}
-	if !isDir {
-		return config.Metadata{}, fmt.Errorf("mods folder is not a directory: %s", modsFolderPath)
 	}
 
 	if !minecraft.IsValidVersion(options.GameVersion, deps.minecraftClient) {
