@@ -10,6 +10,7 @@ Example:
 
 If you leave the default `--game-version=latest`, the command tries to look up the latest Minecraft release.
 If that lookup fails (for example, you're offline), run the command again with `-g/--game-version`.
+Make sure the mods folder you point at already exists; `init` stops if the path is missing or is a file.
 
 ## Flags
 

@@ -58,3 +58,10 @@
 ### 2025-12-15 12:27 - User preference for root README: do not keep redundant per-command blurbs once the TOC links to the user-facing docs; remove the `### INIT` section entirely (TOC link is enough).
 ### 2025-12-15 12:28 - Created Beads epic `mmm-28` to implement a Docusaurus docs site following the pattern used by https://github.com/meza/Stonecraft, using domain minecraftmodmanager.com, and sourcing user-facing docs from `docs/commands`.
 ### 2025-12-15 12:29 - Closed `mmm-3` per user request after init persistence + defaults/flags + quiet/overwrite behavior landed and verification targets were green.
+### 2025-12-15 12:40 - mmm-26 alignment: keep init non-interactive for now and fail fast when the mods folder is missing or points to a file (quiet mode included); updated specs/user docs and added tests.
+### 2025-12-15 13:05 - mmm-26 follow-up: user clarified specs under docs/specs are not living docs; avoid editing them. go mod tidy and make test with GOPROXY=direct GOSUMDB=off still fail because outbound HTTPS to module sources is blocked with CONNECT 403, so verification needs offline deps or a reachable proxy.
+
+### 2025-12-15 13:18 - Internet access restored; go mod tidy now succeeds with default proxy, and verification gates pass (make test/coverage-enforce/build) for mmm-26 branch.
+
+### 2025-12-15 13:28 - Installed bd v0.30.0 manually from the GitHub release tarball (npm postinstall download failed with ENETUNREACH) and placed the binary in /usr/local/bin for Beads CLI use.
+### 2025-12-15 13:28 - Closed mmm-26 via bd --no-db close with reason "Implemented fail-fast mods folder handling; tests/docs updated"; no code changes needed beyond .beads sync.
