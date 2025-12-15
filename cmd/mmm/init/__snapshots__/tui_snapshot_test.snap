@@ -18,7 +18,7 @@
 
 [TestInitTUIStateSnapshots/game_version - 1]
 ? cmd.init.tui.loader.question fabric
-? cmd.init.tui.game-version.question 1.21.1 
+? cmd.init.tui.game-version.question 1.21.1     
 
 key.tab key.help.complete • key.enter key.help.accept • key.ctrl_c/key.esc key.help.quit
 ---
@@ -86,7 +86,7 @@ key.tab key.help.complete • key.enter key.help.accept • key.ctrl_c/key.esc k
 
 [TestInitTUIErrorSnapshots/game_version_invalid - 1]
 ? cmd.init.tui.loader.question fabric
-? cmd.init.tui.game-version.question invalid  <- cmd.init.tui.game-version.invalid
+? cmd.init.tui.game-version.question invalid     <- cmd.init.tui.game-version.invalid
 
 key.tab key.help.complete • key.enter key.help.accept • key.ctrl_c/key.esc key.help.quit
 ---

@@ -58,7 +58,7 @@ control over the mods that are installed.
   * [INSTALL](#install)
   * [UPDATE](#update)
   * [CHANGE](#change)
-  * [LIST](#list)
+  * [LIST](docs/commands/list.md)
   * [TEST](#test)
   * [PRUNE](#prune)
   * [SCAN](#scan)
@@ -349,14 +349,6 @@ The exit codes of this command are identical to the [test](#test) command's.
 |-------|---------|---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|-------|-----------------|
 | -f    | --force | Force the change of the game version. Deletes all the mods and attempts to install with the given game version. Use at your own risk.<br/>If a mod doesn't have support for your game version, the mod won't be installed |       | `mmm change -f` |
 
-
----
-
-### LIST
-
-`mmm list`
-
-This will list all the mods that are managed by the tool and their current status.
 
 ---
 

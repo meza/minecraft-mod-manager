@@ -113,6 +113,15 @@ func NewGameVersionModel(minecraftClient httpClient.Doer, gameVersion string) Ga
 	m.Prompt = tui.QuestionStyle.Render("? ") + tui.TitleStyle.Render(i18n.T("cmd.init.tui.game-version.question")) + " "
 	m.Placeholder = latestVersion
 	m.PlaceholderStyle = tui.PlaceholderStyle
+	width := len(m.Placeholder)
+	if len(gameVersion) > width {
+		width = len(gameVersion)
+	}
+	const minWidth = 10
+	if width < minWidth {
+		width = minWidth
+	}
+	m.Width = width
 	if len(allVersions) > 0 {
 		m.ShowSuggestions = true
 	}

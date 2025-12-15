@@ -15,9 +15,9 @@ import (
 	"github.com/meza/minecraft-mod-manager/internal/logger"
 	"github.com/meza/minecraft-mod-manager/internal/minecraft"
 	"github.com/meza/minecraft-mod-manager/internal/models"
+	"github.com/meza/minecraft-mod-manager/internal/tui"
 	"github.com/spf13/afero"
 	"github.com/spf13/cobra"
-	"golang.org/x/term"
 )
 
 func Command() *cobra.Command {
@@ -86,7 +86,7 @@ func Command() *cobra.Command {
 
 			meta := config.NewMetadata(configPath)
 
-			useTUI := shouldUseTUI(options, cmd.InOrStdin(), cmd.OutOrStdout())
+			useTUI := tui.ShouldUseTUI(options.Quiet, cmd.InOrStdin(), cmd.OutOrStdout())
 
 			options, err = normalizeGameVersion(options, deps, useTUI)
 			if err != nil {
@@ -194,35 +194,6 @@ func readLine(reader io.Reader) (string, error) {
 	return scanner.Text(), nil
 }
 
-type fdReader interface {
-	Fd() uintptr
-}
-
-type fdWriter interface {
-	Fd() uintptr
-}
-
-func shouldUseTUI(options initOptions, in io.Reader, out io.Writer) bool {
-	if options.Quiet {
-		return false
-	}
-	return isTerminalReader(in) && isTerminalWriter(out)
-}
-
-func isTerminalReader(reader io.Reader) bool {
-	if r, ok := reader.(fdReader); ok {
-		return term.IsTerminal(int(r.Fd()))
-	}
-	return false
-}
-
-func isTerminalWriter(writer io.Writer) bool {
-	if w, ok := writer.(fdWriter); ok {
-		return term.IsTerminal(int(w.Fd()))
-	}
-	return false
-}
-
 func runInteractiveInit(cmd *cobra.Command, options initOptions, deps initDeps, meta config.Metadata) (initOptions, error) {
 	model := NewModel(options, deps, meta)
 
@@ -230,16 +201,7 @@ func runInteractiveInit(cmd *cobra.Command, options initOptions, deps initDeps, 
 		return model.result, nil
 	}
 
-	programOptions := []tea.ProgramOption{
-		tea.WithInput(cmd.InOrStdin()),
-		tea.WithOutput(cmd.OutOrStdout()),
-	}
-
-	if !isTerminalReader(cmd.InOrStdin()) || !isTerminalWriter(cmd.OutOrStdout()) {
-		programOptions = append(programOptions, tea.WithoutRenderer())
-	}
-
-	program := tea.NewProgram(model, programOptions...)
+	program := tea.NewProgram(model, tui.ProgramOptions(cmd.InOrStdin(), cmd.OutOrStdout())...)
 	result, err := program.Run()
 	if err != nil {
 		return options, err

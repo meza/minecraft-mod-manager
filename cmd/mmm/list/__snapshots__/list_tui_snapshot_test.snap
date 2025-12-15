@@ -1,0 +1,6 @@
+
+[TestListViewSnapshot - 1]
+cmd.list.header
+✓ cmd.list.entry.installed, Arg 1: {Count: 0, Data: &map[id:mod-a name:Alpha Mod]}
+✗ cmd.list.entry.missing, Arg 1: {Count: 0, Data: &map[id:mod-b name:Beta Mod]}
+---

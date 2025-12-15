@@ -3,6 +3,7 @@ package mmm
 import (
 	"fmt"
 	initCmd "github.com/meza/minecraft-mod-manager/cmd/mmm/init"
+	listCmd "github.com/meza/minecraft-mod-manager/cmd/mmm/list"
 	"github.com/meza/minecraft-mod-manager/cmd/mmm/version"
 	"github.com/meza/minecraft-mod-manager/internal/constants"
 	"github.com/meza/minecraft-mod-manager/internal/environment"
@@ -26,6 +27,7 @@ func Command() *cobra.Command {
 
 	rootCmd.SetVersionTemplate("{{.Version}}\n")
 	rootCmd.AddCommand(initCmd.Command())
+	rootCmd.AddCommand(listCmd.Command())
 	rootCmd.AddCommand(version.Command())
 
 	translateDefaultHelpFacilities(rootCmd)

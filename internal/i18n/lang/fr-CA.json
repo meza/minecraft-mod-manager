@@ -1,3 +1,8 @@
 {
-  "cmd.help.more_info": "Pour plus d'informations, visitez : {helpUrl}"
+  "cmd.help.more_info": "Pour plus d'informations, visitez : {helpUrl}",
+  "cmd.list.entry.installed": "{name} ({id}) est installe",
+  "cmd.list.entry.missing": "{name} ({id}) n'est pas installe",
+  "cmd.list.empty": "Aucun mod n'est configure pour le moment",
+  "cmd.list.header": "Mods configures",
+  "cmd.list.short": "Lister les mods configures"
 }

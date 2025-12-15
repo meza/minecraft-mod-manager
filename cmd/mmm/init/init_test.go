@@ -5,7 +5,6 @@ import (
 	"fmt"
 	"io"
 	"net/http"
-	"os"
 	"path/filepath"
 	"strings"
 	"testing"
@@ -38,6 +37,15 @@ func manifestDoer(versions []string) doerFunc {
 		body := `{"latest":{"release":"` + versions[0] + `"},"versions":[` + strings.Join(items, ",") + `]}`
 		return &http.Response{StatusCode: http.StatusOK, Body: io.NopCloser(strings.NewReader(body))}, nil
 	}
+}
+
+func TestGameVersionPlaceholderUsesLatest(t *testing.T) {
+	minecraft.ClearManifestCache()
+
+	model := NewGameVersionModel(manifestDoer([]string{"1.21.11"}), "")
+
+	assert.Contains(t, model.input.View(), "1.21.11")
+	assert.GreaterOrEqual(t, model.input.Width, len("1.21.11"))
 }
 
 type fakePrompter struct {
@@ -404,25 +412,6 @@ func TestViewHidesProvidedQuestions(t *testing.T) {
 	assert.Equal(t, "", view)
 }
 
-func TestShouldUseTUI(t *testing.T) {
-	reader := fdReaderStub{Reader: strings.NewReader("")}
-	writer := &fdWriterStub{}
-
-	assert.False(t, shouldUseTUI(initOptions{
-		Loader: models.FABRIC,
-		Provided: providedFlags{
-			Loader:       true,
-			GameVersion:  true,
-			ReleaseTypes: true,
-			ModsFolder:   true,
-		},
-	}, reader, writer))
-
-	assert.Equal(t, isTerminalReader(reader) && isTerminalWriter(writer), shouldUseTUI(initOptions{Loader: ""}, reader, writer))
-	assert.False(t, shouldUseTUI(initOptions{Quiet: false}, bytes.NewBuffer(nil), &bytes.Buffer{}))
-	assert.False(t, shouldUseTUI(initOptions{Quiet: true}, reader, writer))
-}
-
 func TestNormalizeGameVersion(t *testing.T) {
 	t.Run("leaves explicit version untouched", func(t *testing.T) {
 		minecraft.ClearManifestCache()
@@ -465,24 +454,4 @@ func TestNormalizeGameVersion(t *testing.T) {
 		})}, true)
 		assert.Error(t, err)
 	})
-}
-
-type fdReaderStub struct {
-	io.Reader
-}
-
-func (fdReaderStub) Fd() uintptr {
-	return os.Stdin.Fd()
-}
-
-type fdWriterStub struct {
-	buf bytes.Buffer
-}
-
-func (w *fdWriterStub) Write(p []byte) (int, error) {
-	return w.buf.Write(p)
-}
-
-func (fdWriterStub) Fd() uintptr {
-	return os.Stdout.Fd()
 }
