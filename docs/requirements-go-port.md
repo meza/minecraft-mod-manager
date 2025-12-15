@@ -18,7 +18,7 @@ The CLI offers the following commands:
 - `remove` – deletes one or more mods from the config and filesystem. Supports glob patterns and a dry‑run mode.
 
 Detailed information about what each command does and how it behaves is captured in
-[the command reference](commands/README.md).
+[the command reference specs](specs/README.md).
 
 Configuration lives in `modlist.json` and `modlist-lock.json`. The lock file is entirely managed by the tool and should be committed alongside the main config. Ignored files can be listed in `.mmmignore`.
 

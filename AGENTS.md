@@ -26,6 +26,11 @@ You MUST read and adhere to these instructions, and you MUST update `memory.md` 
 
 Follow our established [Golang Coding Standards](https://raw.githubusercontent.com/meza/agent-docs/refs/heads/main/Golang.md) for code style, structure, and best practices.
 
+### Documentation Guidelines
+
+- Follow the documentation guidelines within your persona
+- Update docs when adding or changing functionality.
+
 ### Tooling
 
 - The Go port will use the Bubble Tea ecosystem for [TUI functionality](./docs/tui-design-doc.md). Familiarize yourself with [Bubble Tea](https://github.com/charmbracelet/bubbletea), [Lip Gloss](https://github.com/charmbracelet/lipgloss), [Bubbles](https://github.com/charmbracelet/bubbles) and optionally [Huh](https://github.com/charmbracelet/huh) where relevant.
@@ -111,6 +116,22 @@ If you think a test needs to be removed or disabled, stop and ask for guidance f
 4. **Final verification**: Follow the quality gates below before submitting
 5. **Report to the team**: Notify the team of your changes for review. They will provide feedback and they will commit them when ready.
 
+## User Facing Documentation Reminders
+
+Write user-facing docs in a conversational, guide-like tone:
+
+- Address the reader as 'you'; use active voice.
+- Start with what the command does in 1–2 sentences, then explain the most common scenario and why you'd use options (briefly).
+- Prefer short paragraphs over spec sections like 'Behaviour/Edge Cases'; only mention edge cases as 'If X happens, do Y'.
+- Include at least one copy/paste example command near the top.
+- Then include a simple flags table (flag, meaning, allowed values, example).
+- Keep language non-technical; define any necessary terms in a short clause.
+
+### User Facing Documentation Principles
+
+- must always reflect the current state of the project without mentions of future plans, historical states or internal processes.
+- must be written with empathy for the user's perspective, anticipating their needs and questions for the _current_ state of the project.
+
 ## Verification
 
 - [ ] Review every line of code for adherence to coding standards
@@ -128,3 +149,4 @@ If you think a test needs to be removed or disabled, stop and ask for guidance f
 - Evaluate your methods and thinking against this document at all times. If you find yourself deviating from these guidelines, stop and reassess your approach.
 - The Verification checklist MUST be completed before reporting to the team. It's not a suggestion, it's not a guideline—it's a HARD requirement.
 - You may not call a task finished yourself. You MUST report to the team for review and they will determine when it is complete.
+- Markdown files must always use ASCII and proper markdown syntax.

@@ -16,4 +16,4 @@ Downloads all mods listed in `modlist.json` according to the lock file.
 - Network or download failures surface as errors.
 
 ## User Interaction
-The command is mostly non‑interactive, but error messages describe unresolved files and how to address them.
+The command is mostly non-interactive, but error messages describe unresolved files and how to address them.

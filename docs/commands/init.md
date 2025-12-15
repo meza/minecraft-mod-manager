@@ -1,17 +1,41 @@
 # `init`
 
-Initialises `modlist.json` and prepares the working directory. The command can operate interactively or receive all answers via flags.
+Initialises your configuration file. This will create a `modlist.json` file in the current folder by default.
 
-## Behaviour
-1. Determine the configuration file location. If it already exists and the `--quiet` flag is not used, the user is asked whether to overwrite or provide a new file name.
-2. Gather required values (loader, Minecraft version, allowed release types and mods directory) through command line options or interactive prompts.
-3. Validate that the chosen mods directory exists and that the supplied Minecraft version is valid. If the game version is omitted, the tool retrieves the latest release from the official API and falls back to a prompt when the API is unavailable.
-4. Write the resulting configuration to disk and create an empty `modlist-lock.json`.
+You usually run `init` once when you're setting up a modpack, or when you want to start fresh.
 
-## Edge Cases
-- Invalid or nonexistent mods folder results in a prompt for a different path.
-- Invalid Minecraft versions throw an error and the process aborts.
-- When running in `--quiet` mode and the config file already exists, the command exits with an error.
+Example:
 
-## User Interaction
-The user may be prompted to confirm overwriting files, choose values from lists or provide text input. All prompts are skipped when the relevant flags are supplied.
+`mmm init -l fabric`
+
+If you leave the default `--game-version=latest`, the command tries to look up the latest Minecraft release.
+If that lookup fails (for example, you're offline), run the command again with `-g/--game-version`.
+
+## Flags
+
+| Short | Long              | Meaning                                | Allowed values                                      | Example                              |
+|------:|-------------------|----------------------------------------|-----------------------------------------------------|--------------------------------------|
+|  `-l` | `--loader`        | Mod loader to use                      | A valid loader from the list of [loaders](#loaders) | `mmm init -l fabric`                 |
+|  `-g` | `--game-version`  | Minecraft version to target            | A Minecraft version, or `latest`                    | `mmm init -l fabric -g 1.21.1`       |
+|  `-r` | `--release-types` | Mod release types you allow to install | Comma-separated list of: `alpha`, `beta`, `release` | `mmm init -l fabric -r release,beta` |
+|  `-m` | `--mods-folder`   | Folder to download mods into           | An absolute or relative path to your minecraft      | `mmm init -l fabric -m ./mods`       |
+
+### Loaders
+
+Loaders are the mod loader systems that help you run mods.
+
+Both Modrinth and Curseforge support a different set of loaders. `mmm` supports all the loaders that are supported by these platforms.
+
+> If you want to see a loader added, please open an issue on GitHub.
+
+#### Supported by Curseforge AND Modrinth BOTH:
+
+`fabric`, `forge`, `quilt`, `liteloader`, `neoforge`
+
+#### Supported by Curseforge ONLY:
+
+`cauldron`
+
+#### Supported by Modrinth ONLY:
+
+`bukkit`, `bungeecord`, `datapack`, `folia`, `modloader`, `paper`, `purpur`, `rift`, `spigot`, `sponge`, `velocity`, `waterfall`

@@ -50,8 +50,7 @@ control over the mods that are installed.
 * [Installation](#installation)
 * [Running](#running)
 * [How it works](#how-it-works)
-  * [INIT](#init)
-    * [Command line arguments for `init`](#command-line-arguments-for-init)
+  * [INIT](docs/commands/init.md)
   * [ADD](#add)
     * [Platforms](#platforms)
     * [How to find the Mod ID?](#how-to-find-the-mod-id)
@@ -164,50 +163,6 @@ MMM_DISABLE_TELEMETRY=1 mmm list
 # Windows PowerShell
 $env:MMM_DISABLE_TELEMETRY=1; mmm list
 ```
-
-### INIT
-
-`mmm init`
-
-Initializes the configuration file. This will create a `modlist.json` file in the current folder by default.
-
-This will use an interactive prompt to ask you for the information it needs. If you don't want to use that or you're in
-an
-environment without interaction, you can supply all the answers through the command line arguments.
-
-#### Command line arguments for `init`
-
-You can supply all the answers via the command line arguments.
-You can add these one after the other, for example: `mmm init -l curseforge -p 1.16.5 -m ./mods -c ./modlist.json`
-
-| Short | Long                            | Description                             | Value                                                                                                                                     | Example                            |
-|-------|---------------------------------|-----------------------------------------|-------------------------------------------------------------------------------------------------------------------------------------------|------------------------------------|
-| -l    | --loader                        | The mod loader to use                   | A valid loader from [the list of loaders](#loaders)                                                                                       | `mmm init -l curseforge`           |
-| -g    | --game-version                  | The Minecraft version to use            | A valid Minecraft version                                                                                                                 | `mmm init -g 1.19.2`               |
-| -r    | --default-allowed-release-types | Which release types do you allow?       | A comma separated list of the following: <br/>`alpha`, `beta`, `release`                                                                  | `mmm init -r release,beta`         |
-| -m    | --mods-folder                   | Where do you want to download the mods? | An absolute or relative path to an **existing** folder<br/>Don't forget to use quotes for paths that include spaces or special characters | `mmm init -m "C:/My Modpack/mods"` |
-
-#### Loaders
-
-Loaders are the mod loader systems that help you run mods.
-
-Both Modrinth and Curseforge support a different set of loaders. `mmm` supports all the loaders that are supported by these platforms.
-
-> If you want to see a loader added, please open an issue on GitHub.
-
-##### Supported by Curseforge AND Modrinth BOTH:
-
-`fabric`, `forge`, `quilt`, `liteloader`, `neoforge`
-
-##### Supported by Curseforge ONLY:
-
-`cauldron`
-
-##### Supported by Modrinth ONLY:
-
-`bukkit`, `bungeecord`, `datapack`, `folia`, `modloader`, `paper`, `purpur`, `rift`, `spigot`, `sponge`, `velocity`, `waterfall`
-
----
 
 ### ADD
 
