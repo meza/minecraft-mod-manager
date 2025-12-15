@@ -4,11 +4,12 @@ import (
 	"embed"
 	"encoding/json"
 	"fmt"
+	"os"
+	"strings"
+
 	goLocale "github.com/jeandeaual/go-locale"
 	i18nLib "github.com/nicksnyder/go-i18n/v2/i18n"
 	"golang.org/x/text/language"
-	"os"
-	"strings"
 )
 
 type LocaleProvider interface {
@@ -103,16 +104,15 @@ func getUserLocales() []string {
 
 	detectedLocales, err := localeProvider.GetLocales()
 
-	var locales []string
 	if err != nil {
-		locales = []string{
+		return []string{
 			language.English.String(),
 		}
-	} else {
-		locales = make([]string, len(detectedLocales))
-		for _, localeName := range detectedLocales {
-			locales = append(locales, localeName)
-		}
+	}
+
+	locales := make([]string, 0, len(detectedLocales))
+	for _, localeName := range detectedLocales {
+		locales = append(locales, localeName)
 	}
 	return locales
 }

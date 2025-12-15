@@ -188,8 +188,8 @@ func TestGetUserLocalesProviderSuccess(t *testing.T) {
 	t.Cleanup(func() { os.Setenv("LANG", oldLang) })
 
 	locales := getUserLocales()
-	assert.Contains(t, locales, "fr_FR")
-	assert.Contains(t, locales, "de_DE")
+	assert.Equal(t, []string{"fr_FR", "de_DE"}, locales)
+	assert.NotContains(t, locales, "")
 }
 
 func TestDefaultLocaleProvider(t *testing.T) {
