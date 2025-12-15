@@ -103,6 +103,22 @@ func TestInitWithDeps(t *testing.T) {
 		assert.ErrorContains(t, err, "mods folder does not exist")
 	})
 
+	t.Run("mods folder path that is a file returns error", func(t *testing.T) {
+		minecraft.ClearManifestCache()
+		fs := afero.NewMemMapFs()
+		assert.NoError(t, fs.MkdirAll(filepath.FromSlash("/cfg"), 0755))
+		assert.NoError(t, afero.WriteFile(fs, filepath.FromSlash("/cfg/mods"), []byte("not a dir"), 0644))
+
+		_, err := initWithDeps(initOptions{
+			ConfigPath:   filepath.FromSlash("/cfg/modlist.json"),
+			Loader:       models.FABRIC,
+			GameVersion:  "1.21.1",
+			ReleaseTypes: []models.ReleaseType{models.Release},
+			ModsFolder:   "mods",
+		}, initDeps{fs: fs, minecraftClient: manifestDoer([]string{"1.21.1"})})
+		assert.ErrorContains(t, err, "mods folder is not a directory")
+	})
+
 	t.Run("invalid minecraft version returns error", func(t *testing.T) {
 		minecraft.ClearManifestCache()
 		fs := afero.NewMemMapFs()

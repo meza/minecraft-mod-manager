@@ -198,12 +198,20 @@ func initWithDeps(options initOptions, deps initDeps) (config.Metadata, error) {
 
 	modsFolderConfig := models.ModsJson{ModsFolder: options.ModsFolder}
 	modsFolderPath := meta.ModsFolderPath(modsFolderConfig)
-	isDir, err := afero.DirExists(deps.fs, modsFolderPath)
+	modsFolderExists, err := afero.Exists(deps.fs, modsFolderPath)
+	if err != nil {
+		return config.Metadata{}, err
+	}
+	if !modsFolderExists {
+		return config.Metadata{}, fmt.Errorf("mods folder does not exist: %s", modsFolderPath)
+	}
+
+	isDir, err := afero.IsDir(deps.fs, modsFolderPath)
 	if err != nil {
 		return config.Metadata{}, err
 	}
 	if !isDir {
-		return config.Metadata{}, fmt.Errorf("mods folder does not exist: %s", modsFolderPath)
+		return config.Metadata{}, fmt.Errorf("mods folder is not a directory: %s", modsFolderPath)
 	}
 
 	if !minecraft.IsValidVersion(options.GameVersion, deps.minecraftClient) {
