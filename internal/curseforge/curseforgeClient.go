@@ -1,7 +1,6 @@
 package curseforge
 
 import (
-	"fmt"
 	"github.com/meza/minecraft-mod-manager/internal/environment"
 	"github.com/meza/minecraft-mod-manager/internal/httpClient"
 	"github.com/meza/minecraft-mod-manager/internal/perf"
@@ -13,15 +12,18 @@ type Client struct {
 	client httpClient.Doer
 }
 
+func NewClient(doer httpClient.Doer) *Client {
+	return &Client{client: doer}
+}
+
 func (curseforgeClient *Client) Do(request *http.Request) (*http.Response, error) {
 	region := perf.StartRegionWithDetails("curseforge-api-call", &perf.PerformanceDetails{
 		"url": request.URL.String(),
 	})
 	defer region.End()
 	headers := map[string]string{
-		"user-agent": fmt.Sprintf("github_com/meza/minecraft-mod-manager/%s", environment.AppVersion()),
-		"Accept":     "application/json",
-		"x-api-key":  environment.CurseforgeApiKey(),
+		"Accept":    "application/json",
+		"x-api-key": environment.CurseforgeApiKey(),
 	}
 
 	for key, value := range headers {

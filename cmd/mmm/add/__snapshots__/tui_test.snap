@@ -1,0 +1,44 @@
+[TestAddTUIStateSnapshots/unknown_platform_select - 1]
+? cmd.add.tui.unknown_platform, Arg 1: {Count: 0, Data: &m…
+❯ curseforge                                               
+  modrinth                                                 
+  cancel                                                   
+                                                           
+                                                           
+---
+
+[TestAddTUIStateSnapshots/mod_not_found_confirm - 1]
+? cmd.add.tui.mod_not_found, Arg 1: {Count: 0, Data: &map[id:abc platform:modrinth]} (Y/n)
+---
+
+[TestAddTUIStateSnapshots/mod_not_found_select_platform - 1]
+? cmd.add.tui.choose_platform  
+  curseforge                   
+❯ modrinth                     
+                               
+                               
+---
+
+[TestAddTUIStateSnapshots/mod_not_found_enter_project_id - 1]
+? cmd.add.tui.enter_project_id abc        
+---
+
+[TestAddTUIStateSnapshots/no_file_confirm - 1]
+? cmd.add.tui.no_file_found, Arg 1: {Count: 0, Data: &map[gameVersion:1.20.1 loader:fabric name:abc other:curseforge platform:modrinth]} (Y/n)
+---
+
+[TestAddTUIStateSnapshots/no_file_enter_project_id - 1]
+? cmd.add.tui.enter_project_id_on, Arg 1: {Count: 0, Data: &map[platform:curseforge]}            
+---
+
+[TestAddTUIStateSnapshots/fatal_error - 1]
+boom
+---
+
+[TestAddTUIStateSnapshots/done - 1]
+
+---
+
+[TestAddTUIStateSnapshots/aborted - 1]
+
+---

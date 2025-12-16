@@ -17,6 +17,16 @@ type fdWriter interface {
 
 var isTerminalFunc = term.IsTerminal
 
+// SetIsTerminalFuncForTesting overrides the terminal detection function and returns a restore function.
+// This is intended for cross-package tests that need deterministic TTY detection.
+func SetIsTerminalFuncForTesting(fn func(int) bool) func() {
+	previous := isTerminalFunc
+	isTerminalFunc = fn
+	return func() {
+		isTerminalFunc = previous
+	}
+}
+
 // ShouldUseTUI decides if interactive TUI should be launched.
 func ShouldUseTUI(quiet bool, in io.Reader, out io.Writer) bool {
 	if quiet {

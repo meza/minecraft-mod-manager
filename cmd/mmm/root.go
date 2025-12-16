@@ -2,6 +2,7 @@ package mmm
 
 import (
 	"fmt"
+	addCmd "github.com/meza/minecraft-mod-manager/cmd/mmm/add"
 	initCmd "github.com/meza/minecraft-mod-manager/cmd/mmm/init"
 	listCmd "github.com/meza/minecraft-mod-manager/cmd/mmm/list"
 	"github.com/meza/minecraft-mod-manager/cmd/mmm/version"
@@ -26,6 +27,7 @@ func Command() *cobra.Command {
 	rootCmd.PersistentFlags().BoolP("debug", "d", false, "Enable debug messages")
 
 	rootCmd.SetVersionTemplate("{{.Version}}\n")
+	rootCmd.AddCommand(addCmd.Command())
 	rootCmd.AddCommand(initCmd.Command())
 	rootCmd.AddCommand(listCmd.Command())
 	rootCmd.AddCommand(version.Command())

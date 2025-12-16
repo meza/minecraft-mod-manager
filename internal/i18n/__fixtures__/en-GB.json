@@ -1,4 +1,5 @@
 {
   "test.simple": "Hello World",
-  "test.multiple": "{count, plural, one {One message: {injectedData}} other {Other message {injectedData}} }"
+  "test.multiple": "{count, plural, one {One message: {injectedData}} other {Other message {injectedData}} }",
+  "test.customType": "Value is {val}"
 }

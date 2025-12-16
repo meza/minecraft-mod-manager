@@ -2,15 +2,21 @@ package modrinth
 
 import (
 	"fmt"
+	"net/http"
+	"os"
+	"strings"
+
 	"github.com/meza/minecraft-mod-manager/internal/environment"
 	"github.com/meza/minecraft-mod-manager/internal/httpClient"
 	"github.com/meza/minecraft-mod-manager/internal/perf"
-	"net/http"
-	"os"
 )
 
 type Client struct {
 	client httpClient.Doer
+}
+
+func NewClient(doer httpClient.Doer) *Client {
+	return &Client{client: doer}
 }
 
 func (modrinthClient *Client) Do(request *http.Request) (*http.Response, error) {
@@ -32,9 +38,12 @@ func (modrinthClient *Client) Do(request *http.Request) (*http.Response, error) 
 
 func GetBaseUrl() string {
 	url, hasUrl := os.LookupEnv("MODRINTH_API_URL")
-	if hasUrl {
-		return url
+	if !hasUrl || strings.TrimSpace(url) == "" {
+		return "https://api.modrinth.com"
 	}
 
-	return "https://api.modrinth.com/v2"
+	cleaned := strings.TrimRight(strings.TrimSpace(url), "/")
+	cleaned = strings.TrimSuffix(cleaned, "/v2")
+
+	return cleaned
 }

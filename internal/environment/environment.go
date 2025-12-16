@@ -1,6 +1,8 @@
 package environment
 
-import "os"
+import (
+	"os"
+)
 
 func ModrinthApiKey() string {
 	key, present := os.LookupEnv("MODRINTH_API_KEY")

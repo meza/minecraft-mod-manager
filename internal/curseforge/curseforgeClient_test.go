@@ -41,7 +41,6 @@ func TestClient_Do(t *testing.T) {
 	assert.Equal(t, 200, resp.StatusCode)
 
 	// Verify headers
-	assert.Equal(t, "github_com/meza/minecraft-mod-manager/REPL_VERSION", req.Header.Get("user-agent"))
 	assert.Equal(t, "application/json", req.Header.Get("Accept"))
 	assert.Equal(t, "test-api-key", req.Header.Get("x-api-key"))
 
@@ -61,4 +60,10 @@ func TestBaseURLResolvingWithEnvironment(t *testing.T) {
 
 	defer func() { os.Unsetenv("CURSEFORGE_API_URL") }()
 	assert.Equal(t, "test-url", GetBaseUrl())
+}
+
+func TestNewClient(t *testing.T) {
+	mockDoer := new(MockDoer)
+	client := NewClient(mockDoer)
+	assert.NotNil(t, client)
 }

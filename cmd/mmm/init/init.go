@@ -296,9 +296,6 @@ func initWithDeps(options initOptions, deps initDeps) (config.Metadata, error) {
 		if options.Quiet {
 			return config.Metadata{}, fmt.Errorf("configuration file already exists: %s", meta.ConfigPath)
 		}
-		if deps.prompter == nil {
-			return config.Metadata{}, fmt.Errorf("configuration file already exists: %s", meta.ConfigPath)
-		}
 
 		overwrite, err := deps.prompter.ConfirmOverwrite(meta.ConfigPath)
 		if err != nil {

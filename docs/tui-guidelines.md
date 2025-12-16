@@ -1,5 +1,55 @@
 # Minecraft Mod Manager TUI Design Recommendations
 
+## Developer Guide
+
+You build one Bubble Tea app per command, and you make it purpose-built for that command's flow (not a reusable "prompt framework"). You model the flow as a finite state machine (FSM) and you lock the UX down with black-box snapshot tests.
+
+### Build TUIs as command apps
+
+- Keep the Bubble Tea model in the command package (example: `cmd/mmm/add/tui.go`).
+- Avoid generalized abstractions (generic wizards, generic prompts, generic screens). This project is an application, not a TUI library.
+- Keep UI concerns (state, layout, key handling) separate from business logic (API calls, config, file system changes) by injecting the command functions the TUI needs to call (example: `addTUIFetchCmd`).
+
+### Model the flow as an explicit FSM
+
+- Define an enum-like state type (example: `type addTUIState int`) and a constant per screen.
+- Centralize transitions in a single place (example: `enterState(state)`), so each state owns its own prompt text, default values, and bubble configuration.
+- Track a small history stack so Back is deterministic and easy to reason about (example: `addTUIHistory`).
+
+### Back vs abort
+
+- Treat `Esc` as "Back" (go up one step). Handle it at the top of `Update` before forwarding events to list/input bubbles.
+- Treat `Ctrl+C` as "Abort" (quit the entire flow immediately).
+- If there is no previous state, `Esc` aborts (you cannot go "up" from the first screen).
+
+### Reuse the shared keybinds, styles, and i18n
+
+- Do not hardcode English text. Use `internal/i18n` (`i18n.T(...)`) for all user-facing strings so snapshots remain stable under `MMM_TEST=true`.
+- Use `internal/tui` styles (`tui.QuestionStyle`, `tui.TitleStyle`, `tui.ItemStyle`, `tui.SelectedItemStyle`, `tui.ErrorStyle`) instead of inventing per-command styling.
+- Use the translated keymaps (example: `tui.TranslatedListKeyMap()`), and let Bubble Tea render the help footer rather than writing your own.
+
+### Snapshot test every state (black box)
+
+Snapshot tests are your regression harness for UX. They should treat the TUI as a user does: drive it via key presses, wait for the expected output to appear, and snapshot the rendered view.
+
+- Always set `MMM_TEST=true` in snapshot tests so i18n returns stable "key + vars" output (instead of translated text).
+- Use `github.com/charmbracelet/x/exp/teatest` to run the model and send key messages.
+- Snapshot `model.View()` (or stdout if you are testing the whole command wrapper) using go-snaps.
+- Update snapshots with `UPDATE_SNAPS=true make test`.
+
+Example (from `cmd/mmm/add/tui_test.go`):
+
+```go
+t.Setenv("MMM_TEST", "true")
+tm := teatest.NewTestModel(t, model, teatest.WithInitialTermSize(60, 20))
+tm.Send(tea.KeyMsg{Type: tea.KeyEnter})
+snaps.MatchSnapshot(t, final.View())
+```
+
+### TTY behavior
+
+Use `internal/tui.ProgramOptions(in, out)` when you construct a Bubble Tea program so it disables the renderer when stdin/stdout are not TTYs. For cross-package tests that need deterministic TTY behavior, override terminal detection via `tui.SetIsTerminalFuncForTesting(...)` and restore it afterwards.
+
 ## Modern Terminal UI Principles
 
 ### Layout

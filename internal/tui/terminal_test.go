@@ -63,6 +63,19 @@ func TestIsTerminalWriterWithoutFD(t *testing.T) {
 	assert.False(t, IsTerminalWriter(&strings.Builder{}))
 }
 
+func TestSetIsTerminalFuncForTestingRestores(t *testing.T) {
+	previous := isTerminalFunc
+	defer func() { isTerminalFunc = previous }()
+
+	isTerminalFunc = func(_ int) bool { return false }
+
+	restore := SetIsTerminalFuncForTesting(func(_ int) bool { return true })
+	assert.True(t, isTerminalFunc(0))
+
+	restore()
+	assert.False(t, isTerminalFunc(0))
+}
+
 func mockTerminalDetection(t *testing.T, result bool) func() {
 	t.Helper()
 	original := isTerminalFunc

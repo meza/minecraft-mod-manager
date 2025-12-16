@@ -57,8 +57,8 @@ func TestGetVersionsForProject_SingleVersion(t *testing.T) {
 		assert.Equal(t, `["1.16.5","1.17.1"]`, r.URL.Query().Get("game_versions"))
 		assert.Equal(t, `["fabric","forge"]`, r.URL.Query().Get("loaders"))
 
-		if r.Header.Get("Authorization") != "REPL_MODRINTH_API_KEY" {
-			t.Errorf("Expected Authorization header to be 'REPL_MODRINTH_API_KEY', got '%s'", r.Header.Get("Authorization"))
+		if r.Header.Get("Authorization") != "test-api-key" {
+			t.Errorf("Expected Authorization header to be 'test-api-key', got '%s'", r.Header.Get("Authorization"))
 		}
 		w.Header().Set("Content-Type", "application/json")
 		w.WriteHeader(http.StatusOK)
@@ -66,6 +66,7 @@ func TestGetVersionsForProject_SingleVersion(t *testing.T) {
 	}))
 	defer mockServer.Close()
 
+	_ = os.Setenv("MODRINTH_API_KEY", "test-api-key")
 	err1 := os.Setenv("MODRINTH_API_URL", mockServer.URL)
 	if err1 != nil {
 		t.Fatalf("Failed to set environment variable: %v", err1)
@@ -349,7 +350,7 @@ func TestGetVersionsForProjectWhenApiCallFails(t *testing.T) {
 		ProjectID: "AABBCCD3",
 		Platform:  models.MODRINTH,
 	})
-	assert.Equal(t, "Get \"invalid_url/v2/project/AABBCCD3/version?game_versions=[\\\"1.21.1\\\"]&loaders=[\\\"quilt\\\"]\": unsupported protocol scheme \"\"", errors.Unwrap(err).Error())
+	assert.Equal(t, "Get \"invalid_url/v2/project/AABBCCD3/version?game_versions=%5B%221.21.1%22%5D&loaders=%5B%22quilt%22%5D\": unsupported protocol scheme \"\"", errors.Unwrap(err).Error())
 	assert.Nil(t, project)
 }
 
@@ -396,8 +397,8 @@ func TestGetVersionForHash_SingleVersion(t *testing.T) {
 			t.Errorf("Expected path '/v2/version_file/c84dd4b3580c02b79958a0590afd5783d80ef504', got '%s'", r.URL.Path)
 		}
 
-		if r.Header.Get("Authorization") != "REPL_MODRINTH_API_KEY" {
-			t.Errorf("Expected Authorization header to be 'REPL_MODRINTH_API_KEY', got '%s'", r.Header.Get("Authorization"))
+		if r.Header.Get("Authorization") != "test-api-key" {
+			t.Errorf("Expected Authorization header to be 'test-api-key', got '%s'", r.Header.Get("Authorization"))
 		}
 		w.Header().Set("Content-Type", "application/json")
 		w.WriteHeader(http.StatusOK)
@@ -405,6 +406,7 @@ func TestGetVersionForHash_SingleVersion(t *testing.T) {
 	}))
 	defer mockServer.Close()
 
+	_ = os.Setenv("MODRINTH_API_KEY", "test-api-key")
 	err1 := os.Setenv("MODRINTH_API_URL", mockServer.URL)
 	if err1 != nil {
 		t.Fatalf("Failed to set environment variable: %v", err1)

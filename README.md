@@ -20,7 +20,7 @@ If you want support for other platforms, please feel free to submit a pull reque
 
 You currently can
 
-- [add mods](#add)
+- [add mods](docs/commands/add.md)
 - [remove mods](#remove)
 - [automatically update mods](#update)
 - [change minecraft versions and uppdate the mods](#change)
@@ -51,9 +51,9 @@ control over the mods that are installed.
 * [Running](#running)
 * [How it works](#how-it-works)
   * [INIT](docs/commands/init.md)
-  * [ADD](#add)
-    * [Platforms](#platforms)
-    * [How to find the Mod ID?](#how-to-find-the-mod-id)
+  * [ADD](docs/commands/add.md)
+    * [Platforms](docs/commands/add.md#platforms)
+    * [How To Find The Mod ID](docs/commands/add.md#how-to-find-the-mod-id)
   * [REMOVE](#remove)
   * [INSTALL](#install)
   * [UPDATE](#update)
@@ -163,93 +163,6 @@ MMM_DISABLE_TELEMETRY=1 mmm list
 # Windows PowerShell
 $env:MMM_DISABLE_TELEMETRY=1; mmm list
 ```
-
-### ADD
-
-`mmm add <platform> <id>`
-
-This adds a given mod to the configuration file and downloads the relevant mod file to the configured mod folder.
-
-You would run this command to add a given mod to the configuration file.
-
-Adding a mod also downloads the corresponding jar file.
-
-You can optionally specify the `--allow-version-fallback` flag to allow the tool to attempt to download the mod for
-previous versions of Minecraft if the mod doesn't support the current version.
-
-#### Installing specific versions
-
-If you want to install a specific version of a mod, you can use the `--version` flag to specify the version.
-
-`mmm add modrinth FOIvwGKz --version 1.3.1`
-
-The version of the mod has to exist for the given Minecraft version.
-
-:warning: **Modrinth and Curseforge handle versions differently**
-
-##### Modrinth
-
-When using Modrinth, you need to specify the version number as it is listed on the website.
-
-![](/doc/images/versions-modrinth.png)
-
-In the example above, `1.3.1` and `1.2.2` are the version numbers. Notice how in the filename itself it says `v1.3.1` but
-the version number communicated by Modrinth is actually `1.3.1`. You always want to use the version number that's
-communicated by Modrinth.
-
-##### Curseforge
-
-Curseforge on the other hand has no core concept of the individual mods' versions so we have to rely on the actual file names.
-
-
-Once you find the mod you want to install, you need to click on the "Files" tab and then find the version you want to
-install.
-
-![](/doc/images/versions-curseforge-1.png)
-
-You then need to click on the specific version you want to install and copy the file name.
-
-![](/doc/images/versions-curseforge-2.png)
-
-> This will change in the future as soon as Curseforge adds support for proper versioning.
-
-
-
-#### Command Line Arguments
-
-| Short | Long                     | Description                       | Value                                                                        |
-|-------|--------------------------|-----------------------------------|------------------------------------------------------------------------------|
-| -f    | --allow-version-fallback | Whether to allow version fallback | No value needed. <br/>When it is supplied, `true` is assumed                 |
-| -v    | --version                | The version of the mod to add     | A valid version string for Modrinth or the version's filename for Curseforge |
-
-#### Platforms
-
-Currently, the 2 possible values of the platform are:
-
-- curseforge
-- modrinth
-
-#### How to find the Mod ID?
-
-**On Curseforge** you need the **Project ID** which you can find in the **top right hand corner** of every mod's page.
-
-![](/doc/images/curseforge.png)
-
-**On Modrinth** you need the **Project SLUG** which is the last part of the URL the mod is on
-
-![](/doc/images/modrinth.png)
-
-<details>
-  <summary>Click for examples</summary>
-
-
-Adding
-the [Fabric API from Curseforge](https://www.curseforge.com/minecraft/mc-mods/fabric-api): `mmm add curseforge 306612`
-
-Adding [Sodium from Modrinth](https://modrinth.com/mod/sodium/): `mmm add modrinth AANobbMI`
-</details>
-
----
 
 ### REMOVE
 
@@ -428,7 +341,7 @@ versions or not.
 You have seen this file mentioned in this document and you might be wondering what to do with it.
 
 The lockfile is 100% managed by the app itself and it ensures consistency across [`install`](#install) runs. It
-effectively "locks" the versions to the exact versions you installed with the last [`add`](#add) or [`update`](#update)
+effectively "locks" the versions to the exact versions you installed with the last [`add`](docs/commands/add.md) or [`update`](#update)
 commands.
 
 **You don't have to do anything with it!**
@@ -445,7 +358,7 @@ It is in JSON format. If you're unfamiliar with JSON or want to make sure that e
 the [JSON Validator](https://jsonlint.com/) website to make sure that the file contents are valid before running the
 app.
 
-This is how it looks like if you followed the examples in the [`add`](#add) section:
+This is how it looks like if you followed the examples in the [`add`](docs/commands/add.md) command documentation:
 
 ```json
 {
@@ -480,7 +393,7 @@ This is how it looks like if you followed the examples in the [`add`](#add) sect
 }
 ```
 
-> The **mods** field is managed by the [`add`](#add) command, but you can also edit it by hand if you wish.
+> The **mods** field is managed by the [`add`](docs/commands/add.md) command, but you can also edit it by hand if you wish.
 
 #### loader _required_
 
@@ -555,8 +468,8 @@ If `allowVersionFallback` is omitted, the CLI assumes `false` for that mod. Ther
 For every mod you can specify a version. This is useful if you want to install a specific version of a mod and want to
 keep it that way regardless of any updates to the mod.
 
-There are subtle differences between how this works for Modrinth and Curseforge. To learn more about this, please read
-the [installing specific versions](#installing-specific-versions) section of the [add](#add) command.
+There are subtle differences between how this works for Modrinth and Curseforge. To learn more about this, read
+the [Installing Specific Versions](docs/commands/add.md#installing-specific-versions) section of the [add](docs/commands/add.md) command.
 
 ### Ignore File
 

@@ -104,8 +104,9 @@ func TestRunListMissingLockTreatsAllAsNotInstalled(t *testing.T) {
 	cmd.SetErr(errOut)
 
 	err := runList(cmd, meta.ConfigPath, false, listDeps{
-		fs:     fs,
-		logger: logger.New(out, errOut, false, false),
+		fs:        fs,
+		logger:    logger.New(out, errOut, false, false),
+		telemetry: func(telemetry.CommandTelemetry) {},
 	})
 
 	assert.NoError(t, err)
@@ -145,8 +146,9 @@ func TestRunListInvalidLockErrors(t *testing.T) {
 	cmd.SetErr(errOut)
 
 	err := runList(cmd, meta.ConfigPath, false, listDeps{
-		fs:     fs,
-		logger: logger.New(out, errOut, false, false),
+		fs:        fs,
+		logger:    logger.New(out, errOut, false, false),
+		telemetry: func(telemetry.CommandTelemetry) {},
 	})
 
 	assert.Error(t, err)
@@ -169,8 +171,9 @@ func TestRunListInvalidConfigErrors(t *testing.T) {
 	cmd.SetErr(errOut)
 
 	err := runList(cmd, meta.ConfigPath, false, listDeps{
-		fs:     fs,
-		logger: logger.New(out, errOut, false, false),
+		fs:        fs,
+		logger:    logger.New(out, errOut, false, false),
+		telemetry: func(telemetry.CommandTelemetry) {},
 	})
 
 	assert.Error(t, err)
@@ -201,8 +204,9 @@ func TestRunListShowsEmptyMessageWhenNoMods(t *testing.T) {
 	cmd.SetErr(errOut)
 
 	err := runList(cmd, meta.ConfigPath, false, listDeps{
-		fs:     fs,
-		logger: logger.New(out, errOut, false, false),
+		fs:        fs,
+		logger:    logger.New(out, errOut, false, false),
+		telemetry: func(telemetry.CommandTelemetry) {},
 	})
 
 	assert.NoError(t, err)
@@ -238,8 +242,9 @@ func TestRunListQuietStillPrints(t *testing.T) {
 	cmd.SetErr(errOut)
 
 	err := runList(cmd, meta.ConfigPath, true, listDeps{
-		fs:     fs,
-		logger: logger.New(out, errOut, true, false),
+		fs:        fs,
+		logger:    logger.New(out, errOut, true, false),
+		telemetry: func(telemetry.CommandTelemetry) {},
 	})
 
 	assert.NoError(t, err)

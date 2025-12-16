@@ -65,10 +65,6 @@ type listEntry struct {
 }
 
 func runList(cmd *cobra.Command, configPath string, quiet bool, deps listDeps) error {
-	if deps.telemetry == nil {
-		deps.telemetry = telemetry.CaptureCommand
-	}
-
 	meta := config.NewMetadata(configPath)
 
 	cfg, err := config.ReadConfig(deps.fs, meta)

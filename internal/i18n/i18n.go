@@ -105,8 +105,7 @@ func T(key string, args ...Tvars) string {
 	}
 	vars["count"] = args[0].Count
 
-	localization := localizer.Get(key, i18nLib.Vars(vars))
-	return localization
+	return localizer.Get(key, i18nLib.Vars(vars))
 }
 
 func getUserLocales() []string {

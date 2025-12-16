@@ -9,6 +9,7 @@ import (
 	"github.com/meza/minecraft-mod-manager/internal/perf"
 	"github.com/pkg/errors"
 	"net/http"
+	"net/url"
 	"time"
 )
 
@@ -91,9 +92,13 @@ func GetVersionsForProject(lookup *VersionLookup, client httpClient.Doer) (Versi
 	gameVersionsJSON, _ := json.Marshal(lookup.GameVersions)
 	loadersJSON, _ := json.Marshal(lookup.Loaders)
 
-	url := fmt.Sprintf("%s/v2/project/%s/version?game_versions=%s&loaders=%s", GetBaseUrl(), lookup.ProjectId, gameVersionsJSON, loadersJSON)
+	baseURL, _ := url.Parse(fmt.Sprintf("%s/v2/project/%s/version", GetBaseUrl(), lookup.ProjectId))
+	query := url.Values{}
+	query.Set("game_versions", string(gameVersionsJSON))
+	query.Set("loaders", string(loadersJSON))
+	baseURL.RawQuery = query.Encode()
 
-	request, _ := http.NewRequest("GET", url, nil)
+	request, _ := http.NewRequest("GET", baseURL.String(), nil)
 	response, err := client.Do(request)
 	if err != nil {
 		return nil, globalErrors.ProjectApiErrorWrap(err, lookup.ProjectId, models.MODRINTH)

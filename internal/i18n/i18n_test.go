@@ -30,6 +30,10 @@ func (f EmptyLocaleProvider) GetLocales() ([]string, error) {
 	return []string{"", "es_ES"}, nil
 }
 
+type customString string
+
+func (c customString) String() string { return string(c) }
+
 //go:embed __fixtures__/*.json
 var testData embed.FS
 
@@ -67,6 +71,15 @@ func TestSimpleTranslations(t *testing.T) {
 		assert.Equal(t, "Hello World but in German", actual)
 	})
 
+	t.Run("custom type values are interpolated", func(t *testing.T) {
+		localizer = nil
+
+		actual := T("test.customType", Tvars{
+			Data: &TData{"val": customString("XYZ")},
+		})
+
+		assert.Equal(t, "Value is XYZ", actual)
+	})
 }
 
 func TestPluralsTranslations(t *testing.T) {
