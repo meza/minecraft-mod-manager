@@ -99,6 +99,11 @@ If you think a test needs to be removed or disabled, stop and ask for guidance f
 - Update README.md when adding new functionality
 - Maintain consistent language and style based on the documentation guidelines within your persona instructions
 
+#### Documentation Standards
+When writing or updating documentation, adhere to the following standards: https://raw.githubusercontent.com/meza/agent-docs/refs/heads/main/DocumentationGuidelines.md and strive to follow those standards.
+
+This is mandatory.
+
 ## When in Doubt
 
 **DO NOT make assumptions or guess.** Instead:

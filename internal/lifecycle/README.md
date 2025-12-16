@@ -1,48 +1,50 @@
-# Lifecycle Manager
+# internal/lifecycle
 
-`internal/lifecycle` centralizes Ctrl+C / SIGTERM handling so subsystems can flush state without duplicating boilerplate. It guarantees that handlers run once (in reverse registration order) and maps signals to conventional exit codes.
+This package is where we centralize Ctrl+C (SIGINT) and SIGTERM handling so subsystems can flush state without duplicating signal boilerplate.
 
-## Why it exists
+It guarantees:
 
-- Commands and TUIs often need to flush telemetry, close network clients, or revert temp files.
-- Multiple modules may need shutdown hooks at the same time.
-- Signal handling must be consistent and safe even when one handler panics.
+- handlers run at most once per process
+- handlers run in reverse registration order (last registered shuts down first)
+- a panic in one handler does not prevent others from running
+- the process exits with a conventional exit code for the signal
 
-## Registering handlers
+## Quick start
+
+Register cleanup hooks from wherever you own a resource that should be flushed on shutdown.
 
 ```go
-import (
-    "context"
-    "os"
-
-    "github.com/meza/minecraft-mod-manager/internal/lifecycle"
-)
-
-func main() {
-    handlerID := lifecycle.Register(func(os.Signal) {
-        // perform cleanup
-    })
-    defer lifecycle.Unregister(handlerID)
-
-    // run CLI/TUI logic; normal returns should still defer cleanup
-}
+handlerID := lifecycle.Register(func(sig os.Signal) {
+	_ = sig
+	// Perform cleanup.
+})
+defer lifecycle.Unregister(handlerID)
 ```
 
-- `Register` ignores `nil` callbacks, starts the SIGINT/SIGTERM listener on first use, and returns a `HandlerID`.
-- `Unregister` removes the handler when it’s no longer needed (useful if the owning subsystem shuts down early).
+Handlers only run on signals. Normal command exits should still rely on `defer` or command-level cleanup.
 
-Handlers fire only when the OS delivers SIGINT or SIGTERM. Normal command exits should still rely on defers or command-level cleanup.
+## Public API
 
-## Testing behaviour
+- `Register(handler Handler) HandlerID`
+- `Unregister(id HandlerID)`
 
-Public APIs already account for common failure cases:
+`Register` ignores `nil` handlers, starts the SIGINT/SIGTERM listener on first use, and returns a `HandlerID` you can use to unregister.
 
-- Handlers run in reverse order so the most recently registered subsystem can shut down first.
-- Panics inside a handler are swallowed so the remaining callbacks still run.
-- Unregister removes handlers so temporary subsystems don’t leak callbacks.
+`Unregister` removes the handler when it is no longer needed (useful when a temporary subsystem shuts down early).
 
-Internally there is a `reset` helper and injectable channel factory for unit tests. Consumers do not need access to those helpers.
+## Exit codes
+
+Signals are mapped to conventional exit codes:
+
+- SIGINT (Ctrl+C) -> 130
+- SIGTERM -> 143
+
+## Testing notes
+
+This package has a test-only `reset` helper and injectable factories so unit tests can run without real OS signals.
+
+Consumers should treat those helpers as private implementation details and only depend on the public API guarantees.
 
 ## Related docs
 
-- `internal/telemetry/README.md` shows how telemetry registers its shutdown hook.
+- `internal/telemetry/README.md` shows how telemetry shuts down on Ctrl+C/SIGTERM.

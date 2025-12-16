@@ -1,8 +1,10 @@
-# i18n
+# internal/i18n
 
 This package provides one job for the wider project: return the right user-facing string for the current environment.
 
 It is intentionally small and boring. There is one public entry point: `T()`.
+
+If you are looking for the "how to write translations" guide (ICU format, placeholders, plural rules), start with `docs/i18n.md`.
 
 ## When to use this
 

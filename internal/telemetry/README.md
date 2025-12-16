@@ -1,25 +1,23 @@
-# Telemetry Lifecycle
+# internal/telemetry
 
-Minecraft Mod Manager mirrors the Node CLI by shipping anonymous usage metrics to [PostHog](https://posthog.com). The tracker exists to understand which commands people reach for, where errors cluster, and how the TUI behaves during multi-step sessions. All telemetry is best-effort: failures are logged at debug level only and commands never block on the network.
+Minecraft Mod Manager ships anonymous usage metrics to PostHog (https://posthog.com) so we can understand which commands people reach for and where errors cluster.
+
+Telemetry is best-effort: failures never block a command. By default, the telemetry package uses a no-op logger, so telemetry failures are silent unless the package logger is explicitly wired for debugging.
 
 ## Quick start
 
+This is the pattern used by `main.go`:
+
 ```go
-package main
-
-import (
-    "github.com/meza/minecraft-mod-manager/internal/telemetry"
-)
-
-func main() {
-    telemetry.Init()
-    defer telemetry.Shutdown(context.Background())
-
-    // Command-specific logic…
-}
+telemetry.Init()
+handlerID := lifecycle.Register(func(os.Signal) {
+	telemetry.Shutdown(context.Background())
+})
+defer lifecycle.Unregister(handlerID)
+defer telemetry.Shutdown(context.Background())
 ```
 
-Call `Init` once when the process starts, emit events via `Capture`/`CaptureCommand`, and rely on `internal/lifecycle` to flush telemetry during Ctrl+C. Keep a `defer telemetry.Shutdown(...)` for the graceful exit path.
+Call `Init` once when the process starts, emit events via `Capture`/`CaptureCommand`, and rely on `internal/lifecycle` to flush telemetry during Ctrl+C/SIGTERM. Keep a `defer telemetry.Shutdown(...)` for the graceful exit path.
 
 ## Runtime lifecycle
 
