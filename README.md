@@ -170,7 +170,7 @@ Paths inside the perf file are normalized to be relative to the config directory
 
 ### Telemetry
 
-Minecraft Mod Manager records anonymized command metadata with [PostHog](https://posthog.com) so we know which flows succeed and where bugs cluster. Events only include the command name, success/failure, and non-sensitive diagnostics. Telemetry is best-effort and never blocks a command.
+Minecraft Mod Manager records anonymized command metadata with [PostHog](https://posthog.com) so we know which flows succeed and where errors cluster. Command events include a performance trace (spans) so we can see where time is spent. Telemetry is best-effort and never blocks a command.
 
 Opt out anytime by setting an environment variable before running the CLI. For example:
 

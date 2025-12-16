@@ -11,6 +11,7 @@ import (
 	"github.com/denisbrodbeck/machineid"
 	"github.com/meza/minecraft-mod-manager/internal/environment"
 	"github.com/meza/minecraft-mod-manager/internal/models"
+	"github.com/meza/minecraft-mod-manager/internal/perf"
 	"github.com/posthog/posthog-go"
 )
 
@@ -164,6 +165,12 @@ func CaptureCommand(command CommandTelemetry) {
 		"success": command.Success,
 	}
 
+	performance := []*perf.ExportSpan{}
+	if spans, err := perf.GetExportTree(""); err == nil && spans != nil {
+		performance = spans
+	}
+	properties["performance"] = performance
+
 	if !command.Success && command.Config != nil {
 		properties["config"] = command.Config
 	}
@@ -182,9 +189,50 @@ func CaptureCommand(command CommandTelemetry) {
 
 	if command.Duration > 0 {
 		properties["duration_ms"] = command.Duration.Milliseconds()
+	} else if duration, ok := commandDurationFromPerf(command.Command, performance); ok {
+		properties["duration_ms"] = duration.Milliseconds()
 	}
 
 	Capture(command.Command, properties)
+}
+
+func commandDurationFromPerf(commandName string, performance []*perf.ExportSpan) (time.Duration, bool) {
+	if commandName == "" || len(performance) == 0 {
+		return 0, false
+	}
+
+	targetSpanName := "app.command." + commandName
+
+	var best *perf.ExportSpan
+	var bestDurationNS int64
+
+	var walk func(span *perf.ExportSpan)
+	walk = func(span *perf.ExportSpan) {
+		if span == nil {
+			return
+		}
+
+		if span.Name == targetSpanName {
+			if best == nil || span.EndTime.After(best.EndTime) {
+				best = span
+				bestDurationNS = span.DurationNS
+			}
+		}
+
+		for _, child := range span.Children {
+			walk(child)
+		}
+	}
+
+	for _, root := range performance {
+		walk(root)
+	}
+
+	if best == nil {
+		return 0, false
+	}
+
+	return time.Duration(bestDurationNS), true
 }
 
 // Shutdown flushes and closes the telemetry client. Additional calls are ignored.

@@ -1,6 +1,7 @@
 package platform
 
 import (
+	"context"
 	"errors"
 	"fmt"
 	"time"
@@ -9,6 +10,7 @@ import (
 	"github.com/meza/minecraft-mod-manager/internal/httpClient"
 	"github.com/meza/minecraft-mod-manager/internal/models"
 	"github.com/meza/minecraft-mod-manager/internal/perf"
+	"go.opentelemetry.io/otel/attribute"
 	"golang.org/x/time/rate"
 )
 
@@ -44,33 +46,34 @@ func DefaultClients(limiter *rate.Limiter) Clients {
 	}
 }
 
-func FetchMod(platform models.Platform, projectID string, opts FetchOptions, clients Clients) (RemoteMod, error) {
-	details := perf.PerformanceDetails{
-		"platform":       string(platform),
-		"project_id":     projectID,
-		"loader":         string(opts.Loader),
-		"game_version":   opts.GameVersion,
-		"allow_fallback": opts.AllowFallback,
-		"fixed_version":  opts.FixedVersion,
-	}
-	region := perf.StartRegionWithDetails("platform.fetch_mod", &details)
+func FetchMod(ctx context.Context, platform models.Platform, projectID string, opts FetchOptions, clients Clients) (RemoteMod, error) {
+	ctx, span := perf.StartSpan(ctx, "platform.fetch_mod",
+		perf.WithAttributes(
+			attribute.String("platform", string(platform)),
+			attribute.String("project_id", projectID),
+			attribute.String("loader", string(opts.Loader)),
+			attribute.String("game_version", opts.GameVersion),
+			attribute.Bool("allow_fallback", opts.AllowFallback),
+			attribute.String("fixed_version", opts.FixedVersion),
+		),
+	)
 
 	var remote RemoteMod
 	var err error
 	switch platform {
 	case models.MODRINTH:
-		remote, err = fetchModrinth(projectID, opts, clients.Modrinth)
+		remote, err = fetchModrinth(ctx, projectID, opts, clients.Modrinth)
 	case models.CURSEFORGE:
-		remote, err = fetchCurseforge(projectID, opts, clients.Curseforge)
+		remote, err = fetchCurseforge(ctx, projectID, opts, clients.Curseforge)
 	default:
 		err = &UnknownPlatformError{Platform: string(platform)}
 	}
 
-	details["success"] = err == nil
+	span.SetAttributes(attribute.Bool("success", err == nil))
 	if err != nil {
-		details["error_type"] = fmt.Sprintf("%T", err)
+		span.SetAttributes(attribute.String("error_type", fmt.Sprintf("%T", err)))
 	}
-	region.End()
+	span.End()
 
 	if err != nil {
 		return RemoteMod{}, err

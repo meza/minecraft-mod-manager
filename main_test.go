@@ -5,7 +5,6 @@ import (
 	"os"
 	"path/filepath"
 	"testing"
-	"time"
 
 	"github.com/meza/minecraft-mod-manager/internal/lifecycle"
 	"github.com/meza/minecraft-mod-manager/internal/perf"
@@ -13,11 +12,12 @@ import (
 )
 
 func TestRunWithDeps_RecordsLifecycleRegions(t *testing.T) {
-	perf.ClearPerformanceLog()
+	perf.Reset()
+	t.Cleanup(perf.Reset)
 
 	var calls []string
 	deps := runDeps{
-		execute: func() error {
+		execute: func(context.Context) error {
 			calls = append(calls, "execute")
 			return nil
 		},
@@ -36,26 +36,29 @@ func TestRunWithDeps_RecordsLifecycleRegions(t *testing.T) {
 			calls = append(calls, "unregister")
 			assert.Equal(t, lifecycle.HandlerID(42), id)
 		},
+		args: []string{"--perf"},
 	}
 
 	exitCode := runWithDeps(deps)
 	assert.Equal(t, 0, exitCode)
 	assert.Equal(t, []string{"telemetryInit", "register", "execute", "telemetryShutdown", "unregister"}, calls)
 
-	log := perf.GetPerformanceLog()
-	assertLifecycleRegionRecorded(t, log, perfLifecycleStartup)
-	assertLifecycleRegionRecorded(t, log, perfLifecycleExecute)
-	assertLifecycleRegionRecorded(t, log, perfLifecycleShutdown)
+	spans, err := perf.GetSpans()
+	assert.NoError(t, err)
+	assertSpanExists(t, spans, perfLifecycleStartup)
+	assertSpanExists(t, spans, perfLifecycleExecute)
+	assertSpanExists(t, spans, perfLifecycleShutdown)
 }
 
 func TestRunWithDeps_SignalShutdownIsRecordedOnce(t *testing.T) {
-	perf.ClearPerformanceLog()
+	perf.Reset()
+	t.Cleanup(perf.Reset)
 
 	var calls []string
 	var registeredHandler lifecycle.Handler
 
 	deps := runDeps{
-		execute: func() error {
+		execute: func(context.Context) error {
 			calls = append(calls, "execute-start")
 			assert.NotNil(t, registeredHandler)
 			registeredHandler(os.Interrupt)
@@ -77,6 +80,7 @@ func TestRunWithDeps_SignalShutdownIsRecordedOnce(t *testing.T) {
 			calls = append(calls, "unregister")
 			assert.Equal(t, lifecycle.HandlerID(7), id)
 		},
+		args: []string{"--perf"},
 	}
 
 	exitCode := runWithDeps(deps)
@@ -90,19 +94,16 @@ func TestRunWithDeps_SignalShutdownIsRecordedOnce(t *testing.T) {
 	}
 	assert.Equal(t, 1, shutdownCalls)
 
-	log := perf.GetPerformanceLog()
-	assertLifecycleRegionRecorded(t, log, perfLifecycleStartup)
-	assertLifecycleRegionRecorded(t, log, perfLifecycleExecute)
+	spans, err := perf.GetSpans()
+	assert.NoError(t, err)
+	assertSpanExists(t, spans, perfLifecycleStartup)
+	assertSpanExists(t, spans, perfLifecycleExecute)
+	assertSpanExists(t, spans, perfLifecycleShutdown)
 
-	shutdownMarkers := countEntriesByName(log, perfLifecycleShutdown, perf.MarkType)
-	assert.Equal(t, 1, shutdownMarkers)
-
-	assertLifecycleRegionRecorded(t, log, perfLifecycleShutdown)
-	shutdownEntry := findEntryByName(log, perfLifecycleShutdown, perf.MarkType)
-	assert.NotNil(t, shutdownEntry)
-	assert.NotNil(t, shutdownEntry.Details)
-	assert.Equal(t, string(shutdownTriggerSignal), (*shutdownEntry.Details)["trigger"])
-	assert.Equal(t, os.Interrupt.String(), (*shutdownEntry.Details)["signal"])
+	shutdownSpan, ok := perf.FindSpanByName(spans, perfLifecycleShutdown)
+	assert.True(t, ok)
+	assert.Equal(t, string(shutdownTriggerSignal), shutdownSpan.Attributes["trigger"])
+	assert.Equal(t, os.Interrupt.String(), shutdownSpan.Attributes["signal"])
 }
 
 func TestPerfExportConfigFromArgs_DefaultsToConfigDir(t *testing.T) {
@@ -133,31 +134,8 @@ func TestPerfExportConfigFromArgs_CapturesDebugFlag(t *testing.T) {
 	assert.True(t, cfg.debug)
 }
 
-func assertLifecycleRegionRecorded(t *testing.T, log perf.PerformanceLog, name string) {
+func assertSpanExists(t *testing.T, spans []perf.SpanSnapshot, name string) {
 	t.Helper()
-
-	assert.NotNil(t, findEntryByName(log, name, perf.MarkType))
-	assert.NotNil(t, findEntryByName(log, name+"-end", perf.MarkType))
-	measurement := findEntryByName(log, name+"-duration", perf.MeasureType)
-	assert.NotNil(t, measurement)
-	assert.GreaterOrEqual(t, measurement.Duration, time.Duration(0))
-}
-
-func findEntryByName(log perf.PerformanceLog, name string, entryType perf.EntryType) *perf.Entry {
-	for i := range log {
-		if log[i].Name == name && log[i].Type == entryType {
-			return &log[i]
-		}
-	}
-	return nil
-}
-
-func countEntriesByName(log perf.PerformanceLog, name string, entryType perf.EntryType) int {
-	var count int
-	for _, entry := range log {
-		if entry.Name == name && entry.Type == entryType {
-			count++
-		}
-	}
-	return count
+	_, ok := perf.FindSpanByName(spans, name)
+	assert.True(t, ok, "expected span %q to exist", name)
 }

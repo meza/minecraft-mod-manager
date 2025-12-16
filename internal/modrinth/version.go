@@ -1,8 +1,10 @@
 package modrinth
 
 import (
+	"context"
 	"encoding/json"
 	"fmt"
+
 	"github.com/meza/minecraft-mod-manager/internal/globalErrors"
 	"github.com/meza/minecraft-mod-manager/internal/httpClient"
 	"github.com/meza/minecraft-mod-manager/internal/models"
@@ -11,6 +13,8 @@ import (
 	"net/http"
 	"net/url"
 	"time"
+
+	"go.opentelemetry.io/otel/attribute"
 )
 
 type DependencyType string
@@ -83,11 +87,9 @@ type VersionHashLookup struct {
 	algorithm VersionAlgorithm
 }
 
-func GetVersionsForProject(lookup *VersionLookup, client httpClient.Doer) (Versions, error) {
-	region := perf.StartRegionWithDetails("api.modrinth.version.list", &perf.PerformanceDetails{
-		"project_id": lookup.ProjectId,
-	})
-	defer region.End()
+func GetVersionsForProject(ctx context.Context, lookup *VersionLookup, client httpClient.Doer) (Versions, error) {
+	ctx, span := perf.StartSpan(ctx, "api.modrinth.version.list", perf.WithAttributes(attribute.String("project_id", lookup.ProjectId)))
+	defer span.End()
 
 	gameVersionsJSON, _ := json.Marshal(lookup.GameVersions)
 	loadersJSON, _ := json.Marshal(lookup.Loaders)
@@ -98,11 +100,12 @@ func GetVersionsForProject(lookup *VersionLookup, client httpClient.Doer) (Versi
 	query.Set("loaders", string(loadersJSON))
 	baseURL.RawQuery = query.Encode()
 
-	request, _ := http.NewRequest("GET", baseURL.String(), nil)
+	request, _ := http.NewRequestWithContext(ctx, "GET", baseURL.String(), nil)
 	response, err := client.Do(request)
 	if err != nil {
 		return nil, globalErrors.ProjectApiErrorWrap(err, lookup.ProjectId, models.MODRINTH)
 	}
+	defer response.Body.Close()
 
 	if response.StatusCode == http.StatusNotFound {
 		return nil, &globalErrors.ProjectNotFoundError{
@@ -116,24 +119,22 @@ func GetVersionsForProject(lookup *VersionLookup, client httpClient.Doer) (Versi
 	}
 
 	result := &Versions{}
-	json.NewDecoder(response.Body).Decode(result)
-	defer response.Body.Close()
+	_ = json.NewDecoder(response.Body).Decode(result)
 	return *result, nil
 }
 
-func GetVersionForHash(lookup *VersionHashLookup, client httpClient.Doer) (*Version, error) {
-	region := perf.StartRegionWithDetails("api.modrinth.version_file.get", &perf.PerformanceDetails{
-		"hash": lookup.hash,
-	})
-	defer region.End()
+func GetVersionForHash(ctx context.Context, lookup *VersionHashLookup, client httpClient.Doer) (*Version, error) {
+	ctx, span := perf.StartSpan(ctx, "api.modrinth.version_file.get", perf.WithAttributes(attribute.String("hash", lookup.hash)))
+	defer span.End()
 
 	url := fmt.Sprintf("%s/v2/version_file/%s?algorithm=%s", GetBaseUrl(), lookup.hash, lookup.algorithm)
 
-	request, _ := http.NewRequest("GET", url, nil)
+	request, _ := http.NewRequestWithContext(ctx, "GET", url, nil)
 	response, err := client.Do(request)
 	if err != nil {
 		return nil, VersionApiErrorWrap(err, *lookup)
 	}
+	defer response.Body.Close()
 
 	if response.StatusCode == http.StatusNotFound {
 		return nil, &VersionNotFoundError{
@@ -146,7 +147,6 @@ func GetVersionForHash(lookup *VersionHashLookup, client httpClient.Doer) (*Vers
 	}
 
 	result := &Version{}
-	json.NewDecoder(response.Body).Decode(result)
-	defer response.Body.Close()
+	_ = json.NewDecoder(response.Body).Decode(result)
 	return result, nil
 }

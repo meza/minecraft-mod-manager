@@ -1,6 +1,7 @@
 package list
 
 import (
+	"context"
 	"testing"
 
 	tea "github.com/charmbracelet/bubbletea"
@@ -24,21 +25,27 @@ func TestListViewSnapshot(t *testing.T) {
 }
 
 func TestModelView(t *testing.T) {
-	perf.ClearPerformanceLog()
-	m := newModel("example")
+	perf.Reset()
+	t.Cleanup(perf.Reset)
+	assert.NoError(t, perf.Init(perf.Config{Enabled: true}))
+
+	_, span := perf.StartSpan(context.Background(), "tui.list.session")
+	m := newModel("example", span)
 	assert.Equal(t, "example", m.View())
 
 	_, _ = m.Update(tea.KeyMsg{Type: tea.KeyEnter})
-	assertPerfMarkExistsList(t, "tui.list.open")
-	assertPerfMarkExistsList(t, "tui.list.action.exit")
-}
+	span.End()
 
-func assertPerfMarkExistsList(t *testing.T, name string) {
-	t.Helper()
-	for _, entry := range perf.GetPerformanceLog() {
-		if entry.Type == perf.MarkType && entry.Name == name {
-			return
-		}
+	spans, err := perf.GetSpans()
+	assert.NoError(t, err)
+
+	s, ok := perf.FindSpanByName(spans, "tui.list.session")
+	assert.True(t, ok)
+
+	var eventNames []string
+	for _, event := range s.Events {
+		eventNames = append(eventNames, event.Name)
 	}
-	t.Fatalf("expected perf mark %q not found", name)
+	assert.Contains(t, eventNames, "tui.list.open")
+	assert.Contains(t, eventNames, "tui.list.action.exit")
 }

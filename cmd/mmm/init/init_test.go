@@ -2,6 +2,7 @@ package init
 
 import (
 	"bytes"
+	"context"
 	"fmt"
 	"io"
 	"net/http"
@@ -42,7 +43,7 @@ func manifestDoer(versions []string) doerFunc {
 func TestGameVersionPlaceholderUsesLatest(t *testing.T) {
 	minecraft.ClearManifestCache()
 
-	model := NewGameVersionModel(manifestDoer([]string{"1.21.11"}), "")
+	model := NewGameVersionModel(context.Background(), manifestDoer([]string{"1.21.11"}), "")
 
 	assert.Contains(t, model.input.View(), "1.21.11")
 	assert.GreaterOrEqual(t, model.input.Width, len("1.21.11"))
@@ -70,7 +71,7 @@ func TestInitWithDeps(t *testing.T) {
 		meta := config.NewMetadata(filepath.FromSlash("/cfg/modlist.json"))
 		assert.NoError(t, fs.MkdirAll(filepath.FromSlash("/cfg/mods"), 0755))
 
-		_, err := initWithDeps(initOptions{
+		_, err := initWithDeps(context.Background(), initOptions{
 			ConfigPath:   meta.ConfigPath,
 			Loader:       models.FABRIC,
 			GameVersion:  "1.21.1",
@@ -82,7 +83,7 @@ func TestInitWithDeps(t *testing.T) {
 		})
 		assert.NoError(t, err)
 
-		cfg, err := config.ReadConfig(fs, meta)
+		cfg, err := config.ReadConfig(context.Background(), fs, meta)
 		assert.NoError(t, err)
 		assert.Equal(t, models.FABRIC, cfg.Loader)
 		assert.Equal(t, "1.21.1", cfg.GameVersion)
@@ -90,14 +91,14 @@ func TestInitWithDeps(t *testing.T) {
 		assert.Equal(t, "mods", cfg.ModsFolder)
 		assert.Empty(t, cfg.Mods)
 
-		lock, err := config.ReadLock(fs, meta)
+		lock, err := config.ReadLock(context.Background(), fs, meta)
 		assert.NoError(t, err)
 		assert.Empty(t, lock)
 	})
 
 	t.Run("missing required flags returns error", func(t *testing.T) {
 		minecraft.ClearManifestCache()
-		_, err := initWithDeps(initOptions{}, initDeps{fs: afero.NewMemMapFs(), minecraftClient: manifestDoer([]string{"1.21.1"})})
+		_, err := initWithDeps(context.Background(), initOptions{}, initDeps{fs: afero.NewMemMapFs(), minecraftClient: manifestDoer([]string{"1.21.1"})})
 		assert.ErrorContains(t, err, "init requires flag")
 	})
 
@@ -105,7 +106,7 @@ func TestInitWithDeps(t *testing.T) {
 		minecraft.ClearManifestCache()
 		fs := afero.NewMemMapFs()
 
-		_, err := initWithDeps(initOptions{
+		_, err := initWithDeps(context.Background(), initOptions{
 			ConfigPath:   filepath.FromSlash("/cfg/modlist.json"),
 			Loader:       models.FABRIC,
 			GameVersion:  "1.21.1",
@@ -121,7 +122,7 @@ func TestInitWithDeps(t *testing.T) {
 		assert.NoError(t, fs.MkdirAll(filepath.FromSlash("/cfg"), 0755))
 		assert.NoError(t, afero.WriteFile(fs, filepath.FromSlash("/cfg/mods"), []byte("not a dir"), 0644))
 
-		_, err := initWithDeps(initOptions{
+		_, err := initWithDeps(context.Background(), initOptions{
 			ConfigPath:   filepath.FromSlash("/cfg/modlist.json"),
 			Loader:       models.FABRIC,
 			GameVersion:  "1.21.1",
@@ -136,7 +137,7 @@ func TestInitWithDeps(t *testing.T) {
 		fs := afero.NewMemMapFs()
 		assert.NoError(t, fs.MkdirAll(filepath.FromSlash("/cfg/mods"), 0755))
 
-		_, err := initWithDeps(initOptions{
+		_, err := initWithDeps(context.Background(), initOptions{
 			ConfigPath:   filepath.FromSlash("/cfg/modlist.json"),
 			Loader:       models.FABRIC,
 			GameVersion:  "1.21.9",
@@ -152,7 +153,7 @@ func TestInitWithDeps(t *testing.T) {
 		assert.NoError(t, fs.MkdirAll(filepath.FromSlash("/cfg/mods"), 0755))
 		assert.NoError(t, afero.WriteFile(fs, filepath.FromSlash("/cfg/modlist.json"), []byte(`{"existing":true}`), 0644))
 
-		_, err := initWithDeps(initOptions{
+		_, err := initWithDeps(context.Background(), initOptions{
 			ConfigPath:   filepath.FromSlash("/cfg/modlist.json"),
 			Quiet:        true,
 			Loader:       models.FABRIC,
@@ -169,7 +170,7 @@ func TestInitWithDeps(t *testing.T) {
 		assert.NoError(t, fs.MkdirAll(filepath.FromSlash("/cfg/mods"), 0755))
 		assert.NoError(t, afero.WriteFile(fs, filepath.FromSlash("/cfg/modlist.json"), []byte(`{"loader":"forge"}`), 0644))
 
-		meta, err := initWithDeps(initOptions{
+		meta, err := initWithDeps(context.Background(), initOptions{
 			ConfigPath:   filepath.FromSlash("/cfg/modlist.json"),
 			Loader:       models.FABRIC,
 			GameVersion:  "1.21.1",
@@ -183,7 +184,7 @@ func TestInitWithDeps(t *testing.T) {
 		assert.NoError(t, err)
 		assert.Equal(t, filepath.FromSlash("/cfg/modlist.json"), meta.ConfigPath)
 
-		cfg, err := config.ReadConfig(fs, config.NewMetadata(meta.ConfigPath))
+		cfg, err := config.ReadConfig(context.Background(), fs, config.NewMetadata(meta.ConfigPath))
 		assert.NoError(t, err)
 		assert.Equal(t, models.FABRIC, cfg.Loader)
 	})
@@ -194,7 +195,7 @@ func TestInitWithDeps(t *testing.T) {
 		assert.NoError(t, fs.MkdirAll(filepath.FromSlash("/cfg/mods"), 0755))
 		assert.NoError(t, afero.WriteFile(fs, filepath.FromSlash("/cfg/modlist.json"), []byte(`{"loader":"forge"}`), 0644))
 
-		meta, err := initWithDeps(initOptions{
+		meta, err := initWithDeps(context.Background(), initOptions{
 			ConfigPath:   filepath.FromSlash("/cfg/modlist.json"),
 			Loader:       models.FABRIC,
 			GameVersion:  "1.21.1",
@@ -212,7 +213,7 @@ func TestInitWithDeps(t *testing.T) {
 		assert.NoError(t, err)
 		assert.Contains(t, string(originalBytes), `"loader":"forge"`)
 
-		newCfg, err := config.ReadConfig(fs, config.NewMetadata(filepath.FromSlash("/cfg/alt.json")))
+		newCfg, err := config.ReadConfig(context.Background(), fs, config.NewMetadata(filepath.FromSlash("/cfg/alt.json")))
 		assert.NoError(t, err)
 		assert.Equal(t, models.FABRIC, newCfg.Loader)
 	})
@@ -286,7 +287,7 @@ func TestGameVersionModelAllowsOfflineEntry(t *testing.T) {
 		return nil, fmt.Errorf("offline")
 	})
 
-	model := NewGameVersionModel(offlineDoer, "")
+	model := NewGameVersionModel(context.Background(), offlineDoer, "")
 	model.input.SetValue("1.2.3")
 
 	updated, cmd := model.Update(tea.KeyMsg{Type: tea.KeyEnter})
@@ -300,7 +301,7 @@ func TestGameVersionModelAllowsOfflineEntry(t *testing.T) {
 func TestGameVersionModelUsesPlaceholderWhenEmpty(t *testing.T) {
 	minecraft.ClearManifestCache()
 
-	model := NewGameVersionModel(manifestDoer([]string{"1.21.1"}), "")
+	model := NewGameVersionModel(context.Background(), manifestDoer([]string{"1.21.1"}), "")
 	model.input.SetValue("")
 
 	updated, cmd := model.Update(tea.KeyMsg{Type: tea.KeyEnter})
@@ -336,7 +337,7 @@ func TestCommandModelProgression(t *testing.T) {
 	assert.NoError(t, fs.MkdirAll(filepath.Dir(meta.ConfigPath), 0755))
 	assert.NoError(t, fs.MkdirAll(meta.ModsFolderPath(models.ModsJson{ModsFolder: "mods"}), 0755))
 
-	model := NewModel(initOptions{
+	model := NewModel(context.Background(), nil, initOptions{
 		ConfigPath:   meta.ConfigPath,
 		ModsFolder:   "mods",
 		ReleaseTypes: []models.ReleaseType{models.Release},
@@ -391,7 +392,7 @@ func TestViewHidesProvidedQuestions(t *testing.T) {
 	assert.NoError(t, fs.MkdirAll(filepath.Dir(meta.ConfigPath), 0755))
 	assert.NoError(t, fs.MkdirAll(meta.ModsFolderPath(models.ModsJson{ModsFolder: "mods"}), 0755))
 
-	model := NewModel(initOptions{
+	model := NewModel(context.Background(), nil, initOptions{
 		ConfigPath:   meta.ConfigPath,
 		Loader:       models.FABRIC,
 		GameVersion:  "1.21.1",
@@ -415,7 +416,7 @@ func TestViewHidesProvidedQuestions(t *testing.T) {
 func TestNormalizeGameVersion(t *testing.T) {
 	t.Run("leaves explicit version untouched", func(t *testing.T) {
 		minecraft.ClearManifestCache()
-		opts, err := normalizeGameVersion(initOptions{
+		opts, err := normalizeGameVersion(context.Background(), initOptions{
 			GameVersion: "1.21.1",
 		}, initDeps{minecraftClient: manifestDoer([]string{"1.21.1"})}, true)
 		assert.NoError(t, err)
@@ -424,7 +425,7 @@ func TestNormalizeGameVersion(t *testing.T) {
 
 	t.Run("resolves latest when provided flag set to latest", func(t *testing.T) {
 		minecraft.ClearManifestCache()
-		opts, err := normalizeGameVersion(initOptions{
+		opts, err := normalizeGameVersion(context.Background(), initOptions{
 			GameVersion: "latest",
 			Provided:    providedFlags{GameVersion: true},
 		}, initDeps{minecraftClient: manifestDoer([]string{"2.0.0"})}, false)
@@ -434,7 +435,7 @@ func TestNormalizeGameVersion(t *testing.T) {
 
 	t.Run("defaults to asking when default latest cannot resolve", func(t *testing.T) {
 		minecraft.ClearManifestCache()
-		opts, err := normalizeGameVersion(initOptions{
+		opts, err := normalizeGameVersion(context.Background(), initOptions{
 			GameVersion: "latest",
 			Provided:    providedFlags{GameVersion: false},
 		}, initDeps{minecraftClient: doerFunc(func(_ *http.Request) (*http.Response, error) {
@@ -446,7 +447,7 @@ func TestNormalizeGameVersion(t *testing.T) {
 
 	t.Run("errors when provided latest cannot resolve", func(t *testing.T) {
 		minecraft.ClearManifestCache()
-		_, err := normalizeGameVersion(initOptions{
+		_, err := normalizeGameVersion(context.Background(), initOptions{
 			GameVersion: "latest",
 			Provided:    providedFlags{GameVersion: true},
 		}, initDeps{minecraftClient: doerFunc(func(_ *http.Request) (*http.Response, error) {

@@ -1,6 +1,7 @@
 package platform
 
 import (
+	"context"
 	"net/http"
 	"sort"
 
@@ -8,10 +9,10 @@ import (
 	"github.com/meza/minecraft-mod-manager/internal/modrinth"
 )
 
-func fetchModrinth(projectID string, opts FetchOptions, client modrinthDoer) (RemoteMod, error) {
+func fetchModrinth(ctx context.Context, projectID string, opts FetchOptions, client modrinthDoer) (RemoteMod, error) {
 	modrinthClient := modrinth.NewClient(client)
 
-	project, err := modrinth.GetProject(projectID, modrinthClient)
+	project, err := modrinth.GetProject(ctx, projectID, modrinthClient)
 	if err != nil {
 		return RemoteMod{}, mapProjectNotFound(models.MODRINTH, projectID, err)
 	}
@@ -19,7 +20,7 @@ func fetchModrinth(projectID string, opts FetchOptions, client modrinthDoer) (Re
 	currentVersion := opts.GameVersion
 
 	for {
-		versions, versionErr := modrinth.GetVersionsForProject(&modrinth.VersionLookup{
+		versions, versionErr := modrinth.GetVersionsForProject(ctx, &modrinth.VersionLookup{
 			ProjectId:    projectID,
 			Loaders:      []models.Loader{opts.Loader},
 			GameVersions: []string{currentVersion},

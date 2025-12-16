@@ -13,12 +13,11 @@ import (
 	"github.com/meza/minecraft-mod-manager/internal/lifecycle"
 	"github.com/meza/minecraft-mod-manager/internal/perf"
 	"github.com/meza/minecraft-mod-manager/internal/telemetry"
+	"go.opentelemetry.io/otel/attribute"
 )
 
 func main() {
-	exitCode := run(func() error {
-		return mmm.Execute()
-	})
+	exitCode := run()
 
 	if exitCode != 0 {
 		os.Exit(exitCode)
@@ -38,24 +37,23 @@ const (
 	shutdownTriggerSignal   shutdownTrigger = "signal"
 )
 
-func run(execute func() error) int {
+func run() int {
 	return runWithDeps(runDeps{
-		execute:           execute,
+		execute: func(ctx context.Context) error {
+			return mmm.Command().ExecuteContext(ctx)
+		},
 		telemetryInit:     telemetry.Init,
 		telemetryShutdown: telemetry.Shutdown,
 		register:          lifecycle.Register,
 		unregister:        lifecycle.Unregister,
 		args:              os.Args[1:],
 		getwd:             os.Getwd,
-		perfExport: func(cfg perfExportConfig) error {
-			_, err := perf.ExportToFile(cfg.outDir, cfg.baseDir, perf.GetPerformanceLog())
-			return err
-		},
+		perfExport:        func(cfg perfExportConfig) error { _, err := perf.ExportToFile(cfg.outDir, cfg.baseDir); return err },
 	})
 }
 
 type runDeps struct {
-	execute           func() error
+	execute           func(context.Context) error
 	telemetryInit     func()
 	telemetryShutdown func(context.Context)
 	register          func(lifecycle.Handler) lifecycle.HandlerID
@@ -73,28 +71,55 @@ func runWithDeps(deps runDeps) int {
 	cwd, _ := getwd()
 	perfCfg := perfExportConfigFromArgs(deps.args, cwd)
 
-	startupRegion := perf.StartRegion(perfLifecycleStartup)
+	if err := perf.Init(perf.Config{Enabled: true}); err != nil && perfCfg.debug {
+		log.Printf("perf init failed: %v", err)
+	}
+
+	rootCtx, rootSpan := perf.StartSpan(context.Background(), "app.lifecycle")
+
+	_, startupSpan := perf.StartSpan(rootCtx, perfLifecycleStartup)
 
 	deps.telemetryInit()
 
 	var shutdownOnce sync.Once
+	var executeEndOnce sync.Once
+	var executeSpan *perf.Span
+	var executeCtx context.Context
+
+	endExecute := func(success bool) {
+		executeEndOnce.Do(func() {
+			if executeSpan == nil {
+				return
+			}
+			executeSpan.SetAttributes(attribute.Bool("success", success))
+			executeSpan.End()
+		})
+	}
+
 	shutdown := func(trigger shutdownTrigger, sig os.Signal) {
 		shutdownOnce.Do(func() {
-			details := perf.PerformanceDetails{
-				"trigger": string(trigger),
+			endExecute(false)
+
+			attrs := []attribute.KeyValue{
+				attribute.String("trigger", string(trigger)),
 			}
 			if sig != nil {
-				details["signal"] = sig.String()
+				attrs = append(attrs, attribute.String("signal", sig.String()))
 			}
 
-			shutdownRegion := perf.StartRegionWithDetails(perfLifecycleShutdown, &details)
-			deps.telemetryShutdown(context.Background())
+			_, shutdownSpan := perf.StartSpan(rootCtx, perfLifecycleShutdown, perf.WithAttributes(attrs...))
+			deps.telemetryShutdown(rootCtx)
+
+			shutdownSpan.End()
+			rootSpan.End()
 			if perfCfg.enabled && deps.perfExport != nil {
 				if err := deps.perfExport(perfCfg); err != nil && perfCfg.debug {
 					log.Printf("perf export failed: %v", err)
 				}
 			}
-			shutdownRegion.End()
+			if err := perf.Shutdown(context.Background()); err != nil && perfCfg.debug {
+				log.Printf("perf shutdown failed: %v", err)
+			}
 		})
 	}
 
@@ -104,13 +129,11 @@ func runWithDeps(deps runDeps) int {
 	defer deps.unregister(handlerID)
 	defer shutdown(shutdownTriggerGraceful, nil)
 
-	startupRegion.End()
+	startupSpan.End()
 
-	executeRegion := perf.StartRegion(perfLifecycleExecute)
-	err := deps.execute()
-	executeRegion.EndWithDetails(&perf.PerformanceDetails{
-		"success": err == nil,
-	})
+	executeCtx, executeSpan = perf.StartSpan(rootCtx, perfLifecycleExecute)
+	err := deps.execute(executeCtx)
+	endExecute(err == nil)
 
 	if err != nil {
 		log.Printf("Error executing command: %v", err)

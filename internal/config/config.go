@@ -1,6 +1,7 @@
 package config
 
 import (
+	"context"
 	"encoding/json"
 	"fmt"
 
@@ -9,11 +10,12 @@ import (
 	"github.com/meza/minecraft-mod-manager/internal/models"
 	"github.com/meza/minecraft-mod-manager/internal/perf"
 	"github.com/spf13/afero"
+	"go.opentelemetry.io/otel/attribute"
 )
 
-func ReadConfig(fs afero.Fs, meta Metadata) (models.ModsJson, error) {
-	region := perf.StartRegion("io.config.read")
-	defer region.End()
+func ReadConfig(ctx context.Context, fs afero.Fs, meta Metadata) (models.ModsJson, error) {
+	_, span := perf.StartSpan(ctx, "io.config.read", perf.WithAttributes(attribute.String("config_path", meta.ConfigPath)))
+	defer span.End()
 
 	exists, _ := afero.Exists(fs, meta.ConfigPath)
 	if !exists {
@@ -33,19 +35,19 @@ func ReadConfig(fs afero.Fs, meta Metadata) (models.ModsJson, error) {
 	return config, nil
 }
 
-func WriteConfig(fs afero.Fs, meta Metadata, config models.ModsJson) error {
-	region := perf.StartRegion("io.config.write")
-	defer region.End()
+func WriteConfig(ctx context.Context, fs afero.Fs, meta Metadata, config models.ModsJson) error {
+	_, span := perf.StartSpan(ctx, "io.config.write", perf.WithAttributes(attribute.String("config_path", meta.ConfigPath)))
+	defer span.End()
 
 	data, _ := json.MarshalIndent(config, "", "  ")
 	return afero.WriteFile(fs, meta.ConfigPath, data, 0644)
 }
 
-func InitConfig(fs afero.Fs, meta Metadata, minecraftClient httpClient.Doer) (models.ModsJson, error) {
-	region := perf.StartRegion("io.config.init")
-	defer region.End()
+func InitConfig(ctx context.Context, fs afero.Fs, meta Metadata, minecraftClient httpClient.Doer) (models.ModsJson, error) {
+	_, span := perf.StartSpan(ctx, "io.config.init", perf.WithAttributes(attribute.String("config_path", meta.ConfigPath)))
+	defer span.End()
 
-	latest, err := minecraft.GetLatestVersion(minecraftClient)
+	latest, err := minecraft.GetLatestVersion(ctx, minecraftClient)
 	if err != nil {
 		return models.ModsJson{}, err
 	}
@@ -58,7 +60,7 @@ func InitConfig(fs afero.Fs, meta Metadata, minecraftClient httpClient.Doer) (mo
 		Mods:                       []models.Mod{},
 	}
 
-	if err := WriteConfig(fs, meta, config); err != nil {
+	if err := WriteConfig(ctx, fs, meta, config); err != nil {
 		return models.ModsJson{}, err
 	}
 	return config, nil

@@ -1,27 +1,21 @@
 # internal/perf
 
-This package provides lightweight performance instrumentation built on `runtime/trace`.
+This package provides lightweight performance instrumentation built on OpenTelemetry tracing (spans, events, and links).
 
 It is used to:
 
-- create trace regions around important operations (network calls, config I/O, downloads)
-- keep an in-memory log of marks and measurements for tests and debugging
+- create spans around important operations (network calls, config I/O, downloads)
+- keep an in-memory span snapshot for tests, telemetry upload, and `--perf` export
 
 ## Process lifecycle instrumentation
 
 The app entrypoint (`main.go`) records top-level lifecycle regions so we can correlate end-to-end runtime with telemetry and subsystem-level perf regions.
 
-Lifecycle region names are namespaced under `app.lifecycle.*`:
+Lifecycle span names are namespaced under `app.lifecycle.*`:
 
 - `app.lifecycle.startup`: process start -> ready to begin command execution (wires telemetry + signal handlers)
 - `app.lifecycle.execute`: command execution (CLI args or the interactive TUI session)
 - `app.lifecycle.shutdown`: graceful or signal-triggered shutdown (flushes telemetry)
-
-Each region creates:
-
-- a start mark with the region name
-- an end mark with `-end` appended
-- a measurement with `-duration` appended
 
 ## Exporting perf logs
 
@@ -30,16 +24,21 @@ When you run the CLI with `--perf`, MMM writes `mmm-perf.json` when the process 
 By default, MMM writes the file next to the resolved `--config` path so it stays adjacent to the `modlist.json` you were working with.
 Override the destination with `--perf-out-dir`. Relative output directories are resolved relative to the config directory.
 
-The exported JSON includes marks and measurements. Any absolute filesystem paths stored in `PerformanceDetails` are normalized to be relative to the config directory so you can share the file without leaking machine-specific prefixes.
+The exported JSON includes ended spans with correlation IDs:
 
-The JSON schema is intentionally simple:
+- `trace_id`, `span_id`, `parent_span_id` (tree)
+- `links[]` (DAG edges)
+- `events[]` for point-in-time annotations (user actions, retries)
+- `attributes` for low-cardinality structured context
+- `children[]` so the primary parent/child tree is readable without post-processing
 
-- Marks include `timestamp`.
-- Measurements include `start_timestamp` and `duration_ns`.
+Any absolute filesystem paths stored in known attribute keys (for example `config_path`, `path`, `*_path`) are normalized to be relative to the config directory so you can share the file without leaking machine-specific prefixes.
 
-## Taxonomy (marker naming)
+This export is best-effort: failure must never affect exit codes or normal CLI output.
 
-Perf markers are most useful when you can group them by "what part of the system is this?" and "what user action caused it?".
+## Taxonomy (span naming)
+
+Perf spans are most useful when you can group them by "what part of the system is this?" and "what user action caused it?".
 To keep that possible as the codebase grows, use dot-separated, lower-case, namespaced marker names.
 
 ## Performance strategy (ethos)
@@ -92,7 +91,7 @@ This keeps the data queryable and avoids drowning in noise.
 
 ### Details (metadata) guidelines
 
-Use `PerformanceDetails` for structured context, but keep it safe and low-cardinality:
+Use OTEL span attributes for structured context, but keep it safe and low-cardinality:
 
 - Prefer booleans and short enums: `success`, `provider`, `status`, `attempt`, `action`, `state`.
 - Do not include secrets or user content.
@@ -102,15 +101,16 @@ Use `PerformanceDetails` for structured context, but keep it safe and low-cardin
 ### Non-blocking and testability
 
 Instrumentation must never change command semantics or output.
-If you touch instrumentation, add or update tests using the in-memory perf log:
+If you touch instrumentation, add or update tests using the in-memory span exporter:
 
-- `perf.ClearPerformanceLog()` at test start
-- assert the relevant marks/regions exist and include expected details
+- `perf.Reset()` at test start (and `t.Cleanup(perf.Reset)`)
+- `perf.Init(perf.Config{Enabled: true})` for tests that need spans
+- assert spans/events/links using `perf.GetSpans()` and `perf.FindSpanByName(...)`
 
 ### Rules of thumb
 
 - Use stable nouns, not transient implementation details (prefer `api.modrinth.project.get` over `modrinth-client-call`).
-- Keep names short but specific; avoid encoding IDs in the marker name (use `PerformanceDetails` instead).
+- Keep names short but specific; avoid encoding IDs in the span name (use attributes instead).
 - Prefer one region per "unit of work" you would want to optimize or compare (a command, a platform call, a file write).
 - Put retries/attempts in a child region (`...attempt`) so you can see both the total cost and the per-attempt cost.
 
@@ -137,7 +137,7 @@ If you touch instrumentation, add or update tests using the in-memory perf log:
 
 ### Recommended details
 
-Attach structured context via `PerformanceDetails` instead of encoding it in the name.
+Attach structured context via attributes instead of encoding it in the name.
 Common keys:
 
 - `success` (bool) when a region can fail
@@ -152,16 +152,41 @@ Perf markers in the Go codebase should follow this taxonomy. If you find non-nam
 
 ## Public API
 
-- `StartRegion(name string) *PerformanceRegion`
-- `StartRegionWithDetails(name string, details *PerformanceDetails) *PerformanceRegion`
-- `(*PerformanceRegion).End()` / `EndWithDetails(...)`
-- `Mark(name string, details *PerformanceDetails) *Entry`
-- `Measure(name, fromMarker, toMarker string, details *PerformanceDetails)`
-- `GetPerformanceLog() PerformanceLog`
-- `GetAllMeasurements() PerformanceLog`
-- `ClearPerformanceLog()`
+Initialization and lifecycle:
 
-`PerformanceDetails` is a map so callers can attach structured metadata (project ID, URL, etc).
+- `Init(Config) error`
+- `Shutdown(ctx context.Context) error`
+- `Reset()`
+- `Enabled() bool`
+
+Spans:
+
+- `StartSpan(ctx, name, opts...) (context.Context, *Span)`
+- `WithAttributes(attrs ...attribute.KeyValue) SpanOption`
+- `WithLinks(links ...trace.Link) SpanOption`
+- `(*Span).End()`
+- `(*Span).SetAttributes(attrs ...attribute.KeyValue)`
+- `(*Span).AddEvent(name string, opts ...EventOption)`
+- `WithEventAttributes(attrs ...attribute.KeyValue) EventOption`
+
+Context helpers:
+
+- `SpanFromContext(ctx context.Context) *Span`
+- `LinkFromContext(ctx context.Context) (trace.Link, error)`
+
+Export and snapshots:
+
+- `ExportToFile(outDir, baseDir string) (string, error)`
+- `GetSpans() ([]SpanSnapshot, error)`
+- `MustGetSpans() []SpanSnapshot`
+- `FindSpanByName(spans []SpanSnapshot, name string) (SpanSnapshot, bool)`
+
+Common usage:
+
+```go
+ctx, span := perf.StartSpan(ctx, "app.command.add")
+defer span.End()
+```
 
 ## Tests
 

@@ -1,6 +1,7 @@
 package httpClient
 
 import (
+	"context"
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/spf13/afero"
 	"github.com/stretchr/testify/assert"
@@ -35,7 +36,7 @@ func TestDownloadFile(t *testing.T) {
 
 		destinationFile := "testfile"
 
-		err := DownloadFile(mockServer.URL, destinationFile, mockServer.Client(), program, fs)
+		err := DownloadFile(context.Background(), mockServer.URL, destinationFile, mockServer.Client(), program, fs)
 		assert.NoError(t, err)
 
 		// Verify the file content
@@ -54,7 +55,7 @@ func TestDownloadFile(t *testing.T) {
 		mockServer := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {}))
 		defer mockServer.Close()
 
-		err := DownloadFile("invalid-url", "testfile", mockServer.Client(), &MockProgram{}, afero.NewMemMapFs())
+		err := DownloadFile(context.Background(), "invalid-url", "testfile", mockServer.Client(), &MockProgram{}, afero.NewMemMapFs())
 		assert.ErrorContains(t, err, "failed to download file")
 	})
 
@@ -67,7 +68,7 @@ func TestDownloadFile(t *testing.T) {
 			w.Write([]byte("file content"))
 		}))
 
-		err := DownloadFile(mockServer.URL, "/invalid/path/testfile", mockServer.Client(), &MockProgram{}, fs)
+		err := DownloadFile(context.Background(), mockServer.URL, "/invalid/path/testfile", mockServer.Client(), &MockProgram{}, fs)
 		assert.ErrorContains(t, err, "failed to create file")
 	})
 
@@ -82,7 +83,7 @@ func TestDownloadFile(t *testing.T) {
 		fs := afero.NewMemMapFs()
 
 		program := &MockProgram{}
-		err := DownloadFile(mockServer.URL, "test", mockServer.Client(), program, fs)
+		err := DownloadFile(context.Background(), mockServer.URL, "test", mockServer.Client(), program, fs)
 		assert.ErrorContains(t, err, "failed to write file")
 	})
 }

@@ -1,13 +1,15 @@
 package httpClient
 
 import (
-	"context"
 	"fmt"
-	"github.com/meza/minecraft-mod-manager/internal/perf"
-	"golang.org/x/time/rate"
 	"io"
 	"net/http"
 	"time"
+
+	"github.com/meza/minecraft-mod-manager/internal/perf"
+	"go.opentelemetry.io/contrib/instrumentation/net/http/otelhttp"
+	"go.opentelemetry.io/otel/attribute"
+	"golang.org/x/time/rate"
 )
 
 type Doer interface {
@@ -26,14 +28,14 @@ type RLHTTPClient struct {
 }
 
 func (client *RLHTTPClient) Do(request *http.Request) (*http.Response, error) {
-	ctx := context.WithValue(context.Background(), "url", request.URL)
-	details := perf.PerformanceDetails{
-		"url":    request.URL.String(),
-		"method": request.Method,
-		"host":   request.URL.Host,
-	}
-	region := perf.StartRegionWithDetails("net.http.request", &details)
-	defer region.End()
+	ctx, requestSpan := perf.StartSpan(request.Context(), "net.http.request",
+		perf.WithAttributes(
+			attribute.String("url", request.URL.String()),
+			attribute.String("method", request.Method),
+			attribute.String("host", request.URL.Host),
+		),
+	)
+	defer requestSpan.End()
 	retryConfig := RetryConfig{
 		MaxRetries: 3,
 		Interval:   1 * time.Second,
@@ -47,58 +49,83 @@ func (client *RLHTTPClient) Do(request *http.Request) (*http.Response, error) {
 	var err error
 
 	for attempt := 0; attempt <= retryConfig.MaxRetries; attempt++ {
-		attemptDetails := perf.PerformanceDetails{
-			"attempt": attempt,
-			"url":     request.URL.String(),
-		}
-		attemptRegion := perf.StartRegionWithDetails("net.http.request.attempt", &attemptDetails)
+		attemptCtx, attemptSpan := perf.StartSpan(ctx, "net.http.request.attempt",
+			perf.WithAttributes(
+				attribute.Int("attempt", attempt),
+				attribute.String("url", request.URL.String()),
+			),
+		)
 
-		waitRegion := perf.StartRegionWithDetails("net.http.ratelimit.wait", &attemptDetails)
-		err = client.Ratelimiter.Wait(ctx) // This is a blocking call. Honors the rate limit
-		waitRegion.End()
+		_, waitSpan := perf.StartSpan(attemptCtx, "net.http.ratelimit.wait",
+			perf.WithAttributes(
+				attribute.Int("attempt", attempt),
+				attribute.String("url", request.URL.String()),
+			),
+		)
+		err = client.Ratelimiter.Wait(attemptCtx) // This is a blocking call. Honors the rate limit
+		waitSpan.End()
 		if err != nil {
-			attemptDetails["success"] = false
-			details["success"] = false
-			attemptRegion.End()
+			attemptSpan.SetAttributes(
+				attribute.Bool("success", false),
+				attribute.String("error_type", fmt.Sprintf("%T", err)),
+			)
+			requestSpan.SetAttributes(
+				attribute.Bool("success", false),
+				attribute.String("error_type", fmt.Sprintf("%T", err)),
+			)
+			attemptSpan.End()
 			return nil, fmt.Errorf("rate limit burst exceeded %w", err)
 		}
 
-		response, err = client.client.Do(request)
+		response, err = client.client.Do(request.WithContext(attemptCtx))
 		if err != nil {
-			attemptDetails["success"] = false
-			details["success"] = false
-			attemptRegion.End()
+			attemptSpan.SetAttributes(
+				attribute.Bool("success", false),
+				attribute.String("error_type", fmt.Sprintf("%T", err)),
+			)
+			requestSpan.SetAttributes(
+				attribute.Bool("success", false),
+				attribute.String("error_type", fmt.Sprintf("%T", err)),
+			)
+			attemptSpan.End()
 			return nil, err
 		}
 
 		// Check if the response status is a server error (5xx)
 		if response.StatusCode >= 500 && response.StatusCode < 600 {
 			if attempt < retryConfig.MaxRetries {
-				attemptDetails["success"] = false
+				attemptSpan.SetAttributes(
+					attribute.Bool("success", false),
+					attribute.Int("status", response.StatusCode),
+				)
 				drainAndClose(response.Body)
 				time.Sleep(retryConfig.Interval)
-				attemptRegion.End()
+				attemptSpan.End()
 				continue
 			}
 		}
 
-		attemptDetails["success"] = true
-		attemptDetails["status"] = response.StatusCode
+		attemptSpan.SetAttributes(
+			attribute.Bool("success", true),
+			attribute.Int("status", response.StatusCode),
+		)
 		// If the response is successful or a non-retryable error occurs, return the response or error
-		attemptRegion.End()
+		attemptSpan.End()
 		break
 	}
 
-	details["success"] = err == nil
+	requestSpan.SetAttributes(attribute.Bool("success", err == nil))
 	if response != nil {
-		details["status"] = response.StatusCode
+		requestSpan.SetAttributes(attribute.Int("status", response.StatusCode))
 	}
 	return response, err
 }
 
 func NewRLClient(limiter *rate.Limiter) *RLHTTPClient {
 	client := &RLHTTPClient{
-		client:      http.DefaultClient,
+		client: &http.Client{
+			Transport: otelhttp.NewTransport(http.DefaultTransport),
+		},
 		Ratelimiter: limiter,
 	}
 	return client

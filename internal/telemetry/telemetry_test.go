@@ -10,6 +10,7 @@ import (
 
 	"github.com/meza/minecraft-mod-manager/internal/environment"
 	"github.com/meza/minecraft-mod-manager/internal/models"
+	"github.com/meza/minecraft-mod-manager/internal/perf"
 	"github.com/posthog/posthog-go"
 	"github.com/stretchr/testify/assert"
 )
@@ -121,6 +122,7 @@ func TestCaptureCommandProperties(t *testing.T) {
 		props := capture.Properties
 		assert.Equal(t, "command", props["type"])
 		assert.Equal(t, false, props["success"])
+		assert.Equal(t, []*perf.ExportSpan{}, props["performance"])
 		assert.Equal(t, "boom", props["error"])
 		assert.Equal(t, config, props["config"])
 		assert.Equal(t, map[string]interface{}{"total": 2}, props["extra"])
@@ -138,8 +140,96 @@ func TestCaptureCommandSkipsSuccessConfig(t *testing.T) {
 	CaptureCommand(CommandTelemetry{Command: "list", Success: true, Config: &models.ModsJson{}})
 
 	capture := client.enqueued[0].(posthog.Capture)
+	assert.Equal(t, []*perf.ExportSpan{}, capture.Properties["performance"])
 	_, hasConfig := capture.Properties["config"]
 	assert.False(t, hasConfig)
+}
+
+func TestCaptureCommand_AttachesPerfTreeWhenAvailable(t *testing.T) {
+	resetTelemetryState(t)
+
+	perf.Reset()
+	t.Cleanup(perf.Reset)
+	assert.NoError(t, perf.Init(perf.Config{Enabled: true}))
+
+	_, span := perf.StartSpan(context.Background(), "root")
+	span.End()
+
+	client := &stubClient{}
+	initWithClient(t, client, "cmd-test")
+
+	CaptureCommand(CommandTelemetry{Command: "list", Success: true})
+
+	capture := client.enqueued[0].(posthog.Capture)
+	tree := capture.Properties["performance"].([]*perf.ExportSpan)
+	assert.NotEmpty(t, tree)
+	assert.Equal(t, "root", tree[0].Name)
+}
+
+func TestCaptureCommand_DerivesDurationFromPerfWhenOmitted(t *testing.T) {
+	resetTelemetryState(t)
+
+	perf.Reset()
+	t.Cleanup(perf.Reset)
+	assert.NoError(t, perf.Init(perf.Config{Enabled: true}))
+
+	_, span := perf.StartSpan(context.Background(), "app.command.list")
+	span.End()
+
+	client := &stubClient{}
+	initWithClient(t, client, "cmd-test")
+
+	CaptureCommand(CommandTelemetry{Command: "list", Success: true})
+
+	capture := client.enqueued[0].(posthog.Capture)
+	_, ok := capture.Properties["duration_ms"]
+	assert.True(t, ok)
+}
+
+func TestCommandDurationFromPerf_ReturnsFalseOnEmptyInputs(t *testing.T) {
+	duration, ok := commandDurationFromPerf("", nil)
+	assert.False(t, ok)
+	assert.Equal(t, time.Duration(0), duration)
+
+	duration, ok = commandDurationFromPerf("list", nil)
+	assert.False(t, ok)
+	assert.Equal(t, time.Duration(0), duration)
+}
+
+func TestCommandDurationFromPerf_ReturnsFalseWhenSpanMissing(t *testing.T) {
+	performance := []*perf.ExportSpan{
+		{Name: "unrelated", DurationNS: int64(5 * time.Millisecond)},
+	}
+
+	duration, ok := commandDurationFromPerf("list", performance)
+	assert.False(t, ok)
+	assert.Equal(t, time.Duration(0), duration)
+}
+
+func TestCommandDurationFromPerf_SelectsLatestMatchingSpan(t *testing.T) {
+	now := time.Now()
+	earlier := &perf.ExportSpan{
+		Name:       "app.command.list",
+		DurationNS: int64(1 * time.Millisecond),
+		EndTime:    now,
+	}
+	later := &perf.ExportSpan{
+		Name:       "app.command.list",
+		DurationNS: int64(2 * time.Millisecond),
+		EndTime:    now.Add(time.Second),
+		Children:   []*perf.ExportSpan{nil},
+	}
+
+	duration, ok := commandDurationFromPerf("list", []*perf.ExportSpan{earlier, later})
+	assert.True(t, ok)
+	assert.Equal(t, 2*time.Millisecond, duration)
+}
+
+func TestNoopLogger_Debugf_NoPanic(t *testing.T) {
+	var logger noopLogger
+	assert.NotPanics(t, func() {
+		logger.Debugf("hello %s", "world")
+	})
 }
 
 func TestCaptureCommandWithEmptyNameDoesNothing(t *testing.T) {

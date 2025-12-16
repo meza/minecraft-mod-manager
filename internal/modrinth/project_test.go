@@ -1,6 +1,7 @@
 package modrinth
 
 import (
+	"context"
 	"github.com/meza/minecraft-mod-manager/internal/globalErrors"
 	"github.com/meza/minecraft-mod-manager/internal/models"
 	"github.com/pkg/errors"
@@ -92,7 +93,7 @@ func TestGetProject(t *testing.T) {
 	}()
 
 	// Call the function
-	project, err := GetProject("AABBCCDD", &Client{
+	project, err := GetProject(context.Background(), "AABBCCDD", &Client{
 		client: mockServer.Client(),
 	})
 
@@ -136,7 +137,7 @@ func TestGetProjectWhenProjectNotFound(t *testing.T) {
 	defer func() { os.Unsetenv("MODRINTH_API_URL") }()
 
 	// Call the function
-	project, err := GetProject("AABBCCDD", &Client{
+	project, err := GetProject(context.Background(), "AABBCCDD", &Client{
 		client: mockServer.Client(),
 	})
 
@@ -167,7 +168,7 @@ func TestGetProjectWhenProjectApiUnknownStatus(t *testing.T) {
 	defer func() { os.Unsetenv("MODRINTH_API_URL") }()
 
 	// Call the function
-	project, err := GetProject("AABBCCDD", &Client{
+	project, err := GetProject(context.Background(), "AABBCCDD", &Client{
 		client: mockServer.Client(),
 	})
 
@@ -192,7 +193,7 @@ func TestGetProjectWhenApiCallFails(t *testing.T) {
 	defer func() { os.Unsetenv("MODRINTH_API_URL") }()
 
 	// Call the function
-	project, err := GetProject("AABBCCDDEE", &Client{
+	project, err := GetProject(context.Background(), "AABBCCDDEE", &Client{
 		client: mockServer.Client(),
 	})
 

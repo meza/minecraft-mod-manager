@@ -1,11 +1,13 @@
 package minecraft
 
 import (
+	"context"
 	"encoding/json"
-	"github.com/meza/minecraft-mod-manager/internal/httpClient"
-	"github.com/meza/minecraft-mod-manager/internal/perf"
 	"net/http"
 	"time"
+
+	"github.com/meza/minecraft-mod-manager/internal/httpClient"
+	"github.com/meza/minecraft-mod-manager/internal/perf"
 )
 
 type latest struct {
@@ -33,13 +35,14 @@ func ClearManifestCache() {
 	latestManifest = nil
 }
 
-func getMinecraftVersionManifest(client httpClient.Doer) (*versionManifest, error) {
-	defer perf.StartRegion("api.minecraft.version_manifest.get").End()
+func getMinecraftVersionManifest(ctx context.Context, client httpClient.Doer) (*versionManifest, error) {
+	_, span := perf.StartSpan(ctx, "api.minecraft.version_manifest.get")
+	defer span.End()
 	if latestManifest != nil {
 		return latestManifest, nil
 	}
 
-	request, _ := http.NewRequest("GET", versionManifestUrl, nil)
+	request, _ := http.NewRequestWithContext(ctx, "GET", versionManifestUrl, nil)
 
 	response, err := client.Do(request)
 	if err != nil {
@@ -57,8 +60,8 @@ func getMinecraftVersionManifest(client httpClient.Doer) (*versionManifest, erro
 	return latestManifest, nil
 }
 
-func GetLatestVersion(client httpClient.Doer) (string, error) {
-	manifest, err := getMinecraftVersionManifest(client)
+func GetLatestVersion(ctx context.Context, client httpClient.Doer) (string, error) {
+	manifest, err := getMinecraftVersionManifest(ctx, client)
 
 	if err != nil {
 		return "", CouldNotDetermineLatestVersion
@@ -67,12 +70,12 @@ func GetLatestVersion(client httpClient.Doer) (string, error) {
 	return manifest.Latest.Release, nil
 }
 
-func IsValidVersion(version string, client httpClient.Doer) bool {
+func IsValidVersion(ctx context.Context, version string, client httpClient.Doer) bool {
 	if version == "" {
 		return false
 	}
 
-	manifest, err := getMinecraftVersionManifest(client)
+	manifest, err := getMinecraftVersionManifest(ctx, client)
 
 	if err != nil {
 		// If we couldn't get the manifest, we can't determine if the version is valid
@@ -89,8 +92,8 @@ func IsValidVersion(version string, client httpClient.Doer) bool {
 	return false
 }
 
-func GetAllMineCraftVersions(client httpClient.Doer) []string {
-	manifest, err := getMinecraftVersionManifest(client)
+func GetAllMineCraftVersions(ctx context.Context, client httpClient.Doer) []string {
+	manifest, err := getMinecraftVersionManifest(ctx, client)
 
 	if err != nil {
 		return []string{}

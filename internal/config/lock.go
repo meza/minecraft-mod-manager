@@ -1,34 +1,36 @@
 package config
 
 import (
+	"context"
 	"encoding/json"
 	"fmt"
 
 	"github.com/meza/minecraft-mod-manager/internal/models"
 	"github.com/meza/minecraft-mod-manager/internal/perf"
 	"github.com/spf13/afero"
+	"go.opentelemetry.io/otel/attribute"
 )
 
-func EnsureLock(fs afero.Fs, meta Metadata) ([]models.ModInstall, error) {
-	region := perf.StartRegion("io.config.lock.ensure")
-	defer region.End()
+func EnsureLock(ctx context.Context, fs afero.Fs, meta Metadata) ([]models.ModInstall, error) {
+	_, span := perf.StartSpan(ctx, "io.config.lock.ensure", perf.WithAttributes(attribute.String("lock_path", meta.LockPath())))
+	defer span.End()
 
 	lockPath := meta.LockPath()
 	exists, _ := afero.Exists(fs, lockPath)
 	if !exists {
 		empty := make([]models.ModInstall, 0)
-		if err := WriteLock(fs, meta, empty); err != nil {
+		if err := WriteLock(ctx, fs, meta, empty); err != nil {
 			return nil, err
 		}
 		return empty, nil
 	}
 
-	return ReadLock(fs, meta)
+	return ReadLock(ctx, fs, meta)
 }
 
-func ReadLock(fs afero.Fs, meta Metadata) ([]models.ModInstall, error) {
-	region := perf.StartRegion("io.config.lock.read")
-	defer region.End()
+func ReadLock(ctx context.Context, fs afero.Fs, meta Metadata) ([]models.ModInstall, error) {
+	_, span := perf.StartSpan(ctx, "io.config.lock.read", perf.WithAttributes(attribute.String("lock_path", meta.LockPath())))
+	defer span.End()
 
 	data, err := afero.ReadFile(fs, meta.LockPath())
 	if err != nil {
@@ -43,9 +45,9 @@ func ReadLock(fs afero.Fs, meta Metadata) ([]models.ModInstall, error) {
 	return lock, nil
 }
 
-func WriteLock(fs afero.Fs, meta Metadata, lock []models.ModInstall) error {
-	region := perf.StartRegion("io.config.lock.write")
-	defer region.End()
+func WriteLock(ctx context.Context, fs afero.Fs, meta Metadata, lock []models.ModInstall) error {
+	_, span := perf.StartSpan(ctx, "io.config.lock.write", perf.WithAttributes(attribute.String("lock_path", meta.LockPath())))
+	defer span.End()
 
 	data, _ := json.MarshalIndent(lock, "", "  ")
 	return afero.WriteFile(fs, meta.LockPath(), data, 0644)

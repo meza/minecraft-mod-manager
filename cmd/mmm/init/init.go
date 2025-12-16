@@ -2,6 +2,7 @@ package init
 
 import (
 	"bufio"
+	"context"
 	"fmt"
 	"io"
 	"net/http"
@@ -19,6 +20,7 @@ import (
 	"github.com/meza/minecraft-mod-manager/internal/tui"
 	"github.com/spf13/afero"
 	"github.com/spf13/cobra"
+	"go.opentelemetry.io/otel/attribute"
 )
 
 func Command() *cobra.Command {
@@ -28,11 +30,10 @@ func Command() *cobra.Command {
 		Use:   "init",
 		Short: i18n.T("cmd.init.short"),
 		RunE: func(cmd *cobra.Command, _ []string) (err error) {
-			details := perf.PerformanceDetails{}
-			region := perf.StartRegionWithDetails("app.command.init", &details)
+			ctx, span := perf.StartSpan(cmd.Context(), "app.command.init")
 			defer func() {
-				details["success"] = err == nil
-				region.End()
+				span.SetAttributes(attribute.Bool("success", err == nil))
+				span.End()
 			}()
 
 			gameVersion, err := cmd.Flags().GetString("game-version")
@@ -96,20 +97,20 @@ func Command() *cobra.Command {
 
 			useTUI := tui.ShouldUseTUI(options.Quiet, cmd.InOrStdin(), cmd.OutOrStdout())
 
-			options, err = normalizeGameVersion(options, deps, useTUI)
+			options, err = normalizeGameVersion(ctx, options, deps, useTUI)
 			if err != nil {
 				return err
 			}
 
 			if useTUI {
-				updated, err := runInteractiveInit(cmd, options, deps, meta)
+				updated, err := runInteractiveInit(ctx, cmd, options, deps, meta)
 				if err != nil {
 					return err
 				}
 				options = updated
 			}
 
-			_, err = initWithDeps(options, deps)
+			_, err = initWithDeps(ctx, options, deps)
 			return err
 		},
 	}
@@ -202,17 +203,18 @@ func readLine(reader io.Reader) (string, error) {
 	return scanner.Text(), nil
 }
 
-func runInteractiveInit(cmd *cobra.Command, options initOptions, deps initDeps, meta config.Metadata) (initOptions, error) {
-	sessionDetails := perf.PerformanceDetails{
-		"provided_loader":        options.Provided.Loader,
-		"provided_game_version":  options.Provided.GameVersion,
-		"provided_release_types": options.Provided.ReleaseTypes,
-		"provided_mods_folder":   options.Provided.ModsFolder,
-	}
-	sessionRegion := perf.StartRegionWithDetails("tui.init.session", &sessionDetails)
-	defer sessionRegion.End()
+func runInteractiveInit(ctx context.Context, cmd *cobra.Command, options initOptions, deps initDeps, meta config.Metadata) (initOptions, error) {
+	sessionCtx, sessionSpan := perf.StartSpan(ctx, "tui.init.session",
+		perf.WithAttributes(
+			attribute.Bool("provided_loader", options.Provided.Loader),
+			attribute.Bool("provided_game_version", options.Provided.GameVersion),
+			attribute.Bool("provided_release_types", options.Provided.ReleaseTypes),
+			attribute.Bool("provided_mods_folder", options.Provided.ModsFolder),
+		),
+	)
+	defer sessionSpan.End()
 
-	model := NewModel(options, deps, meta)
+	model := NewModel(sessionCtx, sessionSpan, options, deps, meta)
 
 	if model.state == done {
 		return model.result, nil
@@ -245,7 +247,7 @@ func runInteractiveInit(cmd *cobra.Command, options initOptions, deps initDeps, 
 	return finalModel.result, nil
 }
 
-func normalizeGameVersion(options initOptions, deps initDeps, interactive bool) (initOptions, error) {
+func normalizeGameVersion(ctx context.Context, options initOptions, deps initDeps, interactive bool) (initOptions, error) {
 	if options.GameVersion == "" {
 		return options, nil
 	}
@@ -256,7 +258,7 @@ func normalizeGameVersion(options initOptions, deps initDeps, interactive bool) 
 			return options, nil
 		}
 
-		latest, err := minecraft.GetLatestVersion(deps.minecraftClient)
+		latest, err := minecraft.GetLatestVersion(ctx, deps.minecraftClient)
 		if err != nil {
 			return options, err
 		}
@@ -293,13 +295,13 @@ func validateModsFolder(fs afero.Fs, meta config.Metadata, modsFolder string) (s
 	return modsFolderPath, nil
 }
 
-func initWithDeps(options initOptions, deps initDeps) (config.Metadata, error) {
+func initWithDeps(ctx context.Context, options initOptions, deps initDeps) (config.Metadata, error) {
 	if options.Loader == "" {
 		return config.Metadata{}, fmt.Errorf("init requires flag: -l/--loader")
 	}
 
 	if options.GameVersion == "" || strings.EqualFold(options.GameVersion, "latest") {
-		latest, err := minecraft.GetLatestVersion(deps.minecraftClient)
+		latest, err := minecraft.GetLatestVersion(ctx, deps.minecraftClient)
 		if err != nil {
 			return config.Metadata{}, fmt.Errorf("could not determine latest minecraft version; provide -g/--game-version")
 		}
@@ -331,7 +333,7 @@ func initWithDeps(options initOptions, deps initDeps) (config.Metadata, error) {
 		return config.Metadata{}, err
 	}
 
-	if !minecraft.IsValidVersion(options.GameVersion, deps.minecraftClient) {
+	if !minecraft.IsValidVersion(ctx, options.GameVersion, deps.minecraftClient) {
 		return config.Metadata{}, fmt.Errorf("invalid minecraft version: %s", options.GameVersion)
 	}
 
@@ -347,10 +349,10 @@ func initWithDeps(options initOptions, deps initDeps) (config.Metadata, error) {
 		Mods:                       []models.Mod{},
 	}
 
-	if err := config.WriteConfig(deps.fs, meta, cfg); err != nil {
+	if err := config.WriteConfig(ctx, deps.fs, meta, cfg); err != nil {
 		return config.Metadata{}, err
 	}
-	if err := config.WriteLock(deps.fs, meta, []models.ModInstall{}); err != nil {
+	if err := config.WriteLock(ctx, deps.fs, meta, []models.ModInstall{}); err != nil {
 		return config.Metadata{}, err
 	}
 

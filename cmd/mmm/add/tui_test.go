@@ -1,6 +1,7 @@
 package add
 
 import (
+	"context"
 	"errors"
 	"strings"
 	"testing"
@@ -9,6 +10,7 @@ import (
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/x/exp/teatest"
 	"github.com/gkampitakis/go-snaps/snaps"
+	"github.com/stretchr/testify/assert"
 
 	"github.com/meza/minecraft-mod-manager/internal/models"
 	"github.com/meza/minecraft-mod-manager/internal/perf"
@@ -25,43 +27,46 @@ func TestAddTUIStateSnapshots(t *testing.T) {
 	}
 
 	t.Run("unknown_platform_select", func(t *testing.T) {
-		perf.ClearPerformanceLog()
-		model := newAddTUIModel(addTUIStateUnknownPlatformSelect, models.Platform("invalid"), "abc", cfg, nil)
+		ctx, span := startAddTUIPerf(t)
+		model := newAddTUIModel(ctx, span, addTUIStateUnknownPlatformSelect, models.Platform("invalid"), "abc", cfg, nil)
 		tm := teatest.NewTestModel(t, model, teatest.WithInitialTermSize(60, 20))
 		waitForOutput(t, tm, "cmd.add.tui.unknown_platform")
 		_ = tm.Quit()
 		final := ensureAddTUIModel(t, tm.FinalModel(t))
 		matchSnapshot(t, final.View())
-		assertPerfMarkExistsInTUILog(t, "tui.add.state.enter")
+		spans := finalizeAddTUIPerf(t, &final)
+		assertPerfEventExistsInTUI(t, spans, "tui.add.session", "tui.add.state.enter")
 	})
 
 	t.Run("mod_not_found_confirm", func(t *testing.T) {
-		perf.ClearPerformanceLog()
-		model := newAddTUIModel(addTUIStateModNotFoundConfirm, models.MODRINTH, "abc", cfg, nil)
+		ctx, span := startAddTUIPerf(t)
+		model := newAddTUIModel(ctx, span, addTUIStateModNotFoundConfirm, models.MODRINTH, "abc", cfg, nil)
 		tm := teatest.NewTestModel(t, model, teatest.WithInitialTermSize(60, 20))
 		waitForOutput(t, tm, "cmd.add.tui.mod_not_found")
 		_ = tm.Quit()
 		final := ensureAddTUIModel(t, tm.FinalModel(t))
 		matchSnapshot(t, final.View())
-		assertPerfMarkExistsInTUILog(t, "tui.add.state.enter")
+		spans := finalizeAddTUIPerf(t, &final)
+		assertPerfEventExistsInTUI(t, spans, "tui.add.session", "tui.add.state.enter")
 	})
 
 	t.Run("mod_not_found_select_platform", func(t *testing.T) {
-		perf.ClearPerformanceLog()
-		model := newAddTUIModel(addTUIStateModNotFoundConfirm, models.MODRINTH, "abc", cfg, nil)
+		ctx, span := startAddTUIPerf(t)
+		model := newAddTUIModel(ctx, span, addTUIStateModNotFoundConfirm, models.MODRINTH, "abc", cfg, nil)
 		tm := teatest.NewTestModel(t, model, teatest.WithInitialTermSize(60, 20))
 		tm.Send(tea.KeyMsg{Type: tea.KeyEnter})
 		waitForOutput(t, tm, "cmd.add.tui.choose_platform")
 		_ = tm.Quit()
 		final := ensureAddTUIModel(t, tm.FinalModel(t))
 		matchSnapshot(t, final.View())
-		assertPerfMarkExistsInTUILog(t, "tui.add.action.confirm_yes")
-		assertPerfMarkExistsInTUILog(t, "tui.add.state.enter")
+		spans := finalizeAddTUIPerf(t, &final)
+		assertPerfEventExistsInTUI(t, spans, "tui.add.session", "tui.add.action.confirm_yes")
+		assertPerfEventExistsInTUI(t, spans, "tui.add.session", "tui.add.state.enter")
 	})
 
 	t.Run("mod_not_found_enter_project_id", func(t *testing.T) {
-		perf.ClearPerformanceLog()
-		model := newAddTUIModel(addTUIStateModNotFoundConfirm, models.MODRINTH, "abc", cfg, nil)
+		ctx, span := startAddTUIPerf(t)
+		model := newAddTUIModel(ctx, span, addTUIStateModNotFoundConfirm, models.MODRINTH, "abc", cfg, nil)
 		tm := teatest.NewTestModel(t, model, teatest.WithInitialTermSize(60, 20))
 		tm.Send(tea.KeyMsg{Type: tea.KeyEnter})
 		waitForOutput(t, tm, "cmd.add.tui.choose_platform")
@@ -70,36 +75,39 @@ func TestAddTUIStateSnapshots(t *testing.T) {
 		_ = tm.Quit()
 		final := ensureAddTUIModel(t, tm.FinalModel(t))
 		matchSnapshot(t, final.View())
-		assertPerfMarkExistsInTUILog(t, "tui.add.action.confirm_yes")
-		assertPerfMarkExistsInTUILog(t, "tui.add.action.select_platform")
+		spans := finalizeAddTUIPerf(t, &final)
+		assertPerfEventExistsInTUI(t, spans, "tui.add.session", "tui.add.action.confirm_yes")
+		assertPerfEventExistsInTUI(t, spans, "tui.add.session", "tui.add.action.select_platform")
 	})
 
 	t.Run("no_file_confirm", func(t *testing.T) {
-		perf.ClearPerformanceLog()
-		model := newAddTUIModel(addTUIStateNoFileConfirm, models.MODRINTH, "abc", cfg, nil)
+		ctx, span := startAddTUIPerf(t)
+		model := newAddTUIModel(ctx, span, addTUIStateNoFileConfirm, models.MODRINTH, "abc", cfg, nil)
 		tm := teatest.NewTestModel(t, model, teatest.WithInitialTermSize(60, 20))
 		waitForOutput(t, tm, "cmd.add.tui.no_file_found")
 		_ = tm.Quit()
 		final := ensureAddTUIModel(t, tm.FinalModel(t))
 		matchSnapshot(t, final.View())
-		assertPerfMarkExistsInTUILog(t, "tui.add.state.enter")
+		spans := finalizeAddTUIPerf(t, &final)
+		assertPerfEventExistsInTUI(t, spans, "tui.add.session", "tui.add.state.enter")
 	})
 
 	t.Run("no_file_enter_project_id", func(t *testing.T) {
-		perf.ClearPerformanceLog()
-		model := newAddTUIModel(addTUIStateNoFileConfirm, models.MODRINTH, "abc", cfg, nil)
+		ctx, span := startAddTUIPerf(t)
+		model := newAddTUIModel(ctx, span, addTUIStateNoFileConfirm, models.MODRINTH, "abc", cfg, nil)
 		tm := teatest.NewTestModel(t, model, teatest.WithInitialTermSize(60, 20))
 		tm.Send(tea.KeyMsg{Type: tea.KeyEnter})
 		waitForOutput(t, tm, "cmd.add.tui.enter_project_id_on")
 		_ = tm.Quit()
 		final := ensureAddTUIModel(t, tm.FinalModel(t))
 		matchSnapshot(t, final.View())
-		assertPerfMarkExistsInTUILog(t, "tui.add.action.confirm_yes")
+		spans := finalizeAddTUIPerf(t, &final)
+		assertPerfEventExistsInTUI(t, spans, "tui.add.session", "tui.add.action.confirm_yes")
 	})
 
 	t.Run("fatal_error", func(t *testing.T) {
-		perf.ClearPerformanceLog()
-		model := newAddTUIModel(addTUIStateUnknownPlatformSelect, models.Platform("invalid"), "abc", cfg, func(p models.Platform, id string) tea.Cmd {
+		ctx, span := startAddTUIPerf(t)
+		model := newAddTUIModel(ctx, span, addTUIStateUnknownPlatformSelect, models.Platform("invalid"), "abc", cfg, func(p models.Platform, id string) tea.Cmd {
 			return func() tea.Msg {
 				return addTUIFetchResultMsg{
 					platform:  p,
@@ -115,13 +123,14 @@ func TestAddTUIStateSnapshots(t *testing.T) {
 		tm.WaitFinished(t, teatest.WithFinalTimeout(2*time.Second))
 		final := ensureAddTUIModel(t, tm.FinalModel(t))
 		matchSnapshot(t, final.View())
-		assertPerfMarkExistsInTUILog(t, "tui.add.action.select_platform")
-		assertPerfRegionExists(t, "tui.add.fetch")
+		spans := finalizeAddTUIPerf(t, &final)
+		assertPerfEventExistsInTUI(t, spans, "tui.add.session", "tui.add.action.select_platform")
+		assertPerfSpanExistsInTUI(t, spans, "tui.add.fetch")
 	})
 
 	t.Run("done", func(t *testing.T) {
-		perf.ClearPerformanceLog()
-		model := newAddTUIModel(addTUIStateUnknownPlatformSelect, models.Platform("invalid"), "abc", cfg, func(p models.Platform, id string) tea.Cmd {
+		ctx, span := startAddTUIPerf(t)
+		model := newAddTUIModel(ctx, span, addTUIStateUnknownPlatformSelect, models.Platform("invalid"), "abc", cfg, func(p models.Platform, id string) tea.Cmd {
 			return func() tea.Msg {
 				return addTUIFetchResultMsg{
 					platform:  p,
@@ -142,25 +151,27 @@ func TestAddTUIStateSnapshots(t *testing.T) {
 		tm.WaitFinished(t, teatest.WithFinalTimeout(2*time.Second))
 		final := ensureAddTUIModel(t, tm.FinalModel(t))
 		matchSnapshot(t, final.View())
-		assertPerfMarkExistsInTUILog(t, "tui.add.outcome.resolved")
-		assertPerfRegionExists(t, "tui.add.fetch")
+		spans := finalizeAddTUIPerf(t, &final)
+		assertPerfEventExistsInTUI(t, spans, "tui.add.session", "tui.add.outcome.resolved")
+		assertPerfSpanExistsInTUI(t, spans, "tui.add.fetch")
 	})
 
 	t.Run("aborted", func(t *testing.T) {
-		perf.ClearPerformanceLog()
-		model := newAddTUIModel(addTUIStateModNotFoundConfirm, models.MODRINTH, "abc", cfg, nil)
+		ctx, span := startAddTUIPerf(t)
+		model := newAddTUIModel(ctx, span, addTUIStateModNotFoundConfirm, models.MODRINTH, "abc", cfg, nil)
 		tm := teatest.NewTestModel(t, model, teatest.WithInitialTermSize(60, 20))
 		tm.Send(tea.KeyMsg{Type: tea.KeyCtrlC})
 		tm.WaitFinished(t, teatest.WithFinalTimeout(2*time.Second))
 		final := ensureAddTUIModel(t, tm.FinalModel(t))
 		matchSnapshot(t, final.View())
-		assertPerfMarkExistsInTUILog(t, "tui.add.action.abort")
+		spans := finalizeAddTUIPerf(t, &final)
+		assertPerfEventExistsInTUI(t, spans, "tui.add.session", "tui.add.action.abort")
 	})
 }
 
 func TestAddTUIThinkingTime_RecordsWaitRegions(t *testing.T) {
 	t.Setenv("MMM_TEST", "true")
-	perf.ClearPerformanceLog()
+	ctx, span := startAddTUIPerf(t)
 
 	cfg := models.ModsJson{
 		Loader:                     models.FABRIC,
@@ -168,7 +179,7 @@ func TestAddTUIThinkingTime_RecordsWaitRegions(t *testing.T) {
 		DefaultAllowedReleaseTypes: []models.ReleaseType{models.Release},
 	}
 
-	model := newAddTUIModel(addTUIStateUnknownPlatformSelect, models.Platform("invalid"), "abc", cfg, func(p models.Platform, id string) tea.Cmd {
+	model := newAddTUIModel(ctx, span, addTUIStateUnknownPlatformSelect, models.Platform("invalid"), "abc", cfg, func(p models.Platform, id string) tea.Cmd {
 		return func() tea.Msg {
 			return addTUIFetchResultMsg{
 				platform:  p,
@@ -188,7 +199,9 @@ func TestAddTUIThinkingTime_RecordsWaitRegions(t *testing.T) {
 	tm.Send(tea.KeyMsg{Type: tea.KeyEnter})
 	tm.WaitFinished(t, teatest.WithFinalTimeout(2*time.Second))
 
-	assertPerfRegionExists(t, "tui.add.wait.unknown_platform_select")
+	final := ensureAddTUIModel(t, tm.FinalModel(t))
+	spans := finalizeAddTUIPerf(t, &final)
+	assertPerfSpanExistsInTUI(t, spans, "tui.add.wait.unknown_platform_select")
 }
 
 func waitForOutput(t *testing.T, tm *teatest.TestModel, contains string) {
@@ -218,34 +231,42 @@ func normalizeSnapshot(content string) string {
 	return content
 }
 
-func assertPerfMarkExistsInTUILog(t *testing.T, name string) {
+func startAddTUIPerf(t *testing.T) (context.Context, *perf.Span) {
 	t.Helper()
-	for _, entry := range perf.GetPerformanceLog() {
-		if entry.Type == perf.MarkType && entry.Name == name {
+	perf.Reset()
+	t.Cleanup(perf.Reset)
+	assert.NoError(t, perf.Init(perf.Config{Enabled: true}))
+	ctx, span := perf.StartSpan(context.Background(), "tui.add.session")
+	return ctx, span
+}
+
+func finalizeAddTUIPerf(t *testing.T, model *addTUIModel) []perf.SpanSnapshot {
+	t.Helper()
+	if model != nil {
+		model.endWait("snapshot")
+		if model.sessionSpan != nil {
+			model.sessionSpan.End()
+		}
+	}
+	spans, err := perf.GetSpans()
+	assert.NoError(t, err)
+	return spans
+}
+
+func assertPerfSpanExistsInTUI(t *testing.T, spans []perf.SpanSnapshot, name string) {
+	t.Helper()
+	_, ok := perf.FindSpanByName(spans, name)
+	assert.True(t, ok, "expected span %q", name)
+}
+
+func assertPerfEventExistsInTUI(t *testing.T, spans []perf.SpanSnapshot, spanName string, eventName string) {
+	t.Helper()
+	span, ok := perf.FindSpanByName(spans, spanName)
+	assert.True(t, ok, "expected span %q", spanName)
+	for _, e := range span.Events {
+		if e.Name == eventName {
 			return
 		}
 	}
-	t.Fatalf("expected perf mark %q not found", name)
-}
-
-func assertPerfRegionExists(t *testing.T, name string) {
-	t.Helper()
-	hasStart := false
-	hasEnd := false
-	hasDuration := false
-	for _, entry := range perf.GetPerformanceLog() {
-		if entry.Type == perf.MarkType && entry.Name == name {
-			hasStart = true
-		}
-		if entry.Type == perf.MarkType && entry.Name == name+"-end" {
-			hasEnd = true
-		}
-		if entry.Type == perf.MeasureType && entry.Name == name+"-duration" {
-			hasDuration = true
-		}
-	}
-	if hasStart && hasEnd && hasDuration {
-		return
-	}
-	t.Fatalf("expected perf region %q not fully recorded (start=%v end=%v duration=%v)", name, hasStart, hasEnd, hasDuration)
+	t.Fatalf("expected event %q on span %q", eventName, spanName)
 }

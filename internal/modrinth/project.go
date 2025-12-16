@@ -1,14 +1,18 @@
 package modrinth
 
 import (
+	"context"
 	"encoding/json"
 	"fmt"
+
 	"github.com/meza/minecraft-mod-manager/internal/globalErrors"
 	"github.com/meza/minecraft-mod-manager/internal/httpClient"
 	"github.com/meza/minecraft-mod-manager/internal/models"
 	"github.com/meza/minecraft-mod-manager/internal/perf"
 	"github.com/pkg/errors"
 	"net/http"
+
+	"go.opentelemetry.io/otel/attribute"
 )
 
 type ProjectStatus string
@@ -49,20 +53,19 @@ type Project struct {
 	Loaders      []models.Loader    `json:"loaders"`
 }
 
-func GetProject(projectId string, client httpClient.Doer) (*Project, error) {
-	region := perf.StartRegionWithDetails("api.modrinth.project.get", &perf.PerformanceDetails{
-		"project_id": projectId,
-	})
-	defer region.End()
+func GetProject(ctx context.Context, projectId string, client httpClient.Doer) (*Project, error) {
+	ctx, span := perf.StartSpan(ctx, "api.modrinth.project.get", perf.WithAttributes(attribute.String("project_id", projectId)))
+	defer span.End()
 
 	url := fmt.Sprintf("%s/v2/project/%s", GetBaseUrl(), projectId)
 
-	request, _ := http.NewRequest(http.MethodGet, url, nil)
+	request, _ := http.NewRequestWithContext(ctx, http.MethodGet, url, nil)
 
 	response, err := client.Do(request)
 	if err != nil {
 		return nil, globalErrors.ProjectApiErrorWrap(err, projectId, models.MODRINTH)
 	}
+	defer response.Body.Close()
 
 	if response.StatusCode == http.StatusNotFound {
 		return nil, &globalErrors.ProjectNotFoundError{
@@ -76,8 +79,7 @@ func GetProject(projectId string, client httpClient.Doer) (*Project, error) {
 	}
 
 	result := &Project{}
-	json.NewDecoder(response.Body).Decode(result)
-	defer response.Body.Close()
+	_ = json.NewDecoder(response.Body).Decode(result)
 	return result, nil
 
 }

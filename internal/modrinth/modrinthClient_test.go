@@ -47,7 +47,16 @@ func TestClient_Do(t *testing.T) {
 	assert.Equal(t, "test-api-key", req.Header.Get("Authorization"))
 
 	// Verify that the mock Doer was called with the correct request
-	mockDoer.AssertCalled(t, "Do", req)
+	mockDoer.AssertCalled(t, "Do", mock.MatchedBy(func(r *http.Request) bool {
+		if r == nil {
+			return false
+		}
+		return r.Method == req.Method &&
+			r.URL.String() == req.URL.String() &&
+			r.Header.Get("user-agent") == "github_com/meza/minecraft-mod-manager/REPL_VERSION" &&
+			r.Header.Get("Accept") == "application/json" &&
+			r.Header.Get("Authorization") == "test-api-key"
+	}))
 }
 
 func TestBaseURLResolving(t *testing.T) {

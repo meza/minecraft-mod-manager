@@ -45,7 +45,15 @@ func TestClient_Do(t *testing.T) {
 	assert.Equal(t, "test-api-key", req.Header.Get("x-api-key"))
 
 	// Verify that the mock Doer was called with the correct request
-	mockDoer.AssertCalled(t, "Do", req)
+	mockDoer.AssertCalled(t, "Do", mock.MatchedBy(func(r *http.Request) bool {
+		if r == nil {
+			return false
+		}
+		return r.Method == req.Method &&
+			r.URL.String() == req.URL.String() &&
+			r.Header.Get("Accept") == "application/json" &&
+			r.Header.Get("x-api-key") == "test-api-key"
+	}))
 }
 
 func TestBaseURLResolving(t *testing.T) {

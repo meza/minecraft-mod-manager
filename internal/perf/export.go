@@ -2,43 +2,74 @@ package perf
 
 import (
 	"encoding/json"
+	"errors"
 	"os"
 	"path/filepath"
+	"sort"
 	"strings"
 	"time"
+
+	"go.opentelemetry.io/otel/attribute"
+	"go.opentelemetry.io/otel/codes"
+	"go.opentelemetry.io/otel/sdk/trace"
 )
 
 const defaultExportFilename = "mmm-perf.json"
 
-type exportEntry struct {
-	Name           string              `json:"name"`
-	Type           EntryType           `json:"type"`
-	Timestamp      *time.Time          `json:"timestamp,omitempty"`
-	StartTimestamp *time.Time          `json:"start_timestamp,omitempty"`
-	DurationNS     int64               `json:"duration_ns,omitempty"`
-	Details        *PerformanceDetails `json:"details,omitempty"`
+type ExportSpan struct {
+	Name         string                 `json:"name"`
+	TraceID      string                 `json:"trace_id"`
+	SpanID       string                 `json:"span_id"`
+	ParentSpanID string                 `json:"parent_span_id,omitempty"`
+	StartTime    time.Time              `json:"start_time"`
+	EndTime      time.Time              `json:"end_time"`
+	DurationNS   int64                  `json:"duration_ns"`
+	Attributes   map[string]interface{} `json:"attributes,omitempty"`
+	Events       []ExportEvent          `json:"events,omitempty"`
+	Links        []ExportLink           `json:"links,omitempty"`
+	Status       *ExportStatus          `json:"status,omitempty"`
+	Children     []*ExportSpan          `json:"children,omitempty"`
 }
 
-// ExportToFile writes the supplied performance log as JSON to
-// <outDir>/mmm-perf.json. Any absolute filesystem paths in known detail keys
+type ExportEvent struct {
+	Name       string                 `json:"name"`
+	Timestamp  time.Time              `json:"timestamp"`
+	Attributes map[string]interface{} `json:"attributes,omitempty"`
+}
+
+type ExportLink struct {
+	TraceID    string                 `json:"trace_id"`
+	SpanID     string                 `json:"span_id"`
+	Attributes map[string]interface{} `json:"attributes,omitempty"`
+}
+
+type ExportStatus struct {
+	Code        string `json:"code"`
+	Description string `json:"description,omitempty"`
+}
+
+// ExportToFile writes all spans collected by the active tracer provider as JSON to
+// <outDir>/mmm-perf.json. Any absolute filesystem paths in known attribute keys
 // are rewritten to be relative to baseDir so output stays portable.
 //
 // This is intended to be used as a best-effort diagnostic artifact; callers
 // should treat any returned error as non-fatal.
-func ExportToFile(outDir string, baseDir string, log PerformanceLog) (string, error) {
+func ExportToFile(outDir string, baseDir string) (string, error) {
 	if outDir == "" {
 		outDir = "."
 	}
 
-	normalized := normalizeForExport(log, baseDir)
-	exported := exportLog(normalized)
+	tree, err := GetExportTree(baseDir)
+	if err != nil {
+		return "", err
+	}
 
 	if err := os.MkdirAll(outDir, 0755); err != nil {
 		return "", err
 	}
 
 	path := filepath.Join(outDir, defaultExportFilename)
-	data, err := json.MarshalIndent(exported, "", "  ")
+	data, err := json.MarshalIndent(tree, "", "  ")
 	if err != nil {
 		return "", err
 	}
@@ -46,74 +77,227 @@ func ExportToFile(outDir string, baseDir string, log PerformanceLog) (string, er
 	return path, os.WriteFile(path, data, 0644)
 }
 
-func normalizeForExport(log PerformanceLog, baseDir string) PerformanceLog {
-	if len(log) == 0 {
-		return log
+// GetExportTree returns a hierarchical span tree suitable for exporting in
+// `mmm-perf.json` and for attaching to telemetry events. The returned slice
+// contains only root spans; child spans are nested under `children[]`.
+func GetExportTree(baseDir string) ([]*ExportSpan, error) {
+	spans, err := SnapshotSpans()
+	if err != nil {
+		return nil, err
+	}
+	return exportSpanTree(spans, baseDir), nil
+}
+
+func SnapshotSpans() ([]trace.ReadOnlySpan, error) {
+	globalMu.Lock()
+	exp := globalExp
+	enabled := globalEnabled
+	globalMu.Unlock()
+
+	if !enabled {
+		return nil, errors.New("perf disabled")
+	}
+	if exp == nil {
+		return nil, errors.New("no span exporter configured")
+	}
+	return exp.Snapshot(), nil
+}
+
+func exportSpanTree(spans []trace.ReadOnlySpan, baseDir string) []*ExportSpan {
+	if len(spans) == 0 {
+		return nil
 	}
 
-	normalized := make(PerformanceLog, 0, len(log))
-	for _, entry := range log {
-		normalized = append(normalized, Entry{
-			Name:      entry.Name,
-			Type:      entry.Type,
-			StartTime: entry.StartTime,
-			Duration:  entry.Duration,
-			Details:   normalizeDetails(entry.Details, baseDir),
+	nodes := make(map[string]*ExportSpan, len(spans))
+	for _, span := range spans {
+		exported := exportSpan(span, baseDir)
+		nodes[spanKey(exported.TraceID, exported.SpanID)] = &exported
+	}
+
+	roots := make([]*ExportSpan, 0, len(nodes))
+	for _, node := range nodes {
+		if node.ParentSpanID == "" {
+			roots = append(roots, node)
+			continue
+		}
+
+		parent, ok := nodes[spanKey(node.TraceID, node.ParentSpanID)]
+		if !ok {
+			roots = append(roots, node)
+			continue
+		}
+
+		parent.Children = append(parent.Children, node)
+	}
+
+	sortExportSpans(roots)
+	return roots
+}
+
+func exportSpan(span trace.ReadOnlySpan, baseDir string) ExportSpan {
+	sc := span.SpanContext()
+	psc := span.Parent()
+
+	out := ExportSpan{
+		Name:       span.Name(),
+		TraceID:    sc.TraceID().String(),
+		SpanID:     sc.SpanID().String(),
+		StartTime:  span.StartTime(),
+		EndTime:    span.EndTime(),
+		DurationNS: span.EndTime().Sub(span.StartTime()).Nanoseconds(),
+	}
+	if psc.IsValid() {
+		out.ParentSpanID = psc.SpanID().String()
+	}
+
+	out.Attributes = normalizeAttributes(attributesToMap(span.Attributes()), baseDir)
+	out.Events = exportEvents(span.Events(), baseDir)
+	out.Links = exportLinks(span.Links(), baseDir)
+	out.Status = exportStatus(span.Status())
+
+	if len(out.Attributes) == 0 {
+		out.Attributes = nil
+	}
+
+	return out
+}
+
+func spanKey(traceID string, spanID string) string {
+	return traceID + ":" + spanID
+}
+
+func sortExportSpans(spans []*ExportSpan) {
+	if len(spans) == 0 {
+		return
+	}
+
+	sort.Slice(spans, func(i, j int) bool {
+		return exportSpanLess(spans[i], spans[j])
+	})
+
+	for i := range spans {
+		sortExportSpans(spans[i].Children)
+	}
+}
+
+func exportSpanLess(left *ExportSpan, right *ExportSpan) bool {
+	if left.StartTime.Before(right.StartTime) {
+		return true
+	}
+	if right.StartTime.Before(left.StartTime) {
+		return false
+	}
+	if left.Name != right.Name {
+		return left.Name < right.Name
+	}
+	return left.SpanID < right.SpanID
+}
+
+func exportStatus(status trace.Status) *ExportStatus {
+	if status.Code == codes.Unset {
+		return nil
+	}
+	code := "unset"
+	switch status.Code {
+	case codes.Ok:
+		code = "ok"
+	case codes.Error:
+		code = "error"
+	}
+	return &ExportStatus{
+		Code:        code,
+		Description: status.Description,
+	}
+}
+
+func exportEvents(events []trace.Event, baseDir string) []ExportEvent {
+	if len(events) == 0 {
+		return nil
+	}
+
+	out := make([]ExportEvent, 0, len(events))
+	for _, e := range events {
+		attrs := normalizeAttributes(attributesToMap(e.Attributes), baseDir)
+		if len(attrs) == 0 {
+			attrs = nil
+		}
+		out = append(out, ExportEvent{
+			Name:       e.Name,
+			Timestamp:  e.Time,
+			Attributes: attrs,
 		})
 	}
-	return normalized
+	return out
 }
 
-func exportLog(log PerformanceLog) []exportEntry {
-	if len(log) == 0 {
+func exportLinks(links []trace.Link, baseDir string) []ExportLink {
+	if len(links) == 0 {
 		return nil
 	}
 
-	exported := make([]exportEntry, 0, len(log))
-	for _, entry := range log {
-		exported = append(exported, exportEntry{
-			Name:           entry.Name,
-			Type:           entry.Type,
-			Timestamp:      markTimestamp(entry),
-			StartTimestamp: measureStartTimestamp(entry),
-			DurationNS:     measureDuration(entry),
-			Details:        entry.Details,
+	out := make([]ExportLink, 0, len(links))
+	for _, l := range links {
+		sc := l.SpanContext
+		if !sc.IsValid() {
+			continue
+		}
+		attrs := normalizeAttributes(attributesToMap(l.Attributes), baseDir)
+		if len(attrs) == 0 {
+			attrs = nil
+		}
+		out = append(out, ExportLink{
+			TraceID:    sc.TraceID().String(),
+			SpanID:     sc.SpanID().String(),
+			Attributes: attrs,
 		})
 	}
-	return exported
+	return out
 }
 
-func markTimestamp(entry Entry) *time.Time {
-	if entry.Type != MarkType {
+func attributesToMap(attrs []attribute.KeyValue) map[string]interface{} {
+	if len(attrs) == 0 {
 		return nil
 	}
-	return &entry.StartTime
+	out := make(map[string]interface{}, len(attrs))
+	for _, kv := range attrs {
+		out[string(kv.Key)] = attributeValueToInterface(kv.Value)
+	}
+	return out
 }
 
-func measureStartTimestamp(entry Entry) *time.Time {
-	if entry.Type != MeasureType {
-		return nil
+func attributeValueToInterface(v attribute.Value) interface{} {
+	switch v.Type() {
+	case attribute.BOOL:
+		return v.AsBool()
+	case attribute.INT64:
+		return v.AsInt64()
+	case attribute.FLOAT64:
+		return v.AsFloat64()
+	case attribute.STRING:
+		return v.AsString()
+	case attribute.BOOLSLICE:
+		return v.AsBoolSlice()
+	case attribute.INT64SLICE:
+		return v.AsInt64Slice()
+	case attribute.FLOAT64SLICE:
+		return v.AsFloat64Slice()
+	case attribute.STRINGSLICE:
+		return v.AsStringSlice()
+	default:
+		return v.Emit()
 	}
-	return &entry.StartTime
 }
 
-func measureDuration(entry Entry) int64 {
-	if entry.Type != MeasureType {
-		return 0
-	}
-	return entry.Duration.Nanoseconds()
-}
-
-func normalizeDetails(details *PerformanceDetails, baseDir string) *PerformanceDetails {
-	if details == nil || len(*details) == 0 {
-		return details
+func normalizeAttributes(attrs map[string]interface{}, baseDir string) map[string]interface{} {
+	if len(attrs) == 0 {
+		return attrs
 	}
 
-	normalized := make(PerformanceDetails, len(*details))
-	for key, value := range *details {
+	normalized := make(map[string]interface{}, len(attrs))
+	for key, value := range attrs {
 		normalized[key] = normalizeValue(key, value, baseDir)
 	}
-	return &normalized
+	return normalized
 }
 
 func normalizeValue(key string, value interface{}, baseDir string) interface{} {

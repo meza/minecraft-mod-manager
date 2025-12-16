@@ -8,11 +8,14 @@ import (
 
 type model struct {
 	view string
+	span *perf.Span
 }
 
-func newModel(view string) model {
-	perf.Mark("tui.list.open", nil)
-	return model{view: view}
+func newModel(view string, span *perf.Span) model {
+	if span != nil {
+		span.AddEvent("tui.list.open")
+	}
+	return model{view: view, span: span}
 }
 
 func (m model) Init() tea.Cmd {
@@ -22,10 +25,14 @@ func (m model) Init() tea.Cmd {
 func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	switch msg.(type) {
 	case tea.KeyMsg:
-		perf.Mark("tui.list.action.exit", nil)
+		if m.span != nil {
+			m.span.AddEvent("tui.list.action.exit")
+		}
 		return m, tea.Quit
 	default:
-		perf.Mark("tui.list.action.exit", nil)
+		if m.span != nil {
+			m.span.AddEvent("tui.list.action.exit")
+		}
 		return m, tea.Quit
 	}
 }

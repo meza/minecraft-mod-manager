@@ -1,11 +1,14 @@
 package curseforge
 
 import (
+	"net/http"
+	"os"
+
 	"github.com/meza/minecraft-mod-manager/internal/environment"
 	"github.com/meza/minecraft-mod-manager/internal/httpClient"
 	"github.com/meza/minecraft-mod-manager/internal/perf"
-	"net/http"
-	"os"
+
+	"go.opentelemetry.io/otel/attribute"
 )
 
 type Client struct {
@@ -17,10 +20,8 @@ func NewClient(doer httpClient.Doer) *Client {
 }
 
 func (curseforgeClient *Client) Do(request *http.Request) (*http.Response, error) {
-	region := perf.StartRegionWithDetails("api.curseforge.http.request", &perf.PerformanceDetails{
-		"url": request.URL.String(),
-	})
-	defer region.End()
+	ctx, span := perf.StartSpan(request.Context(), "api.curseforge.http.request", perf.WithAttributes(attribute.String("url", request.URL.String())))
+	defer span.End()
 	headers := map[string]string{
 		"Accept":    "application/json",
 		"x-api-key": environment.CurseforgeApiKey(),
@@ -30,7 +31,7 @@ func (curseforgeClient *Client) Do(request *http.Request) (*http.Response, error
 		request.Header.Add(key, value)
 	}
 
-	return curseforgeClient.client.Do(request)
+	return curseforgeClient.client.Do(request.WithContext(ctx))
 }
 
 func GetBaseUrl() string {

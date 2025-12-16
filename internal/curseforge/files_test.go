@@ -1,6 +1,7 @@
 package curseforge
 
 import (
+	"context"
 	"github.com/meza/minecraft-mod-manager/internal/globalErrors"
 	"github.com/meza/minecraft-mod-manager/internal/models"
 	"github.com/pkg/errors"
@@ -135,7 +136,7 @@ func TestGetFilesForProject(t *testing.T) {
 	}()
 
 	// Call the function
-	files, err := GetFilesForProject(12345, &Client{
+	files, err := GetFilesForProject(context.Background(), 12345, &Client{
 		client: mockServer.Client(),
 	})
 
@@ -353,7 +354,7 @@ func TestGetFilesForProjectWithPagination(t *testing.T) {
 	}()
 
 	// Call the function
-	files, err := GetFilesForProject(12345, &Client{
+	files, err := GetFilesForProject(context.Background(), 12345, &Client{
 		client: mockServer.Client(),
 	})
 
@@ -455,7 +456,7 @@ func TestGetFilesForProjectWhenProjectNotFound(t *testing.T) {
 	defer func() { os.Unsetenv("CURSEFORGE_API_URL") }()
 
 	// Call the function
-	project, err := GetFilesForProject(12345, &Client{
+	project, err := GetFilesForProject(context.Background(), 12345, &Client{
 		client: mockServer.Client(),
 	})
 
@@ -486,7 +487,7 @@ func TestGetFilesForProjectWhenProjectApiUnknownStatus(t *testing.T) {
 	defer func() { os.Unsetenv("CURSEFORGE_API_URL") }()
 
 	// Call the function
-	project, err := GetFilesForProject(12345, &Client{
+	project, err := GetFilesForProject(context.Background(), 12345, &Client{
 		client: mockServer.Client(),
 	})
 
@@ -515,7 +516,7 @@ func TestGetFilesForProjectWhenProjectApiCorruptBody(t *testing.T) {
 	defer func() { os.Unsetenv("CURSEFORGE_API_URL") }()
 
 	// Call the function
-	project, err := GetFilesForProject(12345, &Client{
+	project, err := GetFilesForProject(context.Background(), 12345, &Client{
 		client: mockServer.Client(),
 	})
 
@@ -540,7 +541,7 @@ func TestGetFilesForProjectWhenApiCallFails(t *testing.T) {
 	defer func() { os.Unsetenv("CURSEFORGE_API_URL") }()
 
 	// Call the function
-	project, err := GetFilesForProject(123456, &Client{
+	project, err := GetFilesForProject(context.Background(), 123456, &Client{
 		client: mockServer.Client(),
 	})
 
@@ -599,7 +600,7 @@ func TestGetFingerprintsMatchesWithOneExactMatch(t *testing.T) {
 	client := &Client{client: mockServer.Client()}
 	fingerprints := []int{1234}
 
-	result, err := GetFingerprintsMatches(fingerprints, client)
+	result, err := GetFingerprintsMatches(context.Background(), fingerprints, client)
 	assert.NoError(t, err)
 	assert.Len(t, result.Matches, 1)
 	assert.Len(t, result.Unmatched, 0)
@@ -653,7 +654,7 @@ func TestGetFingerprintsMatchesWithMultipleExactMatches(t *testing.T) {
 	client := &Client{client: mockServer.Client()}
 	fingerprints := []int{123456, 1234567}
 
-	result, err := GetFingerprintsMatches(fingerprints, client)
+	result, err := GetFingerprintsMatches(context.Background(), fingerprints, client)
 	assert.NoError(t, err)
 	assert.Len(t, result.Matches, 2)
 	assert.Len(t, result.Unmatched, 0)
@@ -685,7 +686,7 @@ func TestGetFingerprintsMatchesWithNoExactMatches(t *testing.T) {
 	client := &Client{client: mockServer.Client()}
 	fingerprints := []int{0, 1}
 
-	result, err := GetFingerprintsMatches(fingerprints, client)
+	result, err := GetFingerprintsMatches(context.Background(), fingerprints, client)
 	assert.NoError(t, err)
 	assert.Len(t, result.Matches, 0)
 	assert.Len(t, result.Unmatched, 2)
@@ -705,7 +706,7 @@ func TestGetFingerprintsMatchesWithApiFailure(t *testing.T) {
 	client := &Client{client: mockServer.Client()}
 	fingerprints := []int{0, 1}
 
-	result, err := GetFingerprintsMatches(fingerprints, client)
+	result, err := GetFingerprintsMatches(context.Background(), fingerprints, client)
 	assert.ErrorContains(t, err, "Post \"invalid_url/fingerprints/432\": unsupported protocol scheme \"\"")
 	assert.Nil(t, result)
 }
@@ -725,7 +726,7 @@ func TestGetFingerprintsMatchesWithNotFound(t *testing.T) {
 	client := &Client{client: mockServer.Client()}
 	fingerprints := []int{0, 1}
 
-	result, err := GetFingerprintsMatches(fingerprints, client)
+	result, err := GetFingerprintsMatches(context.Background(), fingerprints, client)
 	assert.ErrorContains(t, err, "unexpected status code: 404")
 	assert.Nil(t, result)
 }
@@ -746,7 +747,7 @@ func TestGetFingerprintsMatchesWithCorruptedBody(t *testing.T) {
 	client := &Client{client: mockServer.Client()}
 	fingerprints := []int{0, 1}
 
-	result, err := GetFingerprintsMatches(fingerprints, client)
+	result, err := GetFingerprintsMatches(context.Background(), fingerprints, client)
 	assert.ErrorContains(t, err, "unexpected EOF")
 	assert.Nil(t, result)
 }

@@ -1,28 +1,30 @@
 package curseforge
 
 import (
+	"context"
 	"encoding/json"
 	"fmt"
+
 	"github.com/meza/minecraft-mod-manager/internal/globalErrors"
 	"github.com/meza/minecraft-mod-manager/internal/httpClient"
 	"github.com/meza/minecraft-mod-manager/internal/models"
 	"github.com/meza/minecraft-mod-manager/internal/perf"
 	"github.com/pkg/errors"
 	"net/http"
+
+	"go.opentelemetry.io/otel/attribute"
 )
 
 type getProjectResponse struct {
 	Data Project `json:"data"`
 }
 
-func GetProject(projectId string, client httpClient.Doer) (*Project, error) {
-	region := perf.StartRegionWithDetails("api.curseforge.project.get", &perf.PerformanceDetails{
-		"project_id": projectId,
-	})
-	defer region.End()
+func GetProject(ctx context.Context, projectId string, client httpClient.Doer) (*Project, error) {
+	ctx, span := perf.StartSpan(ctx, "api.curseforge.project.get", perf.WithAttributes(attribute.String("project_id", projectId)))
+	defer span.End()
 
 	url := fmt.Sprintf("%s/mods/%s", GetBaseUrl(), projectId)
-	request, _ := http.NewRequest(http.MethodGet, url, nil)
+	request, _ := http.NewRequestWithContext(ctx, http.MethodGet, url, nil)
 
 	response, err := client.Do(request)
 	if err != nil {

@@ -2,6 +2,7 @@ package list
 
 import (
 	"bytes"
+	"context"
 	"path/filepath"
 	"testing"
 
@@ -14,14 +15,6 @@ import (
 	"github.com/meza/minecraft-mod-manager/internal/config"
 	"github.com/meza/minecraft-mod-manager/internal/models"
 )
-
-type telemetrySpy struct {
-	calls []string
-}
-
-func (t *telemetrySpy) capture(command telemetry.CommandTelemetry) {
-	t.calls = append(t.calls, command.Command)
-}
 
 func TestRunListPrintsInstalledAndMissing(t *testing.T) {
 	t.Setenv("MMM_TEST", "true")
@@ -42,29 +35,28 @@ func TestRunListPrintsInstalledAndMissing(t *testing.T) {
 
 	assert.NoError(t, fs.MkdirAll(meta.Dir(), 0755))
 	assert.NoError(t, fs.MkdirAll(meta.ModsFolderPath(cfg), 0755))
-	assert.NoError(t, config.WriteConfig(fs, meta, cfg))
+	assert.NoError(t, config.WriteConfig(context.Background(), fs, meta, cfg))
 
 	lock := []models.ModInstall{
 		{Id: "mod-a", Type: models.MODRINTH, FileName: "mod-a.jar"},
 		{Id: "mod-b", Type: models.CURSEFORGE, FileName: "mod-b.jar"},
 	}
-	assert.NoError(t, config.WriteLock(fs, meta, lock))
+	assert.NoError(t, config.WriteLock(context.Background(), fs, meta, lock))
 
 	assert.NoError(t, afero.WriteFile(fs, filepath.Join(meta.ModsFolderPath(cfg), "mod-a.jar"), []byte("installed"), 0644))
 
 	out := &bytes.Buffer{}
 	errOut := &bytes.Buffer{}
-	telemetry := telemetrySpy{}
 
 	cmd := &cobra.Command{}
 	cmd.SetIn(&bytes.Buffer{})
 	cmd.SetOut(out)
 	cmd.SetErr(errOut)
 
-	err := runList(cmd, meta.ConfigPath, false, listDeps{
+	_, err := runList(context.Background(), cmd, meta.ConfigPath, false, listDeps{
 		fs:        fs,
 		logger:    logger.New(out, errOut, false, false),
-		telemetry: telemetry.capture,
+		telemetry: func(telemetry.CommandTelemetry) {},
 	})
 
 	assert.NoError(t, err)
@@ -73,7 +65,6 @@ func TestRunListPrintsInstalledAndMissing(t *testing.T) {
 		"✗ cmd.list.entry.missing, Arg 1: {Count: 0, Data: &map[id:mod-b name:Mod B]}\n"
 	assert.Equal(t, expected, out.String())
 	assert.Empty(t, errOut.String())
-	assert.Equal(t, []string{"list"}, telemetry.calls)
 }
 
 func TestRunListMissingLockTreatsAllAsNotInstalled(t *testing.T) {
@@ -94,7 +85,7 @@ func TestRunListMissingLockTreatsAllAsNotInstalled(t *testing.T) {
 
 	assert.NoError(t, fs.MkdirAll(meta.Dir(), 0755))
 	assert.NoError(t, fs.MkdirAll(meta.ModsFolderPath(cfg), 0755))
-	assert.NoError(t, config.WriteConfig(fs, meta, cfg))
+	assert.NoError(t, config.WriteConfig(context.Background(), fs, meta, cfg))
 
 	out := &bytes.Buffer{}
 	errOut := &bytes.Buffer{}
@@ -103,7 +94,7 @@ func TestRunListMissingLockTreatsAllAsNotInstalled(t *testing.T) {
 	cmd.SetOut(out)
 	cmd.SetErr(errOut)
 
-	err := runList(cmd, meta.ConfigPath, false, listDeps{
+	_, err := runList(context.Background(), cmd, meta.ConfigPath, false, listDeps{
 		fs:        fs,
 		logger:    logger.New(out, errOut, false, false),
 		telemetry: func(telemetry.CommandTelemetry) {},
@@ -133,7 +124,7 @@ func TestRunListInvalidLockErrors(t *testing.T) {
 
 	assert.NoError(t, fs.MkdirAll(meta.Dir(), 0755))
 	assert.NoError(t, fs.MkdirAll(meta.ModsFolderPath(cfg), 0755))
-	assert.NoError(t, config.WriteConfig(fs, meta, cfg))
+	assert.NoError(t, config.WriteConfig(context.Background(), fs, meta, cfg))
 
 	lockPath := meta.LockPath()
 	assert.NoError(t, afero.WriteFile(fs, lockPath, []byte("{invalid"), 0644))
@@ -145,7 +136,7 @@ func TestRunListInvalidLockErrors(t *testing.T) {
 	cmd.SetOut(out)
 	cmd.SetErr(errOut)
 
-	err := runList(cmd, meta.ConfigPath, false, listDeps{
+	_, err := runList(context.Background(), cmd, meta.ConfigPath, false, listDeps{
 		fs:        fs,
 		logger:    logger.New(out, errOut, false, false),
 		telemetry: func(telemetry.CommandTelemetry) {},
@@ -170,7 +161,7 @@ func TestRunListInvalidConfigErrors(t *testing.T) {
 	cmd.SetOut(out)
 	cmd.SetErr(errOut)
 
-	err := runList(cmd, meta.ConfigPath, false, listDeps{
+	_, err := runList(context.Background(), cmd, meta.ConfigPath, false, listDeps{
 		fs:        fs,
 		logger:    logger.New(out, errOut, false, false),
 		telemetry: func(telemetry.CommandTelemetry) {},
@@ -194,7 +185,7 @@ func TestRunListShowsEmptyMessageWhenNoMods(t *testing.T) {
 	}
 
 	assert.NoError(t, fs.MkdirAll(meta.Dir(), 0755))
-	assert.NoError(t, config.WriteConfig(fs, meta, cfg))
+	assert.NoError(t, config.WriteConfig(context.Background(), fs, meta, cfg))
 
 	out := &bytes.Buffer{}
 	errOut := &bytes.Buffer{}
@@ -203,7 +194,7 @@ func TestRunListShowsEmptyMessageWhenNoMods(t *testing.T) {
 	cmd.SetOut(out)
 	cmd.SetErr(errOut)
 
-	err := runList(cmd, meta.ConfigPath, false, listDeps{
+	_, err := runList(context.Background(), cmd, meta.ConfigPath, false, listDeps{
 		fs:        fs,
 		logger:    logger.New(out, errOut, false, false),
 		telemetry: func(telemetry.CommandTelemetry) {},
@@ -232,7 +223,7 @@ func TestRunListQuietStillPrints(t *testing.T) {
 
 	assert.NoError(t, fs.MkdirAll(meta.Dir(), 0755))
 	assert.NoError(t, fs.MkdirAll(meta.ModsFolderPath(cfg), 0755))
-	assert.NoError(t, config.WriteConfig(fs, meta, cfg))
+	assert.NoError(t, config.WriteConfig(context.Background(), fs, meta, cfg))
 
 	out := &bytes.Buffer{}
 	errOut := &bytes.Buffer{}
@@ -241,7 +232,7 @@ func TestRunListQuietStillPrints(t *testing.T) {
 	cmd.SetOut(out)
 	cmd.SetErr(errOut)
 
-	err := runList(cmd, meta.ConfigPath, true, listDeps{
+	_, err := runList(context.Background(), cmd, meta.ConfigPath, true, listDeps{
 		fs:        fs,
 		logger:    logger.New(out, errOut, true, false),
 		telemetry: func(telemetry.CommandTelemetry) {},

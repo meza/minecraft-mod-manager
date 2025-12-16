@@ -1,130 +1,238 @@
 package perf
 
 import (
-	"github.com/stretchr/testify/assert"
+	"context"
 	"testing"
-	"time"
+
+	"github.com/stretchr/testify/assert"
+	"go.opentelemetry.io/otel/attribute"
+	"go.opentelemetry.io/otel/codes"
 )
 
-func TestMark(t *testing.T) {
-	ClearPerformanceLog()
-	details := &PerformanceDetails{"key": "value"}
-	entry := Mark("test-marker", details)
-	perfLog := GetPerformanceLog()
+func TestInit_ReinitializingReplacesExporter(t *testing.T) {
+	Reset()
+	t.Cleanup(Reset)
 
-	assert.Equal(t, "test-marker", entry.Name)
-	assert.Equal(t, MarkType, entry.Type)
-	assert.Equal(t, details, entry.Details)
-	assert.Len(t, perfLog, 1)
+	assert.NoError(t, Init(Config{Enabled: true}))
+
+	_, first := StartSpan(context.Background(), "first")
+	first.End()
+
+	assert.NoError(t, Init(Config{Enabled: true}))
+
+	_, second := StartSpan(context.Background(), "second")
+	second.End()
+
+	spans, err := GetSpans()
+	assert.NoError(t, err)
+
+	_, ok := FindSpanByName(spans, "first")
+	assert.False(t, ok)
+
+	_, ok = FindSpanByName(spans, "second")
+	assert.True(t, ok)
 }
 
-func TestMeasure(t *testing.T) {
-	ClearPerformanceLog()
-	startDetails := &PerformanceDetails{"key": "start"}
-	endDetails := &PerformanceDetails{"key": "end"}
+func TestStartSpan_NilContextAndNilOption(t *testing.T) {
+	Reset()
+	t.Cleanup(Reset)
+	assert.NoError(t, Init(Config{Enabled: true}))
 
-	startEntry := Mark("start-marker", startDetails)
-	time.Sleep(10 * time.Millisecond)
-	endEntry := Mark("end-marker", endDetails)
-
-	Measure("test-MeasureType", "start-marker", "end-marker", nil)
-
-	perfLog := GetPerformanceLog()
-
-	measureEntry := perfLog[len(perfLog)-1]
-	assert.Equal(t, "test-MeasureType", measureEntry.Name)
-	assert.Equal(t, MeasureType, measureEntry.Type)
-
-	expectedDuration := endEntry.StartTime.Sub(startEntry.StartTime)
-	assert.Equal(t, expectedDuration, measureEntry.Duration)
+	ctx, span := StartSpan(nil, "nil-context", nil)
+	assert.NotNil(t, ctx)
+	assert.NotNil(t, span)
+	span.End()
 }
 
-func TestStartRegionAndEnd(t *testing.T) {
-	ClearPerformanceLog()
-	details := &PerformanceDetails{"key": "value"}
-	region := StartRegionWithDetails("test-region", details)
-	time.Sleep(10 * time.Millisecond)
-	region.End()
+func TestStartSpan_RecordsSpanAndAttributes(t *testing.T) {
+	Reset()
+	t.Cleanup(Reset)
+	assert.NoError(t, Init(Config{Enabled: true}))
 
-	perfLog := GetPerformanceLog()
+	ctx, span := StartSpan(context.Background(), "test.span", WithAttributes(attribute.String("k", "v")))
+	assert.NotNil(t, ctx)
+	assert.NotNil(t, span)
+	span.End()
 
-	startEntry := perfLog[len(perfLog)-3]
-	endEntry := perfLog[len(perfLog)-2]
-	measureEntry := perfLog[len(perfLog)-1]
+	spans, err := GetSpans()
+	assert.NoError(t, err)
 
-	assert.Equal(t, "test-region", startEntry.Name)
-	assert.Equal(t, MarkType, startEntry.Type)
-
-	assert.Equal(t, "test-region-end", endEntry.Name)
-	assert.Equal(t, MarkType, endEntry.Type)
-
-	assert.Equal(t, "test-region-duration", measureEntry.Name)
-	assert.Equal(t, MeasureType, measureEntry.Type)
+	s, ok := FindSpanByName(spans, "test.span")
+	assert.True(t, ok)
+	assert.NotEmpty(t, s.TraceID)
+	assert.NotEmpty(t, s.SpanID)
+	assert.Equal(t, "v", s.Attributes["k"])
 }
 
-func TestStartRegionWithoutDetailsAndEnd(t *testing.T) {
-	ClearPerformanceLog()
-	region := StartRegion("test-region")
-	time.Sleep(10 * time.Millisecond)
-	region.End()
+func TestStartSpan_ChildInheritsTraceIDAndHasParent(t *testing.T) {
+	Reset()
+	t.Cleanup(Reset)
+	assert.NoError(t, Init(Config{Enabled: true}))
 
-	perfLog := GetPerformanceLog()
+	rootCtx, root := StartSpan(context.Background(), "root")
+	childCtx, child := StartSpan(rootCtx, "child")
+	assert.NotNil(t, childCtx)
 
-	startEntry := perfLog[len(perfLog)-3]
-	endEntry := perfLog[len(perfLog)-2]
-	measureEntry := perfLog[len(perfLog)-1]
+	child.End()
+	root.End()
 
-	assert.Equal(t, "test-region", startEntry.Name)
-	assert.Equal(t, MarkType, startEntry.Type)
+	spans, err := GetSpans()
+	assert.NoError(t, err)
 
-	assert.Equal(t, "test-region-end", endEntry.Name)
-	assert.Equal(t, MarkType, endEntry.Type)
+	rootSpan, ok := FindSpanByName(spans, "root")
+	assert.True(t, ok)
+	childSpan, ok := FindSpanByName(spans, "child")
+	assert.True(t, ok)
 
-	assert.Equal(t, "test-region-duration", measureEntry.Name)
-	assert.Equal(t, MeasureType, measureEntry.Type)
+	assert.Equal(t, rootSpan.TraceID, childSpan.TraceID)
+	assert.Equal(t, rootSpan.SpanID, childSpan.ParentSpanID)
 }
 
-func TestGetAllMeasurements(t *testing.T) {
-	ClearPerformanceLog()
-	// Add entries using Mark and Measure functions
-	Mark("start-marker1", nil)
-	time.Sleep(10 * time.Millisecond)
-	Mark("end-marker1", nil)
-	Measure("measure1", "start-marker1", "end-marker1", nil)
+func TestLinks_CreateDAGEdge(t *testing.T) {
+	Reset()
+	t.Cleanup(Reset)
+	assert.NoError(t, Init(Config{Enabled: true}))
 
-	Mark("start-marker2", nil)
-	time.Sleep(10 * time.Millisecond)
-	Mark("end-marker2", nil)
-	Measure("measure2", "start-marker2", "end-marker2", nil)
+	ctxA, spanA := StartSpan(context.Background(), "spanA")
+	spanA.End()
 
-	measurements := GetAllMeasurements()
+	link, err := LinkFromContext(ctxA)
+	assert.NoError(t, err)
 
-	assert.Len(t, measurements, 2)
+	_, spanB := StartSpan(context.Background(), "spanB", WithLinks(link))
+	spanB.End()
 
-	for _, entry := range measurements {
-		assert.Equal(t, MeasureType, entry.Type)
-	}
+	spans, err := GetSpans()
+	assert.NoError(t, err)
+
+	spanASnap, ok := FindSpanByName(spans, "spanA")
+	assert.True(t, ok)
+	spanBSnap, ok := FindSpanByName(spans, "spanB")
+	assert.True(t, ok)
+
+	assert.Len(t, spanBSnap.Links, 1)
+	assert.Equal(t, spanASnap.TraceID, spanBSnap.Links[0].TraceID)
+	assert.Equal(t, spanASnap.SpanID, spanBSnap.Links[0].SpanID)
 }
 
-func TestMeasureMissingMarkers(t *testing.T) {
-	ClearPerformanceLog()
+func TestAddEvent_RecordsEventAttributes(t *testing.T) {
+	Reset()
+	t.Cleanup(Reset)
+	assert.NoError(t, Init(Config{Enabled: true}))
 
-	// Scenario 1: fromMarker does not exist
-	Mark("end-marker", nil)
-	Measure("measure1", "non-existent-start-marker", "end-marker", nil)
-	perfLog := GetPerformanceLog()
-	assert.Len(t, perfLog, 1) // Only the end-marker should be present
+	_, span := StartSpan(context.Background(), "with-event")
+	span.AddEvent("evt", WithEventAttributes(attribute.Int("attempt", 2)))
+	span.End()
 
-	// Scenario 2: toMarker does not exist
-	ClearPerformanceLog()
-	Mark("start-marker", nil)
-	Measure("measure2", "start-marker", "non-existent-end-marker", nil)
-	perfLog = GetPerformanceLog()
-	assert.Len(t, perfLog, 1) // Only the start-marker should be present
+	spans, err := GetSpans()
+	assert.NoError(t, err)
 
-	// Scenario 3: both fromMarker and toMarker do not exist
-	ClearPerformanceLog()
-	Measure("measure3", "non-existent-start-marker", "non-existent-end-marker", nil)
-	perfLog = GetPerformanceLog()
-	assert.Len(t, perfLog, 0) // No markers should be present
+	s, ok := FindSpanByName(spans, "with-event")
+	assert.True(t, ok)
+	assert.Len(t, s.Events, 1)
+	assert.Equal(t, "evt", s.Events[0].Name)
+	assert.Equal(t, int64(2), s.Events[0].Attributes["attempt"])
+}
+
+func TestEnabled_ReflectsInitState(t *testing.T) {
+	Reset()
+	t.Cleanup(Reset)
+
+	assert.NoError(t, Init(Config{Enabled: false}))
+	assert.False(t, Enabled())
+
+	assert.NoError(t, Init(Config{Enabled: true}))
+	assert.True(t, Enabled())
+}
+
+func TestShutdown_NoProviderIsNoop(t *testing.T) {
+	Reset()
+	t.Cleanup(Reset)
+
+	assert.NoError(t, Shutdown(context.Background()))
+}
+
+func TestShutdown_WithProvider(t *testing.T) {
+	Reset()
+	t.Cleanup(Reset)
+	assert.NoError(t, Init(Config{Enabled: true}))
+
+	assert.NoError(t, Shutdown(context.Background()))
+}
+
+func TestSpanMethods_NoOpOnNil(t *testing.T) {
+	var span *Span
+	span.End()
+	span.SetAttributes(attribute.String("k", "v"))
+	span.AddEvent("evt")
+}
+
+func TestSpanMethods_SetAttributesPersistsOnSpan(t *testing.T) {
+	Reset()
+	t.Cleanup(Reset)
+	assert.NoError(t, Init(Config{Enabled: true}))
+
+	_, span := StartSpan(context.Background(), "attr-span")
+	span.SetAttributes(attribute.String("k", "v"))
+	span.End()
+
+	spans, err := GetSpans()
+	assert.NoError(t, err)
+	s, ok := FindSpanByName(spans, "attr-span")
+	assert.True(t, ok)
+	assert.Equal(t, "v", s.Attributes["k"])
+}
+
+func TestSpanFromContext_NilContextReturnsNonNilSpan(t *testing.T) {
+	span := SpanFromContext(nil)
+	assert.NotNil(t, span)
+}
+
+func TestSpanFromContext_WithSpanContextReturnsValidSpan(t *testing.T) {
+	Reset()
+	t.Cleanup(Reset)
+	assert.NoError(t, Init(Config{Enabled: true}))
+
+	ctx, span := StartSpan(context.Background(), "ctx-span")
+	got := SpanFromContext(ctx)
+	assert.NotNil(t, got)
+	assert.True(t, got.span.SpanContext().IsValid())
+	span.End()
+}
+
+func TestLinkFromContext_ErrorsOnNilAndMissingSpan(t *testing.T) {
+	_, err := LinkFromContext(nil)
+	assert.Error(t, err)
+
+	_, err = LinkFromContext(context.Background())
+	assert.Error(t, err)
+}
+
+func TestExportStatus_CapturedWhenSetViaUnderlyingSpan(t *testing.T) {
+	Reset()
+	t.Cleanup(Reset)
+	assert.NoError(t, Init(Config{Enabled: true}))
+
+	_, span := StartSpan(context.Background(), "status-span")
+	span.span.SetStatus(codes.Ok, "")
+	span.End()
+
+	spans, err := GetSpans()
+	assert.NoError(t, err)
+	_, ok := FindSpanByName(spans, "status-span")
+	assert.True(t, ok)
+}
+
+func TestSnapshotSpans_NoExporterConfiguredErrors(t *testing.T) {
+	Reset()
+	t.Cleanup(Reset)
+
+	globalMu.Lock()
+	globalEnabled = true
+	globalExp = nil
+	globalTP = nil
+	globalMu.Unlock()
+
+	_, err := SnapshotSpans()
+	assert.Error(t, err)
 }

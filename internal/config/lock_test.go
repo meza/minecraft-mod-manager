@@ -1,6 +1,7 @@
 package config
 
 import (
+	"context"
 	"path/filepath"
 	"testing"
 
@@ -13,7 +14,7 @@ func TestEnsureLockCreatesEmptyWhenMissing(t *testing.T) {
 	fs := afero.NewMemMapFs()
 	meta := NewMetadata(filepath.FromSlash("/modlist.json"))
 
-	lock, err := EnsureLock(fs, meta)
+	lock, err := EnsureLock(context.Background(), fs, meta)
 	assert.NoError(t, err)
 	assert.Empty(t, lock)
 }
@@ -22,7 +23,7 @@ func TestEnsureLockReturnsErrorWhenCannotCreateLock(t *testing.T) {
 	fs := afero.NewReadOnlyFs(afero.NewMemMapFs())
 	meta := NewMetadata(filepath.FromSlash("/modlist.json"))
 
-	_, err := EnsureLock(fs, meta)
+	_, err := EnsureLock(context.Background(), fs, meta)
 	assert.Error(t, err)
 }
 
@@ -31,10 +32,10 @@ func TestWriteLockAndReadLockRoundTrip(t *testing.T) {
 	meta := NewMetadata(filepath.FromSlash("/modlist.json"))
 
 	expected := []models.ModInstall{{Id: "1", Name: "Example", Type: models.MODRINTH}}
-	err := WriteLock(fs, meta, expected)
+	err := WriteLock(context.Background(), fs, meta, expected)
 	assert.NoError(t, err)
 
-	actual, err := ReadLock(fs, meta)
+	actual, err := ReadLock(context.Background(), fs, meta)
 	assert.NoError(t, err)
 	assert.Equal(t, expected, actual)
 }
@@ -44,10 +45,10 @@ func TestEnsureLockReadsExisting(t *testing.T) {
 	meta := NewMetadata(filepath.FromSlash("/modlist.json"))
 
 	expected := []models.ModInstall{{Id: "1", Name: "Example", Type: models.MODRINTH}}
-	err := WriteLock(fs, meta, expected)
+	err := WriteLock(context.Background(), fs, meta, expected)
 	assert.NoError(t, err)
 
-	actual, err := EnsureLock(fs, meta)
+	actual, err := EnsureLock(context.Background(), fs, meta)
 	assert.NoError(t, err)
 	assert.Equal(t, expected, actual)
 }
@@ -57,7 +58,7 @@ func TestReadLockReturnsErrorWhenPathIsDirectory(t *testing.T) {
 	meta := NewMetadata(filepath.FromSlash("/modlist.json"))
 	assert.NoError(t, fs.Mkdir(meta.LockPath(), 0755))
 
-	_, err := ReadLock(fs, meta)
+	_, err := ReadLock(context.Background(), fs, meta)
 	assert.Error(t, err)
 }
 
@@ -66,7 +67,7 @@ func TestReadLockReturnsReadErrorWhenPathIsDirectoryOnOsFs(t *testing.T) {
 	meta := NewMetadata(filepath.Join(configDir, "modlist.json"))
 	assert.NoError(t, afero.NewOsFs().MkdirAll(meta.LockPath(), 0755))
 
-	_, err := ReadLock(afero.NewOsFs(), meta)
+	_, err := ReadLock(context.Background(), afero.NewOsFs(), meta)
 	assert.Error(t, err)
 }
 
@@ -75,7 +76,7 @@ func TestReadLockReturnsErrorOnMalformedJSON(t *testing.T) {
 	meta := NewMetadata(filepath.FromSlash("/modlist.json"))
 	assert.NoError(t, afero.WriteFile(fs, meta.LockPath(), []byte("not json"), 0644))
 
-	_, err := ReadLock(fs, meta)
+	_, err := ReadLock(context.Background(), fs, meta)
 	assert.Error(t, err)
 }
 
@@ -84,7 +85,7 @@ func TestEnsureLockReturnsErrorWhenExistingLockIsUnreadable(t *testing.T) {
 	meta := NewMetadata(filepath.FromSlash("/modlist.json"))
 	assert.NoError(t, fs.Mkdir(meta.LockPath(), 0755))
 
-	_, err := EnsureLock(fs, meta)
+	_, err := EnsureLock(context.Background(), fs, meta)
 	assert.Error(t, err)
 }
 
@@ -92,6 +93,6 @@ func TestWriteLockReturnsErrorWhenPathIsDirectory(t *testing.T) {
 	fs := afero.NewReadOnlyFs(afero.NewMemMapFs())
 	meta := NewMetadata(filepath.FromSlash("/modlist.json"))
 
-	err := WriteLock(fs, meta, nil)
+	err := WriteLock(context.Background(), fs, meta, nil)
 	assert.Error(t, err)
 }

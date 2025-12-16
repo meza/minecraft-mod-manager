@@ -1,6 +1,7 @@
 package modrinth
 
 import (
+	"context"
 	"github.com/meza/minecraft-mod-manager/internal/globalErrors"
 	"github.com/meza/minecraft-mod-manager/internal/models"
 	"github.com/pkg/errors"
@@ -80,7 +81,7 @@ func TestGetVersionsForProject_SingleVersion(t *testing.T) {
 		GameVersions: []string{"1.16.5", "1.17.1"},
 	}
 
-	versions, err := GetVersionsForProject(lookup, client)
+	versions, err := GetVersionsForProject(context.Background(), lookup, client)
 
 	assert.NoError(t, err)
 	assert.Len(t, versions, 1)
@@ -197,7 +198,7 @@ func TestGetVersionsForProject_MultipleVersions(t *testing.T) {
 		GameVersions: []string{"1.16.5", "1.17.1"},
 	}
 
-	versions, err := GetVersionsForProject(lookup, client)
+	versions, err := GetVersionsForProject(context.Background(), lookup, client)
 	assert.NoError(t, err)
 	assert.Len(t, versions, 2)
 	assert.Equal(t, "Version 1.0.0", versions[0].Name)
@@ -241,7 +242,7 @@ func TestGetVersionsForProject_NoVersions(t *testing.T) {
 		GameVersions: []string{"1.16.5", "1.17.1"},
 	}
 
-	versions, err := GetVersionsForProject(lookup, client)
+	versions, err := GetVersionsForProject(context.Background(), lookup, client)
 	assert.NoError(t, err)
 	assert.Len(t, versions, 0)
 }
@@ -275,7 +276,7 @@ func TestGetVersionsForProjectWhenProjectNotFound(t *testing.T) {
 		Loaders:      []models.Loader{models.FORGE},
 		GameVersions: []string{"1.19"},
 	}
-	project, err := GetVersionsForProject(lookup, &Client{
+	project, err := GetVersionsForProject(context.Background(), lookup, &Client{
 		client: mockServer.Client(),
 	})
 
@@ -311,7 +312,7 @@ func TestGetVersionsForProjectWhenProjectApiUnknownStatus(t *testing.T) {
 		Loaders:      []models.Loader{models.FABRIC},
 		GameVersions: []string{"1.18.1"},
 	}
-	project, err := GetVersionsForProject(lookup, &Client{
+	project, err := GetVersionsForProject(context.Background(), lookup, &Client{
 		client: mockServer.Client(),
 	})
 
@@ -340,7 +341,7 @@ func TestGetVersionsForProjectWhenApiCallFails(t *testing.T) {
 		Loaders:      []models.Loader{models.QUILT},
 		GameVersions: []string{"1.21.1"},
 	}
-	project, err := GetVersionsForProject(lookup, &Client{
+	project, err := GetVersionsForProject(context.Background(), lookup, &Client{
 		client: mockServer.Client(),
 	})
 
@@ -419,7 +420,7 @@ func TestGetVersionForHash_SingleVersion(t *testing.T) {
 		hash:      "c84dd4b3580c02b79958a0590afd5783d80ef504",
 	}
 
-	version, err := GetVersionForHash(lookup, client)
+	version, err := GetVersionForHash(context.Background(), lookup, client)
 
 	assert.NoError(t, err)
 	assert.Equal(t, "Version 1.0.0", version.Name)
@@ -474,7 +475,7 @@ func TestGetVersionForHashWhenProjectNotFound(t *testing.T) {
 		algorithm: Sha1,
 		hash:      "c84dd4b3580c02b79958a0590afd5783d80ef504",
 	}
-	project, err := GetVersionForHash(lookup, &Client{
+	project, err := GetVersionForHash(context.Background(), lookup, &Client{
 		client: mockServer.Client(),
 	})
 
@@ -508,7 +509,7 @@ func TestGetVersionForHashWhenProjectApiUnknownStatus(t *testing.T) {
 		algorithm: Sha1,
 		hash:      "c84dd4b3580c02b79958a0590afd5783d80ef504",
 	}
-	project, err := GetVersionForHash(lookup, &Client{
+	project, err := GetVersionForHash(context.Background(), lookup, &Client{
 		client: mockServer.Client(),
 	})
 
@@ -536,7 +537,7 @@ func TestGetVersionForHashWhenApiCallFails(t *testing.T) {
 		algorithm: Sha1,
 		hash:      "c84dd4b3580c02b79958a0590afd5783d80ef504",
 	}
-	project, err := GetVersionForHash(lookup, &Client{
+	project, err := GetVersionForHash(context.Background(), lookup, &Client{
 		client: mockServer.Client(),
 	})
 

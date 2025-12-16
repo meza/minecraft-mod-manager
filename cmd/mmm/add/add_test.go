@@ -2,6 +2,7 @@ package add
 
 import (
 	"bytes"
+	"context"
 	"errors"
 	"io"
 	"net/http"
@@ -22,14 +23,11 @@ import (
 	"github.com/meza/minecraft-mod-manager/internal/models"
 	"github.com/meza/minecraft-mod-manager/internal/perf"
 	"github.com/meza/minecraft-mod-manager/internal/platform"
-	"github.com/meza/minecraft-mod-manager/internal/telemetry"
 	tuiinternal "github.com/meza/minecraft-mod-manager/internal/tui"
 )
 
-var noopTelemetry = func(telemetry.CommandTelemetry) {}
-
 func TestRunAdd_Success(t *testing.T) {
-	perf.ClearPerformanceLog()
+	ctx, commandSpan := startAddPerf(t)
 	fs := afero.NewMemMapFs()
 	meta := config.NewMetadata(filepath.FromSlash("/cfg/modlist.json"))
 	assert.NoError(t, fs.MkdirAll(filepath.Dir(meta.ConfigPath), 0755))
@@ -41,10 +39,9 @@ func TestRunAdd_Success(t *testing.T) {
 		ModsFolder:                 "mods",
 		Mods:                       []models.Mod{},
 	}
-	assert.NoError(t, config.WriteConfig(fs, meta, cfg))
-	assert.NoError(t, config.WriteLock(fs, meta, nil))
+	assert.NoError(t, config.WriteConfig(context.Background(), fs, meta, cfg))
+	assert.NoError(t, config.WriteLock(context.Background(), fs, meta, nil))
 
-	var telemetryCalled telemetry.CommandTelemetry
 	downloaded := false
 
 	cmd := &cobra.Command{}
@@ -52,7 +49,7 @@ func TestRunAdd_Success(t *testing.T) {
 	cmd.SetOut(bytes.NewBuffer(nil))
 	cmd.SetErr(bytes.NewBuffer(nil))
 
-	err := runAdd(cmd, addOptions{
+	telemetryCalled, hasTelemetry, err := runAdd(ctx, commandSpan, cmd, addOptions{
 		Platform:   "modrinth",
 		ProjectID:  "abc",
 		ConfigPath: meta.ConfigPath,
@@ -60,7 +57,7 @@ func TestRunAdd_Success(t *testing.T) {
 		fs:      fs,
 		clients: platform.DefaultClients(rate.NewLimiter(rate.Inf, 0)),
 		logger:  logger.New(cmd.OutOrStdout(), cmd.ErrOrStderr(), false, false),
-		fetchMod: func(p models.Platform, id string, _ platform.FetchOptions, _ platform.Clients) (platform.RemoteMod, error) {
+		fetchMod: func(_ context.Context, p models.Platform, id string, _ platform.FetchOptions, _ platform.Clients) (platform.RemoteMod, error) {
 			return platform.RemoteMod{
 				Name:        "Example",
 				FileName:    "example.jar",
@@ -69,18 +66,16 @@ func TestRunAdd_Success(t *testing.T) {
 				DownloadURL: "https://example.com/example.jar",
 			}, nil
 		},
-		downloader: func(_ string, path string, _ httpClient.Doer, _ httpClient.Sender, _ ...afero.Fs) error {
+		downloader: func(_ context.Context, _ string, path string, _ httpClient.Doer, _ httpClient.Sender, _ ...afero.Fs) error {
 			downloaded = true
 			return afero.WriteFile(fs, path, []byte("data"), 0644)
-		},
-		telemetry: func(data telemetry.CommandTelemetry) {
-			telemetryCalled = data
 		},
 	})
 
 	assert.NoError(t, err)
+	assert.True(t, hasTelemetry)
 	assert.True(t, downloaded)
-	configAfter, err := config.ReadConfig(fs, meta)
+	configAfter, err := config.ReadConfig(context.Background(), fs, meta)
 	assert.NoError(t, err)
 	assert.Len(t, configAfter.Mods, 1)
 	assert.Equal(t, "abc", configAfter.Mods[0].ID)
@@ -88,7 +83,7 @@ func TestRunAdd_Success(t *testing.T) {
 	assert.Nil(t, configAfter.Mods[0].AllowVersionFallback)
 	assert.Nil(t, configAfter.Mods[0].Version)
 
-	lock, err := config.ReadLock(fs, meta)
+	lock, err := config.ReadLock(context.Background(), fs, meta)
 	assert.NoError(t, err)
 	assert.Len(t, lock, 1)
 	assert.Equal(t, "example.jar", lock[0].FileName)
@@ -96,14 +91,15 @@ func TestRunAdd_Success(t *testing.T) {
 	assert.True(t, telemetryCalled.Success)
 	assert.Equal(t, "add", telemetryCalled.Command)
 
-	assertPerfMarkExists(t, "app.command.add.stage.prepare")
-	assertPerfMarkExists(t, "app.command.add.stage.resolve")
-	assertPerfMarkExists(t, "app.command.add.resolve.attempt")
-	assertPerfMarkExists(t, "app.command.add.stage.download")
-	assertPerfMarkExists(t, "app.command.add.stage.persist")
+	assertPerfSpanExists(t, "app.command.add.stage.prepare")
+	assertPerfSpanExists(t, "app.command.add.stage.resolve")
+	assertPerfSpanExists(t, "app.command.add.resolve.attempt")
+	assertPerfSpanExists(t, "app.command.add.stage.download")
+	assertPerfSpanExists(t, "app.command.add.stage.persist")
 }
 
 func TestRunAdd_DuplicateSkipsWork(t *testing.T) {
+	ctx, commandSpan := startAddPerf(t)
 	fs := afero.NewMemMapFs()
 	meta := config.NewMetadata(filepath.FromSlash("/cfg/modlist.json"))
 	assert.NoError(t, fs.MkdirAll(filepath.Dir(meta.ConfigPath), 0755))
@@ -117,10 +113,9 @@ func TestRunAdd_DuplicateSkipsWork(t *testing.T) {
 			{Type: models.MODRINTH, ID: "abc", Name: "Existing"},
 		},
 	}
-	assert.NoError(t, config.WriteConfig(fs, meta, cfg))
-	assert.NoError(t, config.WriteLock(fs, meta, nil))
+	assert.NoError(t, config.WriteConfig(context.Background(), fs, meta, cfg))
+	assert.NoError(t, config.WriteLock(context.Background(), fs, meta, nil))
 
-	telemetryCalls := 0
 	downloaded := false
 
 	cmd := &cobra.Command{}
@@ -128,7 +123,7 @@ func TestRunAdd_DuplicateSkipsWork(t *testing.T) {
 	cmd.SetOut(bytes.NewBuffer(nil))
 	cmd.SetErr(bytes.NewBuffer(nil))
 
-	err := runAdd(cmd, addOptions{
+	_, hasTelemetry, err := runAdd(ctx, commandSpan, cmd, addOptions{
 		Platform:   "modrinth",
 		ProjectID:  "abc",
 		ConfigPath: meta.ConfigPath,
@@ -137,18 +132,15 @@ func TestRunAdd_DuplicateSkipsWork(t *testing.T) {
 		clients:  platform.DefaultClients(rate.NewLimiter(rate.Inf, 0)),
 		logger:   logger.New(cmd.OutOrStdout(), cmd.ErrOrStderr(), false, true),
 		fetchMod: platform.FetchMod,
-		downloader: func(string, string, httpClient.Doer, httpClient.Sender, ...afero.Fs) error {
+		downloader: func(_ context.Context, _ string, _ string, _ httpClient.Doer, _ httpClient.Sender, _ ...afero.Fs) error {
 			downloaded = true
 			return nil
-		},
-		telemetry: func(_ telemetry.CommandTelemetry) {
-			telemetryCalls++
 		},
 	})
 
 	assert.NoError(t, err)
+	assert.True(t, hasTelemetry)
 	assert.False(t, downloaded)
-	assert.Equal(t, 1, telemetryCalls)
 }
 
 func TestAddCommand_MissingArgsShowsUsage(t *testing.T) {
@@ -167,6 +159,7 @@ func TestAddCommand_MissingArgsShowsUsage(t *testing.T) {
 }
 
 func TestRunAdd_UnknownPlatformQuiet(t *testing.T) {
+	ctx, commandSpan := startAddPerf(t)
 	fs := afero.NewMemMapFs()
 	meta := config.NewMetadata(filepath.FromSlash("/cfg/modlist.json"))
 	assert.NoError(t, fs.MkdirAll(filepath.Dir(meta.ConfigPath), 0755))
@@ -176,27 +169,25 @@ func TestRunAdd_UnknownPlatformQuiet(t *testing.T) {
 		DefaultAllowedReleaseTypes: []models.ReleaseType{models.Release},
 		ModsFolder:                 "mods",
 	}
-	assert.NoError(t, config.WriteConfig(fs, meta, cfg))
-	assert.NoError(t, config.WriteLock(fs, meta, nil))
+	assert.NoError(t, config.WriteConfig(context.Background(), fs, meta, cfg))
+	assert.NoError(t, config.WriteLock(context.Background(), fs, meta, nil))
 
 	cmd := &cobra.Command{}
 	cmd.SetIn(bytes.NewBuffer(nil))
 	cmd.SetOut(bytes.NewBuffer(nil))
 	errBuf := bytes.NewBuffer(nil)
 	cmd.SetErr(errBuf)
-	noopTelemetry := func(telemetry.CommandTelemetry) {}
 
-	err := runAdd(cmd, addOptions{
+	_, _, err := runAdd(ctx, commandSpan, cmd, addOptions{
 		Platform:   "invalid",
 		ProjectID:  "abc",
 		ConfigPath: meta.ConfigPath,
 		Quiet:      true,
 	}, addDeps{
-		fs:        fs,
-		clients:   platform.DefaultClients(rate.NewLimiter(rate.Inf, 0)),
-		logger:    logger.New(cmd.OutOrStdout(), cmd.ErrOrStderr(), true, false),
-		telemetry: noopTelemetry,
-		fetchMod: func(models.Platform, string, platform.FetchOptions, platform.Clients) (platform.RemoteMod, error) {
+		fs:      fs,
+		clients: platform.DefaultClients(rate.NewLimiter(rate.Inf, 0)),
+		logger:  logger.New(cmd.OutOrStdout(), cmd.ErrOrStderr(), true, false),
+		fetchMod: func(_ context.Context, _ models.Platform, _ string, _ platform.FetchOptions, _ platform.Clients) (platform.RemoteMod, error) {
 			return platform.RemoteMod{}, &platform.UnknownPlatformError{Platform: "invalid"}
 		},
 	})
@@ -209,6 +200,7 @@ func TestRunAdd_ModNotFoundCancelled(t *testing.T) {
 	restoreTTY := tuiinternal.SetIsTerminalFuncForTesting(func(int) bool { return true })
 	defer restoreTTY()
 
+	ctx, commandSpan := startAddPerf(t)
 	fs := afero.NewMemMapFs()
 	meta := config.NewMetadata(filepath.FromSlash("/cfg/modlist.json"))
 	assert.NoError(t, fs.MkdirAll(filepath.Dir(meta.ConfigPath), 0755))
@@ -219,24 +211,23 @@ func TestRunAdd_ModNotFoundCancelled(t *testing.T) {
 		DefaultAllowedReleaseTypes: []models.ReleaseType{models.Release},
 		ModsFolder:                 "mods",
 	}
-	assert.NoError(t, config.WriteConfig(fs, meta, cfg))
-	assert.NoError(t, config.WriteLock(fs, meta, nil))
+	assert.NoError(t, config.WriteConfig(context.Background(), fs, meta, cfg))
+	assert.NoError(t, config.WriteLock(context.Background(), fs, meta, nil))
 
 	cmd := &cobra.Command{}
 	cmd.SetIn(fakeTTYReader{Buffer: bytes.NewBuffer(nil)})
 	cmd.SetOut(fakeTTYWriter{Buffer: bytes.NewBuffer(nil)})
 	cmd.SetErr(bytes.NewBuffer(nil))
 
-	err := runAdd(cmd, addOptions{
+	_, hasTelemetry, err := runAdd(ctx, commandSpan, cmd, addOptions{
 		Platform:   "modrinth",
 		ProjectID:  "abc",
 		ConfigPath: meta.ConfigPath,
 	}, addDeps{
-		fs:        fs,
-		clients:   platform.DefaultClients(rate.NewLimiter(rate.Inf, 0)),
-		logger:    logger.New(cmd.OutOrStdout(), cmd.ErrOrStderr(), false, false),
-		telemetry: noopTelemetry,
-		fetchMod: func(models.Platform, string, platform.FetchOptions, platform.Clients) (platform.RemoteMod, error) {
+		fs:      fs,
+		clients: platform.DefaultClients(rate.NewLimiter(rate.Inf, 0)),
+		logger:  logger.New(cmd.OutOrStdout(), cmd.ErrOrStderr(), false, false),
+		fetchMod: func(_ context.Context, _ models.Platform, _ string, _ platform.FetchOptions, _ platform.Clients) (platform.RemoteMod, error) {
 			return platform.RemoteMod{}, &platform.ModNotFoundError{Platform: models.MODRINTH, ProjectID: "abc"}
 		},
 		runTea: func(tea.Model, ...tea.ProgramOption) (tea.Model, error) {
@@ -244,16 +235,18 @@ func TestRunAdd_ModNotFoundCancelled(t *testing.T) {
 		},
 	})
 
-	assert.NoError(t, err)
-	configAfter, _ := config.ReadConfig(fs, meta)
+	assert.True(t, hasTelemetry)
+	assert.Error(t, err)
+	assert.True(t, errors.Is(err, errAborted))
+	configAfter, _ := config.ReadConfig(context.Background(), fs, meta)
 	assert.Len(t, configAfter.Mods, 0)
 }
 
 func TestRunAdd_ModNotFoundRetry(t *testing.T) {
-	perf.ClearPerformanceLog()
 	restoreTTY := tuiinternal.SetIsTerminalFuncForTesting(func(int) bool { return true })
 	defer restoreTTY()
 
+	ctx, commandSpan := startAddPerf(t)
 	fs := afero.NewMemMapFs()
 	meta := config.NewMetadata(filepath.FromSlash("/cfg/modlist.json"))
 	assert.NoError(t, fs.MkdirAll(filepath.Dir(meta.ConfigPath), 0755))
@@ -263,24 +256,23 @@ func TestRunAdd_ModNotFoundRetry(t *testing.T) {
 		DefaultAllowedReleaseTypes: []models.ReleaseType{models.Release},
 		ModsFolder:                 "mods",
 	}
-	assert.NoError(t, config.WriteConfig(fs, meta, cfg))
-	assert.NoError(t, config.WriteLock(fs, meta, nil))
+	assert.NoError(t, config.WriteConfig(context.Background(), fs, meta, cfg))
+	assert.NoError(t, config.WriteLock(context.Background(), fs, meta, nil))
 
 	cmd := &cobra.Command{}
 	cmd.SetIn(fakeTTYReader{Buffer: bytes.NewBuffer(nil)})
 	cmd.SetOut(fakeTTYWriter{Buffer: bytes.NewBuffer(nil)})
 	cmd.SetErr(bytes.NewBuffer(nil))
 
-	err := runAdd(cmd, addOptions{
+	_, _, err := runAdd(ctx, commandSpan, cmd, addOptions{
 		Platform:   "modrinth",
 		ProjectID:  "abc",
 		ConfigPath: meta.ConfigPath,
 	}, addDeps{
-		fs:        fs,
-		clients:   platform.DefaultClients(rate.NewLimiter(rate.Inf, 0)),
-		logger:    logger.New(cmd.OutOrStdout(), cmd.ErrOrStderr(), false, false),
-		telemetry: noopTelemetry,
-		fetchMod: func(p models.Platform, id string, _ platform.FetchOptions, _ platform.Clients) (platform.RemoteMod, error) {
+		fs:      fs,
+		clients: platform.DefaultClients(rate.NewLimiter(rate.Inf, 0)),
+		logger:  logger.New(cmd.OutOrStdout(), cmd.ErrOrStderr(), false, false),
+		fetchMod: func(_ context.Context, p models.Platform, id string, _ platform.FetchOptions, _ platform.Clients) (platform.RemoteMod, error) {
 			return platform.RemoteMod{}, &platform.ModNotFoundError{Platform: p, ProjectID: id}
 		},
 		runTea: func(tea.Model, ...tea.ProgramOption) (tea.Model, error) {
@@ -297,26 +289,27 @@ func TestRunAdd_ModNotFoundRetry(t *testing.T) {
 				},
 			}, nil
 		},
-		downloader: func(_ string, path string, _ httpClient.Doer, _ httpClient.Sender, _ ...afero.Fs) error {
+		downloader: func(_ context.Context, _ string, path string, _ httpClient.Doer, _ httpClient.Sender, _ ...afero.Fs) error {
 			return afero.WriteFile(fs, path, []byte("data"), 0644)
 		},
 	})
 
 	assert.NoError(t, err)
-	configAfter, _ := config.ReadConfig(fs, meta)
+	configAfter, _ := config.ReadConfig(context.Background(), fs, meta)
 	assert.Len(t, configAfter.Mods, 1)
 	assert.Equal(t, "def", configAfter.Mods[0].ID)
 	assert.Equal(t, models.CURSEFORGE, configAfter.Mods[0].Type)
 
-	assertPerfMarkExists(t, "app.command.add.resolve.attempt")
-	assertPerfMarkExists(t, "app.command.add.tui.open")
+	commandSpan.End()
+	assertPerfSpanExists(t, "app.command.add.resolve.attempt")
+	assertPerfEventExists(t, "app.command.add", "app.command.add.tui.open")
 }
 
 func TestRunAdd_NoFileRetryAlternate(t *testing.T) {
-	perf.ClearPerformanceLog()
 	restoreTTY := tuiinternal.SetIsTerminalFuncForTesting(func(int) bool { return true })
 	defer restoreTTY()
 
+	ctx, commandSpan := startAddPerf(t)
 	fs := afero.NewMemMapFs()
 	meta := config.NewMetadata(filepath.FromSlash("/cfg/modlist.json"))
 	assert.NoError(t, fs.MkdirAll(filepath.Dir(meta.ConfigPath), 0755))
@@ -327,25 +320,23 @@ func TestRunAdd_NoFileRetryAlternate(t *testing.T) {
 		DefaultAllowedReleaseTypes: []models.ReleaseType{models.Release},
 		ModsFolder:                 "mods",
 	}
-	assert.NoError(t, config.WriteConfig(fs, meta, cfg))
-	assert.NoError(t, config.WriteLock(fs, meta, nil))
+	assert.NoError(t, config.WriteConfig(context.Background(), fs, meta, cfg))
+	assert.NoError(t, config.WriteLock(context.Background(), fs, meta, nil))
 
 	cmd := &cobra.Command{}
 	cmd.SetIn(fakeTTYReader{Buffer: bytes.NewBuffer(nil)})
 	cmd.SetOut(fakeTTYWriter{Buffer: bytes.NewBuffer(nil)})
 	cmd.SetErr(bytes.NewBuffer(nil))
-	noopTelemetry := func(telemetry.CommandTelemetry) {}
 
-	err := runAdd(cmd, addOptions{
+	_, _, err := runAdd(ctx, commandSpan, cmd, addOptions{
 		Platform:   "curseforge",
 		ProjectID:  "abc",
 		ConfigPath: meta.ConfigPath,
 	}, addDeps{
-		fs:        fs,
-		clients:   platform.DefaultClients(rate.NewLimiter(rate.Inf, 0)),
-		logger:    logger.New(cmd.OutOrStdout(), cmd.ErrOrStderr(), false, false),
-		telemetry: noopTelemetry,
-		fetchMod: func(p models.Platform, id string, _ platform.FetchOptions, _ platform.Clients) (platform.RemoteMod, error) {
+		fs:      fs,
+		clients: platform.DefaultClients(rate.NewLimiter(rate.Inf, 0)),
+		logger:  logger.New(cmd.OutOrStdout(), cmd.ErrOrStderr(), false, false),
+		fetchMod: func(_ context.Context, p models.Platform, id string, _ platform.FetchOptions, _ platform.Clients) (platform.RemoteMod, error) {
 			return platform.RemoteMod{}, &platform.NoCompatibleFileError{Platform: p, ProjectID: id}
 		},
 		runTea: func(tea.Model, ...tea.ProgramOption) (tea.Model, error) {
@@ -362,22 +353,24 @@ func TestRunAdd_NoFileRetryAlternate(t *testing.T) {
 				},
 			}, nil
 		},
-		downloader: func(_ string, path string, _ httpClient.Doer, _ httpClient.Sender, _ ...afero.Fs) error {
+		downloader: func(_ context.Context, _ string, path string, _ httpClient.Doer, _ httpClient.Sender, _ ...afero.Fs) error {
 			return afero.WriteFile(fs, path, []byte("data"), 0644)
 		},
 	})
 
 	assert.NoError(t, err)
-	configAfter, _ := config.ReadConfig(fs, meta)
+	configAfter, _ := config.ReadConfig(context.Background(), fs, meta)
 	assert.Len(t, configAfter.Mods, 1)
 	assert.Equal(t, models.MODRINTH, configAfter.Mods[0].Type)
 	assert.Equal(t, "zzz", configAfter.Mods[0].ID)
 
-	assertPerfMarkExists(t, "app.command.add.resolve.attempt")
-	assertPerfMarkExists(t, "app.command.add.tui.open")
+	commandSpan.End()
+	assertPerfSpanExists(t, "app.command.add.resolve.attempt")
+	assertPerfEventExists(t, "app.command.add", "app.command.add.tui.open")
 }
 
 func TestRunAdd_DownloadFailure(t *testing.T) {
+	ctx, commandSpan := startAddPerf(t)
 	fs := afero.NewMemMapFs()
 	meta := config.NewMetadata(filepath.FromSlash("/cfg/modlist.json"))
 	assert.NoError(t, fs.MkdirAll(filepath.Dir(meta.ConfigPath), 0755))
@@ -387,25 +380,23 @@ func TestRunAdd_DownloadFailure(t *testing.T) {
 		DefaultAllowedReleaseTypes: []models.ReleaseType{models.Release},
 		ModsFolder:                 "mods",
 	}
-	assert.NoError(t, config.WriteConfig(fs, meta, cfg))
-	assert.NoError(t, config.WriteLock(fs, meta, nil))
+	assert.NoError(t, config.WriteConfig(context.Background(), fs, meta, cfg))
+	assert.NoError(t, config.WriteLock(context.Background(), fs, meta, nil))
 
 	cmd := &cobra.Command{}
 	cmd.SetIn(bytes.NewBuffer(nil))
 	cmd.SetOut(bytes.NewBuffer(nil))
 	cmd.SetErr(bytes.NewBuffer(nil))
-	noopTelemetry := func(telemetry.CommandTelemetry) {}
 
-	err := runAdd(cmd, addOptions{
+	_, _, err := runAdd(ctx, commandSpan, cmd, addOptions{
 		Platform:   "modrinth",
 		ProjectID:  "abc",
 		ConfigPath: meta.ConfigPath,
 	}, addDeps{
-		fs:        fs,
-		clients:   platform.DefaultClients(rate.NewLimiter(rate.Inf, 0)),
-		logger:    logger.New(cmd.OutOrStdout(), cmd.ErrOrStderr(), false, false),
-		telemetry: noopTelemetry,
-		fetchMod: func(models.Platform, string, platform.FetchOptions, platform.Clients) (platform.RemoteMod, error) {
+		fs:      fs,
+		clients: platform.DefaultClients(rate.NewLimiter(rate.Inf, 0)),
+		logger:  logger.New(cmd.OutOrStdout(), cmd.ErrOrStderr(), false, false),
+		fetchMod: func(_ context.Context, _ models.Platform, _ string, _ platform.FetchOptions, _ platform.Clients) (platform.RemoteMod, error) {
 			return platform.RemoteMod{
 				Name:        "Example",
 				FileName:    "example.jar",
@@ -414,17 +405,18 @@ func TestRunAdd_DownloadFailure(t *testing.T) {
 				DownloadURL: "https://example.com/example.jar",
 			}, nil
 		},
-		downloader: func(string, string, httpClient.Doer, httpClient.Sender, ...afero.Fs) error {
+		downloader: func(_ context.Context, _ string, _ string, _ httpClient.Doer, _ httpClient.Sender, _ ...afero.Fs) error {
 			return errors.New("download failed")
 		},
 	})
 
 	assert.Error(t, err)
-	configAfter, _ := config.ReadConfig(fs, meta)
+	configAfter, _ := config.ReadConfig(context.Background(), fs, meta)
 	assert.Len(t, configAfter.Mods, 0)
 }
 
 func TestRunAdd_CreatesConfigWhenMissing(t *testing.T) {
+	ctx, commandSpan := startAddPerf(t)
 	fs := afero.NewMemMapFs()
 	meta := config.NewMetadata(filepath.FromSlash("/cfg/modlist.json"))
 	assert.NoError(t, fs.MkdirAll(filepath.Dir(meta.ConfigPath), 0755))
@@ -437,7 +429,7 @@ func TestRunAdd_CreatesConfigWhenMissing(t *testing.T) {
 
 	minecraft.ClearManifestCache()
 
-	err := runAdd(cmd, addOptions{
+	_, _, err := runAdd(ctx, commandSpan, cmd, addOptions{
 		Platform:             "modrinth",
 		ProjectID:            "abc",
 		ConfigPath:           meta.ConfigPath,
@@ -447,8 +439,7 @@ func TestRunAdd_CreatesConfigWhenMissing(t *testing.T) {
 		clients:         platform.DefaultClients(rate.NewLimiter(rate.Inf, 0)),
 		minecraftClient: manifestDoer{body: `{"latest":{"release":"1.21.1","snapshot":""},"versions":[]}`},
 		logger:          logger.New(cmd.OutOrStdout(), cmd.ErrOrStderr(), false, false),
-		telemetry:       func(telemetry.CommandTelemetry) {},
-		fetchMod: func(models.Platform, string, platform.FetchOptions, platform.Clients) (platform.RemoteMod, error) {
+		fetchMod: func(_ context.Context, _ models.Platform, _ string, _ platform.FetchOptions, _ platform.Clients) (platform.RemoteMod, error) {
 			return platform.RemoteMod{
 				Name:        "Example",
 				FileName:    "example.jar",
@@ -457,13 +448,13 @@ func TestRunAdd_CreatesConfigWhenMissing(t *testing.T) {
 				DownloadURL: "https://example.com/example.jar",
 			}, nil
 		},
-		downloader: func(_ string, path string, _ httpClient.Doer, _ httpClient.Sender, _ ...afero.Fs) error {
+		downloader: func(_ context.Context, _ string, path string, _ httpClient.Doer, _ httpClient.Sender, _ ...afero.Fs) error {
 			return afero.WriteFile(fs, path, []byte("data"), 0644)
 		},
 	})
 
 	assert.NoError(t, err)
-	configAfter, err := config.ReadConfig(fs, meta)
+	configAfter, err := config.ReadConfig(context.Background(), fs, meta)
 	assert.NoError(t, err)
 	assert.Equal(t, "1.21.1", configAfter.GameVersion)
 }
@@ -481,10 +472,10 @@ func (m manifestDoer) Do(_ *http.Request) (*http.Response, error) {
 }
 
 func TestRunAdd_UnknownPlatformInteractiveRetry(t *testing.T) {
-	perf.ClearPerformanceLog()
 	restoreTTY := tuiinternal.SetIsTerminalFuncForTesting(func(int) bool { return true })
 	defer restoreTTY()
 
+	ctx, commandSpan := startAddPerf(t)
 	fs := afero.NewMemMapFs()
 	meta := config.NewMetadata(filepath.FromSlash("/cfg/modlist.json"))
 	assert.NoError(t, fs.MkdirAll(filepath.Dir(meta.ConfigPath), 0755))
@@ -495,24 +486,23 @@ func TestRunAdd_UnknownPlatformInteractiveRetry(t *testing.T) {
 		DefaultAllowedReleaseTypes: []models.ReleaseType{models.Release},
 		ModsFolder:                 "mods",
 	}
-	assert.NoError(t, config.WriteConfig(fs, meta, cfg))
-	assert.NoError(t, config.WriteLock(fs, meta, nil))
+	assert.NoError(t, config.WriteConfig(context.Background(), fs, meta, cfg))
+	assert.NoError(t, config.WriteLock(context.Background(), fs, meta, nil))
 
 	cmd := &cobra.Command{}
 	cmd.SetIn(fakeTTYReader{Buffer: bytes.NewBuffer(nil)})
 	cmd.SetOut(fakeTTYWriter{Buffer: bytes.NewBuffer(nil)})
 	cmd.SetErr(bytes.NewBuffer(nil))
 
-	err := runAdd(cmd, addOptions{
+	_, _, err := runAdd(ctx, commandSpan, cmd, addOptions{
 		Platform:   "invalid",
 		ProjectID:  "abc",
 		ConfigPath: meta.ConfigPath,
 	}, addDeps{
-		fs:        fs,
-		clients:   platform.DefaultClients(rate.NewLimiter(rate.Inf, 0)),
-		logger:    logger.New(cmd.OutOrStdout(), cmd.ErrOrStderr(), false, false),
-		telemetry: noopTelemetry,
-		fetchMod: func(p models.Platform, id string, _ platform.FetchOptions, _ platform.Clients) (platform.RemoteMod, error) {
+		fs:      fs,
+		clients: platform.DefaultClients(rate.NewLimiter(rate.Inf, 0)),
+		logger:  logger.New(cmd.OutOrStdout(), cmd.ErrOrStderr(), false, false),
+		fetchMod: func(_ context.Context, p models.Platform, id string, _ platform.FetchOptions, _ platform.Clients) (platform.RemoteMod, error) {
 			return platform.RemoteMod{}, &platform.UnknownPlatformError{Platform: "invalid"}
 		},
 		runTea: func(tea.Model, ...tea.ProgramOption) (tea.Model, error) {
@@ -529,18 +519,19 @@ func TestRunAdd_UnknownPlatformInteractiveRetry(t *testing.T) {
 				},
 			}, nil
 		},
-		downloader: func(_ string, path string, _ httpClient.Doer, _ httpClient.Sender, _ ...afero.Fs) error {
+		downloader: func(_ context.Context, _ string, path string, _ httpClient.Doer, _ httpClient.Sender, _ ...afero.Fs) error {
 			return afero.WriteFile(fs, path, []byte("data"), 0644)
 		},
 	})
 
 	assert.NoError(t, err)
-	configAfter, _ := config.ReadConfig(fs, meta)
+	configAfter, _ := config.ReadConfig(context.Background(), fs, meta)
 	assert.Len(t, configAfter.Mods, 1)
 	assert.Equal(t, models.CURSEFORGE, configAfter.Mods[0].Type)
 
-	assertPerfMarkExists(t, "app.command.add.resolve.attempt")
-	assertPerfMarkExists(t, "app.command.add.tui.open")
+	commandSpan.End()
+	assertPerfSpanExists(t, "app.command.add.resolve.attempt")
+	assertPerfEventExists(t, "app.command.add", "app.command.add.tui.open")
 }
 
 type fakeTTYReader struct {
@@ -556,6 +547,7 @@ type fakeTTYWriter struct {
 func (fakeTTYWriter) Fd() uintptr { return 1 }
 
 func TestRunAdd_ModNotFoundQuiet(t *testing.T) {
+	ctx, commandSpan := startAddPerf(t)
 	fs := afero.NewMemMapFs()
 	meta := config.NewMetadata(filepath.FromSlash("/cfg/modlist.json"))
 	assert.NoError(t, fs.MkdirAll(filepath.Dir(meta.ConfigPath), 0755))
@@ -565,8 +557,8 @@ func TestRunAdd_ModNotFoundQuiet(t *testing.T) {
 		DefaultAllowedReleaseTypes: []models.ReleaseType{models.Release},
 		ModsFolder:                 "mods",
 	}
-	assert.NoError(t, config.WriteConfig(fs, meta, cfg))
-	assert.NoError(t, config.WriteLock(fs, meta, nil))
+	assert.NoError(t, config.WriteConfig(context.Background(), fs, meta, cfg))
+	assert.NoError(t, config.WriteLock(context.Background(), fs, meta, nil))
 
 	cmd := &cobra.Command{}
 	cmd.SetIn(bytes.NewBuffer(nil))
@@ -574,17 +566,16 @@ func TestRunAdd_ModNotFoundQuiet(t *testing.T) {
 	cmd.SetOut(out)
 	cmd.SetErr(out)
 
-	err := runAdd(cmd, addOptions{
+	_, _, err := runAdd(ctx, commandSpan, cmd, addOptions{
 		Platform:   "modrinth",
 		ProjectID:  "abc",
 		ConfigPath: meta.ConfigPath,
 		Quiet:      true,
 	}, addDeps{
-		fs:        fs,
-		clients:   platform.DefaultClients(rate.NewLimiter(rate.Inf, 0)),
-		logger:    logger.New(cmd.OutOrStdout(), cmd.ErrOrStderr(), true, false),
-		telemetry: noopTelemetry,
-		fetchMod: func(models.Platform, string, platform.FetchOptions, platform.Clients) (platform.RemoteMod, error) {
+		fs:      fs,
+		clients: platform.DefaultClients(rate.NewLimiter(rate.Inf, 0)),
+		logger:  logger.New(cmd.OutOrStdout(), cmd.ErrOrStderr(), true, false),
+		fetchMod: func(_ context.Context, _ models.Platform, _ string, _ platform.FetchOptions, _ platform.Clients) (platform.RemoteMod, error) {
 			return platform.RemoteMod{}, &platform.ModNotFoundError{Platform: models.MODRINTH, ProjectID: "abc"}
 		},
 	})
@@ -594,6 +585,7 @@ func TestRunAdd_ModNotFoundQuiet(t *testing.T) {
 }
 
 func TestRunAdd_FetchOptionsPropagateVersionAndFallback(t *testing.T) {
+	ctx, commandSpan := startAddPerf(t)
 	fs := afero.NewMemMapFs()
 	meta := config.NewMetadata(filepath.FromSlash("/cfg/modlist.json"))
 	assert.NoError(t, fs.MkdirAll(filepath.Dir(meta.ConfigPath), 0755))
@@ -603,8 +595,8 @@ func TestRunAdd_FetchOptionsPropagateVersionAndFallback(t *testing.T) {
 		DefaultAllowedReleaseTypes: []models.ReleaseType{models.Release, models.Beta},
 		ModsFolder:                 "mods",
 	}
-	assert.NoError(t, config.WriteConfig(fs, meta, cfg))
-	assert.NoError(t, config.WriteLock(fs, meta, nil))
+	assert.NoError(t, config.WriteConfig(context.Background(), fs, meta, cfg))
+	assert.NoError(t, config.WriteLock(context.Background(), fs, meta, nil))
 
 	var gotOpts platform.FetchOptions
 
@@ -613,18 +605,17 @@ func TestRunAdd_FetchOptionsPropagateVersionAndFallback(t *testing.T) {
 	cmd.SetOut(bytes.NewBuffer(nil))
 	cmd.SetErr(bytes.NewBuffer(nil))
 
-	err := runAdd(cmd, addOptions{
+	_, hasTelemetry, err := runAdd(ctx, commandSpan, cmd, addOptions{
 		Platform:             "modrinth",
 		ProjectID:            "abc",
 		ConfigPath:           meta.ConfigPath,
 		Version:              "1.2.3",
 		AllowVersionFallback: true,
 	}, addDeps{
-		fs:        fs,
-		clients:   platform.DefaultClients(rate.NewLimiter(rate.Inf, 0)),
-		logger:    logger.New(cmd.OutOrStdout(), cmd.ErrOrStderr(), false, false),
-		telemetry: noopTelemetry,
-		fetchMod: func(_ models.Platform, _ string, opts platform.FetchOptions, _ platform.Clients) (platform.RemoteMod, error) {
+		fs:      fs,
+		clients: platform.DefaultClients(rate.NewLimiter(rate.Inf, 0)),
+		logger:  logger.New(cmd.OutOrStdout(), cmd.ErrOrStderr(), false, false),
+		fetchMod: func(_ context.Context, _ models.Platform, _ string, opts platform.FetchOptions, _ platform.Clients) (platform.RemoteMod, error) {
 			gotOpts = opts
 			return platform.RemoteMod{
 				Name:        "Example",
@@ -634,18 +625,20 @@ func TestRunAdd_FetchOptionsPropagateVersionAndFallback(t *testing.T) {
 				DownloadURL: "https://example.com/example.jar",
 			}, nil
 		},
-		downloader: func(_ string, path string, _ httpClient.Doer, _ httpClient.Sender, _ ...afero.Fs) error {
+		downloader: func(_ context.Context, _ string, path string, _ httpClient.Doer, _ httpClient.Sender, _ ...afero.Fs) error {
 			return afero.WriteFile(fs, path, []byte("data"), 0644)
 		},
 	})
 
 	assert.NoError(t, err)
+	assert.True(t, hasTelemetry)
 	assert.Equal(t, []models.ReleaseType{models.Release, models.Beta}, gotOpts.AllowedReleaseTypes)
 	assert.True(t, gotOpts.AllowFallback)
 	assert.Equal(t, "1.2.3", gotOpts.FixedVersion)
 }
 
 func TestRunAdd_TelemetryOnFailure(t *testing.T) {
+	ctx, commandSpan := startAddPerf(t)
 	fs := afero.NewMemMapFs()
 	meta := config.NewMetadata(filepath.FromSlash("/cfg/modlist.json"))
 	assert.NoError(t, fs.MkdirAll(filepath.Dir(meta.ConfigPath), 0755))
@@ -655,17 +648,15 @@ func TestRunAdd_TelemetryOnFailure(t *testing.T) {
 		DefaultAllowedReleaseTypes: []models.ReleaseType{models.Release},
 		ModsFolder:                 "mods",
 	}
-	assert.NoError(t, config.WriteConfig(fs, meta, cfg))
-	assert.NoError(t, config.WriteLock(fs, meta, nil))
-
-	var telemetryCalled telemetry.CommandTelemetry
+	assert.NoError(t, config.WriteConfig(context.Background(), fs, meta, cfg))
+	assert.NoError(t, config.WriteLock(context.Background(), fs, meta, nil))
 
 	cmd := &cobra.Command{}
 	cmd.SetIn(bytes.NewBuffer(nil))
 	cmd.SetOut(bytes.NewBuffer(nil))
 	cmd.SetErr(bytes.NewBuffer(nil))
 
-	err := runAdd(cmd, addOptions{
+	telemetryCalled, hasTelemetry, err := runAdd(ctx, commandSpan, cmd, addOptions{
 		Platform:   "modrinth",
 		ProjectID:  "abc",
 		ConfigPath: meta.ConfigPath,
@@ -673,21 +664,19 @@ func TestRunAdd_TelemetryOnFailure(t *testing.T) {
 		fs:      fs,
 		clients: platform.DefaultClients(rate.NewLimiter(rate.Inf, 0)),
 		logger:  logger.New(cmd.OutOrStdout(), cmd.ErrOrStderr(), false, false),
-		telemetry: func(data telemetry.CommandTelemetry) {
-			telemetryCalled = data
-		},
-		fetchMod: func(models.Platform, string, platform.FetchOptions, platform.Clients) (platform.RemoteMod, error) {
+		fetchMod: func(_ context.Context, _ models.Platform, _ string, _ platform.FetchOptions, _ platform.Clients) (platform.RemoteMod, error) {
 			return platform.RemoteMod{}, errors.New("boom")
 		},
 	})
 
+	assert.True(t, hasTelemetry)
 	assert.Error(t, err)
 	assert.False(t, telemetryCalled.Success)
 	assert.Equal(t, "add", telemetryCalled.Command)
 }
 
 func TestResolveRemoteModWithTUI_RecordsAttempt(t *testing.T) {
-	perf.ClearPerformanceLog()
+	ctx, commandSpan := startAddPerf(t)
 
 	cfg := models.ModsJson{
 		Loader:                     models.FABRIC,
@@ -699,7 +688,7 @@ func TestResolveRemoteModWithTUI_RecordsAttempt(t *testing.T) {
 	deps := addDeps{
 		clients: platform.DefaultClients(rate.NewLimiter(rate.Inf, 0)),
 		logger:  logger.New(io.Discard, io.Discard, false, false),
-		fetchMod: func(p models.Platform, id string, _ platform.FetchOptions, _ platform.Clients) (platform.RemoteMod, error) {
+		fetchMod: func(_ context.Context, p models.Platform, id string, _ platform.FetchOptions, _ platform.Clients) (platform.RemoteMod, error) {
 			fetchCalls++
 			return platform.RemoteMod{Name: "Example", FileName: "example.jar"}, nil
 		},
@@ -713,22 +702,48 @@ func TestResolveRemoteModWithTUI_RecordsAttempt(t *testing.T) {
 		},
 	}
 
-	remote, resolvedPlatform, resolvedProject, err := resolveRemoteModWithTUI(addTUIStateUnknownPlatformSelect, cfg, addOptions{}, models.Platform("invalid"), "abc", deps, strings.NewReader(""), io.Discard)
+	remote, resolvedPlatform, resolvedProject, err := resolveRemoteModWithTUI(ctx, commandSpan, addTUIStateUnknownPlatformSelect, cfg, addOptions{}, models.Platform("invalid"), "abc", deps, strings.NewReader(""), io.Discard)
 	assert.NoError(t, err)
 	assert.Equal(t, "example.jar", remote.FileName)
 	assert.Equal(t, models.CURSEFORGE, resolvedPlatform)
 	assert.Equal(t, "abc", resolvedProject)
 	assert.Equal(t, 1, fetchCalls)
 
-	assertPerfMarkExists(t, "app.command.add.resolve.attempt")
+	commandSpan.End()
+	assertPerfSpanExists(t, "app.command.add.resolve.attempt")
 }
 
-func assertPerfMarkExists(t *testing.T, name string) {
+func startAddPerf(t *testing.T) (context.Context, *perf.Span) {
 	t.Helper()
-	for _, entry := range perf.GetPerformanceLog() {
-		if entry.Type == perf.MarkType && entry.Name == name {
+	perf.Reset()
+	t.Cleanup(perf.Reset)
+	assert.NoError(t, perf.Init(perf.Config{Enabled: true}))
+
+	ctx, span := perf.StartSpan(context.Background(), "app.command.add")
+	return ctx, span
+}
+
+func assertPerfSpanExists(t *testing.T, name string) {
+	t.Helper()
+	spans, err := perf.GetSpans()
+	assert.NoError(t, err)
+
+	_, ok := perf.FindSpanByName(spans, name)
+	assert.True(t, ok, "expected span %q", name)
+}
+
+func assertPerfEventExists(t *testing.T, spanName string, eventName string) {
+	t.Helper()
+	spans, err := perf.GetSpans()
+	assert.NoError(t, err)
+
+	span, ok := perf.FindSpanByName(spans, spanName)
+	assert.True(t, ok, "expected span %q", spanName)
+
+	for _, e := range span.Events {
+		if e.Name == eventName {
 			return
 		}
 	}
-	t.Fatalf("expected perf mark %q not found", name)
+	t.Fatalf("expected event %q on span %q", eventName, spanName)
 }

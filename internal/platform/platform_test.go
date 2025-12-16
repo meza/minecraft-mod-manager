@@ -1,6 +1,7 @@
 package platform
 
 import (
+	"context"
 	"encoding/json"
 	"errors"
 	"net/http"
@@ -18,7 +19,9 @@ import (
 )
 
 func TestFetchModrinth_Succeeds(t *testing.T) {
-	perf.ClearPerformanceLog()
+	perf.Reset()
+	t.Cleanup(perf.Reset)
+	assert.NoError(t, perf.Init(perf.Config{Enabled: true}))
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		switch {
 		case r.URL.Path == "/v2/project/test-mod":
@@ -71,7 +74,7 @@ func TestFetchModrinth_Succeeds(t *testing.T) {
 
 	client := httpClient.NewRLClient(rate.NewLimiter(rate.Inf, 0))
 
-	mod, err := FetchMod(models.MODRINTH, "test-mod", FetchOptions{
+	mod, err := FetchMod(context.Background(), models.MODRINTH, "test-mod", FetchOptions{
 		AllowedReleaseTypes: []models.ReleaseType{models.Release},
 		GameVersion:         "1.20.1",
 		Loader:              models.FABRIC,
@@ -85,80 +88,55 @@ func TestFetchModrinth_Succeeds(t *testing.T) {
 	assert.Equal(t, "https://example.com/file.jar", mod.DownloadURL)
 	assert.Equal(t, "2024-08-01T12:00:00Z", mod.ReleaseDate)
 
-	assertPerfRegionExists(t, "platform.fetch_mod")
-	assertPerfDetailEquals(t, "platform.fetch_mod", "platform", string(models.MODRINTH))
-	assertPerfDetailEquals(t, "platform.fetch_mod", "project_id", "test-mod")
-	assertPerfDetailEquals(t, "platform.fetch_mod", "success", true)
+	assertPerfSpanExists(t, "platform.fetch_mod")
+	assertPerfAttrEquals(t, "platform.fetch_mod", "platform", string(models.MODRINTH))
+	assertPerfAttrEquals(t, "platform.fetch_mod", "project_id", "test-mod")
+	assertPerfAttrEquals(t, "platform.fetch_mod", "success", true)
 }
 
 func TestFetchMod_UnknownPlatformRecordsPerf(t *testing.T) {
-	perf.ClearPerformanceLog()
+	perf.Reset()
+	t.Cleanup(perf.Reset)
+	assert.NoError(t, perf.Init(perf.Config{Enabled: true}))
 
-	_, err := FetchMod("unknown", "abc", FetchOptions{}, Clients{})
+	_, err := FetchMod(context.Background(), "unknown", "abc", FetchOptions{}, Clients{})
 	assert.Error(t, err)
 
-	assertPerfRegionExists(t, "platform.fetch_mod")
-	assertPerfDetailEquals(t, "platform.fetch_mod", "platform", "unknown")
-	assertPerfDetailEquals(t, "platform.fetch_mod", "success", false)
-	assertPerfDetailContains(t, "platform.fetch_mod", "error_type", "UnknownPlatformError")
+	assertPerfSpanExists(t, "platform.fetch_mod")
+	assertPerfAttrEquals(t, "platform.fetch_mod", "platform", "unknown")
+	assertPerfAttrEquals(t, "platform.fetch_mod", "success", false)
+	assertPerfAttrContains(t, "platform.fetch_mod", "error_type", "UnknownPlatformError")
 }
 
-func assertPerfRegionExists(t *testing.T, name string) {
+func assertPerfSpanExists(t *testing.T, name string) {
 	t.Helper()
-	hasStart := false
-	hasEnd := false
-	hasDuration := false
-	for _, entry := range perf.GetPerformanceLog() {
-		if entry.Type == perf.MarkType && entry.Name == name {
-			hasStart = true
-		}
-		if entry.Type == perf.MarkType && entry.Name == name+"-end" {
-			hasEnd = true
-		}
-		if entry.Type == perf.MeasureType && entry.Name == name+"-duration" {
-			hasDuration = true
-		}
-	}
-	if hasStart && hasEnd && hasDuration {
-		return
-	}
-	t.Fatalf("expected perf region %q not fully recorded (start=%v end=%v duration=%v)", name, hasStart, hasEnd, hasDuration)
+	spans, err := perf.GetSpans()
+	assert.NoError(t, err)
+	_, ok := perf.FindSpanByName(spans, name)
+	assert.True(t, ok, "expected span %q", name)
 }
 
-func assertPerfDetailEquals(t *testing.T, markerName string, key string, expected interface{}) {
+func assertPerfAttrEquals(t *testing.T, spanName string, key string, expected interface{}) {
 	t.Helper()
-	entry := findPerfMark(t, markerName)
-	if entry.Details == nil {
-		t.Fatalf("expected perf mark %q to include details", markerName)
-	}
-	actual := (*entry.Details)[key]
+	spans, err := perf.GetSpans()
+	assert.NoError(t, err)
+	span, ok := perf.FindSpanByName(spans, spanName)
+	assert.True(t, ok, "expected span %q", spanName)
+	actual := span.Attributes[key]
 	assert.Equal(t, expected, actual)
 }
 
-func assertPerfDetailContains(t *testing.T, markerName string, key string, needle string) {
+func assertPerfAttrContains(t *testing.T, spanName string, key string, needle string) {
 	t.Helper()
-	entry := findPerfMark(t, markerName)
-	if entry.Details == nil {
-		t.Fatalf("expected perf mark %q to include details", markerName)
-	}
-	value, ok := (*entry.Details)[key].(string)
+	spans, err := perf.GetSpans()
+	assert.NoError(t, err)
+	span, ok := perf.FindSpanByName(spans, spanName)
+	assert.True(t, ok, "expected span %q", spanName)
+	value, ok := span.Attributes[key].(string)
 	if !ok {
-		t.Fatalf("expected perf mark %q detail %q to be string", markerName, key)
+		t.Fatalf("expected span %q attribute %q to be string", spanName, key)
 	}
 	assert.Contains(t, value, needle)
-}
-
-func findPerfMark(t *testing.T, name string) *perf.Entry {
-	t.Helper()
-	log := perf.GetPerformanceLog()
-	for i := range log {
-		entry := log[i]
-		if entry.Type == perf.MarkType && entry.Name == name {
-			return &log[i]
-		}
-	}
-	t.Fatalf("expected perf mark %q not found", name)
-	return nil
 }
 
 func TestFetchModrinth_Fallback(t *testing.T) {
@@ -201,7 +179,7 @@ func TestFetchModrinth_Fallback(t *testing.T) {
 
 	client := httpClient.NewRLClient(rate.NewLimiter(rate.Inf, 0))
 
-	mod, err := FetchMod(models.MODRINTH, "test-mod", FetchOptions{
+	mod, err := FetchMod(context.Background(), models.MODRINTH, "test-mod", FetchOptions{
 		AllowedReleaseTypes: []models.ReleaseType{models.Release},
 		GameVersion:         "1.20.2",
 		Loader:              models.FABRIC,
@@ -264,7 +242,7 @@ func TestFetchModrinth_FixedVersion(t *testing.T) {
 
 	client := httpClient.NewRLClient(rate.NewLimiter(rate.Inf, 0))
 
-	mod, err := FetchMod(models.MODRINTH, "test-mod", FetchOptions{
+	mod, err := FetchMod(context.Background(), models.MODRINTH, "test-mod", FetchOptions{
 		AllowedReleaseTypes: []models.ReleaseType{models.Release},
 		GameVersion:         "1.20.1",
 		Loader:              models.FABRIC,
@@ -287,7 +265,7 @@ func TestFetchModrinth_NotFound(t *testing.T) {
 
 	client := httpClient.NewRLClient(rate.NewLimiter(rate.Inf, 0))
 
-	_, err := FetchMod(models.MODRINTH, "missing-mod", FetchOptions{
+	_, err := FetchMod(context.Background(), models.MODRINTH, "missing-mod", FetchOptions{
 		AllowedReleaseTypes: []models.ReleaseType{models.Release},
 		GameVersion:         "1.20.1",
 		Loader:              models.FABRIC,
@@ -313,7 +291,7 @@ func TestFetchModrinth_NoFile(t *testing.T) {
 
 	client := httpClient.NewRLClient(rate.NewLimiter(rate.Inf, 0))
 
-	_, err := FetchMod(models.MODRINTH, "test-mod", FetchOptions{
+	_, err := FetchMod(context.Background(), models.MODRINTH, "test-mod", FetchOptions{
 		AllowedReleaseTypes: []models.ReleaseType{models.Release},
 		GameVersion:         "1.20.1",
 		Loader:              models.FABRIC,
@@ -378,7 +356,7 @@ func TestFetchCurseforge_Succeeds(t *testing.T) {
 
 	client := httpClient.NewRLClient(rate.NewLimiter(rate.Inf, 0))
 
-	mod, err := FetchMod(models.CURSEFORGE, "1234", FetchOptions{
+	mod, err := FetchMod(context.Background(), models.CURSEFORGE, "1234", FetchOptions{
 		AllowedReleaseTypes: []models.ReleaseType{models.Release},
 		GameVersion:         "1.20.1",
 		Loader:              models.FABRIC,
@@ -435,7 +413,7 @@ func TestFetchCurseforge_Fallback(t *testing.T) {
 
 	client := httpClient.NewRLClient(rate.NewLimiter(rate.Inf, 0))
 
-	mod, err := FetchMod(models.CURSEFORGE, "1234", FetchOptions{
+	mod, err := FetchMod(context.Background(), models.CURSEFORGE, "1234", FetchOptions{
 		AllowedReleaseTypes: []models.ReleaseType{models.Release},
 		GameVersion:         "1.20.2",
 		Loader:              models.FABRIC,
@@ -456,7 +434,7 @@ func TestFetchCurseforge_NotFound(t *testing.T) {
 
 	client := httpClient.NewRLClient(rate.NewLimiter(rate.Inf, 0))
 
-	_, err := FetchMod(models.CURSEFORGE, "missing", FetchOptions{
+	_, err := FetchMod(context.Background(), models.CURSEFORGE, "missing", FetchOptions{
 		AllowedReleaseTypes: []models.ReleaseType{models.Release},
 		GameVersion:         "1.20.1",
 		Loader:              models.FABRIC,
@@ -488,7 +466,7 @@ func TestFetchCurseforge_NoFile(t *testing.T) {
 
 	client := httpClient.NewRLClient(rate.NewLimiter(rate.Inf, 0))
 
-	_, err := FetchMod(models.CURSEFORGE, "1234", FetchOptions{
+	_, err := FetchMod(context.Background(), models.CURSEFORGE, "1234", FetchOptions{
 		AllowedReleaseTypes: []models.ReleaseType{models.Release},
 		GameVersion:         "1.20.1",
 		Loader:              models.FABRIC,
@@ -537,7 +515,7 @@ func TestFetchCurseforge_MissingDownloadURL(t *testing.T) {
 
 	client := httpClient.NewRLClient(rate.NewLimiter(rate.Inf, 0))
 
-	_, err := FetchMod(models.CURSEFORGE, "1234", FetchOptions{
+	_, err := FetchMod(context.Background(), models.CURSEFORGE, "1234", FetchOptions{
 		AllowedReleaseTypes: []models.ReleaseType{models.Release},
 		GameVersion:         "1.20.1",
 		Loader:              models.FABRIC,
@@ -582,7 +560,7 @@ func TestFetchCurseforge_MissingHash(t *testing.T) {
 	t.Setenv("CURSEFORGE_API_URL", server.URL)
 	client := httpClient.NewRLClient(rate.NewLimiter(rate.Inf, 0))
 
-	_, err := FetchMod(models.CURSEFORGE, "1234", FetchOptions{
+	_, err := FetchMod(context.Background(), models.CURSEFORGE, "1234", FetchOptions{
 		AllowedReleaseTypes: []models.ReleaseType{models.Release},
 		GameVersion:         "1.20.1",
 		Loader:              models.FABRIC,
@@ -605,7 +583,7 @@ func TestFetchCurseforge_UnsupportedLoader(t *testing.T) {
 	t.Setenv("CURSEFORGE_API_URL", server.URL)
 	client := httpClient.NewRLClient(rate.NewLimiter(rate.Inf, 0))
 
-	_, err := FetchMod(models.CURSEFORGE, "1234", FetchOptions{
+	_, err := FetchMod(context.Background(), models.CURSEFORGE, "1234", FetchOptions{
 		AllowedReleaseTypes: []models.ReleaseType{models.Release},
 		GameVersion:         "1.20.1",
 		Loader:              models.BUKKIT,
@@ -622,7 +600,7 @@ func TestFetchCurseforgeFilesErrors(t *testing.T) {
 
 	t.Setenv("CURSEFORGE_API_URL", notFoundServer.URL)
 	client := httpClient.NewRLClient(rate.NewLimiter(rate.Inf, 0))
-	_, err := fetchCurseforgeFiles("1234", "1.20.1", curseforge.Forge, client)
+	_, err := fetchCurseforgeFiles(context.Background(), "1234", "1.20.1", curseforge.Forge, client)
 	assert.Error(t, err)
 
 	badJSONServer := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
@@ -631,16 +609,16 @@ func TestFetchCurseforgeFilesErrors(t *testing.T) {
 	defer badJSONServer.Close()
 
 	t.Setenv("CURSEFORGE_API_URL", badJSONServer.URL)
-	_, err = fetchCurseforgeFiles("1234", "1.20.1", curseforge.Forge, client)
+	_, err = fetchCurseforgeFiles(context.Background(), "1234", "1.20.1", curseforge.Forge, client)
 	assert.Error(t, err)
 
 	errorDoer := errorDoer{}
-	_, err = fetchCurseforgeFiles("1234", "1.20.1", curseforge.Forge, errorDoer)
+	_, err = fetchCurseforgeFiles(context.Background(), "1234", "1.20.1", curseforge.Forge, errorDoer)
 	assert.Error(t, err)
 }
 
 func TestFetchMod_UnknownPlatform(t *testing.T) {
-	_, err := FetchMod("unknown", "abc", FetchOptions{}, Clients{})
+	_, err := FetchMod(context.Background(), "unknown", "abc", FetchOptions{}, Clients{})
 	assert.Error(t, err)
 }
 
@@ -751,7 +729,7 @@ func TestFetchModrinth_MissingFields(t *testing.T) {
 
 	client := httpClient.NewRLClient(rate.NewLimiter(rate.Inf, 0))
 
-	_, err := FetchMod(models.MODRINTH, "test-mod", FetchOptions{
+	_, err := FetchMod(context.Background(), models.MODRINTH, "test-mod", FetchOptions{
 		AllowedReleaseTypes: []models.ReleaseType{models.Release},
 		GameVersion:         "1.20.1",
 		Loader:              models.FABRIC,
@@ -792,7 +770,7 @@ func TestFetchModrinth_FixedVersionNotFound(t *testing.T) {
 
 	client := httpClient.NewRLClient(rate.NewLimiter(rate.Inf, 0))
 
-	_, err := FetchMod(models.MODRINTH, "test-mod", FetchOptions{
+	_, err := FetchMod(context.Background(), models.MODRINTH, "test-mod", FetchOptions{
 		AllowedReleaseTypes: []models.ReleaseType{models.Release},
 		GameVersion:         "1.20.1",
 		Loader:              models.FABRIC,
@@ -826,7 +804,7 @@ func TestFetchModrinth_NoFiles(t *testing.T) {
 
 	client := httpClient.NewRLClient(rate.NewLimiter(rate.Inf, 0))
 
-	_, err := FetchMod(models.MODRINTH, "test-mod", FetchOptions{
+	_, err := FetchMod(context.Background(), models.MODRINTH, "test-mod", FetchOptions{
 		AllowedReleaseTypes: []models.ReleaseType{models.Release},
 		GameVersion:         "1.20.1",
 		Loader:              models.FABRIC,
@@ -849,7 +827,7 @@ func TestFetchModrinth_VersionApiError(t *testing.T) {
 
 	client := httpClient.NewRLClient(rate.NewLimiter(rate.Inf, 0))
 
-	_, err := FetchMod(models.MODRINTH, "test-mod", FetchOptions{
+	_, err := FetchMod(context.Background(), models.MODRINTH, "test-mod", FetchOptions{
 		AllowedReleaseTypes: []models.ReleaseType{models.Release},
 		GameVersion:         "1.20.1",
 		Loader:              models.FABRIC,
@@ -993,7 +971,7 @@ func TestFetchCurseforgeFilesUnexpectedStatus(t *testing.T) {
 	t.Setenv("CURSEFORGE_API_URL", server.URL)
 	client := httpClient.NewRLClient(rate.NewLimiter(rate.Inf, 0))
 
-	_, err := fetchCurseforgeFiles("1234", "1.20.1", curseforge.Forge, client)
+	_, err := fetchCurseforgeFiles(context.Background(), "1234", "1.20.1", curseforge.Forge, client)
 	assert.Error(t, err)
 }
 
@@ -1011,7 +989,7 @@ func TestFetchModrinth_FallbackCannotGoDown(t *testing.T) {
 
 	client := httpClient.NewRLClient(rate.NewLimiter(rate.Inf, 0))
 
-	_, err := FetchMod(models.MODRINTH, "test-mod", FetchOptions{
+	_, err := FetchMod(context.Background(), models.MODRINTH, "test-mod", FetchOptions{
 		AllowedReleaseTypes: []models.ReleaseType{models.Release},
 		GameVersion:         "1.20", // no patch part so fallback stops
 		Loader:              models.FABRIC,
@@ -1039,7 +1017,7 @@ func TestFetchCurseforge_ProjectNotFoundFromFiles(t *testing.T) {
 	t.Setenv("CURSEFORGE_API_URL", server.URL)
 	client := httpClient.NewRLClient(rate.NewLimiter(rate.Inf, 0))
 
-	_, err := FetchMod(models.CURSEFORGE, "1234", FetchOptions{
+	_, err := FetchMod(context.Background(), models.CURSEFORGE, "1234", FetchOptions{
 		AllowedReleaseTypes: []models.ReleaseType{models.Release},
 		GameVersion:         "1.20.1",
 		Loader:              models.FABRIC,
@@ -1062,7 +1040,7 @@ func TestFetchModrinth_VersionsNotFound(t *testing.T) {
 
 	client := httpClient.NewRLClient(rate.NewLimiter(rate.Inf, 0))
 
-	_, err := FetchMod(models.MODRINTH, "test-mod", FetchOptions{
+	_, err := FetchMod(context.Background(), models.MODRINTH, "test-mod", FetchOptions{
 		AllowedReleaseTypes: []models.ReleaseType{models.Release},
 		GameVersion:         "1.20.1",
 		Loader:              models.FABRIC,
@@ -1097,7 +1075,7 @@ func TestFilterModrinthVersionsBranches(t *testing.T) {
 }
 
 func TestFetchCurseforge_DoError(t *testing.T) {
-	_, err := FetchMod(models.CURSEFORGE, "1234", FetchOptions{
+	_, err := FetchMod(context.Background(), models.CURSEFORGE, "1234", FetchOptions{
 		AllowedReleaseTypes: []models.ReleaseType{models.Release},
 		GameVersion:         "1.20.1",
 		Loader:              models.FABRIC,

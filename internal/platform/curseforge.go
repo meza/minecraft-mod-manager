@@ -1,6 +1,7 @@
 package platform
 
 import (
+	"context"
 	"encoding/json"
 	"fmt"
 	"net/http"
@@ -20,10 +21,10 @@ type curseforgeFilesResponse struct {
 	Data []curseforge.File `json:"data"`
 }
 
-func fetchCurseforge(projectID string, opts FetchOptions, client curseforgeDoer) (RemoteMod, error) {
+func fetchCurseforge(ctx context.Context, projectID string, opts FetchOptions, client curseforgeDoer) (RemoteMod, error) {
 	curseforgeClient := curseforge.NewClient(client)
 
-	project, err := curseforge.GetProject(projectID, curseforgeClient)
+	project, err := curseforge.GetProject(ctx, projectID, curseforgeClient)
 	if err != nil {
 		return RemoteMod{}, mapProjectNotFound(models.CURSEFORGE, projectID, err)
 	}
@@ -36,7 +37,7 @@ func fetchCurseforge(projectID string, opts FetchOptions, client curseforgeDoer)
 	currentVersion := opts.GameVersion
 
 	for {
-		files, filesErr := fetchCurseforgeFiles(projectID, currentVersion, modLoader, curseforgeClient)
+		files, filesErr := fetchCurseforgeFiles(ctx, projectID, currentVersion, modLoader, curseforgeClient)
 		if filesErr != nil {
 			return RemoteMod{}, mapProjectNotFound(models.CURSEFORGE, projectID, filesErr)
 		}
@@ -75,9 +76,9 @@ func fetchCurseforge(projectID string, opts FetchOptions, client curseforgeDoer)
 	}
 }
 
-func fetchCurseforgeFiles(projectID string, gameVersion string, loader curseforge.ModLoaderType, client curseforgeDoer) ([]curseforge.File, error) {
+func fetchCurseforgeFiles(ctx context.Context, projectID string, gameVersion string, loader curseforge.ModLoaderType, client curseforgeDoer) ([]curseforge.File, error) {
 	url := fmt.Sprintf("%s/mods/%s/files?gameVersion=%s&modLoaderType=%d", curseforge.GetBaseUrl(), projectID, gameVersion, loader)
-	request, _ := http.NewRequest(http.MethodGet, url, nil)
+	request, _ := http.NewRequestWithContext(ctx, http.MethodGet, url, nil)
 
 	response, err := client.Do(request)
 	if err != nil {

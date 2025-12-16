@@ -1,12 +1,12 @@
 package add
 
 import (
+	"context"
 	"errors"
 	"fmt"
 	"io"
 	"path/filepath"
 	"strings"
-	"time"
 
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/spf13/afero"
@@ -22,6 +22,7 @@ import (
 	"github.com/meza/minecraft-mod-manager/internal/platform"
 	"github.com/meza/minecraft-mod-manager/internal/telemetry"
 	"github.com/meza/minecraft-mod-manager/internal/tui"
+	"go.opentelemetry.io/otel/attribute"
 )
 
 type addOptions struct {
@@ -41,13 +42,12 @@ type addDeps struct {
 	logger          *logger.Logger
 	fetchMod        fetcher
 	downloader      downloader
-	telemetry       func(telemetry.CommandTelemetry)
 	runTea          func(model tea.Model, options ...tea.ProgramOption) (tea.Model, error)
 }
 
-type fetcher func(models.Platform, string, platform.FetchOptions, platform.Clients) (platform.RemoteMod, error)
+type fetcher func(context.Context, models.Platform, string, platform.FetchOptions, platform.Clients) (platform.RemoteMod, error)
 
-type downloader func(url string, filepath string, client httpClient.Doer, program httpClient.Sender, filesystem ...afero.Fs) error
+type downloader func(context.Context, string, string, httpClient.Doer, httpClient.Sender, ...afero.Fs) error
 
 var errAborted = errors.New("add aborted")
 
@@ -57,34 +57,41 @@ func Command() *cobra.Command {
 		Short: i18n.T("cmd.add.short"),
 		Args:  cobra.ExactArgs(2),
 		RunE: func(cmd *cobra.Command, args []string) (err error) {
-			details := perf.PerformanceDetails{
-				"platform": args[0],
-				"id":       args[1],
-			}
-			region := perf.StartRegionWithDetails("app.command.add", &details)
-			defer func() {
-				details["success"] = err == nil
-				region.End()
-			}()
+			ctx, span := perf.StartSpan(cmd.Context(), "app.command.add",
+				perf.WithAttributes(
+					attribute.String("platform", args[0]),
+					attribute.String("id", args[1]),
+				),
+			)
 
 			configPath, err := cmd.Flags().GetString("config")
 			if err != nil {
+				span.SetAttributes(attribute.Bool("success", false))
+				span.End()
 				return err
 			}
 			quiet, err := cmd.Flags().GetBool("quiet")
 			if err != nil {
+				span.SetAttributes(attribute.Bool("success", false))
+				span.End()
 				return err
 			}
 			debug, err := cmd.Flags().GetBool("debug")
 			if err != nil {
+				span.SetAttributes(attribute.Bool("success", false))
+				span.End()
 				return err
 			}
 			version, err := cmd.Flags().GetString("version")
 			if err != nil {
+				span.SetAttributes(attribute.Bool("success", false))
+				span.End()
 				return err
 			}
 			allowFallback, err := cmd.Flags().GetBool("allow-version-fallback")
 			if err != nil {
+				span.SetAttributes(attribute.Bool("success", false))
+				span.End()
 				return err
 			}
 
@@ -92,7 +99,7 @@ func Command() *cobra.Command {
 
 			limiter := rate.NewLimiter(rate.Inf, 0)
 
-			err = runAdd(cmd, addOptions{
+			telemetryPayload, hasTelemetry, err := runAdd(ctx, span, cmd, addOptions{
 				Platform:             args[0],
 				ProjectID:            args[1],
 				ConfigPath:           configPath,
@@ -107,12 +114,24 @@ func Command() *cobra.Command {
 				logger:          log,
 				fetchMod:        platform.FetchMod,
 				downloader:      httpClient.DownloadFile,
-				telemetry:       telemetry.CaptureCommand,
 				runTea: func(model tea.Model, options ...tea.ProgramOption) (tea.Model, error) {
 					return tea.NewProgram(model, options...).Run()
 				},
 			})
-			return err
+
+			errToReturn := err
+			if errors.Is(err, errAborted) {
+				errToReturn = nil
+			}
+
+			span.SetAttributes(attribute.Bool("success", errToReturn == nil))
+			span.End()
+
+			if hasTelemetry {
+				telemetry.CaptureCommand(telemetryPayload)
+			}
+
+			return errToReturn
 		},
 		Aliases:       []string{"a"},
 		SilenceUsage:  false,
@@ -132,18 +151,15 @@ func Command() *cobra.Command {
 	return cmd
 }
 
-func runAdd(cmd *cobra.Command, opts addOptions, deps addDeps) error {
+func runAdd(ctx context.Context, commandSpan *perf.Span, cmd *cobra.Command, opts addOptions, deps addDeps) (telemetry.CommandTelemetry, bool, error) {
 	meta := config.NewMetadata(opts.ConfigPath)
 
-	prepareDetails := perf.PerformanceDetails{
-		"config_path": opts.ConfigPath,
-	}
-	prepareRegion := perf.StartRegionWithDetails("app.command.add.stage.prepare", &prepareDetails)
-	cfg, lock, err := ensureConfigAndLock(deps.fs, meta, opts.Quiet, deps.minecraftClient)
-	prepareDetails["success"] = err == nil
-	prepareRegion.End()
+	prepareCtx, prepareSpan := perf.StartSpan(ctx, "app.command.add.stage.prepare", perf.WithAttributes(attribute.String("config_path", opts.ConfigPath)))
+	cfg, lock, err := ensureConfigAndLock(prepareCtx, deps.fs, meta, opts.Quiet, deps.minecraftClient)
+	prepareSpan.SetAttributes(attribute.Bool("success", err == nil))
+	prepareSpan.End()
 	if err != nil {
-		return err
+		return telemetry.CommandTelemetry{}, false, err
 	}
 
 	useTUI := tui.ShouldUseTUI(opts.Quiet, cmd.InOrStdin(), cmd.OutOrStdout())
@@ -152,17 +168,19 @@ func runAdd(cmd *cobra.Command, opts addOptions, deps addDeps) error {
 	projectID := opts.ProjectID
 
 	if modExists(cfg, platformValue, projectID) {
-		perf.Mark("app.command.add.outcome.already_exists", &perf.PerformanceDetails{
-			"platform":   platformValue,
-			"project_id": projectID,
-		})
+		if commandSpan != nil {
+			commandSpan.AddEvent("app.command.add.outcome.already_exists", perf.WithEventAttributes(
+				attribute.String("platform", string(platformValue)),
+				attribute.String("project_id", projectID),
+			))
+		}
 		deps.logger.Debug(i18n.T("cmd.add.debug.already_exists", i18n.Tvars{
 			Data: &i18n.TData{
 				"id":       projectID,
 				"platform": platformValue,
 			},
 		}))
-		deps.telemetry(telemetry.CommandTelemetry{
+		return telemetry.CommandTelemetry{
 			Command: "add",
 			Success: true,
 			Arguments: map[string]interface{}{
@@ -174,26 +192,26 @@ func runAdd(cmd *cobra.Command, opts addOptions, deps addDeps) error {
 			Extra: map[string]interface{}{
 				"flag": "already-exists",
 			},
-		})
-		return nil
+		}, true, nil
 	}
 
-	start := time.Now()
-
-	resolveDetails := perf.PerformanceDetails{
-		"platform":   platformValue,
-		"project_id": projectID,
-		"use_tui":    useTUI,
-		"quiet":      opts.Quiet,
-	}
-	resolveRegion := perf.StartRegionWithDetails("app.command.add.stage.resolve", &resolveDetails)
-	remoteMod, resolvedPlatform, resolvedID, fetchErr := resolveRemoteMod(cfg, opts, platformValue, projectID, deps, useTUI, cmd.InOrStdin(), cmd.OutOrStdout())
-	resolveDetails["success"] = fetchErr == nil
-	resolveDetails["resolved_platform"] = resolvedPlatform
-	resolveDetails["resolved_project_id"] = resolvedID
-	resolveRegion.End()
+	resolveCtx, resolveSpan := perf.StartSpan(ctx, "app.command.add.stage.resolve",
+		perf.WithAttributes(
+			attribute.String("platform", string(platformValue)),
+			attribute.String("project_id", projectID),
+			attribute.Bool("use_tui", useTUI),
+			attribute.Bool("quiet", opts.Quiet),
+		),
+	)
+	remoteMod, resolvedPlatform, resolvedID, fetchErr := resolveRemoteMod(resolveCtx, commandSpan, cfg, opts, platformValue, projectID, deps, useTUI, cmd.InOrStdin(), cmd.OutOrStdout())
+	resolveSpan.SetAttributes(
+		attribute.Bool("success", fetchErr == nil),
+		attribute.String("resolved_platform", string(resolvedPlatform)),
+		attribute.String("resolved_project_id", resolvedID),
+	)
+	resolveSpan.End()
 	if fetchErr != nil {
-		deps.telemetry(telemetry.CommandTelemetry{
+		payload := telemetry.CommandTelemetry{
 			Command: "add",
 			Success: false,
 			Config:  &cfg,
@@ -204,36 +222,36 @@ func runAdd(cmd *cobra.Command, opts addOptions, deps addDeps) error {
 				"version":  opts.Version,
 				"fallback": opts.AllowVersionFallback,
 			},
-		})
-		if errors.Is(fetchErr, errAborted) {
-			return nil
 		}
-		return fetchErr
+		return payload, true, fetchErr
 	}
 
-	downloadDetails := perf.PerformanceDetails{
-		"url":        remoteMod.DownloadURL,
-		"platform":   resolvedPlatform,
-		"project_id": resolvedID,
-		"file_name":  remoteMod.FileName,
-	}
-	downloadRegion := perf.StartRegionWithDetails("app.command.add.stage.download", &downloadDetails)
+	downloadCtx, downloadSpan := perf.StartSpan(ctx, "app.command.add.stage.download",
+		perf.WithAttributes(
+			attribute.String("url", remoteMod.DownloadURL),
+			attribute.String("platform", string(resolvedPlatform)),
+			attribute.String("project_id", resolvedID),
+			attribute.String("file_name", remoteMod.FileName),
+		),
+	)
 
 	if err := deps.fs.MkdirAll(meta.ModsFolderPath(cfg), 0755); err != nil {
-		downloadDetails["success"] = false
-		downloadRegion.End()
-		return err
+		downloadSpan.SetAttributes(attribute.Bool("success", false))
+		downloadSpan.End()
+		return telemetry.CommandTelemetry{}, false, err
 	}
 
 	destination := filepath.Join(meta.ModsFolderPath(cfg), remoteMod.FileName)
-	if err := deps.downloader(remoteMod.DownloadURL, destination, downloadClient(deps.clients), &noopSender{}, deps.fs); err != nil {
-		downloadDetails["success"] = false
-		downloadRegion.End()
-		return err
+	if err := deps.downloader(downloadCtx, remoteMod.DownloadURL, destination, downloadClient(deps.clients), &noopSender{}, deps.fs); err != nil {
+		downloadSpan.SetAttributes(attribute.Bool("success", false))
+		downloadSpan.End()
+		return telemetry.CommandTelemetry{}, false, err
 	}
-	downloadDetails["success"] = true
-	downloadDetails["path"] = destination
-	downloadRegion.End()
+	downloadSpan.SetAttributes(
+		attribute.Bool("success", true),
+		attribute.String("path", destination),
+	)
+	downloadSpan.End()
 
 	cfg.Mods = append(cfg.Mods, models.Mod{
 		Type:                 resolvedPlatform,
@@ -253,24 +271,25 @@ func runAdd(cmd *cobra.Command, opts addOptions, deps addDeps) error {
 		DownloadUrl: remoteMod.DownloadURL,
 	})
 
-	persistDetails := perf.PerformanceDetails{
-		"config_path": opts.ConfigPath,
-		"platform":    resolvedPlatform,
-		"project_id":  resolvedID,
+	_, persistSpan := perf.StartSpan(ctx, "app.command.add.stage.persist",
+		perf.WithAttributes(
+			attribute.String("config_path", opts.ConfigPath),
+			attribute.String("platform", string(resolvedPlatform)),
+			attribute.String("project_id", resolvedID),
+		),
+	)
+	if err := config.WriteConfig(ctx, deps.fs, meta, cfg); err != nil {
+		persistSpan.SetAttributes(attribute.Bool("success", false))
+		persistSpan.End()
+		return telemetry.CommandTelemetry{}, false, err
 	}
-	persistRegion := perf.StartRegionWithDetails("app.command.add.stage.persist", &persistDetails)
-	if err := config.WriteConfig(deps.fs, meta, cfg); err != nil {
-		persistDetails["success"] = false
-		persistRegion.End()
-		return err
+	if err := config.WriteLock(ctx, deps.fs, meta, lock); err != nil {
+		persistSpan.SetAttributes(attribute.Bool("success", false))
+		persistSpan.End()
+		return telemetry.CommandTelemetry{}, false, err
 	}
-	if err := config.WriteLock(deps.fs, meta, lock); err != nil {
-		persistDetails["success"] = false
-		persistRegion.End()
-		return err
-	}
-	persistDetails["success"] = true
-	persistRegion.End()
+	persistSpan.SetAttributes(attribute.Bool("success", true))
+	persistSpan.End()
 
 	deps.logger.Log(i18n.T("cmd.add.success", i18n.Tvars{
 		Data: &i18n.TData{
@@ -280,30 +299,27 @@ func runAdd(cmd *cobra.Command, opts addOptions, deps addDeps) error {
 		},
 	}), true)
 
-	deps.telemetry(telemetry.CommandTelemetry{
-		Command:  "add",
-		Success:  true,
-		Duration: time.Since(start),
+	return telemetry.CommandTelemetry{
+		Command: "add",
+		Success: true,
 		Arguments: map[string]interface{}{
 			"platform": resolvedPlatform,
 			"id":       resolvedID,
 			"version":  opts.Version,
 			"fallback": opts.AllowVersionFallback,
 		},
-	})
-
-	return nil
+	}, true, nil
 }
 
-func ensureConfigAndLock(fs afero.Fs, meta config.Metadata, quiet bool, minecraftClient httpClient.Doer) (models.ModsJson, []models.ModInstall, error) {
-	cfg, err := config.ReadConfig(fs, meta)
+func ensureConfigAndLock(ctx context.Context, fs afero.Fs, meta config.Metadata, quiet bool, minecraftClient httpClient.Doer) (models.ModsJson, []models.ModInstall, error) {
+	cfg, err := config.ReadConfig(ctx, fs, meta)
 	if err != nil {
 		var notFound *config.ConfigFileNotFoundException
 		if errors.As(err, &notFound) {
 			if quiet {
 				return models.ModsJson{}, nil, err
 			}
-			cfg, err = config.InitConfig(fs, meta, minecraftClient)
+			cfg, err = config.InitConfig(ctx, fs, meta, minecraftClient)
 			if err != nil {
 				return models.ModsJson{}, nil, err
 			}
@@ -312,7 +328,7 @@ func ensureConfigAndLock(fs afero.Fs, meta config.Metadata, quiet bool, minecraf
 		}
 	}
 
-	lock, err := config.EnsureLock(fs, meta)
+	lock, err := config.EnsureLock(ctx, fs, meta)
 	if err != nil {
 		return models.ModsJson{}, nil, err
 	}
@@ -320,30 +336,31 @@ func ensureConfigAndLock(fs afero.Fs, meta config.Metadata, quiet bool, minecraf
 	return cfg, lock, nil
 }
 
-func resolveRemoteMod(cfg models.ModsJson, opts addOptions, platformValue models.Platform, projectID string, deps addDeps, useTUI bool, in io.Reader, out io.Writer) (platform.RemoteMod, models.Platform, string, error) {
+func resolveRemoteMod(ctx context.Context, commandSpan *perf.Span, cfg models.ModsJson, opts addOptions, platformValue models.Platform, projectID string, deps addDeps, useTUI bool, in io.Reader, out io.Writer) (platform.RemoteMod, models.Platform, string, error) {
 	deps.logger.Debug(fmt.Sprintf("fetching %s/%s (loader=%s, gameVersion=%s, fallback=%t, fixedVersion=%s)", platformValue, projectID, cfg.Loader, cfg.GameVersion, opts.AllowVersionFallback, opts.Version))
 
-	attemptDetails := perf.PerformanceDetails{
-		"attempt":    0,
-		"source":     "cli",
-		"platform":   platformValue,
-		"project_id": projectID,
-		"use_tui":    useTUI,
-		"quiet":      opts.Quiet,
-	}
-	attemptRegion := perf.StartRegionWithDetails("app.command.add.resolve.attempt", &attemptDetails)
-	remote, err := deps.fetchMod(platformValue, projectID, platform.FetchOptions{
+	attemptCtx, attemptSpan := perf.StartSpan(ctx, "app.command.add.resolve.attempt",
+		perf.WithAttributes(
+			attribute.Int("attempt", 0),
+			attribute.String("source", "cli"),
+			attribute.String("platform", string(platformValue)),
+			attribute.String("project_id", projectID),
+			attribute.Bool("use_tui", useTUI),
+			attribute.Bool("quiet", opts.Quiet),
+		),
+	)
+	remote, err := deps.fetchMod(attemptCtx, platformValue, projectID, platform.FetchOptions{
 		AllowedReleaseTypes: cfg.DefaultAllowedReleaseTypes,
 		GameVersion:         cfg.GameVersion,
 		Loader:              cfg.Loader,
 		AllowFallback:       opts.AllowVersionFallback,
 		FixedVersion:        opts.Version,
 	}, deps.clients)
-	attemptDetails["success"] = err == nil
+	attemptSpan.SetAttributes(attribute.Bool("success", err == nil))
 	if err != nil {
-		attemptDetails["error_type"] = fmt.Sprintf("%T", err)
+		attemptSpan.SetAttributes(attribute.String("error_type", fmt.Sprintf("%T", err)))
 	}
-	attemptRegion.End()
+	attemptSpan.End()
 	if err == nil {
 		return remote, platformValue, projectID, nil
 	}
@@ -359,19 +376,19 @@ func resolveRemoteMod(cfg models.ModsJson, opts addOptions, platformValue models
 			deps.logger.Error(errorMessageForUnknownPlatform(e.Platform))
 			return platform.RemoteMod{}, platformValue, projectID, errors.New(errorMessageForUnknownPlatform(e.Platform))
 		}
-		return resolveRemoteModWithTUI(addTUIStateUnknownPlatformSelect, cfg, opts, platformValue, projectID, deps, in, out)
+		return resolveRemoteModWithTUI(ctx, commandSpan, addTUIStateUnknownPlatformSelect, cfg, opts, platformValue, projectID, deps, in, out)
 	case *platform.ModNotFoundError:
 		if opts.Quiet || !useTUI {
 			deps.logger.Error(errorMessageForModNotFound(projectID, platformValue))
 			return platform.RemoteMod{}, platformValue, projectID, err
 		}
-		return resolveRemoteModWithTUI(addTUIStateModNotFoundConfirm, cfg, opts, platformValue, projectID, deps, in, out)
+		return resolveRemoteModWithTUI(ctx, commandSpan, addTUIStateModNotFoundConfirm, cfg, opts, platformValue, projectID, deps, in, out)
 	case *platform.NoCompatibleFileError:
 		if opts.Quiet || !useTUI {
 			deps.logger.Error(errorMessageForNoFile(projectID, platformValue))
 			return platform.RemoteMod{}, platformValue, projectID, err
 		}
-		return resolveRemoteModWithTUI(addTUIStateNoFileConfirm, cfg, opts, platformValue, projectID, deps, in, out)
+		return resolveRemoteModWithTUI(ctx, commandSpan, addTUIStateNoFileConfirm, cfg, opts, platformValue, projectID, deps, in, out)
 	default:
 		return platform.RemoteMod{}, platformValue, projectID, err
 	}
@@ -429,37 +446,47 @@ func downloadClient(clients platform.Clients) httpClient.Doer {
 	return clients.Modrinth
 }
 
-func resolveRemoteModWithTUI(initialState addTUIState, cfg models.ModsJson, opts addOptions, platformValue models.Platform, projectID string, deps addDeps, in io.Reader, out io.Writer) (platform.RemoteMod, models.Platform, string, error) {
-	perf.Mark("app.command.add.tui.open", &perf.PerformanceDetails{
-		"initial_state": int(initialState),
-		"platform":      platformValue,
-		"project_id":    projectID,
-	})
+func resolveRemoteModWithTUI(ctx context.Context, commandSpan *perf.Span, initialState addTUIState, cfg models.ModsJson, opts addOptions, platformValue models.Platform, projectID string, deps addDeps, in io.Reader, out io.Writer) (platform.RemoteMod, models.Platform, string, error) {
+	if commandSpan != nil {
+		commandSpan.AddEvent("app.command.add.tui.open", perf.WithEventAttributes(
+			attribute.Int("initial_state", int(initialState)),
+			attribute.String("platform", string(platformValue)),
+			attribute.String("project_id", projectID),
+		))
+	}
 
 	var attempt int
-	model := newAddTUIModel(initialState, platformValue, projectID, cfg, func(platformValue models.Platform, projectID string) tea.Cmd {
+	tuiCtx, tuiSpan := perf.StartSpan(ctx, "tui.add.session",
+		perf.WithAttributes(
+			attribute.String("platform", string(platformValue)),
+			attribute.String("project_id", projectID),
+			attribute.Int("initial_state", int(initialState)),
+		),
+	)
+	model := newAddTUIModel(tuiCtx, tuiSpan, initialState, platformValue, projectID, cfg, func(platformValue models.Platform, projectID string) tea.Cmd {
 		return func() tea.Msg {
 			attempt++
-			attemptDetails := perf.PerformanceDetails{
-				"attempt":    attempt,
-				"source":     "tui",
-				"platform":   platformValue,
-				"project_id": projectID,
-				"quiet":      opts.Quiet,
-			}
-			attemptRegion := perf.StartRegionWithDetails("app.command.add.resolve.attempt", &attemptDetails)
-			remote, err := deps.fetchMod(platformValue, projectID, platform.FetchOptions{
+			attemptCtx, attemptSpan := perf.StartSpan(tuiCtx, "app.command.add.resolve.attempt",
+				perf.WithAttributes(
+					attribute.Int("attempt", attempt),
+					attribute.String("source", "tui"),
+					attribute.String("platform", string(platformValue)),
+					attribute.String("project_id", projectID),
+					attribute.Bool("quiet", opts.Quiet),
+				),
+			)
+			remote, err := deps.fetchMod(attemptCtx, platformValue, projectID, platform.FetchOptions{
 				AllowedReleaseTypes: cfg.DefaultAllowedReleaseTypes,
 				GameVersion:         cfg.GameVersion,
 				Loader:              cfg.Loader,
 				AllowFallback:       opts.AllowVersionFallback,
 				FixedVersion:        opts.Version,
 			}, deps.clients)
-			attemptDetails["success"] = err == nil
+			attemptSpan.SetAttributes(attribute.Bool("success", err == nil))
 			if err != nil {
-				attemptDetails["error_type"] = fmt.Sprintf("%T", err)
+				attemptSpan.SetAttributes(attribute.String("error_type", fmt.Sprintf("%T", err)))
 			}
-			attemptRegion.End()
+			attemptSpan.End()
 			return addTUIFetchResultMsg{
 				platform:  platformValue,
 				projectID: projectID,
@@ -475,8 +502,12 @@ func resolveRemoteModWithTUI(initialState addTUIState, cfg models.ModsJson, opts
 
 	result, err := deps.runTea(model, tui.ProgramOptions(in, out)...)
 	if err != nil {
+		tuiSpan.SetAttributes(attribute.Bool("success", false))
+		tuiSpan.End()
 		return platform.RemoteMod{}, platformValue, projectID, err
 	}
+	tuiSpan.SetAttributes(attribute.Bool("success", true))
+	tuiSpan.End()
 
 	typed, ok := result.(addTUIModel)
 	if !ok {

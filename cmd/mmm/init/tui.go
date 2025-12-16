@@ -1,6 +1,7 @@
 package init
 
 import (
+	"context"
 	"fmt"
 	"strings"
 
@@ -9,6 +10,7 @@ import (
 	"github.com/meza/minecraft-mod-manager/internal/config"
 	"github.com/meza/minecraft-mod-manager/internal/models"
 	"github.com/meza/minecraft-mod-manager/internal/perf"
+	"go.opentelemetry.io/otel/attribute"
 )
 
 type state int
@@ -24,7 +26,9 @@ const (
 type CommandModel struct {
 	state                state
 	entered              bool
-	waitRegion           *perf.PerformanceRegion
+	ctx                  context.Context
+	sessionSpan          *perf.Span
+	waitSpan             *perf.Span
 	loaderQuestion       LoaderModel
 	gameVersionQuestion  GameVersionModel
 	releaseTypesQuestion ReleaseTypesModel
@@ -103,47 +107,49 @@ func (m CommandModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	switch msg := msg.(type) {
 	case LoaderSelectedMessage:
 		m.endWait("select_loader")
-		perf.Mark("tui.init.action.select_loader", &perf.PerformanceDetails{
-			"loader": msg.Loader.String(),
-		})
+		if m.sessionSpan != nil {
+			m.sessionSpan.AddEvent("tui.init.action.select_loader", perf.WithEventAttributes(attribute.String("loader", msg.Loader.String())))
+		}
 		m.result.Loader = msg.Loader
 		m.result.Provided.Loader = true
 		m.setState(nextMissingState(m.result))
 	case GameVersionSelectedMessage:
 		m.endWait("select_game_version")
-		perf.Mark("tui.init.action.select_game_version", &perf.PerformanceDetails{
-			"game_version": msg.GameVersion,
-		})
+		if m.sessionSpan != nil {
+			m.sessionSpan.AddEvent("tui.init.action.select_game_version", perf.WithEventAttributes(attribute.String("game_version", msg.GameVersion)))
+		}
 		m.result.GameVersion = msg.GameVersion
 		m.result.Provided.GameVersion = true
 		m.setState(nextMissingState(m.result))
 	case ReleaseTypesSelectedMessage:
 		m.endWait("select_release_types")
-		perf.Mark("tui.init.action.select_release_types", &perf.PerformanceDetails{
-			"count": len(msg.ReleaseTypes),
-		})
+		if m.sessionSpan != nil {
+			m.sessionSpan.AddEvent("tui.init.action.select_release_types", perf.WithEventAttributes(attribute.Int("count", len(msg.ReleaseTypes))))
+		}
 		m.result.ReleaseTypes = msg.ReleaseTypes
 		m.result.Provided.ReleaseTypes = true
 		m.setState(nextMissingState(m.result))
 	case ModsFolderSelectedMessage:
 		m.endWait("select_mods_folder")
-		perf.Mark("tui.init.action.select_mods_folder", &perf.PerformanceDetails{
-			"mods_folder": msg.ModsFolder,
-		})
+		if m.sessionSpan != nil {
+			m.sessionSpan.AddEvent("tui.init.action.select_mods_folder", perf.WithEventAttributes(attribute.String("mods_folder", msg.ModsFolder)))
+		}
 		m.result.ModsFolder = msg.ModsFolder
 		m.result.Provided.ModsFolder = true
 		m.setState(nextMissingState(m.result))
 		if m.state == done {
-			perf.Mark("tui.init.outcome.completed", nil)
+			if m.sessionSpan != nil {
+				m.sessionSpan.AddEvent("tui.init.outcome.completed")
+			}
 			return m, tea.Quit
 		}
 	case tea.KeyMsg:
 		switch msg.String() {
 		case "ctrl+c":
 			m.endWait("abort")
-			perf.Mark("tui.init.action.abort", &perf.PerformanceDetails{
-				"state": m.stateName(),
-			})
+			if m.sessionSpan != nil {
+				m.sessionSpan.AddEvent("tui.init.action.abort", perf.WithEventAttributes(attribute.String("state", m.stateName())))
+			}
 			m.err = fmt.Errorf("init cancelled")
 			cmds = append(cmds, tea.Quit)
 		}
@@ -166,15 +172,17 @@ func (m CommandModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	return m, tea.Batch(cmds...)
 }
 
-func NewModel(options initOptions, deps initDeps, meta config.Metadata) *CommandModel {
+func NewModel(ctx context.Context, sessionSpan *perf.Span, options initOptions, deps initDeps, meta config.Metadata) *CommandModel {
 	defaultReleaseTypes := options.ReleaseTypes
 	if !options.Provided.ReleaseTypes {
 		defaultReleaseTypes = []models.ReleaseType{models.Release}
 	}
 
 	model := &CommandModel{
+		ctx:                  ctx,
+		sessionSpan:          sessionSpan,
 		loaderQuestion:       NewLoaderModel(options.Loader.String()),
-		gameVersionQuestion:  NewGameVersionModel(deps.minecraftClient, options.GameVersion),
+		gameVersionQuestion:  NewGameVersionModel(ctx, deps.minecraftClient, options.GameVersion),
 		releaseTypesQuestion: NewReleaseTypesModel(defaultReleaseTypes),
 		modsFolderQuestion:   NewModsFolderModel(options.ModsFolder, meta, deps.fs, options.Provided.ModsFolder),
 		result:               options,
@@ -208,9 +216,9 @@ func (m *CommandModel) setState(next state) {
 	}
 	m.state = next
 	m.entered = true
-	perf.Mark("tui.init.state.enter", &perf.PerformanceDetails{
-		"state": m.stateName(),
-	})
+	if m.sessionSpan != nil {
+		m.sessionSpan.AddEvent("tui.init.state.enter", perf.WithEventAttributes(attribute.String("state", m.stateName())))
+	}
 
 	m.startWait()
 }
@@ -234,26 +242,25 @@ func (m CommandModel) stateName() string {
 
 func (m *CommandModel) startWait() {
 	if m.state == done {
-		m.waitRegion = nil
+		m.waitSpan = nil
 		return
 	}
 
 	m.endWait("state_change")
 	stateName := m.stateName()
-	m.waitRegion = perf.StartRegionWithDetails("tui.init.wait."+stateName, &perf.PerformanceDetails{
-		"state": stateName,
-	})
+	_, m.waitSpan = perf.StartSpan(m.ctx, "tui.init.wait."+stateName, perf.WithAttributes(attribute.String("state", stateName)))
 }
 
 func (m *CommandModel) endWait(action string) {
-	if m.waitRegion == nil {
+	if m.waitSpan == nil {
 		return
 	}
-	m.waitRegion.EndWithDetails(&perf.PerformanceDetails{
-		"state":  m.stateName(),
-		"action": action,
-	})
-	m.waitRegion = nil
+	m.waitSpan.SetAttributes(
+		attribute.String("state", m.stateName()),
+		attribute.String("action", action),
+	)
+	m.waitSpan.End()
+	m.waitSpan = nil
 }
 
 func nextMissingState(result initOptions) state {

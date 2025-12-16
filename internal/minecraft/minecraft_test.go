@@ -1,6 +1,7 @@
 package minecraft
 
 import (
+	"context"
 	"github.com/stretchr/testify/assert"
 	"net/http"
 	"shanhu.io/g/https/httpstest"
@@ -20,7 +21,7 @@ func TestMinecraft(t *testing.T) {
 		}))
 		defer mockServer.Close()
 
-		ver, _ := GetLatestVersion(mockServer.Client())
+		ver, _ := GetLatestVersion(context.Background(), mockServer.Client())
 
 		assert.Equal(t, "1.21.2", ver)
 	})
@@ -57,11 +58,11 @@ func TestMinecraft(t *testing.T) {
 		}))
 		defer mockServer.Close()
 
-		assert.True(t, IsValidVersion("1.21.1", mockServer.Client()))
-		assert.False(t, IsValidVersion("1.21.2", mockServer.Client()))
-		assert.False(t, IsValidVersion("", mockServer.Client()))
-		assert.False(t, IsValidVersion("1.21.3", mockServer.Client()))
-		assert.True(t, IsValidVersion("24w33a", mockServer.Client()))
+		assert.True(t, IsValidVersion(context.Background(), "1.21.1", mockServer.Client()))
+		assert.False(t, IsValidVersion(context.Background(), "1.21.2", mockServer.Client()))
+		assert.False(t, IsValidVersion(context.Background(), "", mockServer.Client()))
+		assert.False(t, IsValidVersion(context.Background(), "1.21.3", mockServer.Client()))
+		assert.True(t, IsValidVersion(context.Background(), "24w33a", mockServer.Client()))
 
 	})
 
@@ -97,7 +98,7 @@ func TestMinecraft(t *testing.T) {
 		}))
 		defer mockServer.Close()
 
-		assert.Equal(t, []string{"24w34a", "24w33a", "1.21.1"}, GetAllMineCraftVersions(mockServer.Client()))
+		assert.Equal(t, []string{"24w34a", "24w33a", "1.21.1"}, GetAllMineCraftVersions(context.Background(), mockServer.Client()))
 	})
 
 	t.Run("GetLatestVersion_Error", func(t *testing.T) {
@@ -112,7 +113,7 @@ func TestMinecraft(t *testing.T) {
 		}))
 		defer mockServer.Close()
 
-		ver, err := GetLatestVersion(mockServer.Client())
+		ver, err := GetLatestVersion(context.Background(), mockServer.Client())
 
 		assert.Empty(t, ver)
 		assert.ErrorIs(t, err, CouldNotDetermineLatestVersion)
@@ -130,7 +131,7 @@ func TestMinecraft(t *testing.T) {
 		}))
 		defer mockServer.Close()
 
-		assert.True(t, IsValidVersion("1.21.1", mockServer.Client()))
+		assert.True(t, IsValidVersion(context.Background(), "1.21.1", mockServer.Client()))
 	})
 
 	t.Run("GetAllMineCraftVersions_Error", func(t *testing.T) {
@@ -141,7 +142,7 @@ func TestMinecraft(t *testing.T) {
 		defer mockServer.Close()
 		defer func() { versionManifestUrl = oldUrl }()
 
-		assert.Empty(t, GetAllMineCraftVersions(mockServer.Client()))
+		assert.Empty(t, GetAllMineCraftVersions(context.Background(), mockServer.Client()))
 	})
 
 	t.Run("Caching", func(t *testing.T) {
@@ -158,17 +159,17 @@ func TestMinecraft(t *testing.T) {
 		client := mockServer.Client()
 
 		// First call to populate the cache
-		_, err := getMinecraftVersionManifest(client)
+		_, err := getMinecraftVersionManifest(context.Background(), client)
 		assert.NoError(t, err)
 
 		// Second call should use the cached manifest
-		_, err = getMinecraftVersionManifest(client)
+		_, err = getMinecraftVersionManifest(context.Background(), client)
 		assert.NoError(t, err)
 
 		ClearManifestCache()
 
 		// Third call should refetch after clearing cache
-		_, err = getMinecraftVersionManifest(client)
+		_, err = getMinecraftVersionManifest(context.Background(), client)
 		assert.NoError(t, err)
 
 		assert.Equal(t, 2, callCount, "server should be called twice (cache cleared once)")

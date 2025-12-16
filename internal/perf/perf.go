@@ -2,130 +2,191 @@ package perf
 
 import (
 	"context"
-	"fmt"
-	"runtime/trace"
-	"slices"
-	"time"
+	"errors"
+	"sync"
+
+	"go.opentelemetry.io/otel"
+	"go.opentelemetry.io/otel/attribute"
+	"go.opentelemetry.io/otel/sdk/trace"
+	oteltrace "go.opentelemetry.io/otel/trace"
 )
 
-type EntryType string
+type Config struct {
+	Enabled bool
+}
 
-const (
-	MarkType    EntryType = "MarkType"
-	MeasureType EntryType = "MeasureType"
+var (
+	globalMu      sync.Mutex
+	globalEnabled bool
+	globalTP      *trace.TracerProvider
+	globalExp     *spanExporter
 )
 
-type Entry struct {
-	Name      string              `json:"name"`
-	Type      EntryType           `json:"type"`
-	StartTime time.Time           `json:"start_time,omitempty"`
-	Duration  time.Duration       `json:"duration,omitempty"`
-	Details   *PerformanceDetails `json:"details,omitempty"`
+func Init(cfg Config) error {
+	globalMu.Lock()
+	defer globalMu.Unlock()
+
+	if globalTP != nil {
+		_ = globalTP.Shutdown(context.Background())
+		globalTP = nil
+	}
+
+	globalEnabled = cfg.Enabled
+	if !cfg.Enabled {
+		globalExp = nil
+		otel.SetTracerProvider(oteltrace.NewNoopTracerProvider())
+		return nil
+	}
+
+	globalExp = newSpanExporter()
+	tp := trace.NewTracerProvider(
+		trace.WithSampler(trace.AlwaysSample()),
+		trace.WithSpanProcessor(trace.NewSimpleSpanProcessor(globalExp)),
+	)
+	globalTP = tp
+	otel.SetTracerProvider(tp)
+	return nil
 }
 
-type PerformanceLog []Entry
+func Shutdown(ctx context.Context) error {
+	globalMu.Lock()
+	tp := globalTP
+	globalMu.Unlock()
 
-type PerformanceDetails map[string]interface{}
-
-var perfLog = make(PerformanceLog, 0)
-
-type PerformanceRegion struct {
-	Region *trace.Region
-	Marker *Entry
+	if tp == nil {
+		return nil
+	}
+	return tp.Shutdown(ctx)
 }
 
-func (r *PerformanceRegion) End() {
-	r.EndWithDetails(nil)
+func Reset() {
+	globalMu.Lock()
+	defer globalMu.Unlock()
+
+	globalEnabled = false
+	globalExp = nil
+	if globalTP != nil {
+		_ = globalTP.Shutdown(context.Background())
+		globalTP = nil
+	}
+	otel.SetTracerProvider(oteltrace.NewNoopTracerProvider())
 }
 
-func (r *PerformanceRegion) EndWithDetails(details *PerformanceDetails) {
-	r.Region.End()
-	startName := r.Marker.Name
-	endName := fmt.Sprintf("%s-end", r.Marker.Name)
-	Mark(endName, details)
-	Measure(fmt.Sprintf("%s-duration", r.Marker.Name), startName, endName, r.Marker.Details)
+func Enabled() bool {
+	globalMu.Lock()
+	defer globalMu.Unlock()
+	return globalEnabled
 }
 
-func ClearPerformanceLog() {
-	perfLog = make(PerformanceLog, 0)
+type SpanOption func(*spanOptions)
+
+type spanOptions struct {
+	attributes []attribute.KeyValue
+	links      []oteltrace.Link
 }
 
-func GetPerformanceLog() PerformanceLog {
-	return perfLog
+func WithAttributes(attrs ...attribute.KeyValue) SpanOption {
+	return func(o *spanOptions) {
+		o.attributes = append(o.attributes, attrs...)
+	}
 }
 
-func filter(entries []Entry, predicate func(Entry) bool) []Entry {
-	var result []Entry
-	for _, entry := range entries {
-		if predicate(entry) {
-			result = append(result, entry)
+func WithLinks(links ...oteltrace.Link) SpanOption {
+	return func(o *spanOptions) {
+		o.links = append(o.links, links...)
+	}
+}
+
+func StartSpan(ctx context.Context, name string, opts ...SpanOption) (context.Context, *Span) {
+	if ctx == nil {
+		ctx = context.Background()
+	}
+
+	spanOpts := spanOptions{}
+	for _, opt := range opts {
+		if opt != nil {
+			opt(&spanOpts)
 		}
 	}
-	return result
+
+	startOpts := make([]oteltrace.SpanStartOption, 0, 3)
+	if len(spanOpts.attributes) > 0 {
+		startOpts = append(startOpts, oteltrace.WithAttributes(spanOpts.attributes...))
+	}
+	if len(spanOpts.links) > 0 {
+		startOpts = append(startOpts, oteltrace.WithLinks(spanOpts.links...))
+	}
+
+	tracer := otel.Tracer("github.com/meza/minecraft-mod-manager/internal/perf")
+	ctx, span := tracer.Start(ctx, name, startOpts...)
+	return ctx, &Span{span: span}
 }
 
-func GetAllMeasurements() PerformanceLog {
-	return filter(perfLog, func(e Entry) bool {
-		return e.Type == MeasureType
-	})
+type Span struct {
+	span oteltrace.Span
 }
 
-func StartRegion(marker string) *PerformanceRegion {
-	return StartRegionWithDetails(marker, nil)
+func (s *Span) End() {
+	if s == nil || s.span == nil {
+		return
+	}
+	s.span.End()
 }
 
-func StartRegionWithDetails(marker string, details *PerformanceDetails) *PerformanceRegion {
-	ctx := context.Background()
-	ctx = context.WithValue(ctx, "details", details)
+func (s *Span) SetAttributes(attrs ...attribute.KeyValue) {
+	if s == nil || s.span == nil {
+		return
+	}
+	s.span.SetAttributes(attrs...)
+}
 
-	region := trace.StartRegion(ctx, marker)
-	markerEntry := Mark(marker, details)
+type EventOption func(*eventOptions)
 
-	return &PerformanceRegion{
-		Region: region,
-		Marker: markerEntry,
+type eventOptions struct {
+	attributes []attribute.KeyValue
+}
+
+func WithEventAttributes(attrs ...attribute.KeyValue) EventOption {
+	return func(o *eventOptions) {
+		o.attributes = append(o.attributes, attrs...)
 	}
 }
 
-func Mark(marker string, details *PerformanceDetails) *Entry {
-	entry := Entry{
-		Name:      marker,
-		Type:      MarkType,
-		StartTime: time.Now(),
-		Details:   details,
-	}
-	perfLog = append(perfLog, entry)
-
-	return &entry
-}
-
-func Measure(marker string, fromMarker string, toMarker string, details *PerformanceDetails) {
-	idx := slices.IndexFunc(perfLog, func(e Entry) bool {
-		return e.Name == fromMarker
-	})
-
-	if idx == -1 {
+func (s *Span) AddEvent(name string, opts ...EventOption) {
+	if s == nil || s.span == nil {
 		return
 	}
 
-	from := perfLog[idx].StartTime
-
-	idx = slices.IndexFunc(perfLog, func(e Entry) bool {
-		return e.Name == toMarker
-	})
-
-	if idx == -1 {
-		return
+	o := eventOptions{}
+	for _, opt := range opts {
+		if opt != nil {
+			opt(&o)
+		}
 	}
 
-	to := perfLog[idx].StartTime
+	eventOpts := make([]oteltrace.EventOption, 0, 1)
+	if len(o.attributes) > 0 {
+		eventOpts = append(eventOpts, oteltrace.WithAttributes(o.attributes...))
+	}
 
-	perfLog = append(perfLog, Entry{
-		Name:      marker,
-		Type:      MeasureType,
-		StartTime: from,
-		Duration:  to.Sub(from),
-		Details:   details,
-	})
+	s.span.AddEvent(name, eventOpts...)
+}
 
+func SpanFromContext(ctx context.Context) *Span {
+	if ctx == nil {
+		return &Span{span: oteltrace.SpanFromContext(context.Background())}
+	}
+	return &Span{span: oteltrace.SpanFromContext(ctx)}
+}
+
+func LinkFromContext(ctx context.Context) (oteltrace.Link, error) {
+	if ctx == nil {
+		return oteltrace.Link{}, errors.New("nil context")
+	}
+
+	sc := oteltrace.SpanContextFromContext(ctx)
+	if !sc.IsValid() {
+		return oteltrace.Link{}, errors.New("no span in context")
+	}
+	return oteltrace.Link{SpanContext: sc}, nil
 }

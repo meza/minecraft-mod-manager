@@ -1,6 +1,6 @@
 # internal/telemetry
 
-Minecraft Mod Manager ships anonymous usage metrics to PostHog (https://posthog.com) so we can understand which commands people reach for and where errors cluster.
+Minecraft Mod Manager ships anonymous usage metrics to PostHog (https://posthog.com) so we can understand which commands people reach for, where errors cluster, and where time is spent.
 
 Telemetry is best-effort: failures never block a command. By default, the telemetry package uses a no-op logger, so telemetry failures are silent unless the package logger is explicitly wired for debugging.
 
@@ -32,6 +32,8 @@ Call `Init` once when the process starts, emit events via `Capture`/`CaptureComm
 
 - `app.lifecycle.startup` includes `telemetry.Init()`
 - `app.lifecycle.shutdown` includes `telemetry.Shutdown(...)` (called once, regardless of graceful vs signal exit)
+
+Command telemetry also includes the current `internal/perf` span tree under the `performance` property.
 
 ## Runtime lifecycle
 

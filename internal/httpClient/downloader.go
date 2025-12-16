@@ -1,13 +1,16 @@
 package httpClient
 
 import (
+	"context"
 	"fmt"
+	"io"
+	"net/http"
+
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/meza/minecraft-mod-manager/internal/fileutils"
 	"github.com/meza/minecraft-mod-manager/internal/perf"
 	"github.com/spf13/afero"
-	"io"
-	"net/http"
+	"go.opentelemetry.io/otel/attribute"
 )
 
 type progressWriter struct {
@@ -34,16 +37,17 @@ type Sender interface {
 	Send(msg tea.Msg)
 }
 
-func DownloadFile(url string, filepath string, client Doer, program Sender, filesystem ...afero.Fs) error {
-	details := perf.PerformanceDetails{
-		"url":  url,
-		"path": filepath,
-	}
-	region := perf.StartRegionWithDetails("io.download.file", &details)
-	defer region.End()
+func DownloadFile(ctx context.Context, url string, filepath string, client Doer, program Sender, filesystem ...afero.Fs) error {
+	_, span := perf.StartSpan(ctx, "io.download.file",
+		perf.WithAttributes(
+			attribute.String("url", url),
+			attribute.String("path", filepath),
+		),
+	)
+	defer span.End()
 
 	fs := fileutils.InitFilesystem(filesystem...)
-	request, _ := http.NewRequest("GET", url, nil)
+	request, _ := http.NewRequestWithContext(ctx, "GET", url, nil)
 	response, err := client.Do(request)
 	if err != nil {
 		return fmt.Errorf("failed to download file: %w", err)
@@ -66,7 +70,7 @@ func DownloadFile(url string, filepath string, client Doer, program Sender, file
 		},
 	}
 	if pw.total > 0 {
-		details["bytes"] = int64(pw.total)
+		span.SetAttributes(attribute.Int64("bytes", int64(pw.total)))
 	}
 
 	_, err = io.Copy(pw.file, io.TeeReader(pw.reader, pw))

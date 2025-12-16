@@ -1,6 +1,7 @@
 package list
 
 import (
+	"context"
 	"fmt"
 	"path/filepath"
 	"sort"
@@ -17,6 +18,7 @@ import (
 	"github.com/meza/minecraft-mod-manager/internal/perf"
 	"github.com/meza/minecraft-mod-manager/internal/telemetry"
 	"github.com/meza/minecraft-mod-manager/internal/tui"
+	"go.opentelemetry.io/otel/attribute"
 )
 
 func Command() *cobra.Command {
@@ -25,23 +27,24 @@ func Command() *cobra.Command {
 		Aliases: []string{"ls", "l"},
 		Short:   i18n.T("cmd.list.short"),
 		RunE: func(cmd *cobra.Command, _ []string) (err error) {
-			details := perf.PerformanceDetails{}
-			region := perf.StartRegionWithDetails("app.command.list", &details)
-			defer func() {
-				details["success"] = err == nil
-				region.End()
-			}()
+			ctx, span := perf.StartSpan(cmd.Context(), "app.command.list")
 
 			configPath, err := cmd.Flags().GetString("config")
 			if err != nil {
+				span.SetAttributes(attribute.Bool("success", false))
+				span.End()
 				return err
 			}
 			quiet, err := cmd.Flags().GetBool("quiet")
 			if err != nil {
+				span.SetAttributes(attribute.Bool("success", false))
+				span.End()
 				return err
 			}
 			debug, err := cmd.Flags().GetBool("debug")
 			if err != nil {
+				span.SetAttributes(attribute.Bool("success", false))
+				span.End()
 				return err
 			}
 
@@ -52,7 +55,20 @@ func Command() *cobra.Command {
 				telemetry: telemetry.CaptureCommand,
 			}
 
-			err = runList(cmd, configPath, quiet, deps)
+			entriesCount, err := runList(ctx, cmd, configPath, quiet, deps)
+			span.SetAttributes(attribute.Bool("success", err == nil))
+			span.End()
+
+			if err == nil {
+				deps.telemetry(telemetry.CommandTelemetry{
+					Command: "list",
+					Success: true,
+					Extra: map[string]interface{}{
+						"numberOfMods": entriesCount,
+					},
+				})
+			}
+
 			return err
 		},
 	}
@@ -73,17 +89,17 @@ type listEntry struct {
 	Installed   bool
 }
 
-func runList(cmd *cobra.Command, configPath string, quiet bool, deps listDeps) error {
+func runList(ctx context.Context, cmd *cobra.Command, configPath string, quiet bool, deps listDeps) (int, error) {
 	meta := config.NewMetadata(configPath)
 
-	cfg, err := config.ReadConfig(deps.fs, meta)
+	cfg, err := config.ReadConfig(ctx, deps.fs, meta)
 	if err != nil {
-		return err
+		return 0, err
 	}
 
-	lock, err := readLockOrEmpty(deps.fs, meta)
+	lock, err := readLockOrEmpty(ctx, deps.fs, meta)
 	if err != nil {
-		return err
+		return 0, err
 	}
 
 	entries := buildEntries(cfg, lock, meta, deps.fs)
@@ -92,30 +108,26 @@ func runList(cmd *cobra.Command, configPath string, quiet bool, deps listDeps) e
 	view := renderListView(entries, colorize)
 
 	if useTUI {
-		model := newModel(view)
+		_, tuiSpan := perf.StartSpan(ctx, "tui.list.session")
+		model := newModel(view, tuiSpan)
 		program := tea.NewProgram(model, tui.ProgramOptions(cmd.InOrStdin(), cmd.OutOrStdout())...)
 		if _, err := program.Run(); err != nil {
-			return err
+			tuiSpan.SetAttributes(attribute.Bool("success", false))
+			tuiSpan.End()
+			return 0, err
 		}
+		tuiSpan.SetAttributes(attribute.Bool("success", true))
+		tuiSpan.End()
 		if len(entries) == 0 {
 			deps.logger.Log(view, true)
 		}
 	} else {
 		deps.logger.Log(view, true)
 	}
-
-	deps.telemetry(telemetry.CommandTelemetry{
-		Command: "list",
-		Success: true,
-		Extra: map[string]interface{}{
-			"numberOfMods": len(entries),
-		},
-	})
-
-	return nil
+	return len(entries), nil
 }
 
-func readLockOrEmpty(fs afero.Fs, meta config.Metadata) ([]models.ModInstall, error) {
+func readLockOrEmpty(ctx context.Context, fs afero.Fs, meta config.Metadata) ([]models.ModInstall, error) {
 	lockPath := meta.LockPath()
 	exists, err := afero.Exists(fs, lockPath)
 	if err != nil {
@@ -125,7 +137,7 @@ func readLockOrEmpty(fs afero.Fs, meta config.Metadata) ([]models.ModInstall, er
 		return []models.ModInstall{}, nil
 	}
 
-	return config.ReadLock(fs, meta)
+	return config.ReadLock(ctx, fs, meta)
 }
 
 func buildEntries(cfg models.ModsJson, lock []models.ModInstall, meta config.Metadata, fs afero.Fs) []listEntry {

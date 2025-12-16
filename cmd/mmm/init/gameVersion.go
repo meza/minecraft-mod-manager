@@ -1,6 +1,7 @@
 package init
 
 import (
+	"context"
 	"fmt"
 	"strings"
 
@@ -105,9 +106,9 @@ func (m GameVersionModel) gameVersionSelected() tea.Cmd {
 	}
 }
 
-func NewGameVersionModel(minecraftClient httpClient.Doer, gameVersion string) GameVersionModel {
-	latestVersion, _ := minecraft.GetLatestVersion(minecraftClient)
-	allVersions := minecraft.GetAllMineCraftVersions(minecraftClient)
+func NewGameVersionModel(ctx context.Context, minecraftClient httpClient.Doer, gameVersion string) GameVersionModel {
+	latestVersion, _ := minecraft.GetLatestVersion(ctx, minecraftClient)
+	allVersions := minecraft.GetAllMineCraftVersions(ctx, minecraftClient)
 
 	m := textinput.New()
 	m.Prompt = tui.QuestionStyle.Render("? ") + tui.TitleStyle.Render(i18n.T("cmd.init.tui.game-version.question")) + " "
@@ -133,7 +134,7 @@ func NewGameVersionModel(minecraftClient httpClient.Doer, gameVersion string) Ga
 		help:   help.New(),
 		keymap: tui.TranslatedInputKeyMap{},
 		validate: func(value string) error {
-			return validateMinecraftVersion(value, minecraftClient)
+			return validateMinecraftVersion(ctx, value, minecraftClient)
 		},
 	}
 
@@ -144,12 +145,12 @@ func NewGameVersionModel(minecraftClient httpClient.Doer, gameVersion string) Ga
 
 	return model
 }
-func validateMinecraftVersion(value string, client httpClient.Doer) error {
+func validateMinecraftVersion(ctx context.Context, value string, client httpClient.Doer) error {
 	if value == "" {
 		return fmt.Errorf("%s", i18n.T("cmd.init.tui.game-version.error"))
 	}
 
-	if !minecraft.IsValidVersion(value, client) {
+	if !minecraft.IsValidVersion(ctx, value, client) {
 		return fmt.Errorf("%s", i18n.T("cmd.init.tui.game-version.invalid"))
 	}
 	return nil

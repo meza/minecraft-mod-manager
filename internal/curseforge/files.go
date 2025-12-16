@@ -2,8 +2,10 @@ package curseforge
 
 import (
 	"bytes"
+	"context"
 	"encoding/json"
 	"fmt"
+
 	"github.com/meza/minecraft-mod-manager/internal/globalErrors"
 	"github.com/meza/minecraft-mod-manager/internal/httpClient"
 	"github.com/meza/minecraft-mod-manager/internal/models"
@@ -11,6 +13,8 @@ import (
 	"github.com/pkg/errors"
 	"net/http"
 	"strconv"
+
+	"go.opentelemetry.io/otel/attribute"
 )
 
 type getFilesResponse struct {
@@ -41,15 +45,17 @@ type getFingerprintsMatchesResponse struct {
 	Data fingerprintsMatchResult `json:"data"`
 }
 
-func getPaginatedFilesForProject(projectId int, client httpClient.Doer, cursor int) (*getFilesResponse, error) {
-	region := perf.StartRegionWithDetails("api.curseforge.project.files.list", &perf.PerformanceDetails{
-		"project_id": projectId,
-		"cursor":     cursor,
-	})
-	defer region.End()
+func getPaginatedFilesForProject(ctx context.Context, projectId int, client httpClient.Doer, cursor int) (*getFilesResponse, error) {
+	ctx, span := perf.StartSpan(ctx, "api.curseforge.project.files.list",
+		perf.WithAttributes(
+			attribute.Int("project_id", projectId),
+			attribute.Int("cursor", cursor),
+		),
+	)
+	defer span.End()
 
 	url := fmt.Sprintf("%s/mods/%d/files?index=%d", GetBaseUrl(), projectId, cursor)
-	request, _ := http.NewRequest(http.MethodGet, url, nil)
+	request, _ := http.NewRequestWithContext(ctx, http.MethodGet, url, nil)
 
 	response, err := client.Do(request)
 	if err != nil {
@@ -77,11 +83,11 @@ func getPaginatedFilesForProject(projectId int, client httpClient.Doer, cursor i
 	return &filesResponse, nil
 }
 
-func GetFilesForProject(projectId int, client httpClient.Doer) ([]File, error) {
+func GetFilesForProject(ctx context.Context, projectId int, client httpClient.Doer) ([]File, error) {
 	var files []File
 	cursor := 0
 	for {
-		filesResponse, err := getPaginatedFilesForProject(projectId, client, cursor)
+		filesResponse, err := getPaginatedFilesForProject(ctx, projectId, client, cursor)
 		if err != nil {
 			return nil, err
 		}
@@ -97,18 +103,16 @@ func GetFilesForProject(projectId int, client httpClient.Doer) ([]File, error) {
 	return files, nil
 }
 
-func GetFingerprintsMatches(fingerprints []int, client httpClient.Doer) (*FingerprintResult, error) {
-	region := perf.StartRegionWithDetails("api.curseforge.fingerprints.match", &perf.PerformanceDetails{
-		"fingerprints": fingerprints,
-	})
-	defer region.End()
+func GetFingerprintsMatches(ctx context.Context, fingerprints []int, client httpClient.Doer) (*FingerprintResult, error) {
+	ctx, span := perf.StartSpan(ctx, "api.curseforge.fingerprints.match", perf.WithAttributes(attribute.Int("fingerprints_count", len(fingerprints))))
+	defer span.End()
 
 	gameId := Minecraft
 
 	url := fmt.Sprintf("%s/fingerprints/%d", GetBaseUrl(), gameId)
 
 	body, _ := json.Marshal(getFingerprintsRequest{Fingerprints: fingerprints})
-	request, _ := http.NewRequest(http.MethodPost, url, bytes.NewBuffer(body))
+	request, _ := http.NewRequestWithContext(ctx, http.MethodPost, url, bytes.NewBuffer(body))
 	request.Header.Add("Content-Type", "application/json")
 
 	response, err := client.Do(request)
