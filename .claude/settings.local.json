@@ -1,0 +1,10 @@
+{
+  "permissions": {
+    "allow": [
+      "WebSearch",
+      "WebFetch(domain:opentelemetry.io)",
+      "WebFetch(domain:raw.githubusercontent.com)",
+      "Bash(*)"
+    ]
+  }
+}
