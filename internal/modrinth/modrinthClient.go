@@ -20,7 +20,7 @@ func NewClient(doer httpClient.Doer) *Client {
 }
 
 func (modrinthClient *Client) Do(request *http.Request) (*http.Response, error) {
-	defer perf.StartRegionWithDetails("modrinth-api-call", &perf.PerformanceDetails{
+	defer perf.StartRegionWithDetails("api.modrinth.http.request", &perf.PerformanceDetails{
 		"url": request.URL.String(),
 	}).End()
 	headers := map[string]string{

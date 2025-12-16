@@ -34,7 +34,7 @@ func ClearManifestCache() {
 }
 
 func getMinecraftVersionManifest(client httpClient.Doer) (*versionManifest, error) {
-	defer perf.StartRegion("getMinecraftVersionManifest").End()
+	defer perf.StartRegion("api.minecraft.version_manifest.get").End()
 	if latestManifest != nil {
 		return latestManifest, nil
 	}

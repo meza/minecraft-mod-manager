@@ -20,6 +20,7 @@ import (
 	"github.com/meza/minecraft-mod-manager/internal/logger"
 	"github.com/meza/minecraft-mod-manager/internal/minecraft"
 	"github.com/meza/minecraft-mod-manager/internal/models"
+	"github.com/meza/minecraft-mod-manager/internal/perf"
 	"github.com/meza/minecraft-mod-manager/internal/platform"
 	"github.com/meza/minecraft-mod-manager/internal/telemetry"
 	tuiinternal "github.com/meza/minecraft-mod-manager/internal/tui"
@@ -28,6 +29,7 @@ import (
 var noopTelemetry = func(telemetry.CommandTelemetry) {}
 
 func TestRunAdd_Success(t *testing.T) {
+	perf.ClearPerformanceLog()
 	fs := afero.NewMemMapFs()
 	meta := config.NewMetadata(filepath.FromSlash("/cfg/modlist.json"))
 	assert.NoError(t, fs.MkdirAll(filepath.Dir(meta.ConfigPath), 0755))
@@ -93,6 +95,12 @@ func TestRunAdd_Success(t *testing.T) {
 
 	assert.True(t, telemetryCalled.Success)
 	assert.Equal(t, "add", telemetryCalled.Command)
+
+	assertPerfMarkExists(t, "app.command.add.stage.prepare")
+	assertPerfMarkExists(t, "app.command.add.stage.resolve")
+	assertPerfMarkExists(t, "app.command.add.resolve.attempt")
+	assertPerfMarkExists(t, "app.command.add.stage.download")
+	assertPerfMarkExists(t, "app.command.add.stage.persist")
 }
 
 func TestRunAdd_DuplicateSkipsWork(t *testing.T) {
@@ -242,6 +250,7 @@ func TestRunAdd_ModNotFoundCancelled(t *testing.T) {
 }
 
 func TestRunAdd_ModNotFoundRetry(t *testing.T) {
+	perf.ClearPerformanceLog()
 	restoreTTY := tuiinternal.SetIsTerminalFuncForTesting(func(int) bool { return true })
 	defer restoreTTY()
 
@@ -298,9 +307,13 @@ func TestRunAdd_ModNotFoundRetry(t *testing.T) {
 	assert.Len(t, configAfter.Mods, 1)
 	assert.Equal(t, "def", configAfter.Mods[0].ID)
 	assert.Equal(t, models.CURSEFORGE, configAfter.Mods[0].Type)
+
+	assertPerfMarkExists(t, "app.command.add.resolve.attempt")
+	assertPerfMarkExists(t, "app.command.add.tui.open")
 }
 
 func TestRunAdd_NoFileRetryAlternate(t *testing.T) {
+	perf.ClearPerformanceLog()
 	restoreTTY := tuiinternal.SetIsTerminalFuncForTesting(func(int) bool { return true })
 	defer restoreTTY()
 
@@ -359,6 +372,9 @@ func TestRunAdd_NoFileRetryAlternate(t *testing.T) {
 	assert.Len(t, configAfter.Mods, 1)
 	assert.Equal(t, models.MODRINTH, configAfter.Mods[0].Type)
 	assert.Equal(t, "zzz", configAfter.Mods[0].ID)
+
+	assertPerfMarkExists(t, "app.command.add.resolve.attempt")
+	assertPerfMarkExists(t, "app.command.add.tui.open")
 }
 
 func TestRunAdd_DownloadFailure(t *testing.T) {
@@ -465,6 +481,7 @@ func (m manifestDoer) Do(_ *http.Request) (*http.Response, error) {
 }
 
 func TestRunAdd_UnknownPlatformInteractiveRetry(t *testing.T) {
+	perf.ClearPerformanceLog()
 	restoreTTY := tuiinternal.SetIsTerminalFuncForTesting(func(int) bool { return true })
 	defer restoreTTY()
 
@@ -521,6 +538,9 @@ func TestRunAdd_UnknownPlatformInteractiveRetry(t *testing.T) {
 	configAfter, _ := config.ReadConfig(fs, meta)
 	assert.Len(t, configAfter.Mods, 1)
 	assert.Equal(t, models.CURSEFORGE, configAfter.Mods[0].Type)
+
+	assertPerfMarkExists(t, "app.command.add.resolve.attempt")
+	assertPerfMarkExists(t, "app.command.add.tui.open")
 }
 
 type fakeTTYReader struct {
@@ -664,4 +684,51 @@ func TestRunAdd_TelemetryOnFailure(t *testing.T) {
 	assert.Error(t, err)
 	assert.False(t, telemetryCalled.Success)
 	assert.Equal(t, "add", telemetryCalled.Command)
+}
+
+func TestResolveRemoteModWithTUI_RecordsAttempt(t *testing.T) {
+	perf.ClearPerformanceLog()
+
+	cfg := models.ModsJson{
+		Loader:                     models.FABRIC,
+		GameVersion:                "1.20.1",
+		DefaultAllowedReleaseTypes: []models.ReleaseType{models.Release},
+	}
+
+	var fetchCalls int
+	deps := addDeps{
+		clients: platform.DefaultClients(rate.NewLimiter(rate.Inf, 0)),
+		logger:  logger.New(io.Discard, io.Discard, false, false),
+		fetchMod: func(p models.Platform, id string, _ platform.FetchOptions, _ platform.Clients) (platform.RemoteMod, error) {
+			fetchCalls++
+			return platform.RemoteMod{Name: "Example", FileName: "example.jar"}, nil
+		},
+		runTea: func(model tea.Model, _ ...tea.ProgramOption) (tea.Model, error) {
+			typed, ok := model.(addTUIModel)
+			assert.True(t, ok)
+			cmd := typed.fetchCmd(models.CURSEFORGE, "abc")
+			msg := cmd().(addTUIFetchResultMsg)
+			updated, _ := typed.Update(msg)
+			return updated, nil
+		},
+	}
+
+	remote, resolvedPlatform, resolvedProject, err := resolveRemoteModWithTUI(addTUIStateUnknownPlatformSelect, cfg, addOptions{}, models.Platform("invalid"), "abc", deps, strings.NewReader(""), io.Discard)
+	assert.NoError(t, err)
+	assert.Equal(t, "example.jar", remote.FileName)
+	assert.Equal(t, models.CURSEFORGE, resolvedPlatform)
+	assert.Equal(t, "abc", resolvedProject)
+	assert.Equal(t, 1, fetchCalls)
+
+	assertPerfMarkExists(t, "app.command.add.resolve.attempt")
+}
+
+func assertPerfMarkExists(t *testing.T, name string) {
+	t.Helper()
+	for _, entry := range perf.GetPerformanceLog() {
+		if entry.Type == perf.MarkType && entry.Name == name {
+			return
+		}
+	}
+	t.Fatalf("expected perf mark %q not found", name)
 }

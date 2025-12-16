@@ -10,7 +10,7 @@ import (
 )
 
 func EnsureLock(fs afero.Fs, meta Metadata) ([]models.ModInstall, error) {
-	region := perf.StartRegion("lock-ensure")
+	region := perf.StartRegion("io.config.lock.ensure")
 	defer region.End()
 
 	lockPath := meta.LockPath()
@@ -27,7 +27,7 @@ func EnsureLock(fs afero.Fs, meta Metadata) ([]models.ModInstall, error) {
 }
 
 func ReadLock(fs afero.Fs, meta Metadata) ([]models.ModInstall, error) {
-	region := perf.StartRegion("lock-read")
+	region := perf.StartRegion("io.config.lock.read")
 	defer region.End()
 
 	data, err := afero.ReadFile(fs, meta.LockPath())
@@ -44,7 +44,7 @@ func ReadLock(fs afero.Fs, meta Metadata) ([]models.ModInstall, error) {
 }
 
 func WriteLock(fs afero.Fs, meta Metadata, lock []models.ModInstall) error {
-	region := perf.StartRegion("lock-write")
+	region := perf.StartRegion("io.config.lock.write")
 	defer region.End()
 
 	data, _ := json.MarshalIndent(lock, "", "  ")

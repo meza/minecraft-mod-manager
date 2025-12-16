@@ -53,6 +53,14 @@ default:
 - `RemoteMod` (selection output)
 - `UnknownPlatformError`, `ModNotFoundError`, `NoCompatibleFileError` (expected failure modes)
 
+## Perf instrumentation
+
+The public entrypoint `FetchMod(...)` is wrapped with a perf region:
+
+- `platform.fetch_mod`
+
+This sits above provider-specific `api.*` and `net.http.*` regions so you can tell whether time is spent in platform orchestration (selection, fallback iteration) vs the underlying HTTP calls.
+
 ### FetchOptions
 
 `FetchOptions` describes how to pick a file:

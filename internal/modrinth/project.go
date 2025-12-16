@@ -50,8 +50,8 @@ type Project struct {
 }
 
 func GetProject(projectId string, client httpClient.Doer) (*Project, error) {
-	region := perf.StartRegionWithDetails("modrinth-getproject", &perf.PerformanceDetails{
-		"projectId": projectId,
+	region := perf.StartRegionWithDetails("api.modrinth.project.get", &perf.PerformanceDetails{
+		"project_id": projectId,
 	})
 	defer region.End()
 

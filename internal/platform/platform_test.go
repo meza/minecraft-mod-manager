@@ -12,11 +12,13 @@ import (
 	"github.com/meza/minecraft-mod-manager/internal/httpClient"
 	"github.com/meza/minecraft-mod-manager/internal/models"
 	"github.com/meza/minecraft-mod-manager/internal/modrinth"
+	"github.com/meza/minecraft-mod-manager/internal/perf"
 	"github.com/stretchr/testify/assert"
 	"golang.org/x/time/rate"
 )
 
 func TestFetchModrinth_Succeeds(t *testing.T) {
+	perf.ClearPerformanceLog()
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		switch {
 		case r.URL.Path == "/v2/project/test-mod":
@@ -82,6 +84,81 @@ func TestFetchModrinth_Succeeds(t *testing.T) {
 	assert.Equal(t, "abc", mod.Hash)
 	assert.Equal(t, "https://example.com/file.jar", mod.DownloadURL)
 	assert.Equal(t, "2024-08-01T12:00:00Z", mod.ReleaseDate)
+
+	assertPerfRegionExists(t, "platform.fetch_mod")
+	assertPerfDetailEquals(t, "platform.fetch_mod", "platform", string(models.MODRINTH))
+	assertPerfDetailEquals(t, "platform.fetch_mod", "project_id", "test-mod")
+	assertPerfDetailEquals(t, "platform.fetch_mod", "success", true)
+}
+
+func TestFetchMod_UnknownPlatformRecordsPerf(t *testing.T) {
+	perf.ClearPerformanceLog()
+
+	_, err := FetchMod("unknown", "abc", FetchOptions{}, Clients{})
+	assert.Error(t, err)
+
+	assertPerfRegionExists(t, "platform.fetch_mod")
+	assertPerfDetailEquals(t, "platform.fetch_mod", "platform", "unknown")
+	assertPerfDetailEquals(t, "platform.fetch_mod", "success", false)
+	assertPerfDetailContains(t, "platform.fetch_mod", "error_type", "UnknownPlatformError")
+}
+
+func assertPerfRegionExists(t *testing.T, name string) {
+	t.Helper()
+	hasStart := false
+	hasEnd := false
+	hasDuration := false
+	for _, entry := range perf.GetPerformanceLog() {
+		if entry.Type == perf.MarkType && entry.Name == name {
+			hasStart = true
+		}
+		if entry.Type == perf.MarkType && entry.Name == name+"-end" {
+			hasEnd = true
+		}
+		if entry.Type == perf.MeasureType && entry.Name == name+"-duration" {
+			hasDuration = true
+		}
+	}
+	if hasStart && hasEnd && hasDuration {
+		return
+	}
+	t.Fatalf("expected perf region %q not fully recorded (start=%v end=%v duration=%v)", name, hasStart, hasEnd, hasDuration)
+}
+
+func assertPerfDetailEquals(t *testing.T, markerName string, key string, expected interface{}) {
+	t.Helper()
+	entry := findPerfMark(t, markerName)
+	if entry.Details == nil {
+		t.Fatalf("expected perf mark %q to include details", markerName)
+	}
+	actual := (*entry.Details)[key]
+	assert.Equal(t, expected, actual)
+}
+
+func assertPerfDetailContains(t *testing.T, markerName string, key string, needle string) {
+	t.Helper()
+	entry := findPerfMark(t, markerName)
+	if entry.Details == nil {
+		t.Fatalf("expected perf mark %q to include details", markerName)
+	}
+	value, ok := (*entry.Details)[key].(string)
+	if !ok {
+		t.Fatalf("expected perf mark %q detail %q to be string", markerName, key)
+	}
+	assert.Contains(t, value, needle)
+}
+
+func findPerfMark(t *testing.T, name string) *perf.Entry {
+	t.Helper()
+	log := perf.GetPerformanceLog()
+	for i := range log {
+		entry := log[i]
+		if entry.Type == perf.MarkType && entry.Name == name {
+			return &log[i]
+		}
+	}
+	t.Fatalf("expected perf mark %q not found", name)
+	return nil
 }
 
 func TestFetchModrinth_Fallback(t *testing.T) {

@@ -4,6 +4,7 @@ modlist-lock.json
 mods
 internal/i18n/localise
 .locize
+mmm-perf.json
 
 ## GENERATED
 .idea

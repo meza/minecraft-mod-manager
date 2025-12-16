@@ -12,6 +12,7 @@ import (
 
 	"github.com/meza/minecraft-mod-manager/internal/i18n"
 	"github.com/meza/minecraft-mod-manager/internal/models"
+	"github.com/meza/minecraft-mod-manager/internal/perf"
 	"github.com/meza/minecraft-mod-manager/internal/platform"
 	"github.com/meza/minecraft-mod-manager/internal/tui"
 )
@@ -73,6 +74,11 @@ type addTUIModel struct {
 	resolvedPlatform models.Platform
 	resolvedProject  string
 	err              error
+
+	fetchRegion  *perf.PerformanceRegion
+	fetchDetails perf.PerformanceDetails
+
+	waitRegion *perf.PerformanceRegion
 }
 
 type addTUIListItem struct {
@@ -139,9 +145,17 @@ func (m addTUIModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	case tea.KeyMsg:
 		switch msg.String() {
 		case "ctrl+c":
+			m.endWait("abort")
+			perf.Mark("tui.add.action.abort", &perf.PerformanceDetails{
+				"state": m.stateName(),
+			})
 			m.state = addTUIStateAborted
 			return m, tea.Quit
 		case "esc":
+			m.endWait("back")
+			perf.Mark("tui.add.action.back", &perf.PerformanceDetails{
+				"state": m.stateName(),
+			})
 			if m.goBack() {
 				return m, nil
 			}
@@ -185,6 +199,14 @@ func (m addTUIModel) View() string {
 }
 
 func (m *addTUIModel) enterState(state addTUIState) {
+	perf.Mark("tui.add.state.enter", &perf.PerformanceDetails{
+		"state":            m.stateNameFor(state),
+		"failure_platform": m.failurePlatform,
+		"failure_project":  m.failureProject,
+	})
+
+	m.startWait(state)
+
 	switch state {
 	case addTUIStateUnknownPlatformSelect:
 		message := i18n.T("cmd.add.tui.unknown_platform", i18n.Tvars{
@@ -229,6 +251,35 @@ func (m *addTUIModel) enterState(state addTUIState) {
 	}
 }
 
+func (m addTUIModel) stateName() string {
+	return m.stateNameFor(m.state)
+}
+
+func (m addTUIModel) stateNameFor(state addTUIState) string {
+	switch state {
+	case addTUIStateUnknownPlatformSelect:
+		return "unknown_platform_select"
+	case addTUIStateModNotFoundConfirm:
+		return "mod_not_found_confirm"
+	case addTUIStateModNotFoundSelectPlatform:
+		return "mod_not_found_select_platform"
+	case addTUIStateModNotFoundEnterProjectID:
+		return "mod_not_found_enter_project_id"
+	case addTUIStateNoFileConfirm:
+		return "no_file_confirm"
+	case addTUIStateNoFileEnterProjectID:
+		return "no_file_enter_project_id"
+	case addTUIStateFatalError:
+		return "fatal_error"
+	case addTUIStateDone:
+		return "done"
+	case addTUIStateAborted:
+		return "aborted"
+	default:
+		return "unknown"
+	}
+}
+
 func (m *addTUIModel) pushState(state addTUIState) {
 	m.history = append(m.history, addTUIHistory{
 		state:             state,
@@ -263,13 +314,28 @@ func (m addTUIModel) updateList(msg tea.Msg) (tea.Model, tea.Cmd) {
 			switch m.state {
 			case addTUIStateUnknownPlatformSelect:
 				if item.value == "cancel" {
+					m.endWait("cancel")
+					perf.Mark("tui.add.action.cancel", &perf.PerformanceDetails{
+						"state": m.stateName(),
+					})
 					m.state = addTUIStateAborted
 					return m, tea.Quit
 				}
+				m.endWait("select_platform")
+				perf.Mark("tui.add.action.select_platform", &perf.PerformanceDetails{
+					"state":    m.stateName(),
+					"platform": item.value,
+				})
 				m.candidatePlatform = models.Platform(item.value)
 				m.candidateProject = m.failureProject
+				m.beginFetch("select_platform", m.candidatePlatform, m.candidateProject)
 				return m, m.fetchCmd(m.candidatePlatform, m.candidateProject)
 			case addTUIStateModNotFoundSelectPlatform:
+				m.endWait("select_platform")
+				perf.Mark("tui.add.action.select_platform", &perf.PerformanceDetails{
+					"state":    m.stateName(),
+					"platform": item.value,
+				})
 				m.candidatePlatform = models.Platform(item.value)
 				m.pushState(addTUIStateModNotFoundSelectPlatform)
 				m.state = addTUIStateModNotFoundEnterProjectID
@@ -296,10 +362,16 @@ func (m addTUIModel) updateInput(msg tea.Msg) (tea.Model, tea.Cmd) {
 			if value == "" {
 				return m, nil
 			}
+			m.endWait("submit_project_id")
+			perf.Mark("tui.add.action.submit_project_id", &perf.PerformanceDetails{
+				"state":      m.stateName(),
+				"project_id": value,
+			})
 			m.candidateProject = value
 			if m.state == addTUIStateNoFileEnterProjectID {
 				m.candidatePlatform = alternatePlatform(m.failurePlatform)
 			}
+			m.beginFetch("submit_project_id", m.candidatePlatform, m.candidateProject)
 			return m, m.fetchCmd(m.candidatePlatform, m.candidateProject)
 		}
 	}
@@ -314,6 +386,10 @@ func (m addTUIModel) updateConfirm(msg tea.Msg) (tea.Model, tea.Cmd) {
 	case tea.KeyMsg:
 		switch msg.String() {
 		case "enter", "y", "Y":
+			m.endWait("confirm_yes")
+			perf.Mark("tui.add.action.confirm_yes", &perf.PerformanceDetails{
+				"state": m.stateName(),
+			})
 			switch m.state {
 			case addTUIStateModNotFoundConfirm:
 				m.pushState(addTUIStateModNotFoundConfirm)
@@ -327,6 +403,10 @@ func (m addTUIModel) updateConfirm(msg tea.Msg) (tea.Model, tea.Cmd) {
 				return m, nil
 			}
 		case "n", "N":
+			m.endWait("confirm_no")
+			perf.Mark("tui.add.action.confirm_no", &perf.PerformanceDetails{
+				"state": m.stateName(),
+			})
 			m.state = addTUIStateAborted
 			return m, tea.Quit
 		}
@@ -335,10 +415,16 @@ func (m addTUIModel) updateConfirm(msg tea.Msg) (tea.Model, tea.Cmd) {
 }
 
 func (m addTUIModel) handleFetchResult(msg addTUIFetchResultMsg) (tea.Model, tea.Cmd) {
+	m.endFetch(msg)
+
 	if msg.err == nil {
 		m.remoteMod = msg.remote
 		m.resolvedPlatform = msg.platform
 		m.resolvedProject = msg.projectID
+		perf.Mark("tui.add.outcome.resolved", &perf.PerformanceDetails{
+			"platform":   msg.platform,
+			"project_id": msg.projectID,
+		})
 		m.state = addTUIStateDone
 		return m, tea.Quit
 	}
@@ -367,6 +453,62 @@ func (m addTUIModel) handleFetchResult(msg addTUIFetchResultMsg) (tea.Model, tea
 		m.state = addTUIStateFatalError
 		return m, tea.Quit
 	}
+}
+
+func (m *addTUIModel) startWait(state addTUIState) {
+	m.endWait("state_change")
+
+	stateName := m.stateNameFor(state)
+	if stateName == "done" || stateName == "aborted" {
+		return
+	}
+
+	m.waitRegion = perf.StartRegionWithDetails("tui.add.wait."+stateName, &perf.PerformanceDetails{
+		"state": stateName,
+	})
+}
+
+func (m *addTUIModel) endWait(action string) {
+	if m.waitRegion == nil {
+		return
+	}
+	m.waitRegion.EndWithDetails(&perf.PerformanceDetails{
+		"state":  m.stateName(),
+		"action": action,
+	})
+	m.waitRegion = nil
+}
+
+func (m *addTUIModel) beginFetch(action string, platformValue models.Platform, projectID string) {
+	m.endWait(action)
+
+	if m.fetchRegion != nil {
+		m.fetchDetails["success"] = false
+		m.fetchDetails["error_type"] = "overlapping_fetch"
+		m.fetchRegion.End()
+		m.fetchRegion = nil
+	}
+
+	m.fetchDetails = perf.PerformanceDetails{
+		"action":     action,
+		"platform":   platformValue,
+		"project_id": projectID,
+		"state":      m.stateName(),
+	}
+	m.fetchRegion = perf.StartRegionWithDetails("tui.add.fetch", &m.fetchDetails)
+}
+
+func (m *addTUIModel) endFetch(msg addTUIFetchResultMsg) {
+	if m.fetchRegion == nil {
+		return
+	}
+
+	m.fetchDetails["success"] = msg.err == nil
+	if msg.err != nil {
+		m.fetchDetails["error_type"] = fmt.Sprintf("%T", msg.err)
+	}
+	m.fetchRegion.End()
+	m.fetchRegion = nil
 }
 
 func newPlatformListModel(message string, defaultValue string, includeCancel bool, width int) list.Model {

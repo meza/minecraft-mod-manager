@@ -12,7 +12,7 @@ import (
 )
 
 func ReadConfig(fs afero.Fs, meta Metadata) (models.ModsJson, error) {
-	region := perf.StartRegion("config-read")
+	region := perf.StartRegion("io.config.read")
 	defer region.End()
 
 	exists, _ := afero.Exists(fs, meta.ConfigPath)
@@ -34,7 +34,7 @@ func ReadConfig(fs afero.Fs, meta Metadata) (models.ModsJson, error) {
 }
 
 func WriteConfig(fs afero.Fs, meta Metadata, config models.ModsJson) error {
-	region := perf.StartRegion("config-write")
+	region := perf.StartRegion("io.config.write")
 	defer region.End()
 
 	data, _ := json.MarshalIndent(config, "", "  ")
@@ -42,7 +42,7 @@ func WriteConfig(fs afero.Fs, meta Metadata, config models.ModsJson) error {
 }
 
 func InitConfig(fs afero.Fs, meta Metadata, minecraftClient httpClient.Doer) (models.ModsJson, error) {
-	region := perf.StartRegion("config-init")
+	region := perf.StartRegion("io.config.init")
 	defer region.End()
 
 	latest, err := minecraft.GetLatestVersion(minecraftClient)

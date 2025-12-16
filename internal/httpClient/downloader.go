@@ -35,9 +35,11 @@ type Sender interface {
 }
 
 func DownloadFile(url string, filepath string, client Doer, program Sender, filesystem ...afero.Fs) error {
-	region := perf.StartRegionWithDetails("download-file", &perf.PerformanceDetails{
-		"file": url,
-	})
+	details := perf.PerformanceDetails{
+		"url":  url,
+		"path": filepath,
+	}
+	region := perf.StartRegionWithDetails("io.download.file", &details)
 	defer region.End()
 
 	fs := fileutils.InitFilesystem(filesystem...)
@@ -62,6 +64,9 @@ func DownloadFile(url string, filepath string, client Doer, program Sender, file
 		onProgress: func(ratio float64) {
 			program.Send(progressMsg(ratio))
 		},
+	}
+	if pw.total > 0 {
+		details["bytes"] = int64(pw.total)
 	}
 
 	_, err = io.Copy(pw.file, io.TeeReader(pw.reader, pw))

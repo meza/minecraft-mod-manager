@@ -12,6 +12,7 @@ import (
 
 	"github.com/meza/minecraft-mod-manager/internal/config"
 	"github.com/meza/minecraft-mod-manager/internal/models"
+	"github.com/meza/minecraft-mod-manager/internal/perf"
 )
 
 const mockLatestVersion = "1.21.1"
@@ -20,22 +21,27 @@ func TestInitTUIStateSnapshots(t *testing.T) {
 	t.Setenv("MMM_TEST", "true")
 
 	t.Run("loader", func(t *testing.T) {
+		perf.ClearPerformanceLog()
 		model := newSnapshotModel(t)
 		model = applyWindowSize(t, model, 60)
 
 		matchSnapshot(t, model.View())
+		assertPerfMarkExistsInit(t, "tui.init.state.enter")
 	})
 
 	t.Run("game_version", func(t *testing.T) {
+		perf.ClearPerformanceLog()
 		model := newSnapshotModel(t)
 		model = applyWindowSize(t, model, 60)
 		model = selectLoader(t, model, models.FABRIC)
 		model.gameVersionQuestion.input.SetValue(mockLatestVersion)
 
 		matchSnapshot(t, model.View())
+		assertPerfMarkExistsInit(t, "tui.init.action.select_loader")
 	})
 
 	t.Run("release_types", func(t *testing.T) {
+		perf.ClearPerformanceLog()
 		model := newSnapshotModel(t)
 		model = applyWindowSize(t, model, 60)
 		model = selectLoader(t, model, models.FABRIC)
@@ -43,9 +49,11 @@ func TestInitTUIStateSnapshots(t *testing.T) {
 		model = applyWindowSize(t, model, 60)
 
 		matchSnapshot(t, model.View())
+		assertPerfMarkExistsInit(t, "tui.init.action.select_game_version")
 	})
 
 	t.Run("mods_folder", func(t *testing.T) {
+		perf.ClearPerformanceLog()
 		model := newSnapshotModel(t)
 		model = applyWindowSize(t, model, 60)
 		model = selectLoader(t, model, models.FABRIC)
@@ -55,9 +63,11 @@ func TestInitTUIStateSnapshots(t *testing.T) {
 		model.modsFolderQuestion.input.SetValue("mods")
 
 		matchSnapshot(t, model.View())
+		assertPerfMarkExistsInit(t, "tui.init.action.select_release_types")
 	})
 
 	t.Run("done", func(t *testing.T) {
+		perf.ClearPerformanceLog()
 		model := newSnapshotModel(t)
 		model = applyWindowSize(t, model, 60)
 		model = selectLoader(t, model, models.FABRIC)
@@ -67,6 +77,9 @@ func TestInitTUIStateSnapshots(t *testing.T) {
 		model = enterModsFolder(t, model, "mods")
 
 		matchSnapshot(t, model.View())
+		assertPerfMarkExistsInit(t, "tui.init.outcome.completed")
+		assertPerfRegionExistsInit(t, "tui.init.wait.loader")
+		assertPerfRegionExistsInit(t, "tui.init.wait.game_version")
 	})
 }
 
@@ -74,6 +87,7 @@ func TestInitTUIErrorSnapshots(t *testing.T) {
 	t.Setenv("MMM_TEST", "true")
 
 	t.Run("game_version_invalid", func(t *testing.T) {
+		perf.ClearPerformanceLog()
 		model := newSnapshotModel(t)
 		model = applyWindowSize(t, model, 60)
 		model = selectLoader(t, model, models.FABRIC)
@@ -84,9 +98,11 @@ func TestInitTUIErrorSnapshots(t *testing.T) {
 		model = runCmd(t, model, cmd)
 
 		matchSnapshot(t, model.View())
+		assertPerfMarkExistsInit(t, "tui.init.action.select_loader")
 	})
 
 	t.Run("release_types_empty", func(t *testing.T) {
+		perf.ClearPerformanceLog()
 		model := newSnapshotModel(t)
 		model = applyWindowSize(t, model, 60)
 		model = selectLoader(t, model, models.FABRIC)
@@ -101,9 +117,11 @@ func TestInitTUIErrorSnapshots(t *testing.T) {
 		model = runCmd(t, model, cmd)
 
 		matchSnapshot(t, model.View())
+		assertPerfMarkExistsInit(t, "tui.init.state.enter")
 	})
 
 	t.Run("mods_folder_missing", func(t *testing.T) {
+		perf.ClearPerformanceLog()
 		model := newSnapshotModelWithOptions(t, initOptions{
 			ModsFolder: "missing",
 		}, false)
@@ -118,6 +136,7 @@ func TestInitTUIErrorSnapshots(t *testing.T) {
 		model = runCmd(t, model, cmd)
 
 		matchSnapshot(t, model.View())
+		assertPerfMarkExistsInit(t, "tui.init.state.enter")
 	})
 }
 
@@ -307,4 +326,36 @@ func matchSnapshot(t *testing.T, content string) {
 func normalizeSnapshot(content string) string {
 	// Normalize path separators for cross-platform stability.
 	return strings.ReplaceAll(content, "\\", "/")
+}
+
+func assertPerfMarkExistsInit(t *testing.T, name string) {
+	t.Helper()
+	for _, entry := range perf.GetPerformanceLog() {
+		if entry.Type == perf.MarkType && entry.Name == name {
+			return
+		}
+	}
+	t.Fatalf("expected perf mark %q not found", name)
+}
+
+func assertPerfRegionExistsInit(t *testing.T, name string) {
+	t.Helper()
+	hasStart := false
+	hasEnd := false
+	hasDuration := false
+	for _, entry := range perf.GetPerformanceLog() {
+		if entry.Type == perf.MarkType && entry.Name == name {
+			hasStart = true
+		}
+		if entry.Type == perf.MarkType && entry.Name == name+"-end" {
+			hasEnd = true
+		}
+		if entry.Type == perf.MeasureType && entry.Name == name+"-duration" {
+			hasDuration = true
+		}
+	}
+	if hasStart && hasEnd && hasDuration {
+		return
+	}
+	t.Fatalf("expected perf region %q not fully recorded (start=%v end=%v duration=%v)", name, hasStart, hasEnd, hasDuration)
 }

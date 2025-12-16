@@ -42,9 +42,9 @@ type getFingerprintsMatchesResponse struct {
 }
 
 func getPaginatedFilesForProject(projectId int, client httpClient.Doer, cursor int) (*getFilesResponse, error) {
-	region := perf.StartRegionWithDetails("curseforge-getproject", &perf.PerformanceDetails{
-		"projectId": projectId,
-		"cursor":    cursor,
+	region := perf.StartRegionWithDetails("api.curseforge.project.files.list", &perf.PerformanceDetails{
+		"project_id": projectId,
+		"cursor":     cursor,
 	})
 	defer region.End()
 
@@ -98,7 +98,7 @@ func GetFilesForProject(projectId int, client httpClient.Doer) ([]File, error) {
 }
 
 func GetFingerprintsMatches(fingerprints []int, client httpClient.Doer) (*FingerprintResult, error) {
-	region := perf.StartRegionWithDetails("curseforge-getfingerprints", &perf.PerformanceDetails{
+	region := perf.StartRegionWithDetails("api.curseforge.fingerprints.match", &perf.PerformanceDetails{
 		"fingerprints": fingerprints,
 	})
 	defer region.End()

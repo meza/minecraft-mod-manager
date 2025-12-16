@@ -2,11 +2,13 @@ package platform
 
 import (
 	"errors"
+	"fmt"
 	"time"
 
 	"github.com/meza/minecraft-mod-manager/internal/globalErrors"
 	"github.com/meza/minecraft-mod-manager/internal/httpClient"
 	"github.com/meza/minecraft-mod-manager/internal/models"
+	"github.com/meza/minecraft-mod-manager/internal/perf"
 	"golang.org/x/time/rate"
 )
 
@@ -43,14 +45,37 @@ func DefaultClients(limiter *rate.Limiter) Clients {
 }
 
 func FetchMod(platform models.Platform, projectID string, opts FetchOptions, clients Clients) (RemoteMod, error) {
+	details := perf.PerformanceDetails{
+		"platform":       string(platform),
+		"project_id":     projectID,
+		"loader":         string(opts.Loader),
+		"game_version":   opts.GameVersion,
+		"allow_fallback": opts.AllowFallback,
+		"fixed_version":  opts.FixedVersion,
+	}
+	region := perf.StartRegionWithDetails("platform.fetch_mod", &details)
+
+	var remote RemoteMod
+	var err error
 	switch platform {
 	case models.MODRINTH:
-		return fetchModrinth(projectID, opts, clients.Modrinth)
+		remote, err = fetchModrinth(projectID, opts, clients.Modrinth)
 	case models.CURSEFORGE:
-		return fetchCurseforge(projectID, opts, clients.Curseforge)
+		remote, err = fetchCurseforge(projectID, opts, clients.Curseforge)
 	default:
-		return RemoteMod{}, &UnknownPlatformError{Platform: string(platform)}
+		err = &UnknownPlatformError{Platform: string(platform)}
 	}
+
+	details["success"] = err == nil
+	if err != nil {
+		details["error_type"] = fmt.Sprintf("%T", err)
+	}
+	region.End()
+
+	if err != nil {
+		return RemoteMod{}, err
+	}
+	return remote, nil
 }
 
 func mapProjectNotFound(platform models.Platform, projectID string, err error) error {

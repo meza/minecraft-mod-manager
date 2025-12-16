@@ -84,8 +84,8 @@ type VersionHashLookup struct {
 }
 
 func GetVersionsForProject(lookup *VersionLookup, client httpClient.Doer) (Versions, error) {
-	region := perf.StartRegionWithDetails("modrinth-search-version", &perf.PerformanceDetails{
-		"projectId": lookup.ProjectId,
+	region := perf.StartRegionWithDetails("api.modrinth.version.list", &perf.PerformanceDetails{
+		"project_id": lookup.ProjectId,
 	})
 	defer region.End()
 
@@ -122,7 +122,7 @@ func GetVersionsForProject(lookup *VersionLookup, client httpClient.Doer) (Versi
 }
 
 func GetVersionForHash(lookup *VersionHashLookup, client httpClient.Doer) (*Version, error) {
-	region := perf.StartRegionWithDetails("modrinth-hash-lookup", &perf.PerformanceDetails{
+	region := perf.StartRegionWithDetails("api.modrinth.version_file.get", &perf.PerformanceDetails{
 		"hash": lookup.hash,
 	})
 	defer region.End()

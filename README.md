@@ -137,6 +137,8 @@ Every command has a few common options that you can use:
 | -q           | --quiet     | Suppress all interactive ui elements       |
 | -c           | --config    | Set the config file to an alternative path |
 | -d           | --debug     | Enable verbose logging                     |
+|              | --perf      | Write `mmm-perf.json` when the command exits |
+|              | --perf-out-dir | Directory to write `mmm-perf.json` (defaults to the config file directory) |
 
 All options should be specified **before** the command. For example:
 
@@ -149,6 +151,22 @@ or
 ```bash
 mmm -c ./my-config.json install
 ```
+
+### Performance logs
+
+If a command feels slow, you can ask MMM to write a performance log so you can see where time is spent:
+
+```bash
+mmm --perf add modrinth AANobbMI
+```
+
+By default the file is written next to your `modlist.json` as `mmm-perf.json`. Use `--perf-out-dir` to place it in a subdirectory:
+
+```bash
+mmm --perf --perf-out-dir perf add modrinth AANobbMI
+```
+
+Paths inside the perf file are normalized to be relative to the config directory so you can share the file without leaking machine-specific path prefixes.
 
 ### Telemetry
 

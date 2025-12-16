@@ -27,9 +27,12 @@ type RLHTTPClient struct {
 
 func (client *RLHTTPClient) Do(request *http.Request) (*http.Response, error) {
 	ctx := context.WithValue(context.Background(), "url", request.URL)
-	region := perf.StartRegionWithDetails("rate-limited-http-call", &perf.PerformanceDetails{
-		"url": request.URL.String(),
-	})
+	details := perf.PerformanceDetails{
+		"url":    request.URL.String(),
+		"method": request.Method,
+		"host":   request.URL.Host,
+	}
+	region := perf.StartRegionWithDetails("net.http.request", &details)
 	defer region.End()
 	retryConfig := RetryConfig{
 		MaxRetries: 3,
@@ -44,18 +47,26 @@ func (client *RLHTTPClient) Do(request *http.Request) (*http.Response, error) {
 	var err error
 
 	for attempt := 0; attempt <= retryConfig.MaxRetries; attempt++ {
-		attemptRegion := perf.StartRegionWithDetails("rate-limited-http-call-attempt", &perf.PerformanceDetails{
-			"attemptNumber": attempt,
-			"url":           request.URL.String(),
-		})
+		attemptDetails := perf.PerformanceDetails{
+			"attempt": attempt,
+			"url":     request.URL.String(),
+		}
+		attemptRegion := perf.StartRegionWithDetails("net.http.request.attempt", &attemptDetails)
+
+		waitRegion := perf.StartRegionWithDetails("net.http.ratelimit.wait", &attemptDetails)
 		err = client.Ratelimiter.Wait(ctx) // This is a blocking call. Honors the rate limit
+		waitRegion.End()
 		if err != nil {
+			attemptDetails["success"] = false
+			details["success"] = false
 			attemptRegion.End()
 			return nil, fmt.Errorf("rate limit burst exceeded %w", err)
 		}
 
 		response, err = client.client.Do(request)
 		if err != nil {
+			attemptDetails["success"] = false
+			details["success"] = false
 			attemptRegion.End()
 			return nil, err
 		}
@@ -63,6 +74,7 @@ func (client *RLHTTPClient) Do(request *http.Request) (*http.Response, error) {
 		// Check if the response status is a server error (5xx)
 		if response.StatusCode >= 500 && response.StatusCode < 600 {
 			if attempt < retryConfig.MaxRetries {
+				attemptDetails["success"] = false
 				drainAndClose(response.Body)
 				time.Sleep(retryConfig.Interval)
 				attemptRegion.End()
@@ -70,11 +82,17 @@ func (client *RLHTTPClient) Do(request *http.Request) (*http.Response, error) {
 			}
 		}
 
+		attemptDetails["success"] = true
+		attemptDetails["status"] = response.StatusCode
 		// If the response is successful or a non-retryable error occurs, return the response or error
 		attemptRegion.End()
 		break
 	}
 
+	details["success"] = err == nil
+	if response != nil {
+		details["status"] = response.StatusCode
+	}
 	return response, err
 }
 

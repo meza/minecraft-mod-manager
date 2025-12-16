@@ -8,6 +8,7 @@ import (
 
 	"github.com/meza/minecraft-mod-manager/internal/config"
 	"github.com/meza/minecraft-mod-manager/internal/models"
+	"github.com/meza/minecraft-mod-manager/internal/perf"
 )
 
 type state int
@@ -22,6 +23,8 @@ const (
 
 type CommandModel struct {
 	state                state
+	entered              bool
+	waitRegion           *perf.PerformanceRegion
 	loaderQuestion       LoaderModel
 	gameVersionQuestion  GameVersionModel
 	releaseTypesQuestion ReleaseTypesModel
@@ -99,27 +102,48 @@ func (m CommandModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 
 	switch msg := msg.(type) {
 	case LoaderSelectedMessage:
+		m.endWait("select_loader")
+		perf.Mark("tui.init.action.select_loader", &perf.PerformanceDetails{
+			"loader": msg.Loader.String(),
+		})
 		m.result.Loader = msg.Loader
 		m.result.Provided.Loader = true
-		m.state = nextMissingState(m.result)
+		m.setState(nextMissingState(m.result))
 	case GameVersionSelectedMessage:
+		m.endWait("select_game_version")
+		perf.Mark("tui.init.action.select_game_version", &perf.PerformanceDetails{
+			"game_version": msg.GameVersion,
+		})
 		m.result.GameVersion = msg.GameVersion
 		m.result.Provided.GameVersion = true
-		m.state = nextMissingState(m.result)
+		m.setState(nextMissingState(m.result))
 	case ReleaseTypesSelectedMessage:
+		m.endWait("select_release_types")
+		perf.Mark("tui.init.action.select_release_types", &perf.PerformanceDetails{
+			"count": len(msg.ReleaseTypes),
+		})
 		m.result.ReleaseTypes = msg.ReleaseTypes
 		m.result.Provided.ReleaseTypes = true
-		m.state = nextMissingState(m.result)
+		m.setState(nextMissingState(m.result))
 	case ModsFolderSelectedMessage:
+		m.endWait("select_mods_folder")
+		perf.Mark("tui.init.action.select_mods_folder", &perf.PerformanceDetails{
+			"mods_folder": msg.ModsFolder,
+		})
 		m.result.ModsFolder = msg.ModsFolder
 		m.result.Provided.ModsFolder = true
-		m.state = nextMissingState(m.result)
+		m.setState(nextMissingState(m.result))
 		if m.state == done {
+			perf.Mark("tui.init.outcome.completed", nil)
 			return m, tea.Quit
 		}
 	case tea.KeyMsg:
 		switch msg.String() {
 		case "ctrl+c":
+			m.endWait("abort")
+			perf.Mark("tui.init.action.abort", &perf.PerformanceDetails{
+				"state": m.stateName(),
+			})
 			m.err = fmt.Errorf("init cancelled")
 			cmds = append(cmds, tea.Quit)
 		}
@@ -172,10 +196,64 @@ func NewModel(options initOptions, deps initDeps, meta config.Metadata) *Command
 		model.modsFolderQuestion.input.SetValue(options.ModsFolder)
 	}
 
-	model.state = nextMissingState(model.result)
+	model.setState(nextMissingState(model.result))
 
 	return model
 
+}
+
+func (m *CommandModel) setState(next state) {
+	if m.state == next && m.entered {
+		return
+	}
+	m.state = next
+	m.entered = true
+	perf.Mark("tui.init.state.enter", &perf.PerformanceDetails{
+		"state": m.stateName(),
+	})
+
+	m.startWait()
+}
+
+func (m CommandModel) stateName() string {
+	switch m.state {
+	case stateLoader:
+		return "loader"
+	case stateGameVersion:
+		return "game_version"
+	case stateReleaseTypes:
+		return "release_types"
+	case stateModsFolder:
+		return "mods_folder"
+	case done:
+		return "done"
+	default:
+		return "unknown"
+	}
+}
+
+func (m *CommandModel) startWait() {
+	if m.state == done {
+		m.waitRegion = nil
+		return
+	}
+
+	m.endWait("state_change")
+	stateName := m.stateName()
+	m.waitRegion = perf.StartRegionWithDetails("tui.init.wait."+stateName, &perf.PerformanceDetails{
+		"state": stateName,
+	})
+}
+
+func (m *CommandModel) endWait(action string) {
+	if m.waitRegion == nil {
+		return
+	}
+	m.waitRegion.EndWithDetails(&perf.PerformanceDetails{
+		"state":  m.stateName(),
+		"action": action,
+	})
+	m.waitRegion = nil
 }
 
 func nextMissingState(result initOptions) state {

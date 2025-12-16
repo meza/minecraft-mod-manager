@@ -10,14 +10,28 @@ This is the pattern used by `main.go`:
 
 ```go
 telemetry.Init()
-handlerID := lifecycle.Register(func(os.Signal) {
-	telemetry.Shutdown(context.Background())
+var shutdownOnce sync.Once
+shutdown := func(sig os.Signal) {
+	shutdownOnce.Do(func() {
+		telemetry.Shutdown(context.Background())
+	})
+}
+
+handlerID := lifecycle.Register(func(sig os.Signal) {
+	shutdown(sig)
 })
 defer lifecycle.Unregister(handlerID)
-defer telemetry.Shutdown(context.Background())
+defer shutdown(nil)
 ```
 
 Call `Init` once when the process starts, emit events via `Capture`/`CaptureCommand`, and rely on `internal/lifecycle` to flush telemetry during Ctrl+C/SIGTERM. Keep a `defer telemetry.Shutdown(...)` for the graceful exit path.
+
+## Perf correlation
+
+`main.go` brackets the telemetry lifecycle inside `internal/perf` regions so perf marks can be correlated with telemetry activity:
+
+- `app.lifecycle.startup` includes `telemetry.Init()`
+- `app.lifecycle.shutdown` includes `telemetry.Shutdown(...)` (called once, regardless of graceful vs signal exit)
 
 ## Runtime lifecycle
 

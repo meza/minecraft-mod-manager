@@ -18,6 +18,7 @@ import (
 	"github.com/meza/minecraft-mod-manager/internal/i18n"
 	"github.com/meza/minecraft-mod-manager/internal/logger"
 	"github.com/meza/minecraft-mod-manager/internal/models"
+	"github.com/meza/minecraft-mod-manager/internal/perf"
 	"github.com/meza/minecraft-mod-manager/internal/platform"
 	"github.com/meza/minecraft-mod-manager/internal/telemetry"
 	"github.com/meza/minecraft-mod-manager/internal/tui"
@@ -55,7 +56,17 @@ func Command() *cobra.Command {
 		Use:   "add <platform> <id>",
 		Short: i18n.T("cmd.add.short"),
 		Args:  cobra.ExactArgs(2),
-		RunE: func(cmd *cobra.Command, args []string) error {
+		RunE: func(cmd *cobra.Command, args []string) (err error) {
+			details := perf.PerformanceDetails{
+				"platform": args[0],
+				"id":       args[1],
+			}
+			region := perf.StartRegionWithDetails("app.command.add", &details)
+			defer func() {
+				details["success"] = err == nil
+				region.End()
+			}()
+
 			configPath, err := cmd.Flags().GetString("config")
 			if err != nil {
 				return err
@@ -81,7 +92,7 @@ func Command() *cobra.Command {
 
 			limiter := rate.NewLimiter(rate.Inf, 0)
 
-			return runAdd(cmd, addOptions{
+			err = runAdd(cmd, addOptions{
 				Platform:             args[0],
 				ProjectID:            args[1],
 				ConfigPath:           configPath,
@@ -101,6 +112,7 @@ func Command() *cobra.Command {
 					return tea.NewProgram(model, options...).Run()
 				},
 			})
+			return err
 		},
 		Aliases:       []string{"a"},
 		SilenceUsage:  false,
@@ -123,7 +135,13 @@ func Command() *cobra.Command {
 func runAdd(cmd *cobra.Command, opts addOptions, deps addDeps) error {
 	meta := config.NewMetadata(opts.ConfigPath)
 
+	prepareDetails := perf.PerformanceDetails{
+		"config_path": opts.ConfigPath,
+	}
+	prepareRegion := perf.StartRegionWithDetails("app.command.add.stage.prepare", &prepareDetails)
 	cfg, lock, err := ensureConfigAndLock(deps.fs, meta, opts.Quiet, deps.minecraftClient)
+	prepareDetails["success"] = err == nil
+	prepareRegion.End()
 	if err != nil {
 		return err
 	}
@@ -134,6 +152,10 @@ func runAdd(cmd *cobra.Command, opts addOptions, deps addDeps) error {
 	projectID := opts.ProjectID
 
 	if modExists(cfg, platformValue, projectID) {
+		perf.Mark("app.command.add.outcome.already_exists", &perf.PerformanceDetails{
+			"platform":   platformValue,
+			"project_id": projectID,
+		})
 		deps.logger.Debug(i18n.T("cmd.add.debug.already_exists", i18n.Tvars{
 			Data: &i18n.TData{
 				"id":       projectID,
@@ -158,7 +180,18 @@ func runAdd(cmd *cobra.Command, opts addOptions, deps addDeps) error {
 
 	start := time.Now()
 
+	resolveDetails := perf.PerformanceDetails{
+		"platform":   platformValue,
+		"project_id": projectID,
+		"use_tui":    useTUI,
+		"quiet":      opts.Quiet,
+	}
+	resolveRegion := perf.StartRegionWithDetails("app.command.add.stage.resolve", &resolveDetails)
 	remoteMod, resolvedPlatform, resolvedID, fetchErr := resolveRemoteMod(cfg, opts, platformValue, projectID, deps, useTUI, cmd.InOrStdin(), cmd.OutOrStdout())
+	resolveDetails["success"] = fetchErr == nil
+	resolveDetails["resolved_platform"] = resolvedPlatform
+	resolveDetails["resolved_project_id"] = resolvedID
+	resolveRegion.End()
 	if fetchErr != nil {
 		deps.telemetry(telemetry.CommandTelemetry{
 			Command: "add",
@@ -178,14 +211,29 @@ func runAdd(cmd *cobra.Command, opts addOptions, deps addDeps) error {
 		return fetchErr
 	}
 
+	downloadDetails := perf.PerformanceDetails{
+		"url":        remoteMod.DownloadURL,
+		"platform":   resolvedPlatform,
+		"project_id": resolvedID,
+		"file_name":  remoteMod.FileName,
+	}
+	downloadRegion := perf.StartRegionWithDetails("app.command.add.stage.download", &downloadDetails)
+
 	if err := deps.fs.MkdirAll(meta.ModsFolderPath(cfg), 0755); err != nil {
+		downloadDetails["success"] = false
+		downloadRegion.End()
 		return err
 	}
 
 	destination := filepath.Join(meta.ModsFolderPath(cfg), remoteMod.FileName)
 	if err := deps.downloader(remoteMod.DownloadURL, destination, downloadClient(deps.clients), &noopSender{}, deps.fs); err != nil {
+		downloadDetails["success"] = false
+		downloadRegion.End()
 		return err
 	}
+	downloadDetails["success"] = true
+	downloadDetails["path"] = destination
+	downloadRegion.End()
 
 	cfg.Mods = append(cfg.Mods, models.Mod{
 		Type:                 resolvedPlatform,
@@ -205,12 +253,24 @@ func runAdd(cmd *cobra.Command, opts addOptions, deps addDeps) error {
 		DownloadUrl: remoteMod.DownloadURL,
 	})
 
+	persistDetails := perf.PerformanceDetails{
+		"config_path": opts.ConfigPath,
+		"platform":    resolvedPlatform,
+		"project_id":  resolvedID,
+	}
+	persistRegion := perf.StartRegionWithDetails("app.command.add.stage.persist", &persistDetails)
 	if err := config.WriteConfig(deps.fs, meta, cfg); err != nil {
+		persistDetails["success"] = false
+		persistRegion.End()
 		return err
 	}
 	if err := config.WriteLock(deps.fs, meta, lock); err != nil {
+		persistDetails["success"] = false
+		persistRegion.End()
 		return err
 	}
+	persistDetails["success"] = true
+	persistRegion.End()
 
 	deps.logger.Log(i18n.T("cmd.add.success", i18n.Tvars{
 		Data: &i18n.TData{
@@ -263,6 +323,15 @@ func ensureConfigAndLock(fs afero.Fs, meta config.Metadata, quiet bool, minecraf
 func resolveRemoteMod(cfg models.ModsJson, opts addOptions, platformValue models.Platform, projectID string, deps addDeps, useTUI bool, in io.Reader, out io.Writer) (platform.RemoteMod, models.Platform, string, error) {
 	deps.logger.Debug(fmt.Sprintf("fetching %s/%s (loader=%s, gameVersion=%s, fallback=%t, fixedVersion=%s)", platformValue, projectID, cfg.Loader, cfg.GameVersion, opts.AllowVersionFallback, opts.Version))
 
+	attemptDetails := perf.PerformanceDetails{
+		"attempt":    0,
+		"source":     "cli",
+		"platform":   platformValue,
+		"project_id": projectID,
+		"use_tui":    useTUI,
+		"quiet":      opts.Quiet,
+	}
+	attemptRegion := perf.StartRegionWithDetails("app.command.add.resolve.attempt", &attemptDetails)
 	remote, err := deps.fetchMod(platformValue, projectID, platform.FetchOptions{
 		AllowedReleaseTypes: cfg.DefaultAllowedReleaseTypes,
 		GameVersion:         cfg.GameVersion,
@@ -270,6 +339,11 @@ func resolveRemoteMod(cfg models.ModsJson, opts addOptions, platformValue models
 		AllowFallback:       opts.AllowVersionFallback,
 		FixedVersion:        opts.Version,
 	}, deps.clients)
+	attemptDetails["success"] = err == nil
+	if err != nil {
+		attemptDetails["error_type"] = fmt.Sprintf("%T", err)
+	}
+	attemptRegion.End()
 	if err == nil {
 		return remote, platformValue, projectID, nil
 	}
@@ -356,8 +430,24 @@ func downloadClient(clients platform.Clients) httpClient.Doer {
 }
 
 func resolveRemoteModWithTUI(initialState addTUIState, cfg models.ModsJson, opts addOptions, platformValue models.Platform, projectID string, deps addDeps, in io.Reader, out io.Writer) (platform.RemoteMod, models.Platform, string, error) {
+	perf.Mark("app.command.add.tui.open", &perf.PerformanceDetails{
+		"initial_state": int(initialState),
+		"platform":      platformValue,
+		"project_id":    projectID,
+	})
+
+	var attempt int
 	model := newAddTUIModel(initialState, platformValue, projectID, cfg, func(platformValue models.Platform, projectID string) tea.Cmd {
 		return func() tea.Msg {
+			attempt++
+			attemptDetails := perf.PerformanceDetails{
+				"attempt":    attempt,
+				"source":     "tui",
+				"platform":   platformValue,
+				"project_id": projectID,
+				"quiet":      opts.Quiet,
+			}
+			attemptRegion := perf.StartRegionWithDetails("app.command.add.resolve.attempt", &attemptDetails)
 			remote, err := deps.fetchMod(platformValue, projectID, platform.FetchOptions{
 				AllowedReleaseTypes: cfg.DefaultAllowedReleaseTypes,
 				GameVersion:         cfg.GameVersion,
@@ -365,6 +455,11 @@ func resolveRemoteModWithTUI(initialState addTUIState, cfg models.ModsJson, opts
 				AllowFallback:       opts.AllowVersionFallback,
 				FixedVersion:        opts.Version,
 			}, deps.clients)
+			attemptDetails["success"] = err == nil
+			if err != nil {
+				attemptDetails["error_type"] = fmt.Sprintf("%T", err)
+			}
+			attemptRegion.End()
 			return addTUIFetchResultMsg{
 				platform:  platformValue,
 				projectID: projectID,

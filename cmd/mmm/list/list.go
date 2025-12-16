@@ -14,6 +14,7 @@ import (
 	"github.com/meza/minecraft-mod-manager/internal/i18n"
 	"github.com/meza/minecraft-mod-manager/internal/logger"
 	"github.com/meza/minecraft-mod-manager/internal/models"
+	"github.com/meza/minecraft-mod-manager/internal/perf"
 	"github.com/meza/minecraft-mod-manager/internal/telemetry"
 	"github.com/meza/minecraft-mod-manager/internal/tui"
 )
@@ -23,7 +24,14 @@ func Command() *cobra.Command {
 		Use:     "list",
 		Aliases: []string{"ls", "l"},
 		Short:   i18n.T("cmd.list.short"),
-		RunE: func(cmd *cobra.Command, _ []string) error {
+		RunE: func(cmd *cobra.Command, _ []string) (err error) {
+			details := perf.PerformanceDetails{}
+			region := perf.StartRegionWithDetails("app.command.list", &details)
+			defer func() {
+				details["success"] = err == nil
+				region.End()
+			}()
+
 			configPath, err := cmd.Flags().GetString("config")
 			if err != nil {
 				return err
@@ -44,7 +52,8 @@ func Command() *cobra.Command {
 				telemetry: telemetry.CaptureCommand,
 			}
 
-			return runList(cmd, configPath, quiet, deps)
+			err = runList(cmd, configPath, quiet, deps)
+			return err
 		},
 	}
 

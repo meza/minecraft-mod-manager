@@ -15,6 +15,7 @@ import (
 	"github.com/meza/minecraft-mod-manager/internal/logger"
 	"github.com/meza/minecraft-mod-manager/internal/minecraft"
 	"github.com/meza/minecraft-mod-manager/internal/models"
+	"github.com/meza/minecraft-mod-manager/internal/perf"
 	"github.com/meza/minecraft-mod-manager/internal/tui"
 	"github.com/spf13/afero"
 	"github.com/spf13/cobra"
@@ -26,7 +27,14 @@ func Command() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "init",
 		Short: i18n.T("cmd.init.short"),
-		RunE: func(cmd *cobra.Command, _ []string) error {
+		RunE: func(cmd *cobra.Command, _ []string) (err error) {
+			details := perf.PerformanceDetails{}
+			region := perf.StartRegionWithDetails("app.command.init", &details)
+			defer func() {
+				details["success"] = err == nil
+				region.End()
+			}()
+
 			gameVersion, err := cmd.Flags().GetString("game-version")
 			if err != nil {
 				return err
@@ -195,6 +203,15 @@ func readLine(reader io.Reader) (string, error) {
 }
 
 func runInteractiveInit(cmd *cobra.Command, options initOptions, deps initDeps, meta config.Metadata) (initOptions, error) {
+	sessionDetails := perf.PerformanceDetails{
+		"provided_loader":        options.Provided.Loader,
+		"provided_game_version":  options.Provided.GameVersion,
+		"provided_release_types": options.Provided.ReleaseTypes,
+		"provided_mods_folder":   options.Provided.ModsFolder,
+	}
+	sessionRegion := perf.StartRegionWithDetails("tui.init.session", &sessionDetails)
+	defer sessionRegion.End()
+
 	model := NewModel(options, deps, meta)
 
 	if model.state == done {
