@@ -304,22 +304,6 @@ func TestSetPerfBaseDir_NormalizesPerfPathsForShutdown(t *testing.T) {
 	}
 }
 
-func TestCaptureCommand_AliasesRecordCommand(t *testing.T) {
-	resetTelemetryState(t)
-
-	client := &stubClient{}
-	initWithClient(t, client, "cmd-test")
-
-	CaptureCommand(CommandTelemetry{Command: "list", Success: true, ExitCode: 0})
-	Shutdown(context.Background())
-
-	capture := client.enqueued[0].(posthog.Capture)
-	props := capture.Properties
-	commands := props["commands"].([]map[string]interface{})
-	assert.Len(t, commands, 1)
-	assert.Equal(t, "list", commands[0]["name"])
-}
-
 func TestResolveSessionName_UsesHintWhenNoCommandsRecorded(t *testing.T) {
 	t.Parallel()
 

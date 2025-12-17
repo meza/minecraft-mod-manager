@@ -237,12 +237,6 @@ func RecordCommand(command CommandTelemetry) {
 	state.mu.Unlock()
 }
 
-// CaptureCommand remains for compatibility with older call sites; it now records
-// the command for session-level telemetry instead of emitting immediately.
-func CaptureCommand(command CommandTelemetry) {
-	RecordCommand(command)
-}
-
 func commandDurationFromPerf(commandName string, performance []*perf.ExportSpan) (time.Duration, bool) {
 	if commandName == "" || len(performance) == 0 {
 		return 0, false

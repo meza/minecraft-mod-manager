@@ -278,6 +278,15 @@ Re-reviewed the updated `mmm-12` changes after the author addressed feedback; co
 ### 2025-12-17 18:10 - [memory]
 Verified the author’s follow-up: `mmm-12` now avoids lock-file creation in `--dry-run` (new `readLockForRemove` + test). Re-ran `make test`, `make coverage-enforce`, `make build`; updated `code-review.md` verdict to “Approve with minor changes”.
 ### 2025-12-17 19:19 - [memory]
+### 2025-12-17 22:28 - [memory]
+Started `mmm-59` (telemetry API cleanup): remove `internal/telemetry.CaptureCommand` alias so there is a single public entrypoint (`RecordCommand`). Next: delete the alias, update the remaining unit test(s) to use `RecordCommand`, and run make gates.
+### 2025-12-17 22:30 - [memory]
+`mmm-59` implemented: removed `CaptureCommand` from `internal/telemetry` and dropped the now-obsolete alias unit test. Verified `make fmt`, `make test`, `make coverage-enforce`, `make build` all pass (coverage stays 100%).
+### 2025-12-17 22:39 - [memory]
+Closed `mmm-59` per user approval.
+
+### 2025-12-17 22:35 - [memory]
+Reviewed `mmm-59` uncommitted changes: removal of `internal/telemetry.CaptureCommand` plus deletion of the alias unit test. Confirmed no call sites remain, and make gates pass; verdict: approve.
 Started `mmm-7` (update command) alignment: marked issue in_progress and cloned the Node reference repo to `/tmp/mmm`. Noted potential spec/Node/README mismatches to confirm before implementing: (1) pinned `mod.version` entries should be skipped per README/spec, but Node still fetches the pinned version (usually no-op); (2) `docs/specs/update.md` says abort on unmanaged files detected by the initial install phase, but Node/Go install only abort on "unsure"/unresolved; (3) Node defines "has update" as (hash differs) OR (remote release date is newer), not AND. Open question: whether Go should match Node behavior exactly or tighten semantics (skip pinned, clarify unmanaged vs unresolved, and define what "atomic" means for file + lock/config updates).
 ### 2025-12-17 19:27 - [memory]
 Aligned mmm-7 decisions with user: (1) pinned mods should not perform update lookups; only do network work if the pinned file is missing or the lock hash mismatches the on-disk hash (handled by the initial `install` phase), (2) keep Go's current install semantics (abort only on unresolved/unsure; unmanaged findings do not abort), (3) "newness" should treat release date as the primary signal; only update when remote release date is newer and the hash differs (date gates the update; hash mismatch confirms it's truly different), (4) for rollback guarantees, avoid temp renames where possible but consider a temp file only when the new download would overwrite the existing jar (same filename) to prevent partial writes from corrupting the previous version.
