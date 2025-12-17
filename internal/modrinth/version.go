@@ -87,6 +87,13 @@ type VersionHashLookup struct {
 	algorithm VersionAlgorithm
 }
 
+func NewVersionHashLookup(hash string, algorithm VersionAlgorithm) *VersionHashLookup {
+	return &VersionHashLookup{
+		hash:      hash,
+		algorithm: algorithm,
+	}
+}
+
 func GetVersionsForProject(ctx context.Context, lookup *VersionLookup, client httpClient.Doer) (Versions, error) {
 	ctx, span := perf.StartSpan(ctx, "api.modrinth.version.list", perf.WithAttributes(attribute.String("project_id", lookup.ProjectId)))
 	defer span.End()

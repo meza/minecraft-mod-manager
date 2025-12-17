@@ -13,6 +13,7 @@ require (
 	github.com/jeandeaual/go-locale v0.0.0-20240223122105-ce5225dcaa49
 	github.com/joho/godotenv v1.5.1
 	github.com/kaptinlin/go-i18n v0.1.2
+	github.com/meza/curseforge-fingerprint-go v1.1.2
 	github.com/muesli/termenv v0.16.0
 	github.com/pkg/errors v0.9.1
 	github.com/posthog/posthog-go v1.6.5
@@ -31,6 +32,7 @@ require (
 
 require (
 	github.com/atotto/clipboard v0.1.4 // indirect
+	github.com/aviddiviner/go-murmur v0.0.0-20150519214947-b9740d71e571 // indirect
 	github.com/aymanbagabas/go-osc52/v2 v2.0.1 // indirect
 	github.com/aymanbagabas/go-udiff v0.3.1 // indirect
 	github.com/cespare/xxhash/v2 v2.3.0 // indirect

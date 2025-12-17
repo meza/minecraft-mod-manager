@@ -218,25 +218,7 @@ mmm remove world*edit*
 
 `mmm install` or `mmm i`
 
-This makes sure that every mod that is specified in the config file is downloaded and ready to use.
-
-You need to run this command whenever you want to make sure that the previously added mods are downloaded and ready to
-use.
-
-The install command works off of the `modlist-lock.json` file which contains the exact version information for any given
-mod.
-
-If a `modlist-lock.json` does not exist, the install command will download the latest version of every mod unless you've set
-a specific `version` with the [add command](#installing-specific-versions). This is a
-limitation of the Minecraft modding ecosystem and the lack of enforced versioning.
-
-> If you are in charge of Modrinth or Curseforge, please mandate the use of semver!
-
-If a `modlist-lock.json` exists, then the install command will *always* download the exact same version of the mods
-listed inside of it.
-
-Sending both the `modlist.json` and the `modlist-lock.json` file to other people is the surefire way to ensure that
-everyone has the exact same versions of everything.
+See `docs/commands/install.md`.
 
 ---
 

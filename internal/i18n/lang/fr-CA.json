@@ -4,5 +4,16 @@
   "cmd.list.entry.missing": "{name} ({id}) n'est pas installe",
   "cmd.list.empty": "Aucun mod n'est configure pour le moment",
   "cmd.list.header": "Mods configures",
-  "cmd.list.short": "Lister les mods configures"
+  "cmd.list.short": "Lister les mods configures",
+  "cmd.install.short": "Installer les mods configures",
+  "cmd.install.success": "Tous les mods sont installes!",
+  "cmd.install.unmanaged.found": "Mod non gere trouve: {name}",
+  "cmd.install.unsure.hash_mismatch": "{name} a une version differente localement que celle du fichier lock",
+  "cmd.install.unsure.lock_missing": "{name} a un fichier local qui n'est pas dans le fichier lock.",
+  "cmd.install.error.unresolved": "\nVeuillez corriger les problemes non resolus ci-dessus manuellement ou en executant mmm scan, puis reessayez.",
+  "cmd.install.download.missing": "{name} n'existe pas, telechargement depuis {platform}",
+  "cmd.install.download.hash_mismatch": "{name} a un hash different, telechargement depuis la source",
+  "cmd.install.debug.checking": "Verification de {name}@{version} pour {platform}",
+  "cmd.install.error.mod_not_found": "{name}({id}) ne peut plus etre trouve sur {platform}. Le mod a-t-il ete retire?",
+  "cmd.install.error.no_file": "{platform} ne fournit plus le fichier requis pour {name}({id}). Veuillez le mettre a jour."
 }

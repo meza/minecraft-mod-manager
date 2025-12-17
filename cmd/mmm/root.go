@@ -4,6 +4,7 @@ import (
 	"fmt"
 	addCmd "github.com/meza/minecraft-mod-manager/cmd/mmm/add"
 	initCmd "github.com/meza/minecraft-mod-manager/cmd/mmm/init"
+	installCmd "github.com/meza/minecraft-mod-manager/cmd/mmm/install"
 	listCmd "github.com/meza/minecraft-mod-manager/cmd/mmm/list"
 	"github.com/meza/minecraft-mod-manager/cmd/mmm/version"
 	"github.com/meza/minecraft-mod-manager/internal/constants"
@@ -31,6 +32,7 @@ func Command() *cobra.Command {
 	rootCmd.SetVersionTemplate("{{.Version}}\n")
 	rootCmd.AddCommand(addCmd.Command())
 	rootCmd.AddCommand(initCmd.Command())
+	rootCmd.AddCommand(installCmd.Command())
 	rootCmd.AddCommand(listCmd.Command())
 	rootCmd.AddCommand(version.Command())
 

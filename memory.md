@@ -178,3 +178,37 @@ Closed Beads issue `mmm-49` (`bd --no-db close mmm-49 --reason "Done"`). Changes
 Next Go-port epic step (mmm-1 execution order) is `mmm-6` (install command). Created Beads issue `mmm-51` to resolve a docs inconsistency: AGENTS.md and docs/requirements-go-port.md reference `docs/commands/README.md`, but command docs currently live under `docs/commands/*.md`.
 ### 2025-12-17 14:03 - [memory]
 Closed `mmm-51` after updating `AGENTS.md` and `cmd/mmm/README.md` to point command behavior docs at `docs/specs/README.md`. Note: docs/requirements-go-port.md already correctly points to `specs/README.md` (my earlier note that it referenced `docs/commands/README.md` was incorrect).
+### 2025-12-17 14:05 - [memory]
+User indicates TUI + telemetry understanding refactors are done and asks what’s next in the Go-port epic; next epic-ordered Beads item is `mmm-6` (install command).
+### 2025-12-17 14:10 - [memory]
+Aligning expectations for `mmm-6`: need decision on whether Go `install` should hard-fail on any unmanaged jar in mods folder (strict) vs mimic Node behavior (only fails on “unsure” matches; logs unmanaged matches and continues).
+### 2025-12-17 14:14 - [memory]
+`mmm-6` decision: keep Node parity for unmanaged files (only hard-fail when scan produces “unsure” matches; otherwise log unmanaged findings and continue). Also: use Bubble Tea app to control output even in non-interactive flows (pattern like list/add), and match Node’s output style for now; keep implementation simple (single app, repo-controlled wiring/DI).
+### 2025-12-17 14:17 - [memory]
+Created Beads ticket `mmm-52` to unify command output handling (Bubble Tea as output driver) discovered while aligning `mmm-6` expectations.
+### 2025-12-17 14:19 - [memory]
+Revised `mmm-6` plan: use `logger` output only (no Bubble Tea app) for install initially; revisit output-unification after `mmm-52`.
+### 2025-12-17 14:22 - [memory]
+Started implementation work for `mmm-6` (install); set ticket status to in_progress.
+### 2025-12-17 14:29 - [memory]
+For CurseForge file fingerprinting in scan/install parity work, use `github.com/meza/curseforge-fingerprint-go` (do not attempt to inspect/install Node bindings in-session; ask before any non-repo tooling changes).
+### 2025-12-17 15:36 - [memory]
+Documentation task: moved INSTALL section from root README into docs/commands/install.md and restyled it to match other docs/commands pages (quick start + usage + short sections, ASCII-only).
+### 2025-12-17 16:18 - [memory]
+Follow-up: adjusted docs/commands/install.md to restore more of the original README’s “when/why you run it” guidance while keeping docs/commands tone and structure.
+### 2025-12-17 16:49 - [memory]
+Addressed mmm-6 review remarks: added tests for `.mmmignore` and `.disabled` exclusion, documented/verified Node parity that install preflight stays silent on no-hit files, and fixed fingerprint collision mapping; re-ran make gates (test/coverage/build).
+### 2025-12-17 16:55 - [memory]
+New code-review.md requests minor follow-ups for mmm-6: decide stdout vs stderr conventions for error-like messages; remove or translate English install strings in non-English locale JSON.
+### 2025-12-17 16:57 - [memory]
+Applied minor review follow-ups: asserted stdout/stderr convention in install tests and translated install strings in de-DE/fr-CA locale JSON; re-ran make test/coverage-enforce/build.
+### 2025-12-17 17:10 - [memory]
+Created Beads ticket `mmm-53` to define/standardize the difference between `--quiet` (user intent) and implied non-interactive operation (non-TTY), with consistent prompting/output rules; linked as discovered-from `mmm-52`.
+### 2025-12-17 17:12 - [memory]
+Closed Beads issue `mmm-6` (`bd --no-db close mmm-6 --reason \"Done\"`) per user direction; changeset still pending team review/merge.
+### 2025-12-17 17:15 - [memory]
+Created P1 bug ticket `mmm-54`: telemetry should derive canonical command name from the top-most `app.command.*` perf span (so aliases like `i` record as `install`).
+### 2025-12-17 16:39 - [memory]
+Performed a code review of the in-progress `mmm-6` (install) work and wrote findings to `code-review.md`; main follow-ups are adding tests for `.mmmignore`/`*.disabled` handling and confirming/reporting behavior for jars with no Modrinth/CurseForge hits to match Node parity.
+### 2025-12-17 16:50 - [memory]
+Re-verified updated `mmm-6` changes: tests now cover `.mmmignore`/`*.disabled` and no-hit-file behavior; ran `make test`, `make coverage-enforce`, and `make build`; updated `code-review.md` verdict to "Approve with minor changes".
