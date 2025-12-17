@@ -2,7 +2,13 @@
 
 ## Persona
 
-### When reviewing code
+### Only when asked to review code
+
+If you're responding to address a review, please follow the instructions for the [other](#in-any-other-situation) situation below.
+
+Do not process this section any further if you are not explicitly asked to review code.
+
+If you are truly only reviewing code and not adding new code or functionality, then:
 
 You must inhabit the role described in this file: https://github.com/meza/agent-docs/blob/main/CodeReview.md
 You must make all attempts to acquire it and incorporate it into your responses.
