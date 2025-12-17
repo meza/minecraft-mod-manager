@@ -49,7 +49,7 @@ func TestRunAdd_Success(t *testing.T) {
 	cmd.SetOut(bytes.NewBuffer(nil))
 	cmd.SetErr(bytes.NewBuffer(nil))
 
-	telemetryCalled, hasTelemetry, err := runAdd(ctx, commandSpan, cmd, addOptions{
+	telemetryCalled, err := runAdd(ctx, commandSpan, cmd, addOptions{
 		Platform:   "modrinth",
 		ProjectID:  "abc",
 		ConfigPath: meta.ConfigPath,
@@ -73,7 +73,6 @@ func TestRunAdd_Success(t *testing.T) {
 	})
 
 	assert.NoError(t, err)
-	assert.True(t, hasTelemetry)
 	assert.True(t, downloaded)
 	configAfter, err := config.ReadConfig(context.Background(), fs, meta)
 	assert.NoError(t, err)
@@ -123,7 +122,7 @@ func TestRunAdd_DuplicateSkipsWork(t *testing.T) {
 	cmd.SetOut(bytes.NewBuffer(nil))
 	cmd.SetErr(bytes.NewBuffer(nil))
 
-	_, hasTelemetry, err := runAdd(ctx, commandSpan, cmd, addOptions{
+	_, err := runAdd(ctx, commandSpan, cmd, addOptions{
 		Platform:   "modrinth",
 		ProjectID:  "abc",
 		ConfigPath: meta.ConfigPath,
@@ -139,7 +138,6 @@ func TestRunAdd_DuplicateSkipsWork(t *testing.T) {
 	})
 
 	assert.NoError(t, err)
-	assert.True(t, hasTelemetry)
 	assert.False(t, downloaded)
 }
 
@@ -178,7 +176,7 @@ func TestRunAdd_UnknownPlatformQuiet(t *testing.T) {
 	errBuf := bytes.NewBuffer(nil)
 	cmd.SetErr(errBuf)
 
-	_, _, err := runAdd(ctx, commandSpan, cmd, addOptions{
+	_, err := runAdd(ctx, commandSpan, cmd, addOptions{
 		Platform:   "invalid",
 		ProjectID:  "abc",
 		ConfigPath: meta.ConfigPath,
@@ -219,7 +217,7 @@ func TestRunAdd_ModNotFoundCancelled(t *testing.T) {
 	cmd.SetOut(fakeTTYWriter{Buffer: bytes.NewBuffer(nil)})
 	cmd.SetErr(bytes.NewBuffer(nil))
 
-	_, hasTelemetry, err := runAdd(ctx, commandSpan, cmd, addOptions{
+	_, err := runAdd(ctx, commandSpan, cmd, addOptions{
 		Platform:   "modrinth",
 		ProjectID:  "abc",
 		ConfigPath: meta.ConfigPath,
@@ -235,7 +233,6 @@ func TestRunAdd_ModNotFoundCancelled(t *testing.T) {
 		},
 	})
 
-	assert.True(t, hasTelemetry)
 	assert.Error(t, err)
 	assert.True(t, errors.Is(err, errAborted))
 	configAfter, _ := config.ReadConfig(context.Background(), fs, meta)
@@ -264,7 +261,7 @@ func TestRunAdd_ModNotFoundRetry(t *testing.T) {
 	cmd.SetOut(fakeTTYWriter{Buffer: bytes.NewBuffer(nil)})
 	cmd.SetErr(bytes.NewBuffer(nil))
 
-	_, _, err := runAdd(ctx, commandSpan, cmd, addOptions{
+	_, err := runAdd(ctx, commandSpan, cmd, addOptions{
 		Platform:   "modrinth",
 		ProjectID:  "abc",
 		ConfigPath: meta.ConfigPath,
@@ -328,7 +325,7 @@ func TestRunAdd_NoFileRetryAlternate(t *testing.T) {
 	cmd.SetOut(fakeTTYWriter{Buffer: bytes.NewBuffer(nil)})
 	cmd.SetErr(bytes.NewBuffer(nil))
 
-	_, _, err := runAdd(ctx, commandSpan, cmd, addOptions{
+	_, err := runAdd(ctx, commandSpan, cmd, addOptions{
 		Platform:   "curseforge",
 		ProjectID:  "abc",
 		ConfigPath: meta.ConfigPath,
@@ -388,7 +385,7 @@ func TestRunAdd_DownloadFailure(t *testing.T) {
 	cmd.SetOut(bytes.NewBuffer(nil))
 	cmd.SetErr(bytes.NewBuffer(nil))
 
-	_, _, err := runAdd(ctx, commandSpan, cmd, addOptions{
+	_, err := runAdd(ctx, commandSpan, cmd, addOptions{
 		Platform:   "modrinth",
 		ProjectID:  "abc",
 		ConfigPath: meta.ConfigPath,
@@ -429,7 +426,7 @@ func TestRunAdd_CreatesConfigWhenMissing(t *testing.T) {
 
 	minecraft.ClearManifestCache()
 
-	_, _, err := runAdd(ctx, commandSpan, cmd, addOptions{
+	_, err := runAdd(ctx, commandSpan, cmd, addOptions{
 		Platform:             "modrinth",
 		ProjectID:            "abc",
 		ConfigPath:           meta.ConfigPath,
@@ -494,7 +491,7 @@ func TestRunAdd_UnknownPlatformInteractiveRetry(t *testing.T) {
 	cmd.SetOut(fakeTTYWriter{Buffer: bytes.NewBuffer(nil)})
 	cmd.SetErr(bytes.NewBuffer(nil))
 
-	_, _, err := runAdd(ctx, commandSpan, cmd, addOptions{
+	_, err := runAdd(ctx, commandSpan, cmd, addOptions{
 		Platform:   "invalid",
 		ProjectID:  "abc",
 		ConfigPath: meta.ConfigPath,
@@ -566,7 +563,7 @@ func TestRunAdd_ModNotFoundQuiet(t *testing.T) {
 	cmd.SetOut(out)
 	cmd.SetErr(out)
 
-	_, _, err := runAdd(ctx, commandSpan, cmd, addOptions{
+	_, err := runAdd(ctx, commandSpan, cmd, addOptions{
 		Platform:   "modrinth",
 		ProjectID:  "abc",
 		ConfigPath: meta.ConfigPath,
@@ -605,7 +602,7 @@ func TestRunAdd_FetchOptionsPropagateVersionAndFallback(t *testing.T) {
 	cmd.SetOut(bytes.NewBuffer(nil))
 	cmd.SetErr(bytes.NewBuffer(nil))
 
-	_, hasTelemetry, err := runAdd(ctx, commandSpan, cmd, addOptions{
+	_, err := runAdd(ctx, commandSpan, cmd, addOptions{
 		Platform:             "modrinth",
 		ProjectID:            "abc",
 		ConfigPath:           meta.ConfigPath,
@@ -631,7 +628,6 @@ func TestRunAdd_FetchOptionsPropagateVersionAndFallback(t *testing.T) {
 	})
 
 	assert.NoError(t, err)
-	assert.True(t, hasTelemetry)
 	assert.Equal(t, []models.ReleaseType{models.Release, models.Beta}, gotOpts.AllowedReleaseTypes)
 	assert.True(t, gotOpts.AllowFallback)
 	assert.Equal(t, "1.2.3", gotOpts.FixedVersion)
@@ -656,7 +652,7 @@ func TestRunAdd_TelemetryOnFailure(t *testing.T) {
 	cmd.SetOut(bytes.NewBuffer(nil))
 	cmd.SetErr(bytes.NewBuffer(nil))
 
-	telemetryCalled, hasTelemetry, err := runAdd(ctx, commandSpan, cmd, addOptions{
+	telemetryCalled, err := runAdd(ctx, commandSpan, cmd, addOptions{
 		Platform:   "modrinth",
 		ProjectID:  "abc",
 		ConfigPath: meta.ConfigPath,
@@ -669,7 +665,6 @@ func TestRunAdd_TelemetryOnFailure(t *testing.T) {
 		},
 	})
 
-	assert.True(t, hasTelemetry)
 	assert.Error(t, err)
 	assert.False(t, telemetryCalled.Success)
 	assert.Equal(t, "add", telemetryCalled.Command)

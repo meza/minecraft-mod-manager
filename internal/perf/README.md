@@ -15,7 +15,7 @@ Lifecycle span names are namespaced under `app.lifecycle.*`:
 
 - `app.lifecycle.startup`: process start -> ready to begin command execution (wires telemetry + signal handlers)
 - `app.lifecycle.execute`: command execution (CLI args or the interactive TUI session)
-- `app.lifecycle.shutdown`: graceful or signal-triggered shutdown (flushes telemetry)
+- `app.lifecycle.shutdown`: graceful or signal-triggered shutdown (records the shutdown trigger; telemetry flush happens after spans are ended so the exported tree is complete)
 
 ## Exporting perf logs
 
@@ -177,9 +177,11 @@ Context helpers:
 Export and snapshots:
 
 - `ExportToFile(outDir, baseDir string) (string, error)`
+- `GetExportTree(baseDir string) ([]*ExportSpan, error)`
 - `GetSpans() ([]SpanSnapshot, error)`
 - `MustGetSpans() []SpanSnapshot`
 - `FindSpanByName(spans []SpanSnapshot, name string) (SpanSnapshot, bool)`
+- `GetSessionDurations() (SessionDurations, error)`
 
 Common usage:
 

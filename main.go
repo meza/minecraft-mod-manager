@@ -70,6 +70,8 @@ func runWithDeps(deps runDeps) int {
 	}
 	cwd, _ := getwd()
 	perfCfg := perfExportConfigFromArgs(deps.args, cwd)
+	telemetry.SetPerfBaseDir(perfCfg.baseDir)
+	telemetry.SetSessionNameHint(sessionNameHintFromArgs(deps.args))
 
 	if err := perf.Init(perf.Config{Enabled: true}); err != nil && perfCfg.debug {
 		log.Printf("perf init failed: %v", err)
@@ -108,10 +110,10 @@ func runWithDeps(deps runDeps) int {
 			}
 
 			_, shutdownSpan := perf.StartSpan(rootCtx, perfLifecycleShutdown, perf.WithAttributes(attrs...))
-			deps.telemetryShutdown(rootCtx)
-
 			shutdownSpan.End()
 			rootSpan.End()
+
+			deps.telemetryShutdown(rootCtx)
 			if perfCfg.enabled && deps.perfExport != nil {
 				if err := deps.perfExport(perfCfg); err != nil && perfCfg.debug {
 					log.Printf("perf export failed: %v", err)
@@ -206,4 +208,32 @@ func perfExportConfigFromArgs(args []string, cwd string) perfExportConfig {
 		baseDir: baseDir,
 		outDir:  outDir,
 	}
+}
+
+func sessionNameHintFromArgs(args []string) string {
+	command, ok := firstCommandFromArgs(args)
+	if !ok {
+		return "tui"
+	}
+	return command
+}
+
+func firstCommandFromArgs(args []string) (string, bool) {
+	for i := 0; i < len(args); i++ {
+		arg := args[i]
+		if strings.HasPrefix(arg, "--config=") || strings.HasPrefix(arg, "--perf-out-dir=") {
+			continue
+		}
+		if arg == "--config" || arg == "-c" || arg == "--perf-out-dir" {
+			if i+1 < len(args) {
+				i++
+			}
+			continue
+		}
+		if strings.HasPrefix(arg, "-") {
+			continue
+		}
+		return arg, true
+	}
+	return "", false
 }

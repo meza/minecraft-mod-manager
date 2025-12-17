@@ -53,7 +53,7 @@ func TestRunListPrintsInstalledAndMissing(t *testing.T) {
 	cmd.SetOut(out)
 	cmd.SetErr(errOut)
 
-	_, err := runList(context.Background(), cmd, meta.ConfigPath, false, listDeps{
+	_, _, err := runList(context.Background(), cmd, meta.ConfigPath, false, listDeps{
 		fs:        fs,
 		logger:    logger.New(out, errOut, false, false),
 		telemetry: func(telemetry.CommandTelemetry) {},
@@ -94,7 +94,7 @@ func TestRunListMissingLockTreatsAllAsNotInstalled(t *testing.T) {
 	cmd.SetOut(out)
 	cmd.SetErr(errOut)
 
-	_, err := runList(context.Background(), cmd, meta.ConfigPath, false, listDeps{
+	_, _, err := runList(context.Background(), cmd, meta.ConfigPath, false, listDeps{
 		fs:        fs,
 		logger:    logger.New(out, errOut, false, false),
 		telemetry: func(telemetry.CommandTelemetry) {},
@@ -136,7 +136,7 @@ func TestRunListInvalidLockErrors(t *testing.T) {
 	cmd.SetOut(out)
 	cmd.SetErr(errOut)
 
-	_, err := runList(context.Background(), cmd, meta.ConfigPath, false, listDeps{
+	_, _, err := runList(context.Background(), cmd, meta.ConfigPath, false, listDeps{
 		fs:        fs,
 		logger:    logger.New(out, errOut, false, false),
 		telemetry: func(telemetry.CommandTelemetry) {},
@@ -161,7 +161,7 @@ func TestRunListInvalidConfigErrors(t *testing.T) {
 	cmd.SetOut(out)
 	cmd.SetErr(errOut)
 
-	_, err := runList(context.Background(), cmd, meta.ConfigPath, false, listDeps{
+	_, _, err := runList(context.Background(), cmd, meta.ConfigPath, false, listDeps{
 		fs:        fs,
 		logger:    logger.New(out, errOut, false, false),
 		telemetry: func(telemetry.CommandTelemetry) {},
@@ -194,7 +194,7 @@ func TestRunListShowsEmptyMessageWhenNoMods(t *testing.T) {
 	cmd.SetOut(out)
 	cmd.SetErr(errOut)
 
-	_, err := runList(context.Background(), cmd, meta.ConfigPath, false, listDeps{
+	_, _, err := runList(context.Background(), cmd, meta.ConfigPath, false, listDeps{
 		fs:        fs,
 		logger:    logger.New(out, errOut, false, false),
 		telemetry: func(telemetry.CommandTelemetry) {},
@@ -232,7 +232,7 @@ func TestRunListQuietStillPrints(t *testing.T) {
 	cmd.SetOut(out)
 	cmd.SetErr(errOut)
 
-	_, err := runList(context.Background(), cmd, meta.ConfigPath, true, listDeps{
+	_, _, err := runList(context.Background(), cmd, meta.ConfigPath, true, listDeps{
 		fs:        fs,
 		logger:    logger.New(out, errOut, true, false),
 		telemetry: func(telemetry.CommandTelemetry) {},

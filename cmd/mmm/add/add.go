@@ -99,7 +99,7 @@ func Command() *cobra.Command {
 
 			limiter := rate.NewLimiter(rate.Inf, 0)
 
-			telemetryPayload, hasTelemetry, err := runAdd(ctx, span, cmd, addOptions{
+			telemetryPayload, err := runAdd(ctx, span, cmd, addOptions{
 				Platform:             args[0],
 				ProjectID:            args[1],
 				ConfigPath:           configPath,
@@ -127,9 +127,14 @@ func Command() *cobra.Command {
 			span.SetAttributes(attribute.Bool("success", errToReturn == nil))
 			span.End()
 
-			if hasTelemetry {
-				telemetry.CaptureCommand(telemetryPayload)
+			telemetryPayload.Success = errToReturn == nil
+			if telemetryPayload.Success {
+				telemetryPayload.Error = nil
+				telemetryPayload.ExitCode = 0
+			} else {
+				telemetryPayload.ExitCode = 1
 			}
+			telemetry.RecordCommand(telemetryPayload)
 
 			return errToReturn
 		},
@@ -151,18 +156,23 @@ func Command() *cobra.Command {
 	return cmd
 }
 
-func runAdd(ctx context.Context, commandSpan *perf.Span, cmd *cobra.Command, opts addOptions, deps addDeps) (telemetry.CommandTelemetry, bool, error) {
+func runAdd(ctx context.Context, commandSpan *perf.Span, cmd *cobra.Command, opts addOptions, deps addDeps) (telemetry.CommandTelemetry, error) {
 	meta := config.NewMetadata(opts.ConfigPath)
+	useTUI := tui.ShouldUseTUI(opts.Quiet, cmd.InOrStdin(), cmd.OutOrStdout())
 
 	prepareCtx, prepareSpan := perf.StartSpan(ctx, "app.command.add.stage.prepare", perf.WithAttributes(attribute.String("config_path", opts.ConfigPath)))
 	cfg, lock, err := ensureConfigAndLock(prepareCtx, deps.fs, meta, opts.Quiet, deps.minecraftClient)
 	prepareSpan.SetAttributes(attribute.Bool("success", err == nil))
 	prepareSpan.End()
 	if err != nil {
-		return telemetry.CommandTelemetry{}, false, err
+		return telemetry.CommandTelemetry{
+			Command:     "add",
+			Success:     false,
+			Error:       err,
+			ExitCode:    1,
+			Interactive: useTUI,
+		}, err
 	}
-
-	useTUI := tui.ShouldUseTUI(opts.Quiet, cmd.InOrStdin(), cmd.OutOrStdout())
 
 	platformValue := normalizePlatform(opts.Platform)
 	projectID := opts.ProjectID
@@ -181,8 +191,10 @@ func runAdd(ctx context.Context, commandSpan *perf.Span, cmd *cobra.Command, opt
 			},
 		}))
 		return telemetry.CommandTelemetry{
-			Command: "add",
-			Success: true,
+			Command:     "add",
+			Success:     true,
+			ExitCode:    0,
+			Interactive: useTUI,
 			Arguments: map[string]interface{}{
 				"platform": platformValue,
 				"id":       projectID,
@@ -192,7 +204,7 @@ func runAdd(ctx context.Context, commandSpan *perf.Span, cmd *cobra.Command, opt
 			Extra: map[string]interface{}{
 				"flag": "already-exists",
 			},
-		}, true, nil
+		}, nil
 	}
 
 	resolveCtx, resolveSpan := perf.StartSpan(ctx, "app.command.add.stage.resolve",
@@ -212,10 +224,11 @@ func runAdd(ctx context.Context, commandSpan *perf.Span, cmd *cobra.Command, opt
 	resolveSpan.End()
 	if fetchErr != nil {
 		payload := telemetry.CommandTelemetry{
-			Command: "add",
-			Success: false,
-			Config:  &cfg,
-			Error:   fetchErr,
+			Command:     "add",
+			Success:     false,
+			Error:       fetchErr,
+			ExitCode:    1,
+			Interactive: useTUI,
 			Arguments: map[string]interface{}{
 				"platform": platformValue,
 				"id":       projectID,
@@ -223,7 +236,7 @@ func runAdd(ctx context.Context, commandSpan *perf.Span, cmd *cobra.Command, opt
 				"fallback": opts.AllowVersionFallback,
 			},
 		}
-		return payload, true, fetchErr
+		return payload, fetchErr
 	}
 
 	downloadCtx, downloadSpan := perf.StartSpan(ctx, "app.command.add.stage.download",
@@ -238,14 +251,38 @@ func runAdd(ctx context.Context, commandSpan *perf.Span, cmd *cobra.Command, opt
 	if err := deps.fs.MkdirAll(meta.ModsFolderPath(cfg), 0755); err != nil {
 		downloadSpan.SetAttributes(attribute.Bool("success", false))
 		downloadSpan.End()
-		return telemetry.CommandTelemetry{}, false, err
+		return telemetry.CommandTelemetry{
+			Command:     "add",
+			Success:     false,
+			Error:       err,
+			ExitCode:    1,
+			Interactive: useTUI,
+			Arguments: map[string]interface{}{
+				"platform": resolvedPlatform,
+				"id":       resolvedID,
+				"version":  opts.Version,
+				"fallback": opts.AllowVersionFallback,
+			},
+		}, err
 	}
 
 	destination := filepath.Join(meta.ModsFolderPath(cfg), remoteMod.FileName)
 	if err := deps.downloader(downloadCtx, remoteMod.DownloadURL, destination, downloadClient(deps.clients), &noopSender{}, deps.fs); err != nil {
 		downloadSpan.SetAttributes(attribute.Bool("success", false))
 		downloadSpan.End()
-		return telemetry.CommandTelemetry{}, false, err
+		return telemetry.CommandTelemetry{
+			Command:     "add",
+			Success:     false,
+			Error:       err,
+			ExitCode:    1,
+			Interactive: useTUI,
+			Arguments: map[string]interface{}{
+				"platform": resolvedPlatform,
+				"id":       resolvedID,
+				"version":  opts.Version,
+				"fallback": opts.AllowVersionFallback,
+			},
+		}, err
 	}
 	downloadSpan.SetAttributes(
 		attribute.Bool("success", true),
@@ -281,12 +318,36 @@ func runAdd(ctx context.Context, commandSpan *perf.Span, cmd *cobra.Command, opt
 	if err := config.WriteConfig(ctx, deps.fs, meta, cfg); err != nil {
 		persistSpan.SetAttributes(attribute.Bool("success", false))
 		persistSpan.End()
-		return telemetry.CommandTelemetry{}, false, err
+		return telemetry.CommandTelemetry{
+			Command:     "add",
+			Success:     false,
+			Error:       err,
+			ExitCode:    1,
+			Interactive: useTUI,
+			Arguments: map[string]interface{}{
+				"platform": resolvedPlatform,
+				"id":       resolvedID,
+				"version":  opts.Version,
+				"fallback": opts.AllowVersionFallback,
+			},
+		}, err
 	}
 	if err := config.WriteLock(ctx, deps.fs, meta, lock); err != nil {
 		persistSpan.SetAttributes(attribute.Bool("success", false))
 		persistSpan.End()
-		return telemetry.CommandTelemetry{}, false, err
+		return telemetry.CommandTelemetry{
+			Command:     "add",
+			Success:     false,
+			Error:       err,
+			ExitCode:    1,
+			Interactive: useTUI,
+			Arguments: map[string]interface{}{
+				"platform": resolvedPlatform,
+				"id":       resolvedID,
+				"version":  opts.Version,
+				"fallback": opts.AllowVersionFallback,
+			},
+		}, err
 	}
 	persistSpan.SetAttributes(attribute.Bool("success", true))
 	persistSpan.End()
@@ -300,15 +361,17 @@ func runAdd(ctx context.Context, commandSpan *perf.Span, cmd *cobra.Command, opt
 	}), true)
 
 	return telemetry.CommandTelemetry{
-		Command: "add",
-		Success: true,
+		Command:     "add",
+		Success:     true,
+		ExitCode:    0,
+		Interactive: useTUI,
 		Arguments: map[string]interface{}{
 			"platform": resolvedPlatform,
 			"id":       resolvedID,
 			"version":  opts.Version,
 			"fallback": opts.AllowVersionFallback,
 		},
-	}, true, nil
+	}, nil
 }
 
 func ensureConfigAndLock(ctx context.Context, fs afero.Fs, meta config.Metadata, quiet bool, minecraftClient httpClient.Doer) (models.ModsJson, []models.ModInstall, error) {

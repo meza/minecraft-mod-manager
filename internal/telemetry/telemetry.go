@@ -2,6 +2,7 @@ package telemetry
 
 import (
 	"context"
+	"errors"
 	"io"
 	"os"
 	"strings"
@@ -10,6 +11,7 @@ import (
 
 	"github.com/denisbrodbeck/machineid"
 	"github.com/meza/minecraft-mod-manager/internal/environment"
+	"github.com/meza/minecraft-mod-manager/internal/globalErrors"
 	"github.com/meza/minecraft-mod-manager/internal/models"
 	"github.com/meza/minecraft-mod-manager/internal/perf"
 	"github.com/posthog/posthog-go"
@@ -57,6 +59,10 @@ type telemetryState struct {
 	logger       Logger
 	flushTimeout time.Duration
 	enabled      bool
+
+	sessionNameHint string
+	perfBaseDir     string
+	commands        []recordedCommand
 }
 
 var state = newTelemetryState()
@@ -119,6 +125,31 @@ func Init() {
 	})
 }
 
+// SetSessionNameHint configures the session-level event name used during
+// Shutdown when multiple commands were executed (tui) or when no command has
+// been recorded yet.
+func SetSessionNameHint(name string) {
+	name = strings.TrimSpace(name)
+	if name == "" {
+		return
+	}
+	state.mu.Lock()
+	state.sessionNameHint = name
+	state.mu.Unlock()
+}
+
+// SetPerfBaseDir configures the base directory used when exporting perf spans
+// for telemetry attachments, matching the mmm-perf.json normalization rules.
+func SetPerfBaseDir(baseDir string) {
+	baseDir = strings.TrimSpace(baseDir)
+	if baseDir == "" {
+		return
+	}
+	state.mu.Lock()
+	state.perfBaseDir = baseDir
+	state.mu.Unlock()
+}
+
 // Capture sends an arbitrary event to PostHog.
 func Capture(event string, properties map[string]interface{}) {
 	if event == "" {
@@ -145,55 +176,71 @@ func Capture(event string, properties map[string]interface{}) {
 
 // CommandTelemetry captures high-level command execution metadata.
 type CommandTelemetry struct {
-	Command   string                 `json:"command"`
-	Success   bool                   `json:"success"`
-	Config    *models.ModsJson       `json:"config,omitempty"`
-	Error     error                  `json:"error,omitempty"`
-	Extra     map[string]interface{} `json:"extra,omitempty"`
-	Arguments map[string]interface{} `json:"arguments,omitempty"`
-	Duration  time.Duration          `json:"duration,omitempty"`
+	Command     string                 `json:"command"`
+	Success     bool                   `json:"success"`
+	Config      *models.ModsJson       `json:"config,omitempty"`
+	Error       error                  `json:"error,omitempty"`
+	Extra       map[string]interface{} `json:"extra,omitempty"`
+	Arguments   map[string]interface{} `json:"arguments,omitempty"`
+	Duration    time.Duration          `json:"duration,omitempty"`
+	ExitCode    int                    `json:"exit_code,omitempty"`
+	Interactive bool                   `json:"interactive,omitempty"`
 }
 
-// CaptureCommand emits a structured command telemetry event.
-func CaptureCommand(command CommandTelemetry) {
+type recordedCommand struct {
+	Name        string
+	Success     bool
+	ExitCode    int
+	Interactive bool
+
+	ErrorCategory string
+	ErrorMessage  string
+
+	Extra     map[string]interface{}
+	Arguments map[string]interface{}
+}
+
+// RecordCommand stores structured command telemetry to be sent once per session
+// during Shutdown. If telemetry is disabled, this is a no-op.
+func RecordCommand(command CommandTelemetry) {
 	if command.Command == "" {
 		return
 	}
 
-	properties := map[string]interface{}{
-		"type":    "command",
-		"success": command.Success,
+	snapshot := state.snapshot()
+	if !snapshot.enabled || snapshot.client == nil {
+		return
 	}
 
-	performance := []*perf.ExportSpan{}
-	if spans, err := perf.GetExportTree(""); err == nil && spans != nil {
-		performance = spans
-	}
-	properties["performance"] = performance
-
-	if !command.Success && command.Config != nil {
-		properties["config"] = command.Config
+	record := recordedCommand{
+		Name:        command.Command,
+		Success:     command.Success,
+		ExitCode:    commandExitCode(command),
+		Interactive: command.Interactive,
 	}
 
 	if command.Error != nil {
-		properties["error"] = command.Error.Error()
+		record.ErrorCategory = errorCategory(command.Error)
+		record.ErrorMessage = command.Error.Error()
 	}
 
 	if len(command.Extra) > 0 {
-		properties["extra"] = command.Extra
+		record.Extra = command.Extra
 	}
 
 	if len(command.Arguments) > 0 {
-		properties["arguments"] = command.Arguments
+		record.Arguments = command.Arguments
 	}
 
-	if command.Duration > 0 {
-		properties["duration_ms"] = command.Duration.Milliseconds()
-	} else if duration, ok := commandDurationFromPerf(command.Command, performance); ok {
-		properties["duration_ms"] = duration.Milliseconds()
-	}
+	state.mu.Lock()
+	state.commands = append(state.commands, record)
+	state.mu.Unlock()
+}
 
-	Capture(command.Command, properties)
+// CaptureCommand remains for compatibility with older call sites; it now records
+// the command for session-level telemetry instead of emitting immediately.
+func CaptureCommand(command CommandTelemetry) {
+	RecordCommand(command)
 }
 
 func commandDurationFromPerf(commandName string, performance []*perf.ExportSpan) (time.Duration, bool) {
@@ -238,10 +285,35 @@ func commandDurationFromPerf(commandName string, performance []*perf.ExportSpan)
 // Shutdown flushes and closes the telemetry client. Additional calls are ignored.
 func Shutdown(ctx context.Context) {
 	state.shutdownOnce.Do(func() {
-		snapshot := state.shutdownSnapshot()
+		snapshot := state.snapshot()
 		if !snapshot.enabled || snapshot.client == nil {
 			return
 		}
+
+		state.mu.RLock()
+		commands := append([]recordedCommand(nil), state.commands...)
+		sessionNameHint := state.sessionNameHint
+		perfBaseDir := state.perfBaseDir
+		state.mu.RUnlock()
+
+		performance := []*perf.ExportSpan{}
+		if spans, err := perf.GetExportTree(perfBaseDir); err == nil && spans != nil {
+			performance = spans
+		}
+
+		properties := map[string]interface{}{
+			"type":        "session",
+			"performance": performance,
+			"commands":    buildCommandSummaries(commands, performance),
+		}
+
+		if d, err := perf.GetSessionDurations(); err == nil {
+			properties["total_time_ms"] = d.Total.Milliseconds()
+			properties["work_time_ms"] = d.Work.Milliseconds()
+		}
+
+		sessionName := resolveSessionName(sessionNameHint, commands)
+		captureWithSnapshot(snapshot, sessionName, properties)
 
 		if ctx == nil {
 			var cancel context.CancelFunc
@@ -263,7 +335,114 @@ func Shutdown(ctx context.Context) {
 		case <-ctx.Done():
 			snapshot.logger.Debugf("telemetry: shutdown timed out: %v", ctx.Err())
 		}
+
+		_ = state.shutdownSnapshot()
 	})
+}
+
+func captureWithSnapshot(snapshot telemetrySnapshot, event string, properties map[string]interface{}) {
+	if event == "" || !snapshot.enabled || snapshot.client == nil {
+		return
+	}
+
+	payload := mergeProperties(properties)
+	payload["version"] = environment.AppVersion()
+
+	err := snapshot.client.Enqueue(posthog.Capture{
+		Event:      event,
+		DistinctId: snapshot.machineID,
+		Properties: payload,
+	})
+	if err != nil {
+		snapshot.logger.Debugf("telemetry: failed to enqueue %q: %v", event, err)
+	}
+}
+
+func commandExitCode(command CommandTelemetry) int {
+	if command.ExitCode != 0 {
+		return command.ExitCode
+	}
+	if command.Success {
+		return 0
+	}
+	return 1
+}
+
+func resolveSessionName(sessionNameHint string, commands []recordedCommand) string {
+	if len(commands) > 1 {
+		return "tui"
+	}
+	if len(commands) == 1 {
+		name := strings.TrimSpace(commands[0].Name)
+		if name != "" {
+			return name
+		}
+	}
+	if sessionNameHint != "" {
+		return sessionNameHint
+	}
+	return "unknown"
+}
+
+func buildCommandSummaries(commands []recordedCommand, performance []*perf.ExportSpan) []map[string]interface{} {
+	if len(commands) == 0 {
+		return []map[string]interface{}{}
+	}
+
+	out := make([]map[string]interface{}, 0, len(commands))
+	for _, cmd := range commands {
+		summary := map[string]interface{}{
+			"name":        cmd.Name,
+			"success":     cmd.Success,
+			"exit_code":   cmd.ExitCode,
+			"interactive": cmd.Interactive,
+		}
+
+		if cmd.ErrorCategory != "" {
+			summary["error_category"] = cmd.ErrorCategory
+		}
+		if cmd.ErrorMessage != "" {
+			summary["error"] = cmd.ErrorMessage
+		}
+
+		if len(cmd.Extra) > 0 {
+			summary["extra"] = cmd.Extra
+		}
+		if len(cmd.Arguments) > 0 {
+			summary["arguments"] = cmd.Arguments
+		}
+
+		duration, ok := commandDurationFromPerf(cmd.Name, performance)
+		if ok {
+			summary["duration_ms"] = duration.Milliseconds()
+		}
+
+		out = append(out, summary)
+	}
+
+	return out
+}
+
+func errorCategory(err error) string {
+	if err == nil {
+		return ""
+	}
+
+	if errors.Is(err, context.Canceled) {
+		return "canceled"
+	}
+
+	var notFound *globalErrors.ProjectNotFoundError
+	if errors.As(err, &notFound) {
+		return "project_not_found"
+	}
+
+	var apiErr *globalErrors.ProjectApiError
+	if errors.As(err, &apiErr) {
+		return "project_api_error"
+	}
+
+	return "unknown"
 }
 
 func (s *telemetryState) disable(logger Logger, timeout time.Duration) {
@@ -361,4 +540,7 @@ func defaultClientFactory(apiKey, endpoint string) (Client, error) {
 // noopLogger is used when no logger was provided.
 type noopLogger struct{}
 
-func (noopLogger) Debugf(string, ...interface{}) {}
+func (noopLogger) Debugf(format string, args ...interface{}) {
+	_ = format
+	_ = args
+}

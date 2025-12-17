@@ -52,22 +52,28 @@ func Command() *cobra.Command {
 			deps := listDeps{
 				fs:        afero.NewOsFs(),
 				logger:    log,
-				telemetry: telemetry.CaptureCommand,
+				telemetry: telemetry.RecordCommand,
 			}
 
-			entriesCount, err := runList(ctx, cmd, configPath, quiet, deps)
+			entriesCount, usedTUI, err := runList(ctx, cmd, configPath, quiet, deps)
 			span.SetAttributes(attribute.Bool("success", err == nil))
 			span.End()
 
-			if err == nil {
-				deps.telemetry(telemetry.CommandTelemetry{
-					Command: "list",
-					Success: true,
-					Extra: map[string]interface{}{
-						"numberOfMods": entriesCount,
-					},
-				})
+			payload := telemetry.CommandTelemetry{
+				Command:     "list",
+				Success:     err == nil,
+				Error:       err,
+				ExitCode:    0,
+				Interactive: usedTUI,
 			}
+			if err != nil {
+				payload.ExitCode = 1
+			} else {
+				payload.Extra = map[string]interface{}{
+					"numberOfMods": entriesCount,
+				}
+			}
+			deps.telemetry(payload)
 
 			return err
 		},
@@ -89,17 +95,17 @@ type listEntry struct {
 	Installed   bool
 }
 
-func runList(ctx context.Context, cmd *cobra.Command, configPath string, quiet bool, deps listDeps) (int, error) {
+func runList(ctx context.Context, cmd *cobra.Command, configPath string, quiet bool, deps listDeps) (int, bool, error) {
 	meta := config.NewMetadata(configPath)
 
 	cfg, err := config.ReadConfig(ctx, deps.fs, meta)
 	if err != nil {
-		return 0, err
+		return 0, false, err
 	}
 
 	lock, err := readLockOrEmpty(ctx, deps.fs, meta)
 	if err != nil {
-		return 0, err
+		return 0, false, err
 	}
 
 	entries := buildEntries(cfg, lock, meta, deps.fs)
@@ -114,7 +120,7 @@ func runList(ctx context.Context, cmd *cobra.Command, configPath string, quiet b
 		if _, err := program.Run(); err != nil {
 			tuiSpan.SetAttributes(attribute.Bool("success", false))
 			tuiSpan.End()
-			return 0, err
+			return 0, true, err
 		}
 		tuiSpan.SetAttributes(attribute.Bool("success", true))
 		tuiSpan.End()
@@ -124,7 +130,7 @@ func runList(ctx context.Context, cmd *cobra.Command, configPath string, quiet b
 	} else {
 		deps.logger.Log(view, true)
 	}
-	return len(entries), nil
+	return len(entries), useTUI, nil
 }
 
 func readLockOrEmpty(ctx context.Context, fs afero.Fs, meta config.Metadata) ([]models.ModInstall, error) {

@@ -34,7 +34,7 @@ At a high level, `runAdd` does:
 5. Append:
    - a `models.Mod` entry to `modlist.json`
    - a `models.ModInstall` entry to `modlist-lock.json`
-6. Emit telemetry via `internal/telemetry.CaptureCommand`.
+6. Record telemetry via `internal/telemetry.RecordCommand` (emitted once per session at shutdown).
 
 ## Interactive vs non-interactive behavior
 
@@ -68,4 +68,3 @@ UPDATE_SNAPS=true make test
 ```
 
 Snapshots for this command live at `cmd/mmm/add/__snapshots__/tui_test.snap`. Tests set `MMM_TEST=true` so i18n renders stable translation keys in snapshots.
-
