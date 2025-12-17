@@ -174,3 +174,7 @@ Closed `mmm-50` per user request; unrelated agent config changes will be committ
 Addressing `mmm-49` review feedback: updated `internal/telemetry/README.md` + `internal/perf/README.md` to match actual shutdown ordering (end lifecycle spans before telemetry flush), tightened `TestShutdownUsesTUIEventNameWhenMultipleCommandsRecorded` to assert a single capture, and staged missing `internal/perf/durations*.go` files so clean checkouts compile.
 ### 2025-12-17 13:54 - [memory]
 Closed Beads issue `mmm-49` (`bd --no-db close mmm-49 --reason "Done"`). Changeset still needs team review/merge; do not self-mark complete beyond closing the ticket per user request.
+### 2025-12-17 13:59 - [memory]
+Next Go-port epic step (mmm-1 execution order) is `mmm-6` (install command). Created Beads issue `mmm-51` to resolve a docs inconsistency: AGENTS.md and docs/requirements-go-port.md reference `docs/commands/README.md`, but command docs currently live under `docs/commands/*.md`.
+### 2025-12-17 14:03 - [memory]
+Closed `mmm-51` after updating `AGENTS.md` and `cmd/mmm/README.md` to point command behavior docs at `docs/specs/README.md`. Note: docs/requirements-go-port.md already correctly points to `specs/README.md` (my earlier note that it referenced `docs/commands/README.md` was incorrect).

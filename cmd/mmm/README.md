@@ -8,8 +8,8 @@ If you are adding a new command, start here: the root command wires global flags
 
 For command behavior, prefer these docs over reverse-engineering the code:
 
-- Command reference: `docs/commands/README.md`
-- Command specs: `docs/specs/README.md`
+- Command behavior index: `docs/specs/README.md`
+- User docs (when present): `docs/commands/`
 
 They describe what each command should do. This package is where that behavior gets wired into cobra.
 
@@ -47,4 +47,3 @@ Run from the repo root:
 ```bash
 make test
 ```
-
