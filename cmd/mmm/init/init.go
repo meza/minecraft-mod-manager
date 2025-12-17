@@ -17,6 +17,7 @@ import (
 	"github.com/meza/minecraft-mod-manager/internal/minecraft"
 	"github.com/meza/minecraft-mod-manager/internal/models"
 	"github.com/meza/minecraft-mod-manager/internal/perf"
+	"github.com/meza/minecraft-mod-manager/internal/telemetry"
 	"github.com/meza/minecraft-mod-manager/internal/tui"
 	"github.com/spf13/afero"
 	"github.com/spf13/cobra"
@@ -69,7 +70,8 @@ func Command() *cobra.Command {
 					in:  cmd.InOrStdin(),
 					out: cmd.OutOrStdout(),
 				},
-				logger: log,
+				logger:    log,
+				telemetry: telemetry.RecordCommand,
 			}
 
 			releaseTypes, err := parseReleaseTypes(releaseTypesRaw)
@@ -95,22 +97,7 @@ func Command() *cobra.Command {
 
 			meta := config.NewMetadata(configPath)
 
-			useTUI := tui.ShouldUseTUI(options.Quiet, cmd.InOrStdin(), cmd.OutOrStdout())
-
-			options, err = normalizeGameVersion(ctx, options, deps, useTUI)
-			if err != nil {
-				return err
-			}
-
-			if useTUI {
-				updated, err := runInteractiveInit(ctx, cmd, options, deps, meta)
-				if err != nil {
-					return err
-				}
-				options = updated
-			}
-
-			_, err = initWithDeps(ctx, options, deps)
+			err = runInitCommand(ctx, cmd, options, deps, meta)
 			return err
 		},
 	}
@@ -155,6 +142,7 @@ type initDeps struct {
 	minecraftClient httpClient.Doer
 	prompter        prompter
 	logger          *logger.Logger
+	telemetry       func(telemetry.CommandTelemetry)
 }
 
 type prompter interface {
@@ -203,7 +191,67 @@ func readLine(reader io.Reader) (string, error) {
 	return scanner.Text(), nil
 }
 
-func runInteractiveInit(ctx context.Context, cmd *cobra.Command, options initOptions, deps initDeps, meta config.Metadata) (initOptions, error) {
+func runInitCommand(ctx context.Context, cmd *cobra.Command, options initOptions, deps initDeps, meta config.Metadata) error {
+	finalOptions, didUseTUI, err := runInit(ctx, cmd, options, deps, meta)
+
+	if deps.telemetry != nil {
+		deps.telemetry(buildTelemetryPayload(finalOptions, didUseTUI, err))
+	}
+
+	return err
+}
+
+func runInit(ctx context.Context, cmd *cobra.Command, options initOptions, deps initDeps, meta config.Metadata) (initOptions, bool, error) {
+	shouldUseTUI := tui.ShouldUseTUI(options.Quiet, cmd.InOrStdin(), cmd.OutOrStdout())
+	didUseTUI := false
+
+	options, err := normalizeGameVersion(ctx, options, deps, shouldUseTUI)
+	if err != nil {
+		return options, didUseTUI, err
+	}
+
+	if shouldUseTUI {
+		updated, launched, err := runInteractiveInitWithLaunchFlag(ctx, cmd, options, deps, meta)
+		if err != nil {
+			return options, launched, err
+		}
+		options = updated
+		didUseTUI = launched
+	}
+
+	_, err = initWithDeps(ctx, options, deps)
+	return options, didUseTUI, err
+}
+
+func releaseTypesToStrings(releaseTypes []models.ReleaseType) []string {
+	out := make([]string, 0, len(releaseTypes))
+	for _, releaseType := range releaseTypes {
+		out = append(out, string(releaseType))
+	}
+	return out
+}
+
+func buildTelemetryPayload(options initOptions, didUseTUI bool, err error) telemetry.CommandTelemetry {
+	payload := telemetry.CommandTelemetry{
+		Command:     "init",
+		Success:     err == nil,
+		Error:       err,
+		ExitCode:    0,
+		Interactive: didUseTUI,
+		Arguments: map[string]interface{}{
+			"loader":       options.Loader,
+			"gameVersion":  options.GameVersion,
+			"releaseTypes": releaseTypesToStrings(options.ReleaseTypes),
+			"modsFolder":   options.ModsFolder,
+		},
+	}
+	if err != nil {
+		payload.ExitCode = 1
+	}
+	return payload
+}
+
+func runInteractiveInitWithLaunchFlag(ctx context.Context, cmd *cobra.Command, options initOptions, deps initDeps, meta config.Metadata) (initOptions, bool, error) {
 	sessionCtx, sessionSpan := perf.StartSpan(ctx, "tui.init.session",
 		perf.WithAttributes(
 			attribute.Bool("provided_loader", options.Provided.Loader),
@@ -215,15 +263,14 @@ func runInteractiveInit(ctx context.Context, cmd *cobra.Command, options initOpt
 	defer sessionSpan.End()
 
 	model := NewModel(sessionCtx, sessionSpan, options, deps, meta)
-
 	if model.state == done {
-		return model.result, nil
+		return model.result, false, nil
 	}
 
 	program := tea.NewProgram(model, tui.ProgramOptions(cmd.InOrStdin(), cmd.OutOrStdout())...)
 	result, err := program.Run()
 	if err != nil {
-		return options, err
+		return options, true, err
 	}
 
 	var finalModel CommandModel
@@ -233,18 +280,18 @@ func runInteractiveInit(ctx context.Context, cmd *cobra.Command, options initOpt
 	case CommandModel:
 		finalModel = typed
 	default:
-		return options, fmt.Errorf("interactive init failed")
+		return options, true, fmt.Errorf("interactive init failed")
 	}
 
 	if finalModel.err != nil {
-		return options, finalModel.err
+		return options, true, finalModel.err
 	}
 
 	if finalModel.state != done {
-		return options, fmt.Errorf("init cancelled")
+		return options, true, fmt.Errorf("init cancelled")
 	}
 
-	return finalModel.result, nil
+	return finalModel.result, true, nil
 }
 
 func normalizeGameVersion(ctx context.Context, options initOptions, deps initDeps, interactive bool) (initOptions, error) {

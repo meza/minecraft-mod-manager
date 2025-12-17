@@ -210,6 +210,24 @@ Removed redundant `log.Printf("Error executing command: ...")` from `main.go` so
 
 ### 2025-12-17 21:18 - [memory]
 Created Beads ticket `mmm-57` to capture the open design decision around CLI error reporting ownership (Cobra default vs centralized global handler vs hybrid), including questions about `--quiet`, stable exit codes, and i18n of fatal errors.
+
+### 2025-12-17 21:25 - [memory]
+Created Beads ticket `mmm-58` to bake Modrinth/CurseForge/PostHog tokens into built executables at build time (cross-platform), clarifying precedence vs runtime env overrides and ensuring tests validate the injection mechanism without committing secrets.
+
+### 2025-12-17 21:38 - [memory]
+Fixed an obvious telemetry gap: `cmd/mmm/init` now records command telemetry (args, duration, success/failure, interactive) via `internal/telemetry.RecordCommand`, with unit tests stubbing a deterministic clock. Updated ticket `mmm-32` notes and re-verified make gates pass.
+
+### 2025-12-17 21:58 - [memory]
+Refactored the `init` telemetry work to match the established patterns in other commands: telemetry payload is built in `init.Command`’s RunE (not inside runInit), and we no longer try to record duration/config metadata for init since other commands don’t. Removed the extra init telemetry-specific tests to keep things consistent. Updated `mmm-32` notes and re-verified make gates.
+
+### 2025-12-17 22:20 - [memory]
+Actioned review feedback for `mmm-32`: init telemetry now uses the final init options (post-normalization and any interactive selections) and the telemetry `Interactive` flag reflects whether Bubble Tea actually launched. Added init tests to prevent regressions and confirmed `make test` no longer hangs (previously a TUI test accidentally launched Bubble Tea). Re-verified `make fmt`, `make test`, `make coverage-enforce`, `make build`.
+
+### 2025-12-17 22:26 - [memory]
+Closed `mmm-32` per user request after updating init telemetry + tests and documenting the changes in `code-review.md`.
+
+### 2025-12-17 22:24 - [memory]
+Telemetry API consistency: codebase command implementations all call `telemetry.RecordCommand` (directly or via deps injection); `CaptureCommand` is now only used in `internal/telemetry` tests as a compatibility alias. Created Beads chore `mmm-59` to remove `CaptureCommand` and standardize on a single API name.
 Addressed mmm-6 review remarks: added tests for `.mmmignore` and `.disabled` exclusion, documented/verified Node parity that install preflight stays silent on no-hit files, and fixed fingerprint collision mapping; re-ran make gates (test/coverage/build).
 ### 2025-12-17 16:55 - [memory]
 New code-review.md requests minor follow-ups for mmm-6: decide stdout vs stderr conventions for error-like messages; remove or translate English install strings in non-English locale JSON.
@@ -293,3 +311,8 @@ Re-reviewed the updated `mmm-7` uncommitted changes. Confirmed the original bloc
 Re-reviewed again after the latest fixes: `replaceExistingFile` now treats backup deletion as best-effort (prevents jar/lock drift) and update logging is emitted deterministically from the main goroutine. Ran `make test`, `make coverage-enforce`, `make build` (all pass). Updated `code-review.md` verdict to “Approve with minor changes” (debug log for leftover backups; consider returning underlying errors).
 ### 2025-12-17 20:37 - [memory]
 Re-reviewed after follow-up: added debug logging for backup cleanup failures (`cmd.update.debug.backup_cleanup_failed`) plus a unit test, and re-ran `make test`, `make coverage-enforce`, `make build` (all pass). Updated `code-review.md` verdict to “Approve”.
+### 2025-12-17 21:50 - [memory]
+Reviewing `mmm-32` (init telemetry): `cmd/mmm/init` now calls a telemetry sink with `telemetry.CommandTelemetry` including `Arguments`, `Duration`, and `Config`, but `internal/telemetry.RecordCommand` currently discards `Duration` and `Config` (only keeps name/success/exit_code/interactive/error + extra/arguments). Unless telemetry is extended or the init command encodes config/duration into `Extra`/`Arguments`, PostHog won’t receive the “config metadata” (and duration will still come only from perf spans). Re-ran `make fmt`, `make test`, `make coverage-enforce`, `make build` (all pass).
+
+### 2025-12-17 22:02 - [memory]
+Code review note for `mmm-32`: `cmd/mmm/init` builds telemetry arguments from the pre-`runInit` `options`, so interactive selections (and `latest` normalization) won’t be reflected in telemetry. Also `runInit` returns `useTUI` even when it short-circuits without actually running Bubble Tea (e.g., all flags provided), which can misclassify `Interactive` in telemetry.

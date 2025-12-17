@@ -15,7 +15,10 @@ import (
 	"github.com/meza/minecraft-mod-manager/internal/config"
 	"github.com/meza/minecraft-mod-manager/internal/minecraft"
 	"github.com/meza/minecraft-mod-manager/internal/models"
+	"github.com/meza/minecraft-mod-manager/internal/telemetry"
+	"github.com/meza/minecraft-mod-manager/internal/tui"
 	"github.com/spf13/afero"
+	"github.com/spf13/cobra"
 	"github.com/stretchr/testify/assert"
 )
 
@@ -244,6 +247,110 @@ func TestTerminalPrompter(t *testing.T) {
 		assert.Error(t, err)
 		assert.False(t, ok)
 	})
+}
+
+type fakeTTYReader struct {
+	*bytes.Reader
+}
+
+func (fakeTTYReader) Fd() uintptr {
+	return 0
+}
+
+type fakeTTYWriter struct {
+	bytes.Buffer
+}
+
+func (fakeTTYWriter) Fd() uintptr {
+	return 1
+}
+
+func TestRunInitCommandRecordsTelemetryUsingFinalOptions(t *testing.T) {
+	minecraft.ClearManifestCache()
+
+	fs := afero.NewMemMapFs()
+	meta := config.NewMetadata(filepath.FromSlash("/cfg/modlist.json"))
+	assert.NoError(t, fs.MkdirAll(filepath.FromSlash("/cfg/mods"), 0755))
+
+	cmd := &cobra.Command{}
+	cmd.SetIn(strings.NewReader(""))
+	cmd.SetOut(io.Discard)
+
+	var payloads []telemetry.CommandTelemetry
+	deps := initDeps{
+		fs:              fs,
+		minecraftClient: manifestDoer([]string{"1.21.1"}),
+		telemetry: func(payload telemetry.CommandTelemetry) {
+			payloads = append(payloads, payload)
+		},
+	}
+
+	err := runInitCommand(context.Background(), cmd, initOptions{
+		ConfigPath:   meta.ConfigPath,
+		Loader:       models.FABRIC,
+		GameVersion:  "latest",
+		ReleaseTypes: []models.ReleaseType{models.Release},
+		ModsFolder:   "mods",
+	}, deps, meta)
+	assert.NoError(t, err)
+
+	if assert.Len(t, payloads, 1) {
+		payload := payloads[0]
+		assert.Equal(t, "init", payload.Command)
+		assert.True(t, payload.Success)
+		assert.Equal(t, 0, payload.ExitCode)
+
+		args := payload.Arguments
+		assert.Equal(t, models.FABRIC, args["loader"])
+		assert.Equal(t, "1.21.1", args["gameVersion"])
+		assert.Equal(t, []string{"release"}, args["releaseTypes"])
+		assert.Equal(t, "mods", args["modsFolder"])
+	}
+}
+
+func TestRunInitCommandDoesNotMarkInteractiveWhenTUIWasNotLaunched(t *testing.T) {
+	minecraft.ClearManifestCache()
+	restoreTTY := tui.SetIsTerminalFuncForTesting(func(int) bool { return true })
+	t.Cleanup(restoreTTY)
+
+	fs := afero.NewMemMapFs()
+	meta := config.NewMetadata(filepath.FromSlash("/cfg/modlist.json"))
+	assert.NoError(t, fs.MkdirAll(filepath.FromSlash("/cfg/mods"), 0755))
+
+	in := fakeTTYReader{Reader: bytes.NewReader(nil)}
+	out := &fakeTTYWriter{}
+
+	cmd := &cobra.Command{}
+	cmd.SetIn(in)
+	cmd.SetOut(out)
+
+	var payloads []telemetry.CommandTelemetry
+	deps := initDeps{
+		fs:              fs,
+		minecraftClient: manifestDoer([]string{"1.21.1"}),
+		telemetry: func(payload telemetry.CommandTelemetry) {
+			payloads = append(payloads, payload)
+		},
+	}
+
+	err := runInitCommand(context.Background(), cmd, initOptions{
+		ConfigPath:   meta.ConfigPath,
+		Loader:       models.FABRIC,
+		GameVersion:  "1.21.1",
+		ReleaseTypes: []models.ReleaseType{models.Release},
+		ModsFolder:   "mods",
+		Provided: providedFlags{
+			Loader:       true,
+			GameVersion:  true,
+			ReleaseTypes: true,
+			ModsFolder:   true,
+		},
+	}, deps, meta)
+	assert.NoError(t, err)
+
+	if assert.Len(t, payloads, 1) {
+		assert.False(t, payloads[0].Interactive)
+	}
 }
 
 func TestLoaderFlag(t *testing.T) {
