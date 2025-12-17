@@ -10,7 +10,9 @@
       "Bash(make:*)",
       "Bash(go build:*)",
       "Bash(bd --no-db create:*)",
-      "Bash(bd:*)"
+      "Bash(bd:*)",
+      "Bash(make coverage-enforce:*)",
+      "Bash(make build:*)"
     ]
   }
 }
