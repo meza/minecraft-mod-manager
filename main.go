@@ -138,7 +138,6 @@ func runWithDeps(deps runDeps) int {
 	endExecute(err == nil)
 
 	if err != nil {
-		log.Printf("Error executing command: %v", err)
 		return 1
 	}
 

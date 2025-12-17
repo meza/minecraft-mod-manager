@@ -143,8 +143,9 @@ func TestRunInstallReportsUnmanagedButDoesNotHalt(t *testing.T) {
 		},
 	}
 
-	_, err = runInstall(context.Background(), cmd, installOptions{ConfigPath: meta.ConfigPath}, deps)
+	result, err := runInstall(context.Background(), cmd, installOptions{ConfigPath: meta.ConfigPath}, deps)
 	assert.NoError(t, err)
+	assert.True(t, result.UnmanagedFound)
 
 	assert.Contains(t, out.String(), "cmd.install.unmanaged.found")
 	assert.Contains(t, out.String(), "cmd.install.success")

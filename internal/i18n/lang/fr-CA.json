@@ -15,8 +15,18 @@
   "cmd.install.download.hash_mismatch": "{name} a un hash different, telechargement depuis la source",
   "cmd.install.debug.checking": "Verification de {name}@{version} pour {platform}",
   "cmd.install.error.mod_not_found": "{name}({id}) ne peut plus etre trouve sur {platform}. Le mod a-t-il ete retire?",
-  "cmd.install.error.no_file": "{platform} ne fournit plus le fichier requis pour {name}({id}). Veuillez le mettre a jour."
-  ,
+  "cmd.install.error.no_file": "{platform} ne fournit plus le fichier requis pour {name}({id}). Veuillez le mettre a jour.",
+  "cmd.update.short": "Mettre a jour les mods configures",
+  "cmd.update.debug.checking": "[update] Verification de {name} pour {platform}",
+  "cmd.update.has_update": "{name} a une mise a jour, telechargement...",
+  "cmd.update.no_updates": "Aucune mise a jour disponible",
+  "cmd.update.error.mod_not_found": "{name}({id}) ne peut plus etre trouve sur {platform}. Le mod a-t-il ete retire?",
+  "cmd.update.error.no_file": "{platform} ne fournit plus le fichier requis pour {name}({id}). Veuillez le mettre a jour.",
+  "cmd.update.error.missing_lock_entry": "{name} ne semble pas etre installe. Veuillez supprimer le fichier lock et le dossier mods, puis reessayez.",
+  "cmd.update.error.locked_file_missing": "{name} ({path}) n'existe pas. Veuillez supprimer le fichier lock et le dossier mods, puis reessayez.",
+  "cmd.update.error.invalid_timestamp": "Horodatage invalide : {value}",
+  "cmd.update.debug.backup_cleanup_failed": "[update] Impossible de supprimer le fichier de sauvegarde {path} : {err}",
+  "cmd.update.error.unmanaged_found": "Des mods non geres ont ete detectes dans votre dossier mods. Veuillez les supprimer (ou les ajouter a votre configuration) puis reessayez.",
   "cmd.remove.short": "Retirer un ou plusieurs mods",
   "cmd.remove.flag.dry_run": "Afficher les fichiers/mods qui auraient ete supprimes"
 }

@@ -40,7 +40,7 @@ func WriteConfig(ctx context.Context, fs afero.Fs, meta Metadata, config models.
 	defer span.End()
 
 	data, _ := json.MarshalIndent(config, "", "  ")
-	return afero.WriteFile(fs, meta.ConfigPath, data, 0644)
+	return writeFileAtomic(fs, meta.ConfigPath, data, 0644)
 }
 
 func InitConfig(ctx context.Context, fs afero.Fs, meta Metadata, minecraftClient httpClient.Doer) (models.ModsJson, error) {

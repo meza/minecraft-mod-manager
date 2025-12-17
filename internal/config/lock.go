@@ -50,5 +50,5 @@ func WriteLock(ctx context.Context, fs afero.Fs, meta Metadata, lock []models.Mo
 	defer span.End()
 
 	data, _ := json.MarshalIndent(lock, "", "  ")
-	return afero.WriteFile(fs, meta.LockPath(), data, 0644)
+	return writeFileAtomic(fs, meta.LockPath(), data, 0644)
 }

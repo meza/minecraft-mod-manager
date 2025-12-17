@@ -57,6 +57,11 @@ type installOptions struct {
 	Debug      bool
 }
 
+type Result struct {
+	InstalledCount int
+	UnmanagedFound bool
+}
+
 func Command() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:     "install",
@@ -128,7 +133,7 @@ func Command() *cobra.Command {
 				Debug:      debug,
 			}
 
-			installedCount, err := runInstall(ctx, cmd, opts, deps)
+			result, err := runInstall(ctx, cmd, opts, deps)
 			span.SetAttributes(attribute.Bool("success", err == nil))
 			span.End()
 
@@ -139,7 +144,7 @@ func Command() *cobra.Command {
 				ExitCode:    0,
 				Interactive: false,
 				Extra: map[string]interface{}{
-					"numberOfMods": installedCount,
+					"numberOfMods": result.InstalledCount,
 				},
 			}
 			if err != nil {
@@ -152,6 +157,57 @@ func Command() *cobra.Command {
 	}
 
 	return cmd
+}
+
+// Run executes the install consistency check without emitting install telemetry.
+// It is used by other commands (for example `update`) that need install semantics
+// as a prerequisite.
+func Run(ctx context.Context, cmd *cobra.Command, configPath string, quiet bool, debug bool) (Result, error) {
+	log := logger.New(cmd.OutOrStdout(), cmd.ErrOrStderr(), quiet, debug)
+	limiter := rate.NewLimiter(rate.Inf, 0)
+
+	deps := installDeps{
+		fs:         afero.NewOsFs(),
+		logger:     log,
+		clients:    platform.DefaultClients(limiter),
+		downloader: httpClient.DownloadFile,
+		fetchMod:   platform.FetchMod,
+		telemetry:  func(telemetry.CommandTelemetry) {},
+
+		curseforgeFingerprint: curseforgeFingerprint.GetFingerprintFor,
+		modrinthVersionForSha: func(ctx context.Context, sha1 string, doer httpClient.Doer) (*modrinth.Version, error) {
+			client := modrinth.NewClient(doer)
+			return modrinth.GetVersionForHash(ctx, modrinth.NewVersionHashLookup(sha1, modrinth.Sha1), client)
+		},
+		modrinthProjectTitle: func(ctx context.Context, projectID string, doer httpClient.Doer) (string, error) {
+			client := modrinth.NewClient(doer)
+			project, err := modrinth.GetProject(ctx, projectID, client)
+			if err != nil {
+				return "", err
+			}
+			return project.Title, nil
+		},
+		curseforgeFingerprintMatch: func(ctx context.Context, fingerprints []int, doer httpClient.Doer) (*curseforge.FingerprintResult, error) {
+			client := curseforge.NewClient(doer)
+			return curseforge.GetFingerprintsMatches(ctx, fingerprints, client)
+		},
+		curseforgeProjectName: func(ctx context.Context, projectID string, doer httpClient.Doer) (string, error) {
+			client := curseforge.NewClient(doer)
+			project, err := curseforge.GetProject(ctx, projectID, client)
+			if err != nil {
+				return "", err
+			}
+			return project.Name, nil
+		},
+	}
+
+	opts := installOptions{
+		ConfigPath: configPath,
+		Quiet:      quiet,
+		Debug:      debug,
+	}
+
+	return runInstall(ctx, cmd, opts, deps)
 }
 
 type scanHit struct {
@@ -168,32 +224,32 @@ type scannedFile struct {
 
 var errUnresolvedFiles = errors.New("unresolved files in mods folder")
 
-func runInstall(ctx context.Context, cmd *cobra.Command, opts installOptions, deps installDeps) (int, error) {
+func runInstall(ctx context.Context, cmd *cobra.Command, opts installOptions, deps installDeps) (Result, error) {
 	meta := config.NewMetadata(opts.ConfigPath)
 
 	cfg, err := config.ReadConfig(ctx, deps.fs, meta)
 	if err != nil {
-		return 0, err
+		return Result{}, err
 	}
 
 	lock, err := config.EnsureLock(ctx, deps.fs, meta)
 	if err != nil {
-		return 0, err
+		return Result{}, err
 	}
 
 	colorize := tui.IsTerminalWriter(cmd.OutOrStdout())
 
-	unresolved, err := preflightUnknownFiles(ctx, meta, cfg, lock, deps, colorize)
+	unresolved, unmanagedFound, err := preflightUnknownFiles(ctx, meta, cfg, lock, deps, colorize)
 	if err != nil {
-		return 0, err
+		return Result{}, err
 	}
 	if unresolved {
 		deps.logger.Error(i18n.T("cmd.install.error.unresolved"))
-		return 0, errUnresolvedFiles
+		return Result{}, errUnresolvedFiles
 	}
 
 	if err := deps.fs.MkdirAll(meta.ModsFolderPath(cfg), 0755); err != nil {
-		return 0, err
+		return Result{}, err
 	}
 
 	for i := range cfg.Mods {
@@ -214,7 +270,7 @@ func runInstall(ctx context.Context, cmd *cobra.Command, opts installOptions, de
 		lockIndex := lockIndexFor(mod, lock)
 		if lockIndex >= 0 {
 			if err := ensureLockInstall(ctx, meta, cfg, mod, lock[lockIndex], deps); err != nil {
-				return 0, err
+				return Result{}, err
 			}
 			continue
 		}
@@ -230,7 +286,7 @@ func runInstall(ctx context.Context, cmd *cobra.Command, opts installOptions, de
 			if handleExpectedFetchError(fetchErr, mod, deps, colorize) {
 				continue
 			}
-			return 0, fetchErr
+			return Result{}, fetchErr
 		}
 
 		cfg.Mods[i].Name = remote.Name
@@ -244,7 +300,7 @@ func runInstall(ctx context.Context, cmd *cobra.Command, opts installOptions, de
 
 		destination := filepath.Join(meta.ModsFolderPath(cfg), remote.FileName)
 		if err := deps.downloader(ctx, remote.DownloadURL, destination, downloadClient(deps.clients), &noopSender{}, deps.fs); err != nil {
-			return 0, err
+			return Result{}, err
 		}
 
 		lock = append(lock, models.ModInstall{
@@ -259,14 +315,14 @@ func runInstall(ctx context.Context, cmd *cobra.Command, opts installOptions, de
 	}
 
 	if err := config.WriteLock(ctx, deps.fs, meta, lock); err != nil {
-		return 0, err
+		return Result{}, err
 	}
 	if err := config.WriteConfig(ctx, deps.fs, meta, cfg); err != nil {
-		return 0, err
+		return Result{}, err
 	}
 
-	deps.logger.Log(messageWithIcon(successIcon(colorize), i18n.T("cmd.install.success")), true)
-	return len(cfg.Mods), nil
+	deps.logger.Log(messageWithIcon(tui.SuccessIcon(colorize), i18n.T("cmd.install.success")), true)
+	return Result{InstalledCount: len(cfg.Mods), UnmanagedFound: unmanagedFound}, nil
 }
 
 func optionalStringValue(value *string) string {
@@ -326,7 +382,7 @@ func ensureLockInstall(ctx context.Context, meta config.Metadata, cfg models.Mod
 func handleExpectedFetchError(err error, mod models.Mod, deps installDeps, colorize bool) bool {
 	var notFound *platform.ModNotFoundError
 	if errors.As(err, &notFound) {
-		deps.logger.Log(messageWithIcon(errorIcon(colorize), i18n.T("cmd.install.error.mod_not_found", i18n.Tvars{
+		deps.logger.Log(messageWithIcon(tui.ErrorIcon(colorize), i18n.T("cmd.install.error.mod_not_found", i18n.Tvars{
 			Data: &i18n.TData{
 				"name":     mod.Name,
 				"id":       mod.ID,
@@ -338,7 +394,7 @@ func handleExpectedFetchError(err error, mod models.Mod, deps installDeps, color
 
 	var noFile *platform.NoCompatibleFileError
 	if errors.As(err, &noFile) {
-		deps.logger.Log(messageWithIcon(errorIcon(colorize), i18n.T("cmd.install.error.no_file", i18n.Tvars{
+		deps.logger.Log(messageWithIcon(tui.ErrorIcon(colorize), i18n.T("cmd.install.error.no_file", i18n.Tvars{
 			Data: &i18n.TData{
 				"name":     mod.Name,
 				"id":       mod.ID,
@@ -351,30 +407,14 @@ func handleExpectedFetchError(err error, mod models.Mod, deps installDeps, color
 	return false
 }
 
-func successIcon(colorize bool) string {
-	icon := "✅"
-	if colorize {
-		return tui.QuestionStyle.Render(icon)
-	}
-	return icon
-}
-
-func errorIcon(colorize bool) string {
-	icon := "❌"
-	if colorize {
-		return tui.ErrorStyle.Render(icon)
-	}
-	return icon
-}
-
 func messageWithIcon(icon string, message string) string {
 	return fmt.Sprintf("%s %s", icon, message)
 }
 
-func preflightUnknownFiles(ctx context.Context, meta config.Metadata, cfg models.ModsJson, lock []models.ModInstall, deps installDeps, colorize bool) (bool, error) {
+func preflightUnknownFiles(ctx context.Context, meta config.Metadata, cfg models.ModsJson, lock []models.ModInstall, deps installDeps, colorize bool) (bool, bool, error) {
 	files, err := listModFiles(deps.fs, meta, cfg)
 	if err != nil {
-		return false, err
+		return false, false, err
 	}
 
 	nonManaged := make([]string, 0)
@@ -385,12 +425,12 @@ func preflightUnknownFiles(ctx context.Context, meta config.Metadata, cfg models
 	}
 
 	if len(nonManaged) == 0 {
-		return false, nil
+		return false, false, nil
 	}
 
 	scanned, err := scanFiles(ctx, nonManaged, deps)
 	if err != nil {
-		return false, err
+		return false, false, err
 	}
 
 	return reportScanResults(scanned, cfg, lock, deps, colorize)
@@ -525,8 +565,9 @@ func uniqueInts(values []int) []int {
 	return result
 }
 
-func reportScanResults(scanned []scannedFile, cfg models.ModsJson, lock []models.ModInstall, deps installDeps, colorize bool) (bool, error) {
+func reportScanResults(scanned []scannedFile, cfg models.ModsJson, lock []models.ModInstall, deps installDeps, colorize bool) (bool, bool, error) {
 	unresolved := false
+	unmanagedFound := false
 
 	for _, item := range scanned {
 		if len(item.Hits) == 0 {
@@ -535,11 +576,12 @@ func reportScanResults(scanned []scannedFile, cfg models.ModsJson, lock []models
 
 		matchedModIndex := findConfiguredModIndex(cfg, item.Hits)
 		if matchedModIndex < 0 {
+			unmanagedFound = true
 			name := item.Hits[0].Name
 			if colorize {
 				name = tui.TitleStyle.Copy().Bold(true).Render(name)
 			}
-			deps.logger.Log(successIcon(colorize)+i18n.T("cmd.install.unmanaged.found", i18n.Tvars{
+			deps.logger.Log(tui.SuccessIcon(colorize)+i18n.T("cmd.install.unmanaged.found", i18n.Tvars{
 				Data: &i18n.TData{"name": name},
 			}), true)
 			continue
@@ -548,7 +590,7 @@ func reportScanResults(scanned []scannedFile, cfg models.ModsJson, lock []models
 		mod := cfg.Mods[matchedModIndex]
 		lockIndex := lockIndexFor(mod, lock)
 		if lockIndex < 0 {
-			deps.logger.Log(messageWithIcon(errorIcon(colorize), i18n.T("cmd.install.unsure.lock_missing", i18n.Tvars{
+			deps.logger.Log(messageWithIcon(tui.ErrorIcon(colorize), i18n.T("cmd.install.unsure.lock_missing", i18n.Tvars{
 				Data: &i18n.TData{"name": item.Hits[0].Name},
 			})), true)
 			unresolved = true
@@ -556,14 +598,14 @@ func reportScanResults(scanned []scannedFile, cfg models.ModsJson, lock []models
 		}
 
 		if !strings.EqualFold(lock[lockIndex].Hash, item.Sha1) {
-			deps.logger.Log(messageWithIcon(errorIcon(colorize), i18n.T("cmd.install.unsure.hash_mismatch", i18n.Tvars{
+			deps.logger.Log(messageWithIcon(tui.ErrorIcon(colorize), i18n.T("cmd.install.unsure.hash_mismatch", i18n.Tvars{
 				Data: &i18n.TData{"name": item.Hits[0].Name},
 			})), true)
 			unresolved = true
 		}
 	}
 
-	return unresolved, nil
+	return unresolved, unmanagedFound, nil
 }
 
 func findConfiguredModIndex(cfg models.ModsJson, hits []scanHit) int {

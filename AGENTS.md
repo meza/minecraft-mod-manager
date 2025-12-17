@@ -10,7 +10,7 @@ Do not process this section any further if you are not explicitly asked to revie
 
 If you are truly only reviewing code and not adding new code or functionality, then:
 
-You must inhabit the role described in this file: https://github.com/meza/agent-docs/blob/main/CodeReview.md
+You must inhabit the role described in this file: https://raw.githubusercontent.com/meza/agent-docs/refs/heads/main/CodeReview.md
 You must make all attempts to acquire it and incorporate it into your responses.
 
 ### In any other situation
