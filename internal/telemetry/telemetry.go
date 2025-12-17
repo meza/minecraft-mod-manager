@@ -282,6 +282,68 @@ func commandDurationFromPerf(commandName string, performance []*perf.ExportSpan)
 	return time.Duration(bestDurationNS), true
 }
 
+func commandNameFromPerfSpan(spanName string) (string, bool) {
+	const prefix = "app.command."
+	if !strings.HasPrefix(spanName, prefix) {
+		return "", false
+	}
+	name := strings.TrimPrefix(spanName, prefix)
+	if name == "" || strings.Contains(name, ".") {
+		return "", false
+	}
+	return name, true
+}
+
+func topCommandNameFromPerformance(performance []*perf.ExportSpan) (string, bool) {
+	if len(performance) == 0 {
+		return "", false
+	}
+
+	var (
+		bestName      string
+		bestDepth     = int(^uint(0) >> 1)
+		bestStartTime time.Time
+	)
+
+	var walk func(span *perf.ExportSpan, depth int)
+	walk = func(span *perf.ExportSpan, depth int) {
+		if span == nil {
+			return
+		}
+
+		if name, ok := commandNameFromPerfSpan(span.Name); ok {
+			switch {
+			case bestName == "":
+				bestName = name
+				bestDepth = depth
+				bestStartTime = span.StartTime
+			case depth < bestDepth:
+				bestName = name
+				bestDepth = depth
+				bestStartTime = span.StartTime
+			case depth == bestDepth && span.StartTime.Before(bestStartTime):
+				bestName = name
+				bestDepth = depth
+				bestStartTime = span.StartTime
+			}
+		}
+
+		for _, child := range span.Children {
+			walk(child, depth+1)
+		}
+	}
+
+	for _, root := range performance {
+		walk(root, 0)
+	}
+
+	if bestName == "" {
+		return "", false
+	}
+
+	return bestName, true
+}
+
 // Shutdown flushes and closes the telemetry client. Additional calls are ignored.
 func Shutdown(ctx context.Context) {
 	state.shutdownOnce.Do(func() {
@@ -301,6 +363,13 @@ func Shutdown(ctx context.Context) {
 			performance = spans
 		}
 
+		canonicalCommand, _ := topCommandNameFromPerformance(performance)
+		if canonicalCommand != "" && len(commands) == 1 {
+			if strings.TrimSpace(commands[0].Name) == "" || commands[0].Name != canonicalCommand {
+				commands[0].Name = canonicalCommand
+			}
+		}
+
 		properties := map[string]interface{}{
 			"type":        "session",
 			"performance": performance,
@@ -312,7 +381,7 @@ func Shutdown(ctx context.Context) {
 			properties["work_time_ms"] = d.Work.Milliseconds()
 		}
 
-		sessionName := resolveSessionName(sessionNameHint, commands)
+		sessionName := resolveSessionName(sessionNameHint, canonicalCommand, commands)
 		captureWithSnapshot(snapshot, sessionName, properties)
 
 		if ctx == nil {
@@ -368,7 +437,7 @@ func commandExitCode(command CommandTelemetry) int {
 	return 1
 }
 
-func resolveSessionName(sessionNameHint string, commands []recordedCommand) string {
+func resolveSessionName(sessionNameHint string, canonicalCommand string, commands []recordedCommand) string {
 	if len(commands) > 1 {
 		return "tui"
 	}
@@ -377,6 +446,9 @@ func resolveSessionName(sessionNameHint string, commands []recordedCommand) stri
 		if name != "" {
 			return name
 		}
+	}
+	if canonicalCommand != "" {
+		return canonicalCommand
 	}
 	if sessionNameHint != "" {
 		return sessionNameHint

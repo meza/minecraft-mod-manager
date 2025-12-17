@@ -41,6 +41,12 @@ Session telemetry includes the full `internal/perf` span tree under the `perform
 2. Commands call `telemetry.RecordCommand` when they finish (success or failure). Telemetry is stored in-memory for the session.
 3. `telemetry.Shutdown` emits a single session-level event, flushes pending events, and closes the client. The entry point registers this cleanup with `internal/lifecycle`, so it runs on normal exit as well as when Ctrl+C / SIGTERM fire, and future subsystems can attach their own shutdown hooks alongside telemetry.
 
+The session-level event name is derived in this order:
+
+1. The single recorded command name (when exactly one command was recorded).
+2. The top-most `app.command.<name>` perf span (so aliases do not change the taxonomy).
+3. The session name hint supplied by the entrypoint (`tui` for interactive sessions, otherwise the argv token).
+
 Because the lifecycle is explicit, the TUI can keep telemetry active while users jump between screens and then defer a single `Shutdown` when the UI loop ends.
 
 ## Opt-out and overrides

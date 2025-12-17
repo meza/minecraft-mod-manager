@@ -208,6 +208,12 @@ Created Beads ticket `mmm-53` to define/standardize the difference between `--qu
 Closed Beads issue `mmm-6` (`bd --no-db close mmm-6 --reason \"Done\"`) per user direction; changeset still pending team review/merge.
 ### 2025-12-17 17:15 - [memory]
 Created P1 bug ticket `mmm-54`: telemetry should derive canonical command name from the top-most `app.command.*` perf span (so aliases like `i` record as `install`).
+### 2025-12-17 17:16 - [memory]
+Claimed `mmm-54` and started work: update telemetry to derive the canonical command from the top-most `app.command.*` perf span (aliases should not affect taxonomy). Next: implement + add tests, then run make gates.
+### 2025-12-17 17:24 - [memory]
+Implemented `mmm-54`: telemetry shutdown now derives the canonical command name from perf (`top-most app.command.<name>` span) and uses it to name the session event + canonicalize a single recorded command name when needed. Added tests for alias/hint scenarios and helper selection logic; `make test`, `make coverage-enforce`, and `make build` all pass.
+### 2025-12-17 17:25 - [memory]
+Closed `mmm-54` per user approval.
 ### 2025-12-17 16:39 - [memory]
 Performed a code review of the in-progress `mmm-6` (install) work and wrote findings to `code-review.md`; main follow-ups are adding tests for `.mmmignore`/`*.disabled` handling and confirming/reporting behavior for jars with no Modrinth/CurseForge hits to match Node parity.
 ### 2025-12-17 16:50 - [memory]

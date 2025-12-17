@@ -181,6 +181,64 @@ func TestShutdownEmitsSingleSessionEvent(t *testing.T) {
 	}
 }
 
+func TestShutdown_UsesPerfSpanCommandNameWhenNoCommandRecorded(t *testing.T) {
+	resetTelemetryState(t)
+
+	perf.Reset()
+	t.Cleanup(perf.Reset)
+	assert.NoError(t, perf.Init(perf.Config{Enabled: true}))
+
+	ctx, root := perf.StartSpan(context.Background(), "app.lifecycle")
+	_, cmdSpan := perf.StartSpan(ctx, "app.command.install")
+	cmdSpan.End()
+	root.End()
+
+	client := &stubClient{}
+	initWithClient(t, client, "cmd-test")
+
+	SetSessionNameHint("i")
+	Shutdown(context.Background())
+
+	if assert.Len(t, client.enqueued, 1) {
+		capture := client.enqueued[0].(posthog.Capture)
+		assert.Equal(t, "install", capture.Event)
+
+		props := capture.Properties
+		commands := props["commands"].([]map[string]interface{})
+		assert.Empty(t, commands)
+	}
+}
+
+func TestShutdown_CanonicalizesSingleRecordedCommandNameFromPerf(t *testing.T) {
+	resetTelemetryState(t)
+
+	perf.Reset()
+	t.Cleanup(perf.Reset)
+	assert.NoError(t, perf.Init(perf.Config{Enabled: true}))
+
+	ctx, root := perf.StartSpan(context.Background(), "app.lifecycle")
+	_, cmdSpan := perf.StartSpan(ctx, "app.command.install")
+	cmdSpan.End()
+	root.End()
+
+	client := &stubClient{}
+	initWithClient(t, client, "cmd-test")
+
+	RecordCommand(CommandTelemetry{Command: "i", Success: true})
+	Shutdown(context.Background())
+
+	if assert.Len(t, client.enqueued, 1) {
+		capture := client.enqueued[0].(posthog.Capture)
+		assert.Equal(t, "install", capture.Event)
+
+		props := capture.Properties
+		commands := props["commands"].([]map[string]interface{})
+		if assert.Len(t, commands, 1) {
+			assert.Equal(t, "install", commands[0]["name"])
+		}
+	}
+}
+
 func TestShutdownUsesTUIEventNameWhenMultipleCommandsRecorded(t *testing.T) {
 	resetTelemetryState(t)
 
@@ -263,12 +321,163 @@ func TestCaptureCommand_AliasesRecordCommand(t *testing.T) {
 }
 
 func TestResolveSessionName_UsesHintWhenNoCommandsRecorded(t *testing.T) {
-	assert.Equal(t, "list", resolveSessionName("list", nil))
-	assert.Equal(t, "unknown", resolveSessionName("", nil))
+	t.Parallel()
+
+	tests := []struct {
+		name             string
+		sessionNameHint  string
+		canonicalCommand string
+		commands         []recordedCommand
+		expected         string
+	}{
+		{
+			name:             "multiple commands uses tui",
+			sessionNameHint:  "list",
+			canonicalCommand: "install",
+			commands: []recordedCommand{
+				{Name: "add"},
+				{Name: "list"},
+			},
+			expected: "tui",
+		},
+		{
+			name:             "single command prefers recorded name",
+			sessionNameHint:  "i",
+			canonicalCommand: "install",
+			commands:         []recordedCommand{{Name: "list"}},
+			expected:         "list",
+		},
+		{
+			name:             "single command uses canonical when recorded empty",
+			sessionNameHint:  "i",
+			canonicalCommand: "install",
+			commands:         []recordedCommand{{Name: " "}},
+			expected:         "install",
+		},
+		{
+			name:             "no commands uses canonical before hint",
+			sessionNameHint:  "i",
+			canonicalCommand: "install",
+			commands:         nil,
+			expected:         "install",
+		},
+		{
+			name:            "no commands uses hint when canonical empty",
+			sessionNameHint: "list",
+			commands:        nil,
+			expected:        "list",
+		},
+		{
+			name:     "no commands falls back to unknown",
+			commands: nil,
+			expected: "unknown",
+		},
+	}
+
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			assert.Equal(t, tc.expected, resolveSessionName(tc.sessionNameHint, tc.canonicalCommand, tc.commands))
+		})
+	}
 }
 
 func TestBuildCommandSummaries_ReturnsEmptySliceWhenNoCommands(t *testing.T) {
 	assert.Equal(t, []map[string]interface{}{}, buildCommandSummaries(nil, nil))
+}
+
+func TestCommandNameFromPerfSpan(t *testing.T) {
+	t.Parallel()
+
+	tests := []struct {
+		name     string
+		spanName string
+		expected string
+		ok       bool
+	}{
+		{name: "not a command span", spanName: "app.lifecycle", ok: false},
+		{name: "empty command suffix", spanName: "app.command.", ok: false},
+		{name: "stage span", spanName: "app.command.add.stage.prepare", ok: false},
+		{name: "valid command span", spanName: "app.command.install", expected: "install", ok: true},
+	}
+
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			got, ok := commandNameFromPerfSpan(tc.spanName)
+			assert.Equal(t, tc.ok, ok)
+			assert.Equal(t, tc.expected, got)
+		})
+	}
+}
+
+func TestTopCommandNameFromPerformance(t *testing.T) {
+	t.Parallel()
+
+	t.Run("returns false on empty performance", func(t *testing.T) {
+		name, ok := topCommandNameFromPerformance(nil)
+		assert.False(t, ok)
+		assert.Empty(t, name)
+	})
+
+	t.Run("ignores stage spans", func(t *testing.T) {
+		performance := []*perf.ExportSpan{
+			{Name: "app.lifecycle", Children: []*perf.ExportSpan{
+				{Name: "app.command.install.stage.prepare"},
+			}},
+		}
+		name, ok := topCommandNameFromPerformance(performance)
+		assert.False(t, ok)
+		assert.Empty(t, name)
+	})
+
+	t.Run("chooses shallower over deeper", func(t *testing.T) {
+		base := time.Now()
+
+		performance := []*perf.ExportSpan{
+			nil,
+			{
+				Name: "root",
+				Children: []*perf.ExportSpan{
+					{Name: "not-command", Children: []*perf.ExportSpan{
+						{Name: "app.command.deep", StartTime: base.Add(2 * time.Second)},
+					}},
+				},
+			},
+			{
+				Name:      "app.command.shallow",
+				StartTime: base.Add(3 * time.Second),
+			},
+		}
+
+		name, ok := topCommandNameFromPerformance(performance)
+		assert.True(t, ok)
+		assert.Equal(t, "shallow", name)
+	})
+
+	t.Run("chooses shallowest then earliest", func(t *testing.T) {
+		base := time.Now()
+
+		performance := []*perf.ExportSpan{
+			{
+				Name:      "root",
+				StartTime: base.Add(1 * time.Second),
+				Children: []*perf.ExportSpan{
+					{Name: "app.command.list", StartTime: base.Add(2 * time.Second)},
+					{Name: "app.command.add", StartTime: base.Add(3 * time.Second)},
+				},
+			},
+			{
+				Name:      "root-2",
+				StartTime: base,
+				Children: []*perf.ExportSpan{
+					{Name: "app.command.install", StartTime: base.Add(500 * time.Millisecond)},
+				},
+			},
+		}
+
+		name, ok := topCommandNameFromPerformance(performance)
+		assert.True(t, ok)
+		assert.Equal(t, "install", name)
+	})
 }
 
 func TestBuildCommandSummaries_IncludesErrorsAndSkipsMissingDuration(t *testing.T) {
