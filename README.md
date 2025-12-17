@@ -54,8 +54,8 @@ control over the mods that are installed.
   * [ADD](docs/commands/add.md)
     * [Platforms](docs/commands/add.md#platforms)
     * [How To Find The Mod ID](docs/commands/add.md#how-to-find-the-mod-id)
-  * [REMOVE](#remove)
-  * [INSTALL](#install)
+  * [REMOVE](docs/commands/remove.md)
+  * [INSTALL](docs/commands/install.md)
   * [UPDATE](#update)
   * [CHANGE](#change)
   * [LIST](docs/commands/list.md)
@@ -181,44 +181,6 @@ MMM_DISABLE_TELEMETRY=1 mmm list
 # Windows PowerShell
 $env:MMM_DISABLE_TELEMETRY=1; mmm list
 ```
-
-### REMOVE
-
-`mmm remove <name or id>`
-
-Removes a single, or a set of mods from both the configuration and the filesystem.
-Minecraft Mod Manager will always try to match the ID first and then the name fully and then the name partially.
-
-#### Name lookups
-
-You can specify one of multiple mods to remove. The simplest form is a list of mods like:
-```bash
-mmm remove mod1 mod2 "mod with space in its name"
-```
-
-> Remember to add the quotes if there are spaces in the mod names
-
-You can also use [glob patterns](#glob-primer) to describe multiple mods.
-
-Say you want to remove all world edit related mods, you can use:
-
-```bash
-mmm remove world*edit*
-```
-
-#### Command line arguments for the remove function
-
-| Short | Long      | Description                                           | Value                     | Example         |
-|-------|-----------|-------------------------------------------------------|---------------------------|-----------------|
-| -n    | --dry-run | Print out the files/mods that would have been removed |                           | `mmm remove -n` |
-
----
-
-### INSTALL
-
-`mmm install` or `mmm i`
-
-See `docs/commands/install.md`.
 
 ---
 
@@ -490,39 +452,6 @@ For example to ignore the worldedit and the modmenu mods, the `.mmmignore` file 
 mods/modmenu-*.jar
 mods/worldedit-*.jar
 ```
-
-#### Glob Primer
-
-> This section is taken from [the glob package](https://github.com/isaacs/node-glob/blob/main/README.md)
-
-"Globs" are the patterns you type when you do stuff like `ls *.js` on
-the command line, or put `build/*` in a `.gitignore` file.
-
-Before parsing the path part patterns, braced sections are expanded
-into a set.  Braced sections start with `{` and end with `}`, with any
-number of comma-delimited sections within.  Braced sections may contain
-slash characters, so `a{/b/c,bcd}` would expand into `a/b/c` and `abcd`.
-
-The following characters have special magic meaning when used in a
-path portion:
-
-* `*` Matches 0 or more characters in a single path portion
-* `?` Matches 1 character
-* `[...]` Matches a range of characters, similar to a RegExp range.
-  If the first character of the range is `!` or `^` then it matches
-  any character not in the range.
-* `!(pattern|pattern|pattern)` Matches anything that does not match
-  any of the patterns provided.
-* `?(pattern|pattern|pattern)` Matches zero or one occurrence of the
-  patterns provided.
-* `+(pattern|pattern|pattern)` Matches one or more occurrences of the
-  patterns provided.
-* `*(a|b|c)` Matches zero or more occurrences of the patterns provided
-* `@(pattern|pat*|pat?erN)` Matches exactly one of the patterns
-  provided
-* `**` If a "globstar" is alone in a path portion, then it matches
-  zero or more directories and subdirectories searching for matches.
-  It does not crawl symlinked directories.
 
 ##### Dots
 

@@ -22,6 +22,8 @@
   "cmd.list.header": "Konfigurierte Mods",
   "cmd.list.short": "Konfigurierte Mods auflisten",
   "cmd.install.short": "Konfigurierte Mods installieren",
+  "cmd.remove.short": "Ein oder mehrere Mods entfernen",
+  "cmd.remove.flag.dry_run": "Zeigt an, welche Dateien/Mods entfernt worden waeren",
   "cmd.install.success": "Alle Mods sind installiert!",
   "cmd.install.unmanaged.found": "Nicht verwalteter Mod gefunden: {name}",
   "cmd.install.unsure.hash_mismatch": "{name} hat lokal eine andere Version als im Lockfile",

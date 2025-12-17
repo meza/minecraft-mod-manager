@@ -53,13 +53,16 @@ endef
 endif
 
 # Targets
-.PHONY: all clean build build-darwin build-linux build-windows
+.PHONY: all clean fmt build build-darwin build-linux build-windows
 
 # Build for all platforms
 all: clean build
 
 run:
 	go run .
+
+fmt:
+	go fmt ./...
 
 # Clean build directory
 ifeq ($(OSFAMILY), Unix)

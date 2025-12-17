@@ -218,3 +218,31 @@ Closed `mmm-54` per user approval.
 Performed a code review of the in-progress `mmm-6` (install) work and wrote findings to `code-review.md`; main follow-ups are adding tests for `.mmmignore`/`*.disabled` handling and confirming/reporting behavior for jars with no Modrinth/CurseForge hits to match Node parity.
 ### 2025-12-17 16:50 - [memory]
 Re-verified updated `mmm-6` changes: tests now cover `.mmmignore`/`*.disabled` and no-hit-file behavior; ran `make test`, `make coverage-enforce`, and `make build`; updated `code-review.md` verdict to "Approve with minor changes".
+### 2025-12-17 17:29 - [memory]
+Looked up Beads ticket `mmm-12` (remove command). Node reference behavior in `/tmp/mmm`: `remove` uses `minimatch.makeRe()` over each provided arg to match against mod `id` or `name` (case-insensitive), removes matching entries from `modlist.json`, removes matching lock entries from `modlist-lock.json`, and deletes installed files with `fs.rm(..., { force: true })` (so missing files do not fail). Open question for alignment: `mmm-12` ticket mentions logging skipped/missing entries, but Node/spec primarily “skip without failing”; confirm whether Go should add extra logging or stay strictly Node-parity.
+### 2025-12-17 17:41 - [memory]
+Implemented `mmm-12` (remove command) in Go with Node-parity behavior (glob match against mod id/name, dry-run output, missing-file skip) and registered it in `cmd/mmm/root.go`. Added unit tests for pattern resolution, dry-run output, deletion + config/lock updates, and missing file handling; ran `make fmt`, `make test`, `make coverage-enforce`, and `make build` successfully.
+### 2025-12-17 17:58 - [memory]
+Addressed `code-review.md` remarks for `mmm-12`: `remove` now honors `--quiet` by not forcing normal output, localizes the `--dry-run` flag help string, and supports brace expansion in lookup patterns (closer to Node/minimatch). Added tests for brace expansion and quiet suppression; re-ran `make fmt`, `make test`, `make coverage-enforce`, `make build` (all pass).
+### 2025-12-17 18:00 - [memory]
+Per user direction to avoid custom glob logic, removed brace expansion support from `remove` and now rely strictly on Go's built-in glob matching (`filepath.Match`) for lookup patterns. Updated tests and `code-review.md`; reran make gates successfully.
+### 2025-12-17 18:07 - [memory]
+Addressed updated `code-review.md` blocker: `mmm remove --dry-run` no longer creates/writes `modlist-lock.json` when the lock file is missing (treats missing lock as empty in dry-run). Added a unit test for this behavior and updated `cmd/mmm/remove/README.md` to document `filepath.Match` lookup semantics; ran `make fmt`, `make test`, `make coverage-enforce`, and `make build` (all pass).
+### 2025-12-17 18:13 - [memory]
+Decision: Node parity is a guideline; for `remove --dry-run` we follow `docs/specs/remove.md` strictly. Dry-run must not write any files (including not creating `modlist-lock.json` if missing), even if Node would create it.
+### 2025-12-17 18:14 - [memory]
+Cleaned up `code-review.md` remaining nitpicks: marked required items and open questions as resolved (gofmt already enforced via make targets; glob semantics documented; spec-vs-Node decision recorded). No behavioral changes; `make test` still passes.
+### 2025-12-17 18:17 - [memory]
+Closed Beads ticket `mmm-12` per user direction (`bd --no-db close mmm-12 --reason "Done"`). Work is implemented and verified locally; pending team review/merge.
+### 2025-12-17 18:20 - [memory]
+Minor UX polish: updated `mmm remove` success output to include a leading checkmark (`✅ Removed <name>`) to match the tone of `mmm add` (`✅ Added ...`). Updated unit test expectations; `make fmt` and `make test` pass.
+### 2025-12-17 18:29 - [memory]
+Updated user-facing docs to match `docs/commands` style and documentation guidelines: rewrote `docs/commands/remove.md` with a short empathetic intro, quick start, usage, examples, and a simple flags table; kept Markdown ASCII-only.
+### 2025-12-17 18:30 - [memory]
+Follow-up: restored key behavior details in `docs/commands/remove.md` that were accidentally removed (ID-first matching note, dry-run no-writes including not creating lock file, and an in-page glob summary + quoting tip), while keeping the `docs/commands` tone and structure.
+### 2025-12-17 17:50 - [memory]
+Reviewed the uncommitted `mmm-12` changes and wrote findings to `code-review.md`; key follow-ups are fixing dry-run side effects (lock file creation), honoring `--quiet` (don’t force-show normal output), and confirming/implementing Node/minimatch-equivalent glob semantics.
+### 2025-12-17 18:04 - [memory]
+Re-reviewed the updated `mmm-12` changes after the author addressed feedback; confirmed `--quiet` suppression + i18n flag help and reran `make test`, `make coverage-enforce`, `make build`. Remaining review concern: `--dry-run` still creates `modlist-lock.json` when missing, which conflicts with `docs/specs/remove.md`.
+### 2025-12-17 18:10 - [memory]
+Verified the author’s follow-up: `mmm-12` now avoids lock-file creation in `--dry-run` (new `readLockForRemove` + test). Re-ran `make test`, `make coverage-enforce`, `make build`; updated `code-review.md` verdict to “Approve with minor changes”.

@@ -6,6 +6,8 @@
   "cmd.help.usage.long": "Help provides help for any command in the application.\nSimply type {appName} help [command] for more information.",
   "cmd.help.usage.short": "Get help for the any command",
   "cmd.add.short": "Add a mod from CurseForge or Modrinth",
+  "cmd.remove.short": "Remove one or more mods",
+  "cmd.remove.flag.dry_run": "Print out the files/mods that would have been removed",
   "cmd.add.flag.version": "The version to add. Use the Modrinth version number or the exact CurseForge filename",
   "cmd.add.flag.allow_version_fallback": "Try lower Minecraft patch versions when no compatible file is found",
   "cmd.add.success": "✅ Added {name} ({id}) for {platform}",
