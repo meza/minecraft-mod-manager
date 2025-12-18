@@ -25,6 +25,7 @@ import (
 	"github.com/meza/minecraft-mod-manager/internal/i18n"
 	"github.com/meza/minecraft-mod-manager/internal/logger"
 	"github.com/meza/minecraft-mod-manager/internal/models"
+	"github.com/meza/minecraft-mod-manager/internal/modinstall"
 	"github.com/meza/minecraft-mod-manager/internal/modrinth"
 	"github.com/meza/minecraft-mod-manager/internal/perf"
 	"github.com/meza/minecraft-mod-manager/internal/platform"
@@ -349,32 +350,24 @@ func lockIndexFor(mod models.Mod, lock []models.ModInstall) int {
 }
 
 func ensureLockInstall(ctx context.Context, meta config.Metadata, cfg models.ModsJson, mod models.Mod, install models.ModInstall, deps installDeps) error {
-	destination := filepath.Join(meta.ModsFolderPath(cfg), install.FileName)
-	exists, err := afero.Exists(deps.fs, destination)
+	ensure := modinstall.NewService(deps.fs, modinstall.Downloader(deps.downloader))
+	result, err := ensure.EnsureLockedFile(ctx, meta, cfg, install, downloadClient(deps.clients), &noopSender{})
 	if err != nil {
 		return err
 	}
 
-	if !exists {
+	switch result.Reason {
+	case modinstall.EnsureReasonMissing:
 		deps.logger.Log(i18n.T("cmd.install.download.missing", i18n.Tvars{
 			Data: &i18n.TData{
 				"name":     mod.Name,
 				"platform": install.Type,
 			},
 		}), true)
-		return deps.downloader(ctx, install.DownloadUrl, destination, downloadClient(deps.clients), &noopSender{}, deps.fs)
-	}
-
-	localSha, err := sha1ForFile(deps.fs, destination)
-	if err != nil {
-		return err
-	}
-
-	if !strings.EqualFold(strings.TrimSpace(install.Hash), localSha) {
+	case modinstall.EnsureReasonHashMismatch:
 		deps.logger.Log(i18n.T("cmd.install.download.hash_mismatch", i18n.Tvars{
 			Data: &i18n.TData{"name": mod.Name},
 		}), true)
-		return deps.downloader(ctx, install.DownloadUrl, destination, downloadClient(deps.clients), &noopSender{}, deps.fs)
 	}
 	return nil
 }

@@ -18,6 +18,8 @@ import (
 	"github.com/meza/minecraft-mod-manager/internal/i18n"
 	"github.com/meza/minecraft-mod-manager/internal/logger"
 	"github.com/meza/minecraft-mod-manager/internal/models"
+	"github.com/meza/minecraft-mod-manager/internal/modinstall"
+	"github.com/meza/minecraft-mod-manager/internal/modsetup"
 	"github.com/meza/minecraft-mod-manager/internal/perf"
 	"github.com/meza/minecraft-mod-manager/internal/platform"
 	"github.com/meza/minecraft-mod-manager/internal/telemetry"
@@ -159,9 +161,10 @@ func Command() *cobra.Command {
 func runAdd(ctx context.Context, commandSpan *perf.Span, cmd *cobra.Command, opts addOptions, deps addDeps) (telemetry.CommandTelemetry, error) {
 	meta := config.NewMetadata(opts.ConfigPath)
 	useTUI := tui.ShouldUseTUI(opts.Quiet, cmd.InOrStdin(), cmd.OutOrStdout())
+	setupService := modsetup.NewService(deps.fs, deps.minecraftClient, modsetup.Downloader(deps.downloader))
 
 	prepareCtx, prepareSpan := perf.StartSpan(ctx, "app.command.add.stage.prepare", perf.WithAttributes(attribute.String("config_path", opts.ConfigPath)))
-	cfg, lock, err := ensureConfigAndLock(prepareCtx, deps.fs, meta, opts.Quiet, deps.minecraftClient)
+	cfg, lock, err := setupService.EnsureConfigAndLock(prepareCtx, meta, opts.Quiet)
 	prepareSpan.SetAttributes(attribute.Bool("success", err == nil))
 	prepareSpan.End()
 	if err != nil {
@@ -177,7 +180,41 @@ func runAdd(ctx context.Context, commandSpan *perf.Span, cmd *cobra.Command, opt
 	platformValue := normalizePlatform(opts.Platform)
 	projectID := opts.ProjectID
 
-	if modExists(cfg, platformValue, projectID) {
+	install, installFound := findLockInstall(lock, platformValue, projectID)
+	if modsetup.ModExists(cfg, platformValue, projectID) && installFound {
+
+		modInstall := modinstall.NewService(deps.fs, modinstall.Downloader(deps.downloader))
+		ensureResult, err := modInstall.EnsureLockedFile(ctx, meta, cfg, install, downloadClient(deps.clients), nil)
+		if err != nil {
+			return telemetry.CommandTelemetry{
+				Command:     "add",
+				Success:     false,
+				Error:       err,
+				ExitCode:    1,
+				Interactive: useTUI,
+				Arguments: map[string]interface{}{
+					"platform": platformValue,
+					"id":       projectID,
+					"version":  opts.Version,
+					"fallback": opts.AllowVersionFallback,
+				},
+			}, err
+		}
+
+		switch ensureResult.Reason {
+		case modinstall.EnsureReasonMissing:
+			deps.logger.Log(i18n.T("cmd.install.download.missing", i18n.Tvars{
+				Data: &i18n.TData{
+					"name":     modNameForConfig(cfg, platformValue, projectID),
+					"platform": platformValue,
+				},
+			}), true)
+		case modinstall.EnsureReasonHashMismatch:
+			deps.logger.Log(i18n.T("cmd.install.download.hash_mismatch", i18n.Tvars{
+				Data: &i18n.TData{"name": modNameForConfig(cfg, platformValue, projectID)},
+			}), true)
+		}
+
 		if commandSpan != nil {
 			commandSpan.AddEvent("app.command.add.outcome.already_exists", perf.WithEventAttributes(
 				attribute.String("platform", string(platformValue)),
@@ -202,7 +239,8 @@ func runAdd(ctx context.Context, commandSpan *perf.Span, cmd *cobra.Command, opt
 				"fallback": opts.AllowVersionFallback,
 			},
 			Extra: map[string]interface{}{
-				"flag": "already-exists",
+				"flag":               "already-exists",
+				"ensure_file_reason": string(ensureResult.Reason),
 			},
 		}, nil
 	}
@@ -248,26 +286,15 @@ func runAdd(ctx context.Context, commandSpan *perf.Span, cmd *cobra.Command, opt
 		),
 	)
 
-	if err := deps.fs.MkdirAll(meta.ModsFolderPath(cfg), 0755); err != nil {
-		downloadSpan.SetAttributes(attribute.Bool("success", false))
-		downloadSpan.End()
-		return telemetry.CommandTelemetry{
-			Command:     "add",
-			Success:     false,
-			Error:       err,
-			ExitCode:    1,
-			Interactive: useTUI,
-			Arguments: map[string]interface{}{
-				"platform": resolvedPlatform,
-				"id":       resolvedID,
-				"version":  opts.Version,
-				"fallback": opts.AllowVersionFallback,
-			},
-		}, err
-	}
-
+	// For idempotency, avoid re-downloading when the remote file already exists locally and the SHA-1 matches.
+	ensureRemote := modinstall.NewService(deps.fs, modinstall.Downloader(deps.downloader))
 	destination := filepath.Join(meta.ModsFolderPath(cfg), remoteMod.FileName)
-	if err := deps.downloader(downloadCtx, remoteMod.DownloadURL, destination, downloadClient(deps.clients), &noopSender{}, deps.fs); err != nil {
+	ensureResult, err := ensureRemote.EnsureLockedFile(downloadCtx, meta, cfg, models.ModInstall{
+		FileName:    remoteMod.FileName,
+		Hash:        remoteMod.Hash,
+		DownloadUrl: remoteMod.DownloadURL,
+	}, downloadClient(deps.clients), nil)
+	if err != nil {
 		downloadSpan.SetAttributes(attribute.Bool("success", false))
 		downloadSpan.End()
 		return telemetry.CommandTelemetry{
@@ -287,26 +314,9 @@ func runAdd(ctx context.Context, commandSpan *perf.Span, cmd *cobra.Command, opt
 	downloadSpan.SetAttributes(
 		attribute.Bool("success", true),
 		attribute.String("path", destination),
+		attribute.String("reason", string(ensureResult.Reason)),
 	)
 	downloadSpan.End()
-
-	cfg.Mods = append(cfg.Mods, models.Mod{
-		Type:                 resolvedPlatform,
-		ID:                   resolvedID,
-		Name:                 remoteMod.Name,
-		AllowVersionFallback: optionalBool(opts.AllowVersionFallback),
-		Version:              optionalString(opts.Version),
-	})
-
-	lock = append(lock, models.ModInstall{
-		Type:        resolvedPlatform,
-		Id:          resolvedID,
-		Name:        remoteMod.Name,
-		FileName:    remoteMod.FileName,
-		ReleasedOn:  remoteMod.ReleaseDate,
-		Hash:        remoteMod.Hash,
-		DownloadUrl: remoteMod.DownloadURL,
-	})
 
 	_, persistSpan := perf.StartSpan(ctx, "app.command.add.stage.persist",
 		perf.WithAttributes(
@@ -315,24 +325,11 @@ func runAdd(ctx context.Context, commandSpan *perf.Span, cmd *cobra.Command, opt
 			attribute.String("project_id", resolvedID),
 		),
 	)
-	if err := config.WriteConfig(ctx, deps.fs, meta, cfg); err != nil {
-		persistSpan.SetAttributes(attribute.Bool("success", false))
-		persistSpan.End()
-		return telemetry.CommandTelemetry{
-			Command:     "add",
-			Success:     false,
-			Error:       err,
-			ExitCode:    1,
-			Interactive: useTUI,
-			Arguments: map[string]interface{}{
-				"platform": resolvedPlatform,
-				"id":       resolvedID,
-				"version":  opts.Version,
-				"fallback": opts.AllowVersionFallback,
-			},
-		}, err
-	}
-	if err := config.WriteLock(ctx, deps.fs, meta, lock); err != nil {
+	cfg, lock, _, err = setupService.EnsurePersisted(ctx, meta, cfg, lock, resolvedPlatform, resolvedID, remoteMod, modsetup.EnsurePersistOptions{
+		Version:              opts.Version,
+		AllowVersionFallback: opts.AllowVersionFallback,
+	})
+	if err != nil {
 		persistSpan.SetAttributes(attribute.Bool("success", false))
 		persistSpan.End()
 		return telemetry.CommandTelemetry{
@@ -372,31 +369,6 @@ func runAdd(ctx context.Context, commandSpan *perf.Span, cmd *cobra.Command, opt
 			"fallback": opts.AllowVersionFallback,
 		},
 	}, nil
-}
-
-func ensureConfigAndLock(ctx context.Context, fs afero.Fs, meta config.Metadata, quiet bool, minecraftClient httpClient.Doer) (models.ModsJson, []models.ModInstall, error) {
-	cfg, err := config.ReadConfig(ctx, fs, meta)
-	if err != nil {
-		var notFound *config.ConfigFileNotFoundException
-		if errors.As(err, &notFound) {
-			if quiet {
-				return models.ModsJson{}, nil, err
-			}
-			cfg, err = config.InitConfig(ctx, fs, meta, minecraftClient)
-			if err != nil {
-				return models.ModsJson{}, nil, err
-			}
-		} else {
-			return models.ModsJson{}, nil, err
-		}
-	}
-
-	lock, err := config.EnsureLock(ctx, fs, meta)
-	if err != nil {
-		return models.ModsJson{}, nil, err
-	}
-
-	return cfg, lock, nil
 }
 
 func resolveRemoteMod(ctx context.Context, commandSpan *perf.Span, cfg models.ModsJson, opts addOptions, platformValue models.Platform, projectID string, deps addDeps, useTUI bool, in io.Reader, out io.Writer) (platform.RemoteMod, models.Platform, string, error) {
@@ -457,13 +429,22 @@ func resolveRemoteMod(ctx context.Context, commandSpan *perf.Span, cfg models.Mo
 	}
 }
 
-func modExists(cfg models.ModsJson, platform models.Platform, projectID string) bool {
-	for _, mod := range cfg.Mods {
-		if mod.ID == projectID && mod.Type == platform {
-			return true
+func findLockInstall(lock []models.ModInstall, platformValue models.Platform, projectID string) (models.ModInstall, bool) {
+	for i := range lock {
+		if lock[i].Type == platformValue && lock[i].Id == projectID {
+			return lock[i], true
 		}
 	}
-	return false
+	return models.ModInstall{}, false
+}
+
+func modNameForConfig(cfg models.ModsJson, platformValue models.Platform, projectID string) string {
+	for i := range cfg.Mods {
+		if cfg.Mods[i].Type == platformValue && cfg.Mods[i].ID == projectID {
+			return cfg.Mods[i].Name
+		}
+	}
+	return projectID
 }
 
 func normalizePlatform(value string) models.Platform {
@@ -483,24 +464,6 @@ func alternatePlatform(platform models.Platform) models.Platform {
 	}
 	return models.CURSEFORGE
 }
-
-func optionalBool(value bool) *bool {
-	if !value {
-		return nil
-	}
-	return &value
-}
-
-func optionalString(value string) *string {
-	if strings.TrimSpace(value) == "" {
-		return nil
-	}
-	return &value
-}
-
-type noopSender struct{}
-
-func (n *noopSender) Send(msg tea.Msg) {}
 
 func downloadClient(clients platform.Clients) httpClient.Doer {
 	if clients.Curseforge != nil {

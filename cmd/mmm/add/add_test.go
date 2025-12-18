@@ -3,7 +3,9 @@ package add
 import (
 	"bytes"
 	"context"
+	"crypto/sha1"
 	"errors"
+	"fmt"
 	"io"
 	"net/http"
 	"path/filepath"
@@ -97,7 +99,124 @@ func TestRunAdd_Success(t *testing.T) {
 	assertPerfSpanExists(t, "app.command.add.stage.persist")
 }
 
-func TestRunAdd_DuplicateSkipsWork(t *testing.T) {
+func TestRunAdd_SkipsDownloadWhenFileAlreadyMatchesRemoteHash(t *testing.T) {
+	ctx, commandSpan := startAddPerf(t)
+	fs := afero.NewMemMapFs()
+	meta := config.NewMetadata(filepath.FromSlash("/cfg/modlist.json"))
+	assert.NoError(t, fs.MkdirAll(filepath.Dir(meta.ConfigPath), 0755))
+
+	cfg := models.ModsJson{
+		Loader:                     models.FABRIC,
+		GameVersion:                "1.20.1",
+		DefaultAllowedReleaseTypes: []models.ReleaseType{models.Release},
+		ModsFolder:                 "mods",
+		Mods:                       []models.Mod{},
+	}
+	assert.NoError(t, config.WriteConfig(context.Background(), fs, meta, cfg))
+	assert.NoError(t, config.WriteLock(context.Background(), fs, meta, nil))
+
+	jarPath := filepath.Join(meta.ModsFolderPath(cfg), "example.jar")
+	assert.NoError(t, fs.MkdirAll(filepath.Dir(jarPath), 0755))
+	assert.NoError(t, afero.WriteFile(fs, jarPath, []byte("data"), 0644))
+
+	cmd := &cobra.Command{}
+	cmd.SetIn(bytes.NewBuffer(nil))
+	cmd.SetOut(bytes.NewBuffer(nil))
+	cmd.SetErr(bytes.NewBuffer(nil))
+
+	downloaded := false
+	_, err := runAdd(ctx, commandSpan, cmd, addOptions{
+		Platform:   "modrinth",
+		ProjectID:  "abc",
+		ConfigPath: meta.ConfigPath,
+	}, addDeps{
+		fs:      fs,
+		clients: platform.DefaultClients(rate.NewLimiter(rate.Inf, 0)),
+		logger:  logger.New(cmd.OutOrStdout(), cmd.ErrOrStderr(), false, false),
+		fetchMod: func(_ context.Context, p models.Platform, id string, _ platform.FetchOptions, _ platform.Clients) (platform.RemoteMod, error) {
+			assert.Equal(t, models.MODRINTH, p)
+			assert.Equal(t, "abc", id)
+			return platform.RemoteMod{
+				Name:        "Example",
+				FileName:    "example.jar",
+				Hash:        "a17c9aaa61e80a1bf71d0d850af4e5baa9800bbd",
+				ReleaseDate: "2024-01-01T00:00:00Z",
+				DownloadURL: "https://example.com/example.jar",
+			}, nil
+		},
+		downloader: func(context.Context, string, string, httpClient.Doer, httpClient.Sender, ...afero.Fs) error {
+			downloaded = true
+			return nil
+		},
+	})
+
+	assert.NoError(t, err)
+	assert.False(t, downloaded)
+}
+
+func TestRunAdd_DuplicateSkipsWorkWhenFilePresent(t *testing.T) {
+	ctx, commandSpan := startAddPerf(t)
+	fs := afero.NewMemMapFs()
+	meta := config.NewMetadata(filepath.FromSlash("/cfg/modlist.json"))
+	assert.NoError(t, fs.MkdirAll(filepath.Dir(meta.ConfigPath), 0755))
+
+	data := []byte("existing")
+	sum := sha1.Sum(data)
+	hash := fmt.Sprintf("%x", sum[:])
+
+	cfg := models.ModsJson{
+		Loader:                     models.FABRIC,
+		GameVersion:                "1.20.1",
+		DefaultAllowedReleaseTypes: []models.ReleaseType{models.Release},
+		ModsFolder:                 "mods",
+		Mods: []models.Mod{
+			{Type: models.MODRINTH, ID: "abc", Name: "Existing"},
+		},
+	}
+	assert.NoError(t, config.WriteConfig(context.Background(), fs, meta, cfg))
+	assert.NoError(t, config.WriteLock(context.Background(), fs, meta, []models.ModInstall{
+		{
+			Type:        models.MODRINTH,
+			Id:          "abc",
+			Name:        "Existing",
+			FileName:    "existing.jar",
+			Hash:        hash,
+			ReleasedOn:  "2024-01-01T00:00:00Z",
+			DownloadUrl: "https://example.com/existing.jar",
+		},
+	}))
+
+	managedPath := filepath.Join(meta.ModsFolderPath(cfg), "existing.jar")
+	assert.NoError(t, fs.MkdirAll(filepath.Dir(managedPath), 0755))
+	assert.NoError(t, afero.WriteFile(fs, managedPath, data, 0644))
+
+	downloaded := false
+
+	cmd := &cobra.Command{}
+	cmd.SetIn(bytes.NewBuffer(nil))
+	cmd.SetOut(bytes.NewBuffer(nil))
+	cmd.SetErr(bytes.NewBuffer(nil))
+
+	_, err := runAdd(ctx, commandSpan, cmd, addOptions{
+		Platform:   "modrinth",
+		ProjectID:  "abc",
+		ConfigPath: meta.ConfigPath,
+	}, addDeps{
+		fs:       fs,
+		clients:  platform.DefaultClients(rate.NewLimiter(rate.Inf, 0)),
+		logger:   logger.New(cmd.OutOrStdout(), cmd.ErrOrStderr(), false, true),
+		fetchMod: platform.FetchMod,
+		downloader: func(_ context.Context, _ string, _ string, _ httpClient.Doer, _ httpClient.Sender, _ ...afero.Fs) error {
+			downloaded = true
+			return nil
+		},
+	})
+
+	assert.NoError(t, err)
+	assert.False(t, downloaded)
+}
+
+func TestRunAdd_ConfigPresentLockMissingBackfillsLock(t *testing.T) {
 	ctx, commandSpan := startAddPerf(t)
 	fs := afero.NewMemMapFs()
 	meta := config.NewMetadata(filepath.FromSlash("/cfg/modlist.json"))
@@ -127,18 +246,95 @@ func TestRunAdd_DuplicateSkipsWork(t *testing.T) {
 		ProjectID:  "abc",
 		ConfigPath: meta.ConfigPath,
 	}, addDeps{
-		fs:       fs,
-		clients:  platform.DefaultClients(rate.NewLimiter(rate.Inf, 0)),
-		logger:   logger.New(cmd.OutOrStdout(), cmd.ErrOrStderr(), false, true),
-		fetchMod: platform.FetchMod,
-		downloader: func(_ context.Context, _ string, _ string, _ httpClient.Doer, _ httpClient.Sender, _ ...afero.Fs) error {
+		fs:      fs,
+		clients: platform.DefaultClients(rate.NewLimiter(rate.Inf, 0)),
+		logger:  logger.New(cmd.OutOrStdout(), cmd.ErrOrStderr(), false, true),
+		fetchMod: func(_ context.Context, _ models.Platform, _ string, _ platform.FetchOptions, _ platform.Clients) (platform.RemoteMod, error) {
+			return platform.RemoteMod{
+				Name:        "Example",
+				FileName:    "example.jar",
+				Hash:        "abc",
+				ReleaseDate: "2024-01-01T00:00:00Z",
+				DownloadURL: "https://example.com/example.jar",
+			}, nil
+		},
+		downloader: func(_ context.Context, _ string, path string, _ httpClient.Doer, _ httpClient.Sender, _ ...afero.Fs) error {
 			downloaded = true
-			return nil
+			return afero.WriteFile(fs, path, []byte("data"), 0644)
 		},
 	})
 
 	assert.NoError(t, err)
-	assert.False(t, downloaded)
+	assert.True(t, downloaded)
+
+	configAfter, err := config.ReadConfig(context.Background(), fs, meta)
+	assert.NoError(t, err)
+	assert.Len(t, configAfter.Mods, 1)
+	assert.Equal(t, "abc", configAfter.Mods[0].ID)
+
+	lockAfter, err := config.ReadLock(context.Background(), fs, meta)
+	assert.NoError(t, err)
+	assert.Len(t, lockAfter, 1)
+	assert.Equal(t, "abc", lockAfter[0].Id)
+}
+
+func TestRunAdd_ConfigAndLockPresentButFileMissingDownloads(t *testing.T) {
+	ctx, commandSpan := startAddPerf(t)
+	fs := afero.NewMemMapFs()
+	meta := config.NewMetadata(filepath.FromSlash("/cfg/modlist.json"))
+	assert.NoError(t, fs.MkdirAll(filepath.Dir(meta.ConfigPath), 0755))
+
+	cfg := models.ModsJson{
+		Loader:                     models.FABRIC,
+		GameVersion:                "1.20.1",
+		DefaultAllowedReleaseTypes: []models.ReleaseType{models.Release},
+		ModsFolder:                 "mods",
+		Mods: []models.Mod{
+			{Type: models.MODRINTH, ID: "abc", Name: "Existing"},
+		},
+	}
+	assert.NoError(t, config.WriteConfig(context.Background(), fs, meta, cfg))
+	assert.NoError(t, config.WriteLock(context.Background(), fs, meta, []models.ModInstall{
+		{
+			Type:        models.MODRINTH,
+			Id:          "abc",
+			Name:        "Existing",
+			FileName:    "existing.jar",
+			Hash:        "hash",
+			ReleasedOn:  "2024-01-01T00:00:00Z",
+			DownloadUrl: "https://example.com/existing.jar",
+		},
+	}))
+
+	cmd := &cobra.Command{}
+	cmd.SetIn(bytes.NewBuffer(nil))
+	cmd.SetOut(bytes.NewBuffer(nil))
+	cmd.SetErr(bytes.NewBuffer(nil))
+
+	downloaded := false
+	_, err := runAdd(ctx, commandSpan, cmd, addOptions{
+		Platform:   "modrinth",
+		ProjectID:  "abc",
+		ConfigPath: meta.ConfigPath,
+	}, addDeps{
+		fs:      fs,
+		clients: platform.DefaultClients(rate.NewLimiter(rate.Inf, 0)),
+		logger:  logger.New(cmd.OutOrStdout(), cmd.ErrOrStderr(), false, true),
+		fetchMod: func(context.Context, models.Platform, string, platform.FetchOptions, platform.Clients) (platform.RemoteMod, error) {
+			return platform.RemoteMod{}, errors.New("fetch should not be called")
+		},
+		downloader: func(_ context.Context, _ string, dest string, _ httpClient.Doer, _ httpClient.Sender, filesystem ...afero.Fs) error {
+			downloaded = true
+			useFS := fs
+			if len(filesystem) > 0 {
+				useFS = filesystem[0]
+			}
+			return afero.WriteFile(useFS, dest, []byte("downloaded"), 0644)
+		},
+	})
+
+	assert.NoError(t, err)
+	assert.True(t, downloaded)
 }
 
 func TestAddCommand_MissingArgsShowsUsage(t *testing.T) {
