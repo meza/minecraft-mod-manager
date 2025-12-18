@@ -24,11 +24,18 @@ jobs:
           go-version: '1.24.4'
           GH_TOKEN: ${{ secrets.GH_TOKEN }}
 
-      - name: Build Distributables
-        run: make build
+      - name: Test
+        run: make test
 
       - name: Check coverage
         run: make coverage-enforce
+
+      - name: Build Distributables
+        run: make build
+        env:
+          MODRINTH_API_KEY: ${{ secrets.MODRINTH_API_KEY }}
+          CURSEFORGE_API_KEY: ${{ secrets.CURSEFORGE_API_KEY }}
+          POSTHOG_API_KEY: ${{ secrets.POSTHOG_API_KEY }}
 
 #      - name: Release
 #        if: ${{ steps.go.outputs.new-release-published == 'true'  }}
