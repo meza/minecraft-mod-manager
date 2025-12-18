@@ -7,6 +7,7 @@ import (
 	installCmd "github.com/meza/minecraft-mod-manager/cmd/mmm/install"
 	listCmd "github.com/meza/minecraft-mod-manager/cmd/mmm/list"
 	removeCmd "github.com/meza/minecraft-mod-manager/cmd/mmm/remove"
+	scanCmd "github.com/meza/minecraft-mod-manager/cmd/mmm/scan"
 	updateCmd "github.com/meza/minecraft-mod-manager/cmd/mmm/update"
 	"github.com/meza/minecraft-mod-manager/cmd/mmm/version"
 	"github.com/meza/minecraft-mod-manager/internal/constants"
@@ -37,6 +38,7 @@ func Command() *cobra.Command {
 	rootCmd.AddCommand(installCmd.Command())
 	rootCmd.AddCommand(listCmd.Command())
 	rootCmd.AddCommand(removeCmd.Command())
+	rootCmd.AddCommand(scanCmd.Command())
 	rootCmd.AddCommand(updateCmd.Command())
 	rootCmd.AddCommand(version.Command())
 

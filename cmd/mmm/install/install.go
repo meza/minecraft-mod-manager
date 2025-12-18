@@ -7,7 +7,6 @@ import (
 	"errors"
 	"fmt"
 	"io"
-	"os"
 	"path/filepath"
 	"sort"
 	"strings"
@@ -24,6 +23,7 @@ import (
 	"github.com/meza/minecraft-mod-manager/internal/httpClient"
 	"github.com/meza/minecraft-mod-manager/internal/i18n"
 	"github.com/meza/minecraft-mod-manager/internal/logger"
+	"github.com/meza/minecraft-mod-manager/internal/mmmignore"
 	"github.com/meza/minecraft-mod-manager/internal/models"
 	"github.com/meza/minecraft-mod-manager/internal/modinstall"
 	"github.com/meza/minecraft-mod-manager/internal/modrinth"
@@ -639,121 +639,22 @@ func listModFiles(fs afero.Fs, meta config.Metadata, cfg models.ModsJson) ([]str
 		candidates = append(candidates, filepath.Join(meta.ModsFolderPath(cfg), entry.Name()))
 	}
 
-	ignored, err := ignoredFiles(fs, meta.Dir())
+	patterns, err := mmmignore.ListPatterns(fs, meta.Dir())
 	if err != nil {
 		return nil, err
 	}
-	if len(ignored) == 0 {
+	if len(patterns) == 0 {
 		return candidates, nil
 	}
 
 	filtered := make([]string, 0, len(candidates))
 	for _, path := range candidates {
-		if ignored[path] {
+		if mmmignore.IsIgnored(meta.Dir(), path, patterns) {
 			continue
 		}
 		filtered = append(filtered, path)
 	}
 	return filtered, nil
-}
-
-func ignoredFiles(fs afero.Fs, rootDir string) (map[string]bool, error) {
-	ignoreFile := filepath.Join(rootDir, ".mmmignore")
-	exists, err := afero.Exists(fs, ignoreFile)
-	if err != nil {
-		return nil, err
-	}
-
-	patterns := []string{"**/*.disabled"}
-	if exists {
-		data, err := afero.ReadFile(fs, ignoreFile)
-		if err != nil {
-			return nil, err
-		}
-
-		for _, line := range strings.Split(string(data), "\n") {
-			line = strings.TrimSpace(line)
-			if line == "" {
-				continue
-			}
-			patterns = append(patterns, line)
-		}
-	}
-
-	return buildIgnoredSet(fs, rootDir, patterns)
-}
-
-func buildIgnoredSet(fs afero.Fs, rootDir string, patterns []string) (map[string]bool, error) {
-	ignored := make(map[string]bool)
-
-	// We only need to know whether candidate files are ignored, so we build the set lazily by scanning
-	// the root directory and matching patterns to paths relative to it.
-	walkErr := afero.Walk(fs, rootDir, func(path string, info os.FileInfo, err error) error {
-		if err != nil || info == nil || info.IsDir() {
-			return err
-		}
-
-		rel, relErr := filepath.Rel(rootDir, path)
-		if relErr != nil {
-			return relErr
-		}
-		rel = filepath.ToSlash(rel)
-
-		for _, pattern := range patterns {
-			pattern = filepath.ToSlash(strings.TrimSpace(pattern))
-			if pattern == "" {
-				continue
-			}
-			if globMatch(pattern, rel) {
-				ignored[path] = true
-				return nil
-			}
-		}
-
-		return nil
-	})
-	if walkErr != nil {
-		return nil, walkErr
-	}
-
-	return ignored, nil
-}
-
-func globMatch(pattern string, target string) bool {
-	pattern = strings.TrimPrefix(pattern, "./")
-	target = strings.TrimPrefix(target, "./")
-
-	patternParts := strings.Split(pattern, "/")
-	targetParts := strings.Split(target, "/")
-
-	var match func(pi, ti int) bool
-	match = func(pi, ti int) bool {
-		if pi == len(patternParts) {
-			return ti == len(targetParts)
-		}
-
-		part := patternParts[pi]
-		if part == "**" {
-			for skip := ti; skip <= len(targetParts); skip++ {
-				if match(pi+1, skip) {
-					return true
-				}
-			}
-			return false
-		}
-
-		if ti >= len(targetParts) {
-			return false
-		}
-
-		ok, err := filepath.Match(part, targetParts[ti])
-		if err != nil || !ok {
-			return false
-		}
-		return match(pi+1, ti+1)
-	}
-
-	return match(0, 0)
 }
 
 func sha1ForFile(fs afero.Fs, path string) (string, error) {

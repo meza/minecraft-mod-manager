@@ -469,6 +469,172 @@ func TestEnsurePersisted_EmptyResolvedIDReturnsError(t *testing.T) {
 	assert.Error(t, err)
 }
 
+func TestUpsertConfigAndLock_AddsMissingEntries(t *testing.T) {
+	cfg := models.ModsJson{ModsFolder: "mods", Mods: nil}
+	lock := []models.ModInstall{}
+
+	service := NewService(afero.NewMemMapFs(), nil, nil)
+
+	updatedCfg, updatedLock, result, err := service.UpsertConfigAndLock(cfg, lock, models.MODRINTH, "abc", platform.RemoteMod{
+		Name:        "Example",
+		FileName:    "example.jar",
+		Hash:        "sha",
+		ReleaseDate: "2024-01-01T00:00:00Z",
+		DownloadURL: "https://example.com/example.jar",
+	}, EnsurePersistOptions{})
+
+	assert.NoError(t, err)
+	assert.True(t, result.ConfigAdded)
+	assert.True(t, result.LockAdded)
+	assert.Len(t, updatedCfg.Mods, 1)
+	assert.Len(t, updatedLock, 1)
+}
+
+func TestUpsertConfigAndLock_UpdatesNameAndLockWhenDifferent(t *testing.T) {
+	cfg := models.ModsJson{ModsFolder: "mods", Mods: []models.Mod{
+		{Type: models.MODRINTH, ID: "abc", Name: "Old"},
+	}}
+	lock := []models.ModInstall{{
+		Type:        models.MODRINTH,
+		Id:          "abc",
+		Name:        "Old",
+		FileName:    "old.jar",
+		Hash:        "old",
+		ReleasedOn:  "2020-01-01T00:00:00Z",
+		DownloadUrl: "https://example.com/old.jar",
+	}}
+
+	service := NewService(afero.NewMemMapFs(), nil, nil)
+
+	updatedCfg, updatedLock, result, err := service.UpsertConfigAndLock(cfg, lock, models.MODRINTH, "abc", platform.RemoteMod{
+		Name:        "New",
+		FileName:    "new.jar",
+		Hash:        "NEW",
+		ReleaseDate: "2024-01-01T00:00:00Z",
+		DownloadURL: "https://example.com/new.jar",
+	}, EnsurePersistOptions{})
+
+	assert.NoError(t, err)
+	assert.True(t, result.ConfigUpdated)
+	assert.True(t, result.LockUpdated)
+	assert.Equal(t, "New", updatedCfg.Mods[0].Name)
+	assert.Equal(t, "new.jar", updatedLock[0].FileName)
+}
+
+func TestUpsertConfigAndLock_NoChangesDoesNotWrite(t *testing.T) {
+	service := NewService(afero.NewReadOnlyFs(afero.NewMemMapFs()), nil, nil)
+
+	cfg := models.ModsJson{ModsFolder: "mods", Mods: []models.Mod{
+		{Type: models.MODRINTH, ID: "abc", Name: "Example"},
+	}}
+	lock := []models.ModInstall{{
+		Type:        models.MODRINTH,
+		Id:          "abc",
+		Name:        "Example",
+		FileName:    "example.jar",
+		Hash:        "abc",
+		ReleasedOn:  "2024-01-01T00:00:00Z",
+		DownloadUrl: "https://example.com/example.jar",
+	}}
+
+	updatedCfg, updatedLock, result, err := service.UpsertConfigAndLock(cfg, lock, models.MODRINTH, "abc", platform.RemoteMod{
+		Name:        "Example",
+		FileName:    "example.jar",
+		Hash:        "abc",
+		ReleaseDate: "2024-01-01T00:00:00Z",
+		DownloadURL: "https://example.com/example.jar",
+	}, EnsurePersistOptions{})
+
+	assert.NoError(t, err)
+	assert.False(t, result.ConfigAdded)
+	assert.False(t, result.ConfigUpdated)
+	assert.False(t, result.LockAdded)
+	assert.False(t, result.LockUpdated)
+	assert.Equal(t, cfg, updatedCfg)
+	assert.Equal(t, lock, updatedLock)
+}
+
+func TestUpsertConfigAndLock_HashCaseDifferenceIsNoOp(t *testing.T) {
+	service := NewService(afero.NewMemMapFs(), nil, nil)
+
+	cfg := models.ModsJson{ModsFolder: "mods", Mods: []models.Mod{
+		{Type: models.MODRINTH, ID: "abc", Name: "Example"},
+	}}
+	lock := []models.ModInstall{{
+		Type:        models.MODRINTH,
+		Id:          "abc",
+		Name:        "Example",
+		FileName:    "example.jar",
+		Hash:        "ABC",
+		ReleasedOn:  "2024-01-01T00:00:00Z",
+		DownloadUrl: "https://example.com/example.jar",
+	}}
+
+	_, _, result, err := service.UpsertConfigAndLock(cfg, lock, models.MODRINTH, "abc", platform.RemoteMod{
+		Name:        "Example",
+		FileName:    "example.jar",
+		Hash:        "abc",
+		ReleaseDate: "2024-01-01T00:00:00Z",
+		DownloadURL: "https://example.com/example.jar",
+	}, EnsurePersistOptions{})
+
+	assert.NoError(t, err)
+	assert.False(t, result.LockUpdated)
+}
+
+func TestUpsertConfigAndLock_LockPresentMissingRemoteFieldsReturnsError(t *testing.T) {
+	service := NewService(afero.NewMemMapFs(), nil, nil)
+
+	cfg := models.ModsJson{ModsFolder: "mods", Mods: []models.Mod{
+		{Type: models.MODRINTH, ID: "abc", Name: "Example"},
+	}}
+	lock := []models.ModInstall{{
+		Type:        models.MODRINTH,
+		Id:          "abc",
+		Name:        "Example",
+		FileName:    "example.jar",
+		Hash:        "abc",
+		ReleasedOn:  "2024-01-01T00:00:00Z",
+		DownloadUrl: "https://example.com/example.jar",
+	}}
+
+	_, _, _, err := service.UpsertConfigAndLock(cfg, lock, models.MODRINTH, "abc", platform.RemoteMod{
+		Name:        "Example",
+		FileName:    "example.jar",
+		Hash:        "abc",
+		ReleaseDate: "2024-01-01T00:00:00Z",
+		DownloadURL: "",
+	}, EnsurePersistOptions{})
+
+	assert.Error(t, err)
+}
+
+func TestUpsertConfigAndLock_LockMissingMissingRemoteFieldsReturnsError(t *testing.T) {
+	service := NewService(afero.NewMemMapFs(), nil, nil)
+
+	_, _, _, err := service.UpsertConfigAndLock(models.ModsJson{ModsFolder: "mods"}, nil, models.MODRINTH, "abc", platform.RemoteMod{
+		Name:        "Example",
+		FileName:    "example.jar",
+		Hash:        "abc",
+		ReleaseDate: "2024-01-01T00:00:00Z",
+		DownloadURL: "",
+	}, EnsurePersistOptions{})
+
+	assert.Error(t, err)
+}
+
+func TestUpsertConfigAndLock_MissingResolvedPlatformReturnsError(t *testing.T) {
+	service := NewService(afero.NewMemMapFs(), nil, nil)
+	_, _, _, err := service.UpsertConfigAndLock(models.ModsJson{}, nil, "", "abc", platform.RemoteMod{}, EnsurePersistOptions{})
+	assert.Error(t, err)
+}
+
+func TestUpsertConfigAndLock_MissingResolvedIDReturnsError(t *testing.T) {
+	service := NewService(afero.NewMemMapFs(), nil, nil)
+	_, _, _, err := service.UpsertConfigAndLock(models.ModsJson{}, nil, models.MODRINTH, "", platform.RemoteMod{}, EnsurePersistOptions{})
+	assert.Error(t, err)
+}
+
 func TestModExists_ReturnsTrueWhenPresent(t *testing.T) {
 	cfg := models.ModsJson{
 		Mods: []models.Mod{

@@ -34,11 +34,11 @@ type fingerprintMatch struct {
 
 type fingerprintsMatchResult struct {
 	ExactMatches             []fingerprintMatch `json:"exactMatches"`
-	ExactFingerprints        []int              `json:"exactFingerprints"`
+	ExactFingerprints        json.RawMessage    `json:"exactFingerprints"`
 	PartialMatches           []fingerprintMatch `json:"partialMatches"`
-	PartialMatchFingerprints []int              `json:"partialMatchFingerprints"`
-	UnmatchedFingerprints    []int              `json:"unmatchedFingerprints"`
-	InstalledFingerprints    []int              `json:"installedFingerprints"`
+	PartialMatchFingerprints json.RawMessage    `json:"partialMatchFingerprints"`
+	UnmatchedFingerprints    json.RawMessage    `json:"unmatchedFingerprints"`
+	InstalledFingerprints    json.RawMessage    `json:"installedFingerprints"`
 }
 
 type getFingerprintsMatchesResponse struct {
@@ -146,13 +146,58 @@ func GetFingerprintsMatches(ctx context.Context, fingerprints []int, client http
 	}
 
 	for _, item := range fingerprintsResponse.Data.ExactMatches {
-		result.Matches = append(result.Matches, item.File)
+		file := item.File
+		if file.Fingerprint == 0 && file.FileFingerprint != 0 {
+			file.Fingerprint = file.FileFingerprint
+		}
+		result.Matches = append(result.Matches, file)
 	}
 
-	for _, item := range fingerprintsResponse.Data.UnmatchedFingerprints {
-		result.Unmatched = append(result.Unmatched, item)
+	unmatched, decodeErr := decodeUnmatchedFingerprints(fingerprintsResponse.Data.UnmatchedFingerprints)
+	if decodeErr != nil {
+		return nil, &FingerprintApiError{
+			Lookup: fingerprints,
+			Err:    errors.Wrap(decodeErr, "failed to decode unmatchedFingerprints"),
+		}
 	}
+	result.Unmatched = append(result.Unmatched, unmatched...)
 
 	return result, nil
 
+}
+
+func decodeUnmatchedFingerprints(raw json.RawMessage) ([]int, error) {
+	if len(raw) == 0 || string(raw) == "null" {
+		return nil, nil
+	}
+
+	var list []int
+	if err := json.Unmarshal(raw, &list); err == nil {
+		return list, nil
+	}
+
+	var asBoolMap map[string]bool
+	if err := json.Unmarshal(raw, &asBoolMap); err == nil {
+		return parseUnmatchedMapKeys(asBoolMap)
+	}
+
+	var asAnyMap map[string]any
+	if err := json.Unmarshal(raw, &asAnyMap); err == nil {
+		return parseUnmatchedMapKeys(asAnyMap)
+	}
+
+	return nil, errors.Errorf("unsupported type: %s", string(raw))
+
+}
+
+func parseUnmatchedMapKeys[V any](m map[string]V) ([]int, error) {
+	out := make([]int, 0, len(m))
+	for key := range m {
+		value, err := strconv.Atoi(key)
+		if err != nil {
+			continue
+		}
+		out = append(out, value)
+	}
+	return out, nil
 }

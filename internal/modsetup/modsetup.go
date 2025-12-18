@@ -148,6 +148,82 @@ func (s *Service) EnsurePersisted(ctx context.Context, meta config.Metadata, cfg
 	return cfg, lock, result, nil
 }
 
+type UpsertResult struct {
+	ConfigAdded   bool
+	ConfigUpdated bool
+	LockAdded     bool
+	LockUpdated   bool
+}
+
+func (s *Service) UpsertConfigAndLock(cfg models.ModsJson, lock []models.ModInstall, resolvedPlatform models.Platform, resolvedID string, remote platform.RemoteMod, options EnsurePersistOptions) (models.ModsJson, []models.ModInstall, UpsertResult, error) {
+	if strings.TrimSpace(string(resolvedPlatform)) == "" {
+		return models.ModsJson{}, nil, UpsertResult{}, errors.New("missing resolved platform")
+	}
+	if strings.TrimSpace(resolvedID) == "" {
+		return models.ModsJson{}, nil, UpsertResult{}, errors.New("missing resolved id")
+	}
+
+	configIndex := findConfigIndex(cfg, resolvedPlatform, resolvedID)
+	lockIndex := findLockIndex(lock, resolvedPlatform, resolvedID)
+
+	result := UpsertResult{}
+
+	if configIndex < 0 {
+		cfg.Mods = append(cfg.Mods, models.Mod{
+			Type:                 resolvedPlatform,
+			ID:                   resolvedID,
+			Name:                 remote.Name,
+			AllowVersionFallback: optionalBool(options.AllowVersionFallback),
+			Version:              optionalString(options.Version),
+		})
+		result.ConfigAdded = true
+	} else if strings.TrimSpace(remote.Name) != "" && cfg.Mods[configIndex].Name != remote.Name {
+		cfg.Mods[configIndex].Name = remote.Name
+		result.ConfigUpdated = true
+	}
+
+	if lockIndex < 0 {
+		if err := validateRemoteForLock(remote); err != nil {
+			return models.ModsJson{}, nil, UpsertResult{}, err
+		}
+		lock = append(lock, models.ModInstall{
+			Type:        resolvedPlatform,
+			Id:          resolvedID,
+			Name:        remote.Name,
+			FileName:    remote.FileName,
+			ReleasedOn:  remote.ReleaseDate,
+			Hash:        remote.Hash,
+			DownloadUrl: remote.DownloadURL,
+		})
+		result.LockAdded = true
+	} else {
+		if err := validateRemoteForLock(remote); err != nil {
+			return models.ModsJson{}, nil, UpsertResult{}, err
+		}
+
+		current := lock[lockIndex]
+		next := models.ModInstall{
+			Type:        resolvedPlatform,
+			Id:          resolvedID,
+			Name:        remote.Name,
+			FileName:    remote.FileName,
+			ReleasedOn:  remote.ReleaseDate,
+			Hash:        remote.Hash,
+			DownloadUrl: remote.DownloadURL,
+		}
+		if current.Name != next.Name ||
+			current.FileName != next.FileName ||
+			current.ReleasedOn != next.ReleasedOn ||
+			!strings.EqualFold(current.Hash, next.Hash) ||
+			current.DownloadUrl != next.DownloadUrl {
+			lock[lockIndex] = next
+			result.LockUpdated = true
+		}
+	}
+
+	return cfg, lock, result, nil
+}
+
 func ModExists(cfg models.ModsJson, platform models.Platform, projectID string) bool {
 	for _, mod := range cfg.Mods {
 		if mod.ID == projectID && mod.Type == platform {

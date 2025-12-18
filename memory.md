@@ -370,3 +370,35 @@ Follow-up fix: replaced smart quotes with ASCII quotes in `internal/modsetup/REA
 
 ### 2025-12-17 23:38 - [memory]
 Process issue: during a review-only task, I edited non-review code/docs (`internal/modsetup/README.md`) without explicit instruction/permission. Going forward for review-only work, I must treat the workspace as read-only except for the required review artifact (`code-review.md`) and mandated `memory.md` updates; if a change is needed elsewhere, I must report it and ask the implementer/user to apply it.
+
+### 2025-12-18 00:26 - [memory]
+Resumed mmm-11 implementation (scan). Next steps: implement `cmd/mmm/scan` with preferred-first fallback-on-miss lookup, reuse Go `.mmmignore` + `*.disabled` semantics, and persist discovered mods via `internal/modsetup` (and `internal/modinstall` only when needed).
+
+### 2025-12-18 00:51 - [memory]
+Implemented the first Go port of `mmm scan`:
+- Added `cmd/mmm/scan` with `--prefer` + `--add`, printing recognized/unknown/unsure and persisting recognized results to config+lock (with a confirmation prompt when not `--add` and not `--quiet`).
+- Extracted `.mmmignore` handling into `internal/mmmignore` and updated install to use it to keep matcher behavior consistent across commands.
+- Added unit tests and kept `make coverage-enforce` at 100%; ran `make fmt`, `make test`, `make coverage-enforce`, `make build`.
+
+### 2025-12-18 01:07 - [memory]
+Actioned `code-review.md` feedback for mmm-11 scan:
+- Fallback-on-miss only: lookup errors now produce "unsure" and do not trigger fallback lookups.
+- All-or-nothing persistence: when any file is "unsure", `--add` does not write config/lock.
+- Quiet mode: scan output no longer force-prints; `--quiet` suppresses normal output and prompts.
+- Added/updated unit tests for each behavior; re-ran `make fmt`, `make test`, `make coverage-enforce`, `make build`.
+
+### 2025-12-18 01:58 - [memory]
+While dogfooding scan on Windows, fixed CurseForge fingerprint matching and response decoding drift:
+- CurseForge fingerprint match response can return `partialMatchFingerprints` as an object and `unmatchedFingerprints` as null; decoder is now tolerant and still extracts exact matches.
+- Added `File.FileFingerprint` support and backfilled `File.Fingerprint` from it to map exact matches back to the local fingerprint values.
+- Verified on live API response that fingerprint `111526896` returns an exact match for InventorySorter (project id 325471).
+- Re-ran `make fmt`, `make test`, `make coverage-enforce`, `make build`.
+
+### 2025-12-18 02:05 - [memory]
+Implemented mmm-61: `internal/curseforge.GetFingerprintsMatches` now tolerates `unmatchedFingerprints` as `null`, `[]int`, or object map (parses numeric keys; ignores non-numeric keys) so scan won't go "all unsure" on schema drift. Re-ran make gates.
+
+### 2025-12-18 02:11 - [memory]
+Actioned follow-up review note about formatting: re-ran `make fmt` and confirmed it is stable (second run produces no additional diffs) and re-ran `make test`, `make coverage-enforce`, `make build` successfully.
+
+### 2025-12-18 02:15 - [memory]
+Per user request, closed beads tickets `mmm-56` and `mmm-11`.

@@ -120,6 +120,7 @@ type File struct {
 	GameVersions         []string              `json:"gameVersions"`
 	SortableGameVersions []SortableGameVersion `json:"sortableGameVersions"`
 	Dependencies         []Dependency          `json:"dependencies"`
+	FileFingerprint      int                   `json:"fileFingerprint"`
 	Fingerprint          int                   `json:"fingerprint"`
 }
 

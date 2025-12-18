@@ -2,6 +2,7 @@ package curseforge
 
 import (
 	"context"
+	"encoding/json"
 	"github.com/meza/minecraft-mod-manager/internal/globalErrors"
 	"github.com/meza/minecraft-mod-manager/internal/models"
 	"github.com/pkg/errors"
@@ -607,6 +608,7 @@ func TestGetFingerprintsMatchesWithOneExactMatch(t *testing.T) {
 	assert.Equal(t, 110, result.Matches[0].Id)
 	assert.Equal(t, 111, result.Matches[0].ProjectId)
 	assert.Equal(t, "string", result.Matches[0].DisplayName)
+	assert.Equal(t, 1234, result.Matches[0].Fingerprint)
 }
 
 func TestGetFingerprintsMatchesWithMultipleExactMatches(t *testing.T) {
@@ -694,6 +696,120 @@ func TestGetFingerprintsMatchesWithNoExactMatches(t *testing.T) {
 	assert.Equal(t, 1, result.Unmatched[1])
 }
 
+func TestGetFingerprintsMatches_AllowsObjectFingerprintFields(t *testing.T) {
+	mockResponse := `{
+		"data": {
+			"exactMatches": [
+				{
+					"id": 0,
+					"file": {
+						"id": 20,
+            "modId": 200,
+						"displayName": "string1",
+						"fileName": "string1",
+						"fileDate": "2019-08-24T14:15:22Z",
+						"fileFingerprint": 123456
+					}
+				}
+			],
+			"exactFingerprints": {"123456": true},
+			"partialMatches": [],
+			"partialMatchFingerprints": {"123456": true},
+			"unmatchedFingerprints": null,
+			"installedFingerprints": {"123456": true}
+		}
+	}`
+
+	mockServer := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "application/json")
+		w.WriteHeader(http.StatusOK)
+		w.Write([]byte(mockResponse))
+	}))
+	defer mockServer.Close()
+
+	err := os.Setenv("CURSEFORGE_API_URL", mockServer.URL)
+	assert.NoError(t, err)
+	defer os.Unsetenv("CURSEFORGE_API_URL")
+
+	client := &Client{client: mockServer.Client()}
+	fingerprints := []int{123456}
+
+	result, err := GetFingerprintsMatches(context.Background(), fingerprints, client)
+	assert.NoError(t, err)
+	assert.Len(t, result.Matches, 1)
+	assert.Equal(t, 20, result.Matches[0].Id)
+	assert.Equal(t, 200, result.Matches[0].ProjectId)
+	assert.Len(t, result.Unmatched, 0)
+}
+
+func TestDecodeUnmatchedFingerprints_AllowsMapKeyAny(t *testing.T) {
+	raw := json.RawMessage(`{"123": {}, "456": 1}`)
+	values, err := decodeUnmatchedFingerprints(raw)
+	assert.NoError(t, err)
+	assert.ElementsMatch(t, []int{123, 456}, values)
+}
+
+func TestDecodeUnmatchedFingerprints_AllowsList(t *testing.T) {
+	raw := json.RawMessage(`[1,2,3]`)
+	values, err := decodeUnmatchedFingerprints(raw)
+	assert.NoError(t, err)
+	assert.Equal(t, []int{1, 2, 3}, values)
+}
+
+func TestDecodeUnmatchedFingerprints_AllowsNullAndEmpty(t *testing.T) {
+	values, err := decodeUnmatchedFingerprints(nil)
+	assert.NoError(t, err)
+	assert.Len(t, values, 0)
+
+	values, err = decodeUnmatchedFingerprints(json.RawMessage(`null`))
+	assert.NoError(t, err)
+	assert.Len(t, values, 0)
+}
+
+func TestDecodeUnmatchedFingerprints_InvalidMapKeyErrors(t *testing.T) {
+	raw := json.RawMessage(`{"abc": true}`)
+	values, err := decodeUnmatchedFingerprints(raw)
+	assert.NoError(t, err)
+	assert.Len(t, values, 0)
+}
+
+func TestDecodeUnmatchedFingerprints_UnsupportedTypeErrors(t *testing.T) {
+	raw := json.RawMessage(`"nope"`)
+	_, err := decodeUnmatchedFingerprints(raw)
+	assert.Error(t, err)
+	assert.ErrorContains(t, err, "unsupported type")
+}
+
+func TestGetFingerprintsMatches_UnmatchedFingerprintsMapIsTolerated(t *testing.T) {
+	mockResponse := `{
+		"data": {
+			"exactMatches": [],
+			"partialMatches": [],
+			"unmatchedFingerprints": {"123": true}
+		}
+	}`
+
+	mockServer := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "application/json")
+		w.WriteHeader(http.StatusOK)
+		w.Write([]byte(mockResponse))
+	}))
+	defer mockServer.Close()
+
+	err := os.Setenv("CURSEFORGE_API_URL", mockServer.URL)
+	assert.NoError(t, err)
+	defer os.Unsetenv("CURSEFORGE_API_URL")
+
+	client := &Client{client: mockServer.Client()}
+	fingerprints := []int{123456}
+
+	result, err := GetFingerprintsMatches(context.Background(), fingerprints, client)
+	assert.NoError(t, err)
+	assert.NotNil(t, result)
+	assert.Len(t, result.Matches, 0)
+	assert.Equal(t, []int{123}, result.Unmatched)
+}
+
 func TestGetFingerprintsMatchesWithApiFailure(t *testing.T) {
 
 	mockServer := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {}))
@@ -728,6 +844,56 @@ func TestGetFingerprintsMatchesWithNotFound(t *testing.T) {
 
 	result, err := GetFingerprintsMatches(context.Background(), fingerprints, client)
 	assert.ErrorContains(t, err, "unexpected status code: 404")
+	assert.Nil(t, result)
+}
+
+func TestGetFingerprintsMatchesWithUnexpectedStatusReturnsApiError(t *testing.T) {
+
+	mockServer := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "application/json")
+		w.WriteHeader(http.StatusForbidden)
+		w.Write([]byte(`{"error":"forbidden"}`))
+	}))
+	defer mockServer.Close()
+
+	err := os.Setenv("CURSEFORGE_API_URL", mockServer.URL)
+	assert.NoError(t, err)
+	defer os.Unsetenv("CURSEFORGE_API_URL")
+
+	client := &Client{client: mockServer.Client()}
+	fingerprints := []int{0, 1}
+
+	result, err := GetFingerprintsMatches(context.Background(), fingerprints, client)
+	assert.ErrorContains(t, err, "unexpected status code: 403")
+	assert.Nil(t, result)
+}
+
+func TestGetFingerprintsMatches_UnmatchedFingerprintsUnsupportedTypeErrors(t *testing.T) {
+	mockResponse := `{
+		"data": {
+			"exactMatches": [],
+			"partialMatches": [],
+			"unmatchedFingerprints": 123
+		}
+	}`
+
+	mockServer := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "application/json")
+		w.WriteHeader(http.StatusOK)
+		w.Write([]byte(mockResponse))
+	}))
+	defer mockServer.Close()
+
+	err := os.Setenv("CURSEFORGE_API_URL", mockServer.URL)
+	assert.NoError(t, err)
+	defer os.Unsetenv("CURSEFORGE_API_URL")
+
+	client := &Client{client: mockServer.Client()}
+	fingerprints := []int{0, 1}
+
+	result, err := GetFingerprintsMatches(context.Background(), fingerprints, client)
+	assert.Error(t, err)
+	assert.ErrorContains(t, err, "failed to decode unmatchedFingerprints")
 	assert.Nil(t, result)
 }
 
