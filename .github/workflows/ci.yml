@@ -20,7 +20,7 @@ jobs:
     name: 📦 Build artifacts for the commit (for internal use only)
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
       - name: Set up node
         uses: ./.github/actions/setup/
         with:
@@ -38,7 +38,7 @@ jobs:
       - run: ./scripts/binaries.sh
 
       - name: Upload build artifacts
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v5
         with:
           if-no-files-found: error
           name: Dev Binaries for testing purposes
@@ -48,7 +48,7 @@ jobs:
     name: 🔎 Lint and Test
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
       - name: Set up node
         uses: ./.github/actions/setup/
         with:
@@ -86,7 +86,7 @@ jobs:
     name: Release
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
       - name: Set up node
         uses: ./.github/actions/setup/
 
