@@ -27,8 +27,8 @@ importers:
         specifier: 16.6.1
         version: 16.6.1
       glob:
-        specifier: 11.0.3
-        version: 11.0.3
+        specifier: 13.0.0
+        version: 13.0.0
       hwid:
         specifier: 0.5.0
         version: 0.5.0
@@ -5004,7 +5004,7 @@ snapshots:
 
   '@types/glob@9.0.0':
     dependencies:
-      glob: 11.0.3
+      glob: 13.0.0
 
   '@types/inquirer@9.0.8':
     dependencies:
