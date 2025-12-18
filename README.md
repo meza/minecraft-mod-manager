@@ -488,7 +488,16 @@ It should look something like this:
 
 ## Using your own API keys
 
-You can override the modrinth and curseforge API keys by setting the `MODRINTH_API_KEY` and `CURSEFORGE_API_KEY` environment variables.
+Official `mmm` releases ship with built-in (embedded) API keys so they can work out of the box.
+
+If you need to use your own keys (for example: you are hitting rate limits, you need access to private projects, or you want to route telemetry to your own PostHog project), you can override the embedded defaults at runtime via environment variables or a `.env` file.
+
+Precedence is:
+
+1. `.env` / environment variables you set at runtime (if you set an empty value, it overrides the embedded default)
+2. Embedded defaults in the `mmm` binary
+
+If you build `mmm` yourself, `make build` embeds token defaults from your shell environment and/or the repo-root `./.env` file, and fails if any are missing. (Use `make build-dev` if you want to build without embedding tokens.)
 
 You can use whatever means exist on your operating system to set these variables. For example, on Windows you can use the
 `set` command:
@@ -496,6 +505,7 @@ You can use whatever means exist on your operating system to set these variables
 ```cmd
 set MODRINTH_API_KEY=your-api-key
 set CURSEFORGE_API_KEY=your-api-key
+set POSTHOG_API_KEY=your-posthog-key
 ```
 
 On Linux and MacOS you can use the `export` command:
@@ -503,13 +513,15 @@ On Linux and MacOS you can use the `export` command:
 ```bash
 export MODRINTH_API_KEY=your-api-key
 export CURSEFORGE_API_KEY=your-api-key
+export POSTHOG_API_KEY=your-posthog-key
 ```
 
-You can also set these variables in a .env file in the same directory as the `modlist.json` file.
+You can also set these variables in a `.env` file in the directory where you run `mmm`.
 
 ```env
 MODRINTH_API_KEY=your-api-key
 CURSEFORGE_API_KEY=your-api-key
+POSTHOG_API_KEY=your-posthog-key
 ```
 Under normal circumstances, you should not need to set these variables. The tool will work without them. However, if you
 run into rate limiting issues or are using private projects, you can set these variables to your own API keys.

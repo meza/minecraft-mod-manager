@@ -405,3 +405,33 @@ Per user request, closed beads tickets `mmm-56` and `mmm-11`.
 
 ### 2025-12-18 02:16 - [memory]
 Per user request, closed beads ticket `mmm-7`.
+
+### 2025-12-18 11:23 - [memory]
+Picked up `mmm-58` (build-time token injection). Need alignment on approach (Go `-ldflags -X` vs current `scripts/prepare.sh` placeholder replacement), precedence rules (embedded defaults vs runtime env overrides), and whether `make build` should source values from `.env` or CI-only secrets.
+
+### 2025-12-18 11:33 - [memory]
+Implemented `mmm-58` approach: tokens embed via Go `-ldflags -X` using env/.env at build time; runtime precedence remains `.env`/env override > embedded defaults. Updated Makefile to source repo `.env` for local builds and removed token `sed` replacements from `scripts/prepare.sh`. Ran `make fmt`, `make test`, `make coverage-enforce`, `make build`.
+
+### 2025-12-18 11:43 - [memory]
+Received review feedback for `mmm-58`: need explicit build contract (fail when tokens missing vs separate dev build), document build-time `.env` scope, reduce Makefile duplication, and update `internal/environment/README.md` to reflect `-ldflags -X` injection.
+
+### 2025-12-18 11:48 - [memory]
+While actioning mmm-58 review feedback, discovered telemetry relies on `POSTHOG_API_KEY=` (empty but set) disabling telemetry. Kept semantics that an explicitly set empty env var overrides embedded defaults; updated docs accordingly and restored passing tests/coverage.
+
+### 2025-12-18 11:54 - [memory]
+New review feedback for `mmm-58`: `make build` must be cross-platform; current token-injection recipe is POSIX-shell-only. Next step is to add a Windows-compatible PowerShell recipe (keeping same `.env`/env precedence and no-secret logging) and re-run make gates.
+
+### 2025-12-18 11:57 - [memory]
+Implemented Windows-host support for token embedding in `make build` via a PowerShell recipe selected by `$(OSFAMILY)`; Unix hosts continue to use POSIX shell. Verified on Linux host with `make fmt`, `make test`, `make coverage-enforce`, `make build`, and `make build-dev` (all pass).
+
+### 2025-12-18 12:19 - [memory]
+Further review feedback: Windows build recipe should only source `./.env` when env var is absent (not empty), handle quote stripping more robustly, and terminate explicitly on missing tokens. Updated PowerShell snippet accordingly and re-ran `make fmt`, `make test`, `make coverage-enforce`, `make build`, `make build-dev` (pass).
+
+### 2025-12-18 12:23 - [memory]
+More review feedback: PowerShell quote stripping used `'\"'` which is not a literal quote char. Updated comparisons to `[char]34` / `[char]39` in the Windows `make build` recipe; re-ran make gates.
+
+### 2025-12-18 12:31 - [memory]
+Per user request, closed beads ticket `mmm-58`.
+
+### 2025-12-18 12:36 - [memory]
+Created beads ticket `mmm-62` for setting up GitHub Actions release workflows for Go (semantic-release + Go build artifacts). Process note: when using `bd create/update` via shell, avoid backticks in quoted strings because they trigger command substitution and can mangle issue text.

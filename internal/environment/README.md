@@ -21,7 +21,31 @@ Build-time values:
 - `AppVersion()` (used in User-Agent strings and telemetry)
 - `HelpURL()` (used to link to docs/help)
 
-When the relevant env var is missing, these functions return placeholder strings (for example `REPL_MODRINTH_API_KEY`). In release builds, those placeholders are replaced during the build.
+When the relevant env var is missing, these functions return embedded defaults.
+
+## Build-time injection
+
+For release and CI builds, token defaults are embedded at link time using Go `-ldflags -X` (not by rewriting source files).
+
+For local builds, `make build` loads token values from:
+
+- environment variables set in your shell, then
+- `./.env` in the repo root (if present), without overwriting any values already set in your shell
+
+If any token is still missing, `make build` fails fast so we do not silently compile placeholder values into the binary.
+
+If you need a contributor build that does not require tokens, use `make build-dev` instead.
+
+The `make build` token-injection logic is implemented for both Unix-like hosts (POSIX shell) and Windows hosts (PowerShell).
+
+## Runtime precedence
+
+At runtime, values are resolved in this order:
+
+1. environment variables (including ones loaded from a runtime `.env` file via `github.com/joho/godotenv/autoload`)
+2. embedded defaults compiled into the `mmm` binary
+
+Note: if you set an env var to an empty value, it still counts as "set" and overrides the embedded default (for example, setting `POSTHOG_API_KEY=` disables telemetry).
 
 ## Related docs
 
@@ -34,4 +58,3 @@ Run from the repo root:
 ```bash
 make test
 ```
-

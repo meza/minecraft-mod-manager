@@ -4,13 +4,19 @@ import (
 	"os"
 )
 
+var (
+	modrinthApiKeyDefault   = "REPL_MODRINTH_API_KEY"
+	curseforgeApiKeyDefault = "REPL_CURSEFORGE_API_KEY"
+	posthogApiKeyDefault    = "REPL_POSTHOG_API_KEY"
+)
+
 func ModrinthApiKey() string {
 	key, present := os.LookupEnv("MODRINTH_API_KEY")
 	if present {
 		return key
 	}
 
-	return "REPL_MODRINTH_API_KEY"
+	return modrinthApiKeyDefault
 }
 
 func CurseforgeApiKey() string {
@@ -19,7 +25,7 @@ func CurseforgeApiKey() string {
 		return key
 	}
 
-	return "REPL_CURSEFORGE_API_KEY"
+	return curseforgeApiKeyDefault
 }
 
 func PosthogApiKey() string {
@@ -28,7 +34,7 @@ func PosthogApiKey() string {
 		return key
 	}
 
-	return "REPL_POSTHOG_API_KEY"
+	return posthogApiKeyDefault
 }
 
 func AppVersion() string {
