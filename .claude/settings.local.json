@@ -2,17 +2,9 @@
   "permissions": {
     "allow": [
       "WebSearch",
-      "WebFetch(domain:opentelemetry.io)",
-      "WebFetch(domain:raw.githubusercontent.com)",
-      "Bash(*)",
-      "Bash(go fmt:*)",
-      "Bash(make test:*)",
-      "Bash(make:*)",
-      "Bash(go build:*)",
-      "Bash(bd --no-db create:*)",
-      "Bash(bd:*)",
-      "Bash(make coverage-enforce:*)",
-      "Bash(make build:*)"
+      "WebFetch",
+      "Bash",
+      "Skill"
     ]
   }
 }
