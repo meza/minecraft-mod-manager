@@ -435,3 +435,39 @@ Per user request, closed beads ticket `mmm-58`.
 
 ### 2025-12-18 12:36 - [memory]
 Created beads ticket `mmm-62` for setting up GitHub Actions release workflows for Go (semantic-release + Go build artifacts). Process note: when using `bd create/update` via shell, avoid backticks in quoted strings because they trigger command substitution and can mangle issue text.
+
+### 2025-12-19 12:57 - [memory]
+Started code review for mmm-8. Need to review uncommitted changes and write findings to /work/code-review.md; any non-task issues must be filed via bd and excluded from review report.
+
+### 2025-12-19 13:03 - [memory]
+Completed review for mmm-8 and wrote findings to /work/code-review.md. Key blockers: exit code 2 not reaching process and manifest failure handling not matching ADR 0006/spec; docs should mention offline latest behavior once fixed.
+
+### 2025-12-19 13:21 - [memory]
+Started verification review for mmm-8 after author updates; will re-check uncommitted changes and update /work/code-review.md with current findings.
+
+### 2025-12-19 13:23 - [memory]
+Verified mmm-8 updates; wrote new review to /work/code-review.md. Remaining issues: cobra prints extra error line for exit code 2 and duplicates latest-unavailable error output; requested suppressing errors in those cases.
+
+### 2025-12-19 13:43 - [memory]
+Started verification after team approval for mmm-8; will re-check uncommitted changes and update /work/code-review.md.
+
+### 2025-12-19 13:44 - [memory]
+Verified latest mmm-8 changes; updated /work/code-review.md. Found blocker: exit code 2 does not propagate because test command uses its own exitCodeError type, while main.go only recognizes main.exitCodeError.
+
+### 2025-12-19 14:04 - [memory]
+Started another verification pass for mmm-8 after team updates; will re-check diffs and update /work/code-review.md.
+
+### 2025-12-19 15:21 - [memory]
+Started addressing reviewer feedback in /work/code-review.md; need to apply requested changes and add engineer remarks back into the same document.
+
+### 2025-12-19 15:24 - [memory]
+Applied code-review.md feedback: test command now returns exitCodeError for unsupported mods (propagates exit code 1), updated unsupported-mods test to assert exit code error, fixed README test link, added flags table to docs/commands/test.md, and recorded remarks in code-review.md.
+
+### 2025-12-19 15:28 - [memory]
+Ran make gates after fixes: make test, make coverage-enforce, make build all pass; updated code-review.md to note test execution.
+
+### 2025-12-19 15:34 - [memory]
+Re-reviewing mmm-8 changes after team remarks; will update /work/code-review.md with current findings.
+
+### 2025-12-19 15:37 - [memory]
+Ran verification: make test, make coverage-enforce, make build.

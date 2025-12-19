@@ -134,6 +134,48 @@ func TestPerfExportConfigFromArgs_CapturesDebugFlag(t *testing.T) {
 	assert.True(t, cfg.debug)
 }
 
+func TestRunWithDeps_ExitCodeErrorReturnsCustomExitCode(t *testing.T) {
+	perf.Reset()
+	t.Cleanup(perf.Reset)
+
+	deps := runDeps{
+		execute: func(context.Context) error {
+			return &exitCodeError{code: 2, message: "version matches current"}
+		},
+		telemetryInit:     func() {},
+		telemetryShutdown: func(context.Context) {},
+		register: func(handler lifecycle.Handler) lifecycle.HandlerID {
+			return 1
+		},
+		unregister: func(id lifecycle.HandlerID) {},
+		args:       []string{},
+	}
+
+	result := runWithDeps(deps)
+	assert.Equal(t, 2, result, "expected exit code 2 from exitCodeError")
+}
+
+func TestRunWithDeps_RegularErrorReturns1(t *testing.T) {
+	perf.Reset()
+	t.Cleanup(perf.Reset)
+
+	deps := runDeps{
+		execute: func(context.Context) error {
+			return assert.AnError
+		},
+		telemetryInit:     func() {},
+		telemetryShutdown: func(context.Context) {},
+		register: func(handler lifecycle.Handler) lifecycle.HandlerID {
+			return 1
+		},
+		unregister: func(id lifecycle.HandlerID) {},
+		args:       []string{},
+	}
+
+	result := runWithDeps(deps)
+	assert.Equal(t, 1, result, "expected exit code 1 for regular error")
+}
+
 func assertSpanExists(t *testing.T, spans []perf.SpanSnapshot, name string) {
 	t.Helper()
 	_, ok := perf.FindSpanByName(spans, name)

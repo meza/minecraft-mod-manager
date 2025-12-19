@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"fmt"
 	"log"
 	"os"
 	"path/filepath"
@@ -29,6 +30,44 @@ const (
 	perfLifecycleExecute  = "app.lifecycle.execute"
 	perfLifecycleShutdown = "app.lifecycle.shutdown"
 )
+
+// exitCodeError is a private error type that carries a specific exit code.
+// Commands can return this error to signal non-standard exit codes
+// (e.g., exit code 2 for the test command when version matches current).
+type exitCodeError struct {
+	code    int
+	message string
+}
+
+func (e *exitCodeError) Error() string {
+	if e.message != "" {
+		return e.message
+	}
+	return fmt.Sprintf("exit code %d", e.code)
+}
+
+func (e *exitCodeError) ExitCode() int {
+	return e.code
+}
+
+// exitCoder is an interface for errors that carry a specific exit code.
+// Any error type implementing this interface can signal a non-standard exit code
+// to the main function.
+type exitCoder interface {
+	ExitCode() int
+}
+
+// getExitCode extracts the exit code from an error if it implements exitCoder,
+// otherwise returns the default code provided.
+func getExitCode(err error, defaultCode int) int {
+	if err == nil {
+		return 0
+	}
+	if exitErr, ok := err.(exitCoder); ok {
+		return exitErr.ExitCode()
+	}
+	return defaultCode
+}
 
 type shutdownTrigger string
 
@@ -138,7 +177,7 @@ func runWithDeps(deps runDeps) int {
 	endExecute(err == nil)
 
 	if err != nil {
-		return 1
+		return getExitCode(err, 1)
 	}
 
 	return 0

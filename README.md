@@ -59,7 +59,7 @@ control over the mods that are installed.
   * [UPDATE](#update)
   * [CHANGE](#change)
   * [LIST](docs/commands/list.md)
-  * [TEST](#test)
+  * [TEST](docs/commands/test.md)
   * [PRUNE](#prune)
   * [SCAN](#scan)
 * [Explaining the configuration](#explaining-the-configuration)
@@ -216,7 +216,7 @@ The process of a `mmm change` is the equivalent of running `mmm test`, deleting 
 from the configured mods directory, changing the `gameVersion` in the `modlist.json`, then running a
 `mmm install`.
 
-The exit codes of this command are identical to the [test](#test) command's.
+The exit codes of this command are identical to the [test](docs/commands/test.md) command's.
 
 #### Command line arguments for the change function
 
@@ -224,28 +224,6 @@ The exit codes of this command are identical to the [test](#test) command's.
 |-------|---------|---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|-------|-----------------|
 | -f    | --force | Force the change of the game version. Deletes all the mods and attempts to install with the given game version. Use at your own risk.<br/>If a mod doesn't have support for your game version, the mod won't be installed |       | `mmm change -f` |
 
-
----
-
-### TEST
-
-`mmm test [game_version]`
-
-Test if you can use the specified game version. This is most commonly used to see if you can upgrade to a newer version
-of Minecraft and _test_ that all of your configured mods will have a version for it.
-
-For example if you're on 1.19.2, and you want to see if you could upgrade to 1.19.3, you would run: `mmm test 1.19.3`
-
-If you omit the game version, it will use the latest stable minecraft version.
-
-**For server operators and script automation, the command will have a non-zero (1) exit value when it finds mods that
-don't support the version you are testing for.**
-
-It will also return a non-zero (2) exit value when you're testing for the version that's already being used.
-
-This means that you could run `mmm test` every day for example, which would in return always check for the latest
-Minecraft release. Whenever the command returns with a zero exit code, you can run a version upgrade on your server if
-you like.
 
 ---
 

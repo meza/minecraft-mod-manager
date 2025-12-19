@@ -42,6 +42,15 @@
   "cmd.update.error.invalid_timestamp": "Horodatage invalide : {value}",
   "cmd.update.debug.backup_cleanup_failed": "[update] Impossible de supprimer le fichier de sauvegarde {path} : {err}",
   "cmd.update.error.unmanaged_found": "Des mods non geres ont ete detectes dans votre dossier mods. Veuillez les supprimer (ou les ajouter a votre configuration) puis reessayez.",
+  "cmd.test.short": "Tester si les mods supportent une version cible de Minecraft",
+  "cmd.test.success": "Tous les mods supportent {version}. Vous pouvez mettre a jour en toute securite.",
+  "cmd.test.same_version": "La version cible {version} est la meme que votre version actuelle.",
+  "cmd.test.missing_support_header": "Certains mods ne supportent pas {version}.",
+  "cmd.test.missing_mod_entry": "{name} ({id})",
+  "cmd.test.cannot_upgrade": "Vous ne pouvez pas encore mettre a jour vers {version}.",
+  "cmd.test.error.invalid_version": "{version} n'est pas une version Minecraft valide.",
+  "cmd.test.error.latest_unavailable": "Impossible de determiner la derniere version de Minecraft. Veuillez specifier une version explicite.",
+  "cmd.test.debug.checking": "[test] Verification de {name} pour {platform} sur {version}",
   "cmd.remove.short": "Retirer un ou plusieurs mods",
   "cmd.remove.flag.dry_run": "Afficher les fichiers/mods qui auraient ete supprimes"
 }
