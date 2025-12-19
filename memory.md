@@ -199,6 +199,18 @@ Documentation task: moved INSTALL section from root README into docs/commands/in
 Follow-up: adjusted docs/commands/install.md to restore more of the original README’s “when/why you run it” guidance while keeping docs/commands tone and structure.
 ### 2025-12-17 16:49 - [memory]
 
+### 2025-12-19 18:07 - [memory]
+Continuing a repo-wide audit (Auditor persona) and writing evidence-backed findings into `audit.md` (kept ASCII-only). Maintainer clarifications captured: runtime `.env` support must remain so users can supply their own Modrinth/CurseForge keys (private projects), telemetry is opt-out, embedded platform keys in release binaries are intended, and `MODRINTH_API_URL`/`CURSEFORGE_API_URL` must not be env-configurable in production (tests need explicit injection). Added audit findings on downloader symlink/partial-write hazards, retry behavior for request bodies, i18n panics, Go toolchain vuln posture (go1.25.0 flagged by govulncheck), doc drift, and repo-wide Markdown ASCII rule violations.
+
+### 2025-12-19 18:16 - [memory]
+Maintainer answered audit open questions: load runtime `.env` from CWD (global config location later), current no-args behavior should print help (no-args TUI not implemented yet), and retries must remain enabled even for POST (some APIs misuse POST) but must be implemented safely for request bodies. Updated `audit.md` accordingly and added findings for i18n and Minecraft manifest cache concurrency hazards, context-unaware retry sleep, Modrinth primary file selection inconsistency, CurseForge platform error typing inconsistency, and `.mmmignore` root/Windows path robustness issues.
+
+### 2025-12-19 18:20 - [memory]
+Extended audit: telemetry currently uploads raw error strings and some user inputs (including potentially absolute filesystem paths like init's `modsFolder`), which is a privacy/security concern even with opt-out. Also noted that `modsFolder` from config is treated as trusted and can point anywhere on disk (absolute/traversal), so running MMM against untrusted `modlist.json` can cause unintended writes/deletes under the user's privileges.
+
+### 2025-12-19 18:21 - [memory]
+Noted a critical build-time security risk: on Unix hosts the Makefile sources `./.env` via `. ./.env`, meaning `.env` is executed as shell code during `make build` token injection. This is a local code execution vector if someone runs builds in a directory where `.env` came from an untrusted source; audit.md updated with evidence and remediation suggestions.
+
 ### 2025-12-17 21:04 - [memory]
 Following review feedback for `mmm-56`, `internal/config/writeFileAtomic` now attempts `Rename(temp -> target)` first when the target exists (to reduce the “target missing” crash window on POSIX) and falls back to the backup-swap strategy when that rename fails. Next step: refactor `internal/config/atomic_write_test.go` rename-failure harness so tests can reliably exercise the fallback and rollback branches even when overwrite-rename is supported.
 
@@ -471,3 +483,62 @@ Re-reviewing mmm-8 changes after team remarks; will update /work/code-review.md 
 
 ### 2025-12-19 15:37 - [memory]
 Ran verification: make test, make coverage-enforce, make build.
+
+### 2025-12-19 16:57 - [memory]
+Fetched agent guidance docs from `meza/agent-docs` (Auditor.md, Beads.md, LongTermMemory.md, ADR.md, DocumentationGuidelines.md, Engineer.md, Golang.md). For this session, follow Auditor persona per user instruction: focus on evidence-backed audits and remediation guidance; avoid maintainer actions like implementing features or doing VCS operations. Use `bd` for issue tracking; do not read or edit `.beads/` directly.
+
+### 2025-12-19 17:33 - [memory]
+User requested a repo-wide, extremely nitpicky audit and clarified: help/version placeholders in local builds are OK (semantic-release replaces them), embedding API keys in release binaries is intended, telemetry should be opt-out, and the Go port is incomplete so some commands may not exist yet. Wrote the audit report to `audit.md` per user request; remaining open decision is whether `CURSEFORGE_API_URL` / `MODRINTH_API_URL` overrides are intended for production users given runtime `.env` autoload and auth header behavior.
+
+### 2025-12-19 17:53 - [memory]
+User decision: API base URLs must not be configurable via env vars in production. If tests need URL overrides, they should be injected via build/test seams rather than runtime env. Continued audit and updated `audit.md` with additional critical findings (including `go test -race` data races, path traversal via untrusted filenames, and localized key binding breakage).
+
+### 2025-12-19 18:41 - [memory]
+Audit continuation: found telemetry sends the full perf span export tree on shutdown (`internal/telemetry/telemetry.go:355-371`) and perf spans include full request URLs (`internal/httpClient/httpClient.go:31-36`, `internal/modrinth/modrinthClient.go`, `internal/curseforge/curseforgeClient.go`, `internal/httpClient/downloader.go:41-46`). Normalization only rewrites keys that look like paths, not URLs (`internal/perf/export.go:291-340`). This is a major privacy/security concern given telemetry is opt-out and perf is enabled unconditionally in main (`main.go:115-119`).
+
+### 2025-12-19 18:47 - [memory]
+Maintainer clarification: telemetry may include request URLs, but must not include API keys from headers (or other secret header values). Perf artifacts (`mmm-perf.json`) are not considered sensitive by the team.
+
+### 2025-12-19 18:57 - [memory]
+Docs-vs-behavior audit: captured `go run . <cmd> --help` outputs and found multiple mismatches, including docs claiming `add` has `-v/--version` and `-f/--allow-version-fallback` short flags (`docs/commands/add.md:21-24`) while the CLI actually exposes only long flags and reserves `-v` for global `--version` (`cmd/mmm/root.go:23-35`, `cmd/mmm/add/add.go:148-149`). Also found `list` has a TUI mode and uses non-ASCII check/cross glyphs in output (`cmd/mmm/list/list.go:112-133`, `cmd/mmm/list/list.go:224-233`), which is not mentioned in `docs/commands/list.md`.
+
+### 2025-12-19 19:06 - [memory]
+Concurrency audit note: i18n thread-safety issues are not hypothetical; `update` and `test` spawn per-mod goroutines that build log events using `i18n.T(...)` inside those goroutines (`cmd/mmm/update/update.go:195-201` and `cmd/mmm/test/test.go:246-253`), so i18n global init races can be hit in real runs.
+
+### 2025-12-19 19:18 - [memory]
+Audit continuation validation results: `go test -race ./...` fails with data races in `cmd/mmm/test` (shared state in `TestExitCode1WhenSomeModsUnsupported` at `cmd/mmm/test/test_test.go:126` invoked via `cmd/mmm/test/test.go:344`/`cmd/mmm/test/test.go:249`) and `internal/lifecycle` (`internal/lifecycle/lifecycle.go:78` vs `internal/lifecycle/lifecycle.go:126`). Installed and ran `govulncheck`; `-scan=module` reports 13 stdlib vulns in go1.25, `-scan=package` reports 11 stdlib vulns plus 2 module-level findings, and `-scan=symbol ./...` fails with an internal types error referencing `golang.org/x/sys/unix` from `github.com/mattn/go-isatty`. Also confirmed that the host toolchain is go1.22.5 but the repo builds under auto-downloaded go1.25.0; some tooling (staticcheck) must be compiled with `GOTOOLCHAIN=go1.25.0` to analyze this module.
+
+### 2025-12-19 19:34 - [memory]
+More audit notes: i18n locale selection is effectively broken for common `LANG` values like `fr_FR.UTF-8` because `internal/i18n.getUserLocales` returns the raw LANG string and `language.Parse` rejects the `.UTF-8` suffix (so translations never activate unless LANG is already well-formed like `de_DE`). Also found a production-path shutdown hang risk: `telemetry.Shutdown` only applies `flushTimeout` when ctx is nil, but main always passes a non-nil context with no deadline (`main.go:155`), making telemetry close potentially unbounded.
+
+### 2025-12-19 19:53 - [memory]
+Maintainer clarification: missing "no-args launches interactive TUI" behavior is a known gap while the team pushes for Node parity; once parity is complete, the plan is to add the fully interactive no-args TUI. Updated `audit.md` to reflect this as a clarified known mismatch rather than a surprise defect, while keeping the documentation guidance that user-facing docs must describe current behavior (and avoid "future plans" language).
+
+### 2025-12-19 20:21 - [memory]
+Audit continued with deep repo setup and GitHub best-practices review. Updated `audit.md` to (1) add a license attribution/SBOM gap finding backed by `go-licenses report ./...` output captured at `/tmp/go-licenses.txt`, (2) expand Renovate supply chain governance evidence by inspecting the referenced external preset `stateshifters/renovate-common` (noting broad automerge for gomod updates), (3) remove the "Areas not deeply audited yet" section and replace it with explicit in-repo coverage closure plus a list of security-relevant GitHub/org settings that are not auditable from this checkout, and (4) add additional repo hygiene findings (tracked executable bit on `.editorconfig`, lefthook running `go mod tidy`/`go vet` directly, missing PR template and SUPPORT policy file). Open request for maintainers: provide GitHub settings/app configuration evidence if you want those external controls audited to the same standard.
+
+### 2025-12-19 20:25 - [memory]
+Maintainer clarification: the upstream Renovate preset (`stateshifters/renovate-common`) is owned/controlled by the team and changes are intentional, so its mutability is not treated as a supply chain risk. Updated `audit.md` to reflect this as a governance/auditability consideration instead. Also added a new `audit.md` section: "Recommended Go tooling to automate audit concerns" covering practical CI automation for formatting, static analysis, tests/race, govulncheck, dependency review, fuzzing, release integrity, licensing, SBOM, and tool version pinning.
+
+### 2025-12-19 20:28 - [memory]
+Audit follow-up: performed a repo-wide non-ASCII scan (excluding translation JSON and images) and found non-ASCII punctuation in the repository policy docs (notably `AGENTS.md:29`, `AGENTS.md:144`, `AGENTS.md:170`). Updated `audit.md` with new repo hygiene findings: (1) policy docs violating the ASCII-only punctuation rule, (2) `.gitattributes` patterns for `.cmd`/`.bat` likely invalid due to brace expansion usage (`.gitattributes:10-11`), and (3) release script portability/robustness issues (`scripts/prepare.sh:1-13`, `scripts/binaries.sh:1-7`).
+
+### 2025-12-19 20:31 - [memory]
+User requested surfacing incorrect "MineCraft" capitalization in identifiers. Confirmed it exists and is concentrated in the Mojang manifest helper API: exported function `internal/minecraft.GetAllMineCraftVersions` (`internal/minecraft/minecraft.go:95`) plus its call site in init (`cmd/mmm/init/gameVersion.go:111`), tests (`internal/minecraft/minecraft_test.go`), and `internal/minecraft/README.md:15`. Updated `audit.md` under naming/API hygiene to capture all occurrences as a style concern.
+
+### 2025-12-19 20:33 - [memory]
+User requested a concrete remediation checklist with acceptance criteria. Added `## Remediation checklist (acceptance criteria and evidence)` to `audit.md`, turning the top audit findings into verifiable closure items with required artifacts and recommended CI/make target gates.
+
+### 2025-12-19 20:35 - [memory]
+User requested a strict "release-ready" definition of done. Added `### Definition of done: \"release-ready\"` to `audit.md` under the remediation checklist, requiring closure evidence for all checklist items, CI enforcement via branch protection, reproducible release dry runs, license/notices presence, and telemetry invariants + bounded shutdown.
+
+### 2025-12-19 20:37 - [memory]
+Added an Auditor persona-required self-check section to `audit.md` (`## Auditor self-check (persona requirement)`) summarizing the chain of reasoning for the top 3 findings (URL override exfiltration, filesystem path safety, release automation consistency), validating that maintainer clarifications are applied consistently, and stating confidence levels for major conclusions.
+### [2025-12-19 21:22] - [memory]
+
+- Processing independent audit report in `audit.md`: create a dedicated `bd` epic and one child issue per severity-labeled finding; annotate `audit.md` headings with the created ticket IDs.
+
+### [2025-12-19 21:54] - [memory]
+
+- Created `bd` epic `mmm-63` and child tickets `mmm-63.1` through `mmm-63.74`; updated `audit.md` headings to include the corresponding ticket IDs.
+- Repo appears to run Beads in JSONL-only mode; `bd sync --flush-only` errors with “use 'bd --no-db'” but issue creation/update still writes `.beads/issues.jsonl` changes.
