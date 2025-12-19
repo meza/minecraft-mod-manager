@@ -12,7 +12,7 @@ require (
 	github.com/gkampitakis/go-snaps v0.5.18
 	github.com/jeandeaual/go-locale v0.0.0-20240223122105-ce5225dcaa49
 	github.com/joho/godotenv v1.5.1
-	github.com/kaptinlin/go-i18n v0.1.2
+	github.com/kaptinlin/go-i18n v0.2.0
 	github.com/meza/curseforge-fingerprint-go v1.1.2
 	github.com/muesli/termenv v0.16.0
 	github.com/pkg/errors v0.9.1
