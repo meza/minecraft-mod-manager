@@ -16,7 +16,7 @@ require (
 	github.com/meza/curseforge-fingerprint-go v1.1.2
 	github.com/muesli/termenv v0.16.0
 	github.com/pkg/errors v0.9.1
-	github.com/posthog/posthog-go v1.6.5
+	github.com/posthog/posthog-go v1.6.13
 	github.com/spf13/afero v1.14.0
 	github.com/spf13/cobra v1.10.2
 	github.com/stretchr/testify v1.11.1
