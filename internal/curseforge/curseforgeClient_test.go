@@ -4,7 +4,6 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
 	"net/http"
-	"os"
 	"testing"
 )
 
@@ -20,12 +19,7 @@ func (m *MockDoer) Do(req *http.Request) (*http.Response, error) {
 
 func TestClient_Do(t *testing.T) {
 	// Mock the environment function
-	err1 := os.Setenv("CURSEFORGE_API_KEY", "test-api-key")
-	if err1 != nil {
-		t.Fatalf("Failed to set environment variable: %v", err1)
-		return
-	}
-	defer func() { os.Unsetenv("CURSEFORGE_API_KEY") }()
+	t.Setenv("CURSEFORGE_API_KEY", "test-api-key")
 
 	// Create a mock Doer
 	mockDoer := new(MockDoer)
@@ -56,18 +50,10 @@ func TestClient_Do(t *testing.T) {
 	}))
 }
 
-func TestBaseURLResolving(t *testing.T) {
+func TestBaseURLIsConstant(t *testing.T) {
 	assert.Equal(t, "https://api.curseforge.com/v1", GetBaseUrl())
-}
-
-func TestBaseURLResolvingWithEnvironment(t *testing.T) {
-	err := os.Setenv("CURSEFORGE_API_URL", "test-url")
-	if err != nil {
-		t.Fatalf("Failed to set environment variable: %v", err)
-	}
-
-	defer func() { os.Unsetenv("CURSEFORGE_API_URL") }()
-	assert.Equal(t, "test-url", GetBaseUrl())
+	t.Setenv("CURSEFORGE_API_URL", "https://example.com")
+	assert.Equal(t, "https://api.curseforge.com/v1", GetBaseUrl())
 }
 
 func TestNewClient(t *testing.T) {

@@ -5,6 +5,7 @@ mods
 internal/i18n/localise
 .locize
 mmm-perf.json
+code-review.md
 
 ## GENERATED
 .idea

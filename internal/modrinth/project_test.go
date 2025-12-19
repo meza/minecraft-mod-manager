@@ -4,11 +4,11 @@ import (
 	"context"
 	"github.com/meza/minecraft-mod-manager/internal/globalErrors"
 	"github.com/meza/minecraft-mod-manager/internal/models"
+	"github.com/meza/minecraft-mod-manager/testutil"
 	"github.com/pkg/errors"
 	"github.com/stretchr/testify/assert"
 	"net/http"
 	"net/http/httptest"
-	"os"
 	"testing"
 )
 
@@ -59,11 +59,7 @@ func TestGetProject(t *testing.T) {
 		}]
 	}`
 
-	err := os.Setenv("MODRINTH_API_KEY", "mock_modrinth_api_key")
-	if err != nil {
-		t.Fatalf("Failed to set environment variable: %v", err)
-		return
-	}
+	t.Setenv("MODRINTH_API_KEY", "mock_modrinth_api_key")
 
 	// Create a mock server
 	mockServer := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
@@ -81,21 +77,8 @@ func TestGetProject(t *testing.T) {
 	}))
 	defer mockServer.Close()
 
-	err1 := os.Setenv("MODRINTH_API_URL", mockServer.URL)
-	if err1 != nil {
-		t.Fatalf("Failed to set environment variable: %v", err1)
-		return
-	}
-
-	defer func() {
-		os.Unsetenv("MODRINTH_API_URL")
-		os.Unsetenv("MODRINTH_API_KEY")
-	}()
-
 	// Call the function
-	project, err := GetProject(context.Background(), "AABBCCDD", &Client{
-		client: mockServer.Client(),
-	})
+	project, err := GetProject(context.Background(), "AABBCCDD", NewClient(testutil.MustNewHostRewriteDoer(mockServer.URL, mockServer.Client())))
 
 	// Assertions
 	assert.NoError(t, err)
@@ -128,18 +111,8 @@ func TestGetProjectWhenProjectNotFound(t *testing.T) {
 	}))
 	defer mockServer.Close()
 
-	err1 := os.Setenv("MODRINTH_API_URL", mockServer.URL)
-	if err1 != nil {
-		t.Fatalf("Failed to set environment variable: %v", err1)
-		return
-	}
-
-	defer func() { os.Unsetenv("MODRINTH_API_URL") }()
-
 	// Call the function
-	project, err := GetProject(context.Background(), "AABBCCDD", &Client{
-		client: mockServer.Client(),
-	})
+	project, err := GetProject(context.Background(), "AABBCCDD", NewClient(testutil.MustNewHostRewriteDoer(mockServer.URL, mockServer.Client())))
 
 	// Assertions
 	assert.Error(t, err)
@@ -159,18 +132,8 @@ func TestGetProjectWhenProjectApiUnknownStatus(t *testing.T) {
 	}))
 	defer mockServer.Close()
 
-	err1 := os.Setenv("MODRINTH_API_URL", mockServer.URL)
-	if err1 != nil {
-		t.Fatalf("Failed to set environment variable: %v", err1)
-		return
-	}
-
-	defer func() { os.Unsetenv("MODRINTH_API_URL") }()
-
 	// Call the function
-	project, err := GetProject(context.Background(), "AABBCCDD", &Client{
-		client: mockServer.Client(),
-	})
+	project, err := GetProject(context.Background(), "AABBCCDD", NewClient(testutil.MustNewHostRewriteDoer(mockServer.URL, mockServer.Client())))
 
 	// Assertions
 	assert.Error(t, err)
@@ -179,23 +142,8 @@ func TestGetProjectWhenProjectApiUnknownStatus(t *testing.T) {
 }
 
 func TestGetProjectWhenApiCallFails(t *testing.T) {
-
-	// Create a mock server
-	mockServer := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {}))
-	defer mockServer.Close()
-
-	err1 := os.Setenv("MODRINTH_API_URL", "invalid_url")
-	if err1 != nil {
-		t.Fatalf("Failed to set environment variable: %v", err1)
-		return
-	}
-
-	defer func() { os.Unsetenv("MODRINTH_API_URL") }()
-
 	// Call the function
-	project, err := GetProject(context.Background(), "AABBCCDDEE", &Client{
-		client: mockServer.Client(),
-	})
+	project, err := GetProject(context.Background(), "AABBCCDDEE", NewClient(errorDoer{err: errors.New("request failed")}))
 
 	// Assertions
 	//assert.Error(t, err)
@@ -203,6 +151,6 @@ func TestGetProjectWhenApiCallFails(t *testing.T) {
 		ProjectID: "AABBCCDDEE",
 		Platform:  models.MODRINTH,
 	})
-	assert.Equal(t, "Get \"invalid_url/v2/project/AABBCCDDEE\": unsupported protocol scheme \"\"", errors.Unwrap(err).Error())
+	assert.Equal(t, "request failed", errors.Unwrap(err).Error())
 	assert.Nil(t, project)
 }

@@ -118,10 +118,7 @@ This is implemented by `nextVersionDown` in `internal/platform/fallback.go`.
 - Modrinth uses `MODRINTH_API_KEY` and a `User-Agent` derived from `internal/environment.AppVersion()`
 - CurseForge uses `CURSEFORGE_API_KEY` via the `x-api-key` header
 
-For tests and local development, both API base URLs can be overridden:
-
-- `MODRINTH_API_URL` (defaults to `https://api.modrinth.com`)
-- `CURSEFORGE_API_URL` (defaults to `https://api.curseforge.com/v1`)
+API base URLs are not configurable at runtime. For tests, provide `Clients` with `Doer` implementations that route requests to `httptest` servers.
 
 ## Expected errors (and what they mean)
 
@@ -145,7 +142,7 @@ When you add support for another platform, keep the surface area the same:
 
 ## Tests
 
-This package is tested with local `httptest` servers and environment-based base URL overrides. Run the repo test suite from the root:
+This package is tested with local `httptest` servers via injected `Doer`s. Run the repo test suite from the root:
 
 ```bash
 make test

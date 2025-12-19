@@ -542,3 +542,21 @@ Added an Auditor persona-required self-check section to `audit.md` (`## Auditor 
 
 - Created `bd` epic `mmm-63` and child tickets `mmm-63.1` through `mmm-63.74`; updated `audit.md` headings to include the corresponding ticket IDs.
 - Repo appears to run Beads in JSONL-only mode; `bd sync --flush-only` errors with “use 'bd --no-db'” but issue creation/update still writes `.beads/issues.jsonl` changes.
+
+### 2025-12-19 22:11 - [memory]
+User asked what audit items to tackle before feature work, preferring code-impacting fixes (not repo hygiene). `bd --no-db ready` shows P0 code/security items including `mmm-63.6`, `mmm-63.8`, `mmm-63.9`, `mmm-63.12`, and `mmm-63.13`. My recommended first pick is `mmm-63.6` (remove env-driven API base URL overrides and stop runtime `.env` autoload from influencing network destinations) because it is a direct credential exfiltration vector and forces a clean test seam; next follow-ups would be `mmm-63.9` (safe filenames) and `mmm-63.13` (status+hash validation + temp-file swap).
+
+### 2025-12-19 22:15 - [memory]
+User selected `mmm-63.6` and asked to align expectations before implementation. I inspected current code: `main.go` imports `github.com/joho/godotenv/autoload`; Modrinth and CurseForge base URLs are currently env-driven via `MODRINTH_API_URL`/`CURSEFORGE_API_URL`; tests and internal docs depend on those overrides. Proposed direction: remove env-based base URL overrides from production code, migrate tests to an explicit in-process test seam (e.g., `SetBaseURLForTesting`), and likely replace autoload with an allowlist `.env` loader (parse as data, set only allowed MMM env vars, do not override existing env) so `.env` cannot influence network destinations.
+
+### 2025-12-19 22:45 - [memory]
+Completed implementation for `mmm-63.6`: `internal/modrinth.GetBaseUrl()` and `internal/curseforge.GetBaseUrl()` are now constants (ignore `MODRINTH_API_URL` / `CURSEFORGE_API_URL`). Migrated tests off env-based URL overrides by injecting `Doer` wrappers that rewrite request hosts to `httptest` servers; updated CurseForge test expectations to include `/v1` path prefix. Updated internal READMEs to remove mention of base URL env overrides. Verified via `make fmt`, `make test`, `make coverage-enforce`, `make build`.
+
+### 2025-12-19 23:04 - [memory]
+Actioned `code-review.md` follow-up: deduplicated the test-only host rewrite Doer helper into `testutil/host_rewrite_doer.go` and updated platform/modrinth/curseforge tests to use it; removed the duplicated helpers. Re-ran `make fmt`, `make test`, `make coverage-enforce`, and `make build` (all pass).
+
+### 2025-12-19 23:05 - [memory]
+Added implementer follow-up notes to `code-review.md` documenting the deduplication change and the re-run make gates.
+
+### 2025-12-19 23:13 - [memory]
+Per user request, closed Beads issue `mmm-63.6` with reason summarizing the implemented fix (constant base URLs, tests/docs migrated, make gates passing).

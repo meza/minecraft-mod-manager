@@ -5,11 +5,11 @@ import (
 	"encoding/json"
 	"github.com/meza/minecraft-mod-manager/internal/globalErrors"
 	"github.com/meza/minecraft-mod-manager/internal/models"
+	"github.com/meza/minecraft-mod-manager/testutil"
 	"github.com/pkg/errors"
 	"github.com/stretchr/testify/assert"
 	"net/http"
 	"net/http/httptest"
-	"os"
 	"testing"
 	"time"
 )
@@ -103,16 +103,12 @@ func TestGetFilesForProject(t *testing.T) {
   }
 }`
 
-	err := os.Setenv("CURSEFORGE_API_KEY", "mock_curseforge_api_key")
-	if err != nil {
-		t.Fatalf("Failed to set environment variable: %v", err)
-		return
-	}
+	t.Setenv("CURSEFORGE_API_KEY", "mock_curseforge_api_key")
 
 	// Create a mock server
 	mockServer := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		if r.URL.Path != "/mods/12345/files" {
-			t.Errorf("Expected path '/mods/12345/files', got '%s'", r.URL.Path)
+		if r.URL.Path != "/v1/mods/12345/files" {
+			t.Errorf("Expected path '/v1/mods/12345/files', got '%s'", r.URL.Path)
 		}
 
 		if r.Header.Get("x-api-key") != "mock_curseforge_api_key" {
@@ -125,21 +121,8 @@ func TestGetFilesForProject(t *testing.T) {
 	}))
 	defer mockServer.Close()
 
-	err1 := os.Setenv("CURSEFORGE_API_URL", mockServer.URL)
-	if err1 != nil {
-		t.Fatalf("Failed to set environment variable: %v", err1)
-		return
-	}
-
-	defer func() {
-		os.Unsetenv("CURSEFORGE_API_URL")
-		os.Unsetenv("CURSEFORGE_API_KEY")
-	}()
-
 	// Call the function
-	files, err := GetFilesForProject(context.Background(), 12345, &Client{
-		client: mockServer.Client(),
-	})
+	files, err := GetFilesForProject(context.Background(), 12345, NewClient(testutil.MustNewHostRewriteDoer(mockServer.URL, mockServer.Client())))
 
 	// Assertions
 	assert.NoError(t, err)
@@ -321,19 +304,15 @@ func TestGetFilesForProjectWithPagination(t *testing.T) {
         }
     }`
 
-	err := os.Setenv("CURSEFORGE_API_KEY", "mock_curseforge_api_key")
-	if err != nil {
-		t.Fatalf("Failed to set environment variable: %v", err)
-		return
-	}
+	t.Setenv("CURSEFORGE_API_KEY", "mock_curseforge_api_key")
 
 	// Create a mock server
 	mockServer := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		if r.URL.Path == "/mods/12345/files" && r.URL.Query().Get("index") == "0" {
+		if r.URL.Path == "/v1/mods/12345/files" && r.URL.Query().Get("index") == "0" {
 			w.Header().Set("Content-Type", "application/json")
 			w.WriteHeader(http.StatusOK)
 			w.Write([]byte(mockResponsePage1))
-		} else if r.URL.Path == "/mods/12345/files" && r.URL.Query().Get("index") == "1" {
+		} else if r.URL.Path == "/v1/mods/12345/files" && r.URL.Query().Get("index") == "1" {
 			w.Header().Set("Content-Type", "application/json")
 			w.WriteHeader(http.StatusOK)
 			w.Write([]byte(mockResponsePage2))
@@ -343,21 +322,8 @@ func TestGetFilesForProjectWithPagination(t *testing.T) {
 	}))
 	defer mockServer.Close()
 
-	err1 := os.Setenv("CURSEFORGE_API_URL", mockServer.URL)
-	if err1 != nil {
-		t.Fatalf("Failed to set environment variable: %v", err1)
-		return
-	}
-
-	defer func() {
-		os.Unsetenv("CURSEFORGE_API_URL")
-		os.Unsetenv("CURSEFORGE_API_KEY")
-	}()
-
 	// Call the function
-	files, err := GetFilesForProject(context.Background(), 12345, &Client{
-		client: mockServer.Client(),
-	})
+	files, err := GetFilesForProject(context.Background(), 12345, NewClient(testutil.MustNewHostRewriteDoer(mockServer.URL, mockServer.Client())))
 
 	// Assertions
 	assert.NoError(t, err)
@@ -448,18 +414,8 @@ func TestGetFilesForProjectWhenProjectNotFound(t *testing.T) {
 	}))
 	defer mockServer.Close()
 
-	err1 := os.Setenv("CURSEFORGE_API_URL", mockServer.URL)
-	if err1 != nil {
-		t.Fatalf("Failed to set environment variable: %v", err1)
-		return
-	}
-
-	defer func() { os.Unsetenv("CURSEFORGE_API_URL") }()
-
 	// Call the function
-	project, err := GetFilesForProject(context.Background(), 12345, &Client{
-		client: mockServer.Client(),
-	})
+	project, err := GetFilesForProject(context.Background(), 12345, NewClient(testutil.MustNewHostRewriteDoer(mockServer.URL, mockServer.Client())))
 
 	// Assertions
 	assert.Error(t, err)
@@ -479,18 +435,8 @@ func TestGetFilesForProjectWhenProjectApiUnknownStatus(t *testing.T) {
 	}))
 	defer mockServer.Close()
 
-	err1 := os.Setenv("CURSEFORGE_API_URL", mockServer.URL)
-	if err1 != nil {
-		t.Fatalf("Failed to set environment variable: %v", err1)
-		return
-	}
-
-	defer func() { os.Unsetenv("CURSEFORGE_API_URL") }()
-
 	// Call the function
-	project, err := GetFilesForProject(context.Background(), 12345, &Client{
-		client: mockServer.Client(),
-	})
+	project, err := GetFilesForProject(context.Background(), 12345, NewClient(testutil.MustNewHostRewriteDoer(mockServer.URL, mockServer.Client())))
 
 	// Assertions
 	assert.Error(t, err)
@@ -508,18 +454,8 @@ func TestGetFilesForProjectWhenProjectApiCorruptBody(t *testing.T) {
 	}))
 	defer mockServer.Close()
 
-	err1 := os.Setenv("CURSEFORGE_API_URL", mockServer.URL)
-	if err1 != nil {
-		t.Fatalf("Failed to set environment variable: %v", err1)
-		return
-	}
-
-	defer func() { os.Unsetenv("CURSEFORGE_API_URL") }()
-
 	// Call the function
-	project, err := GetFilesForProject(context.Background(), 12345, &Client{
-		client: mockServer.Client(),
-	})
+	project, err := GetFilesForProject(context.Background(), 12345, NewClient(testutil.MustNewHostRewriteDoer(mockServer.URL, mockServer.Client())))
 
 	// Assertions
 	assert.Error(t, err)
@@ -528,23 +464,8 @@ func TestGetFilesForProjectWhenProjectApiCorruptBody(t *testing.T) {
 }
 
 func TestGetFilesForProjectWhenApiCallFails(t *testing.T) {
-
-	// Create a mock server
-	mockServer := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {}))
-	defer mockServer.Close()
-
-	err1 := os.Setenv("CURSEFORGE_API_URL", "invalid_url")
-	if err1 != nil {
-		t.Fatalf("Failed to set environment variable: %v", err1)
-		return
-	}
-
-	defer func() { os.Unsetenv("CURSEFORGE_API_URL") }()
-
 	// Call the function
-	project, err := GetFilesForProject(context.Background(), 123456, &Client{
-		client: mockServer.Client(),
-	})
+	project, err := GetFilesForProject(context.Background(), 123456, NewClient(errorDoer{err: errors.New("request failed")}))
 
 	// Assertions
 	//assert.Error(t, err)
@@ -552,7 +473,7 @@ func TestGetFilesForProjectWhenApiCallFails(t *testing.T) {
 		ProjectID: "123456",
 		Platform:  models.CURSEFORGE,
 	})
-	assert.Equal(t, "Get \"invalid_url/mods/123456/files?index=0\": unsupported protocol scheme \"\"", errors.Unwrap(err).Error())
+	assert.Equal(t, "request failed", errors.Unwrap(err).Error())
 	assert.Nil(t, project)
 }
 
@@ -577,8 +498,8 @@ func TestGetFingerprintsMatchesWithOneExactMatch(t *testing.T) {
 	}`
 
 	mockServer := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		if r.URL.Path != "/fingerprints/432" {
-			t.Errorf("Expected path '/fingerprints/432', got '%s'", r.URL.Path)
+		if r.URL.Path != "/v1/fingerprints/432" {
+			t.Errorf("Expected path '/v1/fingerprints/432', got '%s'", r.URL.Path)
 		}
 
 		if r.Header.Get("x-api-key") != "mock_curseforge_api_key" {
@@ -590,15 +511,8 @@ func TestGetFingerprintsMatchesWithOneExactMatch(t *testing.T) {
 	}))
 	defer mockServer.Close()
 
-	err := os.Setenv("CURSEFORGE_API_URL", mockServer.URL)
-	assert.NoError(t, err)
-	defer os.Unsetenv("CURSEFORGE_API_URL")
-
-	err = os.Setenv("CURSEFORGE_API_KEY", "mock_curseforge_api_key")
-	assert.NoError(t, err)
-	defer os.Unsetenv("CURSEFORGE_API_KEY")
-
-	client := &Client{client: mockServer.Client()}
+	t.Setenv("CURSEFORGE_API_KEY", "mock_curseforge_api_key")
+	client := NewClient(testutil.MustNewHostRewriteDoer(mockServer.URL, mockServer.Client()))
 	fingerprints := []int{1234}
 
 	result, err := GetFingerprintsMatches(context.Background(), fingerprints, client)
@@ -649,11 +563,7 @@ func TestGetFingerprintsMatchesWithMultipleExactMatches(t *testing.T) {
 	}))
 	defer mockServer.Close()
 
-	err := os.Setenv("CURSEFORGE_API_URL", mockServer.URL)
-	assert.NoError(t, err)
-	defer os.Unsetenv("CURSEFORGE_API_URL")
-
-	client := &Client{client: mockServer.Client()}
+	client := NewClient(testutil.MustNewHostRewriteDoer(mockServer.URL, mockServer.Client()))
 	fingerprints := []int{123456, 1234567}
 
 	result, err := GetFingerprintsMatches(context.Background(), fingerprints, client)
@@ -681,11 +591,7 @@ func TestGetFingerprintsMatchesWithNoExactMatches(t *testing.T) {
 	}))
 	defer mockServer.Close()
 
-	err := os.Setenv("CURSEFORGE_API_URL", mockServer.URL)
-	assert.NoError(t, err)
-	defer os.Unsetenv("CURSEFORGE_API_URL")
-
-	client := &Client{client: mockServer.Client()}
+	client := NewClient(testutil.MustNewHostRewriteDoer(mockServer.URL, mockServer.Client()))
 	fingerprints := []int{0, 1}
 
 	result, err := GetFingerprintsMatches(context.Background(), fingerprints, client)
@@ -727,11 +633,7 @@ func TestGetFingerprintsMatches_AllowsObjectFingerprintFields(t *testing.T) {
 	}))
 	defer mockServer.Close()
 
-	err := os.Setenv("CURSEFORGE_API_URL", mockServer.URL)
-	assert.NoError(t, err)
-	defer os.Unsetenv("CURSEFORGE_API_URL")
-
-	client := &Client{client: mockServer.Client()}
+	client := NewClient(testutil.MustNewHostRewriteDoer(mockServer.URL, mockServer.Client()))
 	fingerprints := []int{123456}
 
 	result, err := GetFingerprintsMatches(context.Background(), fingerprints, client)
@@ -796,11 +698,7 @@ func TestGetFingerprintsMatches_UnmatchedFingerprintsMapIsTolerated(t *testing.T
 	}))
 	defer mockServer.Close()
 
-	err := os.Setenv("CURSEFORGE_API_URL", mockServer.URL)
-	assert.NoError(t, err)
-	defer os.Unsetenv("CURSEFORGE_API_URL")
-
-	client := &Client{client: mockServer.Client()}
+	client := NewClient(testutil.MustNewHostRewriteDoer(mockServer.URL, mockServer.Client()))
 	fingerprints := []int{123456}
 
 	result, err := GetFingerprintsMatches(context.Background(), fingerprints, client)
@@ -811,19 +709,11 @@ func TestGetFingerprintsMatches_UnmatchedFingerprintsMapIsTolerated(t *testing.T
 }
 
 func TestGetFingerprintsMatchesWithApiFailure(t *testing.T) {
-
-	mockServer := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {}))
-	defer mockServer.Close()
-
-	err := os.Setenv("CURSEFORGE_API_URL", "invalid_url")
-	assert.NoError(t, err)
-	defer os.Unsetenv("CURSEFORGE_API_URL")
-
-	client := &Client{client: mockServer.Client()}
 	fingerprints := []int{0, 1}
 
+	client := NewClient(errorDoer{err: errors.New("request failed")})
 	result, err := GetFingerprintsMatches(context.Background(), fingerprints, client)
-	assert.ErrorContains(t, err, "Post \"invalid_url/fingerprints/432\": unsupported protocol scheme \"\"")
+	assert.ErrorContains(t, err, "request failed")
 	assert.Nil(t, result)
 }
 
@@ -834,14 +724,9 @@ func TestGetFingerprintsMatchesWithNotFound(t *testing.T) {
 		w.WriteHeader(http.StatusNotFound)
 	}))
 	defer mockServer.Close()
-
-	err := os.Setenv("CURSEFORGE_API_URL", mockServer.URL)
-	assert.NoError(t, err)
-	defer os.Unsetenv("CURSEFORGE_API_URL")
-
-	client := &Client{client: mockServer.Client()}
 	fingerprints := []int{0, 1}
 
+	client := NewClient(testutil.MustNewHostRewriteDoer(mockServer.URL, mockServer.Client()))
 	result, err := GetFingerprintsMatches(context.Background(), fingerprints, client)
 	assert.ErrorContains(t, err, "unexpected status code: 404")
 	assert.Nil(t, result)
@@ -855,14 +740,9 @@ func TestGetFingerprintsMatchesWithUnexpectedStatusReturnsApiError(t *testing.T)
 		w.Write([]byte(`{"error":"forbidden"}`))
 	}))
 	defer mockServer.Close()
-
-	err := os.Setenv("CURSEFORGE_API_URL", mockServer.URL)
-	assert.NoError(t, err)
-	defer os.Unsetenv("CURSEFORGE_API_URL")
-
-	client := &Client{client: mockServer.Client()}
 	fingerprints := []int{0, 1}
 
+	client := NewClient(testutil.MustNewHostRewriteDoer(mockServer.URL, mockServer.Client()))
 	result, err := GetFingerprintsMatches(context.Background(), fingerprints, client)
 	assert.ErrorContains(t, err, "unexpected status code: 403")
 	assert.Nil(t, result)
@@ -883,14 +763,9 @@ func TestGetFingerprintsMatches_UnmatchedFingerprintsUnsupportedTypeErrors(t *te
 		w.Write([]byte(mockResponse))
 	}))
 	defer mockServer.Close()
-
-	err := os.Setenv("CURSEFORGE_API_URL", mockServer.URL)
-	assert.NoError(t, err)
-	defer os.Unsetenv("CURSEFORGE_API_URL")
-
-	client := &Client{client: mockServer.Client()}
 	fingerprints := []int{0, 1}
 
+	client := NewClient(testutil.MustNewHostRewriteDoer(mockServer.URL, mockServer.Client()))
 	result, err := GetFingerprintsMatches(context.Background(), fingerprints, client)
 	assert.Error(t, err)
 	assert.ErrorContains(t, err, "failed to decode unmatchedFingerprints")
@@ -905,14 +780,9 @@ func TestGetFingerprintsMatchesWithCorruptedBody(t *testing.T) {
 		w.Write([]byte(`{`))
 	}))
 	defer mockServer.Close()
-
-	err := os.Setenv("CURSEFORGE_API_URL", mockServer.URL)
-	assert.NoError(t, err)
-	defer os.Unsetenv("CURSEFORGE_API_URL")
-
-	client := &Client{client: mockServer.Client()}
 	fingerprints := []int{0, 1}
 
+	client := NewClient(testutil.MustNewHostRewriteDoer(mockServer.URL, mockServer.Client()))
 	result, err := GetFingerprintsMatches(context.Background(), fingerprints, client)
 	assert.ErrorContains(t, err, "unexpected EOF")
 	assert.Nil(t, result)

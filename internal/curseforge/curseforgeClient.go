@@ -2,7 +2,6 @@ package curseforge
 
 import (
 	"net/http"
-	"os"
 
 	"github.com/meza/minecraft-mod-manager/internal/environment"
 	"github.com/meza/minecraft-mod-manager/internal/httpClient"
@@ -10,6 +9,8 @@ import (
 
 	"go.opentelemetry.io/otel/attribute"
 )
+
+const baseURL = "https://api.curseforge.com/v1"
 
 type Client struct {
 	client httpClient.Doer
@@ -35,10 +36,5 @@ func (curseforgeClient *Client) Do(request *http.Request) (*http.Response, error
 }
 
 func GetBaseUrl() string {
-	url, hasUrl := os.LookupEnv("CURSEFORGE_API_URL")
-	if hasUrl {
-		return url
-	}
-
-	return "https://api.curseforge.com/v1"
+	return baseURL
 }

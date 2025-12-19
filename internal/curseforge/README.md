@@ -21,7 +21,7 @@ files, err := curseforge.GetFilesForProject(1234, client)
 - `NewClient(doer httpClient.Doer) *Client` (adds required headers)
 - `GetBaseUrl() string`
 
-`GetBaseUrl` can be overridden in tests using `CURSEFORGE_API_URL`. Default is `https://api.curseforge.com/v1`.
+`GetBaseUrl` returns `https://api.curseforge.com/v1`.
 
 ### Projects
 
@@ -66,4 +66,3 @@ Run from the repo root:
 ```bash
 make test
 ```
-

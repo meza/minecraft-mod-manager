@@ -4,15 +4,23 @@ import (
 	"context"
 	"github.com/meza/minecraft-mod-manager/internal/globalErrors"
 	"github.com/meza/minecraft-mod-manager/internal/models"
+	"github.com/meza/minecraft-mod-manager/testutil"
 	"github.com/pkg/errors"
 	"net/http"
 	"net/http/httptest"
-	"os"
 	"testing"
 	"time"
 
 	"github.com/stretchr/testify/assert"
 )
+
+type errorDoer struct {
+	err error
+}
+
+func (d errorDoer) Do(_ *http.Request) (*http.Response, error) {
+	return nil, d.err
+}
 
 func TestGetVersionsForProject_SingleVersion(t *testing.T) {
 	mockResponse := `[{
@@ -67,14 +75,8 @@ func TestGetVersionsForProject_SingleVersion(t *testing.T) {
 	}))
 	defer mockServer.Close()
 
-	_ = os.Setenv("MODRINTH_API_KEY", "test-api-key")
-	err1 := os.Setenv("MODRINTH_API_URL", mockServer.URL)
-	if err1 != nil {
-		t.Fatalf("Failed to set environment variable: %v", err1)
-		return
-	}
-
-	client := &Client{client: mockServer.Client()}
+	t.Setenv("MODRINTH_API_KEY", "test-api-key")
+	client := NewClient(testutil.MustNewHostRewriteDoer(mockServer.URL, mockServer.Client()))
 	lookup := &VersionLookup{
 		ProjectId:    "AABBCCDD",
 		Loaders:      []models.Loader{"fabric", "forge"},
@@ -185,13 +187,7 @@ func TestGetVersionsForProject_MultipleVersions(t *testing.T) {
 	}))
 	defer mockServer.Close()
 
-	err1 := os.Setenv("MODRINTH_API_URL", mockServer.URL)
-	if err1 != nil {
-		t.Fatalf("Failed to set environment variable: %v", err1)
-		return
-	}
-
-	client := &Client{client: mockServer.Client()}
+	client := NewClient(testutil.MustNewHostRewriteDoer(mockServer.URL, mockServer.Client()))
 	lookup := &VersionLookup{
 		ProjectId:    "AABBCCDD",
 		Loaders:      []models.Loader{models.FABRIC, models.FORGE},
@@ -229,13 +225,7 @@ func TestGetVersionsForProject_NoVersions(t *testing.T) {
 	}))
 	defer mockServer.Close()
 
-	err1 := os.Setenv("MODRINTH_API_URL", mockServer.URL)
-	if err1 != nil {
-		t.Fatalf("Failed to set environment variable: %v", err1)
-		return
-	}
-
-	client := &Client{client: mockServer.Client()}
+	client := NewClient(testutil.MustNewHostRewriteDoer(mockServer.URL, mockServer.Client()))
 	lookup := &VersionLookup{
 		ProjectId:    "AABBCCDD",
 		Loaders:      []models.Loader{models.FABRIC, models.FORGE},
@@ -262,23 +252,13 @@ func TestGetVersionsForProjectWhenProjectNotFound(t *testing.T) {
 	}))
 	defer mockServer.Close()
 
-	err1 := os.Setenv("MODRINTH_API_URL", mockServer.URL)
-	if err1 != nil {
-		t.Fatalf("Failed to set environment variable: %v", err1)
-		return
-	}
-
-	defer func() { os.Unsetenv("MODRINTH_API_URL") }()
-
 	// Call the function
 	lookup := &VersionLookup{
 		ProjectId:    "AABBCCD1",
 		Loaders:      []models.Loader{models.FORGE},
 		GameVersions: []string{"1.19"},
 	}
-	project, err := GetVersionsForProject(context.Background(), lookup, &Client{
-		client: mockServer.Client(),
-	})
+	project, err := GetVersionsForProject(context.Background(), lookup, NewClient(testutil.MustNewHostRewriteDoer(mockServer.URL, mockServer.Client())))
 
 	// Assertions
 	assert.Error(t, err)
@@ -299,22 +279,12 @@ func TestGetVersionsForProjectWhenProjectApiUnknownStatus(t *testing.T) {
 	}))
 	defer mockServer.Close()
 
-	err1 := os.Setenv("MODRINTH_API_URL", mockServer.URL)
-	if err1 != nil {
-		t.Fatalf("Failed to set environment variable: %v", err1)
-		return
-	}
-
-	defer func() { os.Unsetenv("MODRINTH_API_URL") }()
-
 	lookup := &VersionLookup{
 		ProjectId:    "AABBCCD2",
 		Loaders:      []models.Loader{models.FABRIC},
 		GameVersions: []string{"1.18.1"},
 	}
-	project, err := GetVersionsForProject(context.Background(), lookup, &Client{
-		client: mockServer.Client(),
-	})
+	project, err := GetVersionsForProject(context.Background(), lookup, NewClient(testutil.MustNewHostRewriteDoer(mockServer.URL, mockServer.Client())))
 
 	// Assertions
 	assert.Error(t, err)
@@ -328,22 +298,12 @@ func TestGetVersionsForProjectWhenApiCallFails(t *testing.T) {
 	mockServer := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {}))
 	defer mockServer.Close()
 
-	err1 := os.Setenv("MODRINTH_API_URL", "invalid_url")
-	if err1 != nil {
-		t.Fatalf("Failed to set environment variable: %v", err1)
-		return
-	}
-
-	defer func() { os.Unsetenv("MODRINTH_API_URL") }()
-
 	lookup := &VersionLookup{
 		ProjectId:    "AABBCCD3",
 		Loaders:      []models.Loader{models.QUILT},
 		GameVersions: []string{"1.21.1"},
 	}
-	project, err := GetVersionsForProject(context.Background(), lookup, &Client{
-		client: mockServer.Client(),
-	})
+	project, err := GetVersionsForProject(context.Background(), lookup, NewClient(errorDoer{err: errors.New("request failed")}))
 
 	// Assertions
 	//assert.Error(t, err)
@@ -351,7 +311,7 @@ func TestGetVersionsForProjectWhenApiCallFails(t *testing.T) {
 		ProjectID: "AABBCCD3",
 		Platform:  models.MODRINTH,
 	})
-	assert.Equal(t, "Get \"invalid_url/v2/project/AABBCCD3/version?game_versions=%5B%221.21.1%22%5D&loaders=%5B%22quilt%22%5D\": unsupported protocol scheme \"\"", errors.Unwrap(err).Error())
+	assert.Equal(t, "request failed", errors.Unwrap(err).Error())
 	assert.Nil(t, project)
 }
 
@@ -407,14 +367,8 @@ func TestGetVersionForHash_SingleVersion(t *testing.T) {
 	}))
 	defer mockServer.Close()
 
-	_ = os.Setenv("MODRINTH_API_KEY", "test-api-key")
-	err1 := os.Setenv("MODRINTH_API_URL", mockServer.URL)
-	if err1 != nil {
-		t.Fatalf("Failed to set environment variable: %v", err1)
-		return
-	}
-
-	client := &Client{client: mockServer.Client()}
+	t.Setenv("MODRINTH_API_KEY", "test-api-key")
+	client := NewClient(testutil.MustNewHostRewriteDoer(mockServer.URL, mockServer.Client()))
 	lookup := &VersionHashLookup{
 		algorithm: Sha1,
 		hash:      "c84dd4b3580c02b79958a0590afd5783d80ef504",
@@ -462,22 +416,12 @@ func TestGetVersionForHashWhenProjectNotFound(t *testing.T) {
 	}))
 	defer mockServer.Close()
 
-	err1 := os.Setenv("MODRINTH_API_URL", mockServer.URL)
-	if err1 != nil {
-		t.Fatalf("Failed to set environment variable: %v", err1)
-		return
-	}
-
-	defer func() { os.Unsetenv("MODRINTH_API_URL") }()
-
 	// Call the function
 	lookup := &VersionHashLookup{
 		algorithm: Sha1,
 		hash:      "c84dd4b3580c02b79958a0590afd5783d80ef504",
 	}
-	project, err := GetVersionForHash(context.Background(), lookup, &Client{
-		client: mockServer.Client(),
-	})
+	project, err := GetVersionForHash(context.Background(), lookup, NewClient(testutil.MustNewHostRewriteDoer(mockServer.URL, mockServer.Client())))
 
 	// Assertions
 	assert.Error(t, err)
@@ -497,21 +441,11 @@ func TestGetVersionForHashWhenProjectApiUnknownStatus(t *testing.T) {
 	}))
 	defer mockServer.Close()
 
-	err1 := os.Setenv("MODRINTH_API_URL", mockServer.URL)
-	if err1 != nil {
-		t.Fatalf("Failed to set environment variable: %v", err1)
-		return
-	}
-
-	defer func() { os.Unsetenv("MODRINTH_API_URL") }()
-
 	lookup := &VersionHashLookup{
 		algorithm: Sha1,
 		hash:      "c84dd4b3580c02b79958a0590afd5783d80ef504",
 	}
-	project, err := GetVersionForHash(context.Background(), lookup, &Client{
-		client: mockServer.Client(),
-	})
+	project, err := GetVersionForHash(context.Background(), lookup, NewClient(testutil.MustNewHostRewriteDoer(mockServer.URL, mockServer.Client())))
 
 	// Assertions
 	assert.Error(t, err)
@@ -525,27 +459,17 @@ func TestGetVersionForHashWhenApiCallFails(t *testing.T) {
 	mockServer := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {}))
 	defer mockServer.Close()
 
-	err1 := os.Setenv("MODRINTH_API_URL", "invalid_url")
-	if err1 != nil {
-		t.Fatalf("Failed to set environment variable: %v", err1)
-		return
-	}
-
-	defer func() { os.Unsetenv("MODRINTH_API_URL") }()
-
 	lookup := &VersionHashLookup{
 		algorithm: Sha1,
 		hash:      "c84dd4b3580c02b79958a0590afd5783d80ef504",
 	}
-	project, err := GetVersionForHash(context.Background(), lookup, &Client{
-		client: mockServer.Client(),
-	})
+	project, err := GetVersionForHash(context.Background(), lookup, NewClient(errorDoer{err: errors.New("request failed")}))
 
 	// Assertions
 	//assert.Error(t, err)
 	assert.ErrorIs(t, err, &VersionApiError{
 		Lookup: *lookup,
 	})
-	assert.Equal(t, "Get \"invalid_url/v2/version_file/c84dd4b3580c02b79958a0590afd5783d80ef504?algorithm=sha1\": unsupported protocol scheme \"\"", errors.Unwrap(err).Error())
+	assert.Equal(t, "request failed", errors.Unwrap(err).Error())
 	assert.Nil(t, project)
 }

@@ -31,7 +31,7 @@ versions, err := modrinth.GetVersionsForProject(&modrinth.VersionLookup{
 - `NewClient(doer httpClient.Doer) *Client` (adds required headers)
 - `GetBaseUrl() string`
 
-`GetBaseUrl` can be overridden in tests using `MODRINTH_API_URL`. Default is `https://api.modrinth.com`.
+`GetBaseUrl` returns `https://api.modrinth.com`.
 
 ### Projects
 

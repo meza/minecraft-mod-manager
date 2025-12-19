@@ -59,15 +59,10 @@ func TestClient_Do(t *testing.T) {
 	}))
 }
 
-func TestBaseURLResolving(t *testing.T) {
-	t.Setenv("MODRINTH_API_URL", "")
+func TestBaseURLIsConstant(t *testing.T) {
 	assert.Equal(t, "https://api.modrinth.com", GetBaseUrl())
-
 	t.Setenv("MODRINTH_API_URL", "https://example.com/v2")
-	assert.Equal(t, "https://example.com", GetBaseUrl())
-
-	t.Setenv("MODRINTH_API_URL", "https://example.com/api")
-	assert.Equal(t, "https://example.com/api", GetBaseUrl())
+	assert.Equal(t, "https://api.modrinth.com", GetBaseUrl())
 }
 
 func TestNewClient(t *testing.T) {
