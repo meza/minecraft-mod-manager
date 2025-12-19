@@ -27,7 +27,7 @@ require (
 	golang.org/x/sync v0.17.0
 	golang.org/x/term v0.38.0
 	golang.org/x/text v0.28.0
-	golang.org/x/time v0.13.0
+	golang.org/x/time v0.14.0
 	shanhu.io/g v0.0.0-20240812005415-1ae7504cde0e
 )
 
