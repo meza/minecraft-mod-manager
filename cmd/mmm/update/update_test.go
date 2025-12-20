@@ -88,7 +88,7 @@ func TestDownloadAndSwapInPlaceLogsBackupDeletionFailureAtDebugLevel(t *testing.
 		},
 	}
 
-	assert.NoError(t, downloadAndSwap(context.Background(), deps, installedPath, installedPath, "https://example.invalid/same.jar"))
+	assert.NoError(t, downloadAndSwap(context.Background(), deps, installedPath, installedPath, "https://example.invalid/same.jar", sha1Hex("new")))
 	assert.Contains(t, out.String(), "cmd.update.debug.backup_cleanup_failed")
 }
 
@@ -422,7 +422,7 @@ func TestRunUpdateFailsWhenLockedFileIsMissing(t *testing.T) {
 		Name:        "Remote Name",
 		FileName:    "new.jar",
 		ReleaseDate: "2024-01-02T00:00:00Z",
-		Hash:        "newhash",
+		Hash:        sha1Hex("new"),
 		DownloadURL: "https://example.invalid/new.jar",
 	}
 
@@ -494,7 +494,7 @@ func TestRunUpdateFailsWhenInstalledTimestampIsInvalid(t *testing.T) {
 		Name:        "Remote Name",
 		FileName:    "new.jar",
 		ReleaseDate: "2024-01-02T00:00:00Z",
-		Hash:        "newhash",
+		Hash:        sha1Hex("new"),
 		DownloadURL: "https://example.invalid/new.jar",
 	}
 
@@ -567,7 +567,7 @@ func TestRunUpdateDownloadsAndSwapsWhenNewerReleaseExists(t *testing.T) {
 		Name:        "Remote Name",
 		FileName:    "new.jar",
 		ReleaseDate: "2024-01-02T00:00:00Z",
-		Hash:        "newhash",
+		Hash:        sha1Hex("new"),
 		DownloadURL: "https://example.invalid/new.jar",
 	}
 
@@ -601,7 +601,7 @@ func TestRunUpdateDownloadsAndSwapsWhenNewerReleaseExists(t *testing.T) {
 	updatedLock, lockErr := config.ReadLock(context.Background(), fs, meta)
 	assert.NoError(t, lockErr)
 	assert.Equal(t, "new.jar", updatedLock[0].FileName)
-	assert.Equal(t, "newhash", updatedLock[0].Hash)
+	assert.Equal(t, sha1Hex("new"), updatedLock[0].Hash)
 	assert.Equal(t, "2024-01-02T00:00:00Z", updatedLock[0].ReleasedOn)
 	assert.Equal(t, "Remote Name", updatedLock[0].Name)
 
@@ -660,7 +660,7 @@ func TestRunUpdateKeepsPreviousFileAndLockWhenDownloadFails(t *testing.T) {
 		Name:        "Remote Name",
 		FileName:    "new.jar",
 		ReleaseDate: "2024-01-02T00:00:00Z",
-		Hash:        "newhash",
+		Hash:        sha1Hex("new"),
 		DownloadURL: "https://example.invalid/new.jar",
 	}
 
@@ -697,6 +697,227 @@ func TestRunUpdateKeepsPreviousFileAndLockWhenDownloadFails(t *testing.T) {
 	assert.Equal(t, "oldhash", updatedLock[0].Hash)
 }
 
+func TestRunUpdateReportsMissingHash(t *testing.T) {
+	t.Setenv("MMM_TEST", "true")
+
+	fs := afero.NewMemMapFs()
+	meta := config.NewMetadata(filepath.FromSlash("/cfg/modlist.json"))
+
+	cfg := models.ModsJson{
+		Loader:                     models.FABRIC,
+		GameVersion:                "1.21.1",
+		DefaultAllowedReleaseTypes: []models.ReleaseType{models.Release},
+		ModsFolder:                 "mods",
+		Mods: []models.Mod{
+			{ID: "proj-1", Name: "Configured", Type: models.MODRINTH},
+		},
+	}
+
+	lock := []models.ModInstall{
+		{
+			Type:        models.MODRINTH,
+			Id:          "proj-1",
+			Name:        "Configured",
+			FileName:    "old.jar",
+			ReleasedOn:  "2024-01-01T00:00:00Z",
+			Hash:        "oldhash",
+			DownloadUrl: "https://example.invalid/old.jar",
+		},
+	}
+
+	assert.NoError(t, fs.MkdirAll(meta.Dir(), 0755))
+	assert.NoError(t, fs.MkdirAll(meta.ModsFolderPath(cfg), 0755))
+	assert.NoError(t, config.WriteConfig(context.Background(), fs, meta, cfg))
+	assert.NoError(t, config.WriteLock(context.Background(), fs, meta, lock))
+	assert.NoError(t, afero.WriteFile(fs, filepath.Join(meta.ModsFolderPath(cfg), "old.jar"), []byte("old"), 0644))
+
+	out := &bytes.Buffer{}
+	errOut := &bytes.Buffer{}
+	cmd := &cobra.Command{}
+	cmd.SetIn(&bytes.Buffer{})
+	cmd.SetOut(out)
+	cmd.SetErr(errOut)
+
+	remote := platform.RemoteMod{
+		Name:        "Remote Name",
+		FileName:    "new.jar",
+		ReleaseDate: "2024-01-02T00:00:00Z",
+		Hash:        "",
+		DownloadURL: "https://example.invalid/new.jar",
+	}
+
+	updated, failed, err := runUpdate(context.Background(), cmd, updateOptions{ConfigPath: meta.ConfigPath}, updateDeps{
+		fs:     fs,
+		logger: logger.New(out, errOut, false, false),
+		install: func(context.Context, *cobra.Command, string, bool, bool) (install.Result, error) {
+			return install.Result{}, nil
+		},
+		fetchMod: func(context.Context, models.Platform, string, platform.FetchOptions, platform.Clients) (platform.RemoteMod, error) {
+			return remote, nil
+		},
+		downloader: func(context.Context, string, string, httpClient.Doer, httpClient.Sender, ...afero.Fs) error {
+			t.Fatal("downloader should not be called when hash is missing")
+			return nil
+		},
+		clients:   platform.Clients{Modrinth: noopDoer{}},
+		telemetry: func(telemetry.CommandTelemetry) {},
+	})
+
+	assert.ErrorIs(t, err, errUpdateFailures)
+	assert.Equal(t, 0, updated)
+	assert.Equal(t, 1, failed)
+	assert.Contains(t, errOut.String(), "cmd.update.error.missing_hash_remote")
+}
+
+func TestRunUpdateReportsMissingInstalledHash(t *testing.T) {
+	t.Setenv("MMM_TEST", "true")
+
+	fs := afero.NewMemMapFs()
+	meta := config.NewMetadata(filepath.FromSlash("/cfg/modlist.json"))
+
+	cfg := models.ModsJson{
+		Loader:                     models.FABRIC,
+		GameVersion:                "1.21.1",
+		DefaultAllowedReleaseTypes: []models.ReleaseType{models.Release},
+		ModsFolder:                 "mods",
+		Mods: []models.Mod{
+			{ID: "proj-1", Name: "Configured", Type: models.MODRINTH},
+		},
+	}
+
+	lock := []models.ModInstall{
+		{
+			Type:        models.MODRINTH,
+			Id:          "proj-1",
+			Name:        "Configured",
+			FileName:    "old.jar",
+			ReleasedOn:  "2024-01-01T00:00:00Z",
+			Hash:        "",
+			DownloadUrl: "https://example.invalid/old.jar",
+		},
+	}
+
+	assert.NoError(t, fs.MkdirAll(meta.Dir(), 0755))
+	assert.NoError(t, fs.MkdirAll(meta.ModsFolderPath(cfg), 0755))
+	assert.NoError(t, config.WriteConfig(context.Background(), fs, meta, cfg))
+	assert.NoError(t, config.WriteLock(context.Background(), fs, meta, lock))
+	assert.NoError(t, afero.WriteFile(fs, filepath.Join(meta.ModsFolderPath(cfg), "old.jar"), []byte("old"), 0644))
+
+	out := &bytes.Buffer{}
+	errOut := &bytes.Buffer{}
+	cmd := &cobra.Command{}
+	cmd.SetIn(&bytes.Buffer{})
+	cmd.SetOut(out)
+	cmd.SetErr(errOut)
+
+	remote := platform.RemoteMod{
+		Name:        "Remote Name",
+		FileName:    "new.jar",
+		ReleaseDate: "2024-01-02T00:00:00Z",
+		Hash:        sha1Hex("new"),
+		DownloadURL: "https://example.invalid/new.jar",
+	}
+
+	updated, failed, err := runUpdate(context.Background(), cmd, updateOptions{ConfigPath: meta.ConfigPath}, updateDeps{
+		fs:     fs,
+		logger: logger.New(out, errOut, false, false),
+		install: func(context.Context, *cobra.Command, string, bool, bool) (install.Result, error) {
+			return install.Result{}, nil
+		},
+		fetchMod: func(context.Context, models.Platform, string, platform.FetchOptions, platform.Clients) (platform.RemoteMod, error) {
+			return remote, nil
+		},
+		downloader: func(context.Context, string, string, httpClient.Doer, httpClient.Sender, ...afero.Fs) error {
+			t.Fatal("downloader should not be called when installed hash is missing")
+			return nil
+		},
+		clients:   platform.Clients{Modrinth: noopDoer{}},
+		telemetry: func(telemetry.CommandTelemetry) {},
+	})
+
+	assert.ErrorIs(t, err, errUpdateFailures)
+	assert.Equal(t, 0, updated)
+	assert.Equal(t, 1, failed)
+	assert.Contains(t, errOut.String(), "cmd.update.error.missing_hash_lock")
+}
+
+func TestRunUpdateReportsHashMismatch(t *testing.T) {
+	t.Setenv("MMM_TEST", "true")
+
+	fs := afero.NewMemMapFs()
+	meta := config.NewMetadata(filepath.FromSlash("/cfg/modlist.json"))
+
+	cfg := models.ModsJson{
+		Loader:                     models.FABRIC,
+		GameVersion:                "1.21.1",
+		DefaultAllowedReleaseTypes: []models.ReleaseType{models.Release},
+		ModsFolder:                 "mods",
+		Mods: []models.Mod{
+			{ID: "proj-1", Name: "Configured", Type: models.MODRINTH},
+		},
+	}
+
+	lock := []models.ModInstall{
+		{
+			Type:        models.MODRINTH,
+			Id:          "proj-1",
+			Name:        "Configured",
+			FileName:    "old.jar",
+			ReleasedOn:  "2024-01-01T00:00:00Z",
+			Hash:        "oldhash",
+			DownloadUrl: "https://example.invalid/old.jar",
+		},
+	}
+
+	assert.NoError(t, fs.MkdirAll(meta.Dir(), 0755))
+	assert.NoError(t, fs.MkdirAll(meta.ModsFolderPath(cfg), 0755))
+	assert.NoError(t, config.WriteConfig(context.Background(), fs, meta, cfg))
+	assert.NoError(t, config.WriteLock(context.Background(), fs, meta, lock))
+	oldPath := filepath.Join(meta.ModsFolderPath(cfg), "old.jar")
+	assert.NoError(t, afero.WriteFile(fs, oldPath, []byte("old"), 0644))
+
+	out := &bytes.Buffer{}
+	errOut := &bytes.Buffer{}
+	cmd := &cobra.Command{}
+	cmd.SetIn(&bytes.Buffer{})
+	cmd.SetOut(out)
+	cmd.SetErr(errOut)
+
+	remote := platform.RemoteMod{
+		Name:        "Remote Name",
+		FileName:    "new.jar",
+		ReleaseDate: "2024-01-02T00:00:00Z",
+		Hash:        sha1Hex("expected"),
+		DownloadURL: "https://example.invalid/new.jar",
+	}
+
+	updated, failed, err := runUpdate(context.Background(), cmd, updateOptions{ConfigPath: meta.ConfigPath}, updateDeps{
+		fs:     fs,
+		logger: logger.New(out, errOut, false, false),
+		install: func(context.Context, *cobra.Command, string, bool, bool) (install.Result, error) {
+			return install.Result{}, nil
+		},
+		fetchMod: func(context.Context, models.Platform, string, platform.FetchOptions, platform.Clients) (platform.RemoteMod, error) {
+			return remote, nil
+		},
+		downloader: func(_ context.Context, _ string, destination string, _ httpClient.Doer, _ httpClient.Sender, filesystems ...afero.Fs) error {
+			return afero.WriteFile(filesystems[0], destination, []byte("actual"), 0644)
+		},
+		clients:   platform.Clients{Modrinth: noopDoer{}},
+		telemetry: func(telemetry.CommandTelemetry) {},
+	})
+
+	assert.ErrorIs(t, err, errUpdateFailures)
+	assert.Equal(t, 0, updated)
+	assert.Equal(t, 1, failed)
+	assert.Contains(t, errOut.String(), "cmd.update.error.hash_mismatch")
+
+	exists, _ := afero.Exists(fs, oldPath)
+	assert.True(t, exists)
+	exists, _ = afero.Exists(fs, filepath.Join(meta.ModsFolderPath(cfg), "new.jar"))
+	assert.False(t, exists)
+}
+
 func TestDownloadAndSwapReplacesInPlaceWithoutRenamingOverExistingFile(t *testing.T) {
 	t.Setenv("MMM_TEST", "true")
 
@@ -726,7 +947,7 @@ func TestDownloadAndSwapReplacesInPlaceWithoutRenamingOverExistingFile(t *testin
 		},
 	}
 
-	assert.NoError(t, downloadAndSwap(context.Background(), deps, installedPath, installedPath, "https://example.invalid/same.jar"))
+	assert.NoError(t, downloadAndSwap(context.Background(), deps, installedPath, installedPath, "https://example.invalid/same.jar", sha1Hex("new")))
 
 	content, err := afero.ReadFile(fs, installedPath)
 	assert.NoError(t, err)
@@ -766,7 +987,7 @@ func TestDownloadAndSwapInPlaceDoesNotFailWhenBackupDeletionFails(t *testing.T) 
 		},
 	}
 
-	assert.NoError(t, downloadAndSwap(context.Background(), deps, installedPath, installedPath, "https://example.invalid/same.jar"))
+	assert.NoError(t, downloadAndSwap(context.Background(), deps, installedPath, installedPath, "https://example.invalid/same.jar", sha1Hex("new")))
 
 	content, err := afero.ReadFile(fs, installedPath)
 	assert.NoError(t, err)
@@ -949,7 +1170,7 @@ func TestRunUpdateReturnsErrorOnRemoteTimestampInvalid(t *testing.T) {
 		Name:        "Configured",
 		FileName:    "same.jar",
 		ReleaseDate: "not-a-date",
-		Hash:        "newhash",
+		Hash:        sha1Hex("new"),
 		DownloadURL: "https://example.invalid/same.jar",
 	}
 
@@ -1019,7 +1240,7 @@ func TestRunUpdateReturnsErrorWhenLockWriteFails(t *testing.T) {
 		Name:        "Configured",
 		FileName:    "same.jar",
 		ReleaseDate: "2024-01-02T00:00:00Z",
-		Hash:        "newhash",
+		Hash:        sha1Hex("new"),
 		DownloadURL: "https://example.invalid/same.jar",
 	}
 
@@ -1089,7 +1310,7 @@ func TestRunUpdateReturnsErrorWhenConfigWriteFails(t *testing.T) {
 		Name:        "Configured",
 		FileName:    "same.jar",
 		ReleaseDate: "2024-01-02T00:00:00Z",
-		Hash:        "newhash",
+		Hash:        sha1Hex("new"),
 		DownloadURL: "https://example.invalid/same.jar",
 	}
 
@@ -1192,7 +1413,7 @@ func TestProcessModReturnsErrorOnExistsFailure(t *testing.T) {
 				Name:        "Configured",
 				FileName:    "mod.jar",
 				ReleaseDate: "2024-01-02T00:00:00Z",
-				Hash:        "newhash",
+				Hash:        sha1Hex("new"),
 				DownloadURL: "https://example.invalid/mod.jar",
 			}, nil
 		},

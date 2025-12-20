@@ -731,3 +731,18 @@ Resumed mmm-63.59 coverage push. Loaded project docs and remote agent guidance, 
 ### [2025-12-20 15:49] - [memory]
 - No new code-review.md findings; noted approval status and added implementer follow-up note.
  - Closed mmm-63.12 via bd after approval.
+
+### [2025-12-20 15:52] - [memory]
+- Starting mmm-63.13 alignment. Need to review requirements, specs, and current downloader/modinstall/update behavior for status checks, hashing, and update swap to confirm approach before implementation.
+
+### [2025-12-20 15:53] - [memory]
+- Marked mmm-63.13 in progress in bd.
+
+### [2025-12-20 15:58] - [memory]
+- Alignment for mmm-63.13: accept any 2xx for downloads; missing hash is per-file error (do not halt entire app); keep existing file until verified download succeeds; update uses temp download + verify + swap; hash mismatch messaging must be i18n and include remediation guidance.
+
+### [2025-12-20 16:40] - [memory]
+- Implemented mmm-63.13 changes with status checks, hash verification, safe update swap, and i18n error messaging. Added tests for integrity failures, updated existing tests for hash verification, and ran make fmt, make test, make coverage, make build.
+
+### [2025-12-20 17:02] - [memory]
+- Addressed code-review.md feedback for mmm-63.13: split missing-hash messaging for lock vs remote, fixed de-DE transliterations, updated tests and reran make fmt/test/coverage/build. Updated code-review.md with implementer response and logs.

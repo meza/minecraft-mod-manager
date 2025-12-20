@@ -67,6 +67,31 @@ func TestDownloadFile(t *testing.T) {
 		assert.ErrorContains(t, err, "failed to download file")
 	})
 
+	t.Run("HTTP request build error", func(t *testing.T) {
+		mockServer := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {}))
+		defer mockServer.Close()
+
+		err := DownloadFile(context.Background(), "http://[::1", "testfile", mockServer.Client(), &MockProgram{}, afero.NewMemMapFs())
+		assert.ErrorContains(t, err, "failed to build download request")
+	})
+
+	t.Run("HTTP non-2xx response returns error", func(t *testing.T) {
+		fs := afero.NewMemMapFs()
+		program := &MockProgram{}
+
+		mockServer := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			w.WriteHeader(http.StatusBadRequest)
+			w.Write([]byte("bad request"))
+		}))
+		defer mockServer.Close()
+
+		err := DownloadFile(context.Background(), mockServer.URL, "testfile", mockServer.Client(), program, fs)
+		assert.ErrorContains(t, err, "download request failed with status 400")
+		exists, existsErr := afero.Exists(fs, "testfile")
+		assert.NoError(t, existsErr)
+		assert.False(t, exists)
+	})
+
 	t.Run("HTTP timeout error keeps i18n message", func(t *testing.T) {
 		fs := afero.NewMemMapFs()
 		program := &MockProgram{}

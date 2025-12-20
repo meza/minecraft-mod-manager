@@ -190,6 +190,7 @@ type scannedFile struct {
 }
 
 var errUnresolvedFiles = errors.New("unresolved files in mods folder")
+var errInstallFailures = errors.New("one or more mods failed to install")
 
 func runInstall(ctx context.Context, cmd *cobra.Command, opts installOptions, deps installDeps) (Result, error) {
 	meta := config.NewMetadata(opts.ConfigPath)
@@ -219,6 +220,8 @@ func runInstall(ctx context.Context, cmd *cobra.Command, opts installOptions, de
 		return Result{}, err
 	}
 
+	failedCount := 0
+
 	for i := range cfg.Mods {
 		mod := cfg.Mods[i]
 
@@ -237,6 +240,11 @@ func runInstall(ctx context.Context, cmd *cobra.Command, opts installOptions, de
 		lockIndex := lockIndexFor(mod, lock)
 		if lockIndex >= 0 {
 			if err := ensureLockInstall(ctx, meta, cfg, mod, lock[lockIndex], deps); err != nil {
+				if message, handled := integrityErrorMessage(err, mod.Name); handled {
+					deps.logger.Error(message)
+					failedCount++
+					continue
+				}
 				return Result{}, err
 			}
 			continue
@@ -256,7 +264,13 @@ func runInstall(ctx context.Context, cmd *cobra.Command, opts installOptions, de
 			return Result{}, fetchErr
 		}
 
-		cfg.Mods[i].Name = remote.Name
+		if strings.TrimSpace(remote.Hash) == "" {
+			deps.logger.Error(i18n.T("cmd.install.error.missing_hash_remote", i18n.Tvars{
+				Data: &i18n.TData{"name": mod.Name},
+			}))
+			failedCount++
+			continue
+		}
 
 		deps.logger.Log(i18n.T("cmd.install.download.missing", i18n.Tvars{
 			Data: &i18n.TData{
@@ -266,10 +280,17 @@ func runInstall(ctx context.Context, cmd *cobra.Command, opts installOptions, de
 		}), true)
 
 		destination := filepath.Join(meta.ModsFolderPath(cfg), remote.FileName)
-		if err := deps.downloader(ctx, remote.DownloadURL, destination, downloadClient(deps.clients), &noopSender{}, deps.fs); err != nil {
+		installer := modinstall.NewService(deps.fs, modinstall.Downloader(deps.downloader))
+		if err := installer.DownloadAndVerify(ctx, remote.DownloadURL, destination, remote.Hash, downloadClient(deps.clients), &noopSender{}); err != nil {
+			if message, handled := integrityErrorMessage(err, mod.Name); handled {
+				deps.logger.Error(message)
+				failedCount++
+				continue
+			}
 			return Result{}, err
 		}
 
+		cfg.Mods[i].Name = remote.Name
 		lock = append(lock, models.ModInstall{
 			Type:        mod.Type,
 			Id:          mod.ID,
@@ -286,6 +307,10 @@ func runInstall(ctx context.Context, cmd *cobra.Command, opts installOptions, de
 	}
 	if err := config.WriteConfig(ctx, deps.fs, meta, cfg); err != nil {
 		return Result{}, err
+	}
+
+	if failedCount > 0 {
+		return Result{InstalledCount: len(cfg.Mods), UnmanagedFound: unmanagedFound}, errInstallFailures
 	}
 
 	deps.logger.Log(messageWithIcon(tui.SuccessIcon(colorize), i18n.T("cmd.install.success")), true)
@@ -336,6 +361,24 @@ func ensureLockInstall(ctx context.Context, meta config.Metadata, cfg models.Mod
 		}), true)
 	}
 	return nil
+}
+
+func integrityErrorMessage(err error, modName string) (string, bool) {
+	var missingHash modinstall.MissingHashError
+	if errors.As(err, &missingHash) {
+		return i18n.T("cmd.install.error.missing_hash_lock", i18n.Tvars{
+			Data: &i18n.TData{"name": modName},
+		}), true
+	}
+
+	var hashMismatch modinstall.HashMismatchError
+	if errors.As(err, &hashMismatch) {
+		return i18n.T("cmd.install.error.hash_mismatch", i18n.Tvars{
+			Data: &i18n.TData{"name": modName},
+		}), true
+	}
+
+	return "", false
 }
 
 func handleExpectedFetchError(err error, mod models.Mod, deps installDeps, colorize bool) bool {

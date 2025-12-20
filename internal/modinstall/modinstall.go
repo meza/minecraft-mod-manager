@@ -5,6 +5,7 @@ import (
 	"crypto/sha1"
 	"encoding/hex"
 	"errors"
+	"fmt"
 	"io"
 	"path/filepath"
 	"strings"
@@ -32,6 +33,24 @@ type EnsureResult struct {
 	Reason     EnsureReason
 }
 
+type MissingHashError struct {
+	FileName string
+}
+
+func (err MissingHashError) Error() string {
+	return "missing expected hash for " + err.FileName
+}
+
+type HashMismatchError struct {
+	FileName string
+	Expected string
+	Actual   string
+}
+
+func (err HashMismatchError) Error() string {
+	return "downloaded file hash mismatch for " + err.FileName
+}
+
 type Service struct {
 	fs         afero.Fs
 	downloader Downloader
@@ -51,6 +70,10 @@ func (s *Service) EnsureLockedFile(ctx context.Context, meta config.Metadata, cf
 	if strings.TrimSpace(install.DownloadUrl) == "" {
 		return EnsureResult{}, errors.New("missing lock downloadUrl")
 	}
+	expectedHash := strings.TrimSpace(install.Hash)
+	if expectedHash == "" {
+		return EnsureResult{}, MissingHashError{FileName: install.FileName}
+	}
 	if sender == nil {
 		sender = noopSender{}
 	}
@@ -69,7 +92,7 @@ func (s *Service) EnsureLockedFile(ctx context.Context, meta config.Metadata, cf
 		if s.downloader == nil {
 			return EnsureResult{}, errors.New("missing modinstall dependencies: downloader")
 		}
-		if err := s.downloader(ctx, install.DownloadUrl, destination, downloadClient, sender, s.fs); err != nil {
+		if err := s.downloadAndVerify(ctx, install.DownloadUrl, destination, expectedHash, downloadClient, sender); err != nil {
 			return EnsureResult{}, err
 		}
 		return EnsureResult{Downloaded: true, Reason: EnsureReasonMissing}, nil
@@ -80,20 +103,61 @@ func (s *Service) EnsureLockedFile(ctx context.Context, meta config.Metadata, cf
 		return EnsureResult{}, err
 	}
 
-	if !strings.EqualFold(strings.TrimSpace(install.Hash), localSha) {
+	if !strings.EqualFold(expectedHash, localSha) {
 		if err := s.fs.MkdirAll(meta.ModsFolderPath(cfg), 0755); err != nil {
 			return EnsureResult{}, err
 		}
 		if s.downloader == nil {
 			return EnsureResult{}, errors.New("missing modinstall dependencies: downloader")
 		}
-		if err := s.downloader(ctx, install.DownloadUrl, destination, downloadClient, sender, s.fs); err != nil {
+		if err := s.downloadAndVerify(ctx, install.DownloadUrl, destination, expectedHash, downloadClient, sender); err != nil {
 			return EnsureResult{}, err
 		}
 		return EnsureResult{Downloaded: true, Reason: EnsureReasonHashMismatch}, nil
 	}
 
 	return EnsureResult{Downloaded: false, Reason: EnsureReasonAlreadyPresent}, nil
+}
+
+func (s *Service) DownloadAndVerify(ctx context.Context, url string, destination string, expectedHash string, downloadClient httpClient.Doer, sender httpClient.Sender) error {
+	if strings.TrimSpace(expectedHash) == "" {
+		return MissingHashError{FileName: filepath.Base(destination)}
+	}
+	if sender == nil {
+		sender = noopSender{}
+	}
+	if s.downloader == nil {
+		return errors.New("missing modinstall dependencies: downloader")
+	}
+	return s.downloadAndVerify(ctx, url, destination, expectedHash, downloadClient, sender)
+}
+
+func (s *Service) downloadAndVerify(ctx context.Context, url string, destination string, expectedHash string, downloadClient httpClient.Doer, sender httpClient.Sender) error {
+	tempPath := destination + ".mmm.tmp"
+	_ = s.fs.Remove(tempPath)
+
+	if err := s.downloader(ctx, url, tempPath, downloadClient, sender, s.fs); err != nil {
+		_ = s.fs.Remove(tempPath)
+		return err
+	}
+
+	actualHash, err := sha1ForFile(s.fs, tempPath)
+	if err != nil {
+		_ = s.fs.Remove(tempPath)
+		return err
+	}
+
+	if !strings.EqualFold(strings.TrimSpace(expectedHash), actualHash) {
+		_ = s.fs.Remove(tempPath)
+		return HashMismatchError{FileName: filepath.Base(destination), Expected: expectedHash, Actual: actualHash}
+	}
+
+	if err := replaceExistingFile(s.fs, tempPath, destination); err != nil {
+		_ = s.fs.Remove(tempPath)
+		return err
+	}
+
+	return nil
 }
 
 func sha1ForFile(fs afero.Fs, path string) (string, error) {
@@ -108,6 +172,52 @@ func sha1ForFile(fs afero.Fs, path string) (string, error) {
 		return "", err
 	}
 	return hex.EncodeToString(hash.Sum(nil)), nil
+}
+
+func replaceExistingFile(fs afero.Fs, sourcePath string, destinationPath string) error {
+	exists, err := afero.Exists(fs, destinationPath)
+	if err != nil {
+		return err
+	}
+
+	if !exists {
+		return fs.Rename(sourcePath, destinationPath)
+	}
+
+	backupPath, err := nextBackupPath(fs, destinationPath)
+	if err != nil {
+		return err
+	}
+
+	if err := fs.Rename(destinationPath, backupPath); err != nil {
+		return err
+	}
+
+	if err := fs.Rename(sourcePath, destinationPath); err != nil {
+		_ = fs.Rename(backupPath, destinationPath)
+		return err
+	}
+
+	_ = fs.Remove(backupPath)
+
+	return nil
+}
+
+func nextBackupPath(fs afero.Fs, destinationPath string) (string, error) {
+	base := destinationPath + ".mmm.bak"
+
+	backup := base
+	for i := 0; i < 100; i++ {
+		exists, err := afero.Exists(fs, backup)
+		if err != nil {
+			return "", err
+		}
+		if !exists {
+			return backup, nil
+		}
+		backup = fmt.Sprintf("%s.%d", base, i+1)
+	}
+	return "", errors.New("cannot allocate backup path")
 }
 
 type noopSender struct{}

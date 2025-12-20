@@ -49,13 +49,20 @@ func DownloadFile(ctx context.Context, url string, filepath string, client Doer,
 	fs := fileutils.InitFilesystem(filesystem...)
 	downloadCtx, cancel := WithDownloadTimeout(ctx)
 	defer cancel()
-	request, _ := http.NewRequestWithContext(downloadCtx, "GET", url, nil)
+	request, err := http.NewRequestWithContext(downloadCtx, "GET", url, nil)
+	if err != nil {
+		return fmt.Errorf("failed to build download request: %w", err)
+	}
 	response, err := client.Do(request)
 	if err != nil {
 		return WrapTimeoutError(fmt.Errorf("failed to download file: %w", err))
 	}
 
 	defer response.Body.Close()
+
+	if response.StatusCode < http.StatusOK || response.StatusCode >= http.StatusMultipleChoices {
+		return fmt.Errorf("download request failed with status %d", response.StatusCode)
+	}
 
 	file, err := fs.Create(filepath)
 	if err != nil {

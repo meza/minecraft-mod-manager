@@ -2,8 +2,11 @@ package update
 
 import (
 	"context"
+	"crypto/sha1"
+	"encoding/hex"
 	"errors"
 	"fmt"
+	"io"
 	"path/filepath"
 	"strings"
 	"sync"
@@ -16,6 +19,7 @@ import (
 	"github.com/meza/minecraft-mod-manager/internal/i18n"
 	"github.com/meza/minecraft-mod-manager/internal/logger"
 	"github.com/meza/minecraft-mod-manager/internal/models"
+	"github.com/meza/minecraft-mod-manager/internal/modinstall"
 	"github.com/meza/minecraft-mod-manager/internal/perf"
 	"github.com/meza/minecraft-mod-manager/internal/platform"
 	"github.com/meza/minecraft-mod-manager/internal/telemetry"
@@ -363,6 +367,28 @@ func processMod(
 		return outcome
 	}
 
+	if strings.TrimSpace(installed.Hash) == "" {
+		outcome.LogEvents = append(outcome.LogEvents, logEvent{
+			Kind: logEventKindError,
+			Message: i18n.T("cmd.update.error.missing_hash_lock", i18n.Tvars{
+				Data: &i18n.TData{"name": mod.Name},
+			}),
+		})
+		outcome.Error = errUpdateFailures
+		return outcome
+	}
+
+	if strings.TrimSpace(remote.Hash) == "" {
+		outcome.LogEvents = append(outcome.LogEvents, logEvent{
+			Kind: logEventKindError,
+			Message: i18n.T("cmd.update.error.missing_hash_remote", i18n.Tvars{
+				Data: &i18n.TData{"name": mod.Name},
+			}),
+		})
+		outcome.Error = errUpdateFailures
+		return outcome
+	}
+
 	if strings.EqualFold(strings.TrimSpace(remote.Hash), strings.TrimSpace(installed.Hash)) {
 		return outcome
 	}
@@ -377,8 +403,12 @@ func processMod(
 
 	newPath := filepath.Join(meta.ModsFolderPath(cfg), remote.FileName)
 
-	if err := downloadAndSwap(ctx, deps, oldPath, newPath, remote.DownloadURL); err != nil {
-		outcome.LogEvents = append(outcome.LogEvents, logEvent{Kind: logEventKindError, Message: err.Error()})
+	if err := downloadAndSwap(ctx, deps, oldPath, newPath, remote.DownloadURL, remote.Hash); err != nil {
+		if message, handled := integrityErrorMessage(err, mod.Name); handled {
+			outcome.LogEvents = append(outcome.LogEvents, logEvent{Kind: logEventKindError, Message: message})
+		} else {
+			outcome.LogEvents = append(outcome.LogEvents, logEvent{Kind: logEventKindError, Message: err.Error()})
+		}
 		outcome.Error = errUpdateFailures
 		return outcome
 	}
@@ -398,23 +428,37 @@ func processMod(
 	return outcome
 }
 
-func downloadAndSwap(ctx context.Context, deps updateDeps, oldPath string, newPath string, downloadURL string) error {
-	if filepath.Clean(oldPath) == filepath.Clean(newPath) {
-		tempPath := newPath + ".mmm.tmp"
-		_ = deps.fs.Remove(tempPath)
-		if err := deps.downloader(ctx, downloadURL, tempPath, downloadClient(deps.clients), &noopSender{}, deps.fs); err != nil {
-			_ = deps.fs.Remove(tempPath)
-			return err
-		}
-		if err := replaceExistingFile(deps.fs, deps.logger, tempPath, newPath); err != nil {
-			_ = deps.fs.Remove(tempPath)
-			return err
-		}
-		return nil
+func downloadAndSwap(ctx context.Context, deps updateDeps, oldPath string, newPath string, downloadURL string, expectedHash string) error {
+	if strings.TrimSpace(expectedHash) == "" {
+		return modinstall.MissingHashError{FileName: filepath.Base(newPath)}
 	}
 
-	if err := deps.downloader(ctx, downloadURL, newPath, downloadClient(deps.clients), &noopSender{}, deps.fs); err != nil {
+	tempPath := newPath + ".mmm.tmp"
+	_ = deps.fs.Remove(tempPath)
+
+	if err := deps.downloader(ctx, downloadURL, tempPath, downloadClient(deps.clients), &noopSender{}, deps.fs); err != nil {
+		_ = deps.fs.Remove(tempPath)
 		return err
+	}
+
+	actualHash, err := sha1ForFile(deps.fs, tempPath)
+	if err != nil {
+		_ = deps.fs.Remove(tempPath)
+		return err
+	}
+
+	if !strings.EqualFold(strings.TrimSpace(expectedHash), actualHash) {
+		_ = deps.fs.Remove(tempPath)
+		return modinstall.HashMismatchError{FileName: filepath.Base(newPath), Expected: expectedHash, Actual: actualHash}
+	}
+
+	if err := replaceExistingFile(deps.fs, deps.logger, tempPath, newPath); err != nil {
+		_ = deps.fs.Remove(tempPath)
+		return err
+	}
+
+	if filepath.Clean(oldPath) == filepath.Clean(newPath) {
+		return nil
 	}
 
 	if err := deps.fs.Remove(oldPath); err != nil {
@@ -475,6 +519,39 @@ func nextBackupPath(fs afero.Fs, destinationPath string) (string, error) {
 		backup = fmt.Sprintf("%s.%d", base, i+1)
 	}
 	return "", errors.New("cannot allocate backup path")
+}
+
+func sha1ForFile(fs afero.Fs, path string) (string, error) {
+	file, err := fs.Open(path)
+	if err != nil {
+		return "", err
+	}
+	defer func() { _ = file.Close() }()
+
+	hash := sha1.New()
+	if _, err := io.Copy(hash, file); err != nil {
+		return "", err
+	}
+
+	return hex.EncodeToString(hash.Sum(nil)), nil
+}
+
+func integrityErrorMessage(err error, modName string) (string, bool) {
+	var missingHash modinstall.MissingHashError
+	if errors.As(err, &missingHash) {
+		return i18n.T("cmd.update.error.missing_hash_lock", i18n.Tvars{
+			Data: &i18n.TData{"name": modName},
+		}), true
+	}
+
+	var hashMismatch modinstall.HashMismatchError
+	if errors.As(err, &hashMismatch) {
+		return i18n.T("cmd.update.error.hash_mismatch", i18n.Tvars{
+			Data: &i18n.TData{"name": modName},
+		}), true
+	}
+
+	return "", false
 }
 
 func isPinned(mod models.Mod) bool {

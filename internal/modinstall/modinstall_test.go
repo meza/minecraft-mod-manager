@@ -8,6 +8,7 @@ import (
 	"io"
 	"os"
 	"path/filepath"
+	"strconv"
 	"testing"
 
 	"github.com/spf13/afero"
@@ -32,7 +33,7 @@ func TestEnsureLockedFile_MissingFileDownloads(t *testing.T) {
 
 	result, err := service.EnsureLockedFile(context.Background(), meta, cfg, models.ModInstall{
 		FileName:    "x.jar",
-		Hash:        "ignored",
+		Hash:        sha1Hex("data"),
 		DownloadUrl: "https://example.com/x.jar",
 	}, nil, noopSender{})
 
@@ -93,7 +94,7 @@ func TestEnsureLockedFile_ExistingFileWithMismatchedHashDownloads(t *testing.T) 
 
 	result, err := service.EnsureLockedFile(context.Background(), meta, cfg, models.ModInstall{
 		FileName:    "x.jar",
-		Hash:        "does-not-match",
+		Hash:        sha1Hex("new"),
 		DownloadUrl: "https://example.com/x.jar",
 	}, nil, noopSender{})
 
@@ -176,7 +177,7 @@ func TestEnsureLockedFile_UsesNoopSenderWhenNil(t *testing.T) {
 
 	_, err := service.EnsureLockedFile(context.Background(), meta, cfg, models.ModInstall{
 		FileName:    "x.jar",
-		Hash:        "ignored",
+		Hash:        sha1Hex("data"),
 		DownloadUrl: "https://example.com/x.jar",
 	}, nil, nil)
 	assert.NoError(t, err)
@@ -195,7 +196,7 @@ func TestEnsureLockedFile_MissingDownloaderReturnsError(t *testing.T) {
 	_, err := service.EnsureLockedFile(context.Background(), config.NewMetadata("modlist.json"), models.ModsJson{ModsFolder: "mods"}, models.ModInstall{
 		FileName:    "x.jar",
 		DownloadUrl: "https://example.com/x.jar",
-		Hash:        "abc",
+		Hash:        sha1Hex("data"),
 	}, nil, noopSender{})
 	assert.Error(t, err)
 }
@@ -208,7 +209,7 @@ func TestEnsureLockedFile_ExistsCheckErrorReturnsError(t *testing.T) {
 	_, err := service.EnsureLockedFile(context.Background(), meta, models.ModsJson{ModsFolder: "mods"}, models.ModInstall{
 		FileName:    "x.jar",
 		DownloadUrl: "https://example.com/x.jar",
-		Hash:        "abc",
+		Hash:        sha1Hex("data"),
 	}, nil, noopSender{})
 	assert.Error(t, err)
 }
@@ -225,7 +226,7 @@ func TestEnsureLockedFile_Sha1OpenErrorReturnsError(t *testing.T) {
 	service := NewService(failingOpenFs{Fs: base, failPath: path}, nil)
 	_, err := service.EnsureLockedFile(context.Background(), meta, cfg, models.ModInstall{
 		FileName:    "x.jar",
-		Hash:        "abc",
+		Hash:        sha1Hex("data"),
 		DownloadUrl: "https://example.com/x.jar",
 	}, nil, noopSender{})
 	assert.Error(t, err)
@@ -243,7 +244,7 @@ func TestEnsureLockedFile_Sha1ReadErrorReturnsError(t *testing.T) {
 	service := NewService(failingReadFs{Fs: base, failPath: path}, nil)
 	_, err := service.EnsureLockedFile(context.Background(), meta, cfg, models.ModInstall{
 		FileName:    "x.jar",
-		Hash:        "abc",
+		Hash:        sha1Hex("data"),
 		DownloadUrl: "https://example.com/x.jar",
 	}, nil, noopSender{})
 	assert.Error(t, err)
@@ -258,7 +259,7 @@ func TestEnsureLockedFile_MkdirFailureReturnsError(t *testing.T) {
 	})
 	_, err := service.EnsureLockedFile(context.Background(), config.NewMetadata(filepath.FromSlash("/cfg/modlist.json")), models.ModsJson{ModsFolder: "mods"}, models.ModInstall{
 		FileName:    "x.jar",
-		Hash:        "abc",
+		Hash:        sha1Hex("data"),
 		DownloadUrl: "https://example.com/x.jar",
 	}, nil, noopSender{})
 	assert.Error(t, err)
@@ -273,9 +274,220 @@ func TestEnsureLockedFile_DownloadErrorReturnsError(t *testing.T) {
 
 	_, err := service.EnsureLockedFile(context.Background(), meta, models.ModsJson{ModsFolder: "mods"}, models.ModInstall{
 		FileName:    "x.jar",
-		Hash:        "abc",
+		Hash:        sha1Hex("data"),
 		DownloadUrl: "https://example.com/x.jar",
 	}, nil, noopSender{})
+	assert.Error(t, err)
+}
+
+func TestEnsureLockedFile_MissingHashReturnsError(t *testing.T) {
+	service := NewService(afero.NewMemMapFs(), func(context.Context, string, string, httpClient.Doer, httpClient.Sender, ...afero.Fs) error {
+		return errors.New("unexpected download")
+	})
+
+	_, err := service.EnsureLockedFile(context.Background(), config.NewMetadata("modlist.json"), models.ModsJson{ModsFolder: "mods"}, models.ModInstall{
+		FileName:    "x.jar",
+		DownloadUrl: "https://example.com/x.jar",
+	}, nil, noopSender{})
+	var missingHash MissingHashError
+	assert.ErrorAs(t, err, &missingHash)
+}
+
+func TestEnsureLockedFile_DownloadedFileHashMismatchReturnsError(t *testing.T) {
+	fs := afero.NewMemMapFs()
+	meta := config.NewMetadata(filepath.FromSlash("/cfg/modlist.json"))
+	cfg := models.ModsJson{ModsFolder: "mods"}
+
+	service := NewService(fs, func(_ context.Context, _ string, dst string, _ httpClient.Doer, _ httpClient.Sender, filesystem ...afero.Fs) error {
+		return afero.WriteFile(filesystem[0], dst, []byte("actual"), 0644)
+	})
+
+	_, err := service.EnsureLockedFile(context.Background(), meta, cfg, models.ModInstall{
+		FileName:    "x.jar",
+		Hash:        sha1Hex("expected"),
+		DownloadUrl: "https://example.com/x.jar",
+	}, nil, noopSender{})
+	var mismatch HashMismatchError
+	assert.ErrorAs(t, err, &mismatch)
+}
+
+func TestMissingHashErrorMessage(t *testing.T) {
+	err := MissingHashError{FileName: "x.jar"}
+	assert.Contains(t, err.Error(), "missing expected hash")
+}
+
+func TestHashMismatchErrorMessage(t *testing.T) {
+	err := HashMismatchError{FileName: "x.jar", Expected: "a", Actual: "b"}
+	assert.Contains(t, err.Error(), "hash mismatch")
+}
+
+func TestDownloadAndVerifyWritesFile(t *testing.T) {
+	fs := afero.NewMemMapFs()
+	service := NewService(fs, func(_ context.Context, _ string, dst string, _ httpClient.Doer, _ httpClient.Sender, filesystem ...afero.Fs) error {
+		return afero.WriteFile(filesystem[0], dst, []byte("data"), 0644)
+	})
+
+	err := service.DownloadAndVerify(context.Background(), "https://example.com/x.jar", filepath.FromSlash("/mods/x.jar"), sha1Hex("data"), nil, nil)
+	assert.NoError(t, err)
+
+	content, readErr := afero.ReadFile(fs, filepath.FromSlash("/mods/x.jar"))
+	assert.NoError(t, readErr)
+	assert.Equal(t, []byte("data"), content)
+}
+
+func TestDownloadAndVerifyReturnsErrorOnDownloadFailure(t *testing.T) {
+	fs := afero.NewMemMapFs()
+	service := NewService(fs, func(context.Context, string, string, httpClient.Doer, httpClient.Sender, ...afero.Fs) error {
+		return errors.New("download failed")
+	})
+
+	err := service.DownloadAndVerify(context.Background(), "https://example.com/x.jar", filepath.FromSlash("/mods/x.jar"), sha1Hex("data"), nil, noopSender{})
+	assert.Error(t, err)
+}
+
+func TestDownloadAndVerifyReturnsMissingHashError(t *testing.T) {
+	fs := afero.NewMemMapFs()
+	service := NewService(fs, func(context.Context, string, string, httpClient.Doer, httpClient.Sender, ...afero.Fs) error {
+		return errors.New("unexpected download")
+	})
+
+	err := service.DownloadAndVerify(context.Background(), "https://example.com/x.jar", filepath.FromSlash("/mods/x.jar"), "", nil, noopSender{})
+	var missingHash MissingHashError
+	assert.ErrorAs(t, err, &missingHash)
+}
+
+func TestDownloadAndVerifyReturnsErrorWhenDownloaderMissing(t *testing.T) {
+	fs := afero.NewMemMapFs()
+	service := NewService(fs, nil)
+
+	err := service.DownloadAndVerify(context.Background(), "https://example.com/x.jar", filepath.FromSlash("/mods/x.jar"), sha1Hex("data"), nil, noopSender{})
+	assert.Error(t, err)
+}
+
+func TestDownloadAndVerifyReturnsErrorOnHashReadFailure(t *testing.T) {
+	base := afero.NewMemMapFs()
+	tempPath := filepath.FromSlash("/mods/x.jar.mmm.tmp")
+	fs := failingOpenFs{Fs: base, failPath: tempPath}
+	service := NewService(fs, func(_ context.Context, _ string, dst string, _ httpClient.Doer, _ httpClient.Sender, filesystem ...afero.Fs) error {
+		return afero.WriteFile(filesystem[0], dst, []byte("data"), 0644)
+	})
+
+	err := service.DownloadAndVerify(context.Background(), "https://example.com/x.jar", filepath.FromSlash("/mods/x.jar"), sha1Hex("data"), nil, noopSender{})
+	assert.Error(t, err)
+}
+
+func TestDownloadAndVerifyReturnsErrorOnReplaceFailure(t *testing.T) {
+	base := afero.NewMemMapFs()
+	fs := renameErrorFs{Fs: base, failOld: filepath.FromSlash("/mods/x.jar.mmm.tmp"), failNew: filepath.FromSlash("/mods/x.jar"), err: errors.New("rename failed")}
+	service := NewService(fs, func(_ context.Context, _ string, dst string, _ httpClient.Doer, _ httpClient.Sender, filesystem ...afero.Fs) error {
+		return afero.WriteFile(filesystem[0], dst, []byte("data"), 0644)
+	})
+
+	err := service.DownloadAndVerify(context.Background(), "https://example.com/x.jar", filepath.FromSlash("/mods/x.jar"), sha1Hex("data"), nil, noopSender{})
+	assert.Error(t, err)
+}
+
+func TestReplaceExistingFileRenamesWhenDestinationMissing(t *testing.T) {
+	fs := afero.NewMemMapFs()
+	source := filepath.FromSlash("/mods/source.jar")
+	destination := filepath.FromSlash("/mods/dest.jar")
+
+	assert.NoError(t, afero.WriteFile(fs, source, []byte("source"), 0644))
+	assert.NoError(t, replaceExistingFile(fs, source, destination))
+
+	exists, _ := afero.Exists(fs, destination)
+	assert.True(t, exists)
+	exists, _ = afero.Exists(fs, source)
+	assert.False(t, exists)
+}
+
+func TestReplaceExistingFileReturnsErrorOnStatFailure(t *testing.T) {
+	fs := failingStatFs{
+		Fs:       afero.NewMemMapFs(),
+		failPath: filepath.FromSlash("/mods/dest.jar"),
+	}
+
+	err := replaceExistingFile(fs, filepath.FromSlash("/mods/source.jar"), filepath.FromSlash("/mods/dest.jar"))
+	assert.Error(t, err)
+}
+
+func TestReplaceExistingFileReturnsErrorOnBackupRenameFailure(t *testing.T) {
+	base := afero.NewMemMapFs()
+	destination := filepath.FromSlash("/mods/dest.jar")
+	source := filepath.FromSlash("/mods/source.jar")
+	backup := destination + ".mmm.bak"
+
+	assert.NoError(t, afero.WriteFile(base, destination, []byte("old"), 0644))
+	assert.NoError(t, afero.WriteFile(base, source, []byte("new"), 0644))
+
+	fs := renameErrorFs{Fs: base, failOld: destination, failNew: backup, err: errors.New("rename failed")}
+	err := replaceExistingFile(fs, source, destination)
+	assert.Error(t, err)
+}
+
+func TestReplaceExistingFileReturnsErrorOnNextBackupPathFailure(t *testing.T) {
+	base := afero.NewMemMapFs()
+	destination := filepath.FromSlash("/mods/dest.jar")
+	source := filepath.FromSlash("/mods/source.jar")
+	backup := destination + ".mmm.bak"
+
+	assert.NoError(t, afero.WriteFile(base, destination, []byte("old"), 0644))
+	assert.NoError(t, afero.WriteFile(base, source, []byte("new"), 0644))
+
+	fs := failingStatFs{Fs: base, failPath: backup}
+	err := replaceExistingFile(fs, source, destination)
+	assert.Error(t, err)
+}
+
+func TestReplaceExistingFileRestoresBackupOnRenameFailure(t *testing.T) {
+	base := afero.NewMemMapFs()
+	destination := filepath.FromSlash("/mods/dest.jar")
+	source := filepath.FromSlash("/mods/source.jar")
+
+	assert.NoError(t, afero.WriteFile(base, destination, []byte("old"), 0644))
+	assert.NoError(t, afero.WriteFile(base, source, []byte("new"), 0644))
+
+	fs := renameErrorFs{Fs: base, failOld: source, failNew: destination, err: errors.New("rename failed")}
+	err := replaceExistingFile(fs, source, destination)
+	assert.Error(t, err)
+
+	content, readErr := afero.ReadFile(fs, destination)
+	assert.NoError(t, readErr)
+	assert.Equal(t, []byte("old"), content)
+}
+
+func TestNextBackupPathSkipsExisting(t *testing.T) {
+	fs := afero.NewMemMapFs()
+	target := filepath.FromSlash("/mods/mod.jar")
+	base := target + ".mmm.bak"
+
+	assert.NoError(t, afero.WriteFile(fs, base, []byte("backup"), 0644))
+	next, err := nextBackupPath(fs, target)
+	assert.NoError(t, err)
+	assert.Equal(t, base+".1", next)
+}
+
+func TestNextBackupPathReturnsErrorOnStatFailure(t *testing.T) {
+	fs := failingStatFs{
+		Fs:       afero.NewMemMapFs(),
+		failPath: filepath.FromSlash("/mods/mod.jar.mmm.bak"),
+	}
+
+	_, err := nextBackupPath(fs, filepath.FromSlash("/mods/mod.jar"))
+	assert.Error(t, err)
+}
+
+func TestNextBackupPathReturnsErrorAfterExhaustion(t *testing.T) {
+	fs := afero.NewMemMapFs()
+	target := filepath.FromSlash("/mods/mod.jar")
+	base := target + ".mmm.bak"
+
+	assert.NoError(t, afero.WriteFile(fs, base, []byte("backup"), 0644))
+	for i := 1; i < 100; i++ {
+		assert.NoError(t, afero.WriteFile(fs, base+"."+strconv.Itoa(i), []byte("backup"), 0644))
+	}
+
+	_, err := nextBackupPath(fs, target)
 	assert.Error(t, err)
 }
 
@@ -340,4 +552,23 @@ type failingMkdirFs struct {
 
 func (f failingMkdirFs) MkdirAll(string, os.FileMode) error {
 	return errors.New("mkdir failed")
+}
+
+func sha1Hex(data string) string {
+	sum := sha1.Sum([]byte(data))
+	return hex.EncodeToString(sum[:])
+}
+
+type renameErrorFs struct {
+	afero.Fs
+	failOld string
+	failNew string
+	err     error
+}
+
+func (r renameErrorFs) Rename(oldname, newname string) error {
+	if filepath.Clean(oldname) == filepath.Clean(r.failOld) && filepath.Clean(newname) == filepath.Clean(r.failNew) {
+		return r.err
+	}
+	return r.Fs.Rename(oldname, newname)
 }

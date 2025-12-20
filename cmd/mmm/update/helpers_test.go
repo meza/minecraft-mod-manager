@@ -2,6 +2,8 @@ package update
 
 import (
 	"context"
+	"crypto/sha1"
+	"encoding/hex"
 	"errors"
 	"io"
 	"os"
@@ -12,6 +14,7 @@ import (
 	"github.com/meza/minecraft-mod-manager/internal/httpClient"
 	"github.com/meza/minecraft-mod-manager/internal/logger"
 	"github.com/meza/minecraft-mod-manager/internal/models"
+	"github.com/meza/minecraft-mod-manager/internal/modinstall"
 	"github.com/meza/minecraft-mod-manager/internal/platform"
 	"github.com/spf13/afero"
 	"github.com/stretchr/testify/assert"
@@ -189,7 +192,7 @@ func TestDownloadAndSwapRemovesNewFileWhenOldRemovalFails(t *testing.T) {
 		},
 	}
 
-	assert.Error(t, downloadAndSwap(context.Background(), deps, oldPath, newPath, "https://example.invalid/new.jar"))
+	assert.Error(t, downloadAndSwap(context.Background(), deps, oldPath, newPath, "https://example.invalid/new.jar", sha1Hex("new")))
 
 	exists, _ := afero.Exists(fs, newPath)
 	assert.False(t, exists)
@@ -209,7 +212,7 @@ func TestDownloadAndSwapCleansTempOnDownloaderFailure(t *testing.T) {
 		logger: logger.New(io.Discard, io.Discard, false, false),
 	}
 
-	assert.Error(t, downloadAndSwap(context.Background(), deps, path, path, "https://example.invalid/same.jar"))
+	assert.Error(t, downloadAndSwap(context.Background(), deps, path, path, "https://example.invalid/same.jar", sha1Hex("new")))
 
 	exists, _ := afero.Exists(fs, path+".mmm.tmp")
 	assert.False(t, exists)
@@ -231,10 +234,86 @@ func TestDownloadAndSwapCleansTempOnReplaceFailure(t *testing.T) {
 		logger: logger.New(io.Discard, io.Discard, false, false),
 	}
 
-	assert.Error(t, downloadAndSwap(context.Background(), deps, path, path, "https://example.invalid/same.jar"))
+	assert.Error(t, downloadAndSwap(context.Background(), deps, path, path, "https://example.invalid/same.jar", sha1Hex("new")))
 
 	exists, _ := afero.Exists(fs, path+".mmm.tmp")
 	assert.False(t, exists)
+}
+
+func TestDownloadAndSwapReturnsMissingHashError(t *testing.T) {
+	fs := afero.NewMemMapFs()
+	deps := updateDeps{
+		fs:      fs,
+		clients: platform.Clients{Modrinth: noopDoer{}},
+	}
+
+	err := downloadAndSwap(context.Background(), deps, filepath.FromSlash("/mods/old.jar"), filepath.FromSlash("/mods/new.jar"), "https://example.invalid/new.jar", "")
+	var missingHash modinstall.MissingHashError
+	assert.ErrorAs(t, err, &missingHash)
+}
+
+func TestDownloadAndSwapReturnsErrorOnHashReadFailure(t *testing.T) {
+	base := afero.NewMemMapFs()
+	newPath := filepath.FromSlash("/mods/new.jar")
+	tempPath := newPath + ".mmm.tmp"
+	fs := openErrorFs{Fs: base, failPath: tempPath, err: errors.New("open failed")}
+
+	deps := updateDeps{
+		fs:      fs,
+		clients: platform.Clients{Modrinth: noopDoer{}},
+		downloader: func(_ context.Context, _ string, destination string, _ httpClient.Doer, _ httpClient.Sender, filesystems ...afero.Fs) error {
+			return afero.WriteFile(filesystems[0], destination, []byte("data"), 0644)
+		},
+		logger: logger.New(io.Discard, io.Discard, false, false),
+	}
+
+	err := downloadAndSwap(context.Background(), deps, filepath.FromSlash("/mods/old.jar"), newPath, "https://example.invalid/new.jar", sha1Hex("data"))
+	assert.Error(t, err)
+}
+
+func TestSha1ForFileReturnsErrorOnOpenFailure(t *testing.T) {
+	fs := openErrorFs{
+		Fs:       afero.NewMemMapFs(),
+		failPath: filepath.FromSlash("/mods/missing.jar"),
+		err:      errors.New("open failed"),
+	}
+
+	_, err := sha1ForFile(fs, filepath.FromSlash("/mods/missing.jar"))
+	assert.Error(t, err)
+}
+
+func TestSha1ForFileReturnsErrorOnReadFailure(t *testing.T) {
+	base := afero.NewMemMapFs()
+	path := filepath.FromSlash("/mods/data.jar")
+	assert.NoError(t, afero.WriteFile(base, path, []byte("data"), 0644))
+
+	fs := readErrorFs{Fs: base, failPath: path, err: errors.New("read failed")}
+	_, err := sha1ForFile(fs, path)
+	assert.Error(t, err)
+}
+
+func TestIntegrityErrorMessageReturnsFalseForUnknownError(t *testing.T) {
+	t.Setenv("MMM_TEST", "true")
+
+	message, ok := integrityErrorMessage(errors.New("unknown"), "Mod")
+	assert.False(t, ok)
+	assert.Empty(t, message)
+}
+
+func TestIntegrityErrorMessageHandlesMissingHash(t *testing.T) {
+	t.Setenv("MMM_TEST", "true")
+
+	message, ok := integrityErrorMessage(modinstall.MissingHashError{FileName: "x.jar"}, "Mod")
+	assert.True(t, ok)
+	assert.Contains(t, message, "cmd.update.error.missing_hash")
+}
+
+func TestIntegrityErrorMessageHandlesHashMismatch(t *testing.T) {
+	t.Setenv("MMM_TEST", "true")
+
+	message, ok := integrityErrorMessage(modinstall.HashMismatchError{FileName: "x.jar", Expected: "a", Actual: "b"}, "Mod")
+	assert.True(t, ok)
+	assert.Contains(t, message, "cmd.update.error.hash_mismatch")
 }
 
 type statErrorFs struct {
@@ -275,4 +354,48 @@ func (r removeErrorFs) Remove(name string) error {
 		return r.err
 	}
 	return r.Fs.Remove(name)
+}
+
+func sha1Hex(data string) string {
+	sum := sha1.Sum([]byte(data))
+	return hex.EncodeToString(sum[:])
+}
+
+type readErrorFs struct {
+	afero.Fs
+	failPath string
+	err      error
+}
+
+func (r readErrorFs) Open(name string) (afero.File, error) {
+	file, err := r.Fs.Open(name)
+	if err != nil {
+		return nil, err
+	}
+	if filepath.Clean(name) == filepath.Clean(r.failPath) {
+		return readErrorFile{File: file, err: r.err}, nil
+	}
+	return file, nil
+}
+
+type readErrorFile struct {
+	afero.File
+	err error
+}
+
+func (r readErrorFile) Read([]byte) (int, error) {
+	return 0, r.err
+}
+
+type openErrorFs struct {
+	afero.Fs
+	failPath string
+	err      error
+}
+
+func (o openErrorFs) Open(name string) (afero.File, error) {
+	if filepath.Clean(name) == filepath.Clean(o.failPath) {
+		return nil, o.err
+	}
+	return o.Fs.Open(name)
 }

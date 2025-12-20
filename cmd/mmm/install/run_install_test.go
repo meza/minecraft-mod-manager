@@ -202,7 +202,7 @@ func TestRunInstallFetchesWhenLockMissing(t *testing.T) {
 		Name:        "Remote",
 		FileName:    "remote.jar",
 		DownloadURL: "https://example.invalid/remote.jar",
-		Hash:        "hash",
+		Hash:        sha1Hex("data"),
 	}
 
 	result, err := runInstall(context.Background(), cmd, installOptions{ConfigPath: meta.ConfigPath}, installDeps{
@@ -307,7 +307,7 @@ func TestRunInstallReturnsErrorOnDownloadFailureWithDefaultClients(t *testing.T)
 		Name:        "Remote",
 		FileName:    "remote.jar",
 		DownloadURL: "https://example.invalid/remote.jar",
-		Hash:        "hash",
+		Hash:        sha1Hex("data"),
 	}
 
 	_, err := runInstall(context.Background(), cmd, installOptions{ConfigPath: meta.ConfigPath}, installDeps{
@@ -497,7 +497,7 @@ func TestRunInstallReturnsErrorOnDownloadFailureWithCreatedModsFolder(t *testing
 			return platform.RemoteMod{
 				Name:        "Sodium",
 				FileName:    "sodium.jar",
-				Hash:        "hash",
+				Hash:        sha1Hex("data"),
 				ReleaseDate: "2024-01-01T00:00:00Z",
 				DownloadURL: "https://example.invalid/sodium.jar",
 			}, nil

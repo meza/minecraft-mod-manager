@@ -301,6 +301,9 @@ func runAdd(ctx context.Context, commandSpan *perf.Span, cmd *cobra.Command, opt
 		DownloadUrl: remoteMod.DownloadURL,
 	}, downloadClient(deps.clients), nil)
 	if err != nil {
+		if message, handled := integrityErrorMessage(err, remoteMod.Name); handled {
+			err = errors.New(message)
+		}
 		downloadSpan.SetAttributes(attribute.Bool("success", false))
 		downloadSpan.End()
 		return telemetry.CommandTelemetry{
@@ -375,6 +378,24 @@ func runAdd(ctx context.Context, commandSpan *perf.Span, cmd *cobra.Command, opt
 			"fallback": opts.AllowVersionFallback,
 		},
 	}, nil
+}
+
+func integrityErrorMessage(err error, modName string) (string, bool) {
+	var missingHash modinstall.MissingHashError
+	if errors.As(err, &missingHash) {
+		return i18n.T("cmd.add.error.missing_hash_remote", i18n.Tvars{
+			Data: &i18n.TData{"name": modName},
+		}), true
+	}
+
+	var hashMismatch modinstall.HashMismatchError
+	if errors.As(err, &hashMismatch) {
+		return i18n.T("cmd.add.error.hash_mismatch", i18n.Tvars{
+			Data: &i18n.TData{"name": modName},
+		}), true
+	}
+
+	return "", false
 }
 
 func resolveRemoteMod(ctx context.Context, commandSpan *perf.Span, cfg models.ModsJson, opts addOptions, platformValue models.Platform, projectID string, deps addDeps, useTUI bool, in io.Reader, out io.Writer) (platform.RemoteMod, models.Platform, string, error) {

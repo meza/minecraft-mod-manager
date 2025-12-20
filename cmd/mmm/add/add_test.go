@@ -63,7 +63,7 @@ func TestRunAdd_Success(t *testing.T) {
 			return platform.RemoteMod{
 				Name:        "Example",
 				FileName:    "example.jar",
-				Hash:        "abc",
+				Hash:        sha1Hex("data"),
 				ReleaseDate: "2024-01-01T00:00:00Z",
 				DownloadURL: "https://example.com/example.jar",
 			}, nil
@@ -262,7 +262,7 @@ func TestRunAdd_DuplicateEnsureLockedFileError(t *testing.T) {
 			Id:          "abc",
 			Name:        "Existing",
 			FileName:    "existing.jar",
-			Hash:        "hash",
+			Hash:        sha1Hex("downloaded"),
 			ReleasedOn:  "2024-01-01T00:00:00Z",
 			DownloadUrl: "https://example.com/existing.jar",
 		},
@@ -384,7 +384,7 @@ func TestRunAdd_ConfigPresentLockMissingBackfillsLock(t *testing.T) {
 			return platform.RemoteMod{
 				Name:        "Example",
 				FileName:    "example.jar",
-				Hash:        "abc",
+				Hash:        sha1Hex("data"),
 				ReleaseDate: "2024-01-01T00:00:00Z",
 				DownloadURL: "https://example.com/example.jar",
 			}, nil
@@ -431,7 +431,7 @@ func TestRunAdd_ConfigAndLockPresentButFileMissingDownloads(t *testing.T) {
 			Id:          "abc",
 			Name:        "Existing",
 			FileName:    "existing.jar",
-			Hash:        "hash",
+			Hash:        sha1Hex("downloaded"),
 			ReleasedOn:  "2024-01-01T00:00:00Z",
 			DownloadUrl: "https://example.com/existing.jar",
 		},
@@ -607,7 +607,7 @@ func TestRunAdd_ModNotFoundRetry(t *testing.T) {
 				remoteMod: platform.RemoteMod{
 					Name:        "Retry",
 					FileName:    "retry.jar",
-					Hash:        "hash",
+					Hash:        sha1Hex("data"),
 					ReleaseDate: "2024-01-01T00:00:00Z",
 					DownloadURL: "https://example.com/retry.jar",
 				},
@@ -671,7 +671,7 @@ func TestRunAdd_NoFileRetryAlternate(t *testing.T) {
 				remoteMod: platform.RemoteMod{
 					Name:        "Retry",
 					FileName:    "retry.jar",
-					Hash:        "hash",
+					Hash:        sha1Hex("data"),
 					ReleaseDate: "2024-01-01T00:00:00Z",
 					DownloadURL: "https://example.com/retry.jar",
 				},
@@ -724,7 +724,7 @@ func TestRunAdd_DownloadFailure(t *testing.T) {
 			return platform.RemoteMod{
 				Name:        "Example",
 				FileName:    "example.jar",
-				Hash:        "abc",
+				Hash:        sha1Hex("data"),
 				ReleaseDate: "2024-01-01T00:00:00Z",
 				DownloadURL: "https://example.com/example.jar",
 			}, nil
@@ -737,6 +737,101 @@ func TestRunAdd_DownloadFailure(t *testing.T) {
 	assert.Error(t, err)
 	configAfter, _ := config.ReadConfig(context.Background(), fs, meta)
 	assert.Len(t, configAfter.Mods, 0)
+}
+
+func TestRunAdd_MissingHashReturnsFriendlyError(t *testing.T) {
+	t.Setenv("MMM_TEST", "true")
+
+	ctx, commandSpan := startAddPerf(t)
+	fs := afero.NewMemMapFs()
+	meta := config.NewMetadata(filepath.FromSlash("/cfg/modlist.json"))
+	assert.NoError(t, fs.MkdirAll(filepath.Dir(meta.ConfigPath), 0755))
+	cfg := models.ModsJson{
+		Loader:                     models.FABRIC,
+		GameVersion:                "1.20.1",
+		DefaultAllowedReleaseTypes: []models.ReleaseType{models.Release},
+		ModsFolder:                 "mods",
+	}
+	assert.NoError(t, config.WriteConfig(context.Background(), fs, meta, cfg))
+	assert.NoError(t, config.WriteLock(context.Background(), fs, meta, nil))
+
+	cmd := &cobra.Command{}
+	cmd.SetIn(bytes.NewBuffer(nil))
+	cmd.SetOut(bytes.NewBuffer(nil))
+	cmd.SetErr(bytes.NewBuffer(nil))
+
+	_, err := runAdd(ctx, commandSpan, cmd, addOptions{
+		Platform:   "modrinth",
+		ProjectID:  "abc",
+		ConfigPath: meta.ConfigPath,
+	}, addDeps{
+		fs:      fs,
+		clients: platform.DefaultClients(rate.NewLimiter(rate.Inf, 0)),
+		logger:  logger.New(cmd.OutOrStdout(), cmd.ErrOrStderr(), false, false),
+		fetchMod: func(_ context.Context, _ models.Platform, _ string, _ platform.FetchOptions, _ platform.Clients) (platform.RemoteMod, error) {
+			return platform.RemoteMod{
+				Name:        "Example",
+				FileName:    "example.jar",
+				Hash:        "",
+				ReleaseDate: "2024-01-01T00:00:00Z",
+				DownloadURL: "https://example.com/example.jar",
+			}, nil
+		},
+		downloader: func(context.Context, string, string, httpClient.Doer, httpClient.Sender, ...afero.Fs) error {
+			t.Fatal("downloader should not be called when hash is missing")
+			return nil
+		},
+	})
+
+	assert.Error(t, err)
+	assert.Contains(t, err.Error(), "cmd.add.error.missing_hash_remote")
+}
+
+func TestRunAdd_HashMismatchReturnsFriendlyError(t *testing.T) {
+	t.Setenv("MMM_TEST", "true")
+
+	ctx, commandSpan := startAddPerf(t)
+	fs := afero.NewMemMapFs()
+	meta := config.NewMetadata(filepath.FromSlash("/cfg/modlist.json"))
+	assert.NoError(t, fs.MkdirAll(filepath.Dir(meta.ConfigPath), 0755))
+	cfg := models.ModsJson{
+		Loader:                     models.FABRIC,
+		GameVersion:                "1.20.1",
+		DefaultAllowedReleaseTypes: []models.ReleaseType{models.Release},
+		ModsFolder:                 "mods",
+	}
+	assert.NoError(t, config.WriteConfig(context.Background(), fs, meta, cfg))
+	assert.NoError(t, config.WriteLock(context.Background(), fs, meta, nil))
+
+	cmd := &cobra.Command{}
+	cmd.SetIn(bytes.NewBuffer(nil))
+	cmd.SetOut(bytes.NewBuffer(nil))
+	cmd.SetErr(bytes.NewBuffer(nil))
+
+	_, err := runAdd(ctx, commandSpan, cmd, addOptions{
+		Platform:   "modrinth",
+		ProjectID:  "abc",
+		ConfigPath: meta.ConfigPath,
+	}, addDeps{
+		fs:      fs,
+		clients: platform.DefaultClients(rate.NewLimiter(rate.Inf, 0)),
+		logger:  logger.New(cmd.OutOrStdout(), cmd.ErrOrStderr(), false, false),
+		fetchMod: func(_ context.Context, _ models.Platform, _ string, _ platform.FetchOptions, _ platform.Clients) (platform.RemoteMod, error) {
+			return platform.RemoteMod{
+				Name:        "Example",
+				FileName:    "example.jar",
+				Hash:        sha1Hex("expected"),
+				ReleaseDate: "2024-01-01T00:00:00Z",
+				DownloadURL: "https://example.com/example.jar",
+			}, nil
+		},
+		downloader: func(_ context.Context, _ string, path string, _ httpClient.Doer, _ httpClient.Sender, _ ...afero.Fs) error {
+			return afero.WriteFile(fs, path, []byte("actual"), 0644)
+		},
+	})
+
+	assert.Error(t, err)
+	assert.Contains(t, err.Error(), "cmd.add.error.hash_mismatch")
 }
 
 func TestRunAdd_PersistErrorReturnsError(t *testing.T) {
@@ -823,7 +918,7 @@ func TestRunAdd_CreatesConfigWhenMissing(t *testing.T) {
 			return platform.RemoteMod{
 				Name:        "Example",
 				FileName:    "example.jar",
-				Hash:        "abc",
+				Hash:        sha1Hex("data"),
 				ReleaseDate: "2024-01-01T00:00:00Z",
 				DownloadURL: "https://example.com/example.jar",
 			}, nil
@@ -893,7 +988,7 @@ func TestRunAdd_UnknownPlatformInteractiveRetry(t *testing.T) {
 				remoteMod: platform.RemoteMod{
 					Name:        "Retry",
 					FileName:    "retry.jar",
-					Hash:        "hash",
+					Hash:        sha1Hex("data"),
 					ReleaseDate: "2024-01-01T00:00:00Z",
 					DownloadURL: "https://example.com/retry.jar",
 				},
@@ -925,6 +1020,11 @@ type fakeTTYWriter struct {
 }
 
 func (fakeTTYWriter) Fd() uintptr { return 1 }
+
+func sha1Hex(data string) string {
+	sum := sha1.Sum([]byte(data))
+	return fmt.Sprintf("%x", sum[:])
+}
 
 func TestRunAdd_ModNotFoundQuiet(t *testing.T) {
 	ctx, commandSpan := startAddPerf(t)
@@ -1020,7 +1120,7 @@ func TestRunAdd_FetchOptionsPropagateVersionAndFallback(t *testing.T) {
 			return platform.RemoteMod{
 				Name:        "Example",
 				FileName:    "example.jar",
-				Hash:        "abc",
+				Hash:        sha1Hex("data"),
 				ReleaseDate: "2024-01-01T00:00:00Z",
 				DownloadURL: "https://example.com/example.jar",
 			}, nil
