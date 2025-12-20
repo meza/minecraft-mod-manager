@@ -607,3 +607,33 @@ Resumed mmm-63.59 coverage push. Loaded project docs and remote agent guidance, 
 
 ### [2025-12-20 10:23] - [memory]
 - Closed Beads issue mmm-63.59 per user request after cross-platform fixes; awaiting team review for completion call.
+
+### 2025-12-20 10:28 - [memory]
+- User asked to create a ticket to extract Makefile multi-platform build logic into Go at tools/build/build.go; aligning expectations before creating ticket.
+
+### 2025-12-20 10:32 - [memory]
+- Alignment for build extraction: add arm64 targets; build tool should always build all defined targets (no selective builds). Need to confirm BUILD_REQUIRE_TOKENS semantics and error/warn messages + priority before creating Beads ticket.
+
+### 2025-12-20 10:34 - [memory]
+- Build extraction alignment: tokens always required so drop BUILD_REQUIRE_TOKENS/build-dev; build tool should build all OSes/architectures; add arm64 for all OSes; Beads task priority 2. Pending decision: output layout standard (os/arch vs name suffix).
+
+### [2025-12-20 10:42] - [memory]
+- Starting mmm-64 alignment: reviewed agent guidance (Engineer/Beads/LongTermMemory/ADR/Documentation/Golang), repo docs (requirements-go-port, platform-apis, specs README), README/CONTRIBUTING, and Makefile build logic; preparing expectation alignment before implementation.
+
+### [2025-12-20 10:46] - [memory]
+- mmm-64 alignment received: use Unix-style error text, keep current .env precedence, no flags, build all targets, update Makefile + README to remove build-dev/BUILD_REQUIRE_TOKENS. Need to verify CGO usage; rg shows no import "C"; only CGO mention is prior memory note. Awaiting direction on CGO_ENABLED handling in new build tool.
+
+### [2025-12-20 10:58] - [memory]
+- mmm-64 implementation in progress: added tools/build/build.go + tests, wired Makefile build to go tool, removed build-dev/BUILD_REQUIRE_TOKENS, updated README, adjusted COVER_PACKAGES to exclude tools/*, and ran make fmt/test/coverage-enforce/build successfully.
+
+### [2025-12-20 11:01] - [memory]
+- User request: add logging to build tool so Windows builds show progress (current build appears to hang). Plan: add logger to tools/build/build.go and log per target without leaking tokens.
+
+### [2025-12-20 11:03] - [memory]
+- Added build tool logging to show progress per target and output path; make fmt/test/coverage-enforce/build all green with visible logs.
+
+### [2025-12-20 11:17] - [memory]
+- Addressed code-review.md feedback: build tool now discovers repo root by walking to go.mod with clear error if missing; added tests; updated code-review.md with implementer response; make fmt/test/coverage-enforce green.
+
+### [2025-12-20 11:22] - [memory]
+- Created follow-up Beads ticket mmm-65 to add dist packaging tool that zips build outputs into dist/mmm-<os>-<arch>[-<version].zip with version flag (dev/omit locally).

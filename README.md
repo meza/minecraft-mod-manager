@@ -475,7 +475,7 @@ Precedence is:
 1. `.env` / environment variables you set at runtime (if you set an empty value, it overrides the embedded default)
 2. Embedded defaults in the `mmm` binary
 
-If you build `mmm` yourself, `make build` embeds token defaults from your shell environment and/or the repo-root `./.env` file, and fails if any are missing. (Use `make build-dev` if you want to build without embedding tokens.)
+If you build `mmm` yourself, `make build` embeds token defaults from your shell environment and/or the repo-root `./.env` file, and fails if any are missing.
 
 You can use whatever means exist on your operating system to set these variables. For example, on Windows you can use the
 `set` command:
