@@ -46,6 +46,83 @@ func TestNewBuildToolGetwdFailure(t *testing.T) {
 	}
 }
 
+func TestRunMainGetwdFailure(t *testing.T) {
+	originalNewBuildToolFunc := newBuildToolFunc
+	t.Cleanup(func() {
+		newBuildToolFunc = originalNewBuildToolFunc
+	})
+
+	newBuildToolFunc = func() (*buildTool, error) {
+		return nil, errors.New("boom")
+	}
+
+	if exitCode := runMain(); exitCode != 1 {
+		t.Fatalf("expected exit code 1, got %d", exitCode)
+	}
+}
+
+func TestMainSuccessUsesExit(t *testing.T) {
+	originalNewBuildToolFunc := newBuildToolFunc
+	originalExit := exit
+	t.Cleanup(func() {
+		newBuildToolFunc = originalNewBuildToolFunc
+		exit = originalExit
+	})
+
+	tempDir := t.TempDir()
+	newBuildToolFunc = func() (*buildTool, error) {
+		return &buildTool{
+			repoRoot: tempDir,
+			baseEnv: []string{
+				modrinthEnvVar + "=token",
+				curseforgeEnvVar + "=token",
+				posthogEnvVar + "=token",
+			},
+			goBinary:      "go",
+			commandRunner: &recordingRunner{},
+			envFileReader: func(string) (map[string]string, error) {
+				return map[string]string{}, nil
+			},
+			logger: log.New(&bytes.Buffer{}, "build: ", 0),
+		}, nil
+	}
+
+	exitCode := 99
+	exit = func(code int) {
+		exitCode = code
+	}
+
+	main()
+
+	if exitCode != 0 {
+		t.Fatalf("expected exit code 0, got %d", exitCode)
+	}
+}
+
+func TestRunMainToolRunError(t *testing.T) {
+	originalNewBuildToolFunc := newBuildToolFunc
+	t.Cleanup(func() {
+		newBuildToolFunc = originalNewBuildToolFunc
+	})
+
+	newBuildToolFunc = func() (*buildTool, error) {
+		return &buildTool{
+			repoRoot:      t.TempDir(),
+			baseEnv:       nil,
+			goBinary:      "go",
+			commandRunner: &recordingRunner{},
+			envFileReader: func(string) (map[string]string, error) {
+				return map[string]string{}, nil
+			},
+			logger: log.New(&bytes.Buffer{}, "build: ", 0),
+		}, nil
+	}
+
+	if exitCode := runMain(); exitCode != 1 {
+		t.Fatalf("expected exit code 1, got %d", exitCode)
+	}
+}
+
 func TestNewBuildToolFindsRepoRoot(t *testing.T) {
 	originalGetWorkingDirectory := getWorkingDirectory
 	t.Cleanup(func() {
@@ -127,6 +204,22 @@ func TestReadEnvFileParseError(t *testing.T) {
 	}
 }
 
+func TestReadEnvFileSuccess(t *testing.T) {
+	tempDir := t.TempDir()
+	envPath := filepath.Join(tempDir, ".env")
+	if err := os.WriteFile(envPath, []byte("FOO=bar\nBAZ=qux\n"), 0o644); err != nil {
+		t.Fatalf("failed to write env file: %v", err)
+	}
+
+	values, err := readEnvFile(envPath)
+	if err != nil {
+		t.Fatalf("expected no error, got %v", err)
+	}
+	if values["FOO"] != "bar" || values["BAZ"] != "qux" {
+		t.Fatalf("unexpected env values: %v", values)
+	}
+}
+
 func TestBuildEnvMapUsesEnvFileForMissingTokens(t *testing.T) {
 	envFileValues := map[string]string{
 		modrinthEnvVar:   "modrinth-token",
@@ -165,6 +258,16 @@ func TestBuildEnvMapDoesNotOverrideSetTokens(t *testing.T) {
 	}
 	if envMap[posthogEnvVar] != "posthog-token" {
 		t.Fatalf("expected posthog token from env file, got %q", envMap[posthogEnvVar])
+	}
+}
+
+func TestEnvSliceToMapSkipsMalformedEntry(t *testing.T) {
+	envMap := envSliceToMap([]string{"GOOD=1", "MALFORMED"})
+	if envMap["GOOD"] != "1" {
+		t.Fatalf("expected GOOD=1, got %q", envMap["GOOD"])
+	}
+	if _, exists := envMap["MALFORMED"]; exists {
+		t.Fatal("expected malformed entry to be skipped")
 	}
 }
 
@@ -290,6 +393,31 @@ func TestBuildToolRunBuildsAllTargets(t *testing.T) {
 	}
 }
 
+func TestBuildToolRunBuildTargetError(t *testing.T) {
+	tempDir := t.TempDir()
+	baseEnv := []string{
+		modrinthEnvVar + "=modrinth-token",
+		curseforgeEnvVar + "=curseforge-token",
+		posthogEnvVar + "=posthog-token",
+	}
+	runner := &recordingRunner{runError: errors.New("run fail")}
+	logBuffer := &bytes.Buffer{}
+	tool := &buildTool{
+		repoRoot:      tempDir,
+		baseEnv:       baseEnv,
+		goBinary:      "go",
+		commandRunner: runner,
+		envFileReader: func(string) (map[string]string, error) {
+			return map[string]string{}, nil
+		},
+		logger: log.New(logBuffer, "build: ", 0),
+	}
+
+	if err := tool.run(); err == nil {
+		t.Fatal("expected error, got nil")
+	}
+}
+
 func TestBuildTargetMkdirError(t *testing.T) {
 	tempDir := t.TempDir()
 	buildRoot := filepath.Join(tempDir, "build")
@@ -336,5 +464,17 @@ func TestBuildTargetRunError(t *testing.T) {
 	}
 	if !strings.Contains(err.Error(), "build linux/amd64") {
 		t.Fatalf("expected build error to include target, got %q", err.Error())
+	}
+}
+
+func TestExecRunnerRun(t *testing.T) {
+	if os.Getenv("GO_WANT_HELPER_PROCESS") == "1" {
+		os.Exit(0)
+	}
+
+	cmd := exec.Command(os.Args[0], "-test.run=TestExecRunnerRun", "--")
+	cmd.Env = append(os.Environ(), "GO_WANT_HELPER_PROCESS=1")
+	if err := (execRunner{}).Run(cmd); err != nil {
+		t.Fatalf("expected no error, got %v", err)
 	}
 }

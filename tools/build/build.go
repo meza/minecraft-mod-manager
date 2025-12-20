@@ -68,6 +68,8 @@ type buildTool struct {
 }
 
 var getWorkingDirectory = os.Getwd
+var newBuildToolFunc = newBuildTool
+var exit = os.Exit
 
 func newBuildTool() (*buildTool, error) {
 	workingDirectory, err := getWorkingDirectory()
@@ -91,16 +93,21 @@ func newBuildTool() (*buildTool, error) {
 }
 
 func main() {
-	tool, err := newBuildTool()
+	exit(runMain())
+}
+
+func runMain() int {
+	tool, err := newBuildToolFunc()
 	if err != nil {
 		fmt.Fprintln(os.Stderr, err)
-		os.Exit(1)
+		return 1
 	}
 
 	if err := tool.run(); err != nil {
 		fmt.Fprintln(os.Stderr, err)
-		os.Exit(1)
+		return 1
 	}
+	return 0
 }
 
 func (tool *buildTool) run() error {

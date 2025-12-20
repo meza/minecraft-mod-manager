@@ -661,3 +661,45 @@ Resumed mmm-63.59 coverage push. Loaded project docs and remote agent guidance, 
 
 ### [2025-12-20 11:58] - [memory]
 - Updated CONTRIBUTING with make dist/prepare packaging notes; naming contract remains with dev suffix for local builds.
+
+### [2025-12-20 12:05] - [memory]
+- Created Beads issue mmm-66 to collapse coverage/coverage-enforce into a unified tool that runs coverage, filters exclusions, generates coverage.html, and enforces 100% coverage; update Makefile accordingly.
+
+### [2025-12-20 12:10] - [memory]
+- mmm-66 work: added unified tools/coverage tool (runs tests, filters coverage.out, generates coverage.html, enforces 100%), removed tools/coverage_enforce.go, updated Makefile coverage targets, and noted behavior in CONTRIBUTING. make coverage-enforce passes.
+
+### [2025-12-20 12:13] - [memory]
+- Updated coverage tool to skip filtering when no exclusions are configured and adjusted CONTRIBUTING to note no exclusions by default.
+
+### [2025-12-20 12:25] - [memory]
+- Adjusted coverage tool to keep coverage.out as -func output, generate html from filtered profile, and print only offending -func lines when coverage is below 100
+### [2025-12-20 12:25] - [memory]
+- Adjusted coverage tool to keep coverage.out as -func output, generate html from filtered profile, and print only offending -func lines when coverage is below 100%. Updated coverage docs and added tests for filtering/offending lines.
+
+### [2025-12-20 12:54] - [memory]
+- make coverage now succeeds (coverage tool reports 100%) after adding test coverage and injectable helpers in tools/coverage and tools/packaging; coverage.out is -func output and coverage.html generated from filtered profile.
+
+### [2025-12-20 13:05] - [memory]
+- Tightened coverage enforcement to fail when offending lines exist and expanded tests to bring tools/coverage and tools/packaging to 100%. make coverage now passes with 100% overall and per-package.
+
+### 2025-12-20 13:22 - memory
+- Resumed work on coverage tool changes and code-review feedback; must follow Engineer persona and Beads workflow.
+- Need to check docs in docs/ and update code-review.md after addressing feedback.
+
+### 2025-12-20 13:27 - memory
+- Updated coverage references to use `make coverage` in CI and lefthook; refreshed AGENTS checklist; removed empty else in coverage tool; ran make fmt/test/coverage/build (all pass).
+
+### 2025-12-20 13:37 - memory
+- Updated coverage tool to print unexpected errors to stderr (while keeping <1000utput clean), added tests for error output and coverageNotFullError, and adjusted CI/docs checklists to rely on make coverage instead of make test. Ran make fmt, make coverage, make build.
+
+### 2025-12-20 13:46 - memory
+- Fixed lefthook.yml indentation, updated AGENTS.md to use make instead of ./make, noted lefthook not installed for verification; updated code-review.md accordingly.
+
+### 2025-12-20 13:52 - memory
+- Closed mmm-66. User asked to ignore prior code-review request about removing .beads/memory from changeset.
+
+### 2025-12-20 13:55 - memory
+- Fixed Windows coverage cleanup by closing temp files on error; added statFile injection in tools/packaging and rewrote stat error test to be Windows-safe. Ran make coverage.
+
+### 2025-12-20 13:59 - memory
+- Added writeFile injection to tools/coverage and made write-output error test Windows-safe; updated packaging run error test to use removeAll injection; restored runtime import for chmod-based reset test. make coverage passes locally.

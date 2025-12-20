@@ -279,8 +279,7 @@ UNTIL: code-review.md shows APPROVED
 
 Before returning, verify ALL of:
 - [ ] code-review.md shows Status: APPROVED
-- [ ] Tests pass: `make test`
-- [ ] Coverage enforced: `make coverage-enforce`
+- [ ] Tests and coverage pass: `make coverage`
 - [ ] Build succeeds: `make build`
 - [ ] No unresolved concerns in code-review.md
 
@@ -301,8 +300,7 @@ Return a structured summary:
 - [Any notes from review]
 
 ### Verification
-- Tests: PASS
-- Coverage: PASS
+- Coverage (includes tests): PASS
 - Build: PASS
 ```
 
@@ -416,8 +414,8 @@ When you complete your work, provide:
 - [x] [Feedback item] - [How addressed]
 
 ### Verification
-- Ran: make test - [PASS/FAIL]
-- Ran: make coverage-enforce - [PASS/FAIL]
+- Ran: make coverage - [PASS/FAIL]
+- Ran: make build - [PASS/FAIL]
 ```
 
 ## If You Get Stuck
@@ -521,8 +519,7 @@ You do NOT write or modify code - only review and document.
 ### 3. Run Verification
 
 ```bash
-make test
-make coverage-enforce
+make coverage
 make build
 ```
 
@@ -557,8 +554,7 @@ APPROVED | CHANGES_REQUESTED
 - [What was done well]
 
 ## Verification Results
-- make test: PASS/FAIL
-- make coverage-enforce: PASS/FAIL
+- make coverage: PASS/FAIL
 - make build: PASS/FAIL
 
 ## Sign-off
@@ -771,8 +767,7 @@ Brief overview of what was reviewed and overall assessment.
 - [x] `file.go:42` - Fixed by [description of fix]
 
 ## Verification Results
-- make test: PASS/FAIL
-- make coverage-enforce: PASS/FAIL
+- make coverage: PASS/FAIL
 - make build: PASS/FAIL
 
 ## Sign-off
@@ -850,7 +845,7 @@ ORCHESTRATOR:
     - Verifies fix
     - Updates code-review.md: Status: APPROVED
 
-  → Runs verification (make test, etc.)
+  → Runs verification (make coverage, etc.)
   → All pass
   → Returns completion summary
 

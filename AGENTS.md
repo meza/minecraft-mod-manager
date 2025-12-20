@@ -158,9 +158,8 @@ Write user-facing docs in a conversational, guide-like tone:
 - [ ] Review every line of code for adherence to coding standards
 - [ ] Attempt to simplify or improve any code in the changeset for clarity and maintainability
 - [ ] Ensure `go fmt ./...` passes
-- [ ] Ensure tests pass (`./make test`)
-- [ ] Ensure coverage is 100% (`./make coverage-enforce`)
-- [ ] Ensure build (`./make build`)
+- [ ] Ensure tests and coverage pass (`make coverage`)
+- [ ] Ensure build (`make build`)
 - [ ] Documentation updated if needed
 - [ ] The team/user has reviewed the changes and explicitly asked for completion
 

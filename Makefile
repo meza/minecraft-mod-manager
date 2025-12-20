@@ -5,7 +5,6 @@ APP_NAME := minecraft-mod-manager
 EXECUTABLE_NAME := mmm
 BUILD_DIR := build
 VERSION ?= dev
-COVER_PACKAGES = $(filter-out github.com/meza/minecraft-mod-manager/tools github.com/meza/minecraft-mod-manager/tools/%,$(shell go list ./...))
 
 ifeq ($(OS),Windows_NT)
         OSFLAG  := WIN
@@ -90,10 +89,4 @@ test:
 	go test ./...
 
 coverage:
-	go test $(COVER_PACKAGES) -coverprofile="coverage.out"
-
-coverage-enforce: coverage
-	go tool cover -func="coverage.out" | go run tools/coverage_enforce.go
-
-coverage-html: coverage
-	go tool cover -html="coverage.out" -o coverage.html
+	go run ./tools/coverage

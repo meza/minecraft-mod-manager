@@ -30,21 +30,38 @@ type distTool struct {
 }
 
 var getWorkingDirectory = os.Getwd
+var newDistToolFunc = newDistTool
+var exit = os.Exit
+var removeAll = os.RemoveAll
+var mkdirAll = os.MkdirAll
+var zipFileInfoHeader = zip.FileInfoHeader
+var zipCreateHeader = func(writer *zip.Writer, header *zip.FileHeader) (io.Writer, error) {
+	return writer.CreateHeader(header)
+}
+var copyFile = io.Copy
+var openFile = os.Open
+var glob = filepath.Glob
+var statFile = os.Stat
 
 func main() {
+	exit(runMain())
+}
+
+func runMain() int {
 	versionFlag := flag.String("version", "dev", "version suffix for dist artifacts")
 	flag.Parse()
 
-	tool, err := newDistTool()
+	tool, err := newDistToolFunc()
 	if err != nil {
 		fmt.Fprintln(os.Stderr, err)
-		os.Exit(1)
+		return 1
 	}
 
 	if err := tool.run(*versionFlag); err != nil {
 		fmt.Fprintln(os.Stderr, err)
-		os.Exit(1)
+		return 1
 	}
+	return 0
 }
 
 func newDistTool() (*distTool, error) {
@@ -99,10 +116,10 @@ func normalizeVersion(version string) string {
 }
 
 func resetDistDir(distDir string) error {
-	if err := os.RemoveAll(distDir); err != nil {
+	if err := removeAll(distDir); err != nil {
 		return fmt.Errorf("error: clean dist dir: %w", err)
 	}
-	if err := os.MkdirAll(distDir, 0o755); err != nil {
+	if err := mkdirAll(distDir, 0o755); err != nil {
 		return fmt.Errorf("error: create dist dir: %w", err)
 	}
 	return nil
@@ -116,12 +133,12 @@ func findBuildArtifacts(buildDir string) ([]buildArtifact, error) {
 
 	artifactByPath := make(map[string]buildArtifact)
 	for _, pattern := range patterns {
-		matches, err := filepath.Glob(pattern)
+		matches, err := glob(pattern)
 		if err != nil {
 			return nil, fmt.Errorf("error: invalid build glob %q: %w", pattern, err)
 		}
 		for _, match := range matches {
-			info, err := os.Stat(match)
+			info, err := statFile(match)
 			if err != nil {
 				return nil, fmt.Errorf("error: stat build output %s: %w", match, err)
 			}
@@ -190,7 +207,7 @@ func writeZip(outputPath, inputPath string) error {
 	zipWriter := zip.NewWriter(outputFile)
 	defer func() { _ = zipWriter.Close() }()
 
-	header, err := zip.FileInfoHeader(inputInfo)
+	header, err := zipFileInfoHeader(inputInfo)
 	if err != nil {
 		return fmt.Errorf("error: create zip header for %s: %w", inputPath, err)
 	}
@@ -198,12 +215,12 @@ func writeZip(outputPath, inputPath string) error {
 	header.Method = zip.Deflate
 	header.SetMode(inputInfo.Mode())
 
-	zipEntryWriter, err := zipWriter.CreateHeader(header)
+	zipEntryWriter, err := zipCreateHeader(zipWriter, header)
 	if err != nil {
 		return fmt.Errorf("error: write zip header for %s: %w", inputPath, err)
 	}
 
-	inputFile, err := os.Open(inputPath)
+	inputFile, err := openFile(inputPath)
 	if err != nil {
 		return fmt.Errorf("error: open build output %s: %w", inputPath, err)
 	}
@@ -211,7 +228,7 @@ func writeZip(outputPath, inputPath string) error {
 		_ = inputFile.Close()
 	}()
 
-	if _, err := io.Copy(zipEntryWriter, inputFile); err != nil {
+	if _, err := copyFile(zipEntryWriter, inputFile); err != nil {
 		return fmt.Errorf("error: write zip contents for %s: %w", inputPath, err)
 	}
 

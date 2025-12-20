@@ -4,19 +4,18 @@
 #   https://github.com/evilmartians/lefthook/blob/master/docs/configuration.md
 #
 pre-commit:
- parallel: true
- commands:
-   coverage:
-     tags: backend test
-     run: make coverage-enforce
-   gotidy:
-     tags: backend versions
-     run: go mod tidy
-     stage_fixed: true
-   govet:
-     tags: backend style
-     files: git ls-files -m
-     glob: "*.go"
-     run: go vet {files}
-     stage_fixed: true
-
+  parallel: true
+  commands:
+    coverage:
+      tags: backend test
+      run: make coverage
+    gotidy:
+      tags: backend versions
+      run: go mod tidy
+      stage_fixed: true
+    govet:
+      tags: backend style
+      files: git ls-files -m
+      glob: "*.go"
+      run: go vet {files}
+      stage_fixed: true

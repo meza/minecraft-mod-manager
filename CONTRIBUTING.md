@@ -47,9 +47,10 @@ We treat automated tests as the primary contract for behavior and user experienc
 Run the repo `make` targets (do not call go test/go build directly):
 
 - `make fmt`
-- `make test`
-- `make coverage-enforce`
+- `make coverage`
 - `make build`
+
+`make coverage` runs `go test ./...` as part of the unified coverage tool. It generates `coverage.html` from the filtered profile and writes the `go tool cover -func` output to `coverage.out` (filtered when exclusions are configured), then enforces 100% coverage.
 
 ### Packaging release artifacts
 
