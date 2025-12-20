@@ -1,6 +1,7 @@
 {
   "app.description": "Verwaltet Mods von Modrinth und Curseforge",
   "cmd.help.error": "Unbekanntes Hilfethema: {topic}",
+  "error.network_timeout": "Netzwerkanfrage ist abgelaufen. Bitte pruefe deine Internetverbindung und versuche es erneut.",
   "cmd.help.template": "Hilfe f\u00fcr den Befehl {command} erhalten",
   "cmd.help.more_info": "Weitere Informationen findest du unter: {helpUrl}",
   "cmd.help.usage.long": "Help gibt Hilfe zu einem beliebigen Befehl der Anwendung.\nF\u00fcr mehr Information einfach {appName} help [command] eingeben.",

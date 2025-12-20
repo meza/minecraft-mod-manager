@@ -1,4 +1,5 @@
 {
+  "error.network_timeout": "La requete reseau a expire. Verifie ta connexion Internet et reessaie.",
   "cmd.help.more_info": "Pour plus d'informations, visitez : {helpUrl}",
   "cmd.list.entry.installed": "{name} ({id}) est installe",
   "cmd.list.entry.missing": "{name} ({id}) n'est pas installe",

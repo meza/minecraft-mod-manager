@@ -55,10 +55,15 @@ func getPaginatedFilesForProject(ctx context.Context, projectId int, client http
 	defer span.End()
 
 	url := fmt.Sprintf("%s/mods/%d/files?index=%d", GetBaseUrl(), projectId, cursor)
-	request, _ := http.NewRequestWithContext(ctx, http.MethodGet, url, nil)
+	timeoutCtx, cancel := httpClient.WithMetadataTimeout(ctx)
+	defer cancel()
+	request, _ := http.NewRequestWithContext(timeoutCtx, http.MethodGet, url, nil)
 
 	response, err := client.Do(request)
 	if err != nil {
+		if httpClient.IsTimeoutError(err) {
+			return nil, httpClient.WrapTimeoutError(err)
+		}
 		return nil, globalErrors.ProjectApiErrorWrap(err, strconv.Itoa(projectId), models.CURSEFORGE)
 	}
 	defer response.Body.Close()
@@ -112,11 +117,16 @@ func GetFingerprintsMatches(ctx context.Context, fingerprints []int, client http
 	url := fmt.Sprintf("%s/fingerprints/%d", GetBaseUrl(), gameId)
 
 	body, _ := json.Marshal(getFingerprintsRequest{Fingerprints: fingerprints})
-	request, _ := http.NewRequestWithContext(ctx, http.MethodPost, url, bytes.NewBuffer(body))
+	timeoutCtx, cancel := httpClient.WithMetadataTimeout(ctx)
+	defer cancel()
+	request, _ := http.NewRequestWithContext(timeoutCtx, http.MethodPost, url, bytes.NewBuffer(body))
 	request.Header.Add("Content-Type", "application/json")
 
 	response, err := client.Do(request)
 	if err != nil {
+		if httpClient.IsTimeoutError(err) {
+			return nil, httpClient.WrapTimeoutError(err)
+		}
 		return nil, &FingerprintApiError{
 			Lookup: fingerprints,
 			Err:    err,

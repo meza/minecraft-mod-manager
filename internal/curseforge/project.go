@@ -24,10 +24,15 @@ func GetProject(ctx context.Context, projectId string, client httpClient.Doer) (
 	defer span.End()
 
 	url := fmt.Sprintf("%s/mods/%s", GetBaseUrl(), projectId)
-	request, _ := http.NewRequestWithContext(ctx, http.MethodGet, url, nil)
+	timeoutCtx, cancel := httpClient.WithMetadataTimeout(ctx)
+	defer cancel()
+	request, _ := http.NewRequestWithContext(timeoutCtx, http.MethodGet, url, nil)
 
 	response, err := client.Do(request)
 	if err != nil {
+		if httpClient.IsTimeoutError(err) {
+			return nil, httpClient.WrapTimeoutError(err)
+		}
 		return nil, globalErrors.ProjectApiErrorWrap(err, projectId, models.CURSEFORGE)
 	}
 	defer response.Body.Close()

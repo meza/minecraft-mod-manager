@@ -592,6 +592,12 @@ func TestFetchCurseforgeFilesErrors(t *testing.T) {
 	errorDoer := errorDoer{}
 	_, err = fetchCurseforgeFiles(context.Background(), "1234", "1.20.1", curseforge.Forge, errorDoer)
 	assert.Error(t, err)
+
+	timeoutDoer := timeoutDoer{}
+	_, err = fetchCurseforgeFiles(context.Background(), "1234", "1.20.1", curseforge.Forge, timeoutDoer)
+	assert.Error(t, err)
+	var timeoutErr *httpClient.TimeoutError
+	assert.ErrorAs(t, err, &timeoutErr)
 }
 
 func TestFetchMod_UnknownPlatform(t *testing.T) {
@@ -1051,4 +1057,10 @@ type errorDoer struct{}
 
 func (errorDoer) Do(_ *http.Request) (*http.Response, error) {
 	return nil, errors.New("doer error")
+}
+
+type timeoutDoer struct{}
+
+func (timeoutDoer) Do(_ *http.Request) (*http.Response, error) {
+	return nil, context.DeadlineExceeded
 }

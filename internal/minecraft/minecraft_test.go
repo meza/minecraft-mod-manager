@@ -2,11 +2,19 @@ package minecraft
 
 import (
 	"context"
-	"github.com/stretchr/testify/assert"
 	"net/http"
-	"shanhu.io/g/https/httpstest"
 	"testing"
+
+	"github.com/meza/minecraft-mod-manager/internal/httpClient"
+	"github.com/stretchr/testify/assert"
+	"shanhu.io/g/https/httpstest"
 )
+
+type doerFunc func(*http.Request) (*http.Response, error)
+
+func (f doerFunc) Do(req *http.Request) (*http.Response, error) {
+	return f(req)
+}
 
 func TestMinecraft(t *testing.T) {
 	t.Run("GetLatestVersion_1", func(t *testing.T) {
@@ -117,6 +125,17 @@ func TestMinecraft(t *testing.T) {
 
 		assert.Empty(t, ver)
 		assert.ErrorIs(t, err, CouldNotDetermineLatestVersion)
+	})
+
+	t.Run("GetLatestVersion_Timeout", func(t *testing.T) {
+		ClearManifestCache()
+		ver, err := GetLatestVersion(context.Background(), doerFunc(func(_ *http.Request) (*http.Response, error) {
+			return nil, context.DeadlineExceeded
+		}))
+
+		assert.Empty(t, ver)
+		var timeoutErr *httpClient.TimeoutError
+		assert.ErrorAs(t, err, &timeoutErr)
 	})
 
 	t.Run("IsValidVersion_Error", func(t *testing.T) {

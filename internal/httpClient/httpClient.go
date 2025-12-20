@@ -74,6 +74,9 @@ func (client *RLHTTPClient) Do(request *http.Request) (*http.Response, error) {
 				attribute.String("error_type", fmt.Sprintf("%T", err)),
 			)
 			attemptSpan.End()
+			if IsTimeoutError(err) {
+				return nil, WrapTimeoutError(err)
+			}
 			return nil, fmt.Errorf("rate limit burst exceeded %w", err)
 		}
 
@@ -88,7 +91,7 @@ func (client *RLHTTPClient) Do(request *http.Request) (*http.Response, error) {
 				attribute.String("error_type", fmt.Sprintf("%T", err)),
 			)
 			attemptSpan.End()
-			return nil, err
+			return nil, WrapTimeoutError(err)
 		}
 
 		// Check if the response status is a server error (5xx)

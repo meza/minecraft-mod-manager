@@ -3,15 +3,17 @@ package curseforge
 import (
 	"context"
 	"encoding/json"
-	"github.com/meza/minecraft-mod-manager/internal/globalErrors"
-	"github.com/meza/minecraft-mod-manager/internal/models"
-	"github.com/meza/minecraft-mod-manager/testutil"
-	"github.com/pkg/errors"
-	"github.com/stretchr/testify/assert"
 	"net/http"
 	"net/http/httptest"
 	"testing"
 	"time"
+
+	"github.com/meza/minecraft-mod-manager/internal/globalErrors"
+	"github.com/meza/minecraft-mod-manager/internal/httpClient"
+	"github.com/meza/minecraft-mod-manager/internal/models"
+	"github.com/meza/minecraft-mod-manager/testutil"
+	"github.com/pkg/errors"
+	"github.com/stretchr/testify/assert"
 )
 
 func TestGetFilesForProject(t *testing.T) {
@@ -477,6 +479,15 @@ func TestGetFilesForProjectWhenApiCallFails(t *testing.T) {
 	assert.Nil(t, project)
 }
 
+func TestGetFilesForProjectWhenApiCallTimesOut(t *testing.T) {
+	project, err := GetFilesForProject(context.Background(), 123457, NewClient(errorDoer{err: context.DeadlineExceeded}))
+
+	assert.Error(t, err)
+	var timeoutErr *httpClient.TimeoutError
+	assert.ErrorAs(t, err, &timeoutErr)
+	assert.Nil(t, project)
+}
+
 func TestGetFingerprintsMatchesWithOneExactMatch(t *testing.T) {
 	mockResponse := `{
 		"data": {
@@ -714,6 +725,17 @@ func TestGetFingerprintsMatchesWithApiFailure(t *testing.T) {
 	client := NewClient(errorDoer{err: errors.New("request failed")})
 	result, err := GetFingerprintsMatches(context.Background(), fingerprints, client)
 	assert.ErrorContains(t, err, "request failed")
+	assert.Nil(t, result)
+}
+
+func TestGetFingerprintsMatchesWithApiTimeout(t *testing.T) {
+	fingerprints := []int{0, 1}
+
+	client := NewClient(errorDoer{err: context.DeadlineExceeded})
+	result, err := GetFingerprintsMatches(context.Background(), fingerprints, client)
+	assert.Error(t, err)
+	var timeoutErr *httpClient.TimeoutError
+	assert.ErrorAs(t, err, &timeoutErr)
 	assert.Nil(t, result)
 }
 

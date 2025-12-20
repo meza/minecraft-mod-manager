@@ -10,6 +10,7 @@ import (
 
 	"github.com/meza/minecraft-mod-manager/internal/curseforge"
 	"github.com/meza/minecraft-mod-manager/internal/globalErrors"
+	"github.com/meza/minecraft-mod-manager/internal/httpClient"
 	"github.com/meza/minecraft-mod-manager/internal/models"
 )
 
@@ -78,10 +79,15 @@ func fetchCurseforge(ctx context.Context, projectID string, opts FetchOptions, c
 
 func fetchCurseforgeFiles(ctx context.Context, projectID string, gameVersion string, loader curseforge.ModLoaderType, client curseforgeDoer) ([]curseforge.File, error) {
 	url := fmt.Sprintf("%s/mods/%s/files?gameVersion=%s&modLoaderType=%d", curseforge.GetBaseUrl(), projectID, gameVersion, loader)
-	request, _ := http.NewRequestWithContext(ctx, http.MethodGet, url, nil)
+	timeoutCtx, cancel := httpClient.WithMetadataTimeout(ctx)
+	defer cancel()
+	request, _ := http.NewRequestWithContext(timeoutCtx, http.MethodGet, url, nil)
 
 	response, err := client.Do(request)
 	if err != nil {
+		if httpClient.IsTimeoutError(err) {
+			return nil, httpClient.WrapTimeoutError(err)
+		}
 		return nil, err
 	}
 	defer response.Body.Close()

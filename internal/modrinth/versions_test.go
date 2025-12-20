@@ -2,15 +2,16 @@ package modrinth
 
 import (
 	"context"
-	"github.com/meza/minecraft-mod-manager/internal/globalErrors"
-	"github.com/meza/minecraft-mod-manager/internal/models"
-	"github.com/meza/minecraft-mod-manager/testutil"
-	"github.com/pkg/errors"
 	"net/http"
 	"net/http/httptest"
 	"testing"
 	"time"
 
+	"github.com/meza/minecraft-mod-manager/internal/globalErrors"
+	"github.com/meza/minecraft-mod-manager/internal/httpClient"
+	"github.com/meza/minecraft-mod-manager/internal/models"
+	"github.com/meza/minecraft-mod-manager/testutil"
+	"github.com/pkg/errors"
 	"github.com/stretchr/testify/assert"
 )
 
@@ -315,6 +316,20 @@ func TestGetVersionsForProjectWhenApiCallFails(t *testing.T) {
 	assert.Nil(t, project)
 }
 
+func TestGetVersionsForProjectWhenApiCallTimesOut(t *testing.T) {
+	lookup := &VersionLookup{
+		ProjectId:    "AABBCCD4",
+		Loaders:      []models.Loader{models.FABRIC},
+		GameVersions: []string{"1.16.5"},
+	}
+	project, err := GetVersionsForProject(context.Background(), lookup, NewClient(errorDoer{err: context.DeadlineExceeded}))
+
+	assert.Error(t, err)
+	var timeoutErr *httpClient.TimeoutError
+	assert.ErrorAs(t, err, &timeoutErr)
+	assert.Nil(t, project)
+}
+
 // Hash search
 
 func TestGetVersionForHash_SingleVersion(t *testing.T) {
@@ -471,5 +486,18 @@ func TestGetVersionForHashWhenApiCallFails(t *testing.T) {
 		Lookup: *lookup,
 	})
 	assert.Equal(t, "request failed", errors.Unwrap(err).Error())
+	assert.Nil(t, project)
+}
+
+func TestGetVersionForHashWhenApiCallTimesOut(t *testing.T) {
+	lookup := &VersionHashLookup{
+		algorithm: Sha1,
+		hash:      "c84dd4b3580c02b79958a0590afd5783d80ef504",
+	}
+	project, err := GetVersionForHash(context.Background(), lookup, NewClient(errorDoer{err: context.DeadlineExceeded}))
+
+	assert.Error(t, err)
+	var timeoutErr *httpClient.TimeoutError
+	assert.ErrorAs(t, err, &timeoutErr)
 	assert.Nil(t, project)
 }

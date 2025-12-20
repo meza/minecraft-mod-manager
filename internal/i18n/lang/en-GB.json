@@ -1,6 +1,7 @@
 {
   "app.description": "Manages mods from Modrinth and Curseforge",
   "cmd.help.error": "Unknown help topic: {topic}",
+  "error.network_timeout": "Network request timed out. Please check your internet connection and try again.",
   "cmd.help.template": "Get help for the {command} command",
   "cmd.help.more_info": "For more information, visit: {helpUrl}",
   "cmd.help.usage.long": "Help provides help for any command in the application.\nSimply type {appName} help [command] for more information.",

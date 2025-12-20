@@ -709,3 +709,25 @@ Resumed mmm-63.59 coverage push. Loaded project docs and remote agent guidance, 
 
 ### [2025-12-20 14:43] - [memory]
 - For mmm-63.7 alignment: current Makefile does not reference .env or GO_BUILD_WITH_EMBEDDED_TOKENS; audit finding may be outdated. Need user direction on expected build-time .env parsing behavior and current build tool location (Makefile calls go run ./tools/build but tools/build is missing).
+
+### [2025-12-20 14:56] - [memory]
+- User asked to start mmm-63.12 and requested alignment on expectations after reviewing requirements, code, and docs.
+- mmm-63.12 audit note: no HTTP timeouts or request deadlines; http.DefaultClient used in init; command contexts come from context.Background in main; request builder errors ignored in downloader and minecraft manifest fetch.
+- Need alignment on timeout policy: global http.Client.Timeout vs per-request context.WithTimeout, default durations, and whether to apply to all clients including RLHTTPClient and init minecraft client.
+
+### [2025-12-20 15:00] - [memory]
+- User aligned on per-request timeouts, with longer deadlines for downloads, and wants timeout errors to be i18n-backed and suggest retry/check connection.
+- Keep request builder error handling separate (mmm-63.30). Document timeout policy internally only.
+- Marked mmm-63.12 in progress via bd.
+
+### [2025-12-20 15:20] - [memory]
+- Implemented per-request timeout helpers in internal/httpClient with i18n-backed TimeoutError; applied metadata/download timeouts across http clients and download path.
+- Added timeout error tests across httpClient, minecraft, modrinth, curseforge; updated internal httpClient README and i18n strings.
+- make fmt, make coverage, make build run successfully.
+
+### [2025-12-20 15:32] - [memory]
+- Addressed code-review.md feedback for mmm-63.12: wrapped timeout errors in platform curseforge fetch path, added timeout tests (platform + downloader), refined WrapTimeoutError to preserve i18n message when already wrapped, and clarified timeout defaults in internal/httpClient/README.md.
+
+### [2025-12-20 15:49] - [memory]
+- No new code-review.md findings; noted approval status and added implementer follow-up note.
+ - Closed mmm-63.12 via bd after approval.

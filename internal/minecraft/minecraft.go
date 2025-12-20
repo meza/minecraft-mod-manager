@@ -42,10 +42,15 @@ func getMinecraftVersionManifest(ctx context.Context, client httpClient.Doer) (*
 		return latestManifest, nil
 	}
 
-	request, _ := http.NewRequestWithContext(ctx, "GET", versionManifestUrl, nil)
+	timeoutCtx, cancel := httpClient.WithMetadataTimeout(ctx)
+	defer cancel()
+	request, _ := http.NewRequestWithContext(timeoutCtx, "GET", versionManifestUrl, nil)
 
 	response, err := client.Do(request)
 	if err != nil {
+		if httpClient.IsTimeoutError(err) {
+			return nil, httpClient.WrapTimeoutError(err)
+		}
 		return nil, ManifestNotFound
 	}
 
@@ -64,6 +69,9 @@ func GetLatestVersion(ctx context.Context, client httpClient.Doer) (string, erro
 	manifest, err := getMinecraftVersionManifest(ctx, client)
 
 	if err != nil {
+		if httpClient.IsTimeoutError(err) {
+			return "", httpClient.WrapTimeoutError(err)
+		}
 		return "", CouldNotDetermineLatestVersion
 	}
 

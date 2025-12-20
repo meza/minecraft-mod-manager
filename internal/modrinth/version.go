@@ -107,9 +107,14 @@ func GetVersionsForProject(ctx context.Context, lookup *VersionLookup, client ht
 	query.Set("loaders", string(loadersJSON))
 	baseURL.RawQuery = query.Encode()
 
-	request, _ := http.NewRequestWithContext(ctx, "GET", baseURL.String(), nil)
+	timeoutCtx, cancel := httpClient.WithMetadataTimeout(ctx)
+	defer cancel()
+	request, _ := http.NewRequestWithContext(timeoutCtx, "GET", baseURL.String(), nil)
 	response, err := client.Do(request)
 	if err != nil {
+		if httpClient.IsTimeoutError(err) {
+			return nil, httpClient.WrapTimeoutError(err)
+		}
 		return nil, globalErrors.ProjectApiErrorWrap(err, lookup.ProjectId, models.MODRINTH)
 	}
 	defer response.Body.Close()
@@ -136,9 +141,14 @@ func GetVersionForHash(ctx context.Context, lookup *VersionHashLookup, client ht
 
 	url := fmt.Sprintf("%s/v2/version_file/%s?algorithm=%s", GetBaseUrl(), lookup.hash, lookup.algorithm)
 
-	request, _ := http.NewRequestWithContext(ctx, "GET", url, nil)
+	timeoutCtx, cancel := httpClient.WithMetadataTimeout(ctx)
+	defer cancel()
+	request, _ := http.NewRequestWithContext(timeoutCtx, "GET", url, nil)
 	response, err := client.Do(request)
 	if err != nil {
+		if httpClient.IsTimeoutError(err) {
+			return nil, httpClient.WrapTimeoutError(err)
+		}
 		return nil, VersionApiErrorWrap(err, *lookup)
 	}
 	defer response.Body.Close()

@@ -2,15 +2,17 @@ package curseforge
 
 import (
 	"context"
-	"github.com/meza/minecraft-mod-manager/internal/globalErrors"
-	"github.com/meza/minecraft-mod-manager/internal/models"
-	"github.com/meza/minecraft-mod-manager/testutil"
-	"github.com/pkg/errors"
-	"github.com/stretchr/testify/assert"
 	"net/http"
 	"net/http/httptest"
 	"testing"
 	"time"
+
+	"github.com/meza/minecraft-mod-manager/internal/globalErrors"
+	"github.com/meza/minecraft-mod-manager/internal/httpClient"
+	"github.com/meza/minecraft-mod-manager/internal/models"
+	"github.com/meza/minecraft-mod-manager/testutil"
+	"github.com/pkg/errors"
+	"github.com/stretchr/testify/assert"
 )
 
 func TestGetProject(t *testing.T) {
@@ -245,5 +247,14 @@ func TestGetProjectWhenApiCallFails(t *testing.T) {
 		Platform:  models.CURSEFORGE,
 	})
 	assert.Equal(t, "request failed", errors.Unwrap(err).Error())
+	assert.Nil(t, project)
+}
+
+func TestGetProjectWhenApiCallTimesOut(t *testing.T) {
+	project, err := GetProject(context.Background(), "AABBCCDDEE", NewClient(errorDoer{err: context.DeadlineExceeded}))
+
+	assert.Error(t, err)
+	var timeoutErr *httpClient.TimeoutError
+	assert.ErrorAs(t, err, &timeoutErr)
 	assert.Nil(t, project)
 }

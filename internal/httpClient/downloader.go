@@ -47,10 +47,12 @@ func DownloadFile(ctx context.Context, url string, filepath string, client Doer,
 	defer span.End()
 
 	fs := fileutils.InitFilesystem(filesystem...)
-	request, _ := http.NewRequestWithContext(ctx, "GET", url, nil)
+	downloadCtx, cancel := WithDownloadTimeout(ctx)
+	defer cancel()
+	request, _ := http.NewRequestWithContext(downloadCtx, "GET", url, nil)
 	response, err := client.Do(request)
 	if err != nil {
-		return fmt.Errorf("failed to download file: %w", err)
+		return WrapTimeoutError(fmt.Errorf("failed to download file: %w", err))
 	}
 
 	defer response.Body.Close()
@@ -75,7 +77,7 @@ func DownloadFile(ctx context.Context, url string, filepath string, client Doer,
 
 	_, err = io.Copy(pw.file, io.TeeReader(pw.reader, pw))
 	if err != nil {
-		err2 := fmt.Errorf("failed to write file: %w", err)
+		err2 := WrapTimeoutError(fmt.Errorf("failed to write file: %w", err))
 		program.Send(progressErrMsg{err2})
 		return err2
 	}

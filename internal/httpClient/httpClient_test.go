@@ -1,14 +1,16 @@
 package httpClient
 
 import (
+	"context"
 	"fmt"
-	"github.com/stretchr/testify/assert"
-	"golang.org/x/time/rate"
 	"net/http"
 	"net/http/httptest"
 	"strings"
 	"testing"
 	"time"
+
+	"github.com/stretchr/testify/assert"
+	"golang.org/x/time/rate"
 )
 
 type roundTripFunc func(*http.Request) (*http.Response, error)
@@ -340,4 +342,40 @@ func TestDrainAndCloseHandlesNilBody(t *testing.T) {
 	assert.NotPanics(t, func() {
 		drainAndClose(nil)
 	})
+}
+
+func TestRLHTTPClient_ReturnsTimeoutErrorFromRateLimiter(t *testing.T) {
+	limiter := rate.NewLimiter(rate.Inf, 0)
+	client := NewRLClient(limiter)
+	client.RetryConfig = NoRetries()
+
+	ctx, cancel := context.WithDeadline(context.Background(), time.Now().Add(-time.Second))
+	defer cancel()
+
+	req, err := http.NewRequestWithContext(ctx, "GET", "https://example.com", nil)
+	assert.NoError(t, err)
+
+	resp, err := client.Do(req)
+	assert.Nil(t, resp)
+	var timeoutErr *TimeoutError
+	assert.ErrorAs(t, err, &timeoutErr)
+}
+
+func TestRLHTTPClient_WrapsTimeoutErrorFromTransport(t *testing.T) {
+	limiter := rate.NewLimiter(rate.Inf, 0)
+	client := NewRLClient(limiter)
+	client.RetryConfig = NoRetries()
+	client.client = &http.Client{
+		Transport: roundTripFunc(func(req *http.Request) (*http.Response, error) {
+			return nil, context.DeadlineExceeded
+		}),
+	}
+
+	req, err := http.NewRequest("GET", "https://example.com", nil)
+	assert.NoError(t, err)
+
+	resp, err := client.Do(req)
+	assert.Nil(t, resp)
+	var timeoutErr *TimeoutError
+	assert.ErrorAs(t, err, &timeoutErr)
 }
