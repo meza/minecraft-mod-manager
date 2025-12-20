@@ -637,3 +637,27 @@ Resumed mmm-63.59 coverage push. Loaded project docs and remote agent guidance, 
 
 ### [2025-12-20 11:22] - [memory]
 - Created follow-up Beads ticket mmm-65 to add dist packaging tool that zips build outputs into dist/mmm-<os>-<arch>[-<version].zip with version flag (dev/omit locally).
+
+### [2025-12-20 11:25] - [memory]
+- mmm-65 alignment prep: reviewed docs (requirements-go-port, specs, platform-apis, packaging research), Makefile, scripts/binaries.sh, dist artifacts, and .releaserc.json. dist currently has mmm-<os>.zip and mmm-<version>-<os>.zip; binaries.sh targets build/<os>/mmm and ignores arch while build tool outputs build/<os>/<arch>/mmm. Need alignment on new packaging tool naming, how to discover build outputs, dist cleanup behavior, and release asset globs.
+
+### [2025-12-20 11:29] - [memory]
+- mmm-65 alignment decisions: default version is dev when not supplied; packaging iterates build outputs; dist cleaned before packaging; packaging runs as part of make build; zip contains only the binary. Need to handle CI passing version via make variable (make does not forward --version).
+
+### [2025-12-20 11:34] - [memory]
+- Implemented dist packaging tool in tools/dist; Makefile build now packages with VERSION (default dev), and release config uses new dist naming. Ran make fmt/test/coverage-enforce/build successfully.
+
+### [2025-12-20 11:36] - [memory]
+- Moved new packaging tool from tools/dist to tools/packaging because dist/ is gitignored; updated Makefile accordingly.
+
+### [2025-12-20 11:38] - [memory]
+- User asked if make dev should work and noted convention against tests in tools. Need to confirm whether to add a Makefile dev target and whether to keep tool tests.
+
+### [2025-12-20 11:46] - [memory]
+- Addressed code-review: marked make dist phony, changed packaging to validate build outputs before cleaning dist, added test to keep dist when no artifacts. make fmt/test/coverage-enforce green.
+
+### [2025-12-20 11:53] - [memory]
+- Added make prepare target to run build+dist; build no longer runs packaging. Release prepare now calls make prepare.
+
+### [2025-12-20 11:58] - [memory]
+- Updated CONTRIBUTING with make dist/prepare packaging notes; naming contract remains with dev suffix for local builds.

@@ -6,6 +6,8 @@ internal/i18n/localise
 .locize
 mmm-perf.json
 code-review.md
+build
+dist
 
 ## GENERATED
 .idea
@@ -169,7 +171,7 @@ fabric.properties
 **/nbproject/private/
 **/nbproject/Makefile-*.mk
 **/nbproject/Package-*.bash
-build/
+
 nbbuild/
 dist/
 nbdist/

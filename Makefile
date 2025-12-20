@@ -4,6 +4,7 @@
 APP_NAME := minecraft-mod-manager
 EXECUTABLE_NAME := mmm
 BUILD_DIR := build
+VERSION ?= dev
 COVER_PACKAGES = $(filter-out github.com/meza/minecraft-mod-manager/tools github.com/meza/minecraft-mod-manager/tools/%,$(shell go list ./...))
 
 ifeq ($(OS),Windows_NT)
@@ -52,7 +53,7 @@ endef
 endif
 
 # Targets
-.PHONY: all clean fmt build
+.PHONY: all clean fmt build dist prepare
 
 # Build for all platforms
 all: clean build
@@ -77,6 +78,13 @@ endif
 
 build:
 	go run ./tools/build
+
+dist:
+	go run ./tools/packaging --version "$(VERSION)"
+
+prepare:
+	$(MAKE) build VERSION="$(VERSION)"
+	$(MAKE) dist VERSION="$(VERSION)"
 
 test:
 	go test ./...

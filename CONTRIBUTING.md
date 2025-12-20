@@ -50,3 +50,8 @@ Run the repo `make` targets (do not call go test/go build directly):
 - `make test`
 - `make coverage-enforce`
 - `make build`
+
+### Packaging release artifacts
+
+Use `make dist` to package existing build outputs into `dist/mmm-<os>-<arch>-<version>.zip` (defaults to `dev`).
+Use `make prepare` when you want both the build and packaging steps in one command.

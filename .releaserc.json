@@ -39,7 +39,7 @@
     [
       "@semantic-release/exec",
       {
-        "prepareCmd": "./scripts/prepare.sh ./src/version.ts ${nextRelease.version} && make build && ./scripts/binaries.sh ${nextRelease.version}"
+        "prepareCmd": "./scripts/prepare.sh ./src/version.ts ${nextRelease.version} && make prepare VERSION=${nextRelease.version}"
       }
     ],
     [
@@ -47,15 +47,15 @@
       {
         "assets": [
           {
-            "path": "dist/*-windows.zip",
+            "path": "dist/mmm-windows-*.zip",
             "label": "Minecraft Mod Manager v${nextRelease.version} for Windows"
           },
           {
-            "path": "dist/*-macos.zip",
+            "path": "dist/mmm-darwin-*.zip",
             "label": "Minecraft Mod Manager v${nextRelease.version} for MacOS"
           },
           {
-            "path": "dist/*-linux.zip",
+            "path": "dist/mmm-linux-*.zip",
             "label": "Minecraft Mod Manager v${nextRelease.version} for Linux"
           }
         ]
