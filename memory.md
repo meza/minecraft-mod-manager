@@ -814,3 +814,33 @@ Resumed mmm-63.59 coverage push. Loaded project docs and remote agent guidance, 
 
 ### [2025-12-20 22:11] - [memory]
 - Starting second-pass repo audit (engineering principles, test hygiene, CodeQuality North Star). Will cross-check `audit.md` + existing `mmm-63` Beads subtasks and only record new findings as additional subtasks linked to `mmm-63`.
+
+### [2025-12-20 23:31] - [memory]
+- Read Auditor persona + CodeQuality + Beads + LongTermMemory instructions; continued second-pass audit under epic `mmm-63`.
+- Created net-new CodeQuality subtasks: `mmm-63.93` (misleading `perf.MustGetSpans`), `mmm-63.94` (perf shutdown uses `context.Background()` + drops errors), `mmm-63.95` (oversized prod functions violate “Small Units”).
+- Updated `mmm-63.82` to contain an embedded requirement→evidence→ticket coverage index; updated `mmm-63.95` to embed the scanner code (no tmp evidence links).
+
+### [2025-12-20 23:45] - [memory]
+- Continued second-pass audit; added new subtasks: `mmm-63.96` (atomic_write rollback/cleanup errors ignored), `mmm-63.97` (logger unstructured + drops write errors), `mmm-63.98` (version fallback parsing ignores strconv errors).
+- Expanded `mmm-63.66` evidence to include init prompts/validation strings and shared emoji icons (`internal/tui/icons.go`).
+- Updated `mmm-63.82` coverage index to reference `mmm-63.96`, `mmm-63.97`, `mmm-63.98` and re-validated no `tmp/` or `/tmp/` references in any `mmm-63.*` ticket bodies.
+
+### [2025-12-20 23:55] - [memory]
+- Created `mmm-63.99` (P0) to implement repo-wide lint enforcement using `golangci-lint` + `staticcheck` + `revive` + `ruleguard`, blocking CI on all violations (gosec explicitly deferred to a separate ticket).
+- Updated `mmm-63.82` to reference `mmm-63.99` under automated static analysis enforcement.
+
+### [2025-12-21 00:03] - [memory]
+- Updated `mmm-63.99` with fully concrete lint configurations (full `.golangci.yml` + `revive.toml` + `ruleguard/rules-team.go` contents), with explicit numeric thresholds and rule list aligned to the CodeQuality North Star; CI explicitly blocks on all issues.
+
+### [2025-12-21 00:06] - [memory]
+- Updated `mmm-63.99` ruleguard report messages to be expectation-focused (domain-compliant receiver names, explicit “check and propagate” error-handling expectations), not just mechanical constraints.
+
+### [2025-12-21 00:10] - [memory]
+- Created `mmm-63.100` (P0) to add `gosec` to the golangci-lint CI gate with explicit config/thresholds and CI blocking on findings (with documented SHA1 policy exceptions).
+- Updated `mmm-63.82` to reference `mmm-63.100` under Security Scanning.
+
+### [2025-12-21 00:13] - [memory]
+- Started alignment for mmm-63.99: read required persona/ADR/memory/beads docs, repo requirements/specs/platform docs, ADRs, Makefile/CI; preparing expectations check-in before implementation.
+
+### [2025-12-21 00:20] - [memory]
+- mmm-63.99 alignment updated: scope is lint infra only (no fixes), CI will run make lint; completion defined by lint config surfacing specific child tickets (23,28,29,30,66,67,68,75,76,78,88,94,95,96,98).
