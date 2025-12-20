@@ -8,6 +8,7 @@ import (
 	"path/filepath"
 	"strings"
 	"sync"
+	"sync/atomic"
 
 	_ "github.com/joho/godotenv/autoload"
 	"github.com/meza/minecraft-mod-manager/cmd/mmm"
@@ -17,11 +18,26 @@ import (
 	"go.opentelemetry.io/otel/attribute"
 )
 
-func main() {
-	exitCode := run()
+type mainDeps struct {
+	run  func() int
+	exit func(int)
+}
 
+var mainDepsValue atomic.Value
+
+func init() {
+	mainDepsValue.Store(mainDeps{run: run, exit: os.Exit})
+}
+
+func main() {
+	deps := mainDepsValue.Load().(mainDeps)
+	mainWithDeps(deps.run, deps.exit)
+}
+
+func mainWithDeps(runFunc func() int, exitFunc func(int)) {
+	exitCode := runFunc()
 	if exitCode != 0 {
-		os.Exit(exitCode)
+		exitFunc(exitCode)
 	}
 }
 
@@ -100,6 +116,8 @@ type runDeps struct {
 	args              []string
 	getwd             func() (string, error)
 	perfExport        func(perfExportConfig) error
+	perfInit          func(perf.Config) error
+	perfShutdown      func(context.Context) error
 }
 
 func runWithDeps(deps runDeps) int {
@@ -112,7 +130,16 @@ func runWithDeps(deps runDeps) int {
 	telemetry.SetPerfBaseDir(perfCfg.baseDir)
 	telemetry.SetSessionNameHint(sessionNameHintFromArgs(deps.args))
 
-	if err := perf.Init(perf.Config{Enabled: true}); err != nil && perfCfg.debug {
+	perfInit := deps.perfInit
+	if perfInit == nil {
+		perfInit = perf.Init
+	}
+	perfShutdown := deps.perfShutdown
+	if perfShutdown == nil {
+		perfShutdown = perf.Shutdown
+	}
+
+	if err := perfInit(perf.Config{Enabled: true}); err != nil && perfCfg.debug {
 		log.Printf("perf init failed: %v", err)
 	}
 
@@ -158,7 +185,7 @@ func runWithDeps(deps runDeps) int {
 					log.Printf("perf export failed: %v", err)
 				}
 			}
-			if err := perf.Shutdown(context.Background()); err != nil && perfCfg.debug {
+			if err := perfShutdown(context.Background()); err != nil && perfCfg.debug {
 				log.Printf("perf shutdown failed: %v", err)
 			}
 		})
@@ -192,6 +219,10 @@ type perfExportConfig struct {
 }
 
 func perfExportConfigFromArgs(args []string, cwd string) perfExportConfig {
+	return perfExportConfigFromArgsWithAbs(args, cwd, filepath.Abs)
+}
+
+func perfExportConfigFromArgsWithAbs(args []string, cwd string, absPath func(string) (string, error)) perfExportConfig {
 	configPath := "./modlist.json"
 	perfEnabled := false
 	perfOutDir := ""
@@ -225,7 +256,7 @@ func perfExportConfigFromArgs(args []string, cwd string) perfExportConfig {
 	if cwd != "" && !filepath.IsAbs(resolvedConfig) {
 		resolvedConfig = filepath.Join(cwd, resolvedConfig)
 	}
-	resolvedConfig, err := filepath.Abs(resolvedConfig)
+	resolvedConfig, err := absPath(resolvedConfig)
 	if err != nil {
 		resolvedConfig = configPath
 	}

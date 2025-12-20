@@ -7,6 +7,7 @@ BUILD_DIR := build
 GO_BUILD := go build
 CROSS_CGO_ENABLED ?= 0
 BUILD_REQUIRE_TOKENS ?= 1
+COVER_PACKAGES = $(filter-out github.com/meza/minecraft-mod-manager/tools,$(shell go list ./...))
 
 ifeq ($(OS),Windows_NT)
         OSFLAG  := WIN
@@ -202,7 +203,7 @@ test:
 	go test ./...
 
 coverage:
-	go test ./internal/... -coverprofile="coverage.out"
+	go test $(COVER_PACKAGES) -coverprofile="coverage.out"
 
 coverage-enforce: coverage
 	go tool cover -func="coverage.out" | go run tools/coverage_enforce.go

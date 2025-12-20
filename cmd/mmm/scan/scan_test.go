@@ -608,3 +608,469 @@ func TestRunScan_RespectsMmmignoreAndSkipsManagedFiles(t *testing.T) {
 	assert.NoError(t, err)
 	assert.Equal(t, 1, called)
 }
+
+func TestRunScan_InvalidPreferReturnsError(t *testing.T) {
+	t.Setenv("MMM_TEST", "true")
+
+	fs := afero.NewMemMapFs()
+	meta := config.NewMetadata(filepath.FromSlash("/cfg/modlist.json"))
+	assert.NoError(t, fs.MkdirAll(meta.Dir(), 0755))
+
+	cfg := models.ModsJson{
+		ModsFolder:                 "mods",
+		Loader:                     models.FABRIC,
+		GameVersion:                "1.20.1",
+		DefaultAllowedReleaseTypes: []models.ReleaseType{models.Release},
+	}
+	assert.NoError(t, config.WriteConfig(context.Background(), fs, meta, cfg))
+	assert.NoError(t, config.WriteLock(context.Background(), fs, meta, nil))
+	assert.NoError(t, fs.MkdirAll(meta.ModsFolderPath(cfg), 0755))
+
+	out := &bytes.Buffer{}
+	errOut := &bytes.Buffer{}
+	cmd := &cobra.Command{}
+	cmd.SetIn(&bytes.Buffer{})
+	cmd.SetOut(out)
+	cmd.SetErr(errOut)
+
+	_, err := runScan(context.Background(), cmd, scanOptions{
+		ConfigPath: meta.ConfigPath,
+		Prefer:     "unknown",
+	}, scanDeps{
+		fs:        fs,
+		logger:    logger.New(out, errOut, false, false),
+		telemetry: func(telemetry.CommandTelemetry) {},
+	})
+
+	assert.Error(t, err)
+}
+
+func TestRunScan_ReturnsErrorOnListJarFailure(t *testing.T) {
+	t.Setenv("MMM_TEST", "true")
+
+	fs := afero.NewMemMapFs()
+	meta := config.NewMetadata(filepath.FromSlash("/cfg/modlist.json"))
+	assert.NoError(t, fs.MkdirAll(meta.Dir(), 0755))
+
+	cfg := models.ModsJson{
+		ModsFolder:                 "mods",
+		Loader:                     models.FABRIC,
+		GameVersion:                "1.20.1",
+		DefaultAllowedReleaseTypes: []models.ReleaseType{models.Release},
+	}
+	assert.NoError(t, config.WriteConfig(context.Background(), fs, meta, cfg))
+	assert.NoError(t, config.WriteLock(context.Background(), fs, meta, nil))
+
+	out := &bytes.Buffer{}
+	errOut := &bytes.Buffer{}
+	cmd := &cobra.Command{}
+	cmd.SetIn(&bytes.Buffer{})
+	cmd.SetOut(out)
+	cmd.SetErr(errOut)
+
+	_, err := runScan(context.Background(), cmd, scanOptions{
+		ConfigPath: meta.ConfigPath,
+		Prefer:     "modrinth",
+	}, scanDeps{
+		fs:        fs,
+		logger:    logger.New(out, errOut, false, false),
+		telemetry: func(telemetry.CommandTelemetry) {},
+	})
+
+	assert.Error(t, err)
+}
+
+func TestRunScan_ReturnsErrorOnSha1Failure(t *testing.T) {
+	t.Setenv("MMM_TEST", "true")
+
+	baseFs := afero.NewMemMapFs()
+	meta := config.NewMetadata(filepath.FromSlash("/cfg/modlist.json"))
+	assert.NoError(t, baseFs.MkdirAll(meta.Dir(), 0755))
+
+	cfg := models.ModsJson{
+		ModsFolder:                 "mods",
+		Loader:                     models.FABRIC,
+		GameVersion:                "1.20.1",
+		DefaultAllowedReleaseTypes: []models.ReleaseType{models.Release},
+	}
+	assert.NoError(t, config.WriteConfig(context.Background(), baseFs, meta, cfg))
+	assert.NoError(t, config.WriteLock(context.Background(), baseFs, meta, nil))
+	assert.NoError(t, baseFs.MkdirAll(meta.ModsFolderPath(cfg), 0755))
+
+	jarPath := filepath.Join(meta.ModsFolderPath(cfg), "unmanaged.jar")
+	assert.NoError(t, afero.WriteFile(baseFs, jarPath, []byte("content"), 0644))
+
+	fs := readErrorFs{Fs: baseFs, failPath: jarPath, err: errors.New("read failed")}
+
+	out := &bytes.Buffer{}
+	errOut := &bytes.Buffer{}
+	cmd := &cobra.Command{}
+	cmd.SetIn(&bytes.Buffer{})
+	cmd.SetOut(out)
+	cmd.SetErr(errOut)
+
+	_, err := runScan(context.Background(), cmd, scanOptions{
+		ConfigPath: meta.ConfigPath,
+		Prefer:     "modrinth",
+	}, scanDeps{
+		fs:        fs,
+		logger:    logger.New(out, errOut, false, false),
+		telemetry: func(telemetry.CommandTelemetry) {},
+	})
+
+	assert.Error(t, err)
+}
+
+func TestRunScan_ReturnsErrorOnPrompterFailure(t *testing.T) {
+	t.Setenv("MMM_TEST", "true")
+
+	fs := afero.NewMemMapFs()
+	meta := config.NewMetadata(filepath.FromSlash("/cfg/modlist.json"))
+	assert.NoError(t, fs.MkdirAll(meta.Dir(), 0755))
+
+	cfg := models.ModsJson{
+		ModsFolder:                 "mods",
+		Loader:                     models.FABRIC,
+		GameVersion:                "1.20.1",
+		DefaultAllowedReleaseTypes: []models.ReleaseType{models.Release},
+	}
+	assert.NoError(t, config.WriteConfig(context.Background(), fs, meta, cfg))
+	assert.NoError(t, config.WriteLock(context.Background(), fs, meta, nil))
+	assert.NoError(t, fs.MkdirAll(meta.ModsFolderPath(cfg), 0755))
+
+	jarPath := filepath.Join(meta.ModsFolderPath(cfg), "unmanaged.jar")
+	assert.NoError(t, afero.WriteFile(fs, jarPath, []byte("content"), 0644))
+
+	out := &bytes.Buffer{}
+	errOut := &bytes.Buffer{}
+	cmd := &cobra.Command{}
+	cmd.SetIn(&bytes.Buffer{})
+	cmd.SetOut(out)
+	cmd.SetErr(errOut)
+
+	_, err := runScan(context.Background(), cmd, scanOptions{
+		ConfigPath: meta.ConfigPath,
+		Prefer:     "modrinth",
+	}, scanDeps{
+		fs:        fs,
+		logger:    logger.New(out, errOut, false, false),
+		prompter:  fakePrompter{err: errors.New("confirm failed")},
+		telemetry: func(telemetry.CommandTelemetry) {},
+		modrinthVersionForSha: func(context.Context, string, httpClient.Doer) (*modrinth.Version, error) {
+			return &modrinth.Version{
+				ProjectId:     "proj-1",
+				DatePublished: time.Date(2024, 1, 1, 0, 0, 0, 0, time.UTC),
+				Files: []modrinth.VersionFile{
+					{Url: "https://example.invalid/mod.jar", Primary: true},
+				},
+			}, nil
+		},
+		modrinthProjectTitle: func(context.Context, string, httpClient.Doer) (string, error) {
+			return "Example", nil
+		},
+		clients: platform.Clients{},
+	})
+
+	assert.Error(t, err)
+}
+
+func TestRunScan_PromptDeclineSkipsPersist(t *testing.T) {
+	t.Setenv("MMM_TEST", "true")
+
+	fs := afero.NewMemMapFs()
+	meta := config.NewMetadata(filepath.FromSlash("/cfg/modlist.json"))
+	assert.NoError(t, fs.MkdirAll(meta.Dir(), 0755))
+
+	cfg := models.ModsJson{
+		ModsFolder:                 "mods",
+		Loader:                     models.FABRIC,
+		GameVersion:                "1.20.1",
+		DefaultAllowedReleaseTypes: []models.ReleaseType{models.Release},
+	}
+	assert.NoError(t, config.WriteConfig(context.Background(), fs, meta, cfg))
+	assert.NoError(t, config.WriteLock(context.Background(), fs, meta, nil))
+	assert.NoError(t, fs.MkdirAll(meta.ModsFolderPath(cfg), 0755))
+
+	jarPath := filepath.Join(meta.ModsFolderPath(cfg), "unmanaged.jar")
+	assert.NoError(t, afero.WriteFile(fs, jarPath, []byte("content"), 0644))
+
+	out := &bytes.Buffer{}
+	errOut := &bytes.Buffer{}
+	cmd := &cobra.Command{}
+	cmd.SetIn(&bytes.Buffer{})
+	cmd.SetOut(out)
+	cmd.SetErr(errOut)
+
+	_, err := runScan(context.Background(), cmd, scanOptions{
+		ConfigPath: meta.ConfigPath,
+		Prefer:     "modrinth",
+	}, scanDeps{
+		fs:        fs,
+		logger:    logger.New(out, errOut, false, false),
+		prompter:  fakePrompter{confirm: false},
+		telemetry: func(telemetry.CommandTelemetry) {},
+		modrinthVersionForSha: func(context.Context, string, httpClient.Doer) (*modrinth.Version, error) {
+			return &modrinth.Version{
+				ProjectId:     "proj-1",
+				DatePublished: time.Date(2024, 1, 1, 0, 0, 0, 0, time.UTC),
+				Files: []modrinth.VersionFile{
+					{Url: "https://example.invalid/mod.jar", Primary: true},
+				},
+			}, nil
+		},
+		modrinthProjectTitle: func(context.Context, string, httpClient.Doer) (string, error) {
+			return "Example", nil
+		},
+		clients: platform.Clients{},
+	})
+
+	assert.NoError(t, err)
+
+	updatedCfg, err := config.ReadConfig(context.Background(), fs, meta)
+	assert.NoError(t, err)
+	assert.Empty(t, updatedCfg.Mods)
+}
+
+func TestRunScan_AllManagedReturnsEarly(t *testing.T) {
+	t.Setenv("MMM_TEST", "true")
+
+	fs := afero.NewMemMapFs()
+	meta := config.NewMetadata(filepath.FromSlash("/cfg/modlist.json"))
+	assert.NoError(t, fs.MkdirAll(meta.Dir(), 0755))
+
+	cfg := models.ModsJson{
+		ModsFolder:                 "mods",
+		Loader:                     models.FABRIC,
+		GameVersion:                "1.20.1",
+		DefaultAllowedReleaseTypes: []models.ReleaseType{models.Release},
+	}
+	assert.NoError(t, config.WriteConfig(context.Background(), fs, meta, cfg))
+	assert.NoError(t, config.WriteLock(context.Background(), fs, meta, []models.ModInstall{
+		{FileName: "managed.jar"},
+	}))
+	assert.NoError(t, fs.MkdirAll(meta.ModsFolderPath(cfg), 0755))
+	assert.NoError(t, afero.WriteFile(fs, filepath.Join(meta.ModsFolderPath(cfg), "managed.jar"), []byte("content"), 0644))
+
+	out := &bytes.Buffer{}
+	errOut := &bytes.Buffer{}
+	cmd := &cobra.Command{}
+	cmd.SetIn(&bytes.Buffer{})
+	cmd.SetOut(out)
+	cmd.SetErr(errOut)
+
+	_, err := runScan(context.Background(), cmd, scanOptions{
+		ConfigPath: meta.ConfigPath,
+		Prefer:     "modrinth",
+	}, scanDeps{
+		fs:        fs,
+		logger:    logger.New(out, errOut, false, false),
+		telemetry: func(telemetry.CommandTelemetry) {},
+	})
+
+	assert.NoError(t, err)
+	assert.Contains(t, out.String(), "cmd.scan.all_managed")
+}
+
+func TestRunScan_ReturnsErrorOnEnsureConfigFailure(t *testing.T) {
+	fs := afero.NewMemMapFs()
+	meta := config.NewMetadata(filepath.FromSlash("/cfg/modlist.json"))
+
+	out := &bytes.Buffer{}
+	errOut := &bytes.Buffer{}
+	cmd := &cobra.Command{}
+	cmd.SetIn(&bytes.Buffer{})
+	cmd.SetOut(out)
+	cmd.SetErr(errOut)
+
+	_, err := runScan(context.Background(), cmd, scanOptions{
+		ConfigPath: meta.ConfigPath,
+		Quiet:      true,
+		Prefer:     "modrinth",
+	}, scanDeps{
+		fs:        fs,
+		logger:    logger.New(out, errOut, true, false),
+		telemetry: func(telemetry.CommandTelemetry) {},
+	})
+
+	assert.Error(t, err)
+}
+
+func TestRunScan_AddLogsPersistFailureAndContinues(t *testing.T) {
+	t.Setenv("MMM_TEST", "true")
+
+	fs := afero.NewMemMapFs()
+	meta := config.NewMetadata(filepath.FromSlash("/cfg/modlist.json"))
+	assert.NoError(t, fs.MkdirAll(meta.Dir(), 0755))
+
+	cfg := models.ModsJson{
+		ModsFolder:                 "mods",
+		Loader:                     models.FABRIC,
+		GameVersion:                "1.20.1",
+		DefaultAllowedReleaseTypes: []models.ReleaseType{models.Release},
+	}
+	assert.NoError(t, config.WriteConfig(context.Background(), fs, meta, cfg))
+	assert.NoError(t, config.WriteLock(context.Background(), fs, meta, nil))
+	assert.NoError(t, fs.MkdirAll(meta.ModsFolderPath(cfg), 0755))
+
+	jarPath := filepath.Join(meta.ModsFolderPath(cfg), "unmanaged.jar")
+	assert.NoError(t, afero.WriteFile(fs, jarPath, []byte("content"), 0644))
+
+	out := &bytes.Buffer{}
+	errOut := &bytes.Buffer{}
+	cmd := &cobra.Command{}
+	cmd.SetIn(&bytes.Buffer{})
+	cmd.SetOut(out)
+	cmd.SetErr(errOut)
+
+	_, err := runScan(context.Background(), cmd, scanOptions{
+		ConfigPath: meta.ConfigPath,
+		Prefer:     "modrinth",
+		Add:        true,
+	}, scanDeps{
+		fs:        fs,
+		logger:    logger.New(out, errOut, false, false),
+		telemetry: func(telemetry.CommandTelemetry) {},
+		modrinthVersionForSha: func(context.Context, string, httpClient.Doer) (*modrinth.Version, error) {
+			return &modrinth.Version{
+				ProjectId:     "",
+				DatePublished: time.Date(2024, 1, 1, 0, 0, 0, 0, time.UTC),
+				Files: []modrinth.VersionFile{
+					{Url: "https://example.invalid/mod.jar", Primary: true},
+				},
+			}, nil
+		},
+		modrinthProjectTitle: func(context.Context, string, httpClient.Doer) (string, error) {
+			return "Example", nil
+		},
+		curseforgeFingerprint: func(string) uint32 { return 123 },
+		curseforgeFingerprintMatch: func(context.Context, []int, httpClient.Doer) (*curseforge.FingerprintResult, error) {
+			return &curseforge.FingerprintResult{}, nil
+		},
+	})
+
+	assert.NoError(t, err)
+	assert.Contains(t, out.String(), "cmd.scan.persist_failed")
+}
+
+func TestRunScan_WriteConfigFailure(t *testing.T) {
+	t.Setenv("MMM_TEST", "true")
+
+	baseFs := afero.NewMemMapFs()
+	meta := config.NewMetadata(filepath.FromSlash("/cfg/modlist.json"))
+	assert.NoError(t, baseFs.MkdirAll(meta.Dir(), 0755))
+
+	cfg := models.ModsJson{
+		ModsFolder:                 "mods",
+		Loader:                     models.FABRIC,
+		GameVersion:                "1.20.1",
+		DefaultAllowedReleaseTypes: []models.ReleaseType{models.Release},
+	}
+	assert.NoError(t, config.WriteConfig(context.Background(), baseFs, meta, cfg))
+	assert.NoError(t, config.WriteLock(context.Background(), baseFs, meta, nil))
+	assert.NoError(t, baseFs.MkdirAll(meta.ModsFolderPath(cfg), 0755))
+
+	jarPath := filepath.Join(meta.ModsFolderPath(cfg), "unmanaged.jar")
+	assert.NoError(t, afero.WriteFile(baseFs, jarPath, []byte("content"), 0644))
+
+	fs := renameErrorFs{Fs: baseFs, failNew: meta.ConfigPath, err: errors.New("rename failed")}
+
+	out := &bytes.Buffer{}
+	errOut := &bytes.Buffer{}
+	cmd := &cobra.Command{}
+	cmd.SetIn(&bytes.Buffer{})
+	cmd.SetOut(out)
+	cmd.SetErr(errOut)
+
+	_, err := runScan(context.Background(), cmd, scanOptions{
+		ConfigPath: meta.ConfigPath,
+		Prefer:     "modrinth",
+		Add:        true,
+	}, scanDeps{
+		fs:        fs,
+		logger:    logger.New(out, errOut, false, false),
+		telemetry: func(telemetry.CommandTelemetry) {},
+		modrinthVersionForSha: func(context.Context, string, httpClient.Doer) (*modrinth.Version, error) {
+			return &modrinth.Version{
+				ProjectId:     "proj-1",
+				DatePublished: time.Date(2024, 1, 1, 0, 0, 0, 0, time.UTC),
+				Files: []modrinth.VersionFile{
+					{Url: "https://example.invalid/mod.jar", Primary: true},
+				},
+			}, nil
+		},
+		modrinthProjectTitle: func(context.Context, string, httpClient.Doer) (string, error) {
+			return "Example Mod", nil
+		},
+		clients: platform.Clients{},
+	})
+
+	assert.Error(t, err)
+}
+
+func TestRunScan_WriteLockFailure(t *testing.T) {
+	t.Setenv("MMM_TEST", "true")
+
+	baseFs := afero.NewMemMapFs()
+	meta := config.NewMetadata(filepath.FromSlash("/cfg/modlist.json"))
+	assert.NoError(t, baseFs.MkdirAll(meta.Dir(), 0755))
+
+	cfg := models.ModsJson{
+		ModsFolder:                 "mods",
+		Loader:                     models.FABRIC,
+		GameVersion:                "1.20.1",
+		DefaultAllowedReleaseTypes: []models.ReleaseType{models.Release},
+	}
+	assert.NoError(t, config.WriteConfig(context.Background(), baseFs, meta, cfg))
+	assert.NoError(t, config.WriteLock(context.Background(), baseFs, meta, nil))
+	assert.NoError(t, baseFs.MkdirAll(meta.ModsFolderPath(cfg), 0755))
+
+	jarPath := filepath.Join(meta.ModsFolderPath(cfg), "unmanaged.jar")
+	assert.NoError(t, afero.WriteFile(baseFs, jarPath, []byte("content"), 0644))
+
+	fs := renameErrorFs{Fs: baseFs, failNew: meta.LockPath(), err: errors.New("rename failed")}
+
+	out := &bytes.Buffer{}
+	errOut := &bytes.Buffer{}
+	cmd := &cobra.Command{}
+	cmd.SetIn(&bytes.Buffer{})
+	cmd.SetOut(out)
+	cmd.SetErr(errOut)
+
+	_, err := runScan(context.Background(), cmd, scanOptions{
+		ConfigPath: meta.ConfigPath,
+		Prefer:     "modrinth",
+		Add:        true,
+	}, scanDeps{
+		fs:        fs,
+		logger:    logger.New(out, errOut, false, false),
+		telemetry: func(telemetry.CommandTelemetry) {},
+		modrinthVersionForSha: func(context.Context, string, httpClient.Doer) (*modrinth.Version, error) {
+			return &modrinth.Version{
+				ProjectId:     "proj-1",
+				DatePublished: time.Date(2024, 1, 1, 0, 0, 0, 0, time.UTC),
+				Files: []modrinth.VersionFile{
+					{Url: "https://example.invalid/mod.jar", Primary: true},
+				},
+			}, nil
+		},
+		modrinthProjectTitle: func(context.Context, string, httpClient.Doer) (string, error) {
+			return "Example Mod", nil
+		},
+		clients: platform.Clients{},
+	})
+
+	assert.Error(t, err)
+}
+
+type renameErrorFs struct {
+	afero.Fs
+	failNew string
+	err     error
+}
+
+func (r renameErrorFs) Rename(oldname, newname string) error {
+	if filepath.Clean(newname) == filepath.Clean(r.failNew) {
+		return r.err
+	}
+	return r.Fs.Rename(oldname, newname)
+}

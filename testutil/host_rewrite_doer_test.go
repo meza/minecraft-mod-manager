@@ -70,4 +70,17 @@ func TestMustNewHostRewriteDoer(t *testing.T) {
 			_ = MustNewHostRewriteDoer(":", errorDoer{err: errors.New("unused")})
 		})
 	})
+
+	t.Run("returns doer on valid input", func(t *testing.T) {
+		next := &recordingDoer{}
+		doer := MustNewHostRewriteDoer("https://example.com:8443", next)
+		if assert.NotNil(t, doer) {
+			req, err := http.NewRequest(http.MethodGet, "https://api.modrinth.com/v2/project/test", nil)
+			if !assert.NoError(t, err) {
+				return
+			}
+			_, err = doer.Do(req)
+			assert.NoError(t, err)
+		}
+	})
 }

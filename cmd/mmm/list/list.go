@@ -50,9 +50,10 @@ func Command() *cobra.Command {
 
 			log := logger.New(cmd.OutOrStdout(), cmd.ErrOrStderr(), quiet, debug)
 			deps := listDeps{
-				fs:        afero.NewOsFs(),
-				logger:    log,
-				telemetry: telemetry.RecordCommand,
+				fs:            afero.NewOsFs(),
+				logger:        log,
+				telemetry:     telemetry.RecordCommand,
+				programRunner: defaultProgramRunner,
 			}
 
 			entriesCount, usedTUI, err := runList(ctx, cmd, configPath, quiet, deps)
@@ -83,9 +84,16 @@ func Command() *cobra.Command {
 }
 
 type listDeps struct {
-	fs        afero.Fs
-	logger    *logger.Logger
-	telemetry func(telemetry.CommandTelemetry)
+	fs            afero.Fs
+	logger        *logger.Logger
+	telemetry     func(telemetry.CommandTelemetry)
+	programRunner func(model tea.Model, options ...tea.ProgramOption) error
+}
+
+func defaultProgramRunner(model tea.Model, options ...tea.ProgramOption) error {
+	program := tea.NewProgram(model, options...)
+	_, err := program.Run()
+	return err
 }
 
 type listEntry struct {
@@ -116,8 +124,7 @@ func runList(ctx context.Context, cmd *cobra.Command, configPath string, quiet b
 	if useTUI {
 		_, tuiSpan := perf.StartSpan(ctx, "tui.list.session")
 		model := newModel(view, tuiSpan)
-		program := tea.NewProgram(model, tui.ProgramOptions(cmd.InOrStdin(), cmd.OutOrStdout())...)
-		if _, err := program.Run(); err != nil {
+		if err := deps.programRunner(model, tui.ProgramOptions(cmd.InOrStdin(), cmd.OutOrStdout())...); err != nil {
 			tuiSpan.SetAttributes(attribute.Bool("success", false))
 			tuiSpan.End()
 			return 0, true, err

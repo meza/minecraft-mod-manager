@@ -63,7 +63,13 @@ type Result struct {
 	UnmanagedFound bool
 }
 
+type installRunner func(context.Context, *cobra.Command, installOptions, installDeps) (Result, error)
+
 func Command() *cobra.Command {
+	return commandWithRunner(runInstall)
+}
+
+func commandWithRunner(runner installRunner) *cobra.Command {
 	cmd := &cobra.Command{
 		Use:     "install",
 		Aliases: []string{"i"},
@@ -101,31 +107,11 @@ func Command() *cobra.Command {
 				fetchMod:   platform.FetchMod,
 				telemetry:  telemetry.RecordCommand,
 
-				curseforgeFingerprint: curseforgeFingerprint.GetFingerprintFor,
-				modrinthVersionForSha: func(ctx context.Context, sha1 string, doer httpClient.Doer) (*modrinth.Version, error) {
-					client := modrinth.NewClient(doer)
-					return modrinth.GetVersionForHash(ctx, modrinth.NewVersionHashLookup(sha1, modrinth.Sha1), client)
-				},
-				modrinthProjectTitle: func(ctx context.Context, projectID string, doer httpClient.Doer) (string, error) {
-					client := modrinth.NewClient(doer)
-					project, err := modrinth.GetProject(ctx, projectID, client)
-					if err != nil {
-						return "", err
-					}
-					return project.Title, nil
-				},
-				curseforgeFingerprintMatch: func(ctx context.Context, fingerprints []int, doer httpClient.Doer) (*curseforge.FingerprintResult, error) {
-					client := curseforge.NewClient(doer)
-					return curseforge.GetFingerprintsMatches(ctx, fingerprints, client)
-				},
-				curseforgeProjectName: func(ctx context.Context, projectID string, doer httpClient.Doer) (string, error) {
-					client := curseforge.NewClient(doer)
-					project, err := curseforge.GetProject(ctx, projectID, client)
-					if err != nil {
-						return "", err
-					}
-					return project.Name, nil
-				},
+				curseforgeFingerprint:      curseforgeFingerprint.GetFingerprintFor,
+				modrinthVersionForSha:      defaultModrinthVersionForSha,
+				modrinthProjectTitle:       defaultModrinthProjectTitle,
+				curseforgeFingerprintMatch: defaultCurseforgeFingerprintMatch,
+				curseforgeProjectName:      defaultCurseforgeProjectName,
 			}
 
 			opts := installOptions{
@@ -134,7 +120,7 @@ func Command() *cobra.Command {
 				Debug:      debug,
 			}
 
-			result, err := runInstall(ctx, cmd, opts, deps)
+			result, err := runner(ctx, cmd, opts, deps)
 			span.SetAttributes(attribute.Bool("success", err == nil))
 			span.End()
 
@@ -175,31 +161,11 @@ func Run(ctx context.Context, cmd *cobra.Command, configPath string, quiet bool,
 		fetchMod:   platform.FetchMod,
 		telemetry:  func(telemetry.CommandTelemetry) {},
 
-		curseforgeFingerprint: curseforgeFingerprint.GetFingerprintFor,
-		modrinthVersionForSha: func(ctx context.Context, sha1 string, doer httpClient.Doer) (*modrinth.Version, error) {
-			client := modrinth.NewClient(doer)
-			return modrinth.GetVersionForHash(ctx, modrinth.NewVersionHashLookup(sha1, modrinth.Sha1), client)
-		},
-		modrinthProjectTitle: func(ctx context.Context, projectID string, doer httpClient.Doer) (string, error) {
-			client := modrinth.NewClient(doer)
-			project, err := modrinth.GetProject(ctx, projectID, client)
-			if err != nil {
-				return "", err
-			}
-			return project.Title, nil
-		},
-		curseforgeFingerprintMatch: func(ctx context.Context, fingerprints []int, doer httpClient.Doer) (*curseforge.FingerprintResult, error) {
-			client := curseforge.NewClient(doer)
-			return curseforge.GetFingerprintsMatches(ctx, fingerprints, client)
-		},
-		curseforgeProjectName: func(ctx context.Context, projectID string, doer httpClient.Doer) (string, error) {
-			client := curseforge.NewClient(doer)
-			project, err := curseforge.GetProject(ctx, projectID, client)
-			if err != nil {
-				return "", err
-			}
-			return project.Name, nil
-		},
+		curseforgeFingerprint:      curseforgeFingerprint.GetFingerprintFor,
+		modrinthVersionForSha:      defaultModrinthVersionForSha,
+		modrinthProjectTitle:       defaultModrinthProjectTitle,
+		curseforgeFingerprintMatch: defaultCurseforgeFingerprintMatch,
+		curseforgeProjectName:      defaultCurseforgeProjectName,
 	}
 
 	opts := installOptions{
@@ -463,9 +429,6 @@ func scanFiles(ctx context.Context, files []string, deps installDeps) ([]scanned
 			continue
 		}
 		for _, index := range indices {
-			if index < 0 || index >= len(results) {
-				continue
-			}
 			results[index].Hits = append(results[index].Hits, hit)
 		}
 	}
@@ -643,9 +606,6 @@ func listModFiles(fs afero.Fs, meta config.Metadata, cfg models.ModsJson) ([]str
 	if err != nil {
 		return nil, err
 	}
-	if len(patterns) == 0 {
-		return candidates, nil
-	}
 
 	filtered := make([]string, 0, len(candidates))
 	for _, path := range candidates {
@@ -681,4 +641,32 @@ func downloadClient(clients platform.Clients) httpClient.Doer {
 		return clients.Curseforge
 	}
 	return clients.Modrinth
+}
+
+func defaultModrinthVersionForSha(ctx context.Context, sha1 string, doer httpClient.Doer) (*modrinth.Version, error) {
+	client := modrinth.NewClient(doer)
+	return modrinth.GetVersionForHash(ctx, modrinth.NewVersionHashLookup(sha1, modrinth.Sha1), client)
+}
+
+func defaultModrinthProjectTitle(ctx context.Context, projectID string, doer httpClient.Doer) (string, error) {
+	client := modrinth.NewClient(doer)
+	project, err := modrinth.GetProject(ctx, projectID, client)
+	if err != nil {
+		return "", err
+	}
+	return project.Title, nil
+}
+
+func defaultCurseforgeFingerprintMatch(ctx context.Context, fingerprints []int, doer httpClient.Doer) (*curseforge.FingerprintResult, error) {
+	client := curseforge.NewClient(doer)
+	return curseforge.GetFingerprintsMatches(ctx, fingerprints, client)
+}
+
+func defaultCurseforgeProjectName(ctx context.Context, projectID string, doer httpClient.Doer) (string, error) {
+	client := curseforge.NewClient(doer)
+	project, err := curseforge.GetProject(ctx, projectID, client)
+	if err != nil {
+		return "", err
+	}
+	return project.Name, nil
 }

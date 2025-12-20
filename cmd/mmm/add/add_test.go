@@ -154,6 +154,30 @@ func TestRunAdd_SkipsDownloadWhenFileAlreadyMatchesRemoteHash(t *testing.T) {
 	assert.False(t, downloaded)
 }
 
+func TestRunAdd_QuietMissingConfigReturnsError(t *testing.T) {
+	ctx, commandSpan := startAddPerf(t)
+	fs := afero.NewMemMapFs()
+	meta := config.NewMetadata(filepath.FromSlash("/cfg/modlist.json"))
+
+	cmd := &cobra.Command{}
+	cmd.SetIn(bytes.NewBuffer(nil))
+	cmd.SetOut(bytes.NewBuffer(nil))
+	cmd.SetErr(bytes.NewBuffer(nil))
+
+	_, err := runAdd(ctx, commandSpan, cmd, addOptions{
+		Platform:   "modrinth",
+		ProjectID:  "abc",
+		ConfigPath: meta.ConfigPath,
+		Quiet:      true,
+	}, addDeps{
+		fs:      fs,
+		clients: platform.DefaultClients(rate.NewLimiter(rate.Inf, 0)),
+		logger:  logger.New(cmd.OutOrStdout(), cmd.ErrOrStderr(), true, false),
+	})
+
+	assert.Error(t, err)
+}
+
 func TestRunAdd_DuplicateSkipsWorkWhenFilePresent(t *testing.T) {
 	ctx, commandSpan := startAddPerf(t)
 	fs := afero.NewMemMapFs()
@@ -214,6 +238,113 @@ func TestRunAdd_DuplicateSkipsWorkWhenFilePresent(t *testing.T) {
 
 	assert.NoError(t, err)
 	assert.False(t, downloaded)
+}
+
+func TestRunAdd_DuplicateEnsureLockedFileError(t *testing.T) {
+	ctx, commandSpan := startAddPerf(t)
+	fs := afero.NewMemMapFs()
+	meta := config.NewMetadata(filepath.FromSlash("/cfg/modlist.json"))
+	assert.NoError(t, fs.MkdirAll(filepath.Dir(meta.ConfigPath), 0755))
+
+	cfg := models.ModsJson{
+		Loader:                     models.FABRIC,
+		GameVersion:                "1.20.1",
+		DefaultAllowedReleaseTypes: []models.ReleaseType{models.Release},
+		ModsFolder:                 "mods",
+		Mods: []models.Mod{
+			{Type: models.MODRINTH, ID: "abc", Name: "Existing"},
+		},
+	}
+	assert.NoError(t, config.WriteConfig(context.Background(), fs, meta, cfg))
+	assert.NoError(t, config.WriteLock(context.Background(), fs, meta, []models.ModInstall{
+		{
+			Type:        models.MODRINTH,
+			Id:          "abc",
+			Name:        "Existing",
+			FileName:    "existing.jar",
+			Hash:        "hash",
+			ReleasedOn:  "2024-01-01T00:00:00Z",
+			DownloadUrl: "https://example.com/existing.jar",
+		},
+	}))
+
+	cmd := &cobra.Command{}
+	cmd.SetIn(bytes.NewBuffer(nil))
+	cmd.SetOut(bytes.NewBuffer(nil))
+	cmd.SetErr(bytes.NewBuffer(nil))
+
+	_, err := runAdd(ctx, commandSpan, cmd, addOptions{
+		Platform:   "modrinth",
+		ProjectID:  "abc",
+		ConfigPath: meta.ConfigPath,
+	}, addDeps{
+		fs:      fs,
+		clients: platform.DefaultClients(rate.NewLimiter(rate.Inf, 0)),
+		logger:  logger.New(cmd.OutOrStdout(), cmd.ErrOrStderr(), false, true),
+	})
+
+	assert.Error(t, err)
+}
+
+func TestRunAdd_DuplicateHashMismatchDownloads(t *testing.T) {
+	ctx, commandSpan := startAddPerf(t)
+	fs := afero.NewMemMapFs()
+	meta := config.NewMetadata(filepath.FromSlash("/cfg/modlist.json"))
+	assert.NoError(t, fs.MkdirAll(filepath.Dir(meta.ConfigPath), 0755))
+
+	existing := []byte("existing")
+	existingHash := fmt.Sprintf("%x", sha1.Sum(existing))
+	updatedHash := fmt.Sprintf("%x", sha1.Sum([]byte("updated")))
+
+	cfg := models.ModsJson{
+		Loader:                     models.FABRIC,
+		GameVersion:                "1.20.1",
+		DefaultAllowedReleaseTypes: []models.ReleaseType{models.Release},
+		ModsFolder:                 "mods",
+		Mods: []models.Mod{
+			{Type: models.MODRINTH, ID: "abc", Name: "Existing"},
+		},
+	}
+	assert.NoError(t, config.WriteConfig(context.Background(), fs, meta, cfg))
+	assert.NoError(t, config.WriteLock(context.Background(), fs, meta, []models.ModInstall{
+		{
+			Type:        models.MODRINTH,
+			Id:          "abc",
+			Name:        "Existing",
+			FileName:    "existing.jar",
+			Hash:        updatedHash,
+			ReleasedOn:  "2024-01-01T00:00:00Z",
+			DownloadUrl: "https://example.com/existing.jar",
+		},
+	}))
+
+	managedPath := filepath.Join(meta.ModsFolderPath(cfg), "existing.jar")
+	assert.NoError(t, fs.MkdirAll(filepath.Dir(managedPath), 0755))
+	assert.NoError(t, afero.WriteFile(fs, managedPath, existing, 0644))
+
+	downloaded := false
+	cmd := &cobra.Command{}
+	cmd.SetIn(bytes.NewBuffer(nil))
+	cmd.SetOut(bytes.NewBuffer(nil))
+	cmd.SetErr(bytes.NewBuffer(nil))
+
+	_, err := runAdd(ctx, commandSpan, cmd, addOptions{
+		Platform:   "modrinth",
+		ProjectID:  "abc",
+		ConfigPath: meta.ConfigPath,
+	}, addDeps{
+		fs:      fs,
+		clients: platform.DefaultClients(rate.NewLimiter(rate.Inf, 0)),
+		logger:  logger.New(cmd.OutOrStdout(), cmd.ErrOrStderr(), false, true),
+		downloader: func(_ context.Context, _ string, path string, _ httpClient.Doer, _ httpClient.Sender, _ ...afero.Fs) error {
+			downloaded = true
+			return afero.WriteFile(fs, path, []byte("updated"), 0644)
+		},
+	})
+
+	assert.NoError(t, err)
+	assert.True(t, downloaded)
+	assert.NotEqual(t, existingHash, updatedHash)
 }
 
 func TestRunAdd_ConfigPresentLockMissingBackfillsLock(t *testing.T) {
@@ -608,6 +739,62 @@ func TestRunAdd_DownloadFailure(t *testing.T) {
 	assert.Len(t, configAfter.Mods, 0)
 }
 
+func TestRunAdd_PersistErrorReturnsError(t *testing.T) {
+	ctx, commandSpan := startAddPerf(t)
+	baseFs := afero.NewMemMapFs()
+	meta := config.NewMetadata(filepath.FromSlash("/cfg/modlist.json"))
+	assert.NoError(t, baseFs.MkdirAll(filepath.Dir(meta.ConfigPath), 0755))
+
+	cfg := models.ModsJson{
+		Loader:                     models.FABRIC,
+		GameVersion:                "1.20.1",
+		DefaultAllowedReleaseTypes: []models.ReleaseType{models.Release},
+		ModsFolder:                 "mods",
+	}
+	assert.NoError(t, config.WriteConfig(context.Background(), baseFs, meta, cfg))
+	assert.NoError(t, config.WriteLock(context.Background(), baseFs, meta, nil))
+
+	fileData := []byte("existing")
+	fileHash := fmt.Sprintf("%x", sha1.Sum(fileData))
+	managedPath := filepath.Join(meta.ModsFolderPath(cfg), "example.jar")
+	assert.NoError(t, baseFs.MkdirAll(filepath.Dir(managedPath), 0755))
+	assert.NoError(t, afero.WriteFile(baseFs, managedPath, fileData, 0644))
+
+	fs := afero.NewReadOnlyFs(baseFs)
+
+	cmd := &cobra.Command{}
+	cmd.SetIn(bytes.NewBuffer(nil))
+	cmd.SetOut(bytes.NewBuffer(nil))
+	cmd.SetErr(bytes.NewBuffer(nil))
+
+	downloaded := false
+	_, err := runAdd(ctx, commandSpan, cmd, addOptions{
+		Platform:   "modrinth",
+		ProjectID:  "abc",
+		ConfigPath: meta.ConfigPath,
+	}, addDeps{
+		fs:      fs,
+		clients: platform.DefaultClients(rate.NewLimiter(rate.Inf, 0)),
+		logger:  logger.New(cmd.OutOrStdout(), cmd.ErrOrStderr(), false, false),
+		fetchMod: func(_ context.Context, _ models.Platform, _ string, _ platform.FetchOptions, _ platform.Clients) (platform.RemoteMod, error) {
+			return platform.RemoteMod{
+				Name:        "Example",
+				FileName:    "example.jar",
+				Hash:        fileHash,
+				ReleaseDate: "2024-01-01T00:00:00Z",
+				DownloadURL: "https://example.com/example.jar",
+			}, nil
+		},
+		downloader: func(context.Context, string, string, httpClient.Doer, httpClient.Sender, ...afero.Fs) error {
+			downloaded = true
+			return nil
+		},
+	})
+
+	assert.Error(t, err)
+	assert.False(t, downloaded)
+}
+
 func TestRunAdd_CreatesConfigWhenMissing(t *testing.T) {
 	ctx, commandSpan := startAddPerf(t)
 	fs := afero.NewMemMapFs()
@@ -777,6 +964,26 @@ func TestRunAdd_ModNotFoundQuiet(t *testing.T) {
 	assert.Contains(t, out.String(), "Mod \"abc\" for modrinth does not exist")
 }
 
+func TestResolveRemoteMod_NoFileQuiet(t *testing.T) {
+	ctx := context.Background()
+	out := &bytes.Buffer{}
+	cfg := models.ModsJson{
+		Loader:                     models.FABRIC,
+		GameVersion:                "1.20.1",
+		DefaultAllowedReleaseTypes: []models.ReleaseType{models.Release},
+	}
+	deps := addDeps{
+		clients: platform.DefaultClients(rate.NewLimiter(rate.Inf, 0)),
+		logger:  logger.New(out, out, true, false),
+		fetchMod: func(_ context.Context, p models.Platform, id string, _ platform.FetchOptions, _ platform.Clients) (platform.RemoteMod, error) {
+			return platform.RemoteMod{}, &platform.NoCompatibleFileError{Platform: p, ProjectID: id}
+		},
+	}
+
+	_, _, _, err := resolveRemoteMod(ctx, nil, cfg, addOptions{Quiet: true}, models.MODRINTH, "abc", deps, false, strings.NewReader(""), io.Discard)
+	assert.Error(t, err)
+}
+
 func TestRunAdd_FetchOptionsPropagateVersionAndFallback(t *testing.T) {
 	ctx, commandSpan := startAddPerf(t)
 	fs := afero.NewMemMapFs()
@@ -902,6 +1109,32 @@ func TestResolveRemoteModWithTUI_RecordsAttempt(t *testing.T) {
 
 	commandSpan.End()
 	assertPerfSpanExists(t, "app.command.add.resolve.attempt")
+}
+
+func TestResolveRemoteModWithTUIFetchError(t *testing.T) {
+	ctx := context.Background()
+	cfg := models.ModsJson{
+		Loader:                     models.FABRIC,
+		GameVersion:                "1.20.1",
+		DefaultAllowedReleaseTypes: []models.ReleaseType{models.Release},
+	}
+	deps := addDeps{
+		clients: platform.DefaultClients(rate.NewLimiter(rate.Inf, 0)),
+		logger:  logger.New(io.Discard, io.Discard, false, false),
+		fetchMod: func(_ context.Context, _ models.Platform, _ string, _ platform.FetchOptions, _ platform.Clients) (platform.RemoteMod, error) {
+			return platform.RemoteMod{}, errors.New("boom")
+		},
+		runTea: func(model tea.Model, _ ...tea.ProgramOption) (tea.Model, error) {
+			typed := model.(addTUIModel)
+			cmd := typed.fetchCmd(models.MODRINTH, "abc")
+			msg := cmd().(addTUIFetchResultMsg)
+			updated, _ := typed.Update(msg)
+			return updated, nil
+		},
+	}
+
+	_, _, _, err := resolveRemoteModWithTUI(ctx, nil, addTUIStateUnknownPlatformSelect, cfg, addOptions{}, models.MODRINTH, "abc", deps, strings.NewReader(""), io.Discard)
+	assert.Error(t, err)
 }
 
 func startAddPerf(t *testing.T) (context.Context, *perf.Span) {

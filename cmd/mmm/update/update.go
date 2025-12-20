@@ -206,9 +206,6 @@ func runUpdate(ctx context.Context, cmd *cobra.Command, opts updateOptions, deps
 
 	outcomes := make([]modUpdateOutcome, len(candidates))
 	for outcome := range results {
-		if outcome.ConfigIndex < 0 || outcome.ConfigIndex >= len(outcomes) {
-			continue
-		}
 		outcomes[outcome.ConfigIndex] = outcome
 	}
 

@@ -53,7 +53,13 @@ type downloader func(context.Context, string, string, httpClient.Doer, httpClien
 
 var errAborted = errors.New("add aborted")
 
+type addRunner func(context.Context, *perf.Span, *cobra.Command, addOptions, addDeps) (telemetry.CommandTelemetry, error)
+
 func Command() *cobra.Command {
+	return commandWithRunner(runAdd)
+}
+
+func commandWithRunner(runner addRunner) *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "add <platform> <id>",
 		Short: i18n.T("cmd.add.short"),
@@ -101,7 +107,7 @@ func Command() *cobra.Command {
 
 			limiter := rate.NewLimiter(rate.Inf, 0)
 
-			telemetryPayload, err := runAdd(ctx, span, cmd, addOptions{
+			telemetryPayload, err := runner(ctx, span, cmd, addOptions{
 				Platform:             args[0],
 				ProjectID:            args[1],
 				ConfigPath:           configPath,

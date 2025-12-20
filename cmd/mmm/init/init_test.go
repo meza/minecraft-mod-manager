@@ -3,6 +3,7 @@ package init
 import (
 	"bytes"
 	"context"
+	"errors"
 	"fmt"
 	"io"
 	"net/http"
@@ -103,6 +104,26 @@ func TestInitWithDeps(t *testing.T) {
 		minecraft.ClearManifestCache()
 		_, err := initWithDeps(context.Background(), initOptions{}, initDeps{fs: afero.NewMemMapFs(), minecraftClient: manifestDoer([]string{"1.21.1"})})
 		assert.ErrorContains(t, err, "init requires flag")
+	})
+
+	t.Run("empty game version uses latest", func(t *testing.T) {
+		minecraft.ClearManifestCache()
+		fs := afero.NewMemMapFs()
+		meta := config.NewMetadata(filepath.FromSlash("/cfg/modlist.json"))
+		assert.NoError(t, fs.MkdirAll(filepath.FromSlash("/cfg/mods"), 0755))
+
+		_, err := initWithDeps(context.Background(), initOptions{
+			ConfigPath:   meta.ConfigPath,
+			Loader:       models.FABRIC,
+			GameVersion:  "",
+			ReleaseTypes: []models.ReleaseType{models.Release},
+			ModsFolder:   "mods",
+		}, initDeps{fs: fs, minecraftClient: manifestDoer([]string{"1.21.1"})})
+		assert.NoError(t, err)
+
+		cfg, err := config.ReadConfig(context.Background(), fs, meta)
+		assert.NoError(t, err)
+		assert.Equal(t, "1.21.1", cfg.GameVersion)
 	})
 
 	t.Run("missing mods folder returns error", func(t *testing.T) {
@@ -351,6 +372,113 @@ func TestRunInitCommandDoesNotMarkInteractiveWhenTUIWasNotLaunched(t *testing.T)
 	if assert.Len(t, payloads, 1) {
 		assert.False(t, payloads[0].Interactive)
 	}
+}
+
+func TestRunInitNormalizeGameVersionError(t *testing.T) {
+	minecraft.ClearManifestCache()
+
+	cmd := &cobra.Command{}
+	cmd.SetIn(bytes.NewBuffer(nil))
+	cmd.SetOut(bytes.NewBuffer(nil))
+	cmd.SetErr(bytes.NewBuffer(nil))
+
+	_, didUseTUI, err := runInit(context.Background(), cmd, initOptions{
+		GameVersion: "latest",
+	}, initDeps{
+		fs: afero.NewMemMapFs(),
+		minecraftClient: doerFunc(func(_ *http.Request) (*http.Response, error) {
+			return nil, errors.New("offline")
+		}),
+	}, config.NewMetadata(filepath.FromSlash("/cfg/modlist.json")))
+	assert.Error(t, err)
+	assert.False(t, didUseTUI)
+}
+
+func TestRunInitInteractiveErrorPropagates(t *testing.T) {
+	minecraft.ClearManifestCache()
+	restoreTTY := tui.SetIsTerminalFuncForTesting(func(int) bool { return true })
+	t.Cleanup(restoreTTY)
+
+	fs := afero.NewMemMapFs()
+	meta := config.NewMetadata(filepath.FromSlash("/cfg/modlist.json"))
+	assert.NoError(t, fs.MkdirAll(filepath.FromSlash("/cfg/mods"), 0755))
+
+	in := fakeTTYReader{Reader: bytes.NewReader(nil)}
+	out := &fakeTTYWriter{}
+
+	cmd := &cobra.Command{}
+	cmd.SetIn(in)
+	cmd.SetOut(out)
+	cmd.SetErr(out)
+
+	_, didUseTUI, err := runInit(context.Background(), cmd, initOptions{
+		ConfigPath:   meta.ConfigPath,
+		Loader:       models.FABRIC,
+		GameVersion:  "1.21.1",
+		ReleaseTypes: []models.ReleaseType{models.Release},
+		ModsFolder:   "mods",
+	}, initDeps{
+		fs:              fs,
+		minecraftClient: manifestDoer([]string{"1.21.1"}),
+		runTea: func(tea.Model, ...tea.ProgramOption) (tea.Model, error) {
+			return nil, errors.New("boom")
+		},
+	}, meta)
+	assert.Error(t, err)
+	assert.True(t, didUseTUI)
+}
+
+func TestRunInteractiveInitWithLaunchFlagUsesDefaultProgram(t *testing.T) {
+	minecraft.ClearManifestCache()
+
+	cmd := &cobra.Command{}
+	cmd.SetIn(bytes.NewBufferString("\x03"))
+	cmd.SetOut(io.Discard)
+	cmd.SetErr(io.Discard)
+
+	meta := config.NewMetadata(filepath.FromSlash("/cfg/modlist.json"))
+	_, launched, err := runInteractiveInitWithLaunchFlag(context.Background(), cmd, initOptions{}, initDeps{
+		fs:              afero.NewMemMapFs(),
+		minecraftClient: manifestDoer([]string{"1.21.1"}),
+		runTea:          defaultRunTea,
+	}, meta)
+	assert.Error(t, err)
+	assert.True(t, launched)
+}
+
+func TestRunInteractiveInitWithLaunchFlagUsesDefaultProgramSuccess(t *testing.T) {
+	minecraft.ClearManifestCache()
+
+	fs := afero.NewMemMapFs()
+	meta := config.NewMetadata(filepath.FromSlash("/cfg/modlist.json"))
+	assert.NoError(t, fs.MkdirAll(meta.ModsFolderPath(models.ModsJson{ModsFolder: "mods"}), 0755))
+
+	cmd := &cobra.Command{}
+	cmd.SetIn(bytes.NewBufferString("\r"))
+	cmd.SetOut(io.Discard)
+	cmd.SetErr(io.Discard)
+
+	updated, launched, err := runInteractiveInitWithLaunchFlag(context.Background(), cmd, initOptions{
+		ConfigPath:   meta.ConfigPath,
+		Loader:       models.FABRIC,
+		GameVersion:  "1.21.1",
+		ReleaseTypes: []models.ReleaseType{models.Release},
+		ModsFolder:   "mods",
+		Provided: providedFlags{
+			Loader:       true,
+			GameVersion:  true,
+			ReleaseTypes: true,
+		},
+	}, initDeps{
+		fs:              fs,
+		minecraftClient: manifestDoer([]string{"1.21.1"}),
+		runTea:          defaultRunTea,
+	}, meta)
+
+	assert.NoError(t, err)
+	assert.True(t, launched)
+	assert.Equal(t, "mods", updated.ModsFolder)
+	assert.True(t, updated.Provided.ModsFolder)
 }
 
 func TestLoaderFlag(t *testing.T) {

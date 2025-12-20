@@ -24,7 +24,18 @@ import (
 	"go.opentelemetry.io/otel/attribute"
 )
 
+type initRunner func(context.Context, *cobra.Command, initOptions, initDeps, config.Metadata) error
+
 func Command() *cobra.Command {
+	return commandWithRunner(runInitCommand)
+}
+
+func defaultRunTea(model tea.Model, options ...tea.ProgramOption) (tea.Model, error) {
+	program := tea.NewProgram(model, options...)
+	return program.Run()
+}
+
+func commandWithRunner(runner initRunner) *cobra.Command {
 	var loader loaderFlag
 
 	cmd := &cobra.Command{
@@ -72,6 +83,7 @@ func Command() *cobra.Command {
 				},
 				logger:    log,
 				telemetry: telemetry.RecordCommand,
+				runTea:    defaultRunTea,
 			}
 
 			releaseTypes, err := parseReleaseTypes(releaseTypesRaw)
@@ -97,7 +109,7 @@ func Command() *cobra.Command {
 
 			meta := config.NewMetadata(configPath)
 
-			err = runInitCommand(ctx, cmd, options, deps, meta)
+			err = runner(ctx, cmd, options, deps, meta)
 			return err
 		},
 	}
@@ -143,6 +155,7 @@ type initDeps struct {
 	prompter        prompter
 	logger          *logger.Logger
 	telemetry       func(telemetry.CommandTelemetry)
+	runTea          func(model tea.Model, options ...tea.ProgramOption) (tea.Model, error)
 }
 
 type prompter interface {
@@ -267,12 +280,20 @@ func runInteractiveInitWithLaunchFlag(ctx context.Context, cmd *cobra.Command, o
 		return model.result, false, nil
 	}
 
-	program := tea.NewProgram(model, tui.ProgramOptions(cmd.InOrStdin(), cmd.OutOrStdout())...)
-	result, err := program.Run()
+	result, err := deps.runTea(model, tui.ProgramOptions(cmd.InOrStdin(), cmd.OutOrStdout())...)
 	if err != nil {
 		return options, true, err
 	}
 
+	finalResult, err := finalizeInteractiveResult(result)
+	if err != nil {
+		return options, true, err
+	}
+
+	return finalResult, true, nil
+}
+
+func finalizeInteractiveResult(result tea.Model) (initOptions, error) {
 	var finalModel CommandModel
 	switch typed := result.(type) {
 	case *CommandModel:
@@ -280,18 +301,18 @@ func runInteractiveInitWithLaunchFlag(ctx context.Context, cmd *cobra.Command, o
 	case CommandModel:
 		finalModel = typed
 	default:
-		return options, true, fmt.Errorf("interactive init failed")
+		return initOptions{}, fmt.Errorf("interactive init failed")
 	}
 
 	if finalModel.err != nil {
-		return options, true, finalModel.err
+		return initOptions{}, finalModel.err
 	}
 
 	if finalModel.state != done {
-		return options, true, fmt.Errorf("init cancelled")
+		return initOptions{}, fmt.Errorf("init cancelled")
 	}
 
-	return finalModel.result, true, nil
+	return finalModel.result, nil
 }
 
 func normalizeGameVersion(ctx context.Context, options initOptions, deps initDeps, interactive bool) (initOptions, error) {
@@ -411,7 +432,11 @@ func initWithDeps(ctx context.Context, options initOptions, deps initDeps) (conf
 }
 
 func getCurrentWorkingDirectory() string {
-	cwd, err := os.Getwd()
+	return getCurrentWorkingDirectoryWith(os.Getwd)
+}
+
+func getCurrentWorkingDirectoryWith(getwd func() (string, error)) string {
+	cwd, err := getwd()
 	if err != nil {
 		return ""
 	}

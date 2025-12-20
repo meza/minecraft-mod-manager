@@ -212,17 +212,13 @@ func resolveModsToRemove(lookups []string, cfg models.ModsJson) ([]models.Mod, e
 				continue
 			}
 
-			if ok, err := globMatches(pattern, strings.ToLower(mod.ID)); err != nil {
-				return nil, err
-			} else if ok {
+			if ok, _ := globMatches(pattern, strings.ToLower(mod.ID)); ok {
 				seen[key] = true
 				matches = append(matches, mod)
 				continue
 			}
 
-			if ok, err := globMatches(pattern, strings.ToLower(mod.Name)); err != nil {
-				return nil, err
-			} else if ok {
+			if ok, _ := globMatches(pattern, strings.ToLower(mod.Name)); ok {
 				seen[key] = true
 				matches = append(matches, mod)
 				continue

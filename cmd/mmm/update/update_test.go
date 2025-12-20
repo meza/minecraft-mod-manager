@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"context"
 	"errors"
+	"io"
 	"net/http"
 	"path/filepath"
 	"strings"
@@ -773,4 +774,482 @@ func TestDownloadAndSwapInPlaceDoesNotFailWhenBackupDeletionFails(t *testing.T) 
 
 	exists, _ := afero.Exists(fs, installedPath+".mmm.bak")
 	assert.True(t, exists)
+}
+
+func TestRunUpdateLogsNoUpdatesWhenNothingChanges(t *testing.T) {
+	t.Setenv("MMM_TEST", "true")
+
+	fs := afero.NewMemMapFs()
+	meta := config.NewMetadata(filepath.FromSlash("/cfg/modlist.json"))
+
+	cfg := models.ModsJson{
+		Loader:                     models.FABRIC,
+		GameVersion:                "1.21.1",
+		DefaultAllowedReleaseTypes: []models.ReleaseType{models.Release},
+		ModsFolder:                 "mods",
+		Mods: []models.Mod{
+			{ID: "proj-1", Name: "Configured", Type: models.MODRINTH},
+		},
+	}
+
+	lock := []models.ModInstall{
+		{
+			Type:        models.MODRINTH,
+			Id:          "proj-1",
+			Name:        "Configured",
+			FileName:    "same.jar",
+			ReleasedOn:  "2024-01-01T00:00:00Z",
+			Hash:        "samehash",
+			DownloadUrl: "https://example.invalid/same.jar",
+		},
+	}
+
+	assert.NoError(t, fs.MkdirAll(meta.Dir(), 0755))
+	assert.NoError(t, fs.MkdirAll(meta.ModsFolderPath(cfg), 0755))
+	assert.NoError(t, config.WriteConfig(context.Background(), fs, meta, cfg))
+	assert.NoError(t, config.WriteLock(context.Background(), fs, meta, lock))
+	assert.NoError(t, afero.WriteFile(fs, filepath.Join(meta.ModsFolderPath(cfg), "same.jar"), []byte("x"), 0644))
+
+	out := &bytes.Buffer{}
+	errOut := &bytes.Buffer{}
+	cmd := &cobra.Command{}
+	cmd.SetIn(&bytes.Buffer{})
+	cmd.SetOut(out)
+	cmd.SetErr(errOut)
+
+	remote := platform.RemoteMod{
+		Name:        "Configured",
+		FileName:    "same.jar",
+		ReleaseDate: "2024-01-01T00:00:00Z",
+		Hash:        "samehash",
+		DownloadURL: "https://example.invalid/same.jar",
+	}
+
+	updated, failed, err := runUpdate(context.Background(), cmd, updateOptions{ConfigPath: meta.ConfigPath}, updateDeps{
+		fs:     fs,
+		logger: logger.New(out, errOut, false, false),
+		install: func(context.Context, *cobra.Command, string, bool, bool) (install.Result, error) {
+			return install.Result{}, nil
+		},
+		fetchMod: func(context.Context, models.Platform, string, platform.FetchOptions, platform.Clients) (platform.RemoteMod, error) {
+			return remote, nil
+		},
+		clients:   platform.Clients{Modrinth: noopDoer{}},
+		telemetry: func(telemetry.CommandTelemetry) {},
+	})
+
+	assert.NoError(t, err)
+	assert.Equal(t, 0, updated)
+	assert.Equal(t, 0, failed)
+	assert.Contains(t, out.String(), "cmd.update.no_updates")
+}
+
+func TestRunUpdateReturnsErrorOnUnexpectedFetchError(t *testing.T) {
+	t.Setenv("MMM_TEST", "true")
+
+	fs := afero.NewMemMapFs()
+	meta := config.NewMetadata(filepath.FromSlash("/cfg/modlist.json"))
+
+	cfg := models.ModsJson{
+		Loader:                     models.FABRIC,
+		GameVersion:                "1.21.1",
+		DefaultAllowedReleaseTypes: []models.ReleaseType{models.Release},
+		ModsFolder:                 "mods",
+		Mods: []models.Mod{
+			{ID: "proj-1", Name: "Configured", Type: models.MODRINTH},
+		},
+	}
+
+	lock := []models.ModInstall{
+		{
+			Type:        models.MODRINTH,
+			Id:          "proj-1",
+			Name:        "Configured",
+			FileName:    "same.jar",
+			ReleasedOn:  "2024-01-01T00:00:00Z",
+			Hash:        "samehash",
+			DownloadUrl: "https://example.invalid/same.jar",
+		},
+	}
+
+	assert.NoError(t, fs.MkdirAll(meta.Dir(), 0755))
+	assert.NoError(t, fs.MkdirAll(meta.ModsFolderPath(cfg), 0755))
+	assert.NoError(t, config.WriteConfig(context.Background(), fs, meta, cfg))
+	assert.NoError(t, config.WriteLock(context.Background(), fs, meta, lock))
+	assert.NoError(t, afero.WriteFile(fs, filepath.Join(meta.ModsFolderPath(cfg), "same.jar"), []byte("x"), 0644))
+
+	out := &bytes.Buffer{}
+	errOut := &bytes.Buffer{}
+	cmd := &cobra.Command{}
+	cmd.SetIn(&bytes.Buffer{})
+	cmd.SetOut(out)
+	cmd.SetErr(errOut)
+
+	updated, failed, err := runUpdate(context.Background(), cmd, updateOptions{ConfigPath: meta.ConfigPath}, updateDeps{
+		fs:     fs,
+		logger: logger.New(out, errOut, false, false),
+		install: func(context.Context, *cobra.Command, string, bool, bool) (install.Result, error) {
+			return install.Result{}, nil
+		},
+		fetchMod: func(context.Context, models.Platform, string, platform.FetchOptions, platform.Clients) (platform.RemoteMod, error) {
+			return platform.RemoteMod{}, errors.New("boom")
+		},
+		clients:   platform.Clients{Modrinth: noopDoer{}},
+		telemetry: func(telemetry.CommandTelemetry) {},
+	})
+
+	assert.ErrorIs(t, err, errUpdateFailures)
+	assert.Equal(t, 0, updated)
+	assert.Equal(t, 1, failed)
+	assert.Contains(t, errOut.String(), "boom")
+}
+
+func TestRunUpdateReturnsErrorOnRemoteTimestampInvalid(t *testing.T) {
+	t.Setenv("MMM_TEST", "true")
+
+	fs := afero.NewMemMapFs()
+	meta := config.NewMetadata(filepath.FromSlash("/cfg/modlist.json"))
+
+	cfg := models.ModsJson{
+		Loader:                     models.FABRIC,
+		GameVersion:                "1.21.1",
+		DefaultAllowedReleaseTypes: []models.ReleaseType{models.Release},
+		ModsFolder:                 "mods",
+		Mods: []models.Mod{
+			{ID: "proj-1", Name: "Configured", Type: models.MODRINTH},
+		},
+	}
+
+	lock := []models.ModInstall{
+		{
+			Type:        models.MODRINTH,
+			Id:          "proj-1",
+			Name:        "Configured",
+			FileName:    "same.jar",
+			ReleasedOn:  "2024-01-01T00:00:00Z",
+			Hash:        "samehash",
+			DownloadUrl: "https://example.invalid/same.jar",
+		},
+	}
+
+	assert.NoError(t, fs.MkdirAll(meta.Dir(), 0755))
+	assert.NoError(t, fs.MkdirAll(meta.ModsFolderPath(cfg), 0755))
+	assert.NoError(t, config.WriteConfig(context.Background(), fs, meta, cfg))
+	assert.NoError(t, config.WriteLock(context.Background(), fs, meta, lock))
+	assert.NoError(t, afero.WriteFile(fs, filepath.Join(meta.ModsFolderPath(cfg), "same.jar"), []byte("x"), 0644))
+
+	out := &bytes.Buffer{}
+	errOut := &bytes.Buffer{}
+	cmd := &cobra.Command{}
+	cmd.SetIn(&bytes.Buffer{})
+	cmd.SetOut(out)
+	cmd.SetErr(errOut)
+
+	remote := platform.RemoteMod{
+		Name:        "Configured",
+		FileName:    "same.jar",
+		ReleaseDate: "not-a-date",
+		Hash:        "newhash",
+		DownloadURL: "https://example.invalid/same.jar",
+	}
+
+	updated, failed, err := runUpdate(context.Background(), cmd, updateOptions{ConfigPath: meta.ConfigPath}, updateDeps{
+		fs:     fs,
+		logger: logger.New(out, errOut, false, false),
+		install: func(context.Context, *cobra.Command, string, bool, bool) (install.Result, error) {
+			return install.Result{}, nil
+		},
+		fetchMod: func(context.Context, models.Platform, string, platform.FetchOptions, platform.Clients) (platform.RemoteMod, error) {
+			return remote, nil
+		},
+		clients:   platform.Clients{Modrinth: noopDoer{}},
+		telemetry: func(telemetry.CommandTelemetry) {},
+	})
+
+	assert.ErrorIs(t, err, errUpdateFailures)
+	assert.Equal(t, 0, updated)
+	assert.Equal(t, 1, failed)
+	assert.Contains(t, errOut.String(), "cmd.update.error.invalid_timestamp")
+}
+
+func TestRunUpdateReturnsErrorWhenLockWriteFails(t *testing.T) {
+	t.Setenv("MMM_TEST", "true")
+
+	baseFs := afero.NewMemMapFs()
+	meta := config.NewMetadata(filepath.FromSlash("/cfg/modlist.json"))
+
+	cfg := models.ModsJson{
+		Loader:                     models.FABRIC,
+		GameVersion:                "1.21.1",
+		DefaultAllowedReleaseTypes: []models.ReleaseType{models.Release},
+		ModsFolder:                 "mods",
+		Mods: []models.Mod{
+			{ID: "proj-1", Name: "Configured", Type: models.MODRINTH},
+		},
+	}
+
+	lock := []models.ModInstall{
+		{
+			Type:        models.MODRINTH,
+			Id:          "proj-1",
+			Name:        "Configured",
+			FileName:    "same.jar",
+			ReleasedOn:  "2024-01-01T00:00:00Z",
+			Hash:        "samehash",
+			DownloadUrl: "https://example.invalid/same.jar",
+		},
+	}
+
+	assert.NoError(t, baseFs.MkdirAll(meta.Dir(), 0755))
+	assert.NoError(t, baseFs.MkdirAll(meta.ModsFolderPath(cfg), 0755))
+	assert.NoError(t, config.WriteConfig(context.Background(), baseFs, meta, cfg))
+	assert.NoError(t, config.WriteLock(context.Background(), baseFs, meta, lock))
+	assert.NoError(t, afero.WriteFile(baseFs, filepath.Join(meta.ModsFolderPath(cfg), "same.jar"), []byte("x"), 0644))
+
+	fs := renameOnNewErrorFs{Fs: baseFs, failNew: meta.LockPath(), err: errors.New("rename failed")}
+
+	out := &bytes.Buffer{}
+	errOut := &bytes.Buffer{}
+	cmd := &cobra.Command{}
+	cmd.SetIn(&bytes.Buffer{})
+	cmd.SetOut(out)
+	cmd.SetErr(errOut)
+
+	remote := platform.RemoteMod{
+		Name:        "Configured",
+		FileName:    "same.jar",
+		ReleaseDate: "2024-01-02T00:00:00Z",
+		Hash:        "newhash",
+		DownloadURL: "https://example.invalid/same.jar",
+	}
+
+	_, _, err := runUpdate(context.Background(), cmd, updateOptions{ConfigPath: meta.ConfigPath}, updateDeps{
+		fs:     fs,
+		logger: logger.New(out, errOut, false, false),
+		install: func(context.Context, *cobra.Command, string, bool, bool) (install.Result, error) {
+			return install.Result{}, nil
+		},
+		fetchMod: func(context.Context, models.Platform, string, platform.FetchOptions, platform.Clients) (platform.RemoteMod, error) {
+			return remote, nil
+		},
+		downloader: func(_ context.Context, _ string, destination string, _ httpClient.Doer, _ httpClient.Sender, filesystems ...afero.Fs) error {
+			return afero.WriteFile(filesystems[0], destination, []byte("new"), 0644)
+		},
+		clients:   platform.Clients{Modrinth: noopDoer{}},
+		telemetry: func(telemetry.CommandTelemetry) {},
+	})
+
+	assert.Error(t, err)
+}
+
+func TestRunUpdateReturnsErrorWhenConfigWriteFails(t *testing.T) {
+	t.Setenv("MMM_TEST", "true")
+
+	baseFs := afero.NewMemMapFs()
+	meta := config.NewMetadata(filepath.FromSlash("/cfg/modlist.json"))
+
+	cfg := models.ModsJson{
+		Loader:                     models.FABRIC,
+		GameVersion:                "1.21.1",
+		DefaultAllowedReleaseTypes: []models.ReleaseType{models.Release},
+		ModsFolder:                 "mods",
+		Mods: []models.Mod{
+			{ID: "proj-1", Name: "Configured", Type: models.MODRINTH},
+		},
+	}
+
+	lock := []models.ModInstall{
+		{
+			Type:        models.MODRINTH,
+			Id:          "proj-1",
+			Name:        "Configured",
+			FileName:    "same.jar",
+			ReleasedOn:  "2024-01-01T00:00:00Z",
+			Hash:        "samehash",
+			DownloadUrl: "https://example.invalid/same.jar",
+		},
+	}
+
+	assert.NoError(t, baseFs.MkdirAll(meta.Dir(), 0755))
+	assert.NoError(t, baseFs.MkdirAll(meta.ModsFolderPath(cfg), 0755))
+	assert.NoError(t, config.WriteConfig(context.Background(), baseFs, meta, cfg))
+	assert.NoError(t, config.WriteLock(context.Background(), baseFs, meta, lock))
+	assert.NoError(t, afero.WriteFile(baseFs, filepath.Join(meta.ModsFolderPath(cfg), "same.jar"), []byte("x"), 0644))
+
+	fs := renameOnNewErrorFs{Fs: baseFs, failNew: meta.ConfigPath, err: errors.New("rename failed")}
+
+	out := &bytes.Buffer{}
+	errOut := &bytes.Buffer{}
+	cmd := &cobra.Command{}
+	cmd.SetIn(&bytes.Buffer{})
+	cmd.SetOut(out)
+	cmd.SetErr(errOut)
+
+	remote := platform.RemoteMod{
+		Name:        "Configured",
+		FileName:    "same.jar",
+		ReleaseDate: "2024-01-02T00:00:00Z",
+		Hash:        "newhash",
+		DownloadURL: "https://example.invalid/same.jar",
+	}
+
+	_, _, err := runUpdate(context.Background(), cmd, updateOptions{ConfigPath: meta.ConfigPath}, updateDeps{
+		fs:     fs,
+		logger: logger.New(out, errOut, false, false),
+		install: func(context.Context, *cobra.Command, string, bool, bool) (install.Result, error) {
+			return install.Result{}, nil
+		},
+		fetchMod: func(context.Context, models.Platform, string, platform.FetchOptions, platform.Clients) (platform.RemoteMod, error) {
+			return remote, nil
+		},
+		downloader: func(_ context.Context, _ string, destination string, _ httpClient.Doer, _ httpClient.Sender, filesystems ...afero.Fs) error {
+			return afero.WriteFile(filesystems[0], destination, []byte("new"), 0644)
+		},
+		clients:   platform.Clients{Modrinth: noopDoer{}},
+		telemetry: func(telemetry.CommandTelemetry) {},
+	})
+
+	assert.Error(t, err)
+}
+
+func TestRunUpdateReturnsErrorWhenConfigMissing(t *testing.T) {
+	fs := afero.NewMemMapFs()
+
+	out := &bytes.Buffer{}
+	errOut := &bytes.Buffer{}
+	cmd := &cobra.Command{}
+	cmd.SetIn(&bytes.Buffer{})
+	cmd.SetOut(out)
+	cmd.SetErr(errOut)
+
+	_, _, err := runUpdate(context.Background(), cmd, updateOptions{ConfigPath: "missing.json"}, updateDeps{
+		fs:     fs,
+		logger: logger.New(out, errOut, false, false),
+		install: func(context.Context, *cobra.Command, string, bool, bool) (install.Result, error) {
+			return install.Result{}, nil
+		},
+		telemetry: func(telemetry.CommandTelemetry) {},
+	})
+	assert.Error(t, err)
+}
+
+func TestRunUpdateReturnsErrorWhenLockMissing(t *testing.T) {
+	fs := afero.NewMemMapFs()
+	meta := config.NewMetadata(filepath.FromSlash("/cfg/modlist.json"))
+	cfg := models.ModsJson{
+		Loader:                     models.FABRIC,
+		GameVersion:                "1.21.1",
+		DefaultAllowedReleaseTypes: []models.ReleaseType{models.Release},
+		ModsFolder:                 "mods",
+		Mods: []models.Mod{
+			{ID: "proj-1", Name: "Configured", Type: models.MODRINTH},
+		},
+	}
+	assert.NoError(t, config.WriteConfig(context.Background(), fs, meta, cfg))
+
+	out := &bytes.Buffer{}
+	errOut := &bytes.Buffer{}
+	cmd := &cobra.Command{}
+	cmd.SetIn(&bytes.Buffer{})
+	cmd.SetOut(out)
+	cmd.SetErr(errOut)
+
+	_, _, err := runUpdate(context.Background(), cmd, updateOptions{ConfigPath: meta.ConfigPath}, updateDeps{
+		fs:     fs,
+		logger: logger.New(out, errOut, false, false),
+		install: func(context.Context, *cobra.Command, string, bool, bool) (install.Result, error) {
+			return install.Result{}, nil
+		},
+		telemetry: func(telemetry.CommandTelemetry) {},
+	})
+	assert.Error(t, err)
+}
+
+func TestProcessModReturnsErrorOnExistsFailure(t *testing.T) {
+	meta := config.NewMetadata(filepath.FromSlash("/cfg/modlist.json"))
+	cfg := models.ModsJson{ModsFolder: "mods", Loader: models.FABRIC, GameVersion: "1.21.1"}
+	mod := models.Mod{ID: "proj-1", Name: "Configured", Type: models.MODRINTH}
+	lock := []models.ModInstall{
+		{
+			Type:        models.MODRINTH,
+			Id:          "proj-1",
+			Name:        "Configured",
+			FileName:    "mod.jar",
+			ReleasedOn:  "2024-01-01T00:00:00Z",
+			Hash:        "abc",
+			DownloadUrl: "https://example.invalid/mod.jar",
+		},
+	}
+
+	oldPath := filepath.Join(meta.ModsFolderPath(cfg), "mod.jar")
+	fs := statErrorFs{Fs: afero.NewMemMapFs(), failPath: oldPath, err: errors.New("stat failed")}
+
+	outcome := processMod(context.Background(), meta, cfg, lock, modUpdateCandidate{ConfigIndex: 0, Mod: mod}, updateDeps{
+		fs:     fs,
+		logger: logger.New(io.Discard, io.Discard, false, false),
+		fetchMod: func(context.Context, models.Platform, string, platform.FetchOptions, platform.Clients) (platform.RemoteMod, error) {
+			return platform.RemoteMod{
+				Name:        "Configured",
+				FileName:    "mod.jar",
+				ReleaseDate: "2024-01-02T00:00:00Z",
+				Hash:        "newhash",
+				DownloadURL: "https://example.invalid/mod.jar",
+			}, nil
+		},
+	}, false)
+
+	assert.Error(t, outcome.Error)
+}
+
+func TestProcessModReturnsUnchangedWhenHashMatches(t *testing.T) {
+	fs := afero.NewMemMapFs()
+	meta := config.NewMetadata(filepath.FromSlash("/cfg/modlist.json"))
+	cfg := models.ModsJson{ModsFolder: "mods", Loader: models.FABRIC, GameVersion: "1.21.1"}
+	mod := models.Mod{ID: "proj-1", Name: "Configured", Type: models.MODRINTH}
+	lock := []models.ModInstall{
+		{
+			Type:        models.MODRINTH,
+			Id:          "proj-1",
+			Name:        "Configured",
+			FileName:    "mod.jar",
+			ReleasedOn:  "2024-01-01T00:00:00Z",
+			Hash:        "samehash",
+			DownloadUrl: "https://example.invalid/mod.jar",
+		},
+	}
+
+	oldPath := filepath.Join(meta.ModsFolderPath(cfg), "mod.jar")
+	assert.NoError(t, fs.MkdirAll(meta.ModsFolderPath(cfg), 0755))
+	assert.NoError(t, afero.WriteFile(fs, oldPath, []byte("data"), 0644))
+
+	outcome := processMod(context.Background(), meta, cfg, lock, modUpdateCandidate{ConfigIndex: 0, Mod: mod}, updateDeps{
+		fs:     fs,
+		logger: logger.New(io.Discard, io.Discard, false, false),
+		fetchMod: func(context.Context, models.Platform, string, platform.FetchOptions, platform.Clients) (platform.RemoteMod, error) {
+			return platform.RemoteMod{
+				Name:        "Remote",
+				FileName:    "mod.jar",
+				ReleaseDate: "2024-01-02T00:00:00Z",
+				Hash:        "samehash",
+				DownloadURL: "https://example.invalid/mod.jar",
+			}, nil
+		},
+	}, false)
+
+	assert.False(t, outcome.Updated)
+	assert.Empty(t, outcome.NewInstall.FileName)
+	assert.NoError(t, outcome.Error)
+}
+
+type renameOnNewErrorFs struct {
+	afero.Fs
+	failNew string
+	err     error
+}
+
+func (r renameOnNewErrorFs) Rename(oldname, newname string) error {
+	if filepath.Clean(newname) == filepath.Clean(r.failNew) {
+		return r.err
+	}
+	return r.Fs.Rename(oldname, newname)
 }

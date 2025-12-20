@@ -69,7 +69,13 @@ func (e *exitCodeError) ExitCode() int {
 var errSameVersion = &exitCodeError{code: 2}
 var errUnsupportedMods = &exitCodeError{code: 1}
 
+type testRunner func(context.Context, *cobra.Command, testOptions, testDeps) (int, error)
+
 func Command() *cobra.Command {
+	return commandWithRunner(runTest)
+}
+
+func commandWithRunner(runner testRunner) *cobra.Command {
 	cmd := &cobra.Command{
 		Use:     "test [game_version]",
 		Aliases: []string{"t"},
@@ -115,7 +121,7 @@ func Command() *cobra.Command {
 				telemetry:      telemetry.RecordCommand,
 			}
 
-			exitCode, err := runTest(ctx, cmd, testOptions{
+			exitCode, err := runner(ctx, cmd, testOptions{
 				ConfigPath:  configPath,
 				GameVersion: gameVersion,
 				Quiet:       quiet,
@@ -174,8 +180,7 @@ type modCheckOutcome struct {
 type logEventKind int
 
 const (
-	logEventKindLog logEventKind = iota
-	logEventKindError
+	logEventKindError logEventKind = iota
 	logEventKindDebug
 )
 
@@ -266,8 +271,6 @@ func runTest(ctx context.Context, cmd *cobra.Command, opts testOptions, deps tes
 	for _, outcome := range outcomes {
 		for _, event := range outcome.LogEvents {
 			switch event.Kind {
-			case logEventKindLog:
-				deps.logger.Log(event.Message, event.ForceShow)
 			case logEventKindError:
 				deps.logger.Error(event.Message)
 			case logEventKindDebug:

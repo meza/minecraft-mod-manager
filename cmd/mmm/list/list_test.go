@@ -3,11 +3,15 @@ package list
 import (
 	"bytes"
 	"context"
+	"errors"
+	"os"
 	"path/filepath"
 	"testing"
 
+	tea "github.com/charmbracelet/bubbletea"
 	"github.com/meza/minecraft-mod-manager/internal/logger"
 	"github.com/meza/minecraft-mod-manager/internal/telemetry"
+	"github.com/meza/minecraft-mod-manager/internal/tui"
 	"github.com/spf13/afero"
 	"github.com/spf13/cobra"
 	"github.com/stretchr/testify/assert"
@@ -243,3 +247,183 @@ func TestRunListQuietStillPrints(t *testing.T) {
 		"✗ cmd.list.entry.missing, Arg 1: {Count: 0, Data: &map[id:mod-a name:Mod A]}\n"
 	assert.Equal(t, expected, out.String())
 }
+
+func TestReadLockOrEmptyReturnsErrorOnStatFailure(t *testing.T) {
+	fs := statErrorFs{
+		Fs:       afero.NewMemMapFs(),
+		failPath: filepath.FromSlash("/cfg/modlist-lock.json"),
+		err:      errors.New("stat failed"),
+	}
+	meta := config.NewMetadata(filepath.FromSlash("/cfg/modlist.json"))
+
+	_, err := readLockOrEmpty(context.Background(), fs, meta)
+	assert.Error(t, err)
+}
+
+func TestBuildEntriesUsesIDWhenNameBlank(t *testing.T) {
+	cfg := models.ModsJson{
+		Mods: []models.Mod{
+			{ID: "mod-a", Name: " ", Type: models.MODRINTH},
+		},
+	}
+
+	entries := buildEntries(cfg, nil, config.NewMetadata("modlist.json"), afero.NewMemMapFs())
+	if assert.Len(t, entries, 1) {
+		assert.Equal(t, "mod-a", entries[0].DisplayName)
+	}
+}
+
+func TestIsInstalledReturnsFalseWhenFileNameMissing(t *testing.T) {
+	mod := models.Mod{ID: "mod-a", Type: models.MODRINTH}
+	lock := []models.ModInstall{{Id: "mod-a", Type: models.MODRINTH, FileName: ""}}
+
+	assert.False(t, isInstalled(mod, lock, config.NewMetadata("modlist.json"), models.ModsJson{}, afero.NewMemMapFs()))
+}
+
+func TestIsInstalledReturnsFalseWhenStatFails(t *testing.T) {
+	meta := config.NewMetadata(filepath.FromSlash("/cfg/modlist.json"))
+	cfg := models.ModsJson{ModsFolder: "mods"}
+	mod := models.Mod{ID: "mod-a", Type: models.MODRINTH}
+	lock := []models.ModInstall{{Id: "mod-a", Type: models.MODRINTH, FileName: "mod-a.jar"}}
+
+	failPath := filepath.Join(meta.ModsFolderPath(cfg), "mod-a.jar")
+	fs := statErrorFs{
+		Fs:       afero.NewMemMapFs(),
+		failPath: failPath,
+		err:      errors.New("stat failed"),
+	}
+
+	assert.False(t, isInstalled(mod, lock, meta, cfg, fs))
+}
+
+func TestRunListTuiProgramRunnerError(t *testing.T) {
+	t.Setenv("MMM_TEST", "true")
+
+	restore := tui.SetIsTerminalFuncForTesting(func(int) bool { return true })
+	t.Cleanup(restore)
+
+	fs := afero.NewMemMapFs()
+	meta := config.NewMetadata(filepath.FromSlash("/cfg/modlist.json"))
+	cfg := models.ModsJson{
+		Loader:                     models.FABRIC,
+		GameVersion:                "1.20.1",
+		DefaultAllowedReleaseTypes: []models.ReleaseType{models.Release},
+		ModsFolder:                 "mods",
+		Mods:                       []models.Mod{},
+	}
+	assert.NoError(t, fs.MkdirAll(meta.Dir(), 0755))
+	assert.NoError(t, config.WriteConfig(context.Background(), fs, meta, cfg))
+
+	out := &bytes.Buffer{}
+	errOut := &bytes.Buffer{}
+	cmd := &cobra.Command{}
+	cmd.SetIn(fakeTTY{Buffer: &bytes.Buffer{}})
+	cmd.SetOut(fakeTTY{Buffer: &bytes.Buffer{}})
+	cmd.SetErr(errOut)
+
+	_, usedTUI, err := runList(context.Background(), cmd, meta.ConfigPath, false, listDeps{
+		fs:        fs,
+		logger:    logger.New(out, errOut, false, false),
+		telemetry: func(telemetry.CommandTelemetry) {},
+		programRunner: func(tea.Model, ...tea.ProgramOption) error {
+			return errors.New("tui failed")
+		},
+	})
+
+	assert.True(t, usedTUI)
+	assert.Error(t, err)
+}
+
+func TestRunListTuiLogsEmptyView(t *testing.T) {
+	t.Setenv("MMM_TEST", "true")
+
+	restore := tui.SetIsTerminalFuncForTesting(func(int) bool { return true })
+	t.Cleanup(restore)
+
+	fs := afero.NewMemMapFs()
+	meta := config.NewMetadata(filepath.FromSlash("/cfg/modlist.json"))
+	cfg := models.ModsJson{
+		Loader:                     models.FABRIC,
+		GameVersion:                "1.20.1",
+		DefaultAllowedReleaseTypes: []models.ReleaseType{models.Release},
+		ModsFolder:                 "mods",
+		Mods:                       []models.Mod{},
+	}
+	assert.NoError(t, fs.MkdirAll(meta.Dir(), 0755))
+	assert.NoError(t, config.WriteConfig(context.Background(), fs, meta, cfg))
+
+	out := &bytes.Buffer{}
+	errOut := &bytes.Buffer{}
+	cmd := &cobra.Command{}
+	cmd.SetIn(fakeTTY{Buffer: &bytes.Buffer{}})
+	cmd.SetOut(fakeTTY{Buffer: &bytes.Buffer{}})
+	cmd.SetErr(errOut)
+
+	entriesCount, usedTUI, err := runList(context.Background(), cmd, meta.ConfigPath, false, listDeps{
+		fs:            fs,
+		logger:        logger.New(out, errOut, false, false),
+		telemetry:     func(telemetry.CommandTelemetry) {},
+		programRunner: defaultProgramRunner,
+	})
+
+	assert.NoError(t, err)
+	assert.True(t, usedTUI)
+	assert.Equal(t, 0, entriesCount)
+	assert.Contains(t, out.String(), "cmd.list.empty")
+}
+
+func TestRunListUsesDefaultProgramRunner(t *testing.T) {
+	t.Setenv("MMM_TEST", "true")
+
+	restore := tui.SetIsTerminalFuncForTesting(func(int) bool { return true })
+	t.Cleanup(restore)
+
+	fs := afero.NewMemMapFs()
+	meta := config.NewMetadata(filepath.FromSlash("/cfg/modlist.json"))
+	cfg := models.ModsJson{
+		Loader:                     models.FABRIC,
+		GameVersion:                "1.20.1",
+		DefaultAllowedReleaseTypes: []models.ReleaseType{models.Release},
+		ModsFolder:                 "mods",
+		Mods:                       []models.Mod{},
+	}
+	assert.NoError(t, fs.MkdirAll(meta.Dir(), 0755))
+	assert.NoError(t, config.WriteConfig(context.Background(), fs, meta, cfg))
+
+	cmd := &cobra.Command{}
+	cmd.SetIn(fakeTTY{Buffer: &bytes.Buffer{}})
+	cmd.SetOut(fakeTTY{Buffer: &bytes.Buffer{}})
+	cmd.SetErr(&bytes.Buffer{})
+
+	out := &bytes.Buffer{}
+
+	_, usedTUI, err := runList(context.Background(), cmd, meta.ConfigPath, false, listDeps{
+		fs:            fs,
+		logger:        logger.New(out, &bytes.Buffer{}, false, false),
+		telemetry:     func(telemetry.CommandTelemetry) {},
+		programRunner: defaultProgramRunner,
+	})
+
+	assert.True(t, usedTUI)
+	assert.NoError(t, err)
+	assert.Contains(t, out.String(), "cmd.list.empty")
+}
+
+type statErrorFs struct {
+	afero.Fs
+	failPath string
+	err      error
+}
+
+func (s statErrorFs) Stat(name string) (os.FileInfo, error) {
+	if filepath.Clean(name) == filepath.Clean(s.failPath) {
+		return nil, s.err
+	}
+	return s.Fs.Stat(name)
+}
+
+type fakeTTY struct {
+	*bytes.Buffer
+}
+
+func (f fakeTTY) Fd() uintptr { return 0 }

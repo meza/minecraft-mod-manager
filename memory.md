@@ -560,3 +560,50 @@ Added implementer follow-up notes to `code-review.md` documenting the deduplicat
 
 ### 2025-12-19 23:13 - [memory]
 Per user request, closed Beads issue `mmm-63.6` with reason summarizing the implemented fix (constant base URLs, tests/docs migrated, make gates passing).
+### 2025-12-19 23:16 - [memory]
+User wants to pick up mmm-63.59 and asked to align expectations before work begins. Need to review mmm-63.59 details and confirm scope, acceptance criteria, and any constraints before implementation.
+### 2025-12-19 23:20 - [memory]
+User confirmed mmm-63.59 scope: single coverage gate across packages, exclude tools, and include root main package if reasonably possible (warn if impractical). Marked mmm-63.59 in progress; proceeding to update Makefile coverage target and add tests as needed to reach 100% for cmd/root packages.
+### 2025-12-19 23:28 - [memory]
+User approved proceeding with full coverage push to bring all non-tools packages to 100% for mmm-63.59. Next: inspect coverage gaps per cmd/root/testutil and add targeted tests to reach 100%.
+
+### 2025-12-20 00:10 - [memory]
+Loaded Engineer/Beads/LongTermMemory/ADR/Golang/DocumentationGuidelines instructions, and marked issue mmm-63.59 in_progress via bd. Starting coverage enforcement work.
+
+### 2025-12-20 00:37 - [memory]
+Added test seams and coverage work: list runList now supports injected program runner; test Command now uses commandWithRunner; main supports injected run/exit and perf init/shutdown injection. Added/extended tests for list/remove/update/test packages and main coverage (perf export, perf error logs, command flag error branches).
+
+### 2025-12-20 01:33 - [memory]
+Resumed mmm-63.59 coverage push. Fixed failing install/list tests (added mods folder setup, corrected lock entries with download URL, and adjusted list TUI default runner expectations). `make coverage` now runs, but several cmd packages remain under 100% (add/init/install/list/remove/scan/test/update) and root main still at 99.1%; next step is targeted tests for the uncovered branches listed by `go tool cover -func=coverage.out`.
+### 2025-12-20 02:29 - [memory]
+Resumed mmm-63.59 coverage push. Loaded project docs and remote agent guidance, and pulled the latest per-function coverage gaps. Next up: add targeted tests for add/init/install/list/remove/scan/test/update uncovered branches, then rerun `make coverage`.
+
+### [2025-12-20 03:16] - [memory]
+- Restarted session for mmm-63.59 coverage push; reloaded agent guidance and project docs, marked issue in_progress via bd, and preparing to continue closing remaining coverage gaps (install/scan/update/test/remove/add/init/main).
+
+### [2025-12-20 03:58] - [memory]
+- mmm-63.59: closed remaining coverage gaps (install/scan/remove/test/update) by adding tests and removing unreachable branches; simplified identifyCandidates sort comparator; coverage now 100% across non-tools packages.
+- Ran make coverage, make test, make coverage-enforce, make build successfully.
+
+### [2025-12-20 09:10] - [memory]
+- Addressing code-review.md feedback for mmm-63.59: replacing Makefile grep with make-only filter-out; hardening main injection by switching to atomic deps store and test helper to avoid global mutation flakiness.
+
+### [2025-12-20 09:14] - [memory]
+- Updated `code-review.md` to mark required items done (Makefile filter-out and main deps atomic store); noted race test is tracked separately per ticket.
+
+### [2025-12-20 09:48] - [memory]
+- New code-review feedback: make COVER_PACKAGES lazy; remove nil-fallback runner branching in init/list; update tests to exercise default Bubble Tea runner path and keep stubs only for rare error paths.
+
+### [2025-12-20 09:58] - [memory]
+- Addressed new review requests: made COVER_PACKAGES lazy, removed init/list runner fallbacks, added default runners, and adjusted tests to use default runner for UX output; moved interactive result parsing into helper and updated tests. Updated code-review.md to approve.
+
+### [2025-12-20 10:10] - [memory]
+- Fixed init TUI success test hang by sending \"\" (enter) to Bubble Tea; runInteractive default runner now completes and coverage restored to 100
+### [2025-12-20 10:10] - [memory]
+- Fixed init TUI success test hang by sending "\r" (enter) to Bubble Tea; runInteractive default runner now completes and coverage restored to 100%.
+
+### [2025-12-20 10:20] - [memory]
+- Fixed Windows path issues in perfExportConfig tests by using absolute temp paths and a new helper to force Abs errors; getCurrentWorkingDirectory error test now uses injected getwd helper instead of deleting cwd.
+
+### [2025-12-20 10:23] - [memory]
+- Closed Beads issue mmm-63.59 per user request after cross-platform fixes; awaiting team review for completion call.

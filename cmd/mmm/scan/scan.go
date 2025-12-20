@@ -139,31 +139,11 @@ func Command() *cobra.Command {
 				prompter:        terminalPrompter{in: cmd.InOrStdin(), out: cmd.OutOrStdout()},
 				telemetry:       telemetry.RecordCommand,
 
-				curseforgeFingerprint: curseforgeFingerprint.GetFingerprintFor,
-				modrinthVersionForSha: func(ctx context.Context, sha1 string, doer httpClient.Doer) (*modrinth.Version, error) {
-					client := modrinth.NewClient(doer)
-					return modrinth.GetVersionForHash(ctx, modrinth.NewVersionHashLookup(sha1, modrinth.Sha1), client)
-				},
-				modrinthProjectTitle: func(ctx context.Context, projectID string, doer httpClient.Doer) (string, error) {
-					client := modrinth.NewClient(doer)
-					project, err := modrinth.GetProject(ctx, projectID, client)
-					if err != nil {
-						return "", err
-					}
-					return project.Title, nil
-				},
-				curseforgeFingerprintMatch: func(ctx context.Context, fingerprints []int, doer httpClient.Doer) (*curseforge.FingerprintResult, error) {
-					client := curseforge.NewClient(doer)
-					return curseforge.GetFingerprintsMatches(ctx, fingerprints, client)
-				},
-				curseforgeProjectName: func(ctx context.Context, projectID string, doer httpClient.Doer) (string, error) {
-					client := curseforge.NewClient(doer)
-					project, err := curseforge.GetProject(ctx, projectID, client)
-					if err != nil {
-						return "", err
-					}
-					return project.Name, nil
-				},
+				curseforgeFingerprint:      curseforgeFingerprint.GetFingerprintFor,
+				modrinthVersionForSha:      defaultModrinthVersionForSha,
+				modrinthProjectTitle:       defaultModrinthProjectTitle,
+				curseforgeFingerprintMatch: defaultCurseforgeFingerprintMatch,
+				curseforgeProjectName:      defaultCurseforgeProjectName,
 			}
 
 			payload, err := runScan(ctx, cmd, scanOptions{
@@ -352,9 +332,6 @@ func listJarFiles(fs afero.Fs, meta config.Metadata, cfg models.ModsJson) ([]str
 	if err != nil {
 		return nil, err
 	}
-	if len(patterns) == 0 {
-		return candidates, nil
-	}
 
 	filtered := make([]string, 0, len(candidates))
 	for _, path := range candidates {
@@ -381,9 +358,6 @@ func sha1Candidates(ctx context.Context, fs afero.Fs, files []string) ([]scanCan
 
 	group, groupCtx := errgroup.WithContext(ctx)
 	limit := runtime.GOMAXPROCS(0)
-	if limit < 1 {
-		limit = 1
-	}
 	group.SetLimit(limit)
 
 	for i := range files {
@@ -423,9 +397,7 @@ func sha1ForFile(ctx context.Context, fs afero.Fs, path string) (string, error) 
 		}
 		n, readErr := file.Read(buf)
 		if n > 0 {
-			if _, err := hasher.Write(buf[:n]); err != nil {
-				return "", err
-			}
+			_, _ = hasher.Write(buf[:n])
 		}
 		if readErr != nil {
 			if errors.Is(readErr, io.EOF) {
@@ -470,11 +442,8 @@ func identifyCandidates(ctx context.Context, candidates []scanCandidate, prefer 
 	sort.SliceStable(unsure, func(i, j int) bool { return unsure[i].Path < unsure[j].Path })
 
 	sort.SliceStable(matches, func(i, j int) bool {
-		if matches[i].Platform == prefer && matches[j].Platform != prefer {
-			return true
-		}
-		if matches[i].Platform != prefer && matches[j].Platform == prefer {
-			return false
+		if matches[i].Platform != matches[j].Platform {
+			return matches[i].Platform == prefer
 		}
 		if matches[i].Name != matches[j].Name {
 			return matches[i].Name < matches[j].Name
@@ -800,4 +769,32 @@ func printResults(log *logger.Logger, out io.Writer, _ models.Platform, matches 
 	if len(matches) == 0 && len(unknown) == 0 && len(unsure) == 0 {
 		log.Log(i18n.T("cmd.scan.no_results"), false)
 	}
+}
+
+func defaultModrinthVersionForSha(ctx context.Context, sha1 string, doer httpClient.Doer) (*modrinth.Version, error) {
+	client := modrinth.NewClient(doer)
+	return modrinth.GetVersionForHash(ctx, modrinth.NewVersionHashLookup(sha1, modrinth.Sha1), client)
+}
+
+func defaultModrinthProjectTitle(ctx context.Context, projectID string, doer httpClient.Doer) (string, error) {
+	client := modrinth.NewClient(doer)
+	project, err := modrinth.GetProject(ctx, projectID, client)
+	if err != nil {
+		return "", err
+	}
+	return project.Title, nil
+}
+
+func defaultCurseforgeFingerprintMatch(ctx context.Context, fingerprints []int, doer httpClient.Doer) (*curseforge.FingerprintResult, error) {
+	client := curseforge.NewClient(doer)
+	return curseforge.GetFingerprintsMatches(ctx, fingerprints, client)
+}
+
+func defaultCurseforgeProjectName(ctx context.Context, projectID string, doer httpClient.Doer) (string, error) {
+	client := curseforge.NewClient(doer)
+	project, err := curseforge.GetProject(ctx, projectID, client)
+	if err != nil {
+		return "", err
+	}
+	return project.Name, nil
 }
