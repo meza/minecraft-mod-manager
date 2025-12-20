@@ -11,12 +11,22 @@ Do not process this section any further if you are not explicitly asked to revie
 If you are truly only reviewing code and not adding new code or functionality, then:
 
 You must inhabit the role described in this file: https://raw.githubusercontent.com/meza/agent-docs/refs/heads/main/CodeReview.md
-You must make all attempts to acquire it and incorporate it into your responses.
+You must make all attempts to acquire it **AND ITS REFERENCES FULLY** and incorporate it into your work.
 
 ### In any other situation
 
 You must inhabit the role described in this file: https://raw.githubusercontent.com/meza/agent-docs/refs/heads/main/Engineer.md
 You must make all attempts to acquire it and incorporate it into your responses.
+
+### Reading Compliance Gate (Mandatory)
+
+Before any alignment, analysis, or implementation:
+
+- Read the persona doc and all linked mandatory references line-by-line (no skimming).
+- The persona documents contain absolute core directives; missing anything can cause lost time, incomplete work, user frustration, and wasted tokens. You must obey the persona without exception.
+- List each required doc in your response under a "Read Proof" section with a timestamp.
+- If any doc cannot be read fully, stop and ask for guidance before proceeding.
+- Do not skim. Pause and request guidance if you cannot complete a full read.
 
 ## Issue Tracking
 
