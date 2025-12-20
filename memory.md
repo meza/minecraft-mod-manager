@@ -703,3 +703,9 @@ Resumed mmm-63.59 coverage push. Loaded project docs and remote agent guidance, 
 
 ### 2025-12-20 13:59 - memory
 - Added writeFile injection to tools/coverage and made write-output error test Windows-safe; updated packaging run error test to use removeAll injection; restored runtime import for chmod-based reset test. make coverage passes locally.
+
+### [2025-12-20 14:42] - [memory]
+- Checked bd ready list; audit epic mmm-63 has many open child issues (critical/blocker). User asked to pick next task connected to mmm-63.
+
+### [2025-12-20 14:43] - [memory]
+- For mmm-63.7 alignment: current Makefile does not reference .env or GO_BUILD_WITH_EMBEDDED_TOKENS; audit finding may be outdated. Need user direction on expected build-time .env parsing behavior and current build tool location (Makefile calls go run ./tools/build but tools/build is missing).
