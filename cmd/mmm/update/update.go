@@ -19,6 +19,7 @@ import (
 	"github.com/meza/minecraft-mod-manager/internal/i18n"
 	"github.com/meza/minecraft-mod-manager/internal/logger"
 	"github.com/meza/minecraft-mod-manager/internal/models"
+	"github.com/meza/minecraft-mod-manager/internal/modfilename"
 	"github.com/meza/minecraft-mod-manager/internal/modinstall"
 	"github.com/meza/minecraft-mod-manager/internal/perf"
 	"github.com/meza/minecraft-mod-manager/internal/platform"
@@ -325,8 +326,38 @@ func processMod(
 		return outcome
 	}
 
+	normalizedRemoteFileName, err := modfilename.Normalize(remote.FileName)
+	if err != nil {
+		outcome.LogEvents = append(outcome.LogEvents, logEvent{
+			Kind: logEventKindError,
+			Message: i18n.T("cmd.update.error.invalid_filename_remote", i18n.Tvars{
+				Data: &i18n.TData{
+					"name": mod.Name,
+					"file": modfilename.Display(remote.FileName),
+				},
+			}),
+		})
+		outcome.Error = errUpdateFailures
+		return outcome
+	}
+	remote.FileName = normalizedRemoteFileName
+
 	installed := lock[lockIndex]
-	oldPath := filepath.Join(meta.ModsFolderPath(cfg), installed.FileName)
+	normalizedInstalledFileName, err := modfilename.Normalize(installed.FileName)
+	if err != nil {
+		outcome.LogEvents = append(outcome.LogEvents, logEvent{
+			Kind: logEventKindError,
+			Message: i18n.T("cmd.update.error.invalid_filename_lock", i18n.Tvars{
+				Data: &i18n.TData{
+					"name": mod.Name,
+					"file": modfilename.Display(installed.FileName),
+				},
+			}),
+		})
+		outcome.Error = errUpdateFailures
+		return outcome
+	}
+	oldPath := filepath.Join(meta.ModsFolderPath(cfg), normalizedInstalledFileName)
 	exists, err := afero.Exists(deps.fs, oldPath)
 	if err != nil {
 		outcome.LogEvents = append(outcome.LogEvents, logEvent{Kind: logEventKindError, Message: err.Error()})

@@ -25,6 +25,7 @@ import (
 	"github.com/meza/minecraft-mod-manager/internal/logger"
 	"github.com/meza/minecraft-mod-manager/internal/mmmignore"
 	"github.com/meza/minecraft-mod-manager/internal/models"
+	"github.com/meza/minecraft-mod-manager/internal/modfilename"
 	"github.com/meza/minecraft-mod-manager/internal/modinstall"
 	"github.com/meza/minecraft-mod-manager/internal/modrinth"
 	"github.com/meza/minecraft-mod-manager/internal/perf"
@@ -239,7 +240,20 @@ func runInstall(ctx context.Context, cmd *cobra.Command, opts installOptions, de
 
 		lockIndex := lockIndexFor(mod, lock)
 		if lockIndex >= 0 {
-			if err := ensureLockInstall(ctx, meta, cfg, mod, lock[lockIndex], deps); err != nil {
+			normalizedFileName, err := modfilename.Normalize(lock[lockIndex].FileName)
+			if err != nil {
+				deps.logger.Error(i18n.T("cmd.install.error.invalid_filename_lock", i18n.Tvars{
+					Data: &i18n.TData{
+						"name": mod.Name,
+						"file": modfilename.Display(lock[lockIndex].FileName),
+					},
+				}))
+				failedCount++
+				continue
+			}
+			installEntry := lock[lockIndex]
+			installEntry.FileName = normalizedFileName
+			if err := ensureLockInstall(ctx, meta, cfg, mod, installEntry, deps); err != nil {
 				if message, handled := integrityErrorMessage(err, mod.Name); handled {
 					deps.logger.Error(message)
 					failedCount++
@@ -263,6 +277,19 @@ func runInstall(ctx context.Context, cmd *cobra.Command, opts installOptions, de
 			}
 			return Result{}, fetchErr
 		}
+
+		normalizedFileName, err := modfilename.Normalize(remote.FileName)
+		if err != nil {
+			deps.logger.Error(i18n.T("cmd.install.error.invalid_filename_remote", i18n.Tvars{
+				Data: &i18n.TData{
+					"name": mod.Name,
+					"file": modfilename.Display(remote.FileName),
+				},
+			}))
+			failedCount++
+			continue
+		}
+		remote.FileName = normalizedFileName
 
 		if strings.TrimSpace(remote.Hash) == "" {
 			deps.logger.Error(i18n.T("cmd.install.error.missing_hash_remote", i18n.Tvars{

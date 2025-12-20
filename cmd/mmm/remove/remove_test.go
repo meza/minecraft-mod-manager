@@ -516,8 +516,12 @@ func TestRunRemoveSkipsLockWhenMissing(t *testing.T) {
 }
 
 func TestRunRemoveSkipsFileRemovalWhenFileNameEmpty(t *testing.T) {
+	t.Setenv("MMM_TEST", "true")
+
 	fs := afero.NewMemMapFs()
-	log := logger.New(io.Discard, io.Discard, false, false)
+	out := &bytes.Buffer{}
+	errOut := &bytes.Buffer{}
+	log := logger.New(out, errOut, false, false)
 
 	cfg := models.ModsJson{
 		Loader:                     models.FABRIC,
@@ -548,6 +552,7 @@ func TestRunRemoveSkipsFileRemovalWhenFileNameEmpty(t *testing.T) {
 	}, deps)
 	require.NoError(t, err)
 	assert.Equal(t, 1, removed)
+	assert.Contains(t, errOut.String(), "cmd.remove.error.invalid_filename_lock")
 }
 
 func TestRunRemoveReturnsErrorWhenFileRemovalFails(t *testing.T) {

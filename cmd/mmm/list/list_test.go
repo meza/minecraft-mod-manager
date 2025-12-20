@@ -71,6 +71,45 @@ func TestRunListPrintsInstalledAndMissing(t *testing.T) {
 	assert.Empty(t, errOut.String())
 }
 
+func TestRunListLogsInvalidLockFileName(t *testing.T) {
+	t.Setenv("MMM_TEST", "true")
+
+	fs := afero.NewMemMapFs()
+	meta := config.NewMetadata(filepath.FromSlash("/cfg/modlist.json"))
+
+	cfg := models.ModsJson{
+		Loader:                     models.FABRIC,
+		GameVersion:                "1.20.1",
+		DefaultAllowedReleaseTypes: []models.ReleaseType{models.Release},
+		ModsFolder:                 "mods",
+		Mods: []models.Mod{
+			{ID: "mod-a", Name: "Mod A", Type: models.MODRINTH},
+		},
+	}
+
+	assert.NoError(t, fs.MkdirAll(meta.Dir(), 0755))
+	assert.NoError(t, config.WriteConfig(context.Background(), fs, meta, cfg))
+	assert.NoError(t, config.WriteLock(context.Background(), fs, meta, []models.ModInstall{
+		{Id: "mod-a", Name: " ", Type: models.MODRINTH, FileName: "mods/mod-a.jar"},
+	}))
+
+	out := &bytes.Buffer{}
+	errOut := &bytes.Buffer{}
+	cmd := &cobra.Command{}
+	cmd.SetIn(&bytes.Buffer{})
+	cmd.SetOut(out)
+	cmd.SetErr(errOut)
+
+	_, _, err := runList(context.Background(), cmd, meta.ConfigPath, false, listDeps{
+		fs:        fs,
+		logger:    logger.New(out, errOut, false, false),
+		telemetry: func(telemetry.CommandTelemetry) {},
+	})
+
+	assert.NoError(t, err)
+	assert.Contains(t, errOut.String(), "cmd.list.error.invalid_filename_lock")
+}
+
 func TestRunListMissingLockTreatsAllAsNotInstalled(t *testing.T) {
 	t.Setenv("MMM_TEST", "true")
 
@@ -276,6 +315,13 @@ func TestBuildEntriesUsesIDWhenNameBlank(t *testing.T) {
 func TestIsInstalledReturnsFalseWhenFileNameMissing(t *testing.T) {
 	mod := models.Mod{ID: "mod-a", Type: models.MODRINTH}
 	lock := []models.ModInstall{{Id: "mod-a", Type: models.MODRINTH, FileName: ""}}
+
+	assert.False(t, isInstalled(mod, lock, config.NewMetadata("modlist.json"), models.ModsJson{}, afero.NewMemMapFs()))
+}
+
+func TestIsInstalledReturnsFalseWhenFileNameInvalid(t *testing.T) {
+	mod := models.Mod{ID: "mod-a", Type: models.MODRINTH}
+	lock := []models.ModInstall{{Id: "mod-a", Type: models.MODRINTH, FileName: "mods/mod-a.jar"}}
 
 	assert.False(t, isInstalled(mod, lock, config.NewMetadata("modlist.json"), models.ModsJson{}, afero.NewMemMapFs()))
 }

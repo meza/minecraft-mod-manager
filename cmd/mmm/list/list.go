@@ -15,6 +15,7 @@ import (
 	"github.com/meza/minecraft-mod-manager/internal/i18n"
 	"github.com/meza/minecraft-mod-manager/internal/logger"
 	"github.com/meza/minecraft-mod-manager/internal/models"
+	"github.com/meza/minecraft-mod-manager/internal/modfilename"
 	"github.com/meza/minecraft-mod-manager/internal/perf"
 	"github.com/meza/minecraft-mod-manager/internal/telemetry"
 	"github.com/meza/minecraft-mod-manager/internal/tui"
@@ -115,6 +116,7 @@ func runList(ctx context.Context, cmd *cobra.Command, configPath string, quiet b
 	if err != nil {
 		return 0, false, err
 	}
+	logInvalidLockEntries(lock, deps.logger)
 
 	entries := buildEntries(cfg, lock, meta, deps.fs)
 	useTUI := tui.ShouldUseTUI(quiet, cmd.InOrStdin(), cmd.OutOrStdout())
@@ -185,11 +187,12 @@ func isInstalled(mod models.Mod, lock []models.ModInstall, meta config.Metadata,
 			continue
 		}
 
-		if install.FileName == "" {
+		normalizedFileName, err := modfilename.Normalize(install.FileName)
+		if err != nil {
 			return false
 		}
 
-		path := filepath.Join(meta.ModsFolderPath(cfg), install.FileName)
+		path := filepath.Join(meta.ModsFolderPath(cfg), normalizedFileName)
 		exists, err := afero.Exists(fs, path)
 		if err != nil {
 			return false
@@ -200,6 +203,23 @@ func isInstalled(mod models.Mod, lock []models.ModInstall, meta config.Metadata,
 	}
 
 	return false
+}
+
+func logInvalidLockEntries(lock []models.ModInstall, log *logger.Logger) {
+	for _, install := range lock {
+		if _, err := modfilename.Normalize(install.FileName); err != nil {
+			name := strings.TrimSpace(install.Name)
+			if name == "" {
+				name = install.Id
+			}
+			log.Error(i18n.T("cmd.list.error.invalid_filename_lock", i18n.Tvars{
+				Data: &i18n.TData{
+					"name": name,
+					"file": modfilename.Display(install.FileName),
+				},
+			}))
+		}
+	}
 }
 
 func renderListView(entries []listEntry, colorize bool) string {

@@ -201,6 +201,41 @@ func TestEnsureDownloaded_WhitespaceFieldsReturnError(t *testing.T) {
 	assert.Error(t, err)
 }
 
+func TestEnsureDownloaded_TrimsFileName(t *testing.T) {
+	fs := afero.NewMemMapFs()
+	meta := config.NewMetadata(filepath.FromSlash("/cfg/modlist.json"))
+	assert.NoError(t, fs.MkdirAll(filepath.Dir(meta.ConfigPath), 0755))
+
+	cfg := models.ModsJson{ModsFolder: "mods"}
+	remote := platform.RemoteMod{
+		FileName:    " example.jar ",
+		DownloadURL: "https://example.com/example.jar",
+	}
+
+	downloadCalled := false
+	service := NewService(fs, nil, func(_ context.Context, url string, path string, _ httpClient.Doer, _ httpClient.Sender, filesystem ...afero.Fs) error {
+		downloadCalled = true
+		assert.Equal(t, filepath.Join(meta.ModsFolderPath(cfg), "example.jar"), path)
+		assert.Equal(t, remote.DownloadURL, url)
+		return afero.WriteFile(filesystem[0], path, []byte("data"), 0644)
+	})
+
+	destination, err := service.EnsureDownloaded(context.Background(), meta, cfg, remote, nil)
+	assert.NoError(t, err)
+	assert.True(t, downloadCalled)
+	assert.Equal(t, filepath.Join(meta.ModsFolderPath(cfg), "example.jar"), destination)
+}
+
+func TestEnsureDownloaded_InvalidFileNameReturnsError(t *testing.T) {
+	service := NewService(afero.NewMemMapFs(), nil, nil)
+
+	_, err := service.EnsureDownloaded(context.Background(), config.NewMetadata("modlist.json"), models.ModsJson{ModsFolder: "mods"}, platform.RemoteMod{
+		FileName:    "mods/example.jar",
+		DownloadURL: "https://example.com/example.jar",
+	}, nil)
+	assert.Error(t, err)
+}
+
 func TestEnsureDownloaded_MissingURLReturnsError(t *testing.T) {
 	fs := afero.NewMemMapFs()
 	meta := config.NewMetadata(filepath.FromSlash("/cfg/modlist.json"))
@@ -457,6 +492,23 @@ func TestEnsurePersisted_MissingRemoteFieldsReturnsError(t *testing.T) {
 	assert.Error(t, err)
 }
 
+func TestEnsurePersisted_InvalidFileNameReturnsError(t *testing.T) {
+	fs := afero.NewMemMapFs()
+	meta := config.NewMetadata(filepath.FromSlash("/cfg/modlist.json"))
+	assert.NoError(t, fs.MkdirAll(filepath.Dir(meta.ConfigPath), 0755))
+
+	service := NewService(fs, nil, nil)
+	_, _, _, err := service.EnsurePersisted(context.Background(), meta, models.ModsJson{ModsFolder: "mods"}, nil, models.MODRINTH, "abc", platform.RemoteMod{
+		Name:        "Example",
+		FileName:    "mods/example.jar",
+		Hash:        "hash",
+		ReleaseDate: "2024-01-01T00:00:00Z",
+		DownloadURL: "https://example.com/example.jar",
+	}, EnsurePersistOptions{})
+
+	assert.Error(t, err)
+}
+
 func TestEnsurePersisted_EmptyResolvedPlatformReturnsError(t *testing.T) {
 	service := NewService(afero.NewMemMapFs(), nil, nil)
 	_, _, _, err := service.EnsurePersisted(context.Background(), config.NewMetadata("modlist.json"), models.ModsJson{}, nil, "", "abc", platform.RemoteMod{}, EnsurePersistOptions{})
@@ -488,6 +540,23 @@ func TestUpsertConfigAndLock_AddsMissingEntries(t *testing.T) {
 	assert.True(t, result.LockAdded)
 	assert.Len(t, updatedCfg.Mods, 1)
 	assert.Len(t, updatedLock, 1)
+}
+
+func TestUpsertConfigAndLock_InvalidFileNameReturnsError(t *testing.T) {
+	cfg := models.ModsJson{ModsFolder: "mods", Mods: nil}
+	lock := []models.ModInstall{}
+
+	service := NewService(afero.NewMemMapFs(), nil, nil)
+
+	_, _, _, err := service.UpsertConfigAndLock(cfg, lock, models.MODRINTH, "abc", platform.RemoteMod{
+		Name:        "Example",
+		FileName:    "mods/example.jar",
+		Hash:        "sha",
+		ReleaseDate: "2024-01-01T00:00:00Z",
+		DownloadURL: "https://example.com/example.jar",
+	}, EnsurePersistOptions{})
+
+	assert.Error(t, err)
 }
 
 func TestUpsertConfigAndLock_UpdatesNameAndLockWhenDifferent(t *testing.T) {
@@ -648,39 +717,43 @@ func TestModExists_ReturnsTrueWhenPresent(t *testing.T) {
 }
 
 func TestValidateRemoteForLock_MissingName(t *testing.T) {
-	assert.Error(t, validateRemoteForLock(platform.RemoteMod{
+	_, err := validateRemoteForLock(platform.RemoteMod{
 		FileName:    "x.jar",
 		Hash:        "abc",
 		ReleaseDate: "2024-01-01T00:00:00Z",
 		DownloadURL: "https://example.com/x.jar",
-	}))
+	})
+	assert.Error(t, err)
 }
 
 func TestValidateRemoteForLock_MissingHash(t *testing.T) {
-	assert.Error(t, validateRemoteForLock(platform.RemoteMod{
+	_, err := validateRemoteForLock(platform.RemoteMod{
 		Name:        "Example",
 		FileName:    "x.jar",
 		ReleaseDate: "2024-01-01T00:00:00Z",
 		DownloadURL: "https://example.com/x.jar",
-	}))
+	})
+	assert.Error(t, err)
 }
 
 func TestValidateRemoteForLock_MissingReleaseDate(t *testing.T) {
-	assert.Error(t, validateRemoteForLock(platform.RemoteMod{
+	_, err := validateRemoteForLock(platform.RemoteMod{
 		Name:        "Example",
 		FileName:    "x.jar",
 		Hash:        "abc",
 		DownloadURL: "https://example.com/x.jar",
-	}))
+	})
+	assert.Error(t, err)
 }
 
 func TestValidateRemoteForLock_MissingDownloadURL(t *testing.T) {
-	assert.Error(t, validateRemoteForLock(platform.RemoteMod{
+	_, err := validateRemoteForLock(platform.RemoteMod{
 		Name:        "Example",
 		FileName:    "x.jar",
 		Hash:        "abc",
 		ReleaseDate: "2024-01-01T00:00:00Z",
-	}))
+	})
+	assert.Error(t, err)
 }
 
 func TestOptionalBool_FalseReturnsNil(t *testing.T) {

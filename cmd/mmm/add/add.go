@@ -18,6 +18,7 @@ import (
 	"github.com/meza/minecraft-mod-manager/internal/i18n"
 	"github.com/meza/minecraft-mod-manager/internal/logger"
 	"github.com/meza/minecraft-mod-manager/internal/models"
+	"github.com/meza/minecraft-mod-manager/internal/modfilename"
 	"github.com/meza/minecraft-mod-manager/internal/modinstall"
 	"github.com/meza/minecraft-mod-manager/internal/modsetup"
 	"github.com/meza/minecraft-mod-manager/internal/perf"
@@ -188,6 +189,30 @@ func runAdd(ctx context.Context, commandSpan *perf.Span, cmd *cobra.Command, opt
 
 	install, installFound := findLockInstall(lock, platformValue, projectID)
 	if modsetup.ModExists(cfg, platformValue, projectID) && installFound {
+		normalizedFileName, err := modfilename.Normalize(install.FileName)
+		if err != nil {
+			message := i18n.T("cmd.add.error.invalid_filename_lock", i18n.Tvars{
+				Data: &i18n.TData{
+					"name": modNameForConfig(cfg, platformValue, projectID),
+					"file": modfilename.Display(install.FileName),
+				},
+			})
+			err = errors.New(message)
+			return telemetry.CommandTelemetry{
+				Command:     "add",
+				Success:     false,
+				Error:       err,
+				ExitCode:    1,
+				Interactive: useTUI,
+				Arguments: map[string]interface{}{
+					"platform": platformValue,
+					"id":       projectID,
+					"version":  opts.Version,
+					"fallback": opts.AllowVersionFallback,
+				},
+			}, err
+		}
+		install.FileName = normalizedFileName
 
 		modInstall := modinstall.NewService(deps.fs, modinstall.Downloader(deps.downloader))
 		ensureResult, err := modInstall.EnsureLockedFile(ctx, meta, cfg, install, downloadClient(deps.clients), nil)
@@ -282,6 +307,31 @@ func runAdd(ctx context.Context, commandSpan *perf.Span, cmd *cobra.Command, opt
 		}
 		return payload, fetchErr
 	}
+
+	normalizedFileName, err := modfilename.Normalize(remoteMod.FileName)
+	if err != nil {
+		message := i18n.T("cmd.add.error.invalid_filename_remote", i18n.Tvars{
+			Data: &i18n.TData{
+				"name": remoteMod.Name,
+				"file": modfilename.Display(remoteMod.FileName),
+			},
+		})
+		err = errors.New(message)
+		return telemetry.CommandTelemetry{
+			Command:     "add",
+			Success:     false,
+			Error:       err,
+			ExitCode:    1,
+			Interactive: useTUI,
+			Arguments: map[string]interface{}{
+				"platform": resolvedPlatform,
+				"id":       resolvedID,
+				"version":  opts.Version,
+				"fallback": opts.AllowVersionFallback,
+			},
+		}, err
+	}
+	remoteMod.FileName = normalizedFileName
 
 	downloadCtx, downloadSpan := perf.StartSpan(ctx, "app.command.add.stage.download",
 		perf.WithAttributes(

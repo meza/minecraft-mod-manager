@@ -746,3 +746,26 @@ Resumed mmm-63.59 coverage push. Loaded project docs and remote agent guidance, 
 
 ### [2025-12-20 17:02] - [memory]
 - Addressed code-review.md feedback for mmm-63.13: split missing-hash messaging for lock vs remote, fixed de-DE transliterations, updated tests and reran make fmt/test/coverage/build. Updated code-review.md with implementer response and logs.
+
+### 2025-12-20 15:58 - Started alignment for mmm-63.9; reviewing requirements, docs, code, and audit notes before implementation.
+
+### [2025-12-20 18:11] - [memory]
+- Alignment work for mmm-63.9 underway: reviewed requirements/specs/platform docs and code touchpoints for filename usage; preparing expectation questions before implementation.
+
+### [2025-12-20 18:29] - [memory]
+- mmm-63.9 alignment decisions recorded in ticket: enforce .jar extension, trim whitespace, reject path separators/drive letters/UNC, skip invalid lock filenames with empathetic actionable message, no max length for now.
+
+### [2025-12-20 18:37] - [memory]
+- Marked mmm-63.9 in_progress; implementing mod filename validation with .jar enforcement, safe base name checks, and skip+log behavior for invalid lock filenames per alignment.
+
+### [2025-12-20 18:58] - [memory]
+- mmm-63.9 work: added mod filename validation, wired command behavior and tests; make fmt, make coverage, and make build succeeded.
+
+### [2025-12-20 19:15] - [memory]
+- Addressed code-review.md feedback: add now reports invalid lock filenames with i18n + test; de-DE/fr-CA translations updated; ticket notes updated for make coverage; make fmt/coverage/build rerun.
+
+### [2025-12-20 19:19] - [memory]
+- Closed mmm-63.9 after implementing filename validation and addressing review feedback; gates passed. Next recommended audit item: mmm-63.8 (symlink-safe downloads).
+
+### [2025-12-20 19:24] - [memory]
+- Fixed Windows coverage shortfall by splitting modfilename.Normalize into OS-specific implementations (normalize_unix.go/normalize_windows.go); make fmt/coverage pass locally.

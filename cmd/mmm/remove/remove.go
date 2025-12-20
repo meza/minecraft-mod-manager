@@ -15,6 +15,7 @@ import (
 	"github.com/meza/minecraft-mod-manager/internal/i18n"
 	"github.com/meza/minecraft-mod-manager/internal/logger"
 	"github.com/meza/minecraft-mod-manager/internal/models"
+	"github.com/meza/minecraft-mod-manager/internal/modfilename"
 	"github.com/meza/minecraft-mod-manager/internal/perf"
 	"github.com/meza/minecraft-mod-manager/internal/telemetry"
 )
@@ -146,9 +147,16 @@ func runRemove(ctx context.Context, opts removeOptions, deps removeDeps) (int, e
 
 		lockIndex := lockIndexFor(mod, lock)
 		if lockIndex >= 0 {
-			filename := strings.TrimSpace(lock[lockIndex].FileName)
-			if filename != "" {
-				installedPath := filepath.Join(meta.ModsFolderPath(cfg), filename)
+			normalizedFileName, err := modfilename.Normalize(lock[lockIndex].FileName)
+			if err != nil {
+				deps.logger.Error(i18n.T("cmd.remove.error.invalid_filename_lock", i18n.Tvars{
+					Data: &i18n.TData{
+						"name": mod.Name,
+						"file": modfilename.Display(lock[lockIndex].FileName),
+					},
+				}))
+			} else {
+				installedPath := filepath.Join(meta.ModsFolderPath(cfg), normalizedFileName)
 				if err := removeFileForce(deps.fs, installedPath); err != nil {
 					return removedCount, err
 				}

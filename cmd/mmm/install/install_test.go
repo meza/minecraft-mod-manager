@@ -747,6 +747,144 @@ func TestRunInstallReportsMissingHashForLockEntry(t *testing.T) {
 	assert.Contains(t, errOut.String(), "cmd.install.error.missing_hash_lock")
 }
 
+func TestRunInstallReportsInvalidLockFileName(t *testing.T) {
+	t.Setenv("MMM_TEST", "true")
+
+	fs := afero.NewMemMapFs()
+	meta := config.NewMetadata(filepath.FromSlash("/cfg/modlist.json"))
+
+	cfg := models.ModsJson{
+		Loader:                     models.FABRIC,
+		GameVersion:                "1.21.1",
+		DefaultAllowedReleaseTypes: []models.ReleaseType{models.Release},
+		ModsFolder:                 "mods",
+		Mods: []models.Mod{
+			{ID: "proj-1", Name: "Mod", Type: models.MODRINTH},
+		},
+	}
+
+	assert.NoError(t, fs.MkdirAll(meta.Dir(), 0755))
+	assert.NoError(t, fs.MkdirAll(meta.ModsFolderPath(cfg), 0755))
+	assert.NoError(t, config.WriteConfig(context.Background(), fs, meta, cfg))
+	assert.NoError(t, config.WriteLock(context.Background(), fs, meta, []models.ModInstall{
+		{
+			Type:        models.MODRINTH,
+			Id:          "proj-1",
+			Name:        "Mod",
+			FileName:    "mods/bad.jar",
+			ReleasedOn:  "2024-01-01T00:00:00Z",
+			Hash:        sha1Hex("data"),
+			DownloadUrl: "https://example.invalid/bad.jar",
+		},
+	}))
+
+	out := &bytes.Buffer{}
+	errOut := &bytes.Buffer{}
+	cmd := &cobra.Command{}
+	cmd.SetIn(&bytes.Buffer{})
+	cmd.SetOut(out)
+	cmd.SetErr(errOut)
+
+	deps := installDeps{
+		fs:      fs,
+		logger:  logger.New(out, errOut, false, false),
+		clients: platform.Clients{},
+		downloader: func(context.Context, string, string, httpClient.Doer, httpClient.Sender, ...afero.Fs) error {
+			t.Fatal("downloader should not be called for invalid lock filename")
+			return nil
+		},
+		fetchMod: func(context.Context, models.Platform, string, platform.FetchOptions, platform.Clients) (platform.RemoteMod, error) {
+			t.Fatal("fetchMod should not be called when lock entry exists")
+			return platform.RemoteMod{}, nil
+		},
+		telemetry:             func(telemetry.CommandTelemetry) {},
+		curseforgeFingerprint: func(string) uint32 { return 0 },
+		curseforgeFingerprintMatch: func(context.Context, []int, httpClient.Doer) (*curseforge.FingerprintResult, error) {
+			return &curseforge.FingerprintResult{}, nil
+		},
+		curseforgeProjectName: func(context.Context, string, httpClient.Doer) (string, error) {
+			return "", nil
+		},
+		modrinthVersionForSha: func(context.Context, string, httpClient.Doer) (*modrinth.Version, error) {
+			return nil, &modrinth.VersionNotFoundError{}
+		},
+		modrinthProjectTitle: func(context.Context, string, httpClient.Doer) (string, error) {
+			return "", nil
+		},
+	}
+
+	_, err := runInstall(context.Background(), cmd, installOptions{ConfigPath: meta.ConfigPath}, deps)
+	assert.ErrorIs(t, err, errInstallFailures)
+	assert.Contains(t, errOut.String(), "cmd.install.error.invalid_filename_lock")
+}
+
+func TestRunInstallReportsInvalidRemoteFileName(t *testing.T) {
+	t.Setenv("MMM_TEST", "true")
+
+	fs := afero.NewMemMapFs()
+	meta := config.NewMetadata(filepath.FromSlash("/cfg/modlist.json"))
+
+	cfg := models.ModsJson{
+		Loader:                     models.FABRIC,
+		GameVersion:                "1.21.1",
+		DefaultAllowedReleaseTypes: []models.ReleaseType{models.Release},
+		ModsFolder:                 "mods",
+		Mods: []models.Mod{
+			{ID: "proj-1", Name: "Mod", Type: models.MODRINTH},
+		},
+	}
+
+	assert.NoError(t, fs.MkdirAll(meta.Dir(), 0755))
+	assert.NoError(t, fs.MkdirAll(meta.ModsFolderPath(cfg), 0755))
+	assert.NoError(t, config.WriteConfig(context.Background(), fs, meta, cfg))
+	_, err := config.EnsureLock(context.Background(), fs, meta)
+	assert.NoError(t, err)
+
+	out := &bytes.Buffer{}
+	errOut := &bytes.Buffer{}
+	cmd := &cobra.Command{}
+	cmd.SetIn(&bytes.Buffer{})
+	cmd.SetOut(out)
+	cmd.SetErr(errOut)
+
+	deps := installDeps{
+		fs:      fs,
+		logger:  logger.New(out, errOut, false, false),
+		clients: platform.Clients{},
+		fetchMod: func(context.Context, models.Platform, string, platform.FetchOptions, platform.Clients) (platform.RemoteMod, error) {
+			return platform.RemoteMod{
+				Name:        "Remote Name",
+				FileName:    "mods/remote.jar",
+				Hash:        sha1Hex("expected"),
+				ReleaseDate: "2024-01-01T00:00:00Z",
+				DownloadURL: "https://example.invalid/remote.jar",
+			}, nil
+		},
+		downloader: func(context.Context, string, string, httpClient.Doer, httpClient.Sender, ...afero.Fs) error {
+			t.Fatal("downloader should not be called for invalid remote filename")
+			return nil
+		},
+		telemetry:             func(telemetry.CommandTelemetry) {},
+		curseforgeFingerprint: func(string) uint32 { return 0 },
+		curseforgeFingerprintMatch: func(context.Context, []int, httpClient.Doer) (*curseforge.FingerprintResult, error) {
+			return &curseforge.FingerprintResult{}, nil
+		},
+		curseforgeProjectName: func(context.Context, string, httpClient.Doer) (string, error) {
+			return "", nil
+		},
+		modrinthVersionForSha: func(context.Context, string, httpClient.Doer) (*modrinth.Version, error) {
+			return nil, &modrinth.VersionNotFoundError{}
+		},
+		modrinthProjectTitle: func(context.Context, string, httpClient.Doer) (string, error) {
+			return "", nil
+		},
+	}
+
+	_, err = runInstall(context.Background(), cmd, installOptions{ConfigPath: meta.ConfigPath}, deps)
+	assert.ErrorIs(t, err, errInstallFailures)
+	assert.Contains(t, errOut.String(), "cmd.install.error.invalid_filename_remote")
+}
+
 func TestRunInstallContinuesWhenFetchReturnsExpectedErrors(t *testing.T) {
 	t.Setenv("MMM_TEST", "true")
 

@@ -286,6 +286,59 @@ func TestRunAdd_DuplicateEnsureLockedFileError(t *testing.T) {
 	assert.Error(t, err)
 }
 
+func TestRunAdd_DuplicateInvalidLockFileNameReturnsFriendlyError(t *testing.T) {
+	t.Setenv("MMM_TEST", "true")
+
+	ctx, commandSpan := startAddPerf(t)
+	fs := afero.NewMemMapFs()
+	meta := config.NewMetadata(filepath.FromSlash("/cfg/modlist.json"))
+	assert.NoError(t, fs.MkdirAll(filepath.Dir(meta.ConfigPath), 0755))
+
+	cfg := models.ModsJson{
+		Loader:                     models.FABRIC,
+		GameVersion:                "1.20.1",
+		DefaultAllowedReleaseTypes: []models.ReleaseType{models.Release},
+		ModsFolder:                 "mods",
+		Mods: []models.Mod{
+			{Type: models.MODRINTH, ID: "abc", Name: "Existing"},
+		},
+	}
+	assert.NoError(t, config.WriteConfig(context.Background(), fs, meta, cfg))
+	assert.NoError(t, config.WriteLock(context.Background(), fs, meta, []models.ModInstall{
+		{
+			Type:        models.MODRINTH,
+			Id:          "abc",
+			Name:        "Existing",
+			FileName:    "mods/existing.jar",
+			Hash:        sha1Hex("downloaded"),
+			ReleasedOn:  "2024-01-01T00:00:00Z",
+			DownloadUrl: "https://example.com/existing.jar",
+		},
+	}))
+
+	cmd := &cobra.Command{}
+	cmd.SetIn(bytes.NewBuffer(nil))
+	cmd.SetOut(bytes.NewBuffer(nil))
+	cmd.SetErr(bytes.NewBuffer(nil))
+
+	_, err := runAdd(ctx, commandSpan, cmd, addOptions{
+		Platform:   "modrinth",
+		ProjectID:  "abc",
+		ConfigPath: meta.ConfigPath,
+	}, addDeps{
+		fs:      fs,
+		clients: platform.DefaultClients(rate.NewLimiter(rate.Inf, 0)),
+		logger:  logger.New(cmd.OutOrStdout(), cmd.ErrOrStderr(), false, true),
+		downloader: func(context.Context, string, string, httpClient.Doer, httpClient.Sender, ...afero.Fs) error {
+			t.Fatal("downloader should not be called when lock filename is invalid")
+			return nil
+		},
+	})
+
+	assert.Error(t, err)
+	assert.Contains(t, err.Error(), "cmd.add.error.invalid_filename_lock")
+}
+
 func TestRunAdd_DuplicateHashMismatchDownloads(t *testing.T) {
 	ctx, commandSpan := startAddPerf(t)
 	fs := afero.NewMemMapFs()
@@ -785,6 +838,54 @@ func TestRunAdd_MissingHashReturnsFriendlyError(t *testing.T) {
 
 	assert.Error(t, err)
 	assert.Contains(t, err.Error(), "cmd.add.error.missing_hash_remote")
+}
+
+func TestRunAdd_InvalidFileNameReturnsFriendlyError(t *testing.T) {
+	t.Setenv("MMM_TEST", "true")
+
+	ctx, commandSpan := startAddPerf(t)
+	fs := afero.NewMemMapFs()
+	meta := config.NewMetadata(filepath.FromSlash("/cfg/modlist.json"))
+	assert.NoError(t, fs.MkdirAll(filepath.Dir(meta.ConfigPath), 0755))
+	cfg := models.ModsJson{
+		Loader:                     models.FABRIC,
+		GameVersion:                "1.20.1",
+		DefaultAllowedReleaseTypes: []models.ReleaseType{models.Release},
+		ModsFolder:                 "mods",
+	}
+	assert.NoError(t, config.WriteConfig(context.Background(), fs, meta, cfg))
+	assert.NoError(t, config.WriteLock(context.Background(), fs, meta, nil))
+
+	cmd := &cobra.Command{}
+	cmd.SetIn(bytes.NewBuffer(nil))
+	cmd.SetOut(bytes.NewBuffer(nil))
+	cmd.SetErr(bytes.NewBuffer(nil))
+
+	_, err := runAdd(ctx, commandSpan, cmd, addOptions{
+		Platform:   "modrinth",
+		ProjectID:  "abc",
+		ConfigPath: meta.ConfigPath,
+	}, addDeps{
+		fs:      fs,
+		clients: platform.DefaultClients(rate.NewLimiter(rate.Inf, 0)),
+		logger:  logger.New(cmd.OutOrStdout(), cmd.ErrOrStderr(), false, false),
+		fetchMod: func(_ context.Context, _ models.Platform, _ string, _ platform.FetchOptions, _ platform.Clients) (platform.RemoteMod, error) {
+			return platform.RemoteMod{
+				Name:        "Example",
+				FileName:    "mods/example.jar",
+				Hash:        sha1Hex("expected"),
+				ReleaseDate: "2024-01-01T00:00:00Z",
+				DownloadURL: "https://example.com/example.jar",
+			}, nil
+		},
+		downloader: func(context.Context, string, string, httpClient.Doer, httpClient.Sender, ...afero.Fs) error {
+			t.Fatal("downloader should not be called when filename is invalid")
+			return nil
+		},
+	})
+
+	assert.Error(t, err)
+	assert.Contains(t, err.Error(), "cmd.add.error.invalid_filename_remote")
 }
 
 func TestRunAdd_HashMismatchReturnsFriendlyError(t *testing.T) {

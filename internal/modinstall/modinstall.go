@@ -16,6 +16,7 @@ import (
 	"github.com/meza/minecraft-mod-manager/internal/config"
 	"github.com/meza/minecraft-mod-manager/internal/httpClient"
 	"github.com/meza/minecraft-mod-manager/internal/models"
+	"github.com/meza/minecraft-mod-manager/internal/modfilename"
 )
 
 type Downloader func(context.Context, string, string, httpClient.Doer, httpClient.Sender, ...afero.Fs) error
@@ -67,6 +68,10 @@ func (s *Service) EnsureLockedFile(ctx context.Context, meta config.Metadata, cf
 	if strings.TrimSpace(install.FileName) == "" {
 		return EnsureResult{}, errors.New("missing lock fileName")
 	}
+	normalizedFileName, err := modfilename.Normalize(install.FileName)
+	if err != nil {
+		return EnsureResult{}, err
+	}
 	if strings.TrimSpace(install.DownloadUrl) == "" {
 		return EnsureResult{}, errors.New("missing lock downloadUrl")
 	}
@@ -78,7 +83,7 @@ func (s *Service) EnsureLockedFile(ctx context.Context, meta config.Metadata, cf
 		sender = noopSender{}
 	}
 
-	destination := filepath.Join(meta.ModsFolderPath(cfg), install.FileName)
+	destination := filepath.Join(meta.ModsFolderPath(cfg), normalizedFileName)
 
 	exists, err := afero.Exists(s.fs, destination)
 	if err != nil {

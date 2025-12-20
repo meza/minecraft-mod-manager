@@ -12,6 +12,7 @@ import (
 	"github.com/meza/minecraft-mod-manager/internal/config"
 	"github.com/meza/minecraft-mod-manager/internal/httpClient"
 	"github.com/meza/minecraft-mod-manager/internal/models"
+	"github.com/meza/minecraft-mod-manager/internal/modfilename"
 	"github.com/meza/minecraft-mod-manager/internal/platform"
 )
 
@@ -60,12 +61,14 @@ func (s *Service) EnsureConfigAndLock(ctx context.Context, meta config.Metadata,
 }
 
 func (s *Service) EnsureDownloaded(ctx context.Context, meta config.Metadata, cfg models.ModsJson, remote platform.RemoteMod, downloadClient httpClient.Doer) (string, error) {
-	if strings.TrimSpace(remote.FileName) == "" {
-		return "", errors.New("remote mod missing filename")
+	normalizedFileName, err := modfilename.Normalize(remote.FileName)
+	if err != nil {
+		return "", err
 	}
 	if strings.TrimSpace(remote.DownloadURL) == "" {
 		return "", errors.New("remote mod missing download url")
 	}
+	remote.FileName = normalizedFileName
 
 	if err := s.fs.MkdirAll(meta.ModsFolderPath(cfg), 0755); err != nil {
 		return "", err
@@ -118,9 +121,11 @@ func (s *Service) EnsurePersisted(ctx context.Context, meta config.Metadata, cfg
 	}
 
 	if lockIndex < 0 {
-		if err := validateRemoteForLock(remote); err != nil {
+		normalizedFileName, err := validateRemoteForLock(remote)
+		if err != nil {
 			return models.ModsJson{}, nil, EnsureResult{}, err
 		}
+		remote.FileName = normalizedFileName
 
 		lock = append(lock, models.ModInstall{
 			Type:        resolvedPlatform,
@@ -183,9 +188,11 @@ func (s *Service) UpsertConfigAndLock(cfg models.ModsJson, lock []models.ModInst
 	}
 
 	if lockIndex < 0 {
-		if err := validateRemoteForLock(remote); err != nil {
+		normalizedFileName, err := validateRemoteForLock(remote)
+		if err != nil {
 			return models.ModsJson{}, nil, UpsertResult{}, err
 		}
+		remote.FileName = normalizedFileName
 		lock = append(lock, models.ModInstall{
 			Type:        resolvedPlatform,
 			Id:          resolvedID,
@@ -197,9 +204,11 @@ func (s *Service) UpsertConfigAndLock(cfg models.ModsJson, lock []models.ModInst
 		})
 		result.LockAdded = true
 	} else {
-		if err := validateRemoteForLock(remote); err != nil {
+		normalizedFileName, err := validateRemoteForLock(remote)
+		if err != nil {
 			return models.ModsJson{}, nil, UpsertResult{}, err
 		}
+		remote.FileName = normalizedFileName
 
 		current := lock[lockIndex]
 		next := models.ModInstall{
@@ -265,23 +274,24 @@ func findLockIndex(lock []models.ModInstall, platform models.Platform, projectID
 	return -1
 }
 
-func validateRemoteForLock(remote platform.RemoteMod) error {
+func validateRemoteForLock(remote platform.RemoteMod) (string, error) {
 	if strings.TrimSpace(remote.Name) == "" {
-		return errors.New("remote mod missing name")
+		return "", errors.New("remote mod missing name")
 	}
-	if strings.TrimSpace(remote.FileName) == "" {
-		return errors.New("remote mod missing filename")
+	normalizedFileName, err := modfilename.Normalize(remote.FileName)
+	if err != nil {
+		return "", err
 	}
 	if strings.TrimSpace(remote.Hash) == "" {
-		return errors.New("remote mod missing hash")
+		return "", errors.New("remote mod missing hash")
 	}
 	if strings.TrimSpace(remote.ReleaseDate) == "" {
-		return errors.New("remote mod missing release date")
+		return "", errors.New("remote mod missing release date")
 	}
 	if strings.TrimSpace(remote.DownloadURL) == "" {
-		return errors.New("remote mod missing download url")
+		return "", errors.New("remote mod missing download url")
 	}
-	return nil
+	return normalizedFileName, nil
 }
 
 type noopSender struct{}

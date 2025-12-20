@@ -769,6 +769,148 @@ func TestRunUpdateReportsMissingHash(t *testing.T) {
 	assert.Contains(t, errOut.String(), "cmd.update.error.missing_hash_remote")
 }
 
+func TestRunUpdateReportsInvalidRemoteFileName(t *testing.T) {
+	t.Setenv("MMM_TEST", "true")
+
+	fs := afero.NewMemMapFs()
+	meta := config.NewMetadata(filepath.FromSlash("/cfg/modlist.json"))
+
+	cfg := models.ModsJson{
+		Loader:                     models.FABRIC,
+		GameVersion:                "1.21.1",
+		DefaultAllowedReleaseTypes: []models.ReleaseType{models.Release},
+		ModsFolder:                 "mods",
+		Mods: []models.Mod{
+			{ID: "proj-1", Name: "Configured", Type: models.MODRINTH},
+		},
+	}
+
+	lock := []models.ModInstall{
+		{
+			Type:        models.MODRINTH,
+			Id:          "proj-1",
+			Name:        "Configured",
+			FileName:    "old.jar",
+			ReleasedOn:  "2024-01-01T00:00:00Z",
+			Hash:        "oldhash",
+			DownloadUrl: "https://example.invalid/old.jar",
+		},
+	}
+
+	assert.NoError(t, fs.MkdirAll(meta.Dir(), 0755))
+	assert.NoError(t, fs.MkdirAll(meta.ModsFolderPath(cfg), 0755))
+	assert.NoError(t, config.WriteConfig(context.Background(), fs, meta, cfg))
+	assert.NoError(t, config.WriteLock(context.Background(), fs, meta, lock))
+
+	out := &bytes.Buffer{}
+	errOut := &bytes.Buffer{}
+	cmd := &cobra.Command{}
+	cmd.SetIn(&bytes.Buffer{})
+	cmd.SetOut(out)
+	cmd.SetErr(errOut)
+
+	remote := platform.RemoteMod{
+		Name:        "Remote Name",
+		FileName:    "mods/new.jar",
+		ReleaseDate: "2024-01-02T00:00:00Z",
+		Hash:        sha1Hex("new"),
+		DownloadURL: "https://example.invalid/new.jar",
+	}
+
+	updated, failed, err := runUpdate(context.Background(), cmd, updateOptions{ConfigPath: meta.ConfigPath}, updateDeps{
+		fs:     fs,
+		logger: logger.New(out, errOut, false, false),
+		install: func(context.Context, *cobra.Command, string, bool, bool) (install.Result, error) {
+			return install.Result{}, nil
+		},
+		fetchMod: func(context.Context, models.Platform, string, platform.FetchOptions, platform.Clients) (platform.RemoteMod, error) {
+			return remote, nil
+		},
+		downloader: func(context.Context, string, string, httpClient.Doer, httpClient.Sender, ...afero.Fs) error {
+			t.Fatal("downloader should not be called when filename is invalid")
+			return nil
+		},
+		clients:   platform.Clients{Modrinth: noopDoer{}},
+		telemetry: func(telemetry.CommandTelemetry) {},
+	})
+
+	assert.ErrorIs(t, err, errUpdateFailures)
+	assert.Equal(t, 0, updated)
+	assert.Equal(t, 1, failed)
+	assert.Contains(t, errOut.String(), "cmd.update.error.invalid_filename_remote")
+}
+
+func TestRunUpdateReportsInvalidLockFileName(t *testing.T) {
+	t.Setenv("MMM_TEST", "true")
+
+	fs := afero.NewMemMapFs()
+	meta := config.NewMetadata(filepath.FromSlash("/cfg/modlist.json"))
+
+	cfg := models.ModsJson{
+		Loader:                     models.FABRIC,
+		GameVersion:                "1.21.1",
+		DefaultAllowedReleaseTypes: []models.ReleaseType{models.Release},
+		ModsFolder:                 "mods",
+		Mods: []models.Mod{
+			{ID: "proj-1", Name: "Configured", Type: models.MODRINTH},
+		},
+	}
+
+	lock := []models.ModInstall{
+		{
+			Type:        models.MODRINTH,
+			Id:          "proj-1",
+			Name:        "Configured",
+			FileName:    "mods/old.jar",
+			ReleasedOn:  "2024-01-01T00:00:00Z",
+			Hash:        "oldhash",
+			DownloadUrl: "https://example.invalid/old.jar",
+		},
+	}
+
+	assert.NoError(t, fs.MkdirAll(meta.Dir(), 0755))
+	assert.NoError(t, fs.MkdirAll(meta.ModsFolderPath(cfg), 0755))
+	assert.NoError(t, config.WriteConfig(context.Background(), fs, meta, cfg))
+	assert.NoError(t, config.WriteLock(context.Background(), fs, meta, lock))
+
+	out := &bytes.Buffer{}
+	errOut := &bytes.Buffer{}
+	cmd := &cobra.Command{}
+	cmd.SetIn(&bytes.Buffer{})
+	cmd.SetOut(out)
+	cmd.SetErr(errOut)
+
+	remote := platform.RemoteMod{
+		Name:        "Remote Name",
+		FileName:    "new.jar",
+		ReleaseDate: "2024-01-02T00:00:00Z",
+		Hash:        sha1Hex("new"),
+		DownloadURL: "https://example.invalid/new.jar",
+	}
+
+	updated, failed, err := runUpdate(context.Background(), cmd, updateOptions{ConfigPath: meta.ConfigPath}, updateDeps{
+		fs:     fs,
+		logger: logger.New(out, errOut, false, false),
+		install: func(context.Context, *cobra.Command, string, bool, bool) (install.Result, error) {
+			return install.Result{}, nil
+		},
+		fetchMod: func(context.Context, models.Platform, string, platform.FetchOptions, platform.Clients) (platform.RemoteMod, error) {
+			return remote, nil
+		},
+		downloader: func(context.Context, string, string, httpClient.Doer, httpClient.Sender, ...afero.Fs) error {
+			t.Fatal("downloader should not be called when lock filename is invalid")
+			return nil
+		},
+		clients:   platform.Clients{Modrinth: noopDoer{}},
+		telemetry: func(telemetry.CommandTelemetry) {},
+	})
+
+	assert.ErrorIs(t, err, errUpdateFailures)
+	assert.Equal(t, 0, updated)
+	assert.Equal(t, 1, failed)
+	assert.Contains(t, errOut.String(), "cmd.update.error.invalid_filename_lock")
+}
+
 func TestRunUpdateReportsMissingInstalledHash(t *testing.T) {
 	t.Setenv("MMM_TEST", "true")
 

@@ -51,6 +51,16 @@ func TestEnsureLockedFile_MissingFileNameReturnsError(t *testing.T) {
 	assert.Error(t, err)
 }
 
+func TestEnsureLockedFile_InvalidFileNameReturnsError(t *testing.T) {
+	service := NewService(afero.NewMemMapFs(), nil)
+	_, err := service.EnsureLockedFile(context.Background(), config.NewMetadata("modlist.json"), models.ModsJson{ModsFolder: "mods"}, models.ModInstall{
+		FileName:    "mods/x.jar",
+		Hash:        sha1Hex("data"),
+		DownloadUrl: "https://example.com/x.jar",
+	}, nil, noopSender{})
+	assert.Error(t, err)
+}
+
 func TestEnsureLockedFile_ExistingFileWithMatchingHashDoesNothing(t *testing.T) {
 	fs := afero.NewMemMapFs()
 	meta := config.NewMetadata(filepath.FromSlash("/cfg/modlist.json"))
