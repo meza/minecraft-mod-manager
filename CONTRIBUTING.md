@@ -28,6 +28,7 @@ ones.
 - Consistency: follow existing patterns in this repo; do not introduce a new pattern unless it replaces an old one and is agreed
   ahead of time.
 - Prioritize correctness and testability over cleverness
+- The project is cross-platform (first-class support for Windows, macOS, Linux) for both users and developers.
 
 ### Testing philosophy (cross-cutting)
 
