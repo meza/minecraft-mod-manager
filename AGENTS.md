@@ -52,6 +52,7 @@ Follow our established [Golang Coding Standards](https://raw.githubusercontent.c
 
 ## Knowledge Material
 
+- Keep the CONTRIBUTING.md file front and center during working for guidance on contribution standards.
 - ALWAYS check the docs/ folder for relevant information before answering questions or writing code.
 - The `docs/specs` folder contains design specifications for various components of the project. You MUST read and adhere to these specifications when working on related components.
 - You must NOT change any design specification files in the `docs/specs` folder or the [requirements-go-port.md](/docs/requirements-go-port.md) file without explicit permission.
