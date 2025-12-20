@@ -27,13 +27,13 @@ func TestEnsureLockedFile_MissingFileDownloads(t *testing.T) {
 	cfg := models.ModsJson{ModsFolder: "mods"}
 
 	downloadCalled := false
-	service := NewService(fs, func(_ context.Context, url string, path string, _ httpClient.Doer, _ httpClient.Sender, filesystem ...afero.Fs) error {
+	installer := NewInstaller(fs, func(_ context.Context, url string, path string, _ httpClient.Doer, _ httpClient.Sender, filesystem ...afero.Fs) error {
 		downloadCalled = true
 		assert.Equal(t, "https://example.com/x.jar", url)
 		return afero.WriteFile(filesystem[0], path, []byte("data"), 0644)
 	})
 
-	result, err := service.EnsureLockedFile(context.Background(), meta, cfg, models.ModInstall{
+	result, err := installer.EnsureLockedFile(context.Background(), meta, cfg, models.ModInstall{
 		FileName:    "x.jar",
 		Hash:        sha1Hex("data"),
 		DownloadUrl: "https://example.com/x.jar",
@@ -50,11 +50,11 @@ func TestEnsureLockedFile_MissingFileMkdirFailureReturnsError(t *testing.T) {
 	meta := config.NewMetadata(filepath.FromSlash("/cfg/modlist.json"))
 	cfg := models.ModsJson{ModsFolder: "mods"}
 
-	service := NewService(failingMkdirFs{Fs: base}, func(context.Context, string, string, httpClient.Doer, httpClient.Sender, ...afero.Fs) error {
+	installer := NewInstaller(failingMkdirFs{Fs: base}, func(context.Context, string, string, httpClient.Doer, httpClient.Sender, ...afero.Fs) error {
 		return nil
 	})
 
-	_, err := service.EnsureLockedFile(context.Background(), meta, cfg, models.ModInstall{
+	_, err := installer.EnsureLockedFile(context.Background(), meta, cfg, models.ModInstall{
 		FileName:    "x.jar",
 		Hash:        sha1Hex("data"),
 		DownloadUrl: "https://example.com/x.jar",
@@ -67,8 +67,8 @@ func TestEnsureLockedFile_MissingFileMissingDownloaderReturnsError(t *testing.T)
 	meta := config.NewMetadata(filepath.FromSlash("/cfg/modlist.json"))
 	cfg := models.ModsJson{ModsFolder: "mods"}
 
-	service := NewService(fs, nil)
-	_, err := service.EnsureLockedFile(context.Background(), meta, cfg, models.ModInstall{
+	installer := NewInstaller(fs, nil)
+	_, err := installer.EnsureLockedFile(context.Background(), meta, cfg, models.ModInstall{
 		FileName:    "x.jar",
 		Hash:        sha1Hex("data"),
 		DownloadUrl: "https://example.com/x.jar",
@@ -77,16 +77,16 @@ func TestEnsureLockedFile_MissingFileMissingDownloaderReturnsError(t *testing.T)
 }
 
 func TestEnsureLockedFile_MissingFileNameReturnsError(t *testing.T) {
-	service := NewService(afero.NewMemMapFs(), nil)
-	_, err := service.EnsureLockedFile(context.Background(), config.NewMetadata("modlist.json"), models.ModsJson{ModsFolder: "mods"}, models.ModInstall{
+	installer := NewInstaller(afero.NewMemMapFs(), nil)
+	_, err := installer.EnsureLockedFile(context.Background(), config.NewMetadata("modlist.json"), models.ModsJson{ModsFolder: "mods"}, models.ModInstall{
 		DownloadUrl: "https://example.com/x.jar",
 	}, nil, noopSender{})
 	assert.Error(t, err)
 }
 
 func TestEnsureLockedFile_InvalidFileNameReturnsError(t *testing.T) {
-	service := NewService(afero.NewMemMapFs(), nil)
-	_, err := service.EnsureLockedFile(context.Background(), config.NewMetadata("modlist.json"), models.ModsJson{ModsFolder: "mods"}, models.ModInstall{
+	installer := NewInstaller(afero.NewMemMapFs(), nil)
+	_, err := installer.EnsureLockedFile(context.Background(), config.NewMetadata("modlist.json"), models.ModsJson{ModsFolder: "mods"}, models.ModInstall{
 		FileName:    "mods/x.jar",
 		Hash:        sha1Hex("data"),
 		DownloadUrl: "https://example.com/x.jar",
@@ -107,11 +107,11 @@ func TestEnsureLockedFile_ExistingFileWithMatchingHashDoesNothing(t *testing.T) 
 	assert.NoError(t, fs.MkdirAll(filepath.Dir(path), 0755))
 	assert.NoError(t, afero.WriteFile(fs, path, data, 0644))
 
-	service := NewService(fs, func(context.Context, string, string, httpClient.Doer, httpClient.Sender, ...afero.Fs) error {
+	installer := NewInstaller(fs, func(context.Context, string, string, httpClient.Doer, httpClient.Sender, ...afero.Fs) error {
 		return errors.New("unexpected download")
 	})
 
-	result, err := service.EnsureLockedFile(context.Background(), meta, cfg, models.ModInstall{
+	result, err := installer.EnsureLockedFile(context.Background(), meta, cfg, models.ModInstall{
 		FileName:    "x.jar",
 		Hash:        hash,
 		DownloadUrl: "https://example.com/x.jar",
@@ -131,11 +131,11 @@ func TestEnsureLockedFile_ExistingFileWithMismatchedHashDownloads(t *testing.T) 
 	assert.NoError(t, fs.MkdirAll(filepath.Dir(path), 0755))
 	assert.NoError(t, afero.WriteFile(fs, path, []byte("old"), 0644))
 
-	service := NewService(fs, func(_ context.Context, _ string, dst string, _ httpClient.Doer, _ httpClient.Sender, filesystem ...afero.Fs) error {
+	installer := NewInstaller(fs, func(_ context.Context, _ string, dst string, _ httpClient.Doer, _ httpClient.Sender, filesystem ...afero.Fs) error {
 		return afero.WriteFile(filesystem[0], dst, []byte("new"), 0644)
 	})
 
-	result, err := service.EnsureLockedFile(context.Background(), meta, cfg, models.ModInstall{
+	result, err := installer.EnsureLockedFile(context.Background(), meta, cfg, models.ModInstall{
 		FileName:    "x.jar",
 		Hash:        sha1Hex("new"),
 		DownloadUrl: "https://example.com/x.jar",
@@ -163,11 +163,11 @@ func TestEnsureLockedFile_ResolvesSymlinkTargetInsideRoot(t *testing.T) {
 		t.Skipf("symlink not supported: %v", err)
 	}
 
-	service := NewService(fs, func(_ context.Context, _ string, dst string, _ httpClient.Doer, _ httpClient.Sender, filesystem ...afero.Fs) error {
+	installer := NewInstaller(fs, func(_ context.Context, _ string, dst string, _ httpClient.Doer, _ httpClient.Sender, filesystem ...afero.Fs) error {
 		return afero.WriteFile(filesystem[0], dst, []byte("data"), 0644)
 	})
 
-	result, err := service.EnsureLockedFile(context.Background(), meta, cfg, models.ModInstall{
+	result, err := installer.EnsureLockedFile(context.Background(), meta, cfg, models.ModInstall{
 		FileName:    "link.jar",
 		Hash:        sha1Hex("data"),
 		DownloadUrl: "https://example.com/x.jar",
@@ -204,11 +204,11 @@ func TestEnsureLockedFile_RejectsSymlinkTargetOutsideRoot(t *testing.T) {
 		t.Skipf("symlink not supported: %v", err)
 	}
 
-	service := NewService(fs, func(context.Context, string, string, httpClient.Doer, httpClient.Sender, ...afero.Fs) error {
+	installer := NewInstaller(fs, func(context.Context, string, string, httpClient.Doer, httpClient.Sender, ...afero.Fs) error {
 		return errors.New("unexpected download")
 	})
 
-	_, err := service.EnsureLockedFile(context.Background(), meta, cfg, models.ModInstall{
+	_, err := installer.EnsureLockedFile(context.Background(), meta, cfg, models.ModInstall{
 		FileName:    "link.jar",
 		Hash:        sha1Hex("data"),
 		DownloadUrl: "https://example.com/x.jar",
@@ -227,11 +227,11 @@ func TestEnsureLockedFile_ExistingFileWithMismatchedHashDownloadErrorReturnsErro
 	assert.NoError(t, fs.MkdirAll(filepath.Dir(path), 0755))
 	assert.NoError(t, afero.WriteFile(fs, path, []byte("old"), 0644))
 
-	service := NewService(fs, func(context.Context, string, string, httpClient.Doer, httpClient.Sender, ...afero.Fs) error {
+	installer := NewInstaller(fs, func(context.Context, string, string, httpClient.Doer, httpClient.Sender, ...afero.Fs) error {
 		return errors.New("download failed")
 	})
 
-	_, err := service.EnsureLockedFile(context.Background(), meta, cfg, models.ModInstall{
+	_, err := installer.EnsureLockedFile(context.Background(), meta, cfg, models.ModInstall{
 		FileName:    "x.jar",
 		Hash:        "does-not-match",
 		DownloadUrl: "https://example.com/x.jar",
@@ -249,8 +249,8 @@ func TestEnsureLockedFile_ExistingFileWithMismatchedHashMissingDownloaderReturns
 	assert.NoError(t, fs.MkdirAll(filepath.Dir(path), 0755))
 	assert.NoError(t, afero.WriteFile(fs, path, []byte("old"), 0644))
 
-	service := NewService(fs, nil)
-	_, err := service.EnsureLockedFile(context.Background(), meta, cfg, models.ModInstall{
+	installer := NewInstaller(fs, nil)
+	_, err := installer.EnsureLockedFile(context.Background(), meta, cfg, models.ModInstall{
 		FileName:    "x.jar",
 		Hash:        "does-not-match",
 		DownloadUrl: "https://example.com/x.jar",
@@ -268,11 +268,11 @@ func TestEnsureLockedFile_ExistingFileWithMismatchedHashMkdirFailureReturnsError
 	assert.NoError(t, base.MkdirAll(filepath.Dir(path), 0755))
 	assert.NoError(t, afero.WriteFile(base, path, []byte("old"), 0644))
 
-	service := NewService(failingMkdirFs{Fs: base}, func(context.Context, string, string, httpClient.Doer, httpClient.Sender, ...afero.Fs) error {
+	installer := NewInstaller(failingMkdirFs{Fs: base}, func(context.Context, string, string, httpClient.Doer, httpClient.Sender, ...afero.Fs) error {
 		return nil
 	})
 
-	_, err := service.EnsureLockedFile(context.Background(), meta, cfg, models.ModInstall{
+	_, err := installer.EnsureLockedFile(context.Background(), meta, cfg, models.ModInstall{
 		FileName:    "x.jar",
 		Hash:        "does-not-match",
 		DownloadUrl: "https://example.com/x.jar",
@@ -286,8 +286,8 @@ func TestEnsureLockedFile_ReturnsErrorWhenExistsCheckFails(t *testing.T) {
 	cfg := models.ModsJson{ModsFolder: "mods"}
 
 	destination := filepath.Join(meta.ModsFolderPath(cfg), "x.jar")
-	service := NewService(failingStatFs{Fs: base, failPath: destination}, nil)
-	_, err := service.EnsureLockedFile(context.Background(), meta, cfg, models.ModInstall{
+	installer := NewInstaller(failingStatFs{Fs: base, failPath: destination}, nil)
+	_, err := installer.EnsureLockedFile(context.Background(), meta, cfg, models.ModInstall{
 		FileName:    "x.jar",
 		Hash:        sha1Hex("data"),
 		DownloadUrl: "https://example.com/x.jar",
@@ -300,12 +300,12 @@ func TestEnsureLockedFile_UsesNoopSenderWhenNil(t *testing.T) {
 	meta := config.NewMetadata(filepath.FromSlash("/cfg/modlist.json"))
 	cfg := models.ModsJson{ModsFolder: "mods"}
 
-	service := NewService(fs, func(_ context.Context, _ string, dst string, _ httpClient.Doer, sender httpClient.Sender, filesystem ...afero.Fs) error {
+	installer := NewInstaller(fs, func(_ context.Context, _ string, dst string, _ httpClient.Doer, sender httpClient.Sender, filesystem ...afero.Fs) error {
 		assert.NotNil(t, sender)
 		return afero.WriteFile(filesystem[0], dst, []byte("data"), 0644)
 	})
 
-	_, err := service.EnsureLockedFile(context.Background(), meta, cfg, models.ModInstall{
+	_, err := installer.EnsureLockedFile(context.Background(), meta, cfg, models.ModInstall{
 		FileName:    "x.jar",
 		Hash:        sha1Hex("data"),
 		DownloadUrl: "https://example.com/x.jar",
@@ -314,16 +314,16 @@ func TestEnsureLockedFile_UsesNoopSenderWhenNil(t *testing.T) {
 }
 
 func TestEnsureLockedFile_MissingDownloadUrlReturnsError(t *testing.T) {
-	service := NewService(afero.NewMemMapFs(), nil)
-	_, err := service.EnsureLockedFile(context.Background(), config.NewMetadata("modlist.json"), models.ModsJson{ModsFolder: "mods"}, models.ModInstall{
+	installer := NewInstaller(afero.NewMemMapFs(), nil)
+	_, err := installer.EnsureLockedFile(context.Background(), config.NewMetadata("modlist.json"), models.ModsJson{ModsFolder: "mods"}, models.ModInstall{
 		FileName: "x.jar",
 	}, nil, noopSender{})
 	assert.Error(t, err)
 }
 
 func TestEnsureLockedFile_MissingDownloaderReturnsError(t *testing.T) {
-	service := NewService(afero.NewMemMapFs(), nil)
-	_, err := service.EnsureLockedFile(context.Background(), config.NewMetadata("modlist.json"), models.ModsJson{ModsFolder: "mods"}, models.ModInstall{
+	installer := NewInstaller(afero.NewMemMapFs(), nil)
+	_, err := installer.EnsureLockedFile(context.Background(), config.NewMetadata("modlist.json"), models.ModsJson{ModsFolder: "mods"}, models.ModInstall{
 		FileName:    "x.jar",
 		DownloadUrl: "https://example.com/x.jar",
 		Hash:        sha1Hex("data"),
@@ -333,10 +333,10 @@ func TestEnsureLockedFile_MissingDownloaderReturnsError(t *testing.T) {
 
 func TestEnsureLockedFile_ExistsCheckErrorReturnsError(t *testing.T) {
 	fs := failingStatFs{Fs: afero.NewMemMapFs(), failPath: filepath.FromSlash("/cfg/mods/x.jar")}
-	service := NewService(fs, nil)
+	installer := NewInstaller(fs, nil)
 
 	meta := config.NewMetadata(filepath.FromSlash("/cfg/modlist.json"))
-	_, err := service.EnsureLockedFile(context.Background(), meta, models.ModsJson{ModsFolder: "mods"}, models.ModInstall{
+	_, err := installer.EnsureLockedFile(context.Background(), meta, models.ModsJson{ModsFolder: "mods"}, models.ModInstall{
 		FileName:    "x.jar",
 		DownloadUrl: "https://example.com/x.jar",
 		Hash:        sha1Hex("data"),
@@ -353,8 +353,8 @@ func TestEnsureLockedFile_Sha1OpenErrorReturnsError(t *testing.T) {
 	assert.NoError(t, base.MkdirAll(filepath.Dir(path), 0755))
 	assert.NoError(t, afero.WriteFile(base, path, []byte("data"), 0644))
 
-	service := NewService(failingOpenFs{Fs: base, failPath: path}, nil)
-	_, err := service.EnsureLockedFile(context.Background(), meta, cfg, models.ModInstall{
+	installer := NewInstaller(failingOpenFs{Fs: base, failPath: path}, nil)
+	_, err := installer.EnsureLockedFile(context.Background(), meta, cfg, models.ModInstall{
 		FileName:    "x.jar",
 		Hash:        sha1Hex("data"),
 		DownloadUrl: "https://example.com/x.jar",
@@ -371,8 +371,8 @@ func TestEnsureLockedFile_Sha1ReadErrorReturnsError(t *testing.T) {
 	assert.NoError(t, base.MkdirAll(filepath.Dir(path), 0755))
 	assert.NoError(t, afero.WriteFile(base, path, []byte("data"), 0644))
 
-	service := NewService(failingReadFs{Fs: base, failPath: path}, nil)
-	_, err := service.EnsureLockedFile(context.Background(), meta, cfg, models.ModInstall{
+	installer := NewInstaller(failingReadFs{Fs: base, failPath: path}, nil)
+	_, err := installer.EnsureLockedFile(context.Background(), meta, cfg, models.ModInstall{
 		FileName:    "x.jar",
 		Hash:        sha1Hex("data"),
 		DownloadUrl: "https://example.com/x.jar",
@@ -384,10 +384,10 @@ func TestEnsureLockedFile_MkdirFailureReturnsError(t *testing.T) {
 	base := afero.NewMemMapFs()
 	readOnly := afero.NewReadOnlyFs(base)
 
-	service := NewService(readOnly, func(context.Context, string, string, httpClient.Doer, httpClient.Sender, ...afero.Fs) error {
+	installer := NewInstaller(readOnly, func(context.Context, string, string, httpClient.Doer, httpClient.Sender, ...afero.Fs) error {
 		return nil
 	})
-	_, err := service.EnsureLockedFile(context.Background(), config.NewMetadata(filepath.FromSlash("/cfg/modlist.json")), models.ModsJson{ModsFolder: "mods"}, models.ModInstall{
+	_, err := installer.EnsureLockedFile(context.Background(), config.NewMetadata(filepath.FromSlash("/cfg/modlist.json")), models.ModsJson{ModsFolder: "mods"}, models.ModInstall{
 		FileName:    "x.jar",
 		Hash:        sha1Hex("data"),
 		DownloadUrl: "https://example.com/x.jar",
@@ -398,11 +398,11 @@ func TestEnsureLockedFile_MkdirFailureReturnsError(t *testing.T) {
 func TestEnsureLockedFile_DownloadErrorReturnsError(t *testing.T) {
 	fs := afero.NewMemMapFs()
 	meta := config.NewMetadata(filepath.FromSlash("/cfg/modlist.json"))
-	service := NewService(fs, func(context.Context, string, string, httpClient.Doer, httpClient.Sender, ...afero.Fs) error {
+	installer := NewInstaller(fs, func(context.Context, string, string, httpClient.Doer, httpClient.Sender, ...afero.Fs) error {
 		return errors.New("download failed")
 	})
 
-	_, err := service.EnsureLockedFile(context.Background(), meta, models.ModsJson{ModsFolder: "mods"}, models.ModInstall{
+	_, err := installer.EnsureLockedFile(context.Background(), meta, models.ModsJson{ModsFolder: "mods"}, models.ModInstall{
 		FileName:    "x.jar",
 		Hash:        sha1Hex("data"),
 		DownloadUrl: "https://example.com/x.jar",
@@ -411,11 +411,11 @@ func TestEnsureLockedFile_DownloadErrorReturnsError(t *testing.T) {
 }
 
 func TestEnsureLockedFile_MissingHashReturnsError(t *testing.T) {
-	service := NewService(afero.NewMemMapFs(), func(context.Context, string, string, httpClient.Doer, httpClient.Sender, ...afero.Fs) error {
+	installer := NewInstaller(afero.NewMemMapFs(), func(context.Context, string, string, httpClient.Doer, httpClient.Sender, ...afero.Fs) error {
 		return errors.New("unexpected download")
 	})
 
-	_, err := service.EnsureLockedFile(context.Background(), config.NewMetadata("modlist.json"), models.ModsJson{ModsFolder: "mods"}, models.ModInstall{
+	_, err := installer.EnsureLockedFile(context.Background(), config.NewMetadata("modlist.json"), models.ModsJson{ModsFolder: "mods"}, models.ModInstall{
 		FileName:    "x.jar",
 		DownloadUrl: "https://example.com/x.jar",
 	}, nil, noopSender{})
@@ -428,11 +428,11 @@ func TestEnsureLockedFile_DownloadedFileHashMismatchReturnsError(t *testing.T) {
 	meta := config.NewMetadata(filepath.FromSlash("/cfg/modlist.json"))
 	cfg := models.ModsJson{ModsFolder: "mods"}
 
-	service := NewService(fs, func(_ context.Context, _ string, dst string, _ httpClient.Doer, _ httpClient.Sender, filesystem ...afero.Fs) error {
+	installer := NewInstaller(fs, func(_ context.Context, _ string, dst string, _ httpClient.Doer, _ httpClient.Sender, filesystem ...afero.Fs) error {
 		return afero.WriteFile(filesystem[0], dst, []byte("actual"), 0644)
 	})
 
-	_, err := service.EnsureLockedFile(context.Background(), meta, cfg, models.ModInstall{
+	_, err := installer.EnsureLockedFile(context.Background(), meta, cfg, models.ModInstall{
 		FileName:    "x.jar",
 		Hash:        sha1Hex("expected"),
 		DownloadUrl: "https://example.com/x.jar",
@@ -453,11 +453,11 @@ func TestHashMismatchErrorMessage(t *testing.T) {
 
 func TestDownloadAndVerifyWritesFile(t *testing.T) {
 	fs := afero.NewMemMapFs()
-	service := NewService(fs, func(_ context.Context, _ string, dst string, _ httpClient.Doer, _ httpClient.Sender, filesystem ...afero.Fs) error {
+	installer := NewInstaller(fs, func(_ context.Context, _ string, dst string, _ httpClient.Doer, _ httpClient.Sender, filesystem ...afero.Fs) error {
 		return afero.WriteFile(filesystem[0], dst, []byte("data"), 0644)
 	})
 
-	err := service.DownloadAndVerify(context.Background(), "https://example.com/x.jar", filepath.FromSlash("/mods/x.jar"), sha1Hex("data"), nil, nil)
+	err := installer.DownloadAndVerify(context.Background(), "https://example.com/x.jar", filepath.FromSlash("/mods/x.jar"), sha1Hex("data"), nil, nil)
 	assert.NoError(t, err)
 
 	content, readErr := afero.ReadFile(fs, filepath.FromSlash("/mods/x.jar"))
@@ -467,11 +467,11 @@ func TestDownloadAndVerifyWritesFile(t *testing.T) {
 
 func TestDownloadAndVerifyReturnsErrorOnDownloadFailure(t *testing.T) {
 	fs := afero.NewMemMapFs()
-	service := NewService(fs, func(context.Context, string, string, httpClient.Doer, httpClient.Sender, ...afero.Fs) error {
+	installer := NewInstaller(fs, func(context.Context, string, string, httpClient.Doer, httpClient.Sender, ...afero.Fs) error {
 		return errors.New("download failed")
 	})
 
-	err := service.DownloadAndVerify(context.Background(), "https://example.com/x.jar", filepath.FromSlash("/mods/x.jar"), sha1Hex("data"), nil, noopSender{})
+	err := installer.DownloadAndVerify(context.Background(), "https://example.com/x.jar", filepath.FromSlash("/mods/x.jar"), sha1Hex("data"), nil, noopSender{})
 	assert.Error(t, err)
 }
 
@@ -479,52 +479,52 @@ func TestDownloadAndVerifyReturnsErrorOnTempFileFailure(t *testing.T) {
 	base := afero.NewMemMapFs()
 	assert.NoError(t, base.MkdirAll(filepath.FromSlash("/mods"), 0755))
 
-	service := NewService(openFileErrorFs{Fs: base, err: errors.New("open failed")}, func(context.Context, string, string, httpClient.Doer, httpClient.Sender, ...afero.Fs) error {
+	installer := NewInstaller(openFileErrorFs{Fs: base, err: errors.New("open failed")}, func(context.Context, string, string, httpClient.Doer, httpClient.Sender, ...afero.Fs) error {
 		return nil
 	})
 
-	err := service.DownloadAndVerify(context.Background(), "https://example.com/x.jar", filepath.FromSlash("/mods/x.jar"), sha1Hex("data"), nil, noopSender{})
+	err := installer.DownloadAndVerify(context.Background(), "https://example.com/x.jar", filepath.FromSlash("/mods/x.jar"), sha1Hex("data"), nil, noopSender{})
 	assert.Error(t, err)
 }
 
 func TestDownloadAndVerifyReturnsMissingHashError(t *testing.T) {
 	fs := afero.NewMemMapFs()
-	service := NewService(fs, func(context.Context, string, string, httpClient.Doer, httpClient.Sender, ...afero.Fs) error {
+	installer := NewInstaller(fs, func(context.Context, string, string, httpClient.Doer, httpClient.Sender, ...afero.Fs) error {
 		return errors.New("unexpected download")
 	})
 
-	err := service.DownloadAndVerify(context.Background(), "https://example.com/x.jar", filepath.FromSlash("/mods/x.jar"), "", nil, noopSender{})
+	err := installer.DownloadAndVerify(context.Background(), "https://example.com/x.jar", filepath.FromSlash("/mods/x.jar"), "", nil, noopSender{})
 	var missingHash MissingHashError
 	assert.ErrorAs(t, err, &missingHash)
 }
 
 func TestDownloadAndVerifyReturnsErrorWhenDownloaderMissing(t *testing.T) {
 	fs := afero.NewMemMapFs()
-	service := NewService(fs, nil)
+	installer := NewInstaller(fs, nil)
 
-	err := service.DownloadAndVerify(context.Background(), "https://example.com/x.jar", filepath.FromSlash("/mods/x.jar"), sha1Hex("data"), nil, noopSender{})
+	err := installer.DownloadAndVerify(context.Background(), "https://example.com/x.jar", filepath.FromSlash("/mods/x.jar"), sha1Hex("data"), nil, noopSender{})
 	assert.Error(t, err)
 }
 
 func TestDownloadAndVerifyReturnsErrorOnHashReadFailure(t *testing.T) {
 	base := afero.NewMemMapFs()
 	fs := failingOpenFs{Fs: base, failContains: ".mmm."}
-	service := NewService(fs, func(_ context.Context, _ string, dst string, _ httpClient.Doer, _ httpClient.Sender, filesystem ...afero.Fs) error {
+	installer := NewInstaller(fs, func(_ context.Context, _ string, dst string, _ httpClient.Doer, _ httpClient.Sender, filesystem ...afero.Fs) error {
 		return afero.WriteFile(filesystem[0], dst, []byte("data"), 0644)
 	})
 
-	err := service.DownloadAndVerify(context.Background(), "https://example.com/x.jar", filepath.FromSlash("/mods/x.jar"), sha1Hex("data"), nil, noopSender{})
+	err := installer.DownloadAndVerify(context.Background(), "https://example.com/x.jar", filepath.FromSlash("/mods/x.jar"), sha1Hex("data"), nil, noopSender{})
 	assert.Error(t, err)
 }
 
 func TestDownloadAndVerifyReturnsErrorOnReplaceFailure(t *testing.T) {
 	base := afero.NewMemMapFs()
 	fs := renameErrorFs{Fs: base, failOldContains: ".mmm.", failNew: filepath.FromSlash("/mods/x.jar"), err: errors.New("rename failed")}
-	service := NewService(fs, func(_ context.Context, _ string, dst string, _ httpClient.Doer, _ httpClient.Sender, filesystem ...afero.Fs) error {
+	installer := NewInstaller(fs, func(_ context.Context, _ string, dst string, _ httpClient.Doer, _ httpClient.Sender, filesystem ...afero.Fs) error {
 		return afero.WriteFile(filesystem[0], dst, []byte("data"), 0644)
 	})
 
-	err := service.DownloadAndVerify(context.Background(), "https://example.com/x.jar", filepath.FromSlash("/mods/x.jar"), sha1Hex("data"), nil, noopSender{})
+	err := installer.DownloadAndVerify(context.Background(), "https://example.com/x.jar", filepath.FromSlash("/mods/x.jar"), sha1Hex("data"), nil, noopSender{})
 	assert.Error(t, err)
 }
 

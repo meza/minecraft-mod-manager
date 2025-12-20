@@ -20,21 +20,21 @@ import (
 
 type Downloader func(context.Context, string, string, httpClient.Doer, httpClient.Sender, ...afero.Fs) error
 
-type Service struct {
+type SetupCoordinator struct {
 	fs              afero.Fs
 	minecraftClient httpClient.Doer
 	downloader      Downloader
 }
 
-func NewService(fs afero.Fs, minecraftClient httpClient.Doer, downloader Downloader) *Service {
-	return &Service{
+func NewSetupCoordinator(fs afero.Fs, minecraftClient httpClient.Doer, downloader Downloader) *SetupCoordinator {
+	return &SetupCoordinator{
 		fs:              fs,
 		minecraftClient: minecraftClient,
 		downloader:      downloader,
 	}
 }
 
-func (s *Service) EnsureConfigAndLock(ctx context.Context, meta config.Metadata, quiet bool) (models.ModsJson, []models.ModInstall, error) {
+func (s *SetupCoordinator) EnsureConfigAndLock(ctx context.Context, meta config.Metadata, quiet bool) (models.ModsJson, []models.ModInstall, error) {
 	cfg, err := config.ReadConfig(ctx, s.fs, meta)
 	if err != nil {
 		var notFound *config.ConfigFileNotFoundException
@@ -62,7 +62,7 @@ func (s *Service) EnsureConfigAndLock(ctx context.Context, meta config.Metadata,
 	return cfg, lock, nil
 }
 
-func (s *Service) EnsureDownloaded(ctx context.Context, meta config.Metadata, cfg models.ModsJson, remote platform.RemoteMod, downloadClient httpClient.Doer) (string, error) {
+func (s *SetupCoordinator) EnsureDownloaded(ctx context.Context, meta config.Metadata, cfg models.ModsJson, remote platform.RemoteMod, downloadClient httpClient.Doer) (string, error) {
 	normalizedFileName, err := modfilename.Normalize(remote.FileName)
 	if err != nil {
 		return "", err
@@ -87,7 +87,7 @@ func (s *Service) EnsureDownloaded(ctx context.Context, meta config.Metadata, cf
 	if s.downloader == nil {
 		return "", errors.New("missing modsetup dependencies: downloader")
 	}
-	installer := modinstall.NewService(s.fs, modinstall.Downloader(s.downloader))
+	installer := modinstall.NewInstaller(s.fs, modinstall.Downloader(s.downloader))
 	if err := installer.DownloadAndVerify(ctx, remote.DownloadURL, resolvedDestination, remote.Hash, downloadClient, &noopSender{}); err != nil {
 		return "", err
 	}
@@ -105,7 +105,7 @@ type EnsureResult struct {
 	LockAdded   bool
 }
 
-func (s *Service) EnsurePersisted(ctx context.Context, meta config.Metadata, cfg models.ModsJson, lock []models.ModInstall, resolvedPlatform models.Platform, resolvedID string, remote platform.RemoteMod, options EnsurePersistOptions) (models.ModsJson, []models.ModInstall, EnsureResult, error) {
+func (s *SetupCoordinator) EnsurePersisted(ctx context.Context, meta config.Metadata, cfg models.ModsJson, lock []models.ModInstall, resolvedPlatform models.Platform, resolvedID string, remote platform.RemoteMod, options EnsurePersistOptions) (models.ModsJson, []models.ModInstall, EnsureResult, error) {
 	if strings.TrimSpace(string(resolvedPlatform)) == "" {
 		return models.ModsJson{}, nil, EnsureResult{}, errors.New("missing resolved platform")
 	}
@@ -169,7 +169,7 @@ type UpsertResult struct {
 	LockUpdated   bool
 }
 
-func (s *Service) UpsertConfigAndLock(cfg models.ModsJson, lock []models.ModInstall, resolvedPlatform models.Platform, resolvedID string, remote platform.RemoteMod, options EnsurePersistOptions) (models.ModsJson, []models.ModInstall, UpsertResult, error) {
+func (s *SetupCoordinator) UpsertConfigAndLock(cfg models.ModsJson, lock []models.ModInstall, resolvedPlatform models.Platform, resolvedID string, remote platform.RemoteMod, options EnsurePersistOptions) (models.ModsJson, []models.ModInstall, UpsertResult, error) {
 	if strings.TrimSpace(string(resolvedPlatform)) == "" {
 		return models.ModsJson{}, nil, UpsertResult{}, errors.New("missing resolved platform")
 	}

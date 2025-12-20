@@ -800,3 +800,17 @@ Resumed mmm-63.59 coverage push. Loaded project docs and remote agent guidance, 
 
 ### [2025-12-20 21:25] - [memory]
 - Closed mmm-63.8 in bd after recording Windows make coverage/build evidence.
+
+### [2025-12-20 21:46] - [memory]
+- Started alignment for mmm-66; issue is already closed. Reviewing coverage tool/Makefile/docs to confirm current behavior and whether user wants a follow-up or reopen.
+
+### [2025-12-20 21:48] - [memory]
+- Started alignment for mmm-68: review of modinstall/modsetup installer/coordinator naming and call sites; will propose domain-specific renames and update audit.md/memory.md references.
+
+### [2025-12-20 21:56] - [memory]
+- mmm-68: renamed modinstall Service -> Installer and modsetup Service -> SetupCoordinator across code/tests/call sites; ran make fmt, make coverage, make build (all pass).
+### [2025-12-20 21:58] - [memory]
+- Reverted audit.md edit after guidance that audit.md is immutable.
+
+### [2025-12-20 22:11] - [memory]
+- Starting second-pass repo audit (engineering principles, test hygiene, CodeQuality North Star). Will cross-check `audit.md` + existing `mmm-63` Beads subtasks and only record new findings as additional subtasks linked to `mmm-63`.

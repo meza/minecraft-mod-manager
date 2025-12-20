@@ -317,7 +317,7 @@ func runInstall(ctx context.Context, cmd *cobra.Command, opts installOptions, de
 			}
 			return Result{}, err
 		}
-		installer := modinstall.NewService(deps.fs, modinstall.Downloader(deps.downloader))
+		installer := modinstall.NewInstaller(deps.fs, modinstall.Downloader(deps.downloader))
 		if err := installer.DownloadAndVerify(ctx, remote.DownloadURL, resolvedDestination, remote.Hash, downloadClient(deps.clients), &noopSender{}); err != nil {
 			if message, handled := integrityErrorMessage(err, mod.Name); handled {
 				deps.logger.Error(message)
@@ -378,8 +378,8 @@ func lockIndexFor(mod models.Mod, lock []models.ModInstall) int {
 }
 
 func ensureLockInstall(ctx context.Context, meta config.Metadata, cfg models.ModsJson, mod models.Mod, install models.ModInstall, deps installDeps) error {
-	ensure := modinstall.NewService(deps.fs, modinstall.Downloader(deps.downloader))
-	result, err := ensure.EnsureLockedFile(ctx, meta, cfg, install, downloadClient(deps.clients), &noopSender{})
+	installer := modinstall.NewInstaller(deps.fs, modinstall.Downloader(deps.downloader))
+	result, err := installer.EnsureLockedFile(ctx, meta, cfg, install, downloadClient(deps.clients), &noopSender{})
 	if err != nil {
 		return err
 	}

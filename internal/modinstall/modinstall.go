@@ -53,19 +53,19 @@ func (err HashMismatchError) Error() string {
 	return "downloaded file hash mismatch for " + err.FileName
 }
 
-type Service struct {
+type Installer struct {
 	fs         afero.Fs
 	downloader Downloader
 }
 
-func NewService(fs afero.Fs, downloader Downloader) *Service {
-	return &Service{
+func NewInstaller(fs afero.Fs, downloader Downloader) *Installer {
+	return &Installer{
 		fs:         fs,
 		downloader: downloader,
 	}
 }
 
-func (s *Service) EnsureLockedFile(ctx context.Context, meta config.Metadata, cfg models.ModsJson, install models.ModInstall, downloadClient httpClient.Doer, sender httpClient.Sender) (EnsureResult, error) {
+func (s *Installer) EnsureLockedFile(ctx context.Context, meta config.Metadata, cfg models.ModsJson, install models.ModInstall, downloadClient httpClient.Doer, sender httpClient.Sender) (EnsureResult, error) {
 	if strings.TrimSpace(install.FileName) == "" {
 		return EnsureResult{}, errors.New("missing lock fileName")
 	}
@@ -128,7 +128,7 @@ func (s *Service) EnsureLockedFile(ctx context.Context, meta config.Metadata, cf
 	return EnsureResult{Downloaded: false, Reason: EnsureReasonAlreadyPresent}, nil
 }
 
-func (s *Service) DownloadAndVerify(ctx context.Context, url string, destination string, expectedHash string, downloadClient httpClient.Doer, sender httpClient.Sender) error {
+func (s *Installer) DownloadAndVerify(ctx context.Context, url string, destination string, expectedHash string, downloadClient httpClient.Doer, sender httpClient.Sender) error {
 	if strings.TrimSpace(expectedHash) == "" {
 		return MissingHashError{FileName: filepath.Base(destination)}
 	}
@@ -141,7 +141,7 @@ func (s *Service) DownloadAndVerify(ctx context.Context, url string, destination
 	return s.downloadAndVerify(ctx, url, destination, expectedHash, downloadClient, sender, filepath.Base(destination))
 }
 
-func (s *Service) downloadAndVerify(ctx context.Context, url string, destination string, expectedHash string, downloadClient httpClient.Doer, sender httpClient.Sender, displayName string) error {
+func (s *Installer) downloadAndVerify(ctx context.Context, url string, destination string, expectedHash string, downloadClient httpClient.Doer, sender httpClient.Sender, displayName string) error {
 	tempFile, err := afero.TempFile(s.fs, filepath.Dir(destination), filepath.Base(destination)+".mmm.*.tmp")
 	if err != nil {
 		return err

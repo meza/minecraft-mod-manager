@@ -169,10 +169,10 @@ func commandWithRunner(runner addRunner) *cobra.Command {
 func runAdd(ctx context.Context, commandSpan *perf.Span, cmd *cobra.Command, opts addOptions, deps addDeps) (telemetry.CommandTelemetry, error) {
 	meta := config.NewMetadata(opts.ConfigPath)
 	useTUI := tui.ShouldUseTUI(opts.Quiet, cmd.InOrStdin(), cmd.OutOrStdout())
-	setupService := modsetup.NewService(deps.fs, deps.minecraftClient, modsetup.Downloader(deps.downloader))
+	setupCoordinator := modsetup.NewSetupCoordinator(deps.fs, deps.minecraftClient, modsetup.Downloader(deps.downloader))
 
 	prepareCtx, prepareSpan := perf.StartSpan(ctx, "app.command.add.stage.prepare", perf.WithAttributes(attribute.String("config_path", opts.ConfigPath)))
-	cfg, lock, err := setupService.EnsureConfigAndLock(prepareCtx, meta, opts.Quiet)
+	cfg, lock, err := setupCoordinator.EnsureConfigAndLock(prepareCtx, meta, opts.Quiet)
 	prepareSpan.SetAttributes(attribute.Bool("success", err == nil))
 	prepareSpan.End()
 	if err != nil {
@@ -215,8 +215,8 @@ func runAdd(ctx context.Context, commandSpan *perf.Span, cmd *cobra.Command, opt
 		}
 		install.FileName = normalizedFileName
 
-		modInstall := modinstall.NewService(deps.fs, modinstall.Downloader(deps.downloader))
-		ensureResult, err := modInstall.EnsureLockedFile(ctx, meta, cfg, install, downloadClient(deps.clients), nil)
+		installer := modinstall.NewInstaller(deps.fs, modinstall.Downloader(deps.downloader))
+		ensureResult, err := installer.EnsureLockedFile(ctx, meta, cfg, install, downloadClient(deps.clients), nil)
 		if err != nil {
 			return telemetry.CommandTelemetry{
 				Command:     "add",
@@ -344,9 +344,9 @@ func runAdd(ctx context.Context, commandSpan *perf.Span, cmd *cobra.Command, opt
 	)
 
 	// For idempotency, avoid re-downloading when the remote file already exists locally and the SHA-1 matches.
-	ensureRemote := modinstall.NewService(deps.fs, modinstall.Downloader(deps.downloader))
+	ensureInstaller := modinstall.NewInstaller(deps.fs, modinstall.Downloader(deps.downloader))
 	destination := filepath.Join(meta.ModsFolderPath(cfg), remoteMod.FileName)
-	ensureResult, err := ensureRemote.EnsureLockedFile(downloadCtx, meta, cfg, models.ModInstall{
+	ensureResult, err := ensureInstaller.EnsureLockedFile(downloadCtx, meta, cfg, models.ModInstall{
 		FileName:    remoteMod.FileName,
 		Hash:        remoteMod.Hash,
 		DownloadUrl: remoteMod.DownloadURL,
@@ -385,7 +385,7 @@ func runAdd(ctx context.Context, commandSpan *perf.Span, cmd *cobra.Command, opt
 			attribute.String("project_id", resolvedID),
 		),
 	)
-	cfg, lock, _, err = setupService.EnsurePersisted(ctx, meta, cfg, lock, resolvedPlatform, resolvedID, remoteMod, modsetup.EnsurePersistOptions{
+	cfg, lock, _, err = setupCoordinator.EnsurePersisted(ctx, meta, cfg, lock, resolvedPlatform, resolvedID, remoteMod, modsetup.EnsurePersistOptions{
 		Version:              opts.Version,
 		AllowVersionFallback: opts.AllowVersionFallback,
 	})

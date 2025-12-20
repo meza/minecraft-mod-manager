@@ -36,8 +36,8 @@ func TestEnsureConfigAndLock_ReturnsExistingConfigAndLock(t *testing.T) {
 	assert.NoError(t, config.WriteConfig(context.Background(), fs, meta, cfg))
 	assert.NoError(t, config.WriteLock(context.Background(), fs, meta, nil))
 
-	service := NewService(fs, nil, nil)
-	gotCfg, gotLock, err := service.EnsureConfigAndLock(context.Background(), meta, false)
+	setupCoordinator := NewSetupCoordinator(fs, nil, nil)
+	gotCfg, gotLock, err := setupCoordinator.EnsureConfigAndLock(context.Background(), meta, false)
 
 	assert.NoError(t, err)
 	assert.Equal(t, cfg.GameVersion, gotCfg.GameVersion)
@@ -51,8 +51,8 @@ func TestEnsureConfigAndLock_MissingConfigQuietReturnsError(t *testing.T) {
 	meta := config.NewMetadata(filepath.FromSlash("/cfg/modlist.json"))
 	assert.NoError(t, fs.MkdirAll(filepath.Dir(meta.ConfigPath), 0755))
 
-	service := NewService(fs, nil, nil)
-	_, _, err := service.EnsureConfigAndLock(context.Background(), meta, true)
+	setupCoordinator := NewSetupCoordinator(fs, nil, nil)
+	_, _, err := setupCoordinator.EnsureConfigAndLock(context.Background(), meta, true)
 
 	assert.Error(t, err)
 	var notFound *config.ConfigFileNotFoundException
@@ -67,8 +67,8 @@ func TestEnsureConfigAndLock_MissingConfigInteractiveInitializes(t *testing.T) {
 	assert.NoError(t, fs.MkdirAll(filepath.Dir(meta.ConfigPath), 0755))
 	assert.NoError(t, fs.RemoveAll(meta.ConfigPath))
 
-	service := NewService(fs, manifestDoer{body: `{"latest":{"release":"1.21.1","snapshot":""},"versions":[]}`}, nil)
-	cfg, lock, err := service.EnsureConfigAndLock(context.Background(), meta, false)
+	setupCoordinator := NewSetupCoordinator(fs, manifestDoer{body: `{"latest":{"release":"1.21.1","snapshot":""},"versions":[]}`}, nil)
+	cfg, lock, err := setupCoordinator.EnsureConfigAndLock(context.Background(), meta, false)
 
 	assert.NoError(t, err)
 	assert.Equal(t, "1.21.1", cfg.GameVersion)
@@ -83,8 +83,8 @@ func TestEnsureConfigAndLock_InitConfigFailureReturnsError(t *testing.T) {
 	assert.NoError(t, fs.MkdirAll(filepath.Dir(meta.ConfigPath), 0755))
 	assert.NoError(t, fs.RemoveAll(meta.ConfigPath))
 
-	service := NewService(fs, failingDoer{}, nil)
-	_, _, err := service.EnsureConfigAndLock(context.Background(), meta, false)
+	setupCoordinator := NewSetupCoordinator(fs, failingDoer{}, nil)
+	_, _, err := setupCoordinator.EnsureConfigAndLock(context.Background(), meta, false)
 
 	assert.Error(t, err)
 }
@@ -97,8 +97,8 @@ func TestEnsureConfigAndLock_MissingConfigInteractiveWithoutMinecraftClientRetur
 	assert.NoError(t, fs.MkdirAll(filepath.Dir(meta.ConfigPath), 0755))
 	assert.NoError(t, fs.RemoveAll(meta.ConfigPath))
 
-	service := NewService(fs, nil, nil)
-	_, _, err := service.EnsureConfigAndLock(context.Background(), meta, false)
+	setupCoordinator := NewSetupCoordinator(fs, nil, nil)
+	_, _, err := setupCoordinator.EnsureConfigAndLock(context.Background(), meta, false)
 
 	assert.Error(t, err)
 	assert.Contains(t, err.Error(), "minecraftClient")
@@ -110,8 +110,8 @@ func TestEnsureConfigAndLock_InvalidConfigReturnsError(t *testing.T) {
 	assert.NoError(t, fs.MkdirAll(filepath.Dir(meta.ConfigPath), 0755))
 	assert.NoError(t, afero.WriteFile(fs, meta.ConfigPath, []byte("{not-json"), 0644))
 
-	service := NewService(fs, nil, nil)
-	_, _, err := service.EnsureConfigAndLock(context.Background(), meta, false)
+	setupCoordinator := NewSetupCoordinator(fs, nil, nil)
+	_, _, err := setupCoordinator.EnsureConfigAndLock(context.Background(), meta, false)
 
 	assert.Error(t, err)
 }
@@ -129,8 +129,8 @@ func TestEnsureConfigAndLock_LockCreateFailureReturnsError(t *testing.T) {
 	}
 	assert.NoError(t, config.WriteConfig(context.Background(), fs, meta, cfg))
 
-	service := NewService(failingRenameFs{Fs: fs, failTarget: meta.LockPath()}, nil, nil)
-	_, _, err := service.EnsureConfigAndLock(context.Background(), meta, false)
+	setupCoordinator := NewSetupCoordinator(failingRenameFs{Fs: fs, failTarget: meta.LockPath()}, nil, nil)
+	_, _, err := setupCoordinator.EnsureConfigAndLock(context.Background(), meta, false)
 
 	assert.Error(t, err)
 }
@@ -148,7 +148,7 @@ func TestEnsureDownloaded_CreatesModsFolderAndDownloads(t *testing.T) {
 	}
 
 	downloadCalled := false
-	service := NewService(fs, nil, func(_ context.Context, url string, path string, _ httpClient.Doer, _ httpClient.Sender, filesystem ...afero.Fs) error {
+	setupCoordinator := NewSetupCoordinator(fs, nil, func(_ context.Context, url string, path string, _ httpClient.Doer, _ httpClient.Sender, filesystem ...afero.Fs) error {
 		downloadCalled = true
 		assert.Equal(t, remote.DownloadURL, url)
 		assert.Equal(t, meta.ModsFolderPath(cfg), filepath.Dir(path))
@@ -157,7 +157,7 @@ func TestEnsureDownloaded_CreatesModsFolderAndDownloads(t *testing.T) {
 		return afero.WriteFile(filesystem[0], path, []byte("data"), 0644)
 	})
 
-	destination, err := service.EnsureDownloaded(context.Background(), meta, cfg, remote, nil)
+	destination, err := setupCoordinator.EnsureDownloaded(context.Background(), meta, cfg, remote, nil)
 	assert.NoError(t, err)
 	assert.True(t, downloadCalled)
 	assert.Equal(t, filepath.Join(meta.ModsFolderPath(cfg), remote.FileName), destination)
@@ -168,11 +168,11 @@ func TestEnsureDownloaded_DownloadFailureReturnsError(t *testing.T) {
 	meta := config.NewMetadata(filepath.FromSlash("/cfg/modlist.json"))
 	assert.NoError(t, fs.MkdirAll(filepath.Dir(meta.ConfigPath), 0755))
 
-	service := NewService(fs, nil, func(context.Context, string, string, httpClient.Doer, httpClient.Sender, ...afero.Fs) error {
+	setupCoordinator := NewSetupCoordinator(fs, nil, func(context.Context, string, string, httpClient.Doer, httpClient.Sender, ...afero.Fs) error {
 		return errors.New("download failed")
 	})
 
-	_, err := service.EnsureDownloaded(context.Background(), meta, models.ModsJson{ModsFolder: "mods"}, platform.RemoteMod{
+	_, err := setupCoordinator.EnsureDownloaded(context.Background(), meta, models.ModsJson{ModsFolder: "mods"}, platform.RemoteMod{
 		FileName:    "x.jar",
 		DownloadURL: "https://example.com/x.jar",
 		Hash:        sha1Hex("data"),
@@ -184,9 +184,9 @@ func TestEnsureDownloaded_ValidatesRemote(t *testing.T) {
 	fs := afero.NewMemMapFs()
 	meta := config.NewMetadata(filepath.FromSlash("/cfg/modlist.json"))
 
-	service := NewService(fs, nil, nil)
+	setupCoordinator := NewSetupCoordinator(fs, nil, nil)
 
-	_, err := service.EnsureDownloaded(context.Background(), meta, models.ModsJson{ModsFolder: "mods"}, platform.RemoteMod{}, nil)
+	_, err := setupCoordinator.EnsureDownloaded(context.Background(), meta, models.ModsJson{ModsFolder: "mods"}, platform.RemoteMod{}, nil)
 	assert.Error(t, err)
 }
 
@@ -194,15 +194,15 @@ func TestEnsureDownloaded_WhitespaceFieldsReturnError(t *testing.T) {
 	fs := afero.NewMemMapFs()
 	meta := config.NewMetadata(filepath.FromSlash("/cfg/modlist.json"))
 
-	service := NewService(fs, nil, nil)
+	setupCoordinator := NewSetupCoordinator(fs, nil, nil)
 
-	_, err := service.EnsureDownloaded(context.Background(), meta, models.ModsJson{ModsFolder: "mods"}, platform.RemoteMod{
+	_, err := setupCoordinator.EnsureDownloaded(context.Background(), meta, models.ModsJson{ModsFolder: "mods"}, platform.RemoteMod{
 		FileName:    "   ",
 		DownloadURL: "https://example.com/x.jar",
 	}, nil)
 	assert.Error(t, err)
 
-	_, err = service.EnsureDownloaded(context.Background(), meta, models.ModsJson{ModsFolder: "mods"}, platform.RemoteMod{
+	_, err = setupCoordinator.EnsureDownloaded(context.Background(), meta, models.ModsJson{ModsFolder: "mods"}, platform.RemoteMod{
 		FileName:    "x.jar",
 		DownloadURL: "   ",
 	}, nil)
@@ -222,7 +222,7 @@ func TestEnsureDownloaded_TrimsFileName(t *testing.T) {
 	}
 
 	downloadCalled := false
-	service := NewService(fs, nil, func(_ context.Context, url string, path string, _ httpClient.Doer, _ httpClient.Sender, filesystem ...afero.Fs) error {
+	setupCoordinator := NewSetupCoordinator(fs, nil, func(_ context.Context, url string, path string, _ httpClient.Doer, _ httpClient.Sender, filesystem ...afero.Fs) error {
 		downloadCalled = true
 		assert.Equal(t, meta.ModsFolderPath(cfg), filepath.Dir(path))
 		assert.True(t, strings.HasPrefix(filepath.Base(path), "example.jar.mmm."))
@@ -231,16 +231,16 @@ func TestEnsureDownloaded_TrimsFileName(t *testing.T) {
 		return afero.WriteFile(filesystem[0], path, []byte("data"), 0644)
 	})
 
-	destination, err := service.EnsureDownloaded(context.Background(), meta, cfg, remote, nil)
+	destination, err := setupCoordinator.EnsureDownloaded(context.Background(), meta, cfg, remote, nil)
 	assert.NoError(t, err)
 	assert.True(t, downloadCalled)
 	assert.Equal(t, filepath.Join(meta.ModsFolderPath(cfg), "example.jar"), destination)
 }
 
 func TestEnsureDownloaded_InvalidFileNameReturnsError(t *testing.T) {
-	service := NewService(afero.NewMemMapFs(), nil, nil)
+	setupCoordinator := NewSetupCoordinator(afero.NewMemMapFs(), nil, nil)
 
-	_, err := service.EnsureDownloaded(context.Background(), config.NewMetadata("modlist.json"), models.ModsJson{ModsFolder: "mods"}, platform.RemoteMod{
+	_, err := setupCoordinator.EnsureDownloaded(context.Background(), config.NewMetadata("modlist.json"), models.ModsJson{ModsFolder: "mods"}, platform.RemoteMod{
 		FileName:    "mods/example.jar",
 		DownloadURL: "https://example.com/example.jar",
 	}, nil)
@@ -251,9 +251,9 @@ func TestEnsureDownloaded_MissingURLReturnsError(t *testing.T) {
 	fs := afero.NewMemMapFs()
 	meta := config.NewMetadata(filepath.FromSlash("/cfg/modlist.json"))
 
-	service := NewService(fs, nil, nil)
+	setupCoordinator := NewSetupCoordinator(fs, nil, nil)
 
-	_, err := service.EnsureDownloaded(context.Background(), meta, models.ModsJson{ModsFolder: "mods"}, platform.RemoteMod{FileName: "x.jar"}, nil)
+	_, err := setupCoordinator.EnsureDownloaded(context.Background(), meta, models.ModsJson{ModsFolder: "mods"}, platform.RemoteMod{FileName: "x.jar"}, nil)
 	assert.Error(t, err)
 	assert.Contains(t, err.Error(), "download url")
 }
@@ -263,11 +263,11 @@ func TestEnsureDownloaded_MissingHashReturnsError(t *testing.T) {
 	meta := config.NewMetadata(filepath.FromSlash("/cfg/modlist.json"))
 	assert.NoError(t, fs.MkdirAll(filepath.Dir(meta.ConfigPath), 0755))
 
-	service := NewService(fs, nil, func(context.Context, string, string, httpClient.Doer, httpClient.Sender, ...afero.Fs) error {
+	setupCoordinator := NewSetupCoordinator(fs, nil, func(context.Context, string, string, httpClient.Doer, httpClient.Sender, ...afero.Fs) error {
 		return nil
 	})
 
-	_, err := service.EnsureDownloaded(context.Background(), meta, models.ModsJson{ModsFolder: "mods"}, platform.RemoteMod{
+	_, err := setupCoordinator.EnsureDownloaded(context.Background(), meta, models.ModsJson{ModsFolder: "mods"}, platform.RemoteMod{
 		FileName:    "x.jar",
 		DownloadURL: "https://example.com/x.jar",
 	}, nil)
@@ -292,11 +292,11 @@ func TestEnsureDownloaded_ReturnsErrorForSymlinkOutsideMods(t *testing.T) {
 		t.Skipf("symlink not supported: %v", err)
 	}
 
-	service := NewService(fs, nil, func(context.Context, string, string, httpClient.Doer, httpClient.Sender, ...afero.Fs) error {
+	setupCoordinator := NewSetupCoordinator(fs, nil, func(context.Context, string, string, httpClient.Doer, httpClient.Sender, ...afero.Fs) error {
 		return nil
 	})
 
-	_, err := service.EnsureDownloaded(context.Background(), meta, cfg, platform.RemoteMod{
+	_, err := setupCoordinator.EnsureDownloaded(context.Background(), meta, cfg, platform.RemoteMod{
 		FileName:    "example.jar",
 		DownloadURL: "https://example.com/example.jar",
 		Hash:        sha1Hex("data"),
@@ -309,9 +309,9 @@ func TestEnsureDownloaded_MissingDownloaderReturnsError(t *testing.T) {
 	meta := config.NewMetadata(filepath.FromSlash("/cfg/modlist.json"))
 	assert.NoError(t, fs.MkdirAll(filepath.Dir(meta.ConfigPath), 0755))
 
-	service := NewService(fs, nil, nil)
+	setupCoordinator := NewSetupCoordinator(fs, nil, nil)
 
-	_, err := service.EnsureDownloaded(context.Background(), meta, models.ModsJson{ModsFolder: "mods"}, platform.RemoteMod{
+	_, err := setupCoordinator.EnsureDownloaded(context.Background(), meta, models.ModsJson{ModsFolder: "mods"}, platform.RemoteMod{
 		FileName:    "x.jar",
 		DownloadURL: "https://example.com/x.jar",
 		Hash:        sha1Hex("data"),
@@ -326,11 +326,11 @@ func TestEnsureDownloaded_MkdirFailureReturnsError(t *testing.T) {
 	assert.NoError(t, base.MkdirAll(filepath.Dir(meta.ConfigPath), 0755))
 
 	readOnly := afero.NewReadOnlyFs(base)
-	service := NewService(readOnly, nil, func(context.Context, string, string, httpClient.Doer, httpClient.Sender, ...afero.Fs) error {
+	setupCoordinator := NewSetupCoordinator(readOnly, nil, func(context.Context, string, string, httpClient.Doer, httpClient.Sender, ...afero.Fs) error {
 		return nil
 	})
 
-	_, err := service.EnsureDownloaded(context.Background(), meta, models.ModsJson{ModsFolder: "mods"}, platform.RemoteMod{
+	_, err := setupCoordinator.EnsureDownloaded(context.Background(), meta, models.ModsJson{ModsFolder: "mods"}, platform.RemoteMod{
 		FileName:    "x.jar",
 		DownloadURL: "https://example.com/x.jar",
 		Hash:        sha1Hex("data"),
@@ -353,8 +353,8 @@ func TestEnsurePersisted_AppendsAndWrites(t *testing.T) {
 	assert.NoError(t, config.WriteConfig(context.Background(), fs, meta, cfg))
 	assert.NoError(t, config.WriteLock(context.Background(), fs, meta, nil))
 
-	service := NewService(fs, nil, nil)
-	cfgBefore, lockBefore, err := service.EnsureConfigAndLock(context.Background(), meta, false)
+	setupCoordinator := NewSetupCoordinator(fs, nil, nil)
+	cfgBefore, lockBefore, err := setupCoordinator.EnsureConfigAndLock(context.Background(), meta, false)
 	assert.NoError(t, err)
 
 	remote := platform.RemoteMod{
@@ -365,7 +365,7 @@ func TestEnsurePersisted_AppendsAndWrites(t *testing.T) {
 		DownloadURL: "https://example.com/example.jar",
 	}
 
-	cfgAfter, lockAfter, result, err := service.EnsurePersisted(context.Background(), meta, cfgBefore, lockBefore, models.MODRINTH, "abc", remote, EnsurePersistOptions{
+	cfgAfter, lockAfter, result, err := setupCoordinator.EnsurePersisted(context.Background(), meta, cfgBefore, lockBefore, models.MODRINTH, "abc", remote, EnsurePersistOptions{
 		Version:              "1.2.3",
 		AllowVersionFallback: true,
 	})
@@ -393,10 +393,10 @@ func TestEnsurePersisted_ConfigWriteFailureReturnsError(t *testing.T) {
 	base := afero.NewMemMapFs()
 	readOnly := afero.NewReadOnlyFs(base)
 
-	service := NewService(readOnly, nil, nil)
+	setupCoordinator := NewSetupCoordinator(readOnly, nil, nil)
 	cfg := models.ModsJson{ModsFolder: "mods"}
 
-	_, _, _, err := service.EnsurePersisted(context.Background(), config.NewMetadata(filepath.FromSlash("/cfg/modlist.json")), cfg, nil, models.MODRINTH, "abc", platform.RemoteMod{
+	_, _, _, err := setupCoordinator.EnsurePersisted(context.Background(), config.NewMetadata(filepath.FromSlash("/cfg/modlist.json")), cfg, nil, models.MODRINTH, "abc", platform.RemoteMod{
 		Name:        "Example",
 		FileName:    "example.jar",
 		Hash:        "abc",
@@ -420,8 +420,8 @@ func TestEnsurePersisted_LockWriteFailureReturnsError(t *testing.T) {
 		Mods:                       []models.Mod{},
 	}
 
-	service := NewService(failingRenameFs{Fs: fs, failTarget: meta.LockPath()}, nil, nil)
-	_, _, _, err := service.EnsurePersisted(context.Background(), meta, cfg, nil, models.MODRINTH, "abc", platform.RemoteMod{
+	setupCoordinator := NewSetupCoordinator(failingRenameFs{Fs: fs, failTarget: meta.LockPath()}, nil, nil)
+	_, _, _, err := setupCoordinator.EnsurePersisted(context.Background(), meta, cfg, nil, models.MODRINTH, "abc", platform.RemoteMod{
 		Name:        "Example",
 		FileName:    "example.jar",
 		Hash:        "abc",
@@ -440,8 +440,8 @@ func TestEnsurePersisted_DuplicateIsNoOp(t *testing.T) {
 	}
 	lock := []models.ModInstall{{Type: models.MODRINTH, Id: "abc"}}
 
-	service := NewService(afero.NewMemMapFs(), nil, nil)
-	cfgAfter, lockAfter, result, err := service.EnsurePersisted(context.Background(), config.NewMetadata("modlist.json"), cfg, lock, models.MODRINTH, "abc", platform.RemoteMod{Name: "Example"}, EnsurePersistOptions{})
+	setupCoordinator := NewSetupCoordinator(afero.NewMemMapFs(), nil, nil)
+	cfgAfter, lockAfter, result, err := setupCoordinator.EnsurePersisted(context.Background(), config.NewMetadata("modlist.json"), cfg, lock, models.MODRINTH, "abc", platform.RemoteMod{Name: "Example"}, EnsurePersistOptions{})
 
 	assert.NoError(t, err)
 	assert.False(t, result.ConfigAdded)
@@ -467,11 +467,11 @@ func TestEnsurePersisted_ConfigPresentLockMissingAddsLockOnly(t *testing.T) {
 	assert.NoError(t, config.WriteConfig(context.Background(), fs, meta, cfg))
 	assert.NoError(t, config.WriteLock(context.Background(), fs, meta, nil))
 
-	service := NewService(fs, nil, nil)
-	cfgBefore, lockBefore, err := service.EnsureConfigAndLock(context.Background(), meta, false)
+	setupCoordinator := NewSetupCoordinator(fs, nil, nil)
+	cfgBefore, lockBefore, err := setupCoordinator.EnsureConfigAndLock(context.Background(), meta, false)
 	assert.NoError(t, err)
 
-	cfgAfter, lockAfter, result, err := service.EnsurePersisted(context.Background(), meta, cfgBefore, lockBefore, models.MODRINTH, "abc", platform.RemoteMod{
+	cfgAfter, lockAfter, result, err := setupCoordinator.EnsurePersisted(context.Background(), meta, cfgBefore, lockBefore, models.MODRINTH, "abc", platform.RemoteMod{
 		Name:        "Example",
 		FileName:    "example.jar",
 		Hash:        "abc",
@@ -512,11 +512,11 @@ func TestEnsurePersisted_LockPresentConfigMissingAddsConfigOnly(t *testing.T) {
 		},
 	}))
 
-	service := NewService(fs, nil, nil)
-	cfgBefore, lockBefore, err := service.EnsureConfigAndLock(context.Background(), meta, false)
+	setupCoordinator := NewSetupCoordinator(fs, nil, nil)
+	cfgBefore, lockBefore, err := setupCoordinator.EnsureConfigAndLock(context.Background(), meta, false)
 	assert.NoError(t, err)
 
-	cfgAfter, lockAfter, result, err := service.EnsurePersisted(context.Background(), meta, cfgBefore, lockBefore, models.MODRINTH, "abc", platform.RemoteMod{
+	cfgAfter, lockAfter, result, err := setupCoordinator.EnsurePersisted(context.Background(), meta, cfgBefore, lockBefore, models.MODRINTH, "abc", platform.RemoteMod{
 		Name:        "Example",
 		FileName:    "example.jar",
 		Hash:        "abc",
@@ -543,8 +543,8 @@ func TestEnsurePersisted_MissingRemoteFieldsReturnsError(t *testing.T) {
 	meta := config.NewMetadata(filepath.FromSlash("/cfg/modlist.json"))
 	assert.NoError(t, fs.MkdirAll(filepath.Dir(meta.ConfigPath), 0755))
 
-	service := NewService(fs, nil, nil)
-	_, _, _, err := service.EnsurePersisted(context.Background(), meta, models.ModsJson{ModsFolder: "mods"}, nil, models.MODRINTH, "abc", platform.RemoteMod{
+	setupCoordinator := NewSetupCoordinator(fs, nil, nil)
+	_, _, _, err := setupCoordinator.EnsurePersisted(context.Background(), meta, models.ModsJson{ModsFolder: "mods"}, nil, models.MODRINTH, "abc", platform.RemoteMod{
 		Name: "Example",
 	}, EnsurePersistOptions{})
 
@@ -556,8 +556,8 @@ func TestEnsurePersisted_InvalidFileNameReturnsError(t *testing.T) {
 	meta := config.NewMetadata(filepath.FromSlash("/cfg/modlist.json"))
 	assert.NoError(t, fs.MkdirAll(filepath.Dir(meta.ConfigPath), 0755))
 
-	service := NewService(fs, nil, nil)
-	_, _, _, err := service.EnsurePersisted(context.Background(), meta, models.ModsJson{ModsFolder: "mods"}, nil, models.MODRINTH, "abc", platform.RemoteMod{
+	setupCoordinator := NewSetupCoordinator(fs, nil, nil)
+	_, _, _, err := setupCoordinator.EnsurePersisted(context.Background(), meta, models.ModsJson{ModsFolder: "mods"}, nil, models.MODRINTH, "abc", platform.RemoteMod{
 		Name:        "Example",
 		FileName:    "mods/example.jar",
 		Hash:        "hash",
@@ -569,14 +569,14 @@ func TestEnsurePersisted_InvalidFileNameReturnsError(t *testing.T) {
 }
 
 func TestEnsurePersisted_EmptyResolvedPlatformReturnsError(t *testing.T) {
-	service := NewService(afero.NewMemMapFs(), nil, nil)
-	_, _, _, err := service.EnsurePersisted(context.Background(), config.NewMetadata("modlist.json"), models.ModsJson{}, nil, "", "abc", platform.RemoteMod{}, EnsurePersistOptions{})
+	setupCoordinator := NewSetupCoordinator(afero.NewMemMapFs(), nil, nil)
+	_, _, _, err := setupCoordinator.EnsurePersisted(context.Background(), config.NewMetadata("modlist.json"), models.ModsJson{}, nil, "", "abc", platform.RemoteMod{}, EnsurePersistOptions{})
 	assert.Error(t, err)
 }
 
 func TestEnsurePersisted_EmptyResolvedIDReturnsError(t *testing.T) {
-	service := NewService(afero.NewMemMapFs(), nil, nil)
-	_, _, _, err := service.EnsurePersisted(context.Background(), config.NewMetadata("modlist.json"), models.ModsJson{}, nil, models.MODRINTH, "", platform.RemoteMod{}, EnsurePersistOptions{})
+	setupCoordinator := NewSetupCoordinator(afero.NewMemMapFs(), nil, nil)
+	_, _, _, err := setupCoordinator.EnsurePersisted(context.Background(), config.NewMetadata("modlist.json"), models.ModsJson{}, nil, models.MODRINTH, "", platform.RemoteMod{}, EnsurePersistOptions{})
 	assert.Error(t, err)
 }
 
@@ -584,9 +584,9 @@ func TestUpsertConfigAndLock_AddsMissingEntries(t *testing.T) {
 	cfg := models.ModsJson{ModsFolder: "mods", Mods: nil}
 	lock := []models.ModInstall{}
 
-	service := NewService(afero.NewMemMapFs(), nil, nil)
+	setupCoordinator := NewSetupCoordinator(afero.NewMemMapFs(), nil, nil)
 
-	updatedCfg, updatedLock, result, err := service.UpsertConfigAndLock(cfg, lock, models.MODRINTH, "abc", platform.RemoteMod{
+	updatedCfg, updatedLock, result, err := setupCoordinator.UpsertConfigAndLock(cfg, lock, models.MODRINTH, "abc", platform.RemoteMod{
 		Name:        "Example",
 		FileName:    "example.jar",
 		Hash:        "sha",
@@ -605,9 +605,9 @@ func TestUpsertConfigAndLock_InvalidFileNameReturnsError(t *testing.T) {
 	cfg := models.ModsJson{ModsFolder: "mods", Mods: nil}
 	lock := []models.ModInstall{}
 
-	service := NewService(afero.NewMemMapFs(), nil, nil)
+	setupCoordinator := NewSetupCoordinator(afero.NewMemMapFs(), nil, nil)
 
-	_, _, _, err := service.UpsertConfigAndLock(cfg, lock, models.MODRINTH, "abc", platform.RemoteMod{
+	_, _, _, err := setupCoordinator.UpsertConfigAndLock(cfg, lock, models.MODRINTH, "abc", platform.RemoteMod{
 		Name:        "Example",
 		FileName:    "mods/example.jar",
 		Hash:        "sha",
@@ -632,9 +632,9 @@ func TestUpsertConfigAndLock_UpdatesNameAndLockWhenDifferent(t *testing.T) {
 		DownloadUrl: "https://example.com/old.jar",
 	}}
 
-	service := NewService(afero.NewMemMapFs(), nil, nil)
+	setupCoordinator := NewSetupCoordinator(afero.NewMemMapFs(), nil, nil)
 
-	updatedCfg, updatedLock, result, err := service.UpsertConfigAndLock(cfg, lock, models.MODRINTH, "abc", platform.RemoteMod{
+	updatedCfg, updatedLock, result, err := setupCoordinator.UpsertConfigAndLock(cfg, lock, models.MODRINTH, "abc", platform.RemoteMod{
 		Name:        "New",
 		FileName:    "new.jar",
 		Hash:        "NEW",
@@ -650,7 +650,7 @@ func TestUpsertConfigAndLock_UpdatesNameAndLockWhenDifferent(t *testing.T) {
 }
 
 func TestUpsertConfigAndLock_NoChangesDoesNotWrite(t *testing.T) {
-	service := NewService(afero.NewReadOnlyFs(afero.NewMemMapFs()), nil, nil)
+	setupCoordinator := NewSetupCoordinator(afero.NewReadOnlyFs(afero.NewMemMapFs()), nil, nil)
 
 	cfg := models.ModsJson{ModsFolder: "mods", Mods: []models.Mod{
 		{Type: models.MODRINTH, ID: "abc", Name: "Example"},
@@ -665,7 +665,7 @@ func TestUpsertConfigAndLock_NoChangesDoesNotWrite(t *testing.T) {
 		DownloadUrl: "https://example.com/example.jar",
 	}}
 
-	updatedCfg, updatedLock, result, err := service.UpsertConfigAndLock(cfg, lock, models.MODRINTH, "abc", platform.RemoteMod{
+	updatedCfg, updatedLock, result, err := setupCoordinator.UpsertConfigAndLock(cfg, lock, models.MODRINTH, "abc", platform.RemoteMod{
 		Name:        "Example",
 		FileName:    "example.jar",
 		Hash:        "abc",
@@ -683,7 +683,7 @@ func TestUpsertConfigAndLock_NoChangesDoesNotWrite(t *testing.T) {
 }
 
 func TestUpsertConfigAndLock_HashCaseDifferenceIsNoOp(t *testing.T) {
-	service := NewService(afero.NewMemMapFs(), nil, nil)
+	setupCoordinator := NewSetupCoordinator(afero.NewMemMapFs(), nil, nil)
 
 	cfg := models.ModsJson{ModsFolder: "mods", Mods: []models.Mod{
 		{Type: models.MODRINTH, ID: "abc", Name: "Example"},
@@ -698,7 +698,7 @@ func TestUpsertConfigAndLock_HashCaseDifferenceIsNoOp(t *testing.T) {
 		DownloadUrl: "https://example.com/example.jar",
 	}}
 
-	_, _, result, err := service.UpsertConfigAndLock(cfg, lock, models.MODRINTH, "abc", platform.RemoteMod{
+	_, _, result, err := setupCoordinator.UpsertConfigAndLock(cfg, lock, models.MODRINTH, "abc", platform.RemoteMod{
 		Name:        "Example",
 		FileName:    "example.jar",
 		Hash:        "abc",
@@ -711,7 +711,7 @@ func TestUpsertConfigAndLock_HashCaseDifferenceIsNoOp(t *testing.T) {
 }
 
 func TestUpsertConfigAndLock_LockPresentMissingRemoteFieldsReturnsError(t *testing.T) {
-	service := NewService(afero.NewMemMapFs(), nil, nil)
+	setupCoordinator := NewSetupCoordinator(afero.NewMemMapFs(), nil, nil)
 
 	cfg := models.ModsJson{ModsFolder: "mods", Mods: []models.Mod{
 		{Type: models.MODRINTH, ID: "abc", Name: "Example"},
@@ -726,7 +726,7 @@ func TestUpsertConfigAndLock_LockPresentMissingRemoteFieldsReturnsError(t *testi
 		DownloadUrl: "https://example.com/example.jar",
 	}}
 
-	_, _, _, err := service.UpsertConfigAndLock(cfg, lock, models.MODRINTH, "abc", platform.RemoteMod{
+	_, _, _, err := setupCoordinator.UpsertConfigAndLock(cfg, lock, models.MODRINTH, "abc", platform.RemoteMod{
 		Name:        "Example",
 		FileName:    "example.jar",
 		Hash:        "abc",
@@ -738,9 +738,9 @@ func TestUpsertConfigAndLock_LockPresentMissingRemoteFieldsReturnsError(t *testi
 }
 
 func TestUpsertConfigAndLock_LockMissingMissingRemoteFieldsReturnsError(t *testing.T) {
-	service := NewService(afero.NewMemMapFs(), nil, nil)
+	setupCoordinator := NewSetupCoordinator(afero.NewMemMapFs(), nil, nil)
 
-	_, _, _, err := service.UpsertConfigAndLock(models.ModsJson{ModsFolder: "mods"}, nil, models.MODRINTH, "abc", platform.RemoteMod{
+	_, _, _, err := setupCoordinator.UpsertConfigAndLock(models.ModsJson{ModsFolder: "mods"}, nil, models.MODRINTH, "abc", platform.RemoteMod{
 		Name:        "Example",
 		FileName:    "example.jar",
 		Hash:        "abc",
@@ -752,14 +752,14 @@ func TestUpsertConfigAndLock_LockMissingMissingRemoteFieldsReturnsError(t *testi
 }
 
 func TestUpsertConfigAndLock_MissingResolvedPlatformReturnsError(t *testing.T) {
-	service := NewService(afero.NewMemMapFs(), nil, nil)
-	_, _, _, err := service.UpsertConfigAndLock(models.ModsJson{}, nil, "", "abc", platform.RemoteMod{}, EnsurePersistOptions{})
+	setupCoordinator := NewSetupCoordinator(afero.NewMemMapFs(), nil, nil)
+	_, _, _, err := setupCoordinator.UpsertConfigAndLock(models.ModsJson{}, nil, "", "abc", platform.RemoteMod{}, EnsurePersistOptions{})
 	assert.Error(t, err)
 }
 
 func TestUpsertConfigAndLock_MissingResolvedIDReturnsError(t *testing.T) {
-	service := NewService(afero.NewMemMapFs(), nil, nil)
-	_, _, _, err := service.UpsertConfigAndLock(models.ModsJson{}, nil, models.MODRINTH, "", platform.RemoteMod{}, EnsurePersistOptions{})
+	setupCoordinator := NewSetupCoordinator(afero.NewMemMapFs(), nil, nil)
+	_, _, _, err := setupCoordinator.UpsertConfigAndLock(models.ModsJson{}, nil, models.MODRINTH, "", platform.RemoteMod{}, EnsurePersistOptions{})
 	assert.Error(t, err)
 }
 

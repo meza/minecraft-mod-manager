@@ -192,9 +192,9 @@ type scanUnsure struct {
 
 func runScan(ctx context.Context, cmd *cobra.Command, opts scanOptions, deps scanDeps) (telemetry.CommandTelemetry, error) {
 	meta := config.NewMetadata(opts.ConfigPath)
-	setupService := modsetup.NewService(deps.fs, deps.minecraftClient, nil)
+	setupCoordinator := modsetup.NewSetupCoordinator(deps.fs, deps.minecraftClient, nil)
 
-	cfg, lock, err := setupService.EnsureConfigAndLock(ctx, meta, opts.Quiet)
+	cfg, lock, err := setupCoordinator.EnsureConfigAndLock(ctx, meta, opts.Quiet)
 	if err != nil {
 		return telemetry.CommandTelemetry{Command: "scan", Success: false, ExitCode: 1, Error: err}, err
 	}
@@ -259,7 +259,7 @@ func runScan(ctx context.Context, cmd *cobra.Command, opts scanOptions, deps sca
 		changedLock := false
 
 		for _, match := range matches {
-			updatedCfg, updatedLock, result, err := setupService.UpsertConfigAndLock(cfg, lock, match.Platform, match.ProjectID, platform.RemoteMod{
+			updatedCfg, updatedLock, result, err := setupCoordinator.UpsertConfigAndLock(cfg, lock, match.Platform, match.ProjectID, platform.RemoteMod{
 				Name:        match.Name,
 				FileName:    match.FileName,
 				Hash:        match.Hash,
