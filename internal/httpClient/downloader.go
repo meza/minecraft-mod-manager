@@ -86,6 +86,7 @@ func DownloadFile(ctx context.Context, url string, filepath string, client Doer,
 	if err != nil {
 		err2 := WrapTimeoutError(fmt.Errorf("failed to write file: %w", err))
 		program.Send(progressErrMsg{err2})
+		_ = fs.Remove(filepath)
 		return err2
 	}
 

@@ -6,3 +6,4 @@
 - [4. Using pnpm](0004-using-pnpm.md)
 - [5. Using Renovate bot](0005-using-renovate-bot.md)
 - [6. Verifying Minecraft Versions Error Handling](0006-verifying-minecraft-versions-error-handling.md)
+- [7. Symlink-safe mod file writes](0007-symlink-safe-mod-file-writes.md)

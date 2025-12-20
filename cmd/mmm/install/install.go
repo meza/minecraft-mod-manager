@@ -27,6 +27,7 @@ import (
 	"github.com/meza/minecraft-mod-manager/internal/models"
 	"github.com/meza/minecraft-mod-manager/internal/modfilename"
 	"github.com/meza/minecraft-mod-manager/internal/modinstall"
+	"github.com/meza/minecraft-mod-manager/internal/modpath"
 	"github.com/meza/minecraft-mod-manager/internal/modrinth"
 	"github.com/meza/minecraft-mod-manager/internal/perf"
 	"github.com/meza/minecraft-mod-manager/internal/platform"
@@ -307,8 +308,17 @@ func runInstall(ctx context.Context, cmd *cobra.Command, opts installOptions, de
 		}), true)
 
 		destination := filepath.Join(meta.ModsFolderPath(cfg), remote.FileName)
+		resolvedDestination, err := modpath.ResolveWritablePath(deps.fs, meta.ModsFolderPath(cfg), destination)
+		if err != nil {
+			if message, handled := integrityErrorMessage(err, mod.Name); handled {
+				deps.logger.Error(message)
+				failedCount++
+				continue
+			}
+			return Result{}, err
+		}
 		installer := modinstall.NewService(deps.fs, modinstall.Downloader(deps.downloader))
-		if err := installer.DownloadAndVerify(ctx, remote.DownloadURL, destination, remote.Hash, downloadClient(deps.clients), &noopSender{}); err != nil {
+		if err := installer.DownloadAndVerify(ctx, remote.DownloadURL, resolvedDestination, remote.Hash, downloadClient(deps.clients), &noopSender{}); err != nil {
 			if message, handled := integrityErrorMessage(err, mod.Name); handled {
 				deps.logger.Error(message)
 				failedCount++
@@ -402,6 +412,17 @@ func integrityErrorMessage(err error, modName string) (string, bool) {
 	if errors.As(err, &hashMismatch) {
 		return i18n.T("cmd.install.error.hash_mismatch", i18n.Tvars{
 			Data: &i18n.TData{"name": modName},
+		}), true
+	}
+
+	var outsideRoot modpath.OutsideRootError
+	if errors.As(err, &outsideRoot) {
+		return i18n.T("cmd.install.error.symlink_outside_mods", i18n.Tvars{
+			Data: &i18n.TData{
+				"name": modName,
+				"path": outsideRoot.ResolvedPath,
+				"root": outsideRoot.Root,
+			},
 		}), true
 	}
 

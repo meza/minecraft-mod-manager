@@ -15,6 +15,7 @@ import (
 	"github.com/meza/minecraft-mod-manager/internal/httpClient"
 	"github.com/meza/minecraft-mod-manager/internal/logger"
 	"github.com/meza/minecraft-mod-manager/internal/models"
+	"github.com/meza/minecraft-mod-manager/internal/modpath"
 	"github.com/meza/minecraft-mod-manager/internal/platform"
 	"github.com/meza/minecraft-mod-manager/internal/telemetry"
 	"github.com/spf13/afero"
@@ -88,7 +89,7 @@ func TestDownloadAndSwapInPlaceLogsBackupDeletionFailureAtDebugLevel(t *testing.
 		},
 	}
 
-	assert.NoError(t, downloadAndSwap(context.Background(), deps, installedPath, installedPath, "https://example.invalid/same.jar", sha1Hex("new")))
+	assert.NoError(t, downloadAndSwap(context.Background(), deps, installedPath, installedPath, meta.ModsFolderPath(cfg), "https://example.invalid/same.jar", sha1Hex("new")))
 	assert.Contains(t, out.String(), "cmd.update.debug.backup_cleanup_failed")
 }
 
@@ -1089,14 +1090,17 @@ func TestDownloadAndSwapReplacesInPlaceWithoutRenamingOverExistingFile(t *testin
 		},
 	}
 
-	assert.NoError(t, downloadAndSwap(context.Background(), deps, installedPath, installedPath, "https://example.invalid/same.jar", sha1Hex("new")))
+	assert.NoError(t, downloadAndSwap(context.Background(), deps, installedPath, installedPath, meta.ModsFolderPath(cfg), "https://example.invalid/same.jar", sha1Hex("new")))
 
 	content, err := afero.ReadFile(fs, installedPath)
 	assert.NoError(t, err)
 	assert.Equal(t, []byte("new"), content)
 
-	exists, _ := afero.Exists(fs, installedPath+".mmm.tmp")
-	assert.False(t, exists)
+	entries, entriesErr := afero.ReadDir(fs, meta.ModsFolderPath(cfg))
+	assert.NoError(t, entriesErr)
+	for _, entry := range entries {
+		assert.False(t, strings.HasSuffix(entry.Name(), ".tmp"))
+	}
 }
 
 func TestDownloadAndSwapInPlaceDoesNotFailWhenBackupDeletionFails(t *testing.T) {
@@ -1129,7 +1133,7 @@ func TestDownloadAndSwapInPlaceDoesNotFailWhenBackupDeletionFails(t *testing.T) 
 		},
 	}
 
-	assert.NoError(t, downloadAndSwap(context.Background(), deps, installedPath, installedPath, "https://example.invalid/same.jar", sha1Hex("new")))
+	assert.NoError(t, downloadAndSwap(context.Background(), deps, installedPath, installedPath, meta.ModsFolderPath(cfg), "https://example.invalid/same.jar", sha1Hex("new")))
 
 	content, err := afero.ReadFile(fs, installedPath)
 	assert.NoError(t, err)
@@ -1602,6 +1606,18 @@ func TestProcessModReturnsUnchangedWhenHashMatches(t *testing.T) {
 	assert.False(t, outcome.Updated)
 	assert.Empty(t, outcome.NewInstall.FileName)
 	assert.NoError(t, outcome.Error)
+}
+
+func TestIntegrityErrorMessage_SymlinkOutsideMods(t *testing.T) {
+	outsidePath := filepath.FromSlash("/outside/path")
+	rootPath := filepath.FromSlash("/mods")
+	message, ok := integrityErrorMessage(modpath.OutsideRootError{
+		ResolvedPath: outsidePath,
+		Root:         rootPath,
+	}, "Example Mod")
+	assert.True(t, ok)
+	assert.Contains(t, message, outsidePath)
+	assert.Contains(t, message, rootPath)
 }
 
 type renameOnNewErrorFs struct {

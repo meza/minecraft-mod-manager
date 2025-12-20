@@ -13,6 +13,8 @@ import (
 	"github.com/meza/minecraft-mod-manager/internal/httpClient"
 	"github.com/meza/minecraft-mod-manager/internal/models"
 	"github.com/meza/minecraft-mod-manager/internal/modfilename"
+	"github.com/meza/minecraft-mod-manager/internal/modinstall"
+	"github.com/meza/minecraft-mod-manager/internal/modpath"
 	"github.com/meza/minecraft-mod-manager/internal/platform"
 )
 
@@ -68,6 +70,9 @@ func (s *Service) EnsureDownloaded(ctx context.Context, meta config.Metadata, cf
 	if strings.TrimSpace(remote.DownloadURL) == "" {
 		return "", errors.New("remote mod missing download url")
 	}
+	if strings.TrimSpace(remote.Hash) == "" {
+		return "", modinstall.MissingHashError{FileName: remote.FileName}
+	}
 	remote.FileName = normalizedFileName
 
 	if err := s.fs.MkdirAll(meta.ModsFolderPath(cfg), 0755); err != nil {
@@ -75,11 +80,15 @@ func (s *Service) EnsureDownloaded(ctx context.Context, meta config.Metadata, cf
 	}
 
 	destination := filepath.Join(meta.ModsFolderPath(cfg), remote.FileName)
+	resolvedDestination, err := modpath.ResolveWritablePath(s.fs, meta.ModsFolderPath(cfg), destination)
+	if err != nil {
+		return "", err
+	}
 	if s.downloader == nil {
 		return "", errors.New("missing modsetup dependencies: downloader")
 	}
-
-	if err := s.downloader(ctx, remote.DownloadURL, destination, downloadClient, &noopSender{}, s.fs); err != nil {
+	installer := modinstall.NewService(s.fs, modinstall.Downloader(s.downloader))
+	if err := installer.DownloadAndVerify(ctx, remote.DownloadURL, resolvedDestination, remote.Hash, downloadClient, &noopSender{}); err != nil {
 		return "", err
 	}
 

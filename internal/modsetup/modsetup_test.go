@@ -2,9 +2,12 @@ package modsetup
 
 import (
 	"context"
+	"crypto/sha1"
+	"encoding/hex"
 	"errors"
 	"io"
 	"net/http"
+	"os"
 	"path/filepath"
 	"strings"
 	"testing"
@@ -141,12 +144,16 @@ func TestEnsureDownloaded_CreatesModsFolderAndDownloads(t *testing.T) {
 	remote := platform.RemoteMod{
 		FileName:    "example.jar",
 		DownloadURL: "https://example.com/example.jar",
+		Hash:        sha1Hex("data"),
 	}
 
 	downloadCalled := false
 	service := NewService(fs, nil, func(_ context.Context, url string, path string, _ httpClient.Doer, _ httpClient.Sender, filesystem ...afero.Fs) error {
 		downloadCalled = true
 		assert.Equal(t, remote.DownloadURL, url)
+		assert.Equal(t, meta.ModsFolderPath(cfg), filepath.Dir(path))
+		assert.True(t, strings.HasPrefix(filepath.Base(path), "example.jar.mmm."))
+		assert.True(t, strings.HasSuffix(filepath.Base(path), ".tmp"))
 		return afero.WriteFile(filesystem[0], path, []byte("data"), 0644)
 	})
 
@@ -168,6 +175,7 @@ func TestEnsureDownloaded_DownloadFailureReturnsError(t *testing.T) {
 	_, err := service.EnsureDownloaded(context.Background(), meta, models.ModsJson{ModsFolder: "mods"}, platform.RemoteMod{
 		FileName:    "x.jar",
 		DownloadURL: "https://example.com/x.jar",
+		Hash:        sha1Hex("data"),
 	}, nil)
 	assert.Error(t, err)
 }
@@ -210,12 +218,15 @@ func TestEnsureDownloaded_TrimsFileName(t *testing.T) {
 	remote := platform.RemoteMod{
 		FileName:    " example.jar ",
 		DownloadURL: "https://example.com/example.jar",
+		Hash:        sha1Hex("data"),
 	}
 
 	downloadCalled := false
 	service := NewService(fs, nil, func(_ context.Context, url string, path string, _ httpClient.Doer, _ httpClient.Sender, filesystem ...afero.Fs) error {
 		downloadCalled = true
-		assert.Equal(t, filepath.Join(meta.ModsFolderPath(cfg), "example.jar"), path)
+		assert.Equal(t, meta.ModsFolderPath(cfg), filepath.Dir(path))
+		assert.True(t, strings.HasPrefix(filepath.Base(path), "example.jar.mmm."))
+		assert.True(t, strings.HasSuffix(filepath.Base(path), ".tmp"))
 		assert.Equal(t, remote.DownloadURL, url)
 		return afero.WriteFile(filesystem[0], path, []byte("data"), 0644)
 	})
@@ -247,6 +258,52 @@ func TestEnsureDownloaded_MissingURLReturnsError(t *testing.T) {
 	assert.Contains(t, err.Error(), "download url")
 }
 
+func TestEnsureDownloaded_MissingHashReturnsError(t *testing.T) {
+	fs := afero.NewMemMapFs()
+	meta := config.NewMetadata(filepath.FromSlash("/cfg/modlist.json"))
+	assert.NoError(t, fs.MkdirAll(filepath.Dir(meta.ConfigPath), 0755))
+
+	service := NewService(fs, nil, func(context.Context, string, string, httpClient.Doer, httpClient.Sender, ...afero.Fs) error {
+		return nil
+	})
+
+	_, err := service.EnsureDownloaded(context.Background(), meta, models.ModsJson{ModsFolder: "mods"}, platform.RemoteMod{
+		FileName:    "x.jar",
+		DownloadURL: "https://example.com/x.jar",
+	}, nil)
+	assert.Error(t, err)
+}
+
+func TestEnsureDownloaded_ReturnsErrorForSymlinkOutsideMods(t *testing.T) {
+	fs := afero.NewOsFs()
+	root := t.TempDir()
+	meta := config.NewMetadata(filepath.Join(root, "modlist.json"))
+	assert.NoError(t, os.MkdirAll(filepath.Dir(meta.ConfigPath), 0755))
+
+	cfg := models.ModsJson{ModsFolder: "mods"}
+	assert.NoError(t, os.MkdirAll(meta.ModsFolderPath(cfg), 0755))
+
+	outside := t.TempDir()
+	target := filepath.Join(outside, "target.jar")
+	assert.NoError(t, os.WriteFile(target, []byte("data"), 0644))
+
+	linkPath := filepath.Join(meta.ModsFolderPath(cfg), "example.jar")
+	if err := os.Symlink(target, linkPath); err != nil {
+		t.Skipf("symlink not supported: %v", err)
+	}
+
+	service := NewService(fs, nil, func(context.Context, string, string, httpClient.Doer, httpClient.Sender, ...afero.Fs) error {
+		return nil
+	})
+
+	_, err := service.EnsureDownloaded(context.Background(), meta, cfg, platform.RemoteMod{
+		FileName:    "example.jar",
+		DownloadURL: "https://example.com/example.jar",
+		Hash:        sha1Hex("data"),
+	}, nil)
+	assert.Error(t, err)
+}
+
 func TestEnsureDownloaded_MissingDownloaderReturnsError(t *testing.T) {
 	fs := afero.NewMemMapFs()
 	meta := config.NewMetadata(filepath.FromSlash("/cfg/modlist.json"))
@@ -257,6 +314,7 @@ func TestEnsureDownloaded_MissingDownloaderReturnsError(t *testing.T) {
 	_, err := service.EnsureDownloaded(context.Background(), meta, models.ModsJson{ModsFolder: "mods"}, platform.RemoteMod{
 		FileName:    "x.jar",
 		DownloadURL: "https://example.com/x.jar",
+		Hash:        sha1Hex("data"),
 	}, nil)
 	assert.Error(t, err)
 	assert.Contains(t, err.Error(), "downloader")
@@ -275,6 +333,7 @@ func TestEnsureDownloaded_MkdirFailureReturnsError(t *testing.T) {
 	_, err := service.EnsureDownloaded(context.Background(), meta, models.ModsJson{ModsFolder: "mods"}, platform.RemoteMod{
 		FileName:    "x.jar",
 		DownloadURL: "https://example.com/x.jar",
+		Hash:        sha1Hex("data"),
 	}, nil)
 	assert.Error(t, err)
 }
@@ -798,4 +857,9 @@ type failingDoer struct{}
 
 func (f failingDoer) Do(*http.Request) (*http.Response, error) {
 	return nil, errors.New("do failed")
+}
+
+func sha1Hex(value string) string {
+	sum := sha1.Sum([]byte(value))
+	return hex.EncodeToString(sum[:])
 }

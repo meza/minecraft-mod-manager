@@ -17,6 +17,7 @@ import (
 	"github.com/meza/minecraft-mod-manager/internal/httpClient"
 	"github.com/meza/minecraft-mod-manager/internal/models"
 	"github.com/meza/minecraft-mod-manager/internal/modfilename"
+	"github.com/meza/minecraft-mod-manager/internal/modpath"
 )
 
 type Downloader func(context.Context, string, string, httpClient.Doer, httpClient.Sender, ...afero.Fs) error
@@ -83,39 +84,42 @@ func (s *Service) EnsureLockedFile(ctx context.Context, meta config.Metadata, cf
 		sender = noopSender{}
 	}
 
-	destination := filepath.Join(meta.ModsFolderPath(cfg), normalizedFileName)
+	modsRoot := meta.ModsFolderPath(cfg)
+	if err := s.fs.MkdirAll(modsRoot, 0755); err != nil {
+		return EnsureResult{}, err
+	}
 
-	exists, err := afero.Exists(s.fs, destination)
+	destination := filepath.Join(modsRoot, normalizedFileName)
+	resolvedDestination, err := modpath.ResolveWritablePath(s.fs, modsRoot, destination)
+	if err != nil {
+		return EnsureResult{}, err
+	}
+
+	exists, err := afero.Exists(s.fs, resolvedDestination)
 	if err != nil {
 		return EnsureResult{}, err
 	}
 
 	if !exists {
-		if err := s.fs.MkdirAll(meta.ModsFolderPath(cfg), 0755); err != nil {
-			return EnsureResult{}, err
-		}
 		if s.downloader == nil {
 			return EnsureResult{}, errors.New("missing modinstall dependencies: downloader")
 		}
-		if err := s.downloadAndVerify(ctx, install.DownloadUrl, destination, expectedHash, downloadClient, sender); err != nil {
+		if err := s.downloadAndVerify(ctx, install.DownloadUrl, resolvedDestination, expectedHash, downloadClient, sender, normalizedFileName); err != nil {
 			return EnsureResult{}, err
 		}
 		return EnsureResult{Downloaded: true, Reason: EnsureReasonMissing}, nil
 	}
 
-	localSha, err := sha1ForFile(s.fs, destination)
+	localSha, err := sha1ForFile(s.fs, resolvedDestination)
 	if err != nil {
 		return EnsureResult{}, err
 	}
 
 	if !strings.EqualFold(expectedHash, localSha) {
-		if err := s.fs.MkdirAll(meta.ModsFolderPath(cfg), 0755); err != nil {
-			return EnsureResult{}, err
-		}
 		if s.downloader == nil {
 			return EnsureResult{}, errors.New("missing modinstall dependencies: downloader")
 		}
-		if err := s.downloadAndVerify(ctx, install.DownloadUrl, destination, expectedHash, downloadClient, sender); err != nil {
+		if err := s.downloadAndVerify(ctx, install.DownloadUrl, resolvedDestination, expectedHash, downloadClient, sender, normalizedFileName); err != nil {
 			return EnsureResult{}, err
 		}
 		return EnsureResult{Downloaded: true, Reason: EnsureReasonHashMismatch}, nil
@@ -134,12 +138,16 @@ func (s *Service) DownloadAndVerify(ctx context.Context, url string, destination
 	if s.downloader == nil {
 		return errors.New("missing modinstall dependencies: downloader")
 	}
-	return s.downloadAndVerify(ctx, url, destination, expectedHash, downloadClient, sender)
+	return s.downloadAndVerify(ctx, url, destination, expectedHash, downloadClient, sender, filepath.Base(destination))
 }
 
-func (s *Service) downloadAndVerify(ctx context.Context, url string, destination string, expectedHash string, downloadClient httpClient.Doer, sender httpClient.Sender) error {
-	tempPath := destination + ".mmm.tmp"
-	_ = s.fs.Remove(tempPath)
+func (s *Service) downloadAndVerify(ctx context.Context, url string, destination string, expectedHash string, downloadClient httpClient.Doer, sender httpClient.Sender, displayName string) error {
+	tempFile, err := afero.TempFile(s.fs, filepath.Dir(destination), filepath.Base(destination)+".mmm.*.tmp")
+	if err != nil {
+		return err
+	}
+	tempPath := tempFile.Name()
+	_ = tempFile.Close()
 
 	if err := s.downloader(ctx, url, tempPath, downloadClient, sender, s.fs); err != nil {
 		_ = s.fs.Remove(tempPath)
@@ -154,7 +162,7 @@ func (s *Service) downloadAndVerify(ctx context.Context, url string, destination
 
 	if !strings.EqualFold(strings.TrimSpace(expectedHash), actualHash) {
 		_ = s.fs.Remove(tempPath)
-		return HashMismatchError{FileName: filepath.Base(destination), Expected: expectedHash, Actual: actualHash}
+		return HashMismatchError{FileName: displayName, Expected: expectedHash, Actual: actualHash}
 	}
 
 	if err := replaceExistingFile(s.fs, tempPath, destination); err != nil {

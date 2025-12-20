@@ -9,6 +9,7 @@ import (
 	"os"
 	"path/filepath"
 	"strconv"
+	"strings"
 	"testing"
 
 	"github.com/meza/minecraft-mod-manager/internal/httpClient"
@@ -192,7 +193,7 @@ func TestDownloadAndSwapRemovesNewFileWhenOldRemovalFails(t *testing.T) {
 		},
 	}
 
-	assert.Error(t, downloadAndSwap(context.Background(), deps, oldPath, newPath, "https://example.invalid/new.jar", sha1Hex("new")))
+	assert.Error(t, downloadAndSwap(context.Background(), deps, oldPath, newPath, filepath.FromSlash("/mods"), "https://example.invalid/new.jar", sha1Hex("new")))
 
 	exists, _ := afero.Exists(fs, newPath)
 	assert.False(t, exists)
@@ -212,10 +213,13 @@ func TestDownloadAndSwapCleansTempOnDownloaderFailure(t *testing.T) {
 		logger: logger.New(io.Discard, io.Discard, false, false),
 	}
 
-	assert.Error(t, downloadAndSwap(context.Background(), deps, path, path, "https://example.invalid/same.jar", sha1Hex("new")))
+	assert.Error(t, downloadAndSwap(context.Background(), deps, path, path, filepath.FromSlash("/mods"), "https://example.invalid/same.jar", sha1Hex("new")))
 
-	exists, _ := afero.Exists(fs, path+".mmm.tmp")
-	assert.False(t, exists)
+	entries, entriesErr := afero.ReadDir(fs, filepath.FromSlash("/mods"))
+	assert.NoError(t, entriesErr)
+	for _, entry := range entries {
+		assert.False(t, strings.HasSuffix(entry.Name(), ".tmp"))
+	}
 }
 
 func TestDownloadAndSwapCleansTempOnReplaceFailure(t *testing.T) {
@@ -223,7 +227,7 @@ func TestDownloadAndSwapCleansTempOnReplaceFailure(t *testing.T) {
 	path := filepath.FromSlash("/mods/same.jar")
 	assert.NoError(t, afero.WriteFile(baseFs, path, []byte("old"), 0644))
 
-	fs := renameErrorFs{Fs: baseFs, failOld: path + ".mmm.tmp", failNew: path, err: errors.New("rename failed")}
+	fs := renameErrorFs{Fs: baseFs, failOldContains: ".mmm.", failNew: path, err: errors.New("rename failed")}
 
 	deps := updateDeps{
 		fs:      fs,
@@ -234,10 +238,13 @@ func TestDownloadAndSwapCleansTempOnReplaceFailure(t *testing.T) {
 		logger: logger.New(io.Discard, io.Discard, false, false),
 	}
 
-	assert.Error(t, downloadAndSwap(context.Background(), deps, path, path, "https://example.invalid/same.jar", sha1Hex("new")))
+	assert.Error(t, downloadAndSwap(context.Background(), deps, path, path, filepath.FromSlash("/mods"), "https://example.invalid/same.jar", sha1Hex("new")))
 
-	exists, _ := afero.Exists(fs, path+".mmm.tmp")
-	assert.False(t, exists)
+	entries, entriesErr := afero.ReadDir(fs, filepath.FromSlash("/mods"))
+	assert.NoError(t, entriesErr)
+	for _, entry := range entries {
+		assert.False(t, strings.HasSuffix(entry.Name(), ".tmp"))
+	}
 }
 
 func TestDownloadAndSwapReturnsMissingHashError(t *testing.T) {
@@ -247,7 +254,7 @@ func TestDownloadAndSwapReturnsMissingHashError(t *testing.T) {
 		clients: platform.Clients{Modrinth: noopDoer{}},
 	}
 
-	err := downloadAndSwap(context.Background(), deps, filepath.FromSlash("/mods/old.jar"), filepath.FromSlash("/mods/new.jar"), "https://example.invalid/new.jar", "")
+	err := downloadAndSwap(context.Background(), deps, filepath.FromSlash("/mods/old.jar"), filepath.FromSlash("/mods/new.jar"), filepath.FromSlash("/mods"), "https://example.invalid/new.jar", "")
 	var missingHash modinstall.MissingHashError
 	assert.ErrorAs(t, err, &missingHash)
 }
@@ -255,8 +262,7 @@ func TestDownloadAndSwapReturnsMissingHashError(t *testing.T) {
 func TestDownloadAndSwapReturnsErrorOnHashReadFailure(t *testing.T) {
 	base := afero.NewMemMapFs()
 	newPath := filepath.FromSlash("/mods/new.jar")
-	tempPath := newPath + ".mmm.tmp"
-	fs := openErrorFs{Fs: base, failPath: tempPath, err: errors.New("open failed")}
+	fs := openErrorFs{Fs: base, failContains: ".mmm.", err: errors.New("open failed")}
 
 	deps := updateDeps{
 		fs:      fs,
@@ -267,7 +273,45 @@ func TestDownloadAndSwapReturnsErrorOnHashReadFailure(t *testing.T) {
 		logger: logger.New(io.Discard, io.Discard, false, false),
 	}
 
-	err := downloadAndSwap(context.Background(), deps, filepath.FromSlash("/mods/old.jar"), newPath, "https://example.invalid/new.jar", sha1Hex("data"))
+	err := downloadAndSwap(context.Background(), deps, filepath.FromSlash("/mods/old.jar"), newPath, filepath.FromSlash("/mods"), "https://example.invalid/new.jar", sha1Hex("data"))
+	assert.Error(t, err)
+}
+
+func TestDownloadAndSwapReturnsErrorWhenResolveWritablePathFails(t *testing.T) {
+	fs := afero.NewOsFs()
+	root := t.TempDir()
+	modsRoot := filepath.Join(root, "mods")
+	assert.NoError(t, os.MkdirAll(modsRoot, 0755))
+
+	outside := t.TempDir()
+	target := filepath.Join(outside, "target.jar")
+	assert.NoError(t, os.WriteFile(target, []byte("data"), 0644))
+
+	newPath := filepath.Join(modsRoot, "link.jar")
+	if err := os.Symlink(target, newPath); err != nil {
+		t.Skipf("symlink not supported: %v", err)
+	}
+
+	deps := updateDeps{
+		fs:      fs,
+		clients: platform.Clients{Modrinth: noopDoer{}},
+	}
+
+	err := downloadAndSwap(context.Background(), deps, filepath.Join(modsRoot, "old.jar"), newPath, modsRoot, "https://example.invalid/new.jar", sha1Hex("data"))
+	assert.Error(t, err)
+}
+
+func TestDownloadAndSwapReturnsErrorOnTempFileFailure(t *testing.T) {
+	base := afero.NewMemMapFs()
+	assert.NoError(t, base.MkdirAll(filepath.FromSlash("/mods"), 0755))
+	fs := openFileErrorFs{Fs: base, err: errors.New("open failed")}
+
+	deps := updateDeps{
+		fs:      fs,
+		clients: platform.Clients{Modrinth: noopDoer{}},
+	}
+
+	err := downloadAndSwap(context.Background(), deps, filepath.FromSlash("/mods/old.jar"), filepath.FromSlash("/mods/new.jar"), filepath.FromSlash("/mods"), "https://example.invalid/new.jar", sha1Hex("data"))
 	assert.Error(t, err)
 }
 
@@ -331,13 +375,17 @@ func (s statErrorFs) Stat(name string) (os.FileInfo, error) {
 
 type renameErrorFs struct {
 	afero.Fs
-	failOld string
-	failNew string
-	err     error
+	failOld         string
+	failNew         string
+	failOldContains string
+	err             error
 }
 
 func (r renameErrorFs) Rename(oldname, newname string) error {
-	if filepath.Clean(oldname) == filepath.Clean(r.failOld) && filepath.Clean(newname) == filepath.Clean(r.failNew) {
+	if r.failOldContains != "" && strings.Contains(filepath.Clean(oldname), r.failOldContains) && filepath.Clean(newname) == filepath.Clean(r.failNew) {
+		return r.err
+	}
+	if r.failOld != "" && filepath.Clean(oldname) == filepath.Clean(r.failOld) && filepath.Clean(newname) == filepath.Clean(r.failNew) {
 		return r.err
 	}
 	return r.Fs.Rename(oldname, newname)
@@ -389,13 +437,26 @@ func (r readErrorFile) Read([]byte) (int, error) {
 
 type openErrorFs struct {
 	afero.Fs
-	failPath string
-	err      error
+	failPath     string
+	failContains string
+	err          error
 }
 
 func (o openErrorFs) Open(name string) (afero.File, error) {
-	if filepath.Clean(name) == filepath.Clean(o.failPath) {
+	if o.failPath != "" && filepath.Clean(name) == filepath.Clean(o.failPath) {
+		return nil, o.err
+	}
+	if o.failContains != "" && strings.Contains(filepath.Clean(name), o.failContains) {
 		return nil, o.err
 	}
 	return o.Fs.Open(name)
+}
+
+type openFileErrorFs struct {
+	afero.Fs
+	err error
+}
+
+func (o openFileErrorFs) OpenFile(string, int, os.FileMode) (afero.File, error) {
+	return nil, o.err
 }

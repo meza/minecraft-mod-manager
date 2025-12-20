@@ -769,3 +769,34 @@ Resumed mmm-63.59 coverage push. Loaded project docs and remote agent guidance, 
 
 ### [2025-12-20 19:24] - [memory]
 - Fixed Windows coverage shortfall by splitting modfilename.Normalize into OS-specific implementations (normalize_unix.go/normalize_windows.go); make fmt/coverage pass locally.
+
+### 2025-12-20 19:32 - Started alignment for mmm-63.8; reviewing requirements, docs, and downloader/update code paths before implementation.
+
+### 2025-12-20 19:34 - mmm-63.8 alignment notes: audit points to DownloadFile writing directly via fs.Create with no symlink checks or partial cleanup, and update swap previously removed old jar without validation (now addressed via temp+hash). Current code: add uses modsetup.EnsureDownloaded -> DownloadFile direct to destination; install/update use temp + hash verify but still write via DownloadFile to predictable temp path with no symlink protection. No existing symlink helpers. Open questions to confirm: required symlink/TOCTOU protection level (best-effort Lstat reject vs no-follow open), desired behavior when destination/parent is symlink, and whether add should switch to temp+hash verification for parity with install/update.
+
+### 2025-12-20 19:41 - mmm-63.8 decision request: user wants symlink-friendly behavior; propose allow symlinked mods folder and allow symlinked mod files only when target stays inside mods folder, otherwise error. Need to record in ticket and ADR.
+
+### 2025-12-20 19:42 - Recorded mmm-63.8 decision in bd notes and added ADR 0007 symlink-safe mod file writes (allows symlinked mods folder; allows mod file symlink only if target stays inside mods folder; reject otherwise).
+
+### [2025-12-20 20:14] - [memory]
+- Preference: avoid generic "service" naming; audit and rename lazy "service" usages to domain-driven terminology (track via Beads).
+
+### 2025-12-20 20:33 - mmm-63.8: implemented symlink-safe download path resolution (allow symlink inside mods root only), temp-file downloads, and partial cleanup; added modpath package + tests and updated add/install/update/modinstall/modsetup. Added i18n messaging for symlink outside mods. make fmt, make coverage, make build all pass.
+
+### [2025-12-20 20:46] - [memory]
+- mmm-63.8: addressing code-review.md feedback. Pending fixes: modpath helper refactor + tests (fake symlink fs + relative root), ensure mods dir exists before ResolveWritablePath, use filepath.FromSlash in symlink error tests, add add command regression for missing mods dir, run make fmt/coverage/build, update code-review.md with implementer notes.
+
+### [2025-12-20 20:55] - [memory]
+- mmm-63.8: addressed code-review.md feedback (modinstall MkdirAll ordering, modpath helper refactor with stub symlink tests + relative root test, path separator fixes in integrity tests, add OS fs regression test). Ran `make fmt`, `make coverage`, `make build` successfully; updated code-review.md with implementer response.
+
+### [2025-12-20 20:57] - [memory]
+- Fixed modpath stub symlink tests for Windows rooted paths by introducing absolutePath helper (uses volume when available). Ran `make fmt` and `make coverage` locally.
+
+### [2025-12-20 21:11] - [memory]
+- code-review.md now requests Windows `make build` output; noted I cannot run Windows builds and asked for output to record.
+
+### [2025-12-20 21:17] - [memory]
+- Recorded Windows `make coverage && make build` output in code-review.md.
+
+### [2025-12-20 21:25] - [memory]
+- Closed mmm-63.8 in bd after recording Windows make coverage/build evidence.

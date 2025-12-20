@@ -3,6 +3,8 @@ package install
 import (
 	"bytes"
 	"context"
+	"errors"
+	"os"
 	"path/filepath"
 	"testing"
 
@@ -11,6 +13,7 @@ import (
 	"github.com/meza/minecraft-mod-manager/internal/httpClient"
 	"github.com/meza/minecraft-mod-manager/internal/logger"
 	"github.com/meza/minecraft-mod-manager/internal/models"
+	"github.com/meza/minecraft-mod-manager/internal/modpath"
 	"github.com/meza/minecraft-mod-manager/internal/modrinth"
 	"github.com/meza/minecraft-mod-manager/internal/platform"
 	"github.com/meza/minecraft-mod-manager/internal/telemetry"
@@ -954,4 +957,173 @@ func TestRunInstallContinuesWhenFetchReturnsExpectedErrors(t *testing.T) {
 	assert.Contains(t, out.String(), "cmd.install.error.no_file")
 	assert.Contains(t, out.String(), "cmd.install.success")
 	assert.Empty(t, errOut.String())
+}
+
+func TestRunInstallReportsSymlinkOutsideMods(t *testing.T) {
+	t.Setenv("MMM_TEST", "true")
+
+	fs := afero.NewOsFs()
+	root := t.TempDir()
+	meta := config.NewMetadata(filepath.Join(root, "modlist.json"))
+
+	cfg := models.ModsJson{
+		Loader:                     models.FABRIC,
+		GameVersion:                "1.21.1",
+		DefaultAllowedReleaseTypes: []models.ReleaseType{models.Release},
+		ModsFolder:                 "mods",
+		Mods: []models.Mod{
+			{ID: "proj-1", Name: "Mod", Type: models.MODRINTH},
+		},
+	}
+
+	assert.NoError(t, fs.MkdirAll(meta.Dir(), 0755))
+	assert.NoError(t, fs.MkdirAll(meta.ModsFolderPath(cfg), 0755))
+	assert.NoError(t, config.WriteConfig(context.Background(), fs, meta, cfg))
+	assert.NoError(t, config.WriteLock(context.Background(), fs, meta, []models.ModInstall{
+		{
+			Type:        models.MODRINTH,
+			Id:          "other",
+			Name:        "Other",
+			FileName:    "link.jar",
+			Hash:        "expected-hash",
+			DownloadUrl: "https://example.invalid/link.jar",
+		},
+	}))
+
+	outside := t.TempDir()
+	target := filepath.Join(outside, "target.jar")
+	assert.NoError(t, os.WriteFile(target, []byte("data"), 0644))
+
+	linkPath := filepath.Join(meta.ModsFolderPath(cfg), "link.jar")
+	if err := os.Symlink(target, linkPath); err != nil {
+		t.Skipf("symlink not supported: %v", err)
+	}
+
+	out := &bytes.Buffer{}
+	errOut := &bytes.Buffer{}
+	cmd := &cobra.Command{}
+	cmd.SetIn(&bytes.Buffer{})
+	cmd.SetOut(out)
+	cmd.SetErr(errOut)
+
+	deps := installDeps{
+		fs:      fs,
+		logger:  logger.New(out, errOut, false, false),
+		clients: platform.Clients{},
+		downloader: func(context.Context, string, string, httpClient.Doer, httpClient.Sender, ...afero.Fs) error {
+			return errors.New("unexpected download")
+		},
+		fetchMod: func(context.Context, models.Platform, string, platform.FetchOptions, platform.Clients) (platform.RemoteMod, error) {
+			return platform.RemoteMod{
+				Name:        "Mod",
+				FileName:    "link.jar",
+				Hash:        sha1Hex("data"),
+				DownloadURL: "https://example.invalid/link.jar",
+			}, nil
+		},
+		telemetry: func(telemetry.CommandTelemetry) {},
+
+		curseforgeFingerprint: func(string) uint32 { return 0 },
+		curseforgeFingerprintMatch: func(context.Context, []int, httpClient.Doer) (*curseforge.FingerprintResult, error) {
+			return &curseforge.FingerprintResult{}, nil
+		},
+		curseforgeProjectName: func(context.Context, string, httpClient.Doer) (string, error) {
+			return "", nil
+		},
+		modrinthVersionForSha: func(context.Context, string, httpClient.Doer) (*modrinth.Version, error) {
+			return nil, &modrinth.VersionNotFoundError{}
+		},
+		modrinthProjectTitle: func(context.Context, string, httpClient.Doer) (string, error) {
+			return "", nil
+		},
+	}
+
+	_, err := runInstall(context.Background(), cmd, installOptions{ConfigPath: meta.ConfigPath}, deps)
+	assert.ErrorIs(t, err, errInstallFailures)
+	assert.Contains(t, errOut.String(), "cmd.install.error.symlink_outside_mods")
+}
+
+func TestRunInstallReturnsErrorOnResolveFailure(t *testing.T) {
+	t.Setenv("MMM_TEST", "true")
+
+	root := t.TempDir()
+	meta := config.NewMetadata(filepath.Join(root, "modlist.json"))
+
+	cfg := models.ModsJson{
+		Loader:                     models.FABRIC,
+		GameVersion:                "1.21.1",
+		DefaultAllowedReleaseTypes: []models.ReleaseType{models.Release},
+		ModsFolder:                 "mods",
+		Mods: []models.Mod{
+			{ID: "proj-1", Name: "Mod", Type: models.MODRINTH},
+		},
+	}
+
+	assert.NoError(t, os.MkdirAll(meta.Dir(), 0755))
+	assert.NoError(t, os.MkdirAll(meta.ModsFolderPath(cfg), 0755))
+	assert.NoError(t, config.WriteConfig(context.Background(), afero.NewOsFs(), meta, cfg))
+	assert.NoError(t, config.WriteLock(context.Background(), afero.NewOsFs(), meta, nil))
+
+	out := &bytes.Buffer{}
+	errOut := &bytes.Buffer{}
+	cmd := &cobra.Command{}
+	cmd.SetIn(&bytes.Buffer{})
+	cmd.SetOut(out)
+	cmd.SetErr(errOut)
+
+	deps := installDeps{
+		fs:      lstatErrorFs{OsFs: &afero.OsFs{}, err: errors.New("lstat failed")},
+		logger:  logger.New(out, errOut, false, false),
+		clients: platform.Clients{},
+		downloader: func(context.Context, string, string, httpClient.Doer, httpClient.Sender, ...afero.Fs) error {
+			return errors.New("unexpected download")
+		},
+		fetchMod: func(context.Context, models.Platform, string, platform.FetchOptions, platform.Clients) (platform.RemoteMod, error) {
+			return platform.RemoteMod{
+				Name:        "Mod",
+				FileName:    "example.jar",
+				Hash:        sha1Hex("data"),
+				DownloadURL: "https://example.invalid/example.jar",
+			}, nil
+		},
+		telemetry: func(telemetry.CommandTelemetry) {},
+
+		curseforgeFingerprint: func(string) uint32 { return 0 },
+		curseforgeFingerprintMatch: func(context.Context, []int, httpClient.Doer) (*curseforge.FingerprintResult, error) {
+			return &curseforge.FingerprintResult{}, nil
+		},
+		curseforgeProjectName: func(context.Context, string, httpClient.Doer) (string, error) {
+			return "", nil
+		},
+		modrinthVersionForSha: func(context.Context, string, httpClient.Doer) (*modrinth.Version, error) {
+			return nil, &modrinth.VersionNotFoundError{}
+		},
+		modrinthProjectTitle: func(context.Context, string, httpClient.Doer) (string, error) {
+			return "", nil
+		},
+	}
+
+	_, err := runInstall(context.Background(), cmd, installOptions{ConfigPath: meta.ConfigPath}, deps)
+	assert.Error(t, err)
+}
+
+func TestIntegrityErrorMessage_SymlinkOutsideMods(t *testing.T) {
+	outsidePath := filepath.FromSlash("/outside/path")
+	rootPath := filepath.FromSlash("/mods")
+	message, ok := integrityErrorMessage(modpath.OutsideRootError{
+		ResolvedPath: outsidePath,
+		Root:         rootPath,
+	}, "Example Mod")
+	assert.True(t, ok)
+	assert.Contains(t, message, outsidePath)
+	assert.Contains(t, message, rootPath)
+}
+
+type lstatErrorFs struct {
+	*afero.OsFs
+	err error
+}
+
+func (l lstatErrorFs) LstatIfPossible(string) (os.FileInfo, bool, error) {
+	return nil, true, l.err
 }

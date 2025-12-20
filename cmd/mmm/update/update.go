@@ -21,6 +21,7 @@ import (
 	"github.com/meza/minecraft-mod-manager/internal/models"
 	"github.com/meza/minecraft-mod-manager/internal/modfilename"
 	"github.com/meza/minecraft-mod-manager/internal/modinstall"
+	"github.com/meza/minecraft-mod-manager/internal/modpath"
 	"github.com/meza/minecraft-mod-manager/internal/perf"
 	"github.com/meza/minecraft-mod-manager/internal/platform"
 	"github.com/meza/minecraft-mod-manager/internal/telemetry"
@@ -434,7 +435,7 @@ func processMod(
 
 	newPath := filepath.Join(meta.ModsFolderPath(cfg), remote.FileName)
 
-	if err := downloadAndSwap(ctx, deps, oldPath, newPath, remote.DownloadURL, remote.Hash); err != nil {
+	if err := downloadAndSwap(ctx, deps, oldPath, newPath, meta.ModsFolderPath(cfg), remote.DownloadURL, remote.Hash); err != nil {
 		if message, handled := integrityErrorMessage(err, mod.Name); handled {
 			outcome.LogEvents = append(outcome.LogEvents, logEvent{Kind: logEventKindError, Message: message})
 		} else {
@@ -459,13 +460,22 @@ func processMod(
 	return outcome
 }
 
-func downloadAndSwap(ctx context.Context, deps updateDeps, oldPath string, newPath string, downloadURL string, expectedHash string) error {
+func downloadAndSwap(ctx context.Context, deps updateDeps, oldPath string, newPath string, modsFolder string, downloadURL string, expectedHash string) error {
 	if strings.TrimSpace(expectedHash) == "" {
 		return modinstall.MissingHashError{FileName: filepath.Base(newPath)}
 	}
 
-	tempPath := newPath + ".mmm.tmp"
-	_ = deps.fs.Remove(tempPath)
+	resolvedNewPath, err := modpath.ResolveWritablePath(deps.fs, modsFolder, newPath)
+	if err != nil {
+		return err
+	}
+
+	tempFile, err := afero.TempFile(deps.fs, filepath.Dir(resolvedNewPath), filepath.Base(resolvedNewPath)+".mmm.*.tmp")
+	if err != nil {
+		return err
+	}
+	tempPath := tempFile.Name()
+	_ = tempFile.Close()
 
 	if err := deps.downloader(ctx, downloadURL, tempPath, downloadClient(deps.clients), &noopSender{}, deps.fs); err != nil {
 		_ = deps.fs.Remove(tempPath)
@@ -483,7 +493,7 @@ func downloadAndSwap(ctx context.Context, deps updateDeps, oldPath string, newPa
 		return modinstall.HashMismatchError{FileName: filepath.Base(newPath), Expected: expectedHash, Actual: actualHash}
 	}
 
-	if err := replaceExistingFile(deps.fs, deps.logger, tempPath, newPath); err != nil {
+	if err := replaceExistingFile(deps.fs, deps.logger, tempPath, resolvedNewPath); err != nil {
 		_ = deps.fs.Remove(tempPath)
 		return err
 	}
@@ -493,7 +503,7 @@ func downloadAndSwap(ctx context.Context, deps updateDeps, oldPath string, newPa
 	}
 
 	if err := deps.fs.Remove(oldPath); err != nil {
-		_ = deps.fs.Remove(newPath)
+		_ = deps.fs.Remove(resolvedNewPath)
 		return err
 	}
 
@@ -579,6 +589,17 @@ func integrityErrorMessage(err error, modName string) (string, bool) {
 	if errors.As(err, &hashMismatch) {
 		return i18n.T("cmd.update.error.hash_mismatch", i18n.Tvars{
 			Data: &i18n.TData{"name": modName},
+		}), true
+	}
+
+	var outsideRoot modpath.OutsideRootError
+	if errors.As(err, &outsideRoot) {
+		return i18n.T("cmd.update.error.symlink_outside_mods", i18n.Tvars{
+			Data: &i18n.TData{
+				"name": modName,
+				"path": outsideRoot.ResolvedPath,
+				"root": outsideRoot.Root,
+			},
 		}), true
 	}
 

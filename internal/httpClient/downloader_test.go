@@ -112,6 +112,7 @@ func TestDownloadFile(t *testing.T) {
 			w.WriteHeader(http.StatusOK)
 			w.Write([]byte("file content"))
 		}))
+		defer mockServer.Close()
 
 		err := DownloadFile(context.Background(), mockServer.URL, "/invalid/path/testfile", mockServer.Client(), &MockProgram{}, fs)
 		assert.ErrorContains(t, err, "failed to create file")
@@ -130,5 +131,8 @@ func TestDownloadFile(t *testing.T) {
 		program := &MockProgram{}
 		err := DownloadFile(context.Background(), mockServer.URL, "test", mockServer.Client(), program, fs)
 		assert.ErrorContains(t, err, "failed to write file")
+		exists, existsErr := afero.Exists(fs, "test")
+		assert.NoError(t, existsErr)
+		assert.False(t, exists)
 	})
 }

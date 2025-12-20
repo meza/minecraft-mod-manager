@@ -20,6 +20,7 @@ import (
 	"github.com/meza/minecraft-mod-manager/internal/models"
 	"github.com/meza/minecraft-mod-manager/internal/modfilename"
 	"github.com/meza/minecraft-mod-manager/internal/modinstall"
+	"github.com/meza/minecraft-mod-manager/internal/modpath"
 	"github.com/meza/minecraft-mod-manager/internal/modsetup"
 	"github.com/meza/minecraft-mod-manager/internal/perf"
 	"github.com/meza/minecraft-mod-manager/internal/platform"
@@ -442,6 +443,17 @@ func integrityErrorMessage(err error, modName string) (string, bool) {
 	if errors.As(err, &hashMismatch) {
 		return i18n.T("cmd.add.error.hash_mismatch", i18n.Tvars{
 			Data: &i18n.TData{"name": modName},
+		}), true
+	}
+
+	var outsideRoot modpath.OutsideRootError
+	if errors.As(err, &outsideRoot) {
+		return i18n.T("cmd.add.error.symlink_outside_mods", i18n.Tvars{
+			Data: &i18n.TData{
+				"name": modName,
+				"path": outsideRoot.ResolvedPath,
+				"root": outsideRoot.Root,
+			},
 		}), true
 	}
 
