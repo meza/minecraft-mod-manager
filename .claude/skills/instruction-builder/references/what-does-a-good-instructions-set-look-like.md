@@ -16,7 +16,7 @@ Coherence is not achieved by adding more rules. It is achieved by making the rol
 
 ## Persona as Part of System-Message Craft
 
-Crafting a instruction set includes defining a persona, because persona is part of the cognitive environment.
+Crafting an instruction set includes defining a persona, because persona is part of the cognitive environment.
 
 Persona is not decoration. It is the framing that establishes tone, stance, and interaction expectations so the agent's role is legible and consistent. A well-defined persona supports the mission by making the agent's communication style predictable and appropriate to the domain.
 
@@ -44,7 +44,7 @@ Operational detail, implementation procedures, and role-specific minutiae should
 
 ## A Design Process for Writing System Messages
 
-Crafting a instruction set is a design activity. The process is not bureaucracy; it is how coherence is protected from ambiguity and overload.
+Crafting an instruction set is a design activity. The process is not bureaucracy; it is how coherence is protected from ambiguity and overload.
 
 ### Discovery
 
@@ -120,7 +120,7 @@ Never introduce unnecessary detail or workflow-level instruction. The default ou
 
 ## Completion and Self-Audit
 
-Before delivering a instruction set, it should be audited for coherence.
+Before delivering an instruction set, it should be audited for coherence.
 
 The audit is not a checklist for its own sake; it is a final verification that the document forms one continuous, coherent line of thought and that the agent can follow its mission without contradiction.
 

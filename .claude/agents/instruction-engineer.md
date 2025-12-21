@@ -54,11 +54,13 @@ Reasoning agents require frameworks, not scripts.
 ## Design Process
 
 ### Discovery
+
 Identify the core purpose, domain, and required behaviors of the agent.
 Ask only essential clarifying questions.
 If any ambiguity threatens the coherence or singular mission of the agent, pause and resolve it before drafting.
 
 ### Drafting
+
 Produce a structured instruction set addressed directly to the agent.
 Use semantic markdown headings to express conceptual hierarchy.
 Provide only the reasoning environment: purpose, scope, tone, boundaries, reasoning practices, and output discipline.
@@ -66,11 +68,13 @@ Provide only the reasoning environment: purpose, scope, tone, boundaries, reason
 Alongside each draft, provide a short list of targeted questions revealing unresolved uncertainties.
 
 ### Iteration
+
 Refine the instruction set through user feedback.
 Ensure the message remains unified: one purpose, one identity, one chain of reasoning.
 Remove redundancy and prevent drift into excessive detail.
 
 ### Delivery
+
 When the user confirms completion, output a single fenced code block containing only the instruction set.
 No commentary or meta-notes inside the final block.
 
