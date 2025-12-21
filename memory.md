@@ -844,3 +844,33 @@ Resumed mmm-63.59 coverage push. Loaded project docs and remote agent guidance, 
 
 ### [2025-12-21 00:20] - [memory]
 - mmm-63.99 alignment updated: scope is lint infra only (no fixes), CI will run make lint; completion defined by lint config surfacing specific child tickets (23,28,29,30,66,67,68,75,76,78,88,94,95,96,98).
+
+### [2025-12-21 00:24] - [memory]
+- Implemented lint infra for mmm-63.99: added .golangci.yml, revive.toml, ruleguard rules, Makefile lint targets, CI lint step, CONTRIBUTING update, and go-ruleguard deps; lint expected to surface existing violations (no fixes in this ticket).
+
+### [2025-12-21 00:31] - [memory]
+- Added golangci-lint wrapper in Makefile with pinned v1.64.5 via go run, output config fixed for v1 format; lint now runs under go1.25 toolchain and surfaces expected violations (still failing as intended).
+
+### [2025-12-21 00:37] - [memory]
+- Switched golangci-lint pinning to tools.go + go.mod, updated Makefile to run module-pinned golangci-lint; make lint now runs (still failing with existing lint findings as expected).
+
+### [2025-12-21 00:46] - [memory]
+- Added test-only lint excludes in .golangci.yml (dupl/errcheck/funlen/gocognit/unparam/prealloc/misspell/whitespace/unused + selective revive/gocritic), and updated ruleguard to allow receiver name "t". make lint now reports only stricter linters in tests (ruleguard non-t receivers, govet, staticcheck, errorlint, bodyclose, revive var-naming, usestdlibvars).
+
+### [2025-12-21 00:55] - [memory]
+- Lowered dupl threshold to 50 and reran make lint; dupl now flags intra-file duplicates but still does not surface cross-command helper duplication from mmm-63.71.
+
+### [2025-12-21 01:00] - [memory]
+- Reverted dupl threshold back to 100 after confirming lower threshold produced non-actionable intra-file duplicates.
+
+### [2025-12-21 01:08] - [memory]
+- Removed failed uint32->int ruleguard check and stripped issue-id references from ruleguard comments per guidance; lint runs remain as before.
+
+### [2025-12-21 01:57] - [memory]
+- mmm-63.99 updates: Makefile lint now always uses go-run pinned golangci-lint; CONTRIBUTING updated to describe lint/lint-fix pinned behavior.
+- gocritic config set disable-all with explicit enabled-checks; ruleguard updated to match ignored http.NewRequestWithContext/json.Decode/strconv.Atoi and allow receiver t only.
+- Added gocritic ruleguard enable list + issues.uniq-by-line=false so ruleguard findings are visible alongside errcheck.
+- mmm-63.99 DoD list adjusted to remove mmm-63.66 (i18n bypass not lint-detectable); ticket snippets refreshed to match configs.
+
+### [2025-12-21 10:29] - [memory]
+- User requested closing mmm-63.99; proceeding to close via bd.

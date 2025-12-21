@@ -1,0 +1,167 @@
+version: "2"
+
+run:
+  timeout: 10m
+  tests: true
+  modules-download-mode: readonly
+  allow-parallel-runners: true
+
+output:
+  formats:
+    - format: colored-line-number
+  sort-results: true
+
+linters:
+  disable-all: true
+  enable:
+    # Correctness / reliability
+    - staticcheck
+    - govet
+    - errcheck
+    - errchkjson
+    - errorlint
+    - nilerr
+    - nilnil
+    - bodyclose
+    - durationcheck
+
+    # Maintainability / complexity limits
+    - gocyclo
+    - gocognit
+    - funlen
+    - nestif
+    - dupl
+
+    # Readability / consistency
+    - revive
+    - misspell
+    - whitespace
+    - unconvert
+    - unparam
+    - unused
+    - ineffassign
+    - wastedassign
+    - predeclared
+    - prealloc
+    - makezero
+    - usestdlibvars
+    - asciicheck
+    - bidichk
+    - nolintlint
+
+    # Team-specific rules via ruleguard
+    - gocritic
+
+linters-settings:
+  govet:
+    # Strict by default: correctness > convenience.
+    enable-all: true
+    # High-churn / low-signal in practice unless you commit to struct padding work.
+    disable:
+      - fieldalignment
+
+  errcheck:
+    check-type-assertions: true
+    check-blank: true
+
+  gocyclo:
+    min-complexity: 15
+
+  gocognit:
+    min-complexity: 20
+
+  funlen:
+    lines: 80
+    statements: 50
+
+  nestif:
+    min-complexity: 3
+
+  dupl:
+    threshold: 100
+
+  misspell:
+    locale: US
+
+  nolintlint:
+    require-explanation: true
+    require-specific: true
+    allow-leading-space: false
+
+  revive:
+    config: revive.toml
+
+  gocritic:
+    disable-all: true
+    enabled-checks:
+      # Required: ruleguard for custom team rules.
+      - ruleguard
+
+      # Required: high-signal correctness/robustness checks.
+      - exitAfterDefer
+      - emptyStringTest
+      - equalFold
+      - filepathJoin
+      - httpNoBody
+      - offBy1
+      - sloppyLen
+      - sloppyTypeAssert
+
+    settings:
+      ruleguard:
+        failOn: dsl,import
+        rules: '${configDir}/ruleguard/rules-team.go'
+        enable: receiverNameMinLength,forbidIgnoringJSONDecodeError,forbidIgnoringHTTPRequestBuildError,forbidIgnoringAtoiErrorInBoundaryParsing
+
+issues:
+  # Do not truncate.
+  max-issues-per-linter: 0
+  max-same-issues: 0
+  uniq-by-line: false
+
+  # Keep default exclusions (vendor, generated, etc.).
+  exclude-dirs-use-default: true
+
+  # Do not silently hide issues via default exclude patterns.
+  exclude-use-default: false
+
+  exclude-rules:
+    - path: _test\.go
+      linters:
+        - dupl
+    - path: _test\.go
+      linters:
+        - errcheck
+    - path: _test\.go
+      linters:
+        - funlen
+    - path: _test\.go
+      linters:
+        - gocognit
+    - path: _test\.go
+      linters:
+        - unparam
+    - path: _test\.go
+      linters:
+        - prealloc
+    - path: _test\.go
+      linters:
+        - misspell
+    - path: _test\.go
+      linters:
+        - whitespace
+    - path: _test\.go
+      linters:
+        - unused
+    - path: _test\.go
+      linters:
+        - revive
+      text: "unused-parameter"
+    - path: _test\.go
+      linters:
+        - revive
+      text: "package-comments"
+    - path: _test\.go
+      linters:
+        - gocritic
+      text: "httpNoBody"

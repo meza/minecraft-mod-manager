@@ -24,6 +24,9 @@ jobs:
           go-version: 'latest'
           GH_TOKEN: ${{ secrets.GH_TOKEN }}
 
+      - name: Lint
+        run: make lint
+
       - name: Check coverage
         run: make coverage
 

@@ -5,6 +5,7 @@ APP_NAME := minecraft-mod-manager
 EXECUTABLE_NAME := mmm
 BUILD_DIR := build
 VERSION ?= dev
+GOLANGCI_LINT_TOOLCHAIN := go1.25.0
 
 ifeq ($(OS),Windows_NT)
         OSFLAG  := WIN
@@ -52,7 +53,7 @@ endef
 endif
 
 # Targets
-.PHONY: all clean fmt build dist prepare
+.PHONY: all clean fmt lint lint-fix build dist prepare test coverage
 
 # Build for all platforms
 all: clean build
@@ -62,6 +63,20 @@ run:
 
 fmt:
 	go fmt ./...
+
+lint:
+ifeq ($(OSFAMILY), Windows)
+	@powershell -NoProfile -Command "$$env:GOTOOLCHAIN='$(GOLANGCI_LINT_TOOLCHAIN)'; go run github.com/golangci/golangci-lint/cmd/golangci-lint run"
+else
+	@GOTOOLCHAIN=$(GOLANGCI_LINT_TOOLCHAIN) go run github.com/golangci/golangci-lint/cmd/golangci-lint run
+endif
+
+lint-fix:
+ifeq ($(OSFAMILY), Windows)
+	@powershell -NoProfile -Command "$$env:GOTOOLCHAIN='$(GOLANGCI_LINT_TOOLCHAIN)'; go run github.com/golangci/golangci-lint/cmd/golangci-lint run --fix"
+else
+	@GOTOOLCHAIN=$(GOLANGCI_LINT_TOOLCHAIN) go run github.com/golangci/golangci-lint/cmd/golangci-lint run --fix
+endif
 
 # Clean build directory
 ifeq ($(OSFAMILY), Unix)
