@@ -51,6 +51,7 @@ linters:
 
     # Team-specific rules via ruleguard
     - gocritic
+    - gosec
 
 linters-settings:
   govet:
@@ -112,6 +113,31 @@ linters-settings:
         failOn: dsl,import
         rules: '${configDir}/ruleguard/rules-team.go'
         enable: receiverNameMinLength,forbidIgnoringJSONDecodeError,forbidIgnoringHTTPRequestBuildError,forbidIgnoringAtoiErrorInBoundaryParsing
+
+  gosec:
+    exclude-generated: true
+    severity: low
+    confidence: low
+    excludes:
+      # SHA1 is required by the mod ecosystem for fingerprinting/hashes.
+      - G401
+      - G505
+    config:
+      global:
+        nosec: false
+        show-ignored: true
+        audit: true
+      G101:
+        pattern: "(?i)passwd|password|pwd|secret|private_key|token|api[_-]?key|bearer|cred"
+        ignore_entropy: false
+        entropy_threshold: "80.0"
+        per_char_threshold: "3.0"
+        truncate: "32"
+      # Policy: MMM does not treat config/lock/mod artifacts as secret-bearing.
+      # Keep permissions compatible with shared setups while avoiding overly permissive modes.
+      G301: "0755"
+      G302: "0644"
+      G306: "0644"
 
 issues:
   # Do not truncate.
