@@ -53,7 +53,7 @@ endef
 endif
 
 # Targets
-.PHONY: all clean fmt lint lint-fix build dist prepare test coverage
+.PHONY: all clean fmt lint lint-fix build dist prepare test coverage mod-download
 
 # Build for all platforms
 all: clean build
@@ -105,3 +105,6 @@ test:
 
 coverage:
 	go run ./tools/coverage
+
+mod-download:
+	go mod download

@@ -55,6 +55,23 @@ Run the repo `make` targets (do not call go test/go build directly):
 `make coverage` runs `go test ./...` as part of the unified coverage tool. It generates `coverage.html` from the filtered profile and writes the `go tool cover -func` output to `coverage.out` (filtered when exclusions are configured), then enforces 100% coverage.
 `make lint` and `make lint-fix` always run the `golangci-lint` version pinned in `go.mod` via `go run`. The pinned tool dependency is declared in `tools.go`.
 
+### Git hooks (optional)
+
+We use lefthook to keep local hooks aligned with repo make targets.
+
+Install lefthook and hooks:
+
+```bash
+go install github.com/evilmartians/lefthook/v2@v2.0.12
+lefthook install
+```
+
+Current hooks run:
+
+- `pre-commit`: `make lint`, `make coverage`
+- `pre-push`: `make build`
+- `post-merge`: `make mod-download`
+
 ### Packaging release artifacts
 
 Use `make dist` to package existing build outputs into `dist/mmm-<os>-<arch>-<version>.zip` (defaults to `dev`).

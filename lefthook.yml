@@ -9,13 +9,16 @@ pre-commit:
     coverage:
       tags: backend test
       run: make coverage
-    gotidy:
-      tags: backend versions
-      run: go mod tidy
-      stage_fixed: true
-    govet:
+    lint:
       tags: backend style
-      files: git ls-files -m
-      glob: "*.go"
-      run: go vet {files}
-      stage_fixed: true
+      run: make lint
+pre-push:
+  commands:
+    build:
+      tags: backend build
+      run: make build
+post-merge:
+  commands:
+    mod-download:
+      tags: backend versions
+      run: make mod-download
