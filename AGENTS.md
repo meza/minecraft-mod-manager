@@ -36,7 +36,7 @@ You MUST read and adhere to these instructions.
 ## Long Term Memory
 
 Instructions for long term memory management [here](https://raw.githubusercontent.com/meza/agent-docs/refs/heads/main/LongTermMemory.md).
-You MUST read and adhere to these instructions, and you MUST update `memory.md` during the session—not just at the end. Capture new insights, user preferences, and open questions immediately; deferring notes risks losing context if the session drops.
+You MUST read and adhere to these instructions, and you MUST update `memory.md` during the session - not just at the end. Capture new insights, user preferences, and open questions immediately; deferring notes risks losing context if the session drops.
 
 ## Project Overview
 
@@ -152,7 +152,7 @@ This is mandatory.
 Write user-facing docs in a conversational, guide-like tone:
 
 - Address the reader as 'you'; use active voice.
-- Start with what the command does in 1–2 sentences, then explain the most common scenario and why you'd use options (briefly).
+- Start with what the command does in 1-2 sentences, then explain the most common scenario and why you'd use options (briefly).
 - Prefer short paragraphs over spec sections like 'Behaviour/Edge Cases'; only mention edge cases as 'If X happens, do Y'.
 - Include at least one copy/paste example command near the top.
 - Then include a simple flags table (flag, meaning, allowed values, example).
@@ -178,6 +178,6 @@ Write user-facing docs in a conversational, guide-like tone:
 
 - Refer to the existing `Makefile` for commands related to building, testing, and coverage enforcement, and **always invoke the documented `make` targets (e.g., `make test`, `make coverage`, `make build`) instead of calling toolchain binaries directly**. This ensures we honor repo-specific flags and hooks.
 - Evaluate your methods and thinking against this document at all times. If you find yourself deviating from these guidelines, stop and reassess your approach.
-- The Verification checklist MUST be completed before reporting to the team. It's not a suggestion, it's not a guideline—it's a HARD requirement.
+- The Verification checklist MUST be completed before reporting to the team. It's not a suggestion, it's not a guideline - it's a HARD requirement.
 - You may not call a task finished yourself. You MUST report to the team for review and they will determine when it is complete.
 - Markdown files must always use ASCII and proper markdown syntax.

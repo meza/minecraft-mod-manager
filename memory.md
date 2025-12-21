@@ -1,11 +1,11 @@
 ### 2025-12-14 14:23 - Established Go parity plan with detailed beads backlog referencing Node repo. Epic mmm-1 now encodes execution order; each task notes to consult epic; P1 audit (mmm-14) blocks epic.
 ### 2025-12-14 15:03 - bd --no-db ignores blockers in ready output; rely on issue dependencies/epic order instead of ready list until DB bug fixed.
-### 2025-12-14 15:27 - New session kicked off; need to identify next beads issue for Go port despite ready cmd bug—cross-reference epic ordering before picking work.
+### 2025-12-14 15:27 - New session kicked off; need to identify next beads issue for Go port despite ready cmd bug - cross-reference epic ordering before picking work.
 ### 2025-12-14 15:37 - Completed mmm-14 audit; logged gaps for config schema (mmm-18), Makefile (mmm-19), locale detection (mmm-20), HTTP retry leaks (mmm-21), init TUI networking (mmm-22), and environment metadata (mmm-23). Prioritize these before jumping into parity work.
 ### 2025-12-14 15:49 - mmm-18 fixed: ModsJson.mods now uses []models.Mod (config entries) instead of lock-style ModInstall; default config seeded with []models.Mod. README updated to reflect per-mod allowVersionFallback (no global flag).
 ### 2025-12-14 16:01 - mcp beads ready/list endpoints crash when dependencies metadata incomplete; inspect .beads/issues.jsonl directly until schema bug fixed.
 ### 2025-12-14 16:03 - CLI bd --no-db ready works; API-only failure scoped to MCP. Use CLI for ready list until fix.
-### 2025-12-14 16:21 - mmm-23 now active; release prepare script rewrites internal/environment.go placeholders (version + API keys + HELP_URL) but Go build still hardcodes REPL_* defaults—need ldflags-driven versioning + env helpers wired into CLI/help output.
+### 2025-12-14 16:21 - mmm-23 now active; release prepare script rewrites internal/environment.go placeholders (version + API keys + HELP_URL) but Go build still hardcodes REPL_* defaults - need ldflags-driven versioning + env helpers wired into CLI/help output.
 ### 2025-12-14 16:30 - Wired HELP_URL helper + Cobra help footer mirroring Node CLI; ended up keeping helper as placeholder-only (no runtime env lookup) because release scripts still replace REPL_* directly; tests cover footer contains REPL_HELP_URL.
 ### 2025-12-14 17:08 - Ready list reviewed; plan to tackle mmm-21 (retry body leak) next since it's the lone P1 bug blocking network stability work.
 ### 2025-12-14 17:12 - mmm-21 resolved via `drainAndClose` helper + regression test checking retry responses are drained/closed; remembered to cover nil bodies to keep coverage at 100%.
@@ -348,7 +348,7 @@ Scan lookup strategy discussion: recommended “preferred-first, fallback-on-mis
 Alignment for mmm-11: implement scan as preferred-first fallback-on-miss; reuse existing Go `.mmmignore`/`**/*.disabled` matcher for scan/prune/install consistency (even if it differs from Node glob semantics); and avoid re-implementing persistence by extracting add’s core “write config+lock” logic into an internal package so scan can reuse the same behavior (scan differs only in that the jar is already present locally).
 
 ### 2025-12-17 23:02 - [memory]
-Follow-up decision: scan should handle “half-state” mods by performing a partial add/update—if a mod exists in config but is missing from the lock (or lock details are mismatched), scan should fill/fix the missing bits so config+lock match the installed file.
+Follow-up decision: scan should handle "half-state" mods by performing a partial add/update - if a mod exists in config but is missing from the lock (or lock details are mismatched), scan should fill/fix the missing bits so config+lock match the installed file.
 
 ### 2025-12-17 23:13 - [memory]
 Started implementing the “ensure mod is fully set up” refactor: added `internal/modsetup` (service providing EnsureConfigAndLock + EnsureDownloaded + EnsurePersisted) and rewired `cmd/mmm/add` to delegate download/persist work to it while keeping CLI/TUI + perf spans + telemetry in the command layer. Added unit tests for `internal/modsetup` to keep internal coverage at 100%.
@@ -901,3 +901,6 @@ Resumed mmm-63.59 coverage push. Loaded project docs and remote agent guidance, 
 
 ### [2025-12-21 12:09] - [memory]
 - mmm-63.45: appended requirement updates to ticket and closed it.
+
+### [2025-12-21 12:13] - [memory]
+- mmm-63.46: replaced non-ASCII dashes in AGENTS.md and memory.md per ASCII punctuation rule.
