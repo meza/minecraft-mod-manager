@@ -922,3 +922,20 @@ Resumed mmm-63.59 coverage push. Loaded project docs and remote agent guidance, 
 
 ### [2025-12-21 14:09] - [memory]
 - Addressed code-review.md feedback for mmm-63.34 by hardening timeout tests and rerunning make test (10x) and make coverage.
+
+### [2025-12-21 15:02] - [memory]
+- Started new session; reviewed persona/quality docs and ADR guidance. Awaiting next task selection (will check bd ready list).
+### [2025-12-21 15:05] - [memory]
+- Began mmm-63.12 alignment pass: read persona + Beads, CONTRIBUTING, requirements/specs/platform docs, ADRs, and scanned timeout-related code/doc state. Issue appears already closed with timeout policy in internal/httpClient/README.md and helpers in internal/httpClient/timeouts.go. Pending alignment with user on whether any further work is expected.
+### [2025-12-21 15:08] - [memory]
+- Appended alignment confirmation to mmm-63.12 via bd update; ready list checked for next recommendation.
+### [2025-12-21 15:09] - [memory]
+- Started mmm-63.1 alignment pass: reviewed ticket, cmd/mmm/test concurrency in tests, and lifecycle reset/signal listener race; preparing alignment questions before implementation.
+### [2025-12-21 15:14] - [memory]
+- mmm-63.1 alignment set: broader production hardening accepted; add opt-in make test-race target (separate from coverage tool). Ticket updated with decisions; proceeding to implementation.
+### [2025-12-21 15:18] - [memory]
+- mmm-63.1 implementation done: fixed races in cmd/mmm/test and cmd/mmm/update tests, hardened lifecycle listener teardown, added make test-race target and optional doc note; ran make test and make test-race; updated ticket with implementation notes.
+### [2025-12-21 15:30] - [memory]
+- mmm-63.1 follow-up: added lifecycle listener stop-path test hook and coverage test; make coverage now passes; make test-race passes; lint still failing due to existing repo-wide findings; ticket updated with verification notes.
+### [2025-12-21 15:47] - [memory]
+- Addressed code-review.md feedback: added CI race test step and noted Windows verification pending; updated code-review.md with response.

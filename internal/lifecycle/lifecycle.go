@@ -20,16 +20,19 @@ var (
 	handlerCounter atomic.Int64
 
 	startOnce  sync.Once
+	listenerMu sync.Mutex
 	signalChan chan os.Signal
+	stopChan   chan struct{}
 
 	handlersMu sync.RWMutex
 	handlers   = make(map[HandlerID]Handler)
 	order      []HandlerID
 
-	channelFactory = newSignalChan
-	notifyFunc     = signal.Notify
-	stopFunc       = signal.Stop
-	exitFunc       = os.Exit
+	channelFactory  = newSignalChan
+	notifyFunc      = signal.Notify
+	stopFunc        = signal.Stop
+	exitFunc        = os.Exit
+	listenerStopped = func() {}
 )
 
 // Register adds a handler that will run when a shutdown signal arrives.
@@ -71,13 +74,25 @@ func Unregister(id HandlerID) {
 }
 
 func startListener() {
+	listenerMu.Lock()
 	signalChan = channelFactory()
-	notifyFunc(signalChan, defaultSignals...)
+	stopChan = make(chan struct{})
+	localSignalChan := signalChan
+	localStopChan := stopChan
+	localListenerStopped := listenerStopped
+	listenerMu.Unlock()
+
+	notifyFunc(localSignalChan, defaultSignals...)
 
 	go func() {
-		sig := <-signalChan
-		runHandlers(sig)
-		exitFunc(exitCode(sig))
+		defer localListenerStopped()
+		select {
+		case sig := <-localSignalChan:
+			runHandlers(sig)
+			exitFunc(exitCode(sig))
+		case <-localStopChan:
+			return
+		}
 	}()
 }
 
@@ -120,10 +135,19 @@ func exitCode(sig os.Signal) int {
 
 // reset clears global state (tests only).
 func reset() {
-	if signalChan != nil {
-		stopFunc(signalChan)
-	}
+	listenerMu.Lock()
+	localSignalChan := signalChan
+	localStopChan := stopChan
 	signalChan = nil
+	stopChan = nil
+	listenerMu.Unlock()
+
+	if localSignalChan != nil {
+		stopFunc(localSignalChan)
+	}
+	if localStopChan != nil {
+		close(localStopChan)
+	}
 
 	startOnce = sync.Once{}
 	handlerCounter.Store(0)
@@ -145,4 +169,5 @@ func restoreFactories() {
 	notifyFunc = signal.Notify
 	stopFunc = signal.Stop
 	exitFunc = os.Exit
+	listenerStopped = func() {}
 }

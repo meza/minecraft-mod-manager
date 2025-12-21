@@ -112,7 +112,6 @@ func TestExitCode1WhenSomeModsUnsupported(t *testing.T) {
 	cmd.SetOut(out)
 	cmd.SetErr(errOut)
 
-	callCount := 0
 	exitCode, err := runTest(context.Background(), cmd, testOptions{
 		ConfigPath:  meta.ConfigPath,
 		GameVersion: "1.22.0",
@@ -123,7 +122,6 @@ func TestExitCode1WhenSomeModsUnsupported(t *testing.T) {
 			Modrinth: noopDoer{},
 		},
 		fetchMod: func(ctx context.Context, p models.Platform, id string, opts platform.FetchOptions, clients platform.Clients) (platform.RemoteMod, error) {
-			callCount++
 			if id == "proj-2" {
 				return platform.RemoteMod{}, &platform.NoCompatibleFileError{Platform: p, ProjectID: id}
 			}

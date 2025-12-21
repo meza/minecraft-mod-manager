@@ -30,6 +30,9 @@ jobs:
       - name: Check coverage
         run: make coverage
 
+      - name: Race tests
+        run: make test-race
+
       - name: Build Distributables
         run: make build
         env:

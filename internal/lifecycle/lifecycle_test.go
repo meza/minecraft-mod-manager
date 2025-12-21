@@ -88,6 +88,34 @@ func TestResetStopsSignalListener(t *testing.T) {
 	}
 }
 
+func TestResetStopsListenerGoroutine(t *testing.T) {
+	reset()
+	defer reset()
+
+	done := make(chan struct{})
+	listenerStopped = func() { close(done) }
+
+	exitCalled := make(chan int, 1)
+	exitFunc = func(code int) { exitCalled <- code }
+
+	channelFactory = func() chan os.Signal { return make(chan os.Signal, 1) }
+	Register(func(os.Signal) {})
+
+	reset()
+
+	select {
+	case <-done:
+	case <-time.After(time.Second):
+		t.Fatal("listener goroutine did not stop")
+	}
+
+	select {
+	case code := <-exitCalled:
+		t.Fatalf("exit called with code %d", code)
+	default:
+	}
+}
+
 func TestResetWhenNoListenerIsActive(t *testing.T) {
 	reset()
 	defer reset()

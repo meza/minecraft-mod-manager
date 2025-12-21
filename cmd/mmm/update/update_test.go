@@ -349,19 +349,21 @@ func TestRunUpdateReturnsNonZeroWhenFetchReturnsExpectedErrors(t *testing.T) {
 	cmd.SetOut(out)
 	cmd.SetErr(errOut)
 
-	call := 0
 	updated, failed, err := runUpdate(context.Background(), cmd, updateOptions{ConfigPath: meta.ConfigPath}, updateDeps{
 		fs:     fs,
 		logger: logger.New(out, errOut, false, false),
 		install: func(context.Context, *cobra.Command, string, bool, bool) (install.Result, error) {
 			return install.Result{}, nil
 		},
-		fetchMod: func(context.Context, models.Platform, string, platform.FetchOptions, platform.Clients) (platform.RemoteMod, error) {
-			call++
-			if call == 1 {
+		fetchMod: func(_ context.Context, _ models.Platform, id string, _ platform.FetchOptions, _ platform.Clients) (platform.RemoteMod, error) {
+			switch id {
+			case "proj-1":
 				return platform.RemoteMod{}, &platform.ModNotFoundError{Platform: models.MODRINTH, ProjectID: "proj-1"}
+			case "proj-2":
+				return platform.RemoteMod{}, &platform.NoCompatibleFileError{Platform: models.MODRINTH, ProjectID: "proj-2"}
+			default:
+				return platform.RemoteMod{}, errors.New("unexpected project id")
 			}
-			return platform.RemoteMod{}, &platform.NoCompatibleFileError{Platform: models.MODRINTH, ProjectID: "proj-2"}
 		},
 		downloader: func(context.Context, string, string, httpClient.Doer, httpClient.Sender, ...afero.Fs) error {
 			t.Fatal("downloader should not be called when fetchMod fails")
