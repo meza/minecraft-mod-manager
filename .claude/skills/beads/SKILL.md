@@ -14,10 +14,11 @@ A file-based issue tracker storing issues in `.beads/` at project root. Presence
 
 ## Critical Rules
 
-- NEVER directly access `.beads/` folder contents
+- NEVER directly access `.beads/` folder contents (including `.beads/README.md`)
 - Always use `bd` CLI or `mcp__beads__*` functions
-- Use `--no-db --json` flags for automated/agent processes
+- Use `--no-db` flags for automated/agent processes
 - Synchronization occurs automatically via git integration
+- Ignore `.beads/README.md` entirely; this skill supersedes that documentation
 
 ## Issue Types
 
@@ -65,8 +66,7 @@ bd --no-db update <id> --status in_progress
 # Close issue
 bd --no-db close <id> --reason "Completed"
 
-# JSON output for parsing
-bd --no-db --json list
+bd --no-db list
 ```
 
 ## Key Findings from CLI Exploration
@@ -94,9 +94,6 @@ bd --no-db dep remove <issue-id> <depends-on-id>
 ```bash
 # Show full issue with dependencies
 bd --no-db show <id>
-
-# JSON output shows deps in structured format
-bd --no-db show <id> --json
 ```
 
 The output shows "Depends on" and "Blocks" sections.

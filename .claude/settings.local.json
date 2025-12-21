@@ -6,5 +6,58 @@
       "Bash",
       "Skill"
     ]
+  },
+  "hooks": {
+    "PreToolUse": [
+      {
+        "matcher": "Task",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "echo '\\n=== AGENT SPAWN ===' >> ~/.claude/agent-debug.log && date >> ~/.claude/agent-debug.log && jq '{session: .session_id, tool_use_id: .tool_use_id, cwd: .cwd, type: .tool_input.subagent_type, desc: .tool_input.description, prompt: .tool_input.prompt, resume: .tool_input.resume, background: .tool_input.run_in_background, model: .tool_input.model}' >> ~/.claude/agent-debug.log"
+          }
+        ]
+      },
+      {
+        "matcher": "*",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "jq -c '{ts: now|todate, tool: .tool_name, id: .tool_use_id, input: .tool_input}' >> ~/.claude/all-tools.jsonl"
+          }
+        ]
+      }
+    ],
+    "PostToolUse": [
+      {
+        "matcher": "Task",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "echo '\\n=== AGENT RETURNED ===' >> ~/.claude/agent-debug.log && date >> ~/.claude/agent-debug.log && jq '{session: .session_id, tool_use_id: .tool_use_id, type: .tool_input.subagent_type, desc: .tool_input.description, response: .tool_response}' >> ~/.claude/agent-debug.log"
+          }
+        ]
+      },
+      {
+        "matcher": "*",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "jq -c '{ts: now|todate, tool: .tool_name, id: .tool_use_id, response: .tool_response}' >> ~/.claude/all-tools-results.jsonl"
+          }
+        ]
+      }
+    ],
+    "SubagentStop": [
+      {
+        "matcher": "",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "echo '\\n=== AGENT STOP ===' >> ~/.claude/agent-debug.log && date >> ~/.claude/agent-debug.log && jq '.' >> ~/.claude/agent-debug.log"
+          }
+        ]
+      }
+    ]
   }
 }
