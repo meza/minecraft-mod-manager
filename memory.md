@@ -904,3 +904,9 @@ Resumed mmm-63.59 coverage push. Loaded project docs and remote agent guidance, 
 
 ### [2025-12-21 12:13] - [memory]
 - mmm-63.46: replaced non-ASCII dashes in AGENTS.md and memory.md per ASCII punctuation rule.
+
+### [2025-12-21 12:22] - [memory]
+- mmm-63.47: replaced cmd/bat patterns, added Common.gitattributes content, and added *.md linguist-detectable plus *.go -text diff=golang.
+
+### [2025-12-21 12:25] - [memory]
+- mmm-63.53: added .github/CODEOWNERS with single owner @meza; updated ticket requirements.
