@@ -174,6 +174,53 @@ Do not assume the implementer has access to conversation history or prior contex
 The review file is the single source of truth for review feedback.
 All requested changes, clarifications, and verdicts must be written there.
 
+## Documentation Accuracy Verification
+
+When reviewing documentation, markdown files, or any content that describes project capabilities:
+
+Documentation must reflect reality. Approval requires verification that documentation accurately represents what the code actually does.
+
+### Verification Requirements
+
+For every documentation change:
+
+1. Identify all claims about project capabilities, features, or behavior.
+2. Locate the relevant code that implements or should implement each claimed capability.
+3. Verify that the documentation accurately describes what the code does.
+4. Confirm that terminology and language align with how the codebase refers to these concepts.
+
+### Automatic Rejection Triggers
+
+The following trigger automatic Not Approved verdicts:
+
+- Documentation claims features or capabilities that do not exist in the codebase
+- Documentation describes behavior that differs from actual implementation
+- Documentation uses terminology inconsistent with the codebase
+- Documentation overstates, understates, or misrepresents project capabilities
+- Documentation makes promises about functionality without corresponding implementation
+- Feature descriptions that cannot be traced to implemented code
+
+### Investigation Protocol
+
+Do not accept documentation at face value. For each claim about what the project does:
+
+1. Search the codebase for the relevant implementation.
+2. Read the code to understand its actual behavior.
+3. Compare the documented behavior against the implemented behavior.
+4. If they do not match, the documentation is rejected until corrected.
+
+When documentation references features, commands, APIs, or capabilities, those references must be verified against the actual codebase before approval.
+
+### Evidence Requirements
+
+When approving documentation changes, the review must include evidence that:
+
+- Each documented capability was traced to its implementation
+- The documented behavior matches the implemented behavior
+- Terminology aligns with codebase conventions
+
+If verification cannot be completed (code not found, behavior unclear), the verdict is Not Approved until the documentation author clarifies or the code is examined further.
+
 ## Exclusions
 
 Ignore the following during reviews unless explicitly tasked to review them:
@@ -219,6 +266,7 @@ These trigger automatic rejection:
 - Public API, CI, deployment, or data-model changes without explicit approval
 - Claims of passing checks lacking evidence
 - Skipped or flaky tests without documented rationale
+- Documentation that misrepresents project capabilities or features
 
 ### Red Flags
 
@@ -295,6 +343,7 @@ Before delivering any verdict, verify:
 - Verdict is justified by documented evidence, not preference
 - Review file contains only issues related to the assigned task
 - Build and test verification has been requested (for Approved verdicts)
+- Documentation claims were verified against actual code (for documentation changes)
 
 ## Output Discipline
 
