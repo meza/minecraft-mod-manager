@@ -770,7 +770,7 @@ func TestShutdownTimeoutLogs(t *testing.T) {
 	resetTelemetryState(t)
 
 	logger := &recordingLogger{}
-	client := &stubClient{closeDelay: 20 * time.Millisecond}
+	client := &stubClient{closeDelay: 250 * time.Millisecond}
 	baseLogger = logger
 	baseFlushTimeout = 5 * time.Millisecond
 	clientBuilder = func(apiKey, endpoint string) (Client, error) { return client, nil }
@@ -782,7 +782,30 @@ func TestShutdownTimeoutLogs(t *testing.T) {
 	Shutdown(nil)
 	duration := time.Since(start)
 
-	assert.Less(t, duration, 20*time.Millisecond)
+	assert.Less(t, duration, 10*baseFlushTimeout)
+	assert.Less(t, duration, client.closeDelay)
+	joined := strings.Join(logger.messages, "\n")
+	assert.Contains(t, joined, "timed out")
+}
+
+func TestShutdownTimeoutLogsWithContextWithoutDeadline(t *testing.T) {
+	resetTelemetryState(t)
+
+	logger := &recordingLogger{}
+	client := &stubClient{closeDelay: 250 * time.Millisecond}
+	baseLogger = logger
+	baseFlushTimeout = 5 * time.Millisecond
+	clientBuilder = func(apiKey, endpoint string) (Client, error) { return client, nil }
+	machineIDProvider = func() (string, error) { return "machine", nil }
+	t.Setenv("POSTHOG_API_KEY", "key")
+	Init()
+
+	start := time.Now()
+	Shutdown(context.Background())
+	duration := time.Since(start)
+
+	assert.Less(t, duration, 10*baseFlushTimeout)
+	assert.Less(t, duration, client.closeDelay)
 	joined := strings.Join(logger.messages, "\n")
 	assert.Contains(t, joined, "timed out")
 }

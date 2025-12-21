@@ -916,3 +916,9 @@ Resumed mmm-63.59 coverage push. Loaded project docs and remote agent guidance, 
 
 ### [2025-12-21 12:36] - [memory]
 - mmm-63.55: added .github/FUNDING.yml with ko_fi: meza; updated ticket requirements.
+
+### [2025-12-21 13:54] - [memory]
+- mmm-63.34: Shutdown now applies flush timeout even when ctx has no deadline; added test for context.Background() timeout logging.
+
+### [2025-12-21 14:09] - [memory]
+- Addressed code-review.md feedback for mmm-63.34 by hardening timeout tests and rerunning make test (10x) and make coverage.

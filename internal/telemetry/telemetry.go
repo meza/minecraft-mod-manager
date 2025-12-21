@@ -378,9 +378,14 @@ func Shutdown(ctx context.Context) {
 		sessionName := resolveSessionName(sessionNameHint, canonicalCommand, commands)
 		captureWithSnapshot(snapshot, sessionName, properties)
 
+		var cancel context.CancelFunc
 		if ctx == nil {
-			var cancel context.CancelFunc
-			ctx, cancel = context.WithTimeout(context.Background(), snapshot.flushTimeout)
+			ctx = context.Background()
+		}
+		if _, hasDeadline := ctx.Deadline(); !hasDeadline {
+			ctx, cancel = context.WithTimeout(ctx, snapshot.flushTimeout)
+		}
+		if cancel != nil {
 			defer cancel()
 		}
 
