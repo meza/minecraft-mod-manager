@@ -910,3 +910,6 @@ Resumed mmm-63.59 coverage push. Loaded project docs and remote agent guidance, 
 
 ### [2025-12-21 12:25] - [memory]
 - mmm-63.53: added .github/CODEOWNERS with single owner @meza; updated ticket requirements.
+
+### [2025-12-21 12:29] - [memory]
+- mmm-63.54: added .github/pull_request_template.md and SUPPORT.md; updated ticket requirements.
