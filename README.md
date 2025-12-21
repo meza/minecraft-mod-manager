@@ -353,6 +353,10 @@ The value of this could be an absolute path or a relative path.
 
 We recommend you use relative paths as they are more portable.
 
+Important: `modsFolder` is treated as trusted configuration. MMM writes and deletes files in the folder you point it at.
+Only run MMM against `modlist.json` files you trust, especially when `modsFolder` is absolute or points outside the folder
+that contains your `modlist.json`.
+
 > __PRO TIP__
 >
 > Keep the `modlist.json` file in the root of your minecraft installation. Right next to the `server.properties` file.

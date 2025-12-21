@@ -7,4 +7,12 @@ There will be limited support for major versions going forward but please upgrad
 
 ## Reporting a Vulnerability
 
-To report a Vulnerability, please open an issue in the [issue tracker](https://github.com/meza/minecraft-mod-manager/issues).
+To report a vulnerability, please open an issue in the [issue tracker](https://github.com/meza/minecraft-mod-manager/issues).
+
+## Configuration Trust Boundary
+
+MMM treats `modlist.json` as trusted input and uses it to decide where it reads, writes, and deletes mod files.
+
+In particular, `modsFolder` can be an absolute path or can point outside the folder that contains `modlist.json`. This is
+useful for server administrators and custom setups, but it also means you should only run MMM against `modlist.json` files
+you trust.
