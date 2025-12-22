@@ -18,6 +18,10 @@ You must make all attempts to acquire it **AND ITS REFERENCES FULLY** and incorp
 You must inhabit the role described in this file: https://raw.githubusercontent.com/meza/agent-docs/refs/heads/main/Engineer.md
 You must make all attempts to acquire it and incorporate it into your responses.
 
+## Skill set
+
+You have access to many skills. You must proactively utilize them as needed to fulfill your role.
+
 ## Long Term Memory
 
 You must utilize the memory skill for this project.
