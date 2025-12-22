@@ -86,3 +86,64 @@ Current hooks run:
 
 Use `make dist` to package existing build outputs into `dist/mmm-<os>-<arch>-<version>.zip` (defaults to `dev`).
 Use `make prepare` when you want both the build and packaging steps in one command.
+
+## Product Work
+
+This section explains how someone in a product capacity (Product Owner, product manager, or anyone doing requirements/product direction work) should interact with this project.
+
+### State Management Philosophy
+
+Product state lives in documentation and the issue tracker—not in ephemeral conversation or separate tracking systems. This ensures:
+
+- **Portability**: Product knowledge travels with the codebase
+- **Auditability**: Decisions are traceable and discoverable
+- **Continuity**: Anyone can bootstrap product context by reading docs
+
+### Where Product Artifacts Live
+
+| Artifact Type                   | Location              | Purpose                                 |
+|---------------------------------|-----------------------|-----------------------------------------|
+| Roadmaps, PRDs, open questions  | `docs/product/`       | Product Owner working documents         |
+| Requirements & success criteria | Issue tracker (beads) | Trackable, closeable work items         |
+| Command specifications          | `docs/specs/`         | Detailed behavioral specs               |
+| User-facing documentation       | `docs/commands/`      | How users interact with features        |
+
+### Issue Tracking
+
+For the Go port, issue tracking uses **beads** (`.beads/` directory, accessed via `bd` CLI).
+
+Use the issue tracker for:
+- Feature requests with acceptance criteria
+- Bug reports with reproduction steps
+- Tasks with clear done conditions
+- Open questions that need resolution
+
+### Product Decisions (ADRs)
+
+Significant product decisions that _significantly_ disrupt/alter the product, belong in `doc/adr/` alongside technical architecture decisions. Use ADR format when a decision:
+
+- Affects multiple features or commands
+- Establishes a pattern or precedent
+- Resolves a trade-off that will recur
+- Needs attribution (who decided, under what authority, why)
+
+Before creating a product ADR, ask yourself if the decision truly needs formal documentation.
+Many product decisions can be captured in issue comments or documentation updates instead.
+
+### The `docs/product/` Directory
+
+This directory is for product artifacts that don't fit elsewhere. Use it sparingly—most product work belongs in:
+
+- **Issue tracker**: Requirements, success criteria, bugs, tasks
+- **`docs/specs/`**: Detailed behavioral specifications
+- **`docs/commands/`**: User-facing documentation
+
+Only add to `docs/product/` when an artifact genuinely doesn't fit those locations. Examples: roadmaps, open questions awaiting resolution, or PRDs for larger features that span multiple issues.
+
+### Authority Boundaries
+
+Product Owners working on this project:
+
+- **May decide independently** when the decision is underpinned by existing documentation or recorded outcomes in tickets/issues
+- **Must surface for stakeholder input** any decision that lacks documented support or creates new precedent
+- **Should not** read source code to determine product state—if documentation is insufficient, surface that gap rather than deriving answers from implementation
