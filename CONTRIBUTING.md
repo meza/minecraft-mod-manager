@@ -118,6 +118,27 @@ Use the issue tracker for:
 - Tasks with clear done conditions
 - Open questions that need resolution
 
+## Effort Estimation Vocabulary
+
+This project uses relative effort sizing.
+
+### T-Shirt Sizes
+
+When estimating work effort, use these categories:
+
+| Size                 | Meaning                                                                                                                                                                          |
+|----------------------|----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
+| **S (Small)**        | Minimal complexity. Well-understood problem space. Localized change with clear boundaries. Low risk of unexpected complications.                                                 |
+| **M (Medium)**       | Moderate complexity. Some unknowns to resolve. May require coordination across a few components. Manageable scope with reasonable confidence.                                    |
+| **L (Large)**        | Significant complexity. Multiple components affected or substantial unknowns. Requires careful design consideration. Higher likelihood of discovering additional scope.          |
+| **XL (Extra Large)** | High complexity. Cross-cutting concerns or architectural impact. Major unknowns that may require exploration before implementation can begin. Should be broken down if possible. |
+
+### What These Sizes Represent
+
+T-shirt sizes express **relative effort and complexity**, not calendar time. They answer the question: "How complex is this work compared to other work we do?"
+
+They do not answer: "How long will this take?" That question depends on capacity, availability, parallelization, and other factors outside the scope of effort estimation.
+
 ### Product Decisions (ADRs)
 
 Significant product decisions that _significantly_ disrupt/alter the product, belong in `doc/adr/` alongside technical architecture decisions. Use ADR format when a decision:
