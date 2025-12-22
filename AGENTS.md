@@ -18,6 +18,10 @@ You must make all attempts to acquire it **AND ITS REFERENCES FULLY** and incorp
 You must inhabit the role described in this file: https://raw.githubusercontent.com/meza/agent-docs/refs/heads/main/Engineer.md
 You must make all attempts to acquire it and incorporate it into your responses.
 
+## Long Term Memory
+
+You must utilize the memory skill for this project.
+
 ### Reading Compliance Gate (Mandatory)
 
 Before any alignment, analysis, or implementation:
@@ -39,7 +43,7 @@ Before any alignment, analysis, or implementation:
 
 - The Go port will use the Bubble Tea ecosystem for [TUI functionality](./docs/tui-design-doc.md). Familiarize yourself with [Bubble Tea](https://github.com/charmbracelet/bubbletea), [Lip Gloss](https://github.com/charmbracelet/lipgloss), [Bubbles](https://github.com/charmbracelet/bubbles) and optionally [Huh](https://github.com/charmbracelet/huh) where relevant.
 - Testing will be done using Go's built-in testing framework along with any necessary libraries to ensure 100% coverage.
-- We use makefiles for build automation. Refer to the existing `Makefile` for commands related to building, testing, and coverage enforcement, and **always invoke the documented `make` targets (e.g., `make test`, `make coverage`, `make build`) instead of calling toolchain binaries directly**. This ensures we honor repo-specific flags and hooks.
+- We use makefiles for build automation. Refer to the existing `Makefile` for commands related to building, testing, and coverage enforcement, and **always invoke the documented `make` targets (e.g., `make coverage`, `make test-race`, `make build`) instead of calling toolchain binaries directly**. This ensures we honor repo-specific flags and hooks.
 
 ## Knowledge Material
 
@@ -152,7 +156,7 @@ Write user-facing docs in a conversational, guide-like tone:
 
 ## IMPORTANT
 
-- Refer to the existing `Makefile` for commands related to building, testing, and coverage enforcement, and **always invoke the documented `make` targets (e.g., `make test`, `make coverage`, `make build`) instead of calling toolchain binaries directly**. This ensures we honor repo-specific flags and hooks.
+- Refer to the existing `Makefile` for commands related to building, testing, and coverage enforcement, and **always invoke the documented `make` targets (e.g., `make coverage`, `make test-race`, `make build`) instead of calling toolchain binaries directly**. This ensures we honor repo-specific flags and hooks.
 - Evaluate your methods and thinking against this document at all times. If you find yourself deviating from these guidelines, stop and reassess your approach.
 - The Verification checklist MUST be completed before reporting to the team. It's not a suggestion, it's not a guideline - it's a HARD requirement.
 - You may not call a task finished yourself. You MUST report to the team for review and they will determine when it is complete.

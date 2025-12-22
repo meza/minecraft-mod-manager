@@ -40,17 +40,6 @@ This prompt is handled by `terminalPrompter` in `init.go` and is separate from t
 
 ## Testing and snapshots
 
-Run the full suite from the repo root:
-
-```bash
-make test
-```
-
-If you change TUI rendering, update snapshots with:
-
-```bash
-UPDATE_SNAPS=true make test
-```
+See `CONTRIBUTING.md` for required test/coverage checks and snapshot update instructions.
 
 Snapshots live under `cmd/mmm/init/__snapshots__/` and tests set `MMM_TEST=true` so i18n output is stable.
-

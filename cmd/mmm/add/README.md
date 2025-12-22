@@ -55,16 +55,6 @@ If the user is piping/redirecting output, or running in CI, we intentionally sta
 
 ## Testing and snapshots
 
-Run the full suite from the repo root:
-
-```bash
-make test
-```
-
-If you change the TUI rendering, update snapshots with:
-
-```bash
-UPDATE_SNAPS=true make test
-```
+See `CONTRIBUTING.md` for required test/coverage checks and snapshot update instructions.
 
 Snapshots for this command live at `cmd/mmm/add/__snapshots__/tui_test.snap`. Tests set `MMM_TEST=true` so i18n renders stable translation keys in snapshots.

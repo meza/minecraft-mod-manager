@@ -26,9 +26,4 @@ For the user-facing explanation of `modlist.json` and `modlist-lock.json`, see t
 
 ## Tests
 
-Run from the repo root:
-
-```bash
-make test
-```
-
+See `CONTRIBUTING.md` for required test/coverage checks and snapshot update instructions.

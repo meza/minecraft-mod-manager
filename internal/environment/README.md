@@ -53,8 +53,4 @@ The root `README.md` documents how users set env vars like `MMM_DISABLE_TELEMETR
 
 ## Tests
 
-Run from the repo root:
-
-```bash
-make test
-```
+See `CONTRIBUTING.md` for required test/coverage checks and snapshot update instructions.

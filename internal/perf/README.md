@@ -192,8 +192,4 @@ defer span.End()
 
 ## Tests
 
-Run from the repo root:
-
-```bash
-make test
-```
+See `CONTRIBUTING.md` for required test/coverage checks and snapshot update instructions.

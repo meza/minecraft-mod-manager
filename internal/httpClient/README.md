@@ -41,8 +41,4 @@ Call sites should wrap each request with the appropriate helper instead of relyi
 
 ## Tests
 
-Run from the repo root:
-
-```bash
-make test
-```
+See `CONTRIBUTING.md` for required test/coverage checks and snapshot update instructions.

@@ -35,7 +35,7 @@ Snapshot tests are your regression harness for UX. They should treat the TUI as 
 - Always set `MMM_TEST=true` in snapshot tests so i18n returns stable "key + vars" output (instead of translated text).
 - Use `github.com/charmbracelet/x/exp/teatest` to run the model and send key messages.
 - Snapshot `model.View()` (or stdout if you are testing the whole command wrapper) using go-snaps.
-- Update snapshots with `UPDATE_SNAPS=true make test`.
+- To update snapshots, follow the instructions in `CONTRIBUTING.md`.
 
 Example (from `cmd/mmm/add/tui_test.go`):
 
@@ -195,4 +195,3 @@ Aim for a clean, compact aesthetic with minimal borders, consistent padding and 
 * Real Python: **Python Textual – Build Beautiful UIs in the Terminal** — [https://realpython.com/python-textual/](https://realpython.com/python-textual/)
 * Teatutor Deep Dive — [https://zackproser.com/blog/teatutor-deepdive](https://zackproser.com/blog/teatutor-deepdive)
 * Bubble Tea guide (Obsidian vault) — [https://publish.obsidian.md/manuel/Wiki/Programming/bubbletea](https://publish.obsidian.md/manuel/Wiki/Programming/bubbletea)
-

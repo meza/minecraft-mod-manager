@@ -64,9 +64,4 @@ For the user-facing shape of these files, see the root `README.md` and `docs/req
 
 ## Tests
 
-Run from the repo root:
-
-```bash
-make test
-```
-
+See `CONTRIBUTING.md` for required test/coverage checks and snapshot update instructions.

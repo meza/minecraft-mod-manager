@@ -33,12 +33,11 @@ These clarifications reduce some "mismatch" items from blockers to documentation
 
 ## Verification Artifacts (executed locally)
 
-- `make test` (pass)
-- `make coverage-enforce` (pass)
+- `make coverage` (pass)
 - `make build` (pass)
 - `go vet ./...` (pass)
 - `go mod verify` (pass)
-- `go test -race ./...` (fails; data races detected in tests and test-only harness code)
+- `make test-race` (fails; data races detected in tests and test-only harness code)
 - `staticcheck ./...` (findings; see Tooling)
 - `govulncheck -scan=module` and `govulncheck -scan=package ./...` (findings; see Security)
 - `govulncheck -scan=symbol ./...` fails with an internal type-checking error (toolchain/library incompatibility; see Security)
@@ -1083,7 +1082,7 @@ Confidence: Medium (impact depends on how strictly the team follows these AI ins
 
 Evidence:
 
-- Only CI workflow runs `make test`, `make coverage-enforce`, and `make build`: `.github/workflows/ci.yml:27-39`.
+- Only CI workflow runs `make coverage`, `make test-race`, and `make build`: `.github/workflows/ci.yml:27-39`.
 - CI does not run:
   - `make fmt` (or any gofmt gate)
   - `go vet` / static analysis gate (`staticcheck` or `golangci-lint`)
@@ -1169,7 +1168,7 @@ Evidence:
 - Lefthook is configured to run some checks via the Go toolchain directly, not via documented `make` targets:
   - `go mod tidy` runs directly: `lefthook.yml:12-15`.
   - `go vet` runs directly: `lefthook.yml:16-21`.
-- Only one hook uses the Makefile gate (`make coverage-enforce`): `lefthook.yml:9-11`.
+- Only one hook uses the Makefile gate (`make coverage`): `lefthook.yml:9-11`.
 
 Impact:
 
@@ -1178,7 +1177,7 @@ Impact:
 
 Remediation:
 
-- Prefer driving hook behavior through the Makefile (for example: `make fmt`, `make test`, `make coverage-enforce`, and a `make tidy` target) so local and CI behavior stays aligned.
+- Prefer driving hook behavior through the Makefile (for example: `make fmt`, `make coverage`, `make test-race`, and a `make tidy` target) so local and CI behavior stays aligned.
 - If `go mod tidy` remains a hook, document the expected Go toolchain version and the intended policy for go.mod/go.sum changes.
 
 Confidence: High (direct file evidence).
@@ -1269,7 +1268,7 @@ Confidence: High (direct code-path evidence).
 Evidence:
 
 - The only workflow does not include an explicit `actions/checkout` step: `.github/workflows/ci.yml:19-39`.
-- The workflow uses a custom action `meza/action-go-setup@main` (unpinned) and then immediately runs `make test` / `make build`: `.github/workflows/ci.yml:20-38`.
+- The workflow uses a custom action `meza/action-go-setup@main` (unpinned) and then immediately runs `make coverage` / `make build`: `.github/workflows/ci.yml:20-38`.
 
 Impact:
 
@@ -1391,7 +1390,7 @@ Impact:
 
 Remediation:
 
-- Add `.github/pull_request_template.md` with a minimal checklist aligned to repo gates (`make test`, `make coverage-enforce`, `make build`) and explicit "no secrets in logs" reminder.
+- Add `.github/pull_request_template.md` with a minimal checklist aligned to repo gates (`make coverage`, `make test-race`, `make build`) and explicit "no secrets in logs" reminder.
 - Add `SUPPORT.md` (or equivalent) pointing users to discussions for questions, issues for confirmed bugs, and the private security reporting channel for vulnerabilities.
 
 Confidence: Medium (absence-of-file finding is easy to verify, but impact depends on current maintainer workflow).
@@ -1430,7 +1429,7 @@ Impact:
 
 Remediation:
 
-- Update `CONTRIBUTING.md` to reflect current Go workflow (`make fmt`, `make test`, `make coverage-enforce`, `make build`) and clarify whether Conventional Commits are actually enforced today.
+- Update `CONTRIBUTING.md` to reflect current Go workflow (`make fmt`, `make coverage`, `make test-race`, `make build`) and clarify whether Conventional Commits are actually enforced today.
 
 Confidence: High.
 
@@ -1483,7 +1482,7 @@ Confidence: High.
 
 Evidence:
 
-- `make coverage-enforce` only runs coverage over `./internal/...`: `Makefile:204-208`.
+- `make coverage` enforces 100% coverage (see `Makefile` target `coverage` and `tools/coverage`).
 
 Impact:
 
@@ -1925,7 +1924,7 @@ This section lists Go-centric tools that can be used to continuously enforce the
 - Tests:
   - `go test ./...` (already a CI gate).
   - `go test -race ./...` (should be a CI gate once races are fixed; today it fails and is a blocker).
-  - Coverage enforcement: ensure the policy you claim is what you enforce (current `make coverage-enforce` covers `./internal/...` only).
+  - Coverage enforcement: ensure the policy you claim is what you enforce (current `make coverage` enforces 100% coverage via `tools/coverage`).
 
 ### Security automation (should run on every PR or at least daily)
 
@@ -1998,8 +1997,8 @@ This project can be considered "release-ready" only when all items below are tru
 - [ ] No blockers remain in `## Findings (prioritized)` (race-clean, release pipeline consistent, API base URL exfiltration control, and path safety addressed).
 - [ ] Every item in `## Remediation checklist (acceptance criteria and evidence)` is closed with the required evidence attached (or the maintainers explicitly document a risk acceptance decision and why).
 - [ ] CI on `main` enforces (and is required by branch protection):
-  - `make test`
-  - `make coverage-enforce` (or an updated coverage gate that matches the stated policy)
+  - `make coverage`
+  - Coverage enforcement gate that matches the stated policy
   - `make test-race` (or equivalent race gate)
   - lint gate (`staticcheck` or curated `golangci-lint`)
   - vulnerability scan gate (`govulncheck` at least module/package)
@@ -2014,7 +2013,7 @@ This project can be considered "release-ready" only when all items below are tru
 - [ ] Acceptance criteria:
   - `rg -n "MODRINTH_API_URL|CURSEFORGE_API_URL" .` returns no hits outside tests/tools (define and enforce what "test-only" means).
   - All tests that previously depended on env URL overrides are migrated to an explicit injection seam (constructor param or test-only setter).
-  - `make test` passes.
+  - `make coverage` passes.
 - [ ] Evidence to attach:
   - A short log showing the `rg` search output (no runtime hits).
   - A note describing the chosen test seam (API base URL injection mechanism) and where it is defined.
@@ -2029,7 +2028,7 @@ This project can be considered "release-ready" only when all items below are tru
     - UNC paths (`\\\\server\\share\\x`)
     - path separators in "filenames" from remote sources
   - Add unit tests that prove write paths are symlink-safe (do not follow a symlink that points outside the directory) on supported platforms, or explicitly document platform limitations and add tests for those constraints.
-  - `make test` passes.
+  - `make coverage` passes.
   - If Windows is a supported target: add tests for Windows rename/replace semantics and reparse-point behavior (at minimum: do not overwrite through symlink-like constructs).
 - [ ] Evidence to attach:
   - New/updated test names proving traversal rejection and symlink safety.
@@ -2068,7 +2067,7 @@ This project can be considered "release-ready" only when all items below are tru
   - Ensure retries:
     - retry network errors as well as selected status codes (as intended)
     - do not reuse a consumed request body (use a replayable body strategy)
-  - `make test` passes.
+  - `make coverage` passes.
 - [ ] Evidence to attach:
   - A test that simulates a non-responding handler and asserts bounded failure time.
   - A test that retries a request with a body without data corruption.
@@ -2082,7 +2081,7 @@ This project can be considered "release-ready" only when all items below are tru
     - Non-2xx statuses are treated as errors before decode.
     - JSON decode errors are returned (not ignored).
   - Add tests for each of the above in Modrinth and CurseForge clients.
-  - `make test` passes.
+  - `make coverage` passes.
 - [ ] Evidence to attach:
   - Links to the specific tests covering "bad URL", "non-200", and "bad JSON" per client.
 
@@ -2094,7 +2093,7 @@ This project can be considered "release-ready" only when all items below are tru
     - recorded telemetry payloads contain request URL fields only as allowed
     - no payload contains `test-secret` anywhere (string search over JSON payload)
   - Ensure shutdown is time-bounded even when passed a non-nil context without deadline (fix the current "timeout only when ctx==nil" behavior).
-  - `make test` passes.
+  - `make coverage` passes.
 - [ ] Evidence to attach:
   - The redaction/leak-prevention tests and a short description of the redaction strategy.
 

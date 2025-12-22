@@ -941,3 +941,6 @@ Resumed mmm-63.59 coverage push. Loaded project docs and remote agent guidance, 
 - mmm-63.1 follow-up: added lifecycle listener stop-path test hook and coverage test; make coverage now passes; make test-race passes; lint still failing due to existing repo-wide findings; ticket updated with verification notes.
 ### [2025-12-21 15:47] - [memory]
 - Addressed code-review.md feedback: added CI race test step and noted Windows verification pending; updated code-review.md with response.
+
+### [2025-12-22 00:16] - [memory]
+- Documentation cleanup: made `CONTRIBUTING.md` the single source of truth for local verification (use `make coverage`; snapshots via `UPDATE_SNAPS=true make coverage`), and removed/redirected `make test` references across maintainer docs + guidelines.

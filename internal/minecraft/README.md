@@ -26,9 +26,4 @@ This behavior matters for UX: "cannot validate" is not the same as "invalid".
 
 ## Tests
 
-Run from the repo root:
-
-```bash
-make test
-```
-
+See `CONTRIBUTING.md` for required test/coverage checks and snapshot update instructions.

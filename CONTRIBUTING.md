@@ -49,12 +49,18 @@ Run the repo `make` targets (do not call go test/go build directly):
 - `make fmt`
 - `make lint`
 - `make lint-fix`
-- `make coverage`
+- `make coverage` (runs tests and enforces 100% coverage)
 - `make build`
 
 ### Optional checks
 
 - `make test-race` (slower; use before larger concurrency changes)
+
+To update snapshots (when you change user-visible output), run:
+
+```bash
+UPDATE_SNAPS=true make coverage
+```
 
 `make coverage` runs `go test ./...` as part of the unified coverage tool. It generates `coverage.html` from the filtered profile and writes the `go tool cover -func` output to `coverage.out` (filtered when exclusions are configured), then enforces 100% coverage.
 `make lint` and `make lint-fix` always run the `golangci-lint` version pinned in `go.mod` via `go run`. The pinned tool dependency is declared in `tools.go`.

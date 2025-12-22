@@ -32,17 +32,6 @@ When it runs in TUI mode and the list is empty, it also logs the rendered view t
 
 ## Testing and snapshots
 
-Run the full suite from the repo root:
-
-```bash
-make test
-```
-
-If you change the output formatting, update snapshots with:
-
-```bash
-UPDATE_SNAPS=true make test
-```
+See `CONTRIBUTING.md` for required test/coverage checks and snapshot update instructions.
 
 Snapshots live under `cmd/mmm/list/__snapshots__/` and tests set `MMM_TEST=true` so i18n output is stable.
-

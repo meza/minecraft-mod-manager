@@ -21,9 +21,4 @@ If it is only used by one command or module, prefer keeping it close to that cod
 
 ## Tests
 
-Run from the repo root:
-
-```bash
-make test
-```
-
+See `CONTRIBUTING.md` for required test/coverage checks and snapshot update instructions.
