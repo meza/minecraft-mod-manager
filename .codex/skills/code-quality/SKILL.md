@@ -5,7 +5,11 @@ description: Framework defining what good code looks like across all dimensions.
 
 # Code Quality Framework
 
-This framework defines the intrinsic qualities that distinguish good code. Use it when:
+## Purpose
+
+This describes the intrinsic qualities that distinguish good code. It provides a reasoning framework for recognizing these qualities when reading code and aspiring to them when writing code. These qualities apply across languages and platforms.
+
+Use it when:
 
 - Writing new code and need guidance on quality standards
 - Reviewing code and need criteria for evaluation
@@ -25,7 +29,7 @@ This framework defines the intrinsic qualities that distinguish good code. Use i
 | **Safety** | No secrets, sanitized input, minimal privilege, privacy respected, accessible and inclusive |
 | **Consistency** | Follows project standards, automated enforcement |
 
-These qualities reinforce each other. Clear code is easier to test. Tested code is safer to change. Well-structured code is easier to observe. Consistent code is easier to understand.
+These qualities reinforce each other. Clear code is easier to test. Tested code is safer to change. Well-structured code is easier to observe. Consistent code is easier to understand. Good code embodies all these qualities together.
 
 ## Using This Framework
 

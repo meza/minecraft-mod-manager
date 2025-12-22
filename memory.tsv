@@ -448,3 +448,4 @@ date	time	entry
 2025-12-22	01:08	Sorted memory entries into chronological order
 2025-12-22	01:11	Converted memory.md to memory.tsv (date, time, entry columns).
 2025-12-22	01:24	Reviewed `.codex/skills/adr/SKILL.md` against upstream ADR.md and the instruction-builder rubric; updated the skill to restore missing rationale, formatting guidance, writing-style rules, explicit npx/no-global-install workflow, and clearer linking semantics.
+2025-12-22	01:35	Reviewed .codex/skills/code-quality against upstream CodeQuality.md using instruction-builder rubric; patched SKILL.md to restore missing purpose sentences (language-agnostic note, reasoning framework) and final summary sentence for completeness.
