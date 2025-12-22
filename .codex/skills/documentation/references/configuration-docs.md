@@ -1,205 +1,91 @@
-# Configuration Documentation Guide
+# Configuration documentation
 
-Configuration is a first-class documentation topic. Treat it as essential content, not an appendix.
+Configuration is where users succeed or give up. Document it as a first-class topic, not an appendix. Show people how to go from zero to a correct, safe configuration, then how to grow into advanced setups.
 
-## Documentation Structure
+## Goals
 
-### Quick Start
+Explain what can be configured, why the options exist, and how choices change behavior. Avoid option dumps without context.
 
-Begin with the minimal viable configuration. Show a working example before explaining options.
+## Placement
 
-```yaml
-# Minimal configuration to get started
-setting: value
-```
+Keep a "Configuration" section in the nearest relevant README. If the catalog is long, place a dedicated `docs/configuration.md` and link to it. Co-locate example files next to the code that consumes them.
 
-Explain what this achieves and when readers might need more.
+## Quick start configuration
 
-### Common Scenarios
+Provide a minimal, copyable example that works out of the box. Follow with a short paragraph explaining what it does and when to use it.
 
-Document real usage patterns before the option catalog. Scenarios answer "how do I..." questions:
+## Common scenarios
 
-- Development environment setup
-- Production deployment
-- Testing configuration
-- Common customizations
+Document a few real setups that map to user intent, for example "single-node dev," "replicated prod," or "behind a reverse proxy." Show the smallest viable configuration for each scenario.
 
-Each scenario should be a complete, runnable example with context.
+## Option catalog
 
-## Option Catalog
+Group options by feature or component, not alphabetically. For each option, provide the same fields in the same order so the catalog is scannable.
 
-Document every configuration option with consistent fields. Not all fields apply to every option.
+### Name
 
-### Required Fields
+Exact key as it appears in config files, CLI flags, or environment variables.
 
-| Field | Description |
-|-------|-------------|
-| **Name** | The exact key or flag name |
-| **Purpose** | What this option controls, in plain language |
-| **Type** | Data type and allowed values (string, integer, enum, etc.) |
-| **Default** | The value when not specified, or "none/required" |
-| **Required** | Whether the system fails without it |
+### Purpose
 
-### Contextual Fields
+One sentence on what behavior this option controls and why someone would change it.
 
-| Field | When to Include |
-|-------|-----------------|
-| **Sources/Precedence** | When multiple sources exist (file, env, flag) |
-| **Reload Behavior** | For runtime-changeable settings |
-| **Security Notes** | For sensitive values or security implications |
-| **Interactions** | When options affect or conflict with others |
-| **Versioning** | When option was added, deprecated, or changed |
-| **Example** | For complex types or non-obvious usage |
+### Type and allowed values
 
-### Example Option Entry
+State the type clearly. If enumerated, list allowed values. Note units for numbers and duration syntax.
 
-```markdown
-### database_url
+### Default
 
-**Purpose:** Connection string for the primary database.
+Show the default as actually applied by the program. If the default is dynamic, explain the rule.
 
-**Type:** String (URI format)
+### Required
 
-**Default:** None (required)
+Say whether the option is required. If it becomes required only in certain modes, say when.
 
-**Required:** Yes
+### Sources and precedence
 
-**Sources:** Environment variable `DATABASE_URL`, config file `database.url`, CLI flag `--database-url`. Environment variable takes precedence.
+List supported sources for this option (config file path, environment variable, CLI flag, service discovery). Document the precedence order exactly. If the program merges values, explain how.
 
-**Security:** Store in environment variable or secrets manager. Never commit to version control.
+### Reload behavior
 
-**Example:**
-postgres://user:pass@localhost:5432/mydb?sslmode=require
-```
+State whether changes take effect on reload, on restart, or immediately. If hot reload is supported, describe the trigger.
 
-## File Formats and Locations
+### Security notes
 
-Document where configuration files live and what formats are supported.
+Call out sensitive values. Show how to provide secrets safely (env vars, secret files, vault references). Never show real secrets; use placeholders and mark them clearly.
 
-### Search Order
+### Interactions
 
-List locations in precedence order:
+Note important relationships with other options, feature gates, or modes. If an option is ignored under certain conditions, say so.
 
-1. Command-line flags (highest precedence)
-2. Environment variables
-3. User config file (`~/.config/app/config.yaml`)
-4. Project config file (`./config.yaml`)
-5. System config file (`/etc/app/config.yaml`)
-6. Built-in defaults (lowest precedence)
+### Versioning
 
-### Supported Formats
+Indicate when the option was added, deprecated, or changed. Link to ADRs or release notes if relevant.
 
-For each format, document:
+### Example
 
-- File extension(s) recognized
-- Any format-specific behaviors
-- Example of the same configuration in each format
+Provide a minimal example that demonstrates the option in context.
 
-## Environment Variables
+## File formats and locations
 
-### Naming Convention
+Document supported config formats and their exact file locations or search order per platform. If the program reads multiple files, show the merge rules.
 
-Describe the pattern for deriving environment variable names:
+## Environment variables
 
-```
-PREFIX_SECTION_OPTION
-Example: MYAPP_DATABASE_URL
-```
+List environment variables in a dedicated subsection that mirrors the catalog fields above. Show platform-specific notes for systemd, containers, or CI usage when relevant.
 
-### Environment Variable Reference
+## CLI flags
 
-Provide a complete mapping table:
+Provide the mapping between flags, environment variables, and config keys when they exist. Clarify which flags override file values.
 
-| Variable | Config Equivalent | Description |
-|----------|-------------------|-------------|
-| `MYAPP_DATABASE_URL` | `database.url` | Primary database connection |
-| `MYAPP_LOG_LEVEL` | `logging.level` | Logging verbosity |
+## Validation and failure modes
 
-## CLI Flags
+Describe what the program validates at startup and typical error messages for misconfiguration. Offer troubleshooting steps and links to logs or debug commands.
 
-### Flag Reference
+## Migration guidance
 
-Map CLI flags to their configuration equivalents:
+When configuration changes between versions, provide a short migration section with a before and after example and a link to the ADR or release notes.
 
-| Flag | Config Equivalent | Description |
-|------|-------------------|-------------|
-| `--database-url` | `database.url` | Primary database connection |
-| `-v, --verbose` | `logging.level=debug` | Enable verbose output |
+## Example library
 
-### Flag-only Options
-
-Document options that exist only as CLI flags (no config file equivalent) and explain why.
-
-## Validation and Failure Modes
-
-### Validation Rules
-
-Document constraints beyond type checking:
-
-- Value ranges and bounds
-- Format requirements (regex patterns, URI schemes)
-- Required combinations (if A then B required)
-- Mutual exclusions (cannot set both X and Y)
-
-### Error Messages
-
-Provide examples of validation errors and how to resolve them:
-
-```
-Error: database_url must be a valid PostgreSQL URI
-Solution: Ensure the URL starts with postgres:// or postgresql://
-```
-
-### Failure Behavior
-
-Document what happens when configuration is invalid:
-
-- Does the system refuse to start?
-- Are invalid values ignored with warnings?
-- Are there fallback behaviors?
-
-## Migration Guidance
-
-### Between Versions
-
-When configuration changes between versions:
-
-| Old Option | New Option | Migration Notes |
-|------------|------------|-----------------|
-| `db_host` | `database.url` | Combine host, port, and database into URI |
-
-### Deprecation Notices
-
-For deprecated options, document:
-
-- When it was deprecated
-- When it will be removed
-- What replaces it
-- Automatic migration behavior (if any)
-
-## Example Library
-
-Collect complete, tested examples for common setups:
-
-### Development
-
-```yaml
-# Full development configuration
-# Optimized for local development with verbose logging
-```
-
-### Production
-
-```yaml
-# Production configuration template
-# Includes security hardening and performance tuning
-```
-
-### Testing
-
-```yaml
-# Test configuration
-# Isolated settings for automated testing
-```
-
-Each example should include comments explaining non-obvious choices.
+Include a small `examples/` directory with runnable samples referenced from the docs. Keep them pinned to known-good versions where possible.
