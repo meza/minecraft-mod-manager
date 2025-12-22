@@ -29,7 +29,7 @@ Long-term memory enables continuity across interrupted work sessions. It capture
 
 ## File Location
 
-Store all entries in `memory.md` at the repository root.
+Store all entries in `memory.tsv` at the repository root.
 
 ## Reading the Memory File
 
@@ -54,13 +54,9 @@ The memory file grows over time and will exceed single-read limits. You MUST rea
 
 ## Entry Format
 
-```
-### [YYYY-MM-DD HH:MM] - [Brief description]
-
-[Content]
-```
-
 Use the actual system timestamp when creating entries.
+Keep entries to a single TSV row. Do not add blank lines.
+Do not include tab characters in the entry column (replace with spaces).
 
 ## Session Practices
 
@@ -70,7 +66,7 @@ Use the actual system timestamp when creating entries.
 
 **At session end**: Capture what changed, assumptions to validate, and next steps.
 
-**For resolved items**: Mark inline with strikethrough or [RESOLVED] prefix rather than deleting.
+**For resolved items**: Prefix the entry text with [RESOLVED] rather than deleting.
 
 **Periodically**: Consolidate completed work and expunge fully resolved items to keep open questions scannable.
 
