@@ -484,3 +484,6 @@ date	time	entry
 2025-12-23\t12:58\tCode review now only blocking on Windows verification (make build && make coverage) per updated code-review.md.
 2025-12-23\t13:02\tFixed tools/coverage filtered temp close path to release handle even when closeFile returns error (Windows TempDir cleanup). Ran make fmt, make coverage, make build (pass).
 2025-12-23\t13:12\tSanitized packaging normalizeVersion to strip path separators; added test; updated G304 comment. Resolved coverage failure, ran make fmt/coverage/build (pass).
+2025-12-23\t14:38\tStarted audit: cross-check current make lint failures against Beads issues to ensure every known linter failure is tracked.
+2025-12-23\t14:46\tRan `make lint` (saved to /tmp/make-lint.txt), summarized failing linter categories, and ensured each is tracked in Beads: gosec tickets (mmm-63.101/102/103/104) plus new G101 ticket mmm-71; staticcheck ticket mmm-63.76; new non-gosec remediation tickets mmm-63.106.1 through mmm-63.106.5 for revive/gocritic/complexity/error+resource/misc correctness-style linters.
+2025-12-23\t14:47\tCreated umbrella epic mmm-63.107 (P2 - Clean make lint baseline) and linked all lint remediation tickets as parent-child dependencies (mmm-63.101/102/103/104, mmm-71, mmm-63.76, mmm-63.106, mmm-63.106.1-5).
