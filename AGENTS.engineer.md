@@ -23,10 +23,8 @@ When you're done with coding, you MUST ask for a code review from the team. You 
 
 ### Invoking the Reviewer
 
-Use `codex --profile reviewer -m gpt-5.2 --dangerously-bypass-approvals-and-sandbox e` to request a review.
+Use `codex --profile reviewer --dangerously-bypass-approvals-and-sandbox e` to request a review.
 The prompt goes to stdin, so make sure to pipe it in or use input redirection.
-
-**This command is expected to run for upwards of 60 minutes** depending on the size of the changeset and the reviewer's workload so adjust your timeouts accordingly.
 
 At minimum, provide:
 - The work item / ticket / issue identifier (and link if available).
