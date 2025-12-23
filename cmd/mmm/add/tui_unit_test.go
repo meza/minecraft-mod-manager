@@ -18,6 +18,14 @@ import (
 	"github.com/meza/minecraft-mod-manager/internal/platform"
 )
 
+type errorWriter struct {
+	err error
+}
+
+func (w errorWriter) Write([]byte) (int, error) {
+	return 0, w.err
+}
+
 func TestAddTUIListItemFilterValueEmpty(t *testing.T) {
 	item := addTUIListItem{value: "abc"}
 	assert.Equal(t, "", item.FilterValue())
@@ -44,6 +52,25 @@ func TestAddTUIListDelegateRenderSelectedAndUnselected(t *testing.T) {
 	unselected := &bytes.Buffer{}
 	delegate.Render(unselected, model, 1, items[1])
 	assert.NotEmpty(t, unselected.String())
+}
+
+func TestAddTUIListDelegateRenderHandlesWriteError(t *testing.T) {
+	var delegate addTUIListDelegate
+	model := newPlatformListModel("question", "", false, 20)
+	items := model.Items()
+	if !assert.Len(t, items, 2) {
+		return
+	}
+
+	model.Select(0)
+	writerErr := errors.New("write failed")
+	assert.NotPanics(t, func() {
+		delegate.Render(errorWriter{err: writerErr}, model, 0, items[0])
+	})
+
+	assert.NotPanics(t, func() {
+		delegate.Render(errorWriter{err: writerErr}, model, 1, items[1])
+	})
 }
 
 func TestAddTUIListDelegateRenderIgnoresUnknownItem(t *testing.T) {

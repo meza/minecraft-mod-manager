@@ -359,6 +359,54 @@ func TestFilterCoverageFileContentError(t *testing.T) {
 	}
 }
 
+func TestFilterCoverageFileInputCloseError(t *testing.T) {
+	originalCloseInputFile := closeInputFile
+	t.Cleanup(func() {
+		closeInputFile = originalCloseInputFile
+	})
+	closeErr := errors.New("close input failed")
+	closeInputFile = func(file *os.File) error {
+		_ = file.Close()
+		return closeErr
+	}
+
+	tempDir := t.TempDir()
+	sourcePath := filepath.Join(tempDir, "coverage.profile")
+	if err := os.WriteFile(sourcePath, []byte("mode: set\n"), 0o644); err != nil {
+		t.Fatalf("failed to write source profile: %v", err)
+	}
+	filteredPath := filepath.Join(tempDir, "coverage.filtered")
+	if err := filterCoverageFile(sourcePath, filteredPath, []string{"/tools/"}); err == nil {
+		t.Fatal("expected error, got nil")
+	} else if !errors.Is(err, closeErr) {
+		t.Fatalf("expected close error, got %v", err)
+	}
+}
+
+func TestFilterCoverageFileOutputCloseError(t *testing.T) {
+	originalCloseOutputFile := closeOutputFile
+	t.Cleanup(func() {
+		closeOutputFile = originalCloseOutputFile
+	})
+	closeErr := errors.New("close output failed")
+	closeOutputFile = func(file *os.File) error {
+		_ = file.Close()
+		return closeErr
+	}
+
+	tempDir := t.TempDir()
+	sourcePath := filepath.Join(tempDir, "coverage.profile")
+	if err := os.WriteFile(sourcePath, []byte("mode: set\n"), 0o644); err != nil {
+		t.Fatalf("failed to write source profile: %v", err)
+	}
+	filteredPath := filepath.Join(tempDir, "coverage.filtered")
+	if err := filterCoverageFile(sourcePath, filteredPath, []string{"/tools/"}); err == nil {
+		t.Fatal("expected error, got nil")
+	} else if !errors.Is(err, closeErr) {
+		t.Fatalf("expected close error, got %v", err)
+	}
+}
+
 func TestFilterCoverageContentWriteError(t *testing.T) {
 	input := "mode: set\n"
 	if err := filterCoverageContent(strings.NewReader(input), errorWriter{}, []string{"/tools/"}); err == nil {
@@ -697,6 +745,79 @@ func TestCoverageToolRunOutputSuccess(t *testing.T) {
 	}
 }
 
+func TestCoverageToolRunRemoveFileErrorLogsWarning(t *testing.T) {
+	originalRemoveFile := removeFile
+	t.Cleanup(func() {
+		removeFile = originalRemoveFile
+	})
+	removeFile = func(string) error {
+		return errors.New("remove failed")
+	}
+
+	tempDir := t.TempDir()
+	coverageProfilePath := filepath.Join(tempDir, coverageProfileName)
+	if err := os.WriteFile(coverageProfilePath, []byte("mode: set\n"), 0o644); err != nil {
+		t.Fatalf("failed to write coverage profile: %v", err)
+	}
+
+	var logBuffer bytes.Buffer
+	tool := &coverageTool{
+		repoRoot:      tempDir,
+		goBinary:      "go",
+		commandRunner: &recordingRunner{},
+		commandOutput: outputRunner{
+			output: []byte("total:\t(statements)\t100.0%\n"),
+		},
+		logger: log.New(&logBuffer, "coverage: ", 0),
+	}
+
+	if err := tool.run(); err != nil {
+		t.Fatalf("expected no error, got %v", err)
+	}
+
+	if !strings.Contains(logBuffer.String(), "failed to remove coverage profile") {
+		t.Fatalf("expected warning log, got %q", logBuffer.String())
+	}
+}
+
+func TestCoverageToolRunRemoveFilteredFileErrorLogsWarning(t *testing.T) {
+	originalRemoveFile := removeFile
+	originalExclusions := excludedPathFragments
+	t.Cleanup(func() {
+		removeFile = originalRemoveFile
+		excludedPathFragments = originalExclusions
+	})
+	excludedPathFragments = []string{"/tools/"}
+	removeFile = func(string) error {
+		return errors.New("remove failed")
+	}
+
+	tempDir := t.TempDir()
+	coverageProfilePath := filepath.Join(tempDir, coverageProfileName)
+	if err := os.WriteFile(coverageProfilePath, []byte("mode: set\n"), 0o644); err != nil {
+		t.Fatalf("failed to write coverage profile: %v", err)
+	}
+
+	var logBuffer bytes.Buffer
+	tool := &coverageTool{
+		repoRoot:      tempDir,
+		goBinary:      "go",
+		commandRunner: &recordingRunner{},
+		commandOutput: outputRunner{
+			output: []byte("total:\t(statements)\t100.0%\n"),
+		},
+		logger: log.New(&logBuffer, "coverage: ", 0),
+	}
+
+	if err := tool.run(); err != nil {
+		t.Fatalf("expected no error, got %v", err)
+	}
+
+	if !strings.Contains(logBuffer.String(), "failed to remove filtered coverage output") {
+		t.Fatalf("expected warning log, got %q", logBuffer.String())
+	}
+}
+
 func TestCoverageToolRunFilterCoverageError(t *testing.T) {
 	originalExclusions := excludedPathFragments
 	t.Cleanup(func() {
@@ -751,6 +872,43 @@ func TestCoverageToolRunWriteOutputError(t *testing.T) {
 }
 
 func TestCoverageToolRunFinalizeFilteredFileError(t *testing.T) {
+	originalExclusions := excludedPathFragments
+	originalCloseFile := closeFile
+	t.Cleanup(func() {
+		excludedPathFragments = originalExclusions
+		closeFile = originalCloseFile
+	})
+	excludedPathFragments = []string{"/tools/"}
+
+	tempDir := t.TempDir()
+	coverageProfilePath := filepath.Join(tempDir, coverageProfileName)
+	if err := os.WriteFile(coverageProfilePath, []byte("mode: set\n"), 0o644); err != nil {
+		t.Fatalf("failed to write coverage profile: %v", err)
+	}
+
+	closeFile = func(file *os.File) error {
+		if err := file.Close(); err != nil {
+			return err
+		}
+		return errors.New("close failed")
+	}
+
+	tool := &coverageTool{
+		repoRoot:      tempDir,
+		goBinary:      "go",
+		commandRunner: &recordingRunner{},
+		commandOutput: outputRunner{
+			output: []byte("total:\t(statements)\t100.0%\n"),
+		},
+		logger: log.New(&bytes.Buffer{}, "coverage: ", 0),
+	}
+
+	if err := tool.run(); err == nil {
+		t.Fatal("expected error, got nil")
+	}
+}
+
+func TestCoverageToolRunFinalizeFilteredFileErrorNoCloseFailure(t *testing.T) {
 	originalExclusions := excludedPathFragments
 	originalCloseFile := closeFile
 	t.Cleanup(func() {

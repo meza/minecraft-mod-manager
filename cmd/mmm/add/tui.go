@@ -104,11 +104,15 @@ func (d addTUIListDelegate) Render(w io.Writer, m list.Model, itemIndex int, lis
 
 	itemLine := item.value
 	if itemIndex == m.Index() {
-		fmt.Fprint(w, tui.SelectedItemStyle.Render("❯ "+itemLine))
+		if _, err := fmt.Fprint(w, tui.SelectedItemStyle.Render("❯ "+itemLine)); err != nil {
+			return
+		}
 		return
 	}
 
-	fmt.Fprint(w, tui.ItemStyle.Render(itemLine))
+	if _, err := fmt.Fprint(w, tui.ItemStyle.Render(itemLine)); err != nil {
+		return
+	}
 }
 
 func newAddTUIModel(ctx context.Context, sessionSpan *perf.Span, initialState addTUIState, platformValue models.Platform, projectID string, cfg models.ModsJSON, fetchCmd addTUIFetchCmd) addTUIModel {
@@ -452,23 +456,29 @@ func (m addTUIModel) handleFetchResult(msg addTUIFetchResultMsg) (tea.Model, tea
 	m.candidateProject = msg.projectID
 	m.history = nil
 
-	switch msg.err.(type) {
-	case *platform.UnknownPlatformError:
+	var unknownPlatformError *platform.UnknownPlatformError
+	if errors.As(msg.err, &unknownPlatformError) {
 		m.state = addTUIStateUnknownPlatformSelect
 		m.enterState(m.state)
 		return m, nil
-	case *platform.ModNotFoundError:
+	}
+
+	var modNotFoundError *platform.ModNotFoundError
+	if errors.As(msg.err, &modNotFoundError) {
 		m.state = addTUIStateModNotFoundConfirm
 		m.enterState(m.state)
 		return m, nil
-	case *platform.NoCompatibleFileError:
+	}
+
+	var noCompatibleFileError *platform.NoCompatibleFileError
+	if errors.As(msg.err, &noCompatibleFileError) {
 		m.state = addTUIStateNoFileConfirm
 		m.enterState(m.state)
 		return m, nil
-	default:
-		m.state = addTUIStateFatalError
-		return m, tea.Quit
 	}
+
+	m.state = addTUIStateFatalError
+	return m, tea.Quit
 }
 
 func (m *addTUIModel) startWait(state addTUIState) {

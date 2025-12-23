@@ -1,10 +1,13 @@
 package curseforge
 
 import (
+	"io"
+	"net/http"
+	"strings"
+	"testing"
+
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
-	"net/http"
-	"testing"
 )
 
 // MockDoer is a mock implementation of the httpclient.Doer interface
@@ -23,16 +26,22 @@ func TestClient_Do(t *testing.T) {
 
 	// Create a mock Doer
 	mockDoer := new(MockDoer)
-	mockDoer.On("Do", mock.Anything).Return(&http.Response{StatusCode: 200}, nil)
+	mockDoer.On("Do", mock.Anything).Return(&http.Response{
+		StatusCode: http.StatusOK,
+		Body:       io.NopCloser(strings.NewReader("")),
+	}, nil)
 
 	client := &Client{client: mockDoer}
 
-	req, err := http.NewRequest("GET", "https://api.curseforge.com/v1/mods/test-project-id", nil)
+	req, err := http.NewRequest(http.MethodGet, "https://api.curseforge.com/v1/mods/test-project-id", nil)
 	assert.NoError(t, err)
 
 	resp, err := client.Do(req)
 	assert.NoError(t, err)
-	assert.Equal(t, 200, resp.StatusCode)
+	assert.Equal(t, http.StatusOK, resp.StatusCode)
+	if resp.Body != nil {
+		assert.NoError(t, resp.Body.Close())
+	}
 
 	// Verify headers
 	assert.Equal(t, "application/json", req.Header.Get("Accept"))

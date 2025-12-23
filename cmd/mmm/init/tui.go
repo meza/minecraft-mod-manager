@@ -96,7 +96,6 @@ func (m CommandModel) View() string {
 	}
 
 	return stringBuilder.String()
-
 }
 
 func (m CommandModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
@@ -150,7 +149,7 @@ func (m CommandModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			if m.sessionSpan != nil {
 				m.sessionSpan.AddEvent("tui.init.action.abort", perf.WithEventAttributes(attribute.String("state", m.stateName())))
 			}
-			m.err = fmt.Errorf("init cancelled")
+			m.err = fmt.Errorf("init canceled")
 			cmds = append(cmds, tea.Quit)
 		}
 	}
@@ -207,7 +206,6 @@ func NewModel(ctx context.Context, sessionSpan *perf.Span, options initOptions, 
 	model.setState(nextMissingState(model.result))
 
 	return model
-
 }
 
 func (m *CommandModel) setState(next state) {

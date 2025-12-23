@@ -476,20 +476,22 @@ func downloadAndSwap(ctx context.Context, deps updateDeps, oldPath string, newPa
 		return err
 	}
 	tempPath := tempFile.Name()
-	if err := tempFile.Close(); err != nil {
+	closeErr := tempFile.Close()
+	if closeErr != nil {
 		removeErr := deps.fs.Remove(tempPath)
 		if removeErr != nil && !errors.Is(removeErr, os.ErrNotExist) {
-			return errors.Join(err, fmt.Errorf("failed to remove temp file %s: %w", tempPath, removeErr))
+			return errors.Join(closeErr, fmt.Errorf("failed to remove temp file %s: %w", tempPath, removeErr))
 		}
-		return err
+		return closeErr
 	}
 
-	if err := deps.downloader(ctx, downloadURL, tempPath, downloadClient(deps.clients), &noopSender{}, deps.fs); err != nil {
+	downloadErr := deps.downloader(ctx, downloadURL, tempPath, downloadClient(deps.clients), &noopSender{}, deps.fs)
+	if downloadErr != nil {
 		removeErr := deps.fs.Remove(tempPath)
 		if removeErr != nil && !errors.Is(removeErr, os.ErrNotExist) {
-			return errors.Join(err, fmt.Errorf("failed to remove temp file %s: %w", tempPath, removeErr))
+			return errors.Join(downloadErr, fmt.Errorf("failed to remove temp file %s: %w", tempPath, removeErr))
 		}
-		return err
+		return downloadErr
 	}
 
 	actualHash, err := sha1ForFile(deps.fs, tempPath)

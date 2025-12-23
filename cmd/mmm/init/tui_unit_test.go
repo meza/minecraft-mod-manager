@@ -183,6 +183,24 @@ func TestLoaderDelegateRender(t *testing.T) {
 	assert.Equal(t, "", buffer.String())
 }
 
+func TestLoaderDelegateRenderHandlesWriteError(t *testing.T) {
+	model := NewLoaderModel("")
+	items := model.list.Items()
+	delegate := itemDelegate{}
+	if len(items) < 2 {
+		t.Fatalf("expected at least two items, got %d", len(items))
+	}
+
+	model.list.Select(0)
+	writerErr := errors.New("write failed")
+	assert.NotPanics(t, func() {
+		delegate.Render(errorWriter{err: writerErr}, model.list, 0, items[0])
+	})
+	assert.NotPanics(t, func() {
+		delegate.Render(errorWriter{err: writerErr}, model.list, 1, items[1])
+	})
+}
+
 func TestLoaderTypeFilterValue(t *testing.T) {
 	item := loaderType("fabric")
 	assert.Equal(t, "", item.FilterValue())
@@ -248,6 +266,24 @@ func TestReleaseTypeDelegateRender(t *testing.T) {
 	buffer.Reset()
 	delegate.Render(buffer, model.list, 0, fakeListItem{})
 	assert.Equal(t, "", buffer.String())
+}
+
+func TestReleaseTypeDelegateRenderHandlesWriteError(t *testing.T) {
+	model := NewReleaseTypesModel([]models.ReleaseType{models.Release})
+	items := model.list.Items()
+	delegate := releaseTypeDelegate{}
+	if len(items) < 2 {
+		t.Fatalf("expected at least two items, got %d", len(items))
+	}
+
+	model.list.Select(0)
+	writerErr := errors.New("write failed")
+	assert.NotPanics(t, func() {
+		delegate.Render(errorWriter{err: writerErr}, model.list, 0, items[0])
+	})
+	assert.NotPanics(t, func() {
+		delegate.Render(errorWriter{err: writerErr}, model.list, 1, items[1])
+	})
 }
 
 func TestReleaseTypeItemFilterValue(t *testing.T) {

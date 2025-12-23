@@ -52,8 +52,7 @@ func NewModsFolderModel(modsFolder string, meta config.Metadata, fs afero.Fs, pr
 		help:   help.New(),
 		keymap: tui.TranslatedInputKeyMap{},
 		validate: func(value string) error {
-			_, err := validateModsFolder(fs, meta, value)
-			return err
+			return validateModsFolder(fs, meta, value)
 		},
 	}
 

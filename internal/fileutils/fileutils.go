@@ -33,7 +33,7 @@ func ListFilesInDir(path string, filesystem ...afero.Fs) ([]string, error) {
 		return nil, fmt.Errorf("failed to list files in directory: %w", err)
 	}
 
-	var fileNames []string
+	fileNames := make([]string, 0, len(files))
 	for _, file := range files {
 		if file.IsDir() {
 			continue

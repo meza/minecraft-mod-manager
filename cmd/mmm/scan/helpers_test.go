@@ -28,11 +28,25 @@ import (
 
 type noopDoer struct{}
 
-func (n noopDoer) Do(*http.Request) (*http.Response, error) { return nil, nil }
+func (n noopDoer) Do(*http.Request) (*http.Response, error) {
+	return &http.Response{
+		StatusCode: http.StatusOK,
+		Body:       io.NopCloser(strings.NewReader("")),
+		Header:     http.Header{},
+	}, nil
+}
 
 type errorReader struct{}
 
 func (errorReader) Read([]byte) (int, error) { return 0, errors.New("read failed") }
+
+type errorWriter struct {
+	err error
+}
+
+func (w errorWriter) Write([]byte) (int, error) {
+	return 0, w.err
+}
 
 type errorDoer struct {
 	err error
@@ -99,6 +113,18 @@ func TestTerminalPrompterConfirmAddError(t *testing.T) {
 
 	confirmed, err := prompter.ConfirmAdd()
 	assert.Error(t, err)
+	assert.False(t, confirmed)
+}
+
+func TestTerminalPrompterConfirmAddWriteError(t *testing.T) {
+	writeErr := errors.New("write failed")
+	prompter := terminalPrompter{
+		in:  strings.NewReader("y\n"),
+		out: errorWriter{err: writeErr},
+	}
+
+	confirmed, err := prompter.ConfirmAdd()
+	assert.ErrorIs(t, err, writeErr)
 	assert.False(t, confirmed)
 }
 

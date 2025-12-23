@@ -335,8 +335,8 @@ func TestFetchModrinth_NotFound(t *testing.T) {
 	}, Clients{Modrinth: client})
 
 	assert.Error(t, err)
-	_, ok := err.(*ModNotFoundError)
-	assert.True(t, ok)
+	var notFoundError *ModNotFoundError
+	assert.ErrorAs(t, err, &notFoundError)
 }
 
 func TestFetchModrinth_NoFile(t *testing.T) {
@@ -360,8 +360,8 @@ func TestFetchModrinth_NoFile(t *testing.T) {
 	}, Clients{Modrinth: client})
 
 	assert.Error(t, err)
-	_, ok := err.(*NoCompatibleFileError)
-	assert.True(t, ok)
+	var noCompatibleFileError *NoCompatibleFileError
+	assert.ErrorAs(t, err, &noCompatibleFileError)
 }
 
 func TestFetchCurseforge_Succeeds(t *testing.T) {
@@ -496,8 +496,8 @@ func TestFetchCurseforge_NotFound(t *testing.T) {
 	}, Clients{Curseforge: client})
 
 	assert.Error(t, err)
-	_, ok := err.(*ModNotFoundError)
-	assert.True(t, ok)
+	var notFoundError *ModNotFoundError
+	assert.ErrorAs(t, err, &notFoundError)
 }
 
 func TestFetchCurseforge_NoFile(t *testing.T) {
@@ -527,8 +527,8 @@ func TestFetchCurseforge_NoFile(t *testing.T) {
 	}, Clients{Curseforge: client})
 
 	assert.Error(t, err)
-	_, ok := err.(*NoCompatibleFileError)
-	assert.True(t, ok)
+	var noCompatibleFileError *NoCompatibleFileError
+	assert.ErrorAs(t, err, &noCompatibleFileError)
 }
 
 func TestFetchCurseforge_MissingDownloadURL(t *testing.T) {
@@ -659,8 +659,8 @@ func TestFetchCurseforgeFilesErrors(t *testing.T) {
 	_, err = fetchCurseforgeFiles(context.Background(), "1234", "1.20.1", curseforge.Forge, testutil.MustNewHostRewriteDoer(badJSONServer.URL, baseClient))
 	assert.Error(t, err)
 
-	errorDoer := errorDoer{}
-	_, err = fetchCurseforgeFiles(context.Background(), "1234", "1.20.1", curseforge.Forge, errorDoer)
+	failingDoer := errorDoer{}
+	_, err = fetchCurseforgeFiles(context.Background(), "1234", "1.20.1", curseforge.Forge, failingDoer)
 	assert.Error(t, err)
 
 	timeoutDoer := timeoutDoer{}

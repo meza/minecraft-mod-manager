@@ -514,3 +514,15 @@ date	time	entry
 2025-12-23	16:40	Closed mmm-63.106.1 per user instruction after reviewer approval.
 2025-12-23	16:47	Updated AGENTS.md to enforce non-negotiable review-loop discipline: apply reviewer feedback without asking (unless scope/decision), forbid invented async 'waiting/notified' claims, require reviewer invocation tool timeout_ms=3600000 exactly, and add mandatory Windows build verification request before completion claims.
 2025-12-23	16:47	User correction: do not claim tool/skill constraints that are not explicitly stated; Instruction Set Builder 'Delivery' rule (output instruction set alone in fenced block) applies only when the user is asking to deliver an instruction set, not as a justification to avoid editing repo files.
+2025-12-23	17:00	Started mmm-63.106.5 (misc correctness/style linters). Ran make lint to refresh baseline; will target govet shadow, usestdlibvars, whitespace, misspell, ineffassign, wastedassign, unparam, prealloc findings.
+2025-12-23	17:15	mmm-63.106.5: removed misc lint findings (govet shadow, usestdlibvars, whitespace, misspell, ineffassign/wastedassign, unparam, prealloc). Ran make fmt and make lint (lint still fails due to other tickets).
+2025-12-23	17:50	Received mmm-63.106.5 review packet; will invoke reviewer for active changeset (cmd/mmm/*, internal/*, main.go). User authorized memory writes.
+2025-12-23	17:51	Read required persona/docs/skills and prepared reviewer invocation for mmm-63.106.5 changeset.
+2025-12-23	17:53	Invoking reviewer for mmm-63.106.5 changeset (cmd/mmm/*, internal/*, main.go) per AGENTS instructions.
+2025-12-23	17:54	Received mmm-63.106.5 review packet with active changeset scope (cmd/mmm/*, internal/*, main.go) and intent to invoke reviewer; noted additional unrelated changes in repo status.
+2025-12-23	17:57	Read required persona/docs/skills and prepared reviewer invocation for mmm-63.106.5 scoped changeset.
+2025-12-23	19:17	Checked bd ready and mmm-63.107 dependencies; remaining open items are mmm-63.104, mmm-63.76, and mmm-63.106.2/.3/.4; mmm-63.101/102/103/106.5/71 closed.
+2025-12-23	19:40	mmm-63.106.4: fixed errcheck/bodyclose/errorlint/nilnil/nilerr findings across cmd/mmm, internal, tools, and testutil; ran make fmt and make lint (still failing due to other linter categories).
+2025-12-23	20:25	mmm-63.106.4: added test coverage for new error branches (init/scan prompts, sha1 close errors, logger writer errors, list delegates, coverage tool close/remove errors, packaging close errors, globMatches invalid patterns); make coverage and make build now pass.
+2025-12-23	20:42	Windows coverage failed due to TempDir cleanup in coverage/packaging close-error tests; updated overrides to close files before returning errors; asked user to re-run make coverage on Windows.
+2025-12-23	21:36	Closed mmm-63.106.4 per user after Windows build+coverage confirmation.

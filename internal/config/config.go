@@ -48,7 +48,7 @@ func WriteConfig(ctx context.Context, fs afero.Fs, meta Metadata, config models.
 	if err != nil {
 		return fmt.Errorf("failed to serialize configuration: %w", err)
 	}
-	return writeFileAtomic(fs, meta.ConfigPath, data, 0644)
+	return writeFileAtomic(fs, meta.ConfigPath, data)
 }
 
 func InitConfig(ctx context.Context, fs afero.Fs, meta Metadata, minecraftClient httpclient.Doer) (models.ModsJSON, error) {

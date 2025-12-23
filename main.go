@@ -143,8 +143,9 @@ func runWithDeps(deps runDeps) int {
 		perfShutdown = perf.Shutdown
 	}
 
-	if err := perfInit(perf.Config{Enabled: true}); err != nil && perfCfg.debug {
-		log.Printf("perf init failed: %v", err)
+	initErr := perfInit(perf.Config{Enabled: true})
+	if initErr != nil && perfCfg.debug {
+		log.Printf("perf init failed: %v", initErr)
 	}
 
 	rootCtx, rootSpan := perf.StartSpan(context.Background(), "app.lifecycle")
@@ -185,12 +186,14 @@ func runWithDeps(deps runDeps) int {
 
 			deps.telemetryShutdown(rootCtx)
 			if perfCfg.enabled && deps.perfExport != nil {
-				if err := deps.perfExport(perfCfg); err != nil && perfCfg.debug {
-					log.Printf("perf export failed: %v", err)
+				exportErr := deps.perfExport(perfCfg)
+				if exportErr != nil && perfCfg.debug {
+					log.Printf("perf export failed: %v", exportErr)
 				}
 			}
-			if err := perfShutdown(context.Background()); err != nil && perfCfg.debug {
-				log.Printf("perf shutdown failed: %v", err)
+			shutdownErr := perfShutdown(context.Background())
+			if shutdownErr != nil && perfCfg.debug {
+				log.Printf("perf shutdown failed: %v", shutdownErr)
 			}
 		})
 	}

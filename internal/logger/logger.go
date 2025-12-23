@@ -26,20 +26,28 @@ func (l *Logger) Log(message string, forceShow bool) {
 	if l.quiet && !forceShow && !l.debug {
 		return
 	}
-	_, _ = fmt.Fprintln(l.out, message)
+	if _, err := fmt.Fprintln(l.out, message); err != nil {
+		return
+	}
 }
 
 func (l *Logger) Debug(message string) {
 	if !l.debug {
 		return
 	}
-	_, _ = fmt.Fprintln(l.out, message)
+	if _, err := fmt.Fprintln(l.out, message); err != nil {
+		return
+	}
 }
 
 func (l *Logger) Error(message string) {
-	_, _ = fmt.Fprintln(l.err, message)
+	if _, err := fmt.Fprintln(l.err, message); err != nil {
+		return
+	}
 }
 
 func (l *Logger) Errorf(format string, args ...any) {
-	_, _ = fmt.Fprintf(l.err, format, args...)
+	if _, err := fmt.Fprintf(l.err, format, args...); err != nil {
+		return
+	}
 }

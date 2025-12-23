@@ -192,8 +192,8 @@ func runAdd(ctx context.Context, commandSpan *perf.Span, cmd *cobra.Command, opt
 
 	install, installFound := findLockInstall(lock, platformValue, projectID)
 	if modsetup.ModExists(cfg, platformValue, projectID) && installFound {
-		normalizedFileName, err := modfilename.Normalize(install.FileName)
-		if err != nil {
+		normalizedFileName, normalizeErr := modfilename.Normalize(install.FileName)
+		if normalizeErr != nil {
 			message := i18n.T("cmd.add.error.invalid_filename_lock", i18n.Tvars{
 				Data: &i18n.TData{
 					"name": modNameForConfig(cfg, platformValue, projectID),
@@ -218,12 +218,12 @@ func runAdd(ctx context.Context, commandSpan *perf.Span, cmd *cobra.Command, opt
 		install.FileName = normalizedFileName
 
 		installer := modinstall.NewInstaller(deps.fs, modinstall.Downloader(deps.downloader))
-		ensureResult, err := installer.EnsureLockedFile(ctx, meta, cfg, install, downloadClient(deps.clients), nil)
-		if err != nil {
+		ensureResult, ensureErr := installer.EnsureLockedFile(ctx, meta, cfg, install, downloadClient(deps.clients), nil)
+		if ensureErr != nil {
 			return telemetry.CommandTelemetry{
 				Command:     "add",
 				Success:     false,
-				Error:       err,
+				Error:       ensureErr,
 				ExitCode:    1,
 				Interactive: useTUI,
 				Arguments: map[string]interface{}{
@@ -232,7 +232,7 @@ func runAdd(ctx context.Context, commandSpan *perf.Span, cmd *cobra.Command, opt
 					"version":  opts.Version,
 					"fallback": opts.AllowVersionFallback,
 				},
-			}, err
+			}, ensureErr
 		}
 
 		switch ensureResult.Reason {
@@ -387,7 +387,7 @@ func runAdd(ctx context.Context, commandSpan *perf.Span, cmd *cobra.Command, opt
 			attribute.String("project_id", resolvedID),
 		),
 	)
-	cfg, lock, _, err = setupCoordinator.EnsurePersisted(ctx, meta, cfg, lock, resolvedPlatform, resolvedID, remoteMod, modsetup.EnsurePersistOptions{
+	_, _, _, err = setupCoordinator.EnsurePersisted(ctx, meta, cfg, lock, resolvedPlatform, resolvedID, remoteMod, modsetup.EnsurePersistOptions{
 		Version:              opts.Version,
 		AllowVersionFallback: opts.AllowVersionFallback,
 	})
@@ -496,28 +496,34 @@ func resolveRemoteMod(ctx context.Context, commandSpan *perf.Span, cfg models.Mo
 		deps.logger.Debug(fmt.Sprintf("fetch failure detail: %v", inner))
 	}
 
-	switch e := err.(type) {
-	case *platform.UnknownPlatformError:
+	var unknownPlatformError *platform.UnknownPlatformError
+	if errors.As(err, &unknownPlatformError) {
 		if opts.Quiet || !useTUI {
-			deps.logger.Error(errorMessageForUnknownPlatform(e.Platform))
-			return platform.RemoteMod{}, platformValue, projectID, errors.New(errorMessageForUnknownPlatform(e.Platform))
+			deps.logger.Error(errorMessageForUnknownPlatform(unknownPlatformError.Platform))
+			return platform.RemoteMod{}, platformValue, projectID, errors.New(errorMessageForUnknownPlatform(unknownPlatformError.Platform))
 		}
 		return resolveRemoteModWithTUI(ctx, commandSpan, addTUIStateUnknownPlatformSelect, cfg, opts, platformValue, projectID, deps, in, out)
-	case *platform.ModNotFoundError:
+	}
+
+	var modNotFoundError *platform.ModNotFoundError
+	if errors.As(err, &modNotFoundError) {
 		if opts.Quiet || !useTUI {
 			deps.logger.Error(errorMessageForModNotFound(projectID, platformValue))
 			return platform.RemoteMod{}, platformValue, projectID, err
 		}
 		return resolveRemoteModWithTUI(ctx, commandSpan, addTUIStateModNotFoundConfirm, cfg, opts, platformValue, projectID, deps, in, out)
-	case *platform.NoCompatibleFileError:
+	}
+
+	var noCompatibleFileError *platform.NoCompatibleFileError
+	if errors.As(err, &noCompatibleFileError) {
 		if opts.Quiet || !useTUI {
 			deps.logger.Error(errorMessageForNoFile(projectID, platformValue))
 			return platform.RemoteMod{}, platformValue, projectID, err
 		}
 		return resolveRemoteModWithTUI(ctx, commandSpan, addTUIStateNoFileConfirm, cfg, opts, platformValue, projectID, deps, in, out)
-	default:
-		return platform.RemoteMod{}, platformValue, projectID, err
 	}
+
+	return platform.RemoteMod{}, platformValue, projectID, err
 }
 
 func findLockInstall(lock []models.ModInstall, platformValue models.Platform, projectID string) (models.ModInstall, bool) {

@@ -60,6 +60,16 @@ func (b *trackingBody) Close() error {
 	return nil
 }
 
+func closeResponseBody(testingContext *testing.T, response *http.Response) {
+	testingContext.Helper()
+	if response == nil || response.Body == nil {
+		return
+	}
+	if err := response.Body.Close(); err != nil {
+		testingContext.Fatalf("failed to close response body: %v", err)
+	}
+}
+
 func TestRLHTTPClient_Fetch(t *testing.T) {
 	// Create a mock server
 	mockServer := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
@@ -76,7 +86,7 @@ func TestRLHTTPClient_Fetch(t *testing.T) {
 	client.RetryConfig = NoRetries()
 
 	// Create a new HTTP request
-	req, err := http.NewRequest("GET", mockServer.URL, nil)
+	req, err := http.NewRequest(http.MethodGet, mockServer.URL, nil)
 	if err != nil {
 		t.Fatalf("Failed to create request: %v", err)
 	}
@@ -92,6 +102,7 @@ func TestRLHTTPClient_Fetch(t *testing.T) {
 			if resp.StatusCode != http.StatusOK {
 				t.Fatalf("Expected status OK, got %v", resp.StatusCode)
 			}
+			closeResponseBody(t, resp)
 		}
 		duration := time.Since(start)
 		expectedDuration := 2 * time.Second // 3 requests with 1 request per second rate limit
@@ -113,6 +124,7 @@ func TestRLHTTPClient_Fetch(t *testing.T) {
 			if resp.StatusCode != http.StatusOK {
 				t.Fatalf("Expected status OK, got %v", resp.StatusCode)
 			}
+			closeResponseBody(t, resp)
 		}
 		duration := time.Since(start)
 		if duration > time.Second {
@@ -136,7 +148,7 @@ func TestRLHTTPClient_Fetch(t *testing.T) {
 		client.RetryConfig = NoRetries()
 
 		// Create a new HTTP request
-		req, err := http.NewRequest("GET", mockServer.URL, nil)
+		req, err := http.NewRequest(http.MethodGet, mockServer.URL, nil)
 		assert.NoError(t, err)
 
 		// Test the Do method
@@ -145,6 +157,7 @@ func TestRLHTTPClient_Fetch(t *testing.T) {
 			resp, err := client.Do(req)
 			assert.NoError(t, err)
 			assert.Equal(t, http.StatusOK, resp.StatusCode)
+			closeResponseBody(t, resp)
 		}
 		duration := time.Since(start)
 		expectedDuration := 2 * time.Second // 3 requests with 1 request per second rate limit
@@ -166,7 +179,7 @@ func TestRLHTTPClient_Fetch(t *testing.T) {
 		client.RetryConfig = NoRetries()
 
 		// Create a new HTTP request
-		req, err := http.NewRequest("GET", mockServer.URL, nil)
+		req, err := http.NewRequest(http.MethodGet, mockServer.URL, nil)
 		assert.NoError(t, err)
 
 		// Test the Do method
@@ -175,6 +188,7 @@ func TestRLHTTPClient_Fetch(t *testing.T) {
 			resp, err := client.Do(req)
 			assert.NoError(t, err)
 			assert.Equal(t, http.StatusOK, resp.StatusCode)
+			closeResponseBody(t, resp)
 		}
 		duration := time.Since(start)
 		assert.Less(t, duration, time.Second)
@@ -204,7 +218,7 @@ func TestRLHTTPClient_Fetch(t *testing.T) {
 		}
 
 		// Create a new HTTP request
-		req, err := http.NewRequest("GET", mockServer.URL, nil)
+		req, err := http.NewRequest(http.MethodGet, mockServer.URL, nil)
 		assert.NoError(t, err)
 
 		// Test the Do method
@@ -212,6 +226,7 @@ func TestRLHTTPClient_Fetch(t *testing.T) {
 		resp, err := client.Do(req)
 		assert.NoError(t, err)
 		assert.Equal(t, http.StatusOK, resp.StatusCode)
+		closeResponseBody(t, resp)
 		duration := time.Since(start)
 		expectedDuration := 2 * time.Second // 2 retries with 1 second interval
 		assert.GreaterOrEqual(t, duration, expectedDuration)
@@ -232,7 +247,7 @@ func TestRLHTTPClient_Fetch(t *testing.T) {
 		}
 
 		// Create a new HTTP request
-		req, err := http.NewRequest("GET", mockServer.URL, nil)
+		req, err := http.NewRequest(http.MethodGet, mockServer.URL, nil)
 		assert.NoError(t, err)
 
 		// Test the Do method
@@ -240,6 +255,7 @@ func TestRLHTTPClient_Fetch(t *testing.T) {
 		resp, err := client.Do(req)
 		assert.NoError(t, err)
 		assert.Equal(t, http.StatusBadRequest, resp.StatusCode)
+		closeResponseBody(t, resp)
 		duration := time.Since(start)
 		expectedDuration := 1 * time.Second // No retries for client error
 		assert.LessOrEqual(t, duration, expectedDuration)
@@ -261,7 +277,7 @@ func TestRLHTTPClient_Fetch(t *testing.T) {
 		client.RetryConfig = NoRetries()
 
 		// Create a new HTTP request
-		req, err := http.NewRequest("GET", mockServer.URL, nil)
+		req, err := http.NewRequest(http.MethodGet, mockServer.URL, nil)
 		assert.NoError(t, err)
 
 		// Test the Do method
@@ -289,7 +305,7 @@ func TestRLHTTPClient_Fetch(t *testing.T) {
 		}
 
 		// Create a new HTTP request (URL doesn't matter as the transport fails)
-		req, err := http.NewRequest("GET", "https://example.com", nil)
+		req, err := http.NewRequest(http.MethodGet, "https://example.com", nil)
 		assert.NoError(t, err)
 
 		// Test the Do method
@@ -330,7 +346,7 @@ func TestRLHTTPClient_ClosesResponseBodiesBeforeRetry(t *testing.T) {
 		Transport: transport,
 	}
 
-	req, err := http.NewRequest("GET", "https://example.com/retry", nil)
+	req, err := http.NewRequest(http.MethodGet, "https://example.com/retry", nil)
 	assert.NoError(t, err)
 
 	resp, err := client.Do(req)
@@ -439,12 +455,13 @@ func TestRLHTTPClient_RetriesWhenDrainFails(t *testing.T) {
 	client.RetryConfig = &RetryConfig{MaxRetries: 1, Interval: 0}
 	client.client = &http.Client{Transport: transport}
 
-	req, err := http.NewRequest("GET", "https://example.com/retry", nil)
+	req, err := http.NewRequest(http.MethodGet, "https://example.com/retry", nil)
 	assert.NoError(t, err)
 
 	resp, err := client.Do(req)
 	assert.NoError(t, err)
 	assert.Equal(t, http.StatusOK, resp.StatusCode)
+	closeResponseBody(t, resp)
 }
 
 func TestRLHTTPClient_ReturnsTimeoutErrorFromRateLimiter(t *testing.T) {
@@ -455,7 +472,7 @@ func TestRLHTTPClient_ReturnsTimeoutErrorFromRateLimiter(t *testing.T) {
 	ctx, cancel := context.WithDeadline(context.Background(), time.Now().Add(-time.Second))
 	defer cancel()
 
-	req, err := http.NewRequestWithContext(ctx, "GET", "https://example.com", nil)
+	req, err := http.NewRequestWithContext(ctx, http.MethodGet, "https://example.com", nil)
 	assert.NoError(t, err)
 
 	resp, err := client.Do(req)
@@ -474,7 +491,7 @@ func TestRLHTTPClient_WrapsTimeoutErrorFromTransport(t *testing.T) {
 		}),
 	}
 
-	req, err := http.NewRequest("GET", "https://example.com", nil)
+	req, err := http.NewRequest(http.MethodGet, "https://example.com", nil)
 	assert.NoError(t, err)
 
 	resp, err := client.Do(req)

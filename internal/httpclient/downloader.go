@@ -52,7 +52,7 @@ func DownloadFile(ctx context.Context, url string, filepath string, client Doer,
 	fs := fileutils.InitFilesystem(filesystem...)
 	downloadCtx, cancel := WithDownloadTimeout(ctx)
 	defer cancel()
-	request, err := http.NewRequestWithContext(downloadCtx, "GET", url, nil)
+	request, err := http.NewRequestWithContext(downloadCtx, http.MethodGet, url, nil)
 	if err != nil {
 		return fmt.Errorf("failed to build download request: %w", err)
 	}

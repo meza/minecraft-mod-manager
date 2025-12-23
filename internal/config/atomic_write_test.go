@@ -101,7 +101,7 @@ func TestWriteFileAtomicCreatesWhenMissing(t *testing.T) {
 	path := filepath.FromSlash("/cfg/modlist.json")
 
 	assert.NoError(t, fs.MkdirAll(filepath.Dir(path), 0755))
-	assert.NoError(t, writeFileAtomic(fs, path, []byte("ok"), 0644))
+	assert.NoError(t, writeFileAtomic(fs, path, []byte("ok")))
 
 	data, err := afero.ReadFile(fs, path)
 	assert.NoError(t, err)
@@ -121,7 +121,7 @@ func TestWriteFileAtomicDoesNotCorruptWhenRenameIntoMissingTargetFails(t *testin
 		}},
 	}
 
-	assert.Error(t, writeFileAtomic(fs, path, []byte("new"), 0644))
+	assert.Error(t, writeFileAtomic(fs, path, []byte("new")))
 
 	exists, err := afero.Exists(base, path)
 	assert.NoError(t, err)
@@ -148,7 +148,7 @@ func TestWriteFileAtomicReturnsJoinedErrorWhenExistsCheckFailsAndTempCleanupFail
 		failErr:  errors.New("remove failed"),
 	}
 
-	err := writeFileAtomic(fs, path, []byte("new"), 0644)
+	err := writeFileAtomic(fs, path, []byte("new"))
 	assert.Error(t, err)
 	assert.ErrorIs(t, err, statErr)
 	assert.Contains(t, err.Error(), "failed to remove temp file")
@@ -161,7 +161,7 @@ func TestWriteFileAtomicReturnsErrorWhenTempWriteFails(t *testing.T) {
 
 	fs := openFileErrorFs{Fs: base, failOn: ".mmm.tmp"}
 
-	err := writeFileAtomic(fs, path, []byte("new"), 0644)
+	err := writeFileAtomic(fs, path, []byte("new"))
 	assert.Error(t, err)
 }
 
@@ -183,7 +183,7 @@ func TestWriteFileAtomicReturnsJoinedErrorWhenCleanupFailsAfterRenameToMissingTa
 		failErr:  errors.New("remove failed"),
 	}
 
-	err := writeFileAtomic(fs, path, []byte("new"), 0644)
+	err := writeFileAtomic(fs, path, []byte("new"))
 	assert.Error(t, err)
 	assert.Contains(t, err.Error(), "failed to remove temp file")
 }
@@ -207,7 +207,7 @@ func TestWriteFileAtomicReturnsJoinedErrorWhenTempCleanupFailsAfterRenameToMissi
 		},
 	}
 
-	err := writeFileAtomic(fs, path, []byte("new"), 0644)
+	err := writeFileAtomic(fs, path, []byte("new"))
 	assert.Error(t, err)
 	assert.Contains(t, err.Error(), "failed to remove temp file")
 }
@@ -233,7 +233,7 @@ func TestWriteFileAtomicDoesNotCorruptWhenBackupRenameFails(t *testing.T) {
 		},
 	}
 
-	assert.Error(t, writeFileAtomic(fs, path, []byte("new"), 0644))
+	assert.Error(t, writeFileAtomic(fs, path, []byte("new")))
 
 	data, err := afero.ReadFile(base, path)
 	assert.NoError(t, err)
@@ -273,7 +273,7 @@ func TestWriteFileAtomicReturnsJoinedErrorWhenBackupRenameCleanupFails(t *testin
 		failErr:  errors.New("remove failed"),
 	}
 
-	err := writeFileAtomic(fs, path, []byte("new"), 0644)
+	err := writeFileAtomic(fs, path, []byte("new"))
 	assert.Error(t, err)
 	assert.Contains(t, err.Error(), "failed to remove temp file")
 }
@@ -300,7 +300,7 @@ func TestWriteFileAtomicReturnsJoinedErrorWhenRollbackFails(t *testing.T) {
 		},
 	}
 
-	err := writeFileAtomic(fs, path, []byte("new"), 0644)
+	err := writeFileAtomic(fs, path, []byte("new"))
 	assert.Error(t, err)
 	assert.Contains(t, err.Error(), "failed to restore backup")
 }
@@ -332,7 +332,7 @@ func TestWriteFileAtomicReturnsJoinedErrorWhenSwapCleanupFails(t *testing.T) {
 		failErr:  errors.New("remove failed"),
 	}
 
-	err := writeFileAtomic(fs, path, []byte("new"), 0644)
+	err := writeFileAtomic(fs, path, []byte("new"))
 	assert.Error(t, err)
 	assert.Contains(t, err.Error(), "failed to remove temp file")
 }
@@ -353,7 +353,7 @@ func TestWriteFileAtomicFallsBackToBackupSwapWhenOverwriteRenameFails(t *testing
 		}},
 	}
 
-	assert.NoError(t, writeFileAtomic(fs, path, []byte("new"), 0644))
+	assert.NoError(t, writeFileAtomic(fs, path, []byte("new")))
 
 	data, err := afero.ReadFile(base, path)
 	assert.NoError(t, err)
@@ -387,7 +387,7 @@ func TestWriteFileAtomicReturnsErrorWhenBackupCleanupFails(t *testing.T) {
 		},
 	}
 
-	err := writeFileAtomic(fs, path, []byte("new"), 0644)
+	err := writeFileAtomic(fs, path, []byte("new"))
 	assert.Error(t, err)
 	assert.Contains(t, err.Error(), "failed to remove backup file")
 }
@@ -407,7 +407,7 @@ func TestWriteFileAtomicRollsBackWhenSwapRenameFails(t *testing.T) {
 		}},
 	}
 
-	assert.Error(t, writeFileAtomic(fs, path, []byte("new"), 0644))
+	assert.Error(t, writeFileAtomic(fs, path, []byte("new")))
 
 	data, err := afero.ReadFile(base, path)
 	assert.NoError(t, err)
@@ -424,7 +424,7 @@ func TestWriteFileAtomicUpdatesExistingFileAndCleansBackupBestEffort(t *testing.
 
 	assert.NoError(t, fs.MkdirAll(filepath.Dir(path), 0755))
 	assert.NoError(t, afero.WriteFile(fs, path, []byte("old"), 0644))
-	assert.NoError(t, writeFileAtomic(fs, path, []byte("new"), 0644))
+	assert.NoError(t, writeFileAtomic(fs, path, []byte("new")))
 
 	data, err := afero.ReadFile(fs, path)
 	assert.NoError(t, err)
@@ -439,7 +439,7 @@ func TestWriteFileAtomicUsesNextTempPathWhenTempExists(t *testing.T) {
 	assert.NoError(t, afero.WriteFile(fs, path, []byte("old"), 0644))
 	assert.NoError(t, afero.WriteFile(fs, path+".mmm.tmp", []byte("collision"), 0644))
 
-	assert.NoError(t, writeFileAtomic(fs, path, []byte("new"), 0644))
+	assert.NoError(t, writeFileAtomic(fs, path, []byte("new")))
 
 	data, err := afero.ReadFile(fs, path)
 	assert.NoError(t, err)
@@ -479,7 +479,7 @@ func TestWriteFileAtomicReturnsErrorWhenTargetExistenceCheckFails(t *testing.T) 
 	fs := statErrorFs{Fs: base, failPath: target}
 
 	assert.NoError(t, base.MkdirAll(filepath.Dir(target), 0755))
-	assert.Error(t, writeFileAtomic(fs, target, []byte("new"), 0644))
+	assert.Error(t, writeFileAtomic(fs, target, []byte("new")))
 }
 
 func TestWriteFileAtomicReturnsErrorWhenCannotAllocateTempPath(t *testing.T) {
@@ -497,7 +497,7 @@ func TestWriteFileAtomicReturnsErrorWhenCannotAllocateTempPath(t *testing.T) {
 		assert.NoError(t, afero.WriteFile(fs, name, []byte("x"), 0644))
 	}
 
-	assert.Error(t, writeFileAtomic(fs, target, []byte("new"), 0644))
+	assert.Error(t, writeFileAtomic(fs, target, []byte("new")))
 }
 
 func TestWriteFileAtomicReturnsErrorWhenCannotAllocateBackupPath(t *testing.T) {
@@ -515,7 +515,7 @@ func TestWriteFileAtomicReturnsErrorWhenCannotAllocateBackupPath(t *testing.T) {
 		assert.NoError(t, afero.WriteFile(fs, name, []byte("x"), 0644))
 	}
 
-	assert.Error(t, writeFileAtomic(fs, target, []byte("new"), 0644))
+	assert.Error(t, writeFileAtomic(fs, target, []byte("new")))
 }
 
 func TestWriteFileAtomicReturnsWriteError(t *testing.T) {
@@ -524,7 +524,7 @@ func TestWriteFileAtomicReturnsWriteError(t *testing.T) {
 	assert.NoError(t, base.MkdirAll(filepath.Dir(target), 0755))
 
 	fs := afero.NewReadOnlyFs(base)
-	assert.Error(t, writeFileAtomic(fs, target, []byte("new"), 0644))
+	assert.Error(t, writeFileAtomic(fs, target, []byte("new")))
 }
 
 func TestWriteConfigUsesAtomicWrite(t *testing.T) {

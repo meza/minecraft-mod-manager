@@ -190,7 +190,6 @@ func GetFingerprintsMatches(ctx context.Context, fingerprints []int, client http
 	result.Unmatched = append(result.Unmatched, unmatched...)
 
 	return result, nil
-
 }
 
 func decodeUnmatchedFingerprints(raw json.RawMessage) ([]int, error) {
@@ -214,7 +213,6 @@ func decodeUnmatchedFingerprints(raw json.RawMessage) ([]int, error) {
 	}
 
 	return nil, errors.Errorf("unsupported type: %s", string(raw))
-
 }
 
 func parseUnmatchedMapKeys[V any](m map[string]V) ([]int, error) {

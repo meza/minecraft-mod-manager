@@ -56,22 +56,22 @@ func resolveWritablePathWithFuncs(
 	}
 
 	if err == nil && info.Mode()&os.ModeSymlink != 0 {
-		target, err := linkReader.ReadlinkIfPossible(destination)
-		if err != nil {
-			return "", err
+		target, readlinkErr := linkReader.ReadlinkIfPossible(destination)
+		if readlinkErr != nil {
+			return "", readlinkErr
 		}
 		if !filepath.IsAbs(target) {
 			target = filepath.Join(filepath.Dir(destination), target)
 		}
 
-		resolvedTargetDir, err := evalSymlinksFunc(filepath.Dir(target))
-		if err != nil {
-			return "", err
+		resolvedTargetDir, resolveDirErr := evalSymlinksFunc(filepath.Dir(target))
+		if resolveDirErr != nil {
+			return "", resolveDirErr
 		}
 		resolvedTarget := filepath.Join(resolvedTargetDir, filepath.Base(target))
-		resolvedTarget, err = absFunc(resolvedTarget)
-		if err != nil {
-			return "", err
+		resolvedTarget, resolveErr := absFunc(resolvedTarget)
+		if resolveErr != nil {
+			return "", resolveErr
 		}
 		if !pathWithinRoot(resolvedRoot, resolvedTarget) {
 			return "", OutsideRootError{Path: destination, ResolvedPath: resolvedTarget, Root: resolvedRoot}

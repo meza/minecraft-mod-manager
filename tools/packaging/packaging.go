@@ -3,6 +3,7 @@ package main
 
 import (
 	"archive/zip"
+	"errors"
 	"flag"
 	"fmt"
 	"io"
@@ -41,6 +42,9 @@ var zipCreateHeader = func(writer *zip.Writer, header *zip.FileHeader) (io.Write
 }
 var copyFile = io.Copy
 var openFile = os.Open
+var closeInputFile = func(file *os.File) error { return file.Close() }
+var closeOutputFile = func(file *os.File) error { return file.Close() }
+var closeZipWriter = func(writer *zip.Writer) error { return writer.Close() }
 var glob = filepath.Glob
 var statFile = os.Stat
 
@@ -191,7 +195,7 @@ func buildArtifactFromPath(path string) (buildArtifact, error) {
 	}, nil
 }
 
-func writeZip(outputPath, inputPath string) error {
+func writeZip(outputPath, inputPath string) (returnErr error) {
 	inputInfo, err := os.Stat(inputPath)
 	if err != nil {
 		return fmt.Errorf("error: stat build output %s: %w", inputPath, err)
@@ -206,12 +210,16 @@ func writeZip(outputPath, inputPath string) error {
 		return fmt.Errorf("error: create zip %s: %w", outputPath, err)
 	}
 	defer func() {
-		_ = outputFile.Close() // #nosec G104 -- best-effort cleanup for zip output.
+		if closeErr := closeOutputFile(outputFile); closeErr != nil {
+			returnErr = errors.Join(returnErr, fmt.Errorf("error: close zip output %s: %w", outputPath, closeErr))
+		}
 	}()
 
 	zipWriter := zip.NewWriter(outputFile)
 	defer func() {
-		_ = zipWriter.Close() // #nosec G104 -- best-effort cleanup for zip writer.
+		if closeErr := closeZipWriter(zipWriter); closeErr != nil {
+			returnErr = errors.Join(returnErr, fmt.Errorf("error: close zip writer %s: %w", outputPath, closeErr))
+		}
 	}()
 
 	header, err := zipFileInfoHeader(inputInfo)
@@ -232,7 +240,9 @@ func writeZip(outputPath, inputPath string) error {
 		return fmt.Errorf("error: open build output %s: %w", inputPath, err)
 	}
 	defer func() {
-		_ = inputFile.Close() // #nosec G104 -- best-effort cleanup for zip input file.
+		if closeErr := closeInputFile(inputFile); closeErr != nil {
+			returnErr = errors.Join(returnErr, fmt.Errorf("error: close build output %s: %w", inputPath, closeErr))
+		}
 	}()
 
 	if _, err := copyFile(zipEntryWriter, inputFile); err != nil {

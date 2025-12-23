@@ -1162,11 +1162,11 @@ func TestLookupModrinthReturnsUnsureOnContextCancel(t *testing.T) {
 	matches, misses, unsure := lookupModrinth(ctx, candidates, scanDeps{
 		modrinthVersionForSha: func(context.Context, string, httpclient.Doer) (*modrinth.Version, error) {
 			t.Fatalf("unexpected lookup call after context cancellation")
-			return nil, nil
+			return nil, errors.New("unexpected lookup call after context cancellation")
 		},
 		modrinthProjectTitle: func(context.Context, string, httpclient.Doer) (string, error) {
 			t.Fatalf("unexpected title lookup after context cancellation")
-			return "", nil
+			return "", errors.New("unexpected title lookup after context cancellation")
 		},
 		clients: platform.Clients{},
 	})

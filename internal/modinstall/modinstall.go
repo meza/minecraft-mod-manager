@@ -87,8 +87,9 @@ func (s *Installer) EnsureLockedFile(ctx context.Context, meta config.Metadata, 
 	}
 
 	modsRoot := meta.ModsFolderPath(cfg)
-	if err := s.fs.MkdirAll(modsRoot, 0755); err != nil {
-		return EnsureResult{}, err
+	mkdirErr := s.fs.MkdirAll(modsRoot, 0755)
+	if mkdirErr != nil {
+		return EnsureResult{}, mkdirErr
 	}
 
 	destination := filepath.Join(modsRoot, normalizedFileName)
@@ -106,8 +107,9 @@ func (s *Installer) EnsureLockedFile(ctx context.Context, meta config.Metadata, 
 		if s.downloader == nil {
 			return EnsureResult{}, errors.New("missing modinstall dependencies: downloader")
 		}
-		if err := s.downloadAndVerify(ctx, install.DownloadURL, resolvedDestination, expectedHash, downloadClient, sender, normalizedFileName); err != nil {
-			return EnsureResult{}, err
+		downloadErr := s.downloadAndVerify(ctx, install.DownloadURL, resolvedDestination, expectedHash, downloadClient, sender, normalizedFileName)
+		if downloadErr != nil {
+			return EnsureResult{}, downloadErr
 		}
 		return EnsureResult{Downloaded: true, Reason: EnsureReasonMissing}, nil
 	}
@@ -121,8 +123,9 @@ func (s *Installer) EnsureLockedFile(ctx context.Context, meta config.Metadata, 
 		if s.downloader == nil {
 			return EnsureResult{}, errors.New("missing modinstall dependencies: downloader")
 		}
-		if err := s.downloadAndVerify(ctx, install.DownloadURL, resolvedDestination, expectedHash, downloadClient, sender, normalizedFileName); err != nil {
-			return EnsureResult{}, err
+		downloadErr := s.downloadAndVerify(ctx, install.DownloadURL, resolvedDestination, expectedHash, downloadClient, sender, normalizedFileName)
+		if downloadErr != nil {
+			return EnsureResult{}, downloadErr
 		}
 		return EnsureResult{Downloaded: true, Reason: EnsureReasonHashMismatch}, nil
 	}
@@ -149,19 +152,22 @@ func (s *Installer) downloadAndVerify(ctx context.Context, url string, destinati
 		return err
 	}
 	tempPath := tempFile.Name()
-	if err := tempFile.Close(); err != nil {
-		if removeErr := s.fs.Remove(tempPath); removeErr != nil && !errors.Is(removeErr, os.ErrNotExist) {
-			return errors.Join(err, fmt.Errorf("failed to remove temp file %s: %w", tempPath, removeErr))
-		}
-		return err
-	}
-
-	if err := s.downloader(ctx, url, tempPath, downloadClient, sender, s.fs); err != nil {
+	closeErr := tempFile.Close()
+	if closeErr != nil {
 		removeErr := s.fs.Remove(tempPath)
 		if removeErr != nil && !errors.Is(removeErr, os.ErrNotExist) {
-			return errors.Join(err, fmt.Errorf("failed to remove temp file %s: %w", tempPath, removeErr))
+			return errors.Join(closeErr, fmt.Errorf("failed to remove temp file %s: %w", tempPath, removeErr))
 		}
-		return err
+		return closeErr
+	}
+
+	downloadErr := s.downloader(ctx, url, tempPath, downloadClient, sender, s.fs)
+	if downloadErr != nil {
+		removeErr := s.fs.Remove(tempPath)
+		if removeErr != nil && !errors.Is(removeErr, os.ErrNotExist) {
+			return errors.Join(downloadErr, fmt.Errorf("failed to remove temp file %s: %w", tempPath, removeErr))
+		}
+		return downloadErr
 	}
 
 	actualHash, err := sha1ForFile(s.fs, tempPath)

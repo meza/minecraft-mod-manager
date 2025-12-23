@@ -713,10 +713,17 @@ func sha1ForFile(fs afero.Fs, path string) (string, error) {
 	if err != nil {
 		return "", err
 	}
-	defer file.Close()
 
 	h := sha1.New()
 	if _, err := io.Copy(h, file); err != nil {
+		closeErr := file.Close()
+		if closeErr != nil {
+			return "", errors.Join(err, closeErr)
+		}
+		return "", err
+	}
+
+	if err := file.Close(); err != nil {
 		return "", err
 	}
 

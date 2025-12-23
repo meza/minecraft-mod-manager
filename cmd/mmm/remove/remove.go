@@ -239,7 +239,10 @@ func resolveModsToRemove(lookups []string, cfg models.ModsJSON) ([]models.Mod, e
 }
 
 func globMatches(pattern string, value string) bool {
-	ok, _ := filepath.Match(pattern, value)
+	ok, err := filepath.Match(pattern, value)
+	if err != nil {
+		return false
+	}
 	return ok
 }
 

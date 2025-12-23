@@ -68,6 +68,14 @@ func (p fakePrompter) RequestNewConfigPath(configPath string) (string, error) {
 	return p.newPath, p.newPathErr
 }
 
+type errorWriter struct {
+	err error
+}
+
+func (w errorWriter) Write([]byte) (int, error) {
+	return 0, w.err
+}
+
 func TestInitWithDeps(t *testing.T) {
 	t.Run("writes config and empty lock", func(t *testing.T) {
 		minecraft.ClearManifestCache()
@@ -283,6 +291,86 @@ func TestTerminalPrompter(t *testing.T) {
 		assert.Error(t, err)
 		assert.False(t, ok)
 	})
+
+	t.Run("confirm overwrite write failure returns error", func(t *testing.T) {
+		writeErr := errors.New("write failed")
+		p := terminalPrompter{
+			in:  strings.NewReader("y\n"),
+			out: errorWriter{err: writeErr},
+		}
+
+		ok, err := p.ConfirmOverwrite("modlist.json")
+		assert.ErrorIs(t, err, writeErr)
+		assert.False(t, ok)
+	})
+
+	t.Run("request new config path write failure returns error", func(t *testing.T) {
+		writeErr := errors.New("write failed")
+		p := terminalPrompter{
+			in:  strings.NewReader("/cfg/new.json\n"),
+			out: errorWriter{err: writeErr},
+		}
+
+		path, err := p.RequestNewConfigPath("modlist.json")
+		assert.ErrorIs(t, err, writeErr)
+		assert.Empty(t, path)
+	})
+}
+
+func TestCommandWithRunnerHandlesCompletionRegistrationError(t *testing.T) {
+	originalRegister := registerFlagCompletion
+	t.Cleanup(func() {
+		registerFlagCompletion = originalRegister
+	})
+	registerFlagCompletion = func(cmd *cobra.Command, flagName string, completionFunc cobra.CompletionFunc) error {
+		return errors.New("completion failed")
+	}
+
+	cmd := commandWithRunner(func(context.Context, *cobra.Command, initOptions, initDeps, config.Metadata) error {
+		return nil
+	})
+	assert.NotNil(t, cmd)
+}
+
+func TestCommandWithRunnerHandlesCompletionWriteError(t *testing.T) {
+	originalRegister := registerFlagCompletion
+	originalWarnWriter := completionWarnWriter
+	t.Cleanup(func() {
+		registerFlagCompletion = originalRegister
+		completionWarnWriter = originalWarnWriter
+	})
+	registerFlagCompletion = func(cmd *cobra.Command, flagName string, completionFunc cobra.CompletionFunc) error {
+		return errors.New("completion failed")
+	}
+	completionWarnWriter = errorWriter{err: errors.New("write failed")}
+
+	cmd := commandWithRunner(func(context.Context, *cobra.Command, initOptions, initDeps, config.Metadata) error {
+		return nil
+	})
+	assert.NotNil(t, cmd)
+}
+
+func TestCommandWithRunnerHandlesSecondCompletionWriteError(t *testing.T) {
+	originalRegister := registerFlagCompletion
+	originalWarnWriter := completionWarnWriter
+	t.Cleanup(func() {
+		registerFlagCompletion = originalRegister
+		completionWarnWriter = originalWarnWriter
+	})
+	callCount := 0
+	registerFlagCompletion = func(cmd *cobra.Command, flagName string, completionFunc cobra.CompletionFunc) error {
+		callCount++
+		if callCount == 1 {
+			return nil
+		}
+		return errors.New("completion failed")
+	}
+	completionWarnWriter = errorWriter{err: errors.New("write failed")}
+
+	cmd := commandWithRunner(func(context.Context, *cobra.Command, initOptions, initDeps, config.Metadata) error {
+		return nil
+	})
+	assert.NotNil(t, cmd)
 }
 
 type fakeTTYReader struct {

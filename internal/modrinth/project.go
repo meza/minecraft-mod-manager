@@ -95,5 +95,4 @@ func GetProject(ctx context.Context, projectID string, client httpclient.Doer) (
 		return nil, globalerrors.ProjectAPIErrorWrap(errors.Wrap(err, "failed to decode response body"), projectID, models.MODRINTH)
 	}
 	return project, nil
-
 }

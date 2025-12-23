@@ -22,7 +22,13 @@ import (
 
 type noopDoer struct{}
 
-func (n noopDoer) Do(*http.Request) (*http.Response, error) { return nil, nil }
+func (n noopDoer) Do(*http.Request) (*http.Response, error) {
+	return &http.Response{
+		StatusCode: http.StatusOK,
+		Body:       http.NoBody,
+		Header:     http.Header{},
+	}, nil
+}
 
 func TestCommandHasCorrectUsageAndAliases(t *testing.T) {
 	cmd := Command()
@@ -195,8 +201,8 @@ func TestExitCode2WhenVersionMatchesCurrent(t *testing.T) {
 
 	// Exit code 2 is now returned via exitCodeError for proper process exit code propagation
 	assert.Error(t, err)
-	exitErr, ok := err.(*exitCodeError)
-	assert.True(t, ok, "expected exitCodeError")
+	var exitErr *exitCodeError
+	assert.ErrorAs(t, err, &exitErr)
 	assert.Equal(t, 2, exitErr.code)
 	assert.Equal(t, 2, exitCode)
 	assert.Contains(t, out.String(), "cmd.test.same_version")

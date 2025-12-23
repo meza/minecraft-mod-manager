@@ -76,8 +76,9 @@ func (s *SetupCoordinator) EnsureDownloaded(ctx context.Context, meta config.Met
 	}
 	remote.FileName = normalizedFileName
 
-	if err := s.fs.MkdirAll(meta.ModsFolderPath(cfg), 0755); err != nil {
-		return "", err
+	mkdirErr := s.fs.MkdirAll(meta.ModsFolderPath(cfg), 0755)
+	if mkdirErr != nil {
+		return "", mkdirErr
 	}
 
 	destination := filepath.Join(meta.ModsFolderPath(cfg), remote.FileName)
@@ -89,8 +90,9 @@ func (s *SetupCoordinator) EnsureDownloaded(ctx context.Context, meta config.Met
 		return "", errors.New("missing modsetup dependencies: downloader")
 	}
 	installer := modinstall.NewInstaller(s.fs, modinstall.Downloader(s.downloader))
-	if err := installer.DownloadAndVerify(ctx, remote.DownloadURL, resolvedDestination, remote.Hash, downloadClient, &noopSender{}); err != nil {
-		return "", err
+	downloadErr := installer.DownloadAndVerify(ctx, remote.DownloadURL, resolvedDestination, remote.Hash, downloadClient, &noopSender{})
+	if downloadErr != nil {
+		return "", downloadErr
 	}
 
 	return destination, nil

@@ -35,6 +35,11 @@ func defaultRunTea(model tea.Model, options ...tea.ProgramOption) (tea.Model, er
 	return program.Run()
 }
 
+var registerFlagCompletion = func(cmd *cobra.Command, flagName string, completionFunc cobra.CompletionFunc) error {
+	return cmd.RegisterFlagCompletionFunc(flagName, completionFunc)
+}
+var completionWarnWriter io.Writer = os.Stderr
+
 func commandWithRunner(runner initRunner) *cobra.Command {
 	var loader loaderFlag
 
@@ -125,8 +130,16 @@ func commandWithRunner(runner initRunner) *cobra.Command {
 		Data: &i18n.TData{"cwd": getCurrentWorkingDirectory()},
 	}))
 
-	_ = cmd.RegisterFlagCompletionFunc("loader", completeLoaders)             // #nosec G104 -- best-effort shell completion.
-	_ = cmd.RegisterFlagCompletionFunc("release-types", completeReleaseTypes) // #nosec G104 -- best-effort shell completion.
+	if err := registerFlagCompletion(cmd, "loader", completeLoaders); err != nil {
+		if _, writeErr := fmt.Fprintf(completionWarnWriter, "warning: failed to register loader completion: %v\n", err); writeErr != nil {
+			return cmd
+		}
+	}
+	if err := registerFlagCompletion(cmd, "release-types", completeReleaseTypes); err != nil {
+		if _, writeErr := fmt.Fprintf(completionWarnWriter, "warning: failed to register release type completion: %v\n", err); writeErr != nil {
+			return cmd
+		}
+	}
 
 	return cmd
 }
@@ -169,7 +182,9 @@ type terminalPrompter struct {
 }
 
 func (p terminalPrompter) ConfirmOverwrite(configPath string) (bool, error) {
-	_, _ = fmt.Fprintf(p.out, "Configuration file already exists at %s. Overwrite? (y/N): ", configPath)
+	if _, err := fmt.Fprintf(p.out, "Configuration file already exists at %s. Overwrite? (y/N): ", configPath); err != nil {
+		return false, err
+	}
 	answer, err := readLine(p.in)
 	if err != nil {
 		return false, err
@@ -180,7 +195,9 @@ func (p terminalPrompter) ConfirmOverwrite(configPath string) (bool, error) {
 }
 
 func (p terminalPrompter) RequestNewConfigPath(configPath string) (string, error) {
-	_, _ = fmt.Fprintf(p.out, "Enter a new config file path (current: %s): ", configPath)
+	if _, err := fmt.Fprintf(p.out, "Enter a new config file path (current: %s): ", configPath); err != nil {
+		return "", err
+	}
 	answer, err := readLine(p.in)
 	if err != nil {
 		return "", err
@@ -224,9 +241,9 @@ func runInit(ctx context.Context, cmd *cobra.Command, options initOptions, deps 
 	}
 
 	if shouldUseTUI {
-		updated, launched, err := runInteractiveInitWithLaunchFlag(ctx, cmd, options, deps, meta)
-		if err != nil {
-			return options, launched, err
+		updated, launched, runErr := runInteractiveInitWithLaunchFlag(ctx, cmd, options, deps, meta)
+		if runErr != nil {
+			return options, launched, runErr
 		}
 		options = updated
 		didUseTUI = launched
@@ -309,7 +326,7 @@ func finalizeInteractiveResult(result tea.Model) (initOptions, error) {
 	}
 
 	if finalModel.state != done {
-		return initOptions{}, fmt.Errorf("init cancelled")
+		return initOptions{}, fmt.Errorf("init canceled")
 	}
 
 	return finalModel.result, nil
@@ -336,31 +353,31 @@ func normalizeGameVersion(ctx context.Context, options initOptions, deps initDep
 	return options, nil
 }
 
-func validateModsFolder(fs afero.Fs, meta config.Metadata, modsFolder string) (string, error) {
+func validateModsFolder(fs afero.Fs, meta config.Metadata, modsFolder string) error {
 	modsFolder = strings.TrimSpace(modsFolder)
 	if modsFolder == "" {
-		return "", fmt.Errorf("mods folder cannot be empty")
+		return fmt.Errorf("mods folder cannot be empty")
 	}
 
 	modsFolderConfig := models.ModsJSON{ModsFolder: modsFolder}
 	modsFolderPath := meta.ModsFolderPath(modsFolderConfig)
 	modsFolderExists, err := afero.Exists(fs, modsFolderPath)
 	if err != nil {
-		return "", err
+		return err
 	}
 	if !modsFolderExists {
-		return "", fmt.Errorf("mods folder does not exist: %s", modsFolderPath)
+		return fmt.Errorf("mods folder does not exist: %s", modsFolderPath)
 	}
 
 	isDir, err := afero.IsDir(fs, modsFolderPath)
 	if err != nil {
-		return "", err
+		return err
 	}
 	if !isDir {
-		return "", fmt.Errorf("mods folder is not a directory: %s", modsFolderPath)
+		return fmt.Errorf("mods folder is not a directory: %s", modsFolderPath)
 	}
 
-	return modsFolderPath, nil
+	return nil
 }
 
 func initWithDeps(ctx context.Context, options initOptions, deps initDeps) (config.Metadata, error) {
@@ -400,7 +417,7 @@ func initWithDeps(ctx context.Context, options initOptions, deps initDeps) (conf
 		}
 	}
 
-	if _, err := validateModsFolder(deps.fs, meta, options.ModsFolder); err != nil {
+	if err := validateModsFolder(deps.fs, meta, options.ModsFolder); err != nil {
 		return config.Metadata{}, err
 	}
 

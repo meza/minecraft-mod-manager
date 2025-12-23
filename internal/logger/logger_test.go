@@ -2,10 +2,19 @@ package logger
 
 import (
 	"bytes"
+	"errors"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
 )
+
+type errorWriter struct {
+	err error
+}
+
+func (w errorWriter) Write([]byte) (int, error) {
+	return 0, w.err
+}
 
 func TestLoggerLogQuietSuppresses(t *testing.T) {
 	var stdout bytes.Buffer
@@ -82,4 +91,17 @@ func TestLoggerErrorfAlwaysWritesToStderr(t *testing.T) {
 
 	assert.Empty(t, stdout.String())
 	assert.Equal(t, "bad thing", stderr.String())
+}
+
+func TestLoggerHandlesWriterErrors(t *testing.T) {
+	writeErr := errors.New("write failed")
+	logWriter := errorWriter{err: writeErr}
+	errorWriter := errorWriter{err: writeErr}
+
+	logger := New(logWriter, errorWriter, false, true)
+
+	assert.NotPanics(t, func() { logger.Log("hello world", true) })
+	assert.NotPanics(t, func() { logger.Debug("hello debug") })
+	assert.NotPanics(t, func() { logger.Error("bad thing") })
+	assert.NotPanics(t, func() { logger.Errorf("bad %s", "thing") })
 }

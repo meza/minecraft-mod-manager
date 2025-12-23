@@ -502,6 +502,77 @@ func TestWriteZipOpenError(t *testing.T) {
 	}
 }
 
+func TestWriteZipCloseInputError(t *testing.T) {
+	originalCloseInputFile := closeInputFile
+	t.Cleanup(func() {
+		closeInputFile = originalCloseInputFile
+	})
+	closeErr := errors.New("close input failed")
+	closeInputFile = func(file *os.File) error {
+		_ = file.Close()
+		return closeErr
+	}
+
+	tempDir := t.TempDir()
+	inputPath := filepath.Join(tempDir, "input.bin")
+	if err := os.WriteFile(inputPath, []byte("data"), 0o644); err != nil {
+		t.Fatalf("failed to write input: %v", err)
+	}
+
+	if err := writeZip(filepath.Join(tempDir, "output.zip"), inputPath); err == nil {
+		t.Fatal("expected error, got nil")
+	} else if !errors.Is(err, closeErr) {
+		t.Fatalf("expected close input error, got %v", err)
+	}
+}
+
+func TestWriteZipCloseZipWriterError(t *testing.T) {
+	originalCloseZipWriter := closeZipWriter
+	t.Cleanup(func() {
+		closeZipWriter = originalCloseZipWriter
+	})
+	closeErr := errors.New("close zip writer failed")
+	closeZipWriter = func(writer *zip.Writer) error {
+		return closeErr
+	}
+
+	tempDir := t.TempDir()
+	inputPath := filepath.Join(tempDir, "input.bin")
+	if err := os.WriteFile(inputPath, []byte("data"), 0o644); err != nil {
+		t.Fatalf("failed to write input: %v", err)
+	}
+
+	if err := writeZip(filepath.Join(tempDir, "output.zip"), inputPath); err == nil {
+		t.Fatal("expected error, got nil")
+	} else if !errors.Is(err, closeErr) {
+		t.Fatalf("expected close zip writer error, got %v", err)
+	}
+}
+
+func TestWriteZipCloseOutputError(t *testing.T) {
+	originalCloseOutputFile := closeOutputFile
+	t.Cleanup(func() {
+		closeOutputFile = originalCloseOutputFile
+	})
+	closeErr := errors.New("close output failed")
+	closeOutputFile = func(file *os.File) error {
+		_ = file.Close()
+		return closeErr
+	}
+
+	tempDir := t.TempDir()
+	inputPath := filepath.Join(tempDir, "input.bin")
+	if err := os.WriteFile(inputPath, []byte("data"), 0o644); err != nil {
+		t.Fatalf("failed to write input: %v", err)
+	}
+
+	if err := writeZip(filepath.Join(tempDir, "output.zip"), inputPath); err == nil {
+		t.Fatal("expected error, got nil")
+	} else if !errors.Is(err, closeErr) {
+		t.Fatalf("expected close output error, got %v", err)
+	}
+}
+
 func TestDistToolRunCreatesZipsAndCleansDist(t *testing.T) {
 	tempDir := t.TempDir()
 	if err := os.WriteFile(filepath.Join(tempDir, "go.mod"), []byte("module example.com/test"), 0o644); err != nil {

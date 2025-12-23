@@ -56,5 +56,5 @@ func WriteLock(ctx context.Context, fs afero.Fs, meta Metadata, lock []models.Mo
 	if err != nil {
 		return fmt.Errorf("failed to serialize lock file: %w", err)
 	}
-	return writeFileAtomic(fs, meta.LockPath(), data, 0644)
+	return writeFileAtomic(fs, meta.LockPath(), data)
 }

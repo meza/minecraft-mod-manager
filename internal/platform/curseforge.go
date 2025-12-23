@@ -119,7 +119,7 @@ func fetchCurseforgeFiles(ctx context.Context, projectID string, gameVersion str
 }
 
 func filterCurseforgeFiles(files []curseforge.File, opts FetchOptions, targetVersion string) []curseforge.File {
-	var filtered []curseforge.File
+	filtered := make([]curseforge.File, 0, len(files))
 	for _, file := range files {
 		if opts.FixedVersion != "" && !strings.EqualFold(file.FileName, opts.FixedVersion) {
 			continue

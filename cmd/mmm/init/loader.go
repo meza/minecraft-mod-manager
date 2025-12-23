@@ -50,7 +50,6 @@ func (m LoaderModel) Update(msg tea.Msg) (LoaderModel, tea.Cmd) {
 }
 
 func (m LoaderModel) View() string {
-
 	if m.Value != "" {
 		return fmt.Sprintf("%s %s", m.Title(), tui.SelectedItemStyle.Render(string(m.Value)))
 	}
@@ -81,11 +80,15 @@ func (d itemDelegate) Render(w io.Writer, m list.Model, itemIndex int, listItem 
 	itemLine := fmt.Sprintf("%s", item)
 
 	if itemIndex == m.Index() {
-		fmt.Fprint(w, tui.SelectedItemStyle.Render("❯ "+itemLine))
+		if _, err := fmt.Fprint(w, tui.SelectedItemStyle.Render("❯ "+itemLine)); err != nil {
+			return
+		}
 		return
 	}
 
-	fmt.Fprint(w, tui.ItemStyle.Render(itemLine))
+	if _, err := fmt.Fprint(w, tui.ItemStyle.Render(itemLine)); err != nil {
+		return
+	}
 }
 
 type loaderType string
@@ -123,7 +126,8 @@ func NewLoaderModel(loader string) LoaderModel {
 	if isValidLoader(loaderVal) {
 		model.Value = loaderVal
 		for idx, item := range items {
-			if item.(loaderType) == loaderType(loaderVal) {
+			typedItem, ok := item.(loaderType)
+			if ok && typedItem == loaderType(loaderVal) {
 				model.list.Select(idx)
 				break
 			}

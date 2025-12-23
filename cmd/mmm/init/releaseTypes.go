@@ -161,11 +161,15 @@ func (d releaseTypeDelegate) Render(w io.Writer, m list.Model, itemIndex int, li
 	itemLine := fmt.Sprintf("%s %s", icon, item.value)
 
 	if itemIndex == m.Index() {
-		fmt.Fprint(w, tui.SelectedItemStyle.Render("❯ "+itemLine))
+		if _, err := fmt.Fprint(w, tui.SelectedItemStyle.Render("❯ "+itemLine)); err != nil {
+			return
+		}
 		return
 	}
 
-	fmt.Fprint(w, tui.ItemStyle.Render(itemLine))
+	if _, err := fmt.Fprint(w, tui.ItemStyle.Render(itemLine)); err != nil {
+		return
+	}
 }
 
 type releaseTypeItem struct {

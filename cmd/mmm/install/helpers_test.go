@@ -448,6 +448,64 @@ func (r readErrorFile) Read([]byte) (int, error) {
 	return 0, r.err
 }
 
+type closeErrorFs struct {
+	afero.Fs
+	failPath string
+	err      error
+}
+
+func (c closeErrorFs) Open(name string) (afero.File, error) {
+	file, err := c.Fs.Open(name)
+	if err != nil {
+		return nil, err
+	}
+	if filepath.Clean(name) == filepath.Clean(c.failPath) {
+		return closeErrorFile{File: file, err: c.err}, nil
+	}
+	return file, nil
+}
+
+type closeErrorFile struct {
+	afero.File
+	err error
+}
+
+func (c closeErrorFile) Close() error {
+	return c.err
+}
+
+type readCloseErrorFs struct {
+	afero.Fs
+	failPath string
+	readErr  error
+	closeErr error
+}
+
+func (r readCloseErrorFs) Open(name string) (afero.File, error) {
+	file, err := r.Fs.Open(name)
+	if err != nil {
+		return nil, err
+	}
+	if filepath.Clean(name) == filepath.Clean(r.failPath) {
+		return readCloseErrorFile{File: file, readErr: r.readErr, closeErr: r.closeErr}, nil
+	}
+	return file, nil
+}
+
+type readCloseErrorFile struct {
+	afero.File
+	readErr  error
+	closeErr error
+}
+
+func (r readCloseErrorFile) Read([]byte) (int, error) {
+	return 0, r.readErr
+}
+
+func (r readCloseErrorFile) Close() error {
+	return r.closeErr
+}
+
 type statErrorFs struct {
 	afero.Fs
 	failPath string
@@ -743,4 +801,35 @@ func TestSha1ForFileReturnsReadError(t *testing.T) {
 	fs := readErrorFs{Fs: baseFs, failPath: path, err: errors.New("read failed")}
 	_, err := sha1ForFile(fs, path)
 	assert.Error(t, err)
+}
+
+func TestSha1ForFileReturnsCloseError(t *testing.T) {
+	baseFs := afero.NewMemMapFs()
+	path := filepath.FromSlash("/mods/close.jar")
+	assert.NoError(t, baseFs.MkdirAll(filepath.Dir(path), 0755))
+	assert.NoError(t, afero.WriteFile(baseFs, path, []byte("data"), 0644))
+
+	closeErr := errors.New("close failed")
+	fs := closeErrorFs{Fs: baseFs, failPath: path, err: closeErr}
+	_, err := sha1ForFile(fs, path)
+	assert.ErrorIs(t, err, closeErr)
+}
+
+func TestSha1ForFileReturnsReadAndCloseError(t *testing.T) {
+	baseFs := afero.NewMemMapFs()
+	path := filepath.FromSlash("/mods/close-read.jar")
+	assert.NoError(t, baseFs.MkdirAll(filepath.Dir(path), 0755))
+	assert.NoError(t, afero.WriteFile(baseFs, path, []byte("data"), 0644))
+
+	readErr := errors.New("read failed")
+	closeErr := errors.New("close failed")
+	fs := readCloseErrorFs{
+		Fs:       baseFs,
+		failPath: path,
+		readErr:  readErr,
+		closeErr: closeErr,
+	}
+	_, err := sha1ForFile(fs, path)
+	assert.ErrorIs(t, err, readErr)
+	assert.ErrorIs(t, err, closeErr)
 }

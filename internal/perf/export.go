@@ -64,8 +64,9 @@ func ExportToFile(outDir string, baseDir string) (string, error) {
 		return "", err
 	}
 
-	if err := os.MkdirAll(outDir, 0755); err != nil {
-		return "", err
+	mkdirErr := os.MkdirAll(outDir, 0755)
+	if mkdirErr != nil {
+		return "", mkdirErr
 	}
 
 	path := filepath.Join(outDir, defaultExportFilename)

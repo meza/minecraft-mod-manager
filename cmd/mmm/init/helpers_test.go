@@ -105,22 +105,23 @@ func TestValidateModsFolderErrors(t *testing.T) {
 	fs := afero.NewMemMapFs()
 	meta := config.NewMetadata(filepath.FromSlash("/cfg/modlist.json"))
 
-	_, err := validateModsFolder(fs, meta, "")
+	err := validateModsFolder(fs, meta, "")
 	assert.ErrorContains(t, err, "cannot be empty")
 
 	badFs := statErrorFs{Fs: fs, err: errors.New("stat failed")}
-	_, err = validateModsFolder(badFs, meta, "mods")
+	err = validateModsFolder(badFs, meta, "mods")
 	assert.ErrorContains(t, err, "stat failed")
 
-	if err := fs.MkdirAll(filepath.FromSlash("/cfg/mods"), 0755); err != nil {
-		t.Fatalf("mkdir failed: %v", err)
+	mkdirErr := fs.MkdirAll(filepath.FromSlash("/cfg/mods"), 0755)
+	if mkdirErr != nil {
+		t.Fatalf("mkdir failed: %v", mkdirErr)
 	}
 	info, err := fs.Stat(filepath.FromSlash("/cfg/mods"))
 	if err != nil {
 		t.Fatalf("stat failed: %v", err)
 	}
 	sequenceFs := &statSequenceFs{Fs: fs, err: errors.New("stat second call"), info: info}
-	_, err = validateModsFolder(sequenceFs, meta, "mods")
+	err = validateModsFolder(sequenceFs, meta, "mods")
 	assert.ErrorContains(t, err, "stat second call")
 }
 

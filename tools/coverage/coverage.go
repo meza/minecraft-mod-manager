@@ -58,6 +58,10 @@ var getWorkingDirectory = os.Getwd
 var newCoverageToolFunc = newCoverageTool
 var exit = os.Exit
 var closeFile = func(file *os.File) error { return file.Close() }
+var closeInputFile = func(file *os.File) error { return file.Close() }
+var closeOutputFile = func(file *os.File) error { return file.Close() }
+var createTempFile = os.CreateTemp
+var removeFile = os.Remove
 var writeFile = os.WriteFile
 
 func main() {
@@ -107,7 +111,9 @@ func (tool *coverageTool) run() error {
 	funcOutputPath := filepath.Join(tool.repoRoot, coverageFuncOutputName)
 
 	defer func() {
-		_ = os.Remove(coveragePath) // #nosec G104 -- best-effort cleanup of temporary coverage profile.
+		if err := removeFile(coveragePath); err != nil && !errors.Is(err, os.ErrNotExist) {
+			tool.logger.Printf("warning: failed to remove coverage profile %s: %v", coveragePath, err)
+		}
 	}()
 
 	if err := tool.runCoverageTests(coveragePath); err != nil {
@@ -116,17 +122,21 @@ func (tool *coverageTool) run() error {
 
 	filteredCoveragePath := coveragePath
 	if len(excludedPathFragments) > 0 {
-		filteredFile, err := os.CreateTemp(tool.repoRoot, "coverage-filtered-*.out")
+		filteredFile, err := createTempFile(tool.repoRoot, "coverage-filtered-*.out")
 		if err != nil {
 			return fmt.Errorf("error: create filtered coverage file: %w", err)
 		}
 		if err := closeFile(filteredFile); err != nil {
-			_ = filteredFile.Close() // best-effort release for Windows temp cleanup.
+			if closeErr := filteredFile.Close(); closeErr != nil {
+				return fmt.Errorf("error: finalize filtered coverage file: %w", errors.Join(err, closeErr))
+			}
 			return fmt.Errorf("error: finalize filtered coverage file: %w", err)
 		}
 		filteredCoveragePath = filteredFile.Name()
 		defer func() {
-			_ = os.Remove(filteredCoveragePath) // #nosec G104 -- best-effort cleanup of filtered coverage output.
+			if err := removeFile(filteredCoveragePath); err != nil && !errors.Is(err, os.ErrNotExist) {
+				tool.logger.Printf("warning: failed to remove filtered coverage output %s: %v", filteredCoveragePath, err)
+			}
 		}()
 		if err := filterCoverageFile(coveragePath, filteredCoveragePath, excludedPathFragments); err != nil {
 			return err
@@ -234,13 +244,15 @@ func parseTotalCoverage(reader io.Reader) (string, string, error) {
 	return "", "", errors.New("error: no total line found in coverage output")
 }
 
-func filterCoverageFile(sourcePath, filteredPath string, exclusions []string) error {
+func filterCoverageFile(sourcePath, filteredPath string, exclusions []string) (returnErr error) {
 	inputFile, err := os.Open(sourcePath) // #nosec G304 -- paths are derived from repo-root coverage output.
 	if err != nil {
 		return fmt.Errorf("error: open coverage profile: %w", err)
 	}
 	defer func() {
-		_ = inputFile.Close() // #nosec G104 -- best-effort cleanup for read-only coverage input.
+		if closeErr := closeInputFile(inputFile); closeErr != nil {
+			returnErr = errors.Join(returnErr, fmt.Errorf("error: close coverage input: %w", closeErr))
+		}
 	}()
 
 	outputFile, err := os.Create(filteredPath) // #nosec G304 -- filtered output path is created by this tool in repo root.
@@ -248,7 +260,9 @@ func filterCoverageFile(sourcePath, filteredPath string, exclusions []string) er
 		return fmt.Errorf("error: create filtered coverage file: %w", err)
 	}
 	defer func() {
-		_ = outputFile.Close() // #nosec G104 -- best-effort cleanup for filtered coverage output.
+		if closeErr := closeOutputFile(outputFile); closeErr != nil {
+			returnErr = errors.Join(returnErr, fmt.Errorf("error: close filtered coverage output: %w", closeErr))
+		}
 	}()
 
 	if err := filterCoverageContent(inputFile, outputFile, exclusions); err != nil {

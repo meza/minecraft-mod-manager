@@ -246,7 +246,7 @@ func TestMinecraft(t *testing.T) {
 		}()
 
 		manifest, err := getMinecraftVersionManifest(context.Background(), doerFunc(func(_ *http.Request) (*http.Response, error) {
-			return nil, nil
+			return nil, errors.New("unexpected doer call")
 		}))
 		assert.Error(t, err)
 		assert.Nil(t, manifest)

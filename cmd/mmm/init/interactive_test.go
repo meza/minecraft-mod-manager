@@ -79,7 +79,7 @@ func TestFinalizeInteractiveResultCancelled(t *testing.T) {
 	initPerf(t)
 
 	_, err := finalizeInteractiveResult(CommandModel{state: stateLoader})
-	assert.ErrorContains(t, err, "init cancelled")
+	assert.ErrorContains(t, err, "init canceled")
 }
 
 func TestFinalizeInteractiveResultSuccess(t *testing.T) {

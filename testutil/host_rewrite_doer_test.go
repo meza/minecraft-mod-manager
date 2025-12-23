@@ -56,6 +56,9 @@ func TestNewHostRewriteDoer(t *testing.T) {
 		resp, err := doer.Do(req)
 		assert.NoError(t, err)
 		assert.Equal(t, http.StatusOK, resp.StatusCode)
+		if resp.Body != nil {
+			assert.NoError(t, resp.Body.Close())
+		}
 
 		if assert.NotNil(t, next.lastRequest) {
 			assert.Equal(t, "example.com:8443", next.lastRequest.URL.Host)
@@ -79,8 +82,11 @@ func TestMustNewHostRewriteDoer(t *testing.T) {
 			if !assert.NoError(t, err) {
 				return
 			}
-			_, err = doer.Do(req)
+			resp, err := doer.Do(req)
 			assert.NoError(t, err)
+			if resp.Body != nil {
+				assert.NoError(t, resp.Body.Close())
+			}
 		}
 	})
 }

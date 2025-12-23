@@ -8,7 +8,9 @@ import (
 	"github.com/spf13/afero"
 )
 
-func writeFileAtomic(fs afero.Fs, targetPath string, data []byte, mode os.FileMode) error {
+const defaultFileMode os.FileMode = 0o644
+
+func writeFileAtomic(fs afero.Fs, targetPath string, data []byte) error {
 	tempPath, err := nextSiblingPath(fs, targetPath, ".tmp")
 	if err != nil {
 		return err
@@ -18,11 +20,13 @@ func writeFileAtomic(fs afero.Fs, targetPath string, data []byte, mode os.FileMo
 		return err
 	}
 
-	if err := fs.Remove(tempPath); err != nil && !errors.Is(err, os.ErrNotExist) {
-		return fmt.Errorf("failed to remove temp file %s: %w", tempPath, err)
+	removeErr := fs.Remove(tempPath)
+	if removeErr != nil && !errors.Is(removeErr, os.ErrNotExist) {
+		return fmt.Errorf("failed to remove temp file %s: %w", tempPath, removeErr)
 	}
-	if err := afero.WriteFile(fs, tempPath, data, mode); err != nil {
-		return err
+	writeErr := afero.WriteFile(fs, tempPath, data, defaultFileMode)
+	if writeErr != nil {
+		return writeErr
 	}
 
 	exists, err := afero.Exists(fs, targetPath)
@@ -35,44 +39,49 @@ func writeFileAtomic(fs afero.Fs, targetPath string, data []byte, mode os.FileMo
 	}
 
 	if !exists {
-		if err := fs.Rename(tempPath, targetPath); err != nil {
+		renameErr := fs.Rename(tempPath, targetPath)
+		if renameErr != nil {
 			cleanupErr := fs.Remove(tempPath)
 			if cleanupErr != nil && !errors.Is(cleanupErr, os.ErrNotExist) {
-				return errors.Join(err, fmt.Errorf("failed to remove temp file %s: %w", tempPath, cleanupErr))
+				return errors.Join(renameErr, fmt.Errorf("failed to remove temp file %s: %w", tempPath, cleanupErr))
 			}
-			return err
+			return renameErr
 		}
 		return nil
 	}
 
 	// Prefer overwrite-rename if the filesystem supports it (common on Unix-like systems). This avoids a window where
 	// the destination is temporarily missing (though backed up) between two renames.
-	if err := fs.Rename(tempPath, targetPath); err == nil {
+	renameErr := fs.Rename(tempPath, targetPath)
+	if renameErr == nil {
 		return nil
 	}
 
-	if err := fs.Rename(targetPath, backupPath); err != nil {
+	renameErr = fs.Rename(targetPath, backupPath)
+	if renameErr != nil {
 		cleanupErr := fs.Remove(tempPath)
 		if cleanupErr != nil && !errors.Is(cleanupErr, os.ErrNotExist) {
-			return errors.Join(err, fmt.Errorf("failed to remove temp file %s: %w", tempPath, cleanupErr))
+			return errors.Join(renameErr, fmt.Errorf("failed to remove temp file %s: %w", tempPath, cleanupErr))
 		}
-		return err
+		return renameErr
 	}
 
-	if err := fs.Rename(tempPath, targetPath); err != nil {
+	renameErr = fs.Rename(tempPath, targetPath)
+	if renameErr != nil {
 		cleanupErr := fs.Remove(tempPath)
 		rollbackErr := fs.Rename(backupPath, targetPath)
 		if cleanupErr != nil && !errors.Is(cleanupErr, os.ErrNotExist) {
-			err = errors.Join(err, fmt.Errorf("failed to remove temp file %s: %w", tempPath, cleanupErr))
+			renameErr = errors.Join(renameErr, fmt.Errorf("failed to remove temp file %s: %w", tempPath, cleanupErr))
 		}
 		if rollbackErr != nil {
-			err = errors.Join(err, fmt.Errorf("failed to restore backup %s: %w", backupPath, rollbackErr))
+			renameErr = errors.Join(renameErr, fmt.Errorf("failed to restore backup %s: %w", backupPath, rollbackErr))
 		}
-		return err
+		return renameErr
 	}
 
-	if err := fs.Remove(backupPath); err != nil && !errors.Is(err, os.ErrNotExist) {
-		return fmt.Errorf("failed to remove backup file %s: %w", backupPath, err)
+	removeBackupErr := fs.Remove(backupPath)
+	if removeBackupErr != nil && !errors.Is(removeBackupErr, os.ErrNotExist) {
+		return fmt.Errorf("failed to remove backup file %s: %w", backupPath, removeBackupErr)
 	}
 
 	return nil

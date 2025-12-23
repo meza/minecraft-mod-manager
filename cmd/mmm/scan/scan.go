@@ -70,7 +70,9 @@ type terminalPrompter struct {
 }
 
 func (p terminalPrompter) ConfirmAdd() (bool, error) {
-	_, _ = fmt.Fprintf(p.out, "%s (y/N): ", i18n.T("cmd.scan.confirm_add"))
+	if _, err := fmt.Fprintf(p.out, "%s (y/N): ", i18n.T("cmd.scan.confirm_add")); err != nil {
+		return false, err
+	}
 	answer, err := readLine(p.in)
 	if err != nil {
 		return false, err
@@ -201,9 +203,9 @@ func runScan(ctx context.Context, cmd *cobra.Command, opts scanOptions, deps sca
 
 	preferPlatform := normalizePlatform(opts.Prefer)
 	if preferPlatform != models.MODRINTH && preferPlatform != models.CURSEFORGE {
-		err := fmt.Errorf("unknown platform: %s", opts.Prefer)
-		deps.logger.Error(err.Error())
-		return telemetry.CommandTelemetry{Command: "scan", Success: false, ExitCode: 1, Error: err}, err
+		platformErr := fmt.Errorf("unknown platform: %s", opts.Prefer)
+		deps.logger.Error(platformErr.Error())
+		return telemetry.CommandTelemetry{Command: "scan", Success: false, ExitCode: 1, Error: platformErr}, platformErr
 	}
 
 	files, err := listJarFiles(deps.fs, meta, cfg)
@@ -481,6 +483,10 @@ func lookupModrinth(ctx context.Context, candidates []scanCandidate, deps scanDe
 	}
 
 	results := make([]lookupResult, len(candidates))
+	recordLookupError := func(resultIndex int, lookupError error) error {
+		results[resultIndex] = lookupResult{err: lookupError}
+		return nil
+	}
 
 	titleCache := make(map[string]string)
 	var titleMu sync.Mutex
@@ -503,8 +509,7 @@ func lookupModrinth(ctx context.Context, candidates []scanCandidate, deps scanDe
 					results[i] = lookupResult{miss: true}
 					return nil
 				}
-				results[i] = lookupResult{err: err}
-				return nil
+				return recordLookupError(i, err)
 			}
 
 			projectID := version.ProjectID
@@ -515,8 +520,7 @@ func lookupModrinth(ctx context.Context, candidates []scanCandidate, deps scanDe
 			if !ok {
 				title, err = deps.modrinthProjectTitle(groupCtx, projectID, deps.clients.Modrinth)
 				if err != nil {
-					results[i] = lookupResult{err: err}
-					return nil
+					return recordLookupError(i, err)
 				}
 				titleMu.Lock()
 				titleCache[projectID] = title
@@ -525,8 +529,7 @@ func lookupModrinth(ctx context.Context, candidates []scanCandidate, deps scanDe
 
 			url, published, err := modrinthDownloadDetails(version)
 			if err != nil {
-				results[i] = lookupResult{err: err}
-				return nil
+				return recordLookupError(i, err)
 			}
 
 			results[i] = lookupResult{match: &scanMatch{

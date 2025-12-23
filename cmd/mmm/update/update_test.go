@@ -26,7 +26,13 @@ import (
 
 type noopDoer struct{}
 
-func (n noopDoer) Do(*http.Request) (*http.Response, error) { return nil, nil }
+func (n noopDoer) Do(*http.Request) (*http.Response, error) {
+	return &http.Response{
+		StatusCode: http.StatusOK,
+		Body:       http.NoBody,
+		Header:     http.Header{},
+	}, nil
+}
 
 type renameNoOverwriteFs struct {
 	afero.Fs
