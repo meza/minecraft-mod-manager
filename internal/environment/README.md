@@ -12,9 +12,9 @@ Commands and platform clients call these helpers so that:
 
 API keys:
 
-- `ModrinthApiKey()` reads `MODRINTH_API_KEY`
-- `CurseforgeApiKey()` reads `CURSEFORGE_API_KEY`
-- `PosthogApiKey()` reads `POSTHOG_API_KEY`
+- `ModrinthAPIKey()` reads `MODRINTH_API_KEY`
+- `CurseforgeAPIKey()` reads `CURSEFORGE_API_KEY`
+- `PosthogAPIKey()` reads `POSTHOG_API_KEY`
 
 Build-time values:
 

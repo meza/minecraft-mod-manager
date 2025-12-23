@@ -5,8 +5,8 @@ import (
 	"encoding/json"
 	"fmt"
 
-	"github.com/meza/minecraft-mod-manager/internal/globalErrors"
-	"github.com/meza/minecraft-mod-manager/internal/httpClient"
+	"github.com/meza/minecraft-mod-manager/internal/globalerrors"
+	"github.com/meza/minecraft-mod-manager/internal/httpclient"
 	"github.com/meza/minecraft-mod-manager/internal/models"
 	"github.com/meza/minecraft-mod-manager/internal/perf"
 	"github.com/pkg/errors"
@@ -40,7 +40,7 @@ const (
 )
 
 type Project struct {
-	Id           string             `json:"id"`
+	ID           string             `json:"id"`
 	Title        string             `json:"title"`
 	Slug         string             `json:"slug"`
 	Description  string             `json:"description"`
@@ -53,13 +53,13 @@ type Project struct {
 	Loaders      []models.Loader    `json:"loaders"`
 }
 
-func GetProject(ctx context.Context, projectId string, client httpClient.Doer) (project *Project, returnErr error) {
-	ctx, span := perf.StartSpan(ctx, "api.modrinth.project.get", perf.WithAttributes(attribute.String("project_id", projectId)))
+func GetProject(ctx context.Context, projectID string, client httpclient.Doer) (project *Project, returnErr error) {
+	ctx, span := perf.StartSpan(ctx, "api.modrinth.project.get", perf.WithAttributes(attribute.String("project_id", projectID)))
 	defer span.End()
 
-	url := fmt.Sprintf("%s/v2/project/%s", GetBaseUrl(), projectId)
+	url := fmt.Sprintf("%s/v2/project/%s", GetBaseURL(), projectID)
 
-	timeoutCtx, cancel := httpClient.WithMetadataTimeout(ctx)
+	timeoutCtx, cancel := httpclient.WithMetadataTimeout(ctx)
 	defer cancel()
 	request, err := newRequestWithContext(timeoutCtx, http.MethodGet, url, nil)
 	if err != nil {
@@ -68,10 +68,10 @@ func GetProject(ctx context.Context, projectId string, client httpClient.Doer) (
 
 	response, err := client.Do(request)
 	if err != nil {
-		if httpClient.IsTimeoutError(err) {
-			return nil, httpClient.WrapTimeoutError(err)
+		if httpclient.IsTimeoutError(err) {
+			return nil, httpclient.WrapTimeoutError(err)
 		}
-		return nil, globalErrors.ProjectApiErrorWrap(err, projectId, models.MODRINTH)
+		return nil, globalerrors.ProjectAPIErrorWrap(err, projectID, models.MODRINTH)
 	}
 	defer func() {
 		if closeErr := response.Body.Close(); closeErr != nil && returnErr == nil {
@@ -80,19 +80,19 @@ func GetProject(ctx context.Context, projectId string, client httpClient.Doer) (
 	}()
 
 	if response.StatusCode == http.StatusNotFound {
-		return nil, &globalErrors.ProjectNotFoundError{
-			ProjectID: projectId,
+		return nil, &globalerrors.ProjectNotFoundError{
+			ProjectID: projectID,
 			Platform:  models.MODRINTH,
 		}
 	}
 
 	if response.StatusCode != http.StatusOK {
-		return nil, globalErrors.ProjectApiErrorWrap(errors.Errorf("unexpected status code: %d", response.StatusCode), projectId, models.MODRINTH)
+		return nil, globalerrors.ProjectAPIErrorWrap(errors.Errorf("unexpected status code: %d", response.StatusCode), projectID, models.MODRINTH)
 	}
 
 	project = &Project{}
 	if err := json.NewDecoder(response.Body).Decode(project); err != nil {
-		return nil, globalErrors.ProjectApiErrorWrap(errors.Wrap(err, "failed to decode response body"), projectId, models.MODRINTH)
+		return nil, globalerrors.ProjectAPIErrorWrap(errors.Wrap(err, "failed to decode response body"), projectID, models.MODRINTH)
 	}
 	return project, nil
 

@@ -6,10 +6,10 @@ If you need "pick the newest compatible file", use `internal/platform` instead.
 
 ## Quick start
 
-Create a client by wrapping an `httpClient.Doer` (usually rate-limited), then call the API helpers:
+Create a client by wrapping an `httpclient.Doer` (usually rate-limited), then call the API helpers:
 
 ```go
-client := curseforge.NewClient(httpClient.NewRLClient(limiter))
+client := curseforge.NewClient(httpclient.NewRLClient(limiter))
 project, err := curseforge.GetProject("1234", client)
 files, err := curseforge.GetFilesForProject(1234, client)
 ```
@@ -18,22 +18,22 @@ files, err := curseforge.GetFilesForProject(1234, client)
 
 ### Client and base URL
 
-- `NewClient(doer httpClient.Doer) *Client` (adds required headers)
-- `GetBaseUrl() string`
+- `NewClient(doer httpclient.Doer) *Client` (adds required headers)
+- `GetBaseURL() string`
 
-`GetBaseUrl` returns `https://api.curseforge.com/v1`.
+`GetBaseURL` returns `https://api.curseforge.com/v1`.
 
 ### Projects
 
-- `GetProject(projectId string, client httpClient.Doer) (*Project, error)`
+- `GetProject(projectId string, client httpclient.Doer) (*Project, error)`
 
 ### Files
 
-- `GetFilesForProject(projectId int, client httpClient.Doer) ([]File, error)` (handles pagination)
+- `GetFilesForProject(projectId int, client httpclient.Doer) ([]File, error)` (handles pagination)
 
 ### Fingerprints (hash lookups)
 
-- `GetFingerprintsMatches(fingerprints []int, client httpClient.Doer) (*FingerprintResult, error)`
+- `GetFingerprintsMatches(fingerprints []int, client httpclient.Doer) (*FingerprintResult, error)`
 
 The API expects CurseForge fingerprints (integers). This is separate from Modrinth SHA-1 lookups.
 
@@ -44,16 +44,16 @@ The `Client` adds:
 - `Accept: application/json`
 - `x-api-key: <CURSEFORGE_API_KEY>`
 
-The API key is read via `internal/environment.CurseforgeApiKey()`.
+The API key is read via `internal/environment.CurseforgeAPIKey()`.
 
 ## Expected errors
 
-Most project-level failures use `internal/globalErrors`:
+Most project-level failures use `internal/globalerrors`:
 
-- `*globalErrors.ProjectNotFoundError` for 404s
-- `*globalErrors.ProjectApiError` for network failures, non-200 status codes, and JSON decode failures
+- `*globalerrors.ProjectNotFoundError` for 404s
+- `*globalerrors.ProjectAPIError` for network failures, non-200 status codes, and JSON decode failures
 
-Fingerprint lookups return `*FingerprintApiError` (it includes the lookup input so callers can correlate failures).
+Fingerprint lookups return `*FingerprintAPIError` (it includes the lookup input so callers can correlate failures).
 
 ## Related docs
 

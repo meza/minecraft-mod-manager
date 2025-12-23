@@ -13,7 +13,7 @@ import (
 
 	"github.com/meza/minecraft-mod-manager/cmd/mmm/install"
 	"github.com/meza/minecraft-mod-manager/internal/config"
-	"github.com/meza/minecraft-mod-manager/internal/httpClient"
+	"github.com/meza/minecraft-mod-manager/internal/httpclient"
 	"github.com/meza/minecraft-mod-manager/internal/logger"
 	"github.com/meza/minecraft-mod-manager/internal/models"
 	"github.com/meza/minecraft-mod-manager/internal/modpath"
@@ -151,7 +151,7 @@ func TestDownloadAndSwapInPlaceLogsBackupDeletionFailureAtDebugLevel(t *testing.
 	baseFs := afero.NewMemMapFs()
 	fs := failRemoveBackupFs{Fs: baseFs}
 
-	cfg := models.ModsJson{
+	cfg := models.ModsJSON{
 		Loader:                     models.FABRIC,
 		GameVersion:                "1.21.1",
 		DefaultAllowedReleaseTypes: []models.ReleaseType{models.Release},
@@ -176,7 +176,7 @@ func TestDownloadAndSwapInPlaceLogsBackupDeletionFailureAtDebugLevel(t *testing.
 		clients: platform.Clients{
 			Modrinth: noopDoer{},
 		},
-		downloader: func(_ context.Context, _ string, destination string, _ httpClient.Doer, _ httpClient.Sender, filesystems ...afero.Fs) error {
+		downloader: func(_ context.Context, _ string, destination string, _ httpclient.Doer, _ httpclient.Sender, filesystems ...afero.Fs) error {
 			return afero.WriteFile(filesystems[0], destination, []byte("new"), 0644)
 		},
 	}
@@ -198,7 +198,7 @@ func TestRunUpdateAbortsWhenInstallReportsUnmanagedFiles(t *testing.T) {
 	fs := afero.NewMemMapFs()
 	meta := config.NewMetadata(filepath.FromSlash("/cfg/modlist.json"))
 
-	cfg := models.ModsJson{
+	cfg := models.ModsJSON{
 		Loader:                     models.FABRIC,
 		GameVersion:                "1.21.1",
 		DefaultAllowedReleaseTypes: []models.ReleaseType{models.Release},
@@ -227,7 +227,7 @@ func TestRunUpdateAbortsWhenInstallReportsUnmanagedFiles(t *testing.T) {
 			t.Fatal("fetchMod should not be called when unmanaged files are detected")
 			return platform.RemoteMod{}, nil
 		},
-		downloader: func(context.Context, string, string, httpClient.Doer, httpClient.Sender, ...afero.Fs) error {
+		downloader: func(context.Context, string, string, httpclient.Doer, httpclient.Sender, ...afero.Fs) error {
 			t.Fatal("downloader should not be called when unmanaged files are detected")
 			return nil
 		},
@@ -246,7 +246,7 @@ func TestRunUpdateReturnsErrorWhenInstallFails(t *testing.T) {
 	fs := afero.NewMemMapFs()
 	meta := config.NewMetadata(filepath.FromSlash("/cfg/modlist.json"))
 
-	cfg := models.ModsJson{
+	cfg := models.ModsJSON{
 		Loader:                     models.FABRIC,
 		GameVersion:                "1.21.1",
 		DefaultAllowedReleaseTypes: []models.ReleaseType{models.Release},
@@ -275,7 +275,7 @@ func TestRunUpdateReturnsErrorWhenInstallFails(t *testing.T) {
 			t.Fatal("fetchMod should not be called when install fails")
 			return platform.RemoteMod{}, nil
 		},
-		downloader: func(context.Context, string, string, httpClient.Doer, httpClient.Sender, ...afero.Fs) error {
+		downloader: func(context.Context, string, string, httpclient.Doer, httpclient.Sender, ...afero.Fs) error {
 			t.Fatal("downloader should not be called when install fails")
 			return nil
 		},
@@ -291,7 +291,7 @@ func TestRunUpdateSkipsPinnedModsWithoutNetwork(t *testing.T) {
 	meta := config.NewMetadata(filepath.FromSlash("/cfg/modlist.json"))
 
 	version := "1.2.3"
-	cfg := models.ModsJson{
+	cfg := models.ModsJSON{
 		Loader:                     models.FABRIC,
 		GameVersion:                "1.21.1",
 		DefaultAllowedReleaseTypes: []models.ReleaseType{models.Release},
@@ -304,12 +304,12 @@ func TestRunUpdateSkipsPinnedModsWithoutNetwork(t *testing.T) {
 	lock := []models.ModInstall{
 		{
 			Type:        models.MODRINTH,
-			Id:          "proj-1",
+			ID:          "proj-1",
 			Name:        "Pinned Name",
 			FileName:    "pinned.jar",
 			ReleasedOn:  "2024-01-01T00:00:00Z",
 			Hash:        "hash",
-			DownloadUrl: "https://example.invalid/pinned.jar",
+			DownloadURL: "https://example.invalid/pinned.jar",
 		},
 	}
 
@@ -336,7 +336,7 @@ func TestRunUpdateSkipsPinnedModsWithoutNetwork(t *testing.T) {
 			t.Fatal("fetchMod should not be called for pinned mods")
 			return platform.RemoteMod{}, nil
 		},
-		downloader: func(context.Context, string, string, httpClient.Doer, httpClient.Sender, ...afero.Fs) error {
+		downloader: func(context.Context, string, string, httpclient.Doer, httpclient.Sender, ...afero.Fs) error {
 			t.Fatal("downloader should not be called for pinned mods")
 			return nil
 		},
@@ -360,7 +360,7 @@ func TestRunUpdateFailsWhenLockEntryIsMissing(t *testing.T) {
 	fs := afero.NewMemMapFs()
 	meta := config.NewMetadata(filepath.FromSlash("/cfg/modlist.json"))
 
-	cfg := models.ModsJson{
+	cfg := models.ModsJSON{
 		Loader:                     models.FABRIC,
 		GameVersion:                "1.21.1",
 		DefaultAllowedReleaseTypes: []models.ReleaseType{models.Release},
@@ -392,7 +392,7 @@ func TestRunUpdateFailsWhenLockEntryIsMissing(t *testing.T) {
 			t.Fatal("fetchMod should not be called when lock entry is missing")
 			return platform.RemoteMod{}, nil
 		},
-		downloader: func(context.Context, string, string, httpClient.Doer, httpClient.Sender, ...afero.Fs) error {
+		downloader: func(context.Context, string, string, httpclient.Doer, httpclient.Sender, ...afero.Fs) error {
 			t.Fatal("downloader should not be called when lock entry is missing")
 			return nil
 		},
@@ -411,7 +411,7 @@ func TestRunUpdateReturnsNonZeroWhenFetchReturnsExpectedErrors(t *testing.T) {
 	fs := afero.NewMemMapFs()
 	meta := config.NewMetadata(filepath.FromSlash("/cfg/modlist.json"))
 
-	cfg := models.ModsJson{
+	cfg := models.ModsJSON{
 		Loader:                     models.FABRIC,
 		GameVersion:                "1.21.1",
 		DefaultAllowedReleaseTypes: []models.ReleaseType{models.Release},
@@ -423,8 +423,8 @@ func TestRunUpdateReturnsNonZeroWhenFetchReturnsExpectedErrors(t *testing.T) {
 	}
 
 	lock := []models.ModInstall{
-		{Type: models.MODRINTH, Id: "proj-1", Name: "Missing", FileName: "a.jar", ReleasedOn: "2024-01-01T00:00:00Z", Hash: "a", DownloadUrl: "https://example.invalid/a.jar"},
-		{Type: models.MODRINTH, Id: "proj-2", Name: "NoFile", FileName: "b.jar", ReleasedOn: "2024-01-01T00:00:00Z", Hash: "b", DownloadUrl: "https://example.invalid/b.jar"},
+		{Type: models.MODRINTH, ID: "proj-1", Name: "Missing", FileName: "a.jar", ReleasedOn: "2024-01-01T00:00:00Z", Hash: "a", DownloadURL: "https://example.invalid/a.jar"},
+		{Type: models.MODRINTH, ID: "proj-2", Name: "NoFile", FileName: "b.jar", ReleasedOn: "2024-01-01T00:00:00Z", Hash: "b", DownloadURL: "https://example.invalid/b.jar"},
 	}
 
 	assert.NoError(t, fs.MkdirAll(meta.Dir(), 0755))
@@ -457,7 +457,7 @@ func TestRunUpdateReturnsNonZeroWhenFetchReturnsExpectedErrors(t *testing.T) {
 				return platform.RemoteMod{}, errors.New("unexpected project id")
 			}
 		},
-		downloader: func(context.Context, string, string, httpClient.Doer, httpClient.Sender, ...afero.Fs) error {
+		downloader: func(context.Context, string, string, httpclient.Doer, httpclient.Sender, ...afero.Fs) error {
 			t.Fatal("downloader should not be called when fetchMod fails")
 			return nil
 		},
@@ -479,7 +479,7 @@ func TestRunUpdateFailsWhenLockedFileIsMissing(t *testing.T) {
 	fs := afero.NewMemMapFs()
 	meta := config.NewMetadata(filepath.FromSlash("/cfg/modlist.json"))
 
-	cfg := models.ModsJson{
+	cfg := models.ModsJSON{
 		Loader:                     models.FABRIC,
 		GameVersion:                "1.21.1",
 		DefaultAllowedReleaseTypes: []models.ReleaseType{models.Release},
@@ -492,12 +492,12 @@ func TestRunUpdateFailsWhenLockedFileIsMissing(t *testing.T) {
 	lock := []models.ModInstall{
 		{
 			Type:        models.MODRINTH,
-			Id:          "proj-1",
+			ID:          "proj-1",
 			Name:        "Configured",
 			FileName:    "missing.jar",
 			ReleasedOn:  "2024-01-01T00:00:00Z",
 			Hash:        "oldhash",
-			DownloadUrl: "https://example.invalid/missing.jar",
+			DownloadURL: "https://example.invalid/missing.jar",
 		},
 	}
 
@@ -530,7 +530,7 @@ func TestRunUpdateFailsWhenLockedFileIsMissing(t *testing.T) {
 		fetchMod: func(context.Context, models.Platform, string, platform.FetchOptions, platform.Clients) (platform.RemoteMod, error) {
 			return remote, nil
 		},
-		downloader: func(context.Context, string, string, httpClient.Doer, httpClient.Sender, ...afero.Fs) error {
+		downloader: func(context.Context, string, string, httpclient.Doer, httpclient.Sender, ...afero.Fs) error {
 			t.Fatal("downloader should not be called when locked file is missing")
 			return nil
 		},
@@ -550,7 +550,7 @@ func TestRunUpdateFailsWhenInstalledTimestampIsInvalid(t *testing.T) {
 	fs := afero.NewMemMapFs()
 	meta := config.NewMetadata(filepath.FromSlash("/cfg/modlist.json"))
 
-	cfg := models.ModsJson{
+	cfg := models.ModsJSON{
 		Loader:                     models.FABRIC,
 		GameVersion:                "1.21.1",
 		DefaultAllowedReleaseTypes: []models.ReleaseType{models.Release},
@@ -563,12 +563,12 @@ func TestRunUpdateFailsWhenInstalledTimestampIsInvalid(t *testing.T) {
 	lock := []models.ModInstall{
 		{
 			Type:        models.MODRINTH,
-			Id:          "proj-1",
+			ID:          "proj-1",
 			Name:        "Configured",
 			FileName:    "old.jar",
 			ReleasedOn:  "not-a-time",
 			Hash:        "oldhash",
-			DownloadUrl: "https://example.invalid/old.jar",
+			DownloadURL: "https://example.invalid/old.jar",
 		},
 	}
 
@@ -602,7 +602,7 @@ func TestRunUpdateFailsWhenInstalledTimestampIsInvalid(t *testing.T) {
 		fetchMod: func(context.Context, models.Platform, string, platform.FetchOptions, platform.Clients) (platform.RemoteMod, error) {
 			return remote, nil
 		},
-		downloader: func(context.Context, string, string, httpClient.Doer, httpClient.Sender, ...afero.Fs) error {
+		downloader: func(context.Context, string, string, httpclient.Doer, httpclient.Sender, ...afero.Fs) error {
 			t.Fatal("downloader should not be called when timestamp is invalid")
 			return nil
 		},
@@ -622,7 +622,7 @@ func TestRunUpdateDownloadsAndSwapsWhenNewerReleaseExists(t *testing.T) {
 	fs := afero.NewMemMapFs()
 	meta := config.NewMetadata(filepath.FromSlash("/cfg/modlist.json"))
 
-	cfg := models.ModsJson{
+	cfg := models.ModsJSON{
 		Loader:                     models.FABRIC,
 		GameVersion:                "1.21.1",
 		DefaultAllowedReleaseTypes: []models.ReleaseType{models.Release},
@@ -635,12 +635,12 @@ func TestRunUpdateDownloadsAndSwapsWhenNewerReleaseExists(t *testing.T) {
 	lock := []models.ModInstall{
 		{
 			Type:        models.MODRINTH,
-			Id:          "proj-1",
+			ID:          "proj-1",
 			Name:        "Configured",
 			FileName:    "old.jar",
 			ReleasedOn:  "2024-01-01T00:00:00Z",
 			Hash:        "oldhash",
-			DownloadUrl: "https://example.invalid/old.jar",
+			DownloadURL: "https://example.invalid/old.jar",
 		},
 	}
 
@@ -675,7 +675,7 @@ func TestRunUpdateDownloadsAndSwapsWhenNewerReleaseExists(t *testing.T) {
 		fetchMod: func(context.Context, models.Platform, string, platform.FetchOptions, platform.Clients) (platform.RemoteMod, error) {
 			return remote, nil
 		},
-		downloader: func(_ context.Context, _ string, destination string, _ httpClient.Doer, _ httpClient.Sender, filesystems ...afero.Fs) error {
+		downloader: func(_ context.Context, _ string, destination string, _ httpclient.Doer, _ httpclient.Sender, filesystems ...afero.Fs) error {
 			return afero.WriteFile(filesystems[0], destination, []byte("new"), 0644)
 		},
 		clients:   platform.Clients{Modrinth: noopDoer{}},
@@ -717,7 +717,7 @@ func TestRunUpdateKeepsPreviousFileAndLockWhenDownloadFails(t *testing.T) {
 	fs := afero.NewMemMapFs()
 	meta := config.NewMetadata(filepath.FromSlash("/cfg/modlist.json"))
 
-	cfg := models.ModsJson{
+	cfg := models.ModsJSON{
 		Loader:                     models.FABRIC,
 		GameVersion:                "1.21.1",
 		DefaultAllowedReleaseTypes: []models.ReleaseType{models.Release},
@@ -730,12 +730,12 @@ func TestRunUpdateKeepsPreviousFileAndLockWhenDownloadFails(t *testing.T) {
 	lock := []models.ModInstall{
 		{
 			Type:        models.MODRINTH,
-			Id:          "proj-1",
+			ID:          "proj-1",
 			Name:        "Configured",
 			FileName:    "old.jar",
 			ReleasedOn:  "2024-01-01T00:00:00Z",
 			Hash:        "oldhash",
-			DownloadUrl: "https://example.invalid/old.jar",
+			DownloadURL: "https://example.invalid/old.jar",
 		},
 	}
 
@@ -770,7 +770,7 @@ func TestRunUpdateKeepsPreviousFileAndLockWhenDownloadFails(t *testing.T) {
 		fetchMod: func(context.Context, models.Platform, string, platform.FetchOptions, platform.Clients) (platform.RemoteMod, error) {
 			return remote, nil
 		},
-		downloader: func(context.Context, string, string, httpClient.Doer, httpClient.Sender, ...afero.Fs) error {
+		downloader: func(context.Context, string, string, httpclient.Doer, httpclient.Sender, ...afero.Fs) error {
 			return downloadErr
 		},
 		clients:   platform.Clients{Modrinth: noopDoer{}},
@@ -802,7 +802,7 @@ func TestRunUpdateReportsMissingHash(t *testing.T) {
 	fs := afero.NewMemMapFs()
 	meta := config.NewMetadata(filepath.FromSlash("/cfg/modlist.json"))
 
-	cfg := models.ModsJson{
+	cfg := models.ModsJSON{
 		Loader:                     models.FABRIC,
 		GameVersion:                "1.21.1",
 		DefaultAllowedReleaseTypes: []models.ReleaseType{models.Release},
@@ -815,12 +815,12 @@ func TestRunUpdateReportsMissingHash(t *testing.T) {
 	lock := []models.ModInstall{
 		{
 			Type:        models.MODRINTH,
-			Id:          "proj-1",
+			ID:          "proj-1",
 			Name:        "Configured",
 			FileName:    "old.jar",
 			ReleasedOn:  "2024-01-01T00:00:00Z",
 			Hash:        "oldhash",
-			DownloadUrl: "https://example.invalid/old.jar",
+			DownloadURL: "https://example.invalid/old.jar",
 		},
 	}
 
@@ -854,7 +854,7 @@ func TestRunUpdateReportsMissingHash(t *testing.T) {
 		fetchMod: func(context.Context, models.Platform, string, platform.FetchOptions, platform.Clients) (platform.RemoteMod, error) {
 			return remote, nil
 		},
-		downloader: func(context.Context, string, string, httpClient.Doer, httpClient.Sender, ...afero.Fs) error {
+		downloader: func(context.Context, string, string, httpclient.Doer, httpclient.Sender, ...afero.Fs) error {
 			t.Fatal("downloader should not be called when hash is missing")
 			return nil
 		},
@@ -874,7 +874,7 @@ func TestRunUpdateReportsInvalidRemoteFileName(t *testing.T) {
 	fs := afero.NewMemMapFs()
 	meta := config.NewMetadata(filepath.FromSlash("/cfg/modlist.json"))
 
-	cfg := models.ModsJson{
+	cfg := models.ModsJSON{
 		Loader:                     models.FABRIC,
 		GameVersion:                "1.21.1",
 		DefaultAllowedReleaseTypes: []models.ReleaseType{models.Release},
@@ -887,12 +887,12 @@ func TestRunUpdateReportsInvalidRemoteFileName(t *testing.T) {
 	lock := []models.ModInstall{
 		{
 			Type:        models.MODRINTH,
-			Id:          "proj-1",
+			ID:          "proj-1",
 			Name:        "Configured",
 			FileName:    "old.jar",
 			ReleasedOn:  "2024-01-01T00:00:00Z",
 			Hash:        "oldhash",
-			DownloadUrl: "https://example.invalid/old.jar",
+			DownloadURL: "https://example.invalid/old.jar",
 		},
 	}
 
@@ -925,7 +925,7 @@ func TestRunUpdateReportsInvalidRemoteFileName(t *testing.T) {
 		fetchMod: func(context.Context, models.Platform, string, platform.FetchOptions, platform.Clients) (platform.RemoteMod, error) {
 			return remote, nil
 		},
-		downloader: func(context.Context, string, string, httpClient.Doer, httpClient.Sender, ...afero.Fs) error {
+		downloader: func(context.Context, string, string, httpclient.Doer, httpclient.Sender, ...afero.Fs) error {
 			t.Fatal("downloader should not be called when filename is invalid")
 			return nil
 		},
@@ -945,7 +945,7 @@ func TestRunUpdateReportsInvalidLockFileName(t *testing.T) {
 	fs := afero.NewMemMapFs()
 	meta := config.NewMetadata(filepath.FromSlash("/cfg/modlist.json"))
 
-	cfg := models.ModsJson{
+	cfg := models.ModsJSON{
 		Loader:                     models.FABRIC,
 		GameVersion:                "1.21.1",
 		DefaultAllowedReleaseTypes: []models.ReleaseType{models.Release},
@@ -958,12 +958,12 @@ func TestRunUpdateReportsInvalidLockFileName(t *testing.T) {
 	lock := []models.ModInstall{
 		{
 			Type:        models.MODRINTH,
-			Id:          "proj-1",
+			ID:          "proj-1",
 			Name:        "Configured",
 			FileName:    "mods/old.jar",
 			ReleasedOn:  "2024-01-01T00:00:00Z",
 			Hash:        "oldhash",
-			DownloadUrl: "https://example.invalid/old.jar",
+			DownloadURL: "https://example.invalid/old.jar",
 		},
 	}
 
@@ -996,7 +996,7 @@ func TestRunUpdateReportsInvalidLockFileName(t *testing.T) {
 		fetchMod: func(context.Context, models.Platform, string, platform.FetchOptions, platform.Clients) (platform.RemoteMod, error) {
 			return remote, nil
 		},
-		downloader: func(context.Context, string, string, httpClient.Doer, httpClient.Sender, ...afero.Fs) error {
+		downloader: func(context.Context, string, string, httpclient.Doer, httpclient.Sender, ...afero.Fs) error {
 			t.Fatal("downloader should not be called when lock filename is invalid")
 			return nil
 		},
@@ -1016,7 +1016,7 @@ func TestRunUpdateReportsMissingInstalledHash(t *testing.T) {
 	fs := afero.NewMemMapFs()
 	meta := config.NewMetadata(filepath.FromSlash("/cfg/modlist.json"))
 
-	cfg := models.ModsJson{
+	cfg := models.ModsJSON{
 		Loader:                     models.FABRIC,
 		GameVersion:                "1.21.1",
 		DefaultAllowedReleaseTypes: []models.ReleaseType{models.Release},
@@ -1029,12 +1029,12 @@ func TestRunUpdateReportsMissingInstalledHash(t *testing.T) {
 	lock := []models.ModInstall{
 		{
 			Type:        models.MODRINTH,
-			Id:          "proj-1",
+			ID:          "proj-1",
 			Name:        "Configured",
 			FileName:    "old.jar",
 			ReleasedOn:  "2024-01-01T00:00:00Z",
 			Hash:        "",
-			DownloadUrl: "https://example.invalid/old.jar",
+			DownloadURL: "https://example.invalid/old.jar",
 		},
 	}
 
@@ -1068,7 +1068,7 @@ func TestRunUpdateReportsMissingInstalledHash(t *testing.T) {
 		fetchMod: func(context.Context, models.Platform, string, platform.FetchOptions, platform.Clients) (platform.RemoteMod, error) {
 			return remote, nil
 		},
-		downloader: func(context.Context, string, string, httpClient.Doer, httpClient.Sender, ...afero.Fs) error {
+		downloader: func(context.Context, string, string, httpclient.Doer, httpclient.Sender, ...afero.Fs) error {
 			t.Fatal("downloader should not be called when installed hash is missing")
 			return nil
 		},
@@ -1088,7 +1088,7 @@ func TestRunUpdateReportsHashMismatch(t *testing.T) {
 	fs := afero.NewMemMapFs()
 	meta := config.NewMetadata(filepath.FromSlash("/cfg/modlist.json"))
 
-	cfg := models.ModsJson{
+	cfg := models.ModsJSON{
 		Loader:                     models.FABRIC,
 		GameVersion:                "1.21.1",
 		DefaultAllowedReleaseTypes: []models.ReleaseType{models.Release},
@@ -1101,12 +1101,12 @@ func TestRunUpdateReportsHashMismatch(t *testing.T) {
 	lock := []models.ModInstall{
 		{
 			Type:        models.MODRINTH,
-			Id:          "proj-1",
+			ID:          "proj-1",
 			Name:        "Configured",
 			FileName:    "old.jar",
 			ReleasedOn:  "2024-01-01T00:00:00Z",
 			Hash:        "oldhash",
-			DownloadUrl: "https://example.invalid/old.jar",
+			DownloadURL: "https://example.invalid/old.jar",
 		},
 	}
 
@@ -1141,7 +1141,7 @@ func TestRunUpdateReportsHashMismatch(t *testing.T) {
 		fetchMod: func(context.Context, models.Platform, string, platform.FetchOptions, platform.Clients) (platform.RemoteMod, error) {
 			return remote, nil
 		},
-		downloader: func(_ context.Context, _ string, destination string, _ httpClient.Doer, _ httpClient.Sender, filesystems ...afero.Fs) error {
+		downloader: func(_ context.Context, _ string, destination string, _ httpclient.Doer, _ httpclient.Sender, filesystems ...afero.Fs) error {
 			return afero.WriteFile(filesystems[0], destination, []byte("actual"), 0644)
 		},
 		clients:   platform.Clients{Modrinth: noopDoer{}},
@@ -1167,7 +1167,7 @@ func TestDownloadAndSwapReplacesInPlaceWithoutRenamingOverExistingFile(t *testin
 	baseFs := afero.NewMemMapFs()
 	fs := renameNoOverwriteFs{Fs: baseFs}
 
-	cfg := models.ModsJson{
+	cfg := models.ModsJSON{
 		Loader:                     models.FABRIC,
 		GameVersion:                "1.21.1",
 		DefaultAllowedReleaseTypes: []models.ReleaseType{models.Release},
@@ -1185,7 +1185,7 @@ func TestDownloadAndSwapReplacesInPlaceWithoutRenamingOverExistingFile(t *testin
 	deps := updateDeps{
 		fs:      fs,
 		clients: platform.Clients{Modrinth: noopDoer{}},
-		downloader: func(_ context.Context, _ string, destination string, _ httpClient.Doer, _ httpClient.Sender, filesystems ...afero.Fs) error {
+		downloader: func(_ context.Context, _ string, destination string, _ httpclient.Doer, _ httpclient.Sender, filesystems ...afero.Fs) error {
 			return afero.WriteFile(filesystems[0], destination, []byte("new"), 0644)
 		},
 	}
@@ -1209,7 +1209,7 @@ func TestDownloadAndSwapInPlaceDoesNotFailWhenBackupDeletionFails(t *testing.T) 
 	baseFs := afero.NewMemMapFs()
 	fs := failRemoveBackupFs{Fs: baseFs}
 
-	cfg := models.ModsJson{
+	cfg := models.ModsJSON{
 		Loader:                     models.FABRIC,
 		GameVersion:                "1.21.1",
 		DefaultAllowedReleaseTypes: []models.ReleaseType{models.Release},
@@ -1228,7 +1228,7 @@ func TestDownloadAndSwapInPlaceDoesNotFailWhenBackupDeletionFails(t *testing.T) 
 		fs:      fs,
 		logger:  logger.New(&bytes.Buffer{}, &bytes.Buffer{}, false, false),
 		clients: platform.Clients{Modrinth: noopDoer{}},
-		downloader: func(_ context.Context, _ string, destination string, _ httpClient.Doer, _ httpClient.Sender, filesystems ...afero.Fs) error {
+		downloader: func(_ context.Context, _ string, destination string, _ httpclient.Doer, _ httpclient.Sender, filesystems ...afero.Fs) error {
 			return afero.WriteFile(filesystems[0], destination, []byte("new"), 0644)
 		},
 	}
@@ -1254,7 +1254,7 @@ func TestDownloadAndSwapReturnsJoinedErrorOnTempCloseCleanupFailure(t *testing.T
 	}
 	closeFs := closeErrorFs{Fs: fs, closeErr: errors.New("close failed")}
 
-	cfg := models.ModsJson{
+	cfg := models.ModsJSON{
 		Loader:                     models.FABRIC,
 		GameVersion:                "1.21.1",
 		DefaultAllowedReleaseTypes: []models.ReleaseType{models.Release},
@@ -1268,7 +1268,7 @@ func TestDownloadAndSwapReturnsJoinedErrorOnTempCloseCleanupFailure(t *testing.T
 	deps := updateDeps{
 		fs:      closeFs,
 		clients: platform.Clients{Modrinth: noopDoer{}},
-		downloader: func(context.Context, string, string, httpClient.Doer, httpClient.Sender, ...afero.Fs) error {
+		downloader: func(context.Context, string, string, httpclient.Doer, httpclient.Sender, ...afero.Fs) error {
 			return nil
 		},
 	}
@@ -1284,7 +1284,7 @@ func TestDownloadAndSwapReturnsCloseErrorWhenTempCloseFails(t *testing.T) {
 	baseFs := afero.NewMemMapFs()
 	fs := closeErrorFs{Fs: baseFs, closeErr: errors.New("close failed")}
 
-	cfg := models.ModsJson{
+	cfg := models.ModsJSON{
 		Loader:                     models.FABRIC,
 		GameVersion:                "1.21.1",
 		DefaultAllowedReleaseTypes: []models.ReleaseType{models.Release},
@@ -1298,7 +1298,7 @@ func TestDownloadAndSwapReturnsCloseErrorWhenTempCloseFails(t *testing.T) {
 	deps := updateDeps{
 		fs:      fs,
 		clients: platform.Clients{Modrinth: noopDoer{}},
-		downloader: func(context.Context, string, string, httpClient.Doer, httpClient.Sender, ...afero.Fs) error {
+		downloader: func(context.Context, string, string, httpclient.Doer, httpclient.Sender, ...afero.Fs) error {
 			return nil
 		},
 	}
@@ -1316,7 +1316,7 @@ func TestDownloadAndSwapReturnsJoinedErrorOnDownloadCleanupFailure(t *testing.T)
 		failMatch: []string{".mmm."},
 	}
 
-	cfg := models.ModsJson{
+	cfg := models.ModsJSON{
 		Loader:                     models.FABRIC,
 		GameVersion:                "1.21.1",
 		DefaultAllowedReleaseTypes: []models.ReleaseType{models.Release},
@@ -1330,7 +1330,7 @@ func TestDownloadAndSwapReturnsJoinedErrorOnDownloadCleanupFailure(t *testing.T)
 	deps := updateDeps{
 		fs:      fs,
 		clients: platform.Clients{Modrinth: noopDoer{}},
-		downloader: func(context.Context, string, string, httpClient.Doer, httpClient.Sender, ...afero.Fs) error {
+		downloader: func(context.Context, string, string, httpclient.Doer, httpclient.Sender, ...afero.Fs) error {
 			return errors.New("download failed")
 		},
 	}
@@ -1350,7 +1350,7 @@ func TestDownloadAndSwapReturnsJoinedErrorOnHashReadCleanupFailure(t *testing.T)
 	}
 	readFailFs := failingReadFs{Fs: fs, failContains: ".mmm."}
 
-	cfg := models.ModsJson{
+	cfg := models.ModsJSON{
 		Loader:                     models.FABRIC,
 		GameVersion:                "1.21.1",
 		DefaultAllowedReleaseTypes: []models.ReleaseType{models.Release},
@@ -1364,7 +1364,7 @@ func TestDownloadAndSwapReturnsJoinedErrorOnHashReadCleanupFailure(t *testing.T)
 	deps := updateDeps{
 		fs:      readFailFs,
 		clients: platform.Clients{Modrinth: noopDoer{}},
-		downloader: func(_ context.Context, _ string, destination string, _ httpClient.Doer, _ httpClient.Sender, filesystems ...afero.Fs) error {
+		downloader: func(_ context.Context, _ string, destination string, _ httpclient.Doer, _ httpclient.Sender, filesystems ...afero.Fs) error {
 			return afero.WriteFile(filesystems[0], destination, []byte("data"), 0644)
 		},
 	}
@@ -1383,7 +1383,7 @@ func TestDownloadAndSwapReturnsJoinedErrorOnHashMismatchCleanupFailure(t *testin
 		failMatch: []string{".mmm."},
 	}
 
-	cfg := models.ModsJson{
+	cfg := models.ModsJSON{
 		Loader:                     models.FABRIC,
 		GameVersion:                "1.21.1",
 		DefaultAllowedReleaseTypes: []models.ReleaseType{models.Release},
@@ -1397,7 +1397,7 @@ func TestDownloadAndSwapReturnsJoinedErrorOnHashMismatchCleanupFailure(t *testin
 	deps := updateDeps{
 		fs:      fs,
 		clients: platform.Clients{Modrinth: noopDoer{}},
-		downloader: func(_ context.Context, _ string, destination string, _ httpClient.Doer, _ httpClient.Sender, filesystems ...afero.Fs) error {
+		downloader: func(_ context.Context, _ string, destination string, _ httpclient.Doer, _ httpclient.Sender, filesystems ...afero.Fs) error {
 			return afero.WriteFile(filesystems[0], destination, []byte("actual"), 0644)
 		},
 	}
@@ -1418,7 +1418,7 @@ func TestDownloadAndSwapReturnsJoinedErrorOnReplaceCleanupFailure(t *testing.T) 
 		failMatch: []string{".mmm."},
 	}
 
-	cfg := models.ModsJson{
+	cfg := models.ModsJSON{
 		Loader:                     models.FABRIC,
 		GameVersion:                "1.21.1",
 		DefaultAllowedReleaseTypes: []models.ReleaseType{models.Release},
@@ -1432,7 +1432,7 @@ func TestDownloadAndSwapReturnsJoinedErrorOnReplaceCleanupFailure(t *testing.T) 
 	deps := updateDeps{
 		fs:      fs,
 		clients: platform.Clients{Modrinth: noopDoer{}},
-		downloader: func(_ context.Context, _ string, destination string, _ httpClient.Doer, _ httpClient.Sender, filesystems ...afero.Fs) error {
+		downloader: func(_ context.Context, _ string, destination string, _ httpclient.Doer, _ httpclient.Sender, filesystems ...afero.Fs) error {
 			return afero.WriteFile(filesystems[0], destination, []byte("data"), 0644)
 		},
 	}
@@ -1456,7 +1456,7 @@ func TestDownloadAndSwapReturnsJoinedErrorOnOldFileCleanupFailure(t *testing.T) 
 		},
 	}
 
-	cfg := models.ModsJson{
+	cfg := models.ModsJSON{
 		Loader:                     models.FABRIC,
 		GameVersion:                "1.21.1",
 		DefaultAllowedReleaseTypes: []models.ReleaseType{models.Release},
@@ -1471,7 +1471,7 @@ func TestDownloadAndSwapReturnsJoinedErrorOnOldFileCleanupFailure(t *testing.T) 
 	deps := updateDeps{
 		fs:      fs,
 		clients: platform.Clients{Modrinth: noopDoer{}},
-		downloader: func(_ context.Context, _ string, destination string, _ httpClient.Doer, _ httpClient.Sender, filesystems ...afero.Fs) error {
+		downloader: func(_ context.Context, _ string, destination string, _ httpclient.Doer, _ httpclient.Sender, filesystems ...afero.Fs) error {
 			return afero.WriteFile(filesystems[0], destination, []byte("new"), 0644)
 		},
 		logger: logger.New(io.Discard, io.Discard, false, false),
@@ -1508,7 +1508,7 @@ func TestRunUpdateLogsNoUpdatesWhenNothingChanges(t *testing.T) {
 	fs := afero.NewMemMapFs()
 	meta := config.NewMetadata(filepath.FromSlash("/cfg/modlist.json"))
 
-	cfg := models.ModsJson{
+	cfg := models.ModsJSON{
 		Loader:                     models.FABRIC,
 		GameVersion:                "1.21.1",
 		DefaultAllowedReleaseTypes: []models.ReleaseType{models.Release},
@@ -1521,12 +1521,12 @@ func TestRunUpdateLogsNoUpdatesWhenNothingChanges(t *testing.T) {
 	lock := []models.ModInstall{
 		{
 			Type:        models.MODRINTH,
-			Id:          "proj-1",
+			ID:          "proj-1",
 			Name:        "Configured",
 			FileName:    "same.jar",
 			ReleasedOn:  "2024-01-01T00:00:00Z",
 			Hash:        "samehash",
-			DownloadUrl: "https://example.invalid/same.jar",
+			DownloadURL: "https://example.invalid/same.jar",
 		},
 	}
 
@@ -1576,7 +1576,7 @@ func TestRunUpdateReturnsErrorOnUnexpectedFetchError(t *testing.T) {
 	fs := afero.NewMemMapFs()
 	meta := config.NewMetadata(filepath.FromSlash("/cfg/modlist.json"))
 
-	cfg := models.ModsJson{
+	cfg := models.ModsJSON{
 		Loader:                     models.FABRIC,
 		GameVersion:                "1.21.1",
 		DefaultAllowedReleaseTypes: []models.ReleaseType{models.Release},
@@ -1589,12 +1589,12 @@ func TestRunUpdateReturnsErrorOnUnexpectedFetchError(t *testing.T) {
 	lock := []models.ModInstall{
 		{
 			Type:        models.MODRINTH,
-			Id:          "proj-1",
+			ID:          "proj-1",
 			Name:        "Configured",
 			FileName:    "same.jar",
 			ReleasedOn:  "2024-01-01T00:00:00Z",
 			Hash:        "samehash",
-			DownloadUrl: "https://example.invalid/same.jar",
+			DownloadURL: "https://example.invalid/same.jar",
 		},
 	}
 
@@ -1636,7 +1636,7 @@ func TestRunUpdateReturnsErrorOnRemoteTimestampInvalid(t *testing.T) {
 	fs := afero.NewMemMapFs()
 	meta := config.NewMetadata(filepath.FromSlash("/cfg/modlist.json"))
 
-	cfg := models.ModsJson{
+	cfg := models.ModsJSON{
 		Loader:                     models.FABRIC,
 		GameVersion:                "1.21.1",
 		DefaultAllowedReleaseTypes: []models.ReleaseType{models.Release},
@@ -1649,12 +1649,12 @@ func TestRunUpdateReturnsErrorOnRemoteTimestampInvalid(t *testing.T) {
 	lock := []models.ModInstall{
 		{
 			Type:        models.MODRINTH,
-			Id:          "proj-1",
+			ID:          "proj-1",
 			Name:        "Configured",
 			FileName:    "same.jar",
 			ReleasedOn:  "2024-01-01T00:00:00Z",
 			Hash:        "samehash",
-			DownloadUrl: "https://example.invalid/same.jar",
+			DownloadURL: "https://example.invalid/same.jar",
 		},
 	}
 
@@ -1704,7 +1704,7 @@ func TestRunUpdateReturnsErrorWhenLockWriteFails(t *testing.T) {
 	baseFs := afero.NewMemMapFs()
 	meta := config.NewMetadata(filepath.FromSlash("/cfg/modlist.json"))
 
-	cfg := models.ModsJson{
+	cfg := models.ModsJSON{
 		Loader:                     models.FABRIC,
 		GameVersion:                "1.21.1",
 		DefaultAllowedReleaseTypes: []models.ReleaseType{models.Release},
@@ -1717,12 +1717,12 @@ func TestRunUpdateReturnsErrorWhenLockWriteFails(t *testing.T) {
 	lock := []models.ModInstall{
 		{
 			Type:        models.MODRINTH,
-			Id:          "proj-1",
+			ID:          "proj-1",
 			Name:        "Configured",
 			FileName:    "same.jar",
 			ReleasedOn:  "2024-01-01T00:00:00Z",
 			Hash:        "samehash",
-			DownloadUrl: "https://example.invalid/same.jar",
+			DownloadURL: "https://example.invalid/same.jar",
 		},
 	}
 
@@ -1758,7 +1758,7 @@ func TestRunUpdateReturnsErrorWhenLockWriteFails(t *testing.T) {
 		fetchMod: func(context.Context, models.Platform, string, platform.FetchOptions, platform.Clients) (platform.RemoteMod, error) {
 			return remote, nil
 		},
-		downloader: func(_ context.Context, _ string, destination string, _ httpClient.Doer, _ httpClient.Sender, filesystems ...afero.Fs) error {
+		downloader: func(_ context.Context, _ string, destination string, _ httpclient.Doer, _ httpclient.Sender, filesystems ...afero.Fs) error {
 			return afero.WriteFile(filesystems[0], destination, []byte("new"), 0644)
 		},
 		clients:   platform.Clients{Modrinth: noopDoer{}},
@@ -1774,7 +1774,7 @@ func TestRunUpdateReturnsErrorWhenConfigWriteFails(t *testing.T) {
 	baseFs := afero.NewMemMapFs()
 	meta := config.NewMetadata(filepath.FromSlash("/cfg/modlist.json"))
 
-	cfg := models.ModsJson{
+	cfg := models.ModsJSON{
 		Loader:                     models.FABRIC,
 		GameVersion:                "1.21.1",
 		DefaultAllowedReleaseTypes: []models.ReleaseType{models.Release},
@@ -1787,12 +1787,12 @@ func TestRunUpdateReturnsErrorWhenConfigWriteFails(t *testing.T) {
 	lock := []models.ModInstall{
 		{
 			Type:        models.MODRINTH,
-			Id:          "proj-1",
+			ID:          "proj-1",
 			Name:        "Configured",
 			FileName:    "same.jar",
 			ReleasedOn:  "2024-01-01T00:00:00Z",
 			Hash:        "samehash",
-			DownloadUrl: "https://example.invalid/same.jar",
+			DownloadURL: "https://example.invalid/same.jar",
 		},
 	}
 
@@ -1828,7 +1828,7 @@ func TestRunUpdateReturnsErrorWhenConfigWriteFails(t *testing.T) {
 		fetchMod: func(context.Context, models.Platform, string, platform.FetchOptions, platform.Clients) (platform.RemoteMod, error) {
 			return remote, nil
 		},
-		downloader: func(_ context.Context, _ string, destination string, _ httpClient.Doer, _ httpClient.Sender, filesystems ...afero.Fs) error {
+		downloader: func(_ context.Context, _ string, destination string, _ httpclient.Doer, _ httpclient.Sender, filesystems ...afero.Fs) error {
 			return afero.WriteFile(filesystems[0], destination, []byte("new"), 0644)
 		},
 		clients:   platform.Clients{Modrinth: noopDoer{}},
@@ -1862,7 +1862,7 @@ func TestRunUpdateReturnsErrorWhenConfigMissing(t *testing.T) {
 func TestRunUpdateReturnsErrorWhenLockMissing(t *testing.T) {
 	fs := afero.NewMemMapFs()
 	meta := config.NewMetadata(filepath.FromSlash("/cfg/modlist.json"))
-	cfg := models.ModsJson{
+	cfg := models.ModsJSON{
 		Loader:                     models.FABRIC,
 		GameVersion:                "1.21.1",
 		DefaultAllowedReleaseTypes: []models.ReleaseType{models.Release},
@@ -1893,17 +1893,17 @@ func TestRunUpdateReturnsErrorWhenLockMissing(t *testing.T) {
 
 func TestProcessModReturnsErrorOnExistsFailure(t *testing.T) {
 	meta := config.NewMetadata(filepath.FromSlash("/cfg/modlist.json"))
-	cfg := models.ModsJson{ModsFolder: "mods", Loader: models.FABRIC, GameVersion: "1.21.1"}
+	cfg := models.ModsJSON{ModsFolder: "mods", Loader: models.FABRIC, GameVersion: "1.21.1"}
 	mod := models.Mod{ID: "proj-1", Name: "Configured", Type: models.MODRINTH}
 	lock := []models.ModInstall{
 		{
 			Type:        models.MODRINTH,
-			Id:          "proj-1",
+			ID:          "proj-1",
 			Name:        "Configured",
 			FileName:    "mod.jar",
 			ReleasedOn:  "2024-01-01T00:00:00Z",
 			Hash:        "abc",
-			DownloadUrl: "https://example.invalid/mod.jar",
+			DownloadURL: "https://example.invalid/mod.jar",
 		},
 	}
 
@@ -1930,17 +1930,17 @@ func TestProcessModReturnsErrorOnExistsFailure(t *testing.T) {
 func TestProcessModReturnsUnchangedWhenHashMatches(t *testing.T) {
 	fs := afero.NewMemMapFs()
 	meta := config.NewMetadata(filepath.FromSlash("/cfg/modlist.json"))
-	cfg := models.ModsJson{ModsFolder: "mods", Loader: models.FABRIC, GameVersion: "1.21.1"}
+	cfg := models.ModsJSON{ModsFolder: "mods", Loader: models.FABRIC, GameVersion: "1.21.1"}
 	mod := models.Mod{ID: "proj-1", Name: "Configured", Type: models.MODRINTH}
 	lock := []models.ModInstall{
 		{
 			Type:        models.MODRINTH,
-			Id:          "proj-1",
+			ID:          "proj-1",
 			Name:        "Configured",
 			FileName:    "mod.jar",
 			ReleasedOn:  "2024-01-01T00:00:00Z",
 			Hash:        "samehash",
-			DownloadUrl: "https://example.invalid/mod.jar",
+			DownloadURL: "https://example.invalid/mod.jar",
 		},
 	}
 

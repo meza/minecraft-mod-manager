@@ -1,3 +1,4 @@
+// Package telemetry handles usage telemetry and perf export.
 package telemetry
 
 import (
@@ -11,7 +12,7 @@ import (
 
 	"github.com/denisbrodbeck/machineid"
 	"github.com/meza/minecraft-mod-manager/internal/environment"
-	"github.com/meza/minecraft-mod-manager/internal/globalErrors"
+	"github.com/meza/minecraft-mod-manager/internal/globalerrors"
 	"github.com/meza/minecraft-mod-manager/internal/models"
 	"github.com/meza/minecraft-mod-manager/internal/perf"
 	"github.com/posthog/posthog-go"
@@ -102,7 +103,7 @@ func Init() {
 			return
 		}
 
-		apiKey := environment.PosthogApiKey()
+		apiKey := environment.PosthogAPIKey()
 		if apiKey == "" {
 			state.disable(logger, timeout)
 			return
@@ -178,7 +179,7 @@ func Capture(event string, properties map[string]interface{}) {
 type CommandTelemetry struct {
 	Command     string                 `json:"command"`
 	Success     bool                   `json:"success"`
-	Config      *models.ModsJson       `json:"config,omitempty"`
+	Config      *models.ModsJSON       `json:"config,omitempty"`
 	Error       error                  `json:"error,omitempty"`
 	Extra       map[string]interface{} `json:"extra,omitempty"`
 	Arguments   map[string]interface{} `json:"arguments,omitempty"`
@@ -503,12 +504,12 @@ func errorCategory(err error) string {
 		return "canceled"
 	}
 
-	var notFound *globalErrors.ProjectNotFoundError
+	var notFound *globalerrors.ProjectNotFoundError
 	if errors.As(err, &notFound) {
 		return "project_not_found"
 	}
 
-	var apiErr *globalErrors.ProjectApiError
+	var apiErr *globalerrors.ProjectAPIError
 	if errors.As(err, &apiErr) {
 		return "project_api_error"
 	}

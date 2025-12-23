@@ -1,3 +1,4 @@
+// Package i18n handles localized user-facing strings.
 package i18n
 
 import (

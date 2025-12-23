@@ -8,7 +8,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/meza/minecraft-mod-manager/internal/httpClient"
+	"github.com/meza/minecraft-mod-manager/internal/httpclient"
 	"github.com/stretchr/testify/assert"
 	"shanhu.io/g/https/httpstest"
 )
@@ -162,7 +162,7 @@ func TestMinecraft(t *testing.T) {
 		ver, err := GetLatestVersion(context.Background(), mockServer.Client())
 
 		assert.Empty(t, ver)
-		assert.ErrorIs(t, err, CouldNotDetermineLatestVersion)
+		assert.ErrorIs(t, err, ErrCouldNotDetermineLatestVersion)
 	})
 
 	t.Run("GetLatestVersion_Timeout", func(t *testing.T) {
@@ -172,7 +172,7 @@ func TestMinecraft(t *testing.T) {
 		}))
 
 		assert.Empty(t, ver)
-		var timeoutErr *httpClient.TimeoutError
+		var timeoutErr *httpclient.TimeoutError
 		assert.ErrorAs(t, err, &timeoutErr)
 	})
 
@@ -194,12 +194,12 @@ func TestMinecraft(t *testing.T) {
 
 	t.Run("GetAllMineCraftVersions_Error", func(t *testing.T) {
 		ClearManifestCache()
-		oldUrl := versionManifestUrl
-		versionManifestUrl = "xxx"
+		oldURL := versionManifestURL
+		versionManifestURL = "xxx"
 		mockServer, err := httpstest.NewServer([]string{}, nil)
 		assert.NoError(t, err)
 		defer mockServer.Close()
-		defer func() { versionManifestUrl = oldUrl }()
+		defer func() { versionManifestURL = oldURL }()
 
 		assert.Empty(t, GetAllMineCraftVersions(context.Background(), mockServer.Client()))
 	})

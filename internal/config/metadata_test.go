@@ -16,19 +16,19 @@ func TestMetadataLockPathUsesConfigBasename(t *testing.T) {
 
 func TestMetadataModsFolderPathResolvesRelativeAgainstConfigDir(t *testing.T) {
 	meta := NewMetadata(filepath.FromSlash("/home/user/modlist.json"))
-	cfg := models.ModsJson{ModsFolder: "mods"}
+	cfg := models.ModsJSON{ModsFolder: "mods"}
 	assert.Equal(t, filepath.FromSlash("/home/user/mods"), meta.ModsFolderPath(cfg))
 }
 
 func TestMetadataModsFolderPathKeepsAbsolute(t *testing.T) {
 	meta := NewMetadata(filepath.FromSlash("/home/user/modlist.json"))
-	cfg := models.ModsJson{ModsFolder: filepath.FromSlash("/var/mc/mods")}
+	cfg := models.ModsJSON{ModsFolder: filepath.FromSlash("/var/mc/mods")}
 	assert.Equal(t, filepath.FromSlash("/var/mc/mods"), meta.ModsFolderPath(cfg))
 }
 
 func TestMetadataModsFolderPathKeepsRootedForwardSlash(t *testing.T) {
 	meta := NewMetadata(filepath.FromSlash("/home/user/modlist.json"))
-	cfg := models.ModsJson{ModsFolder: "/var/mc/mods"}
+	cfg := models.ModsJSON{ModsFolder: "/var/mc/mods"}
 	assert.Equal(t, "/var/mc/mods", meta.ModsFolderPath(cfg))
 }
 
@@ -38,6 +38,6 @@ func TestMetadataModsFolderPathKeepsWindowsDriveAbsolute(t *testing.T) {
 	}
 
 	meta := NewMetadata(`C:\home\user\modlist.json`)
-	cfg := models.ModsJson{ModsFolder: `C:\var\mc\mods`}
+	cfg := models.ModsJSON{ModsFolder: `C:\var\mc\mods`}
 	assert.Equal(t, `C:\var\mc\mods`, meta.ModsFolderPath(cfg))
 }

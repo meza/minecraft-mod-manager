@@ -1,3 +1,4 @@
+// Package models defines shared domain models.
 package models
 
 type Loader string

@@ -1,4 +1,4 @@
-# internal/httpClient
+# internal/httpclient
 
 This package is where we keep the shared HTTP primitives for the CLI:
 

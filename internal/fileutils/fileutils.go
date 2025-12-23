@@ -1,3 +1,4 @@
+// Package fileutils contains filesystem helpers.
 package fileutils
 
 import (

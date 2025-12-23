@@ -1,3 +1,4 @@
+// Package testutil holds shared test helpers.
 package testutil
 
 import (
@@ -5,15 +6,15 @@ import (
 	"net/http"
 	"net/url"
 
-	"github.com/meza/minecraft-mod-manager/internal/httpClient"
+	"github.com/meza/minecraft-mod-manager/internal/httpclient"
 )
 
 type HostRewriteDoer struct {
 	base *url.URL
-	next httpClient.Doer
+	next httpclient.Doer
 }
 
-func NewHostRewriteDoer(serverURL string, next httpClient.Doer) (*HostRewriteDoer, error) {
+func NewHostRewriteDoer(serverURL string, next httpclient.Doer) (*HostRewriteDoer, error) {
 	if next == nil {
 		return nil, fmt.Errorf("next doer is nil")
 	}
@@ -32,7 +33,7 @@ func NewHostRewriteDoer(serverURL string, next httpClient.Doer) (*HostRewriteDoe
 	}, nil
 }
 
-func MustNewHostRewriteDoer(serverURL string, next httpClient.Doer) *HostRewriteDoer {
+func MustNewHostRewriteDoer(serverURL string, next httpclient.Doer) *HostRewriteDoer {
 	doer, err := NewHostRewriteDoer(serverURL, next)
 	if err != nil {
 		panic(err)

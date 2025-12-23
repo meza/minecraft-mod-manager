@@ -2,7 +2,7 @@ package config
 
 import "fmt"
 
-type ConfigFileInvalidError struct {
+type FileInvalidError struct {
 	Err error
 }
 
@@ -11,7 +11,7 @@ type ConfigFileNotFoundException struct {
 	Err  error
 }
 
-func (e *ConfigFileInvalidError) Error() string {
+func (e *FileInvalidError) Error() string {
 	return fmt.Sprintf("Configuration file is invalid: %s", e.Err)
 }
 

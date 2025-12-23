@@ -498,3 +498,17 @@ date	time	entry
 2025-12-23	15:10	Performed code review for mmm-71 changeset (environment defaults gosec suppressions, test literal updates) per user request.
 2025-12-23	15:11	User preference: do not close Beads/GitHub issues without explicit user approval; never close issues before code review approval.
 2025-12-23	15:12	Invoked reviewer for mmm-71 changeset; reviewer reported no findings and noted reliance on REPL_* replacement for #nosec G101 suppressions.
+2025-12-23	15:18	Started mmm-63.106.1 (revive lint cleanup); ran make lint and saved revive findings to /tmp/revive.txt for triage.
+2025-12-23	15:59	User approved disabling revive exported/package-comments rules as team policy; will remove added package comments and proceed with remaining lint cleanup.
+2025-12-23	16:07	Read persona and required docs (Engineer, CodeQuality, DocumentationGuidelines, Beads, LongTermMemory, ADR, Golang) and skill files; starting mmm-63.106.1 coordination per user changeset.
+2025-12-23	16:13	Reviewing mmm-63.106.1 changeset; noted audit.md and internal/modrinth/README.md still reference VersionApiError/DownloadUrl names that were renamed (docs need update).
+2025-12-23	16:14	Reviewer reported doc mismatches (internal/modrinth/README.md VersionAPIError naming; audit.md DownloadURL and VersionAPIErrorWrap references) and has not approved yet.
+2025-12-23	16:16	Applied reviewer-requested doc fixes: internal/modrinth/README.md VersionAPIError and audit.md DownloadURL/VersionAPIErrorWrap references.
+2025-12-23	16:17	User reported reviewer doc fixes applied (VersionAPIError naming, DownloadURL/VersionAPIErrorWrap refs) with no commands run; doc-only updates.
+2025-12-23	16:22	Reviewing mmm-63.106.1 revive lint cleanup changeset; will verify rename/docs consistency and invoke reviewer per AGENTS instructions.
+2025-12-23	16:25	Starting review of mmm-63.106.1 revive lint cleanup changeset; will verify renames/docs and report findings.
+2025-12-23	16:32	Invoked reviewer for mmm-63.106.1 changeset; reviewer reported no findings. Awaiting user direction on next steps.
+2025-12-23	16:35	mmm-63.106.1: user provided scoped changeset summary (revive policy tweak + renames + package moves + docs/tests updates); reviewer already approved; waiting on user direction before closing.
+2025-12-23	16:38	Received mmm-63.106.1 revive lint cleanup changeset summary; reviewer already approved; awaiting user direction on closure or next task.
+2025-12-23	16:39	Invoked reviewer for mmm-63.106.1 changeset per AGENTS; reviewer response indicated no findings and asked whether to close or move on.
+2025-12-23	16:40	Closed mmm-63.106.1 per user instruction after reviewer approval.

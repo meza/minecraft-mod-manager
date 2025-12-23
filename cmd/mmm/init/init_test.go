@@ -466,7 +466,7 @@ func TestRunInteractiveInitWithLaunchFlagUsesDefaultProgramSuccess(t *testing.T)
 
 	fs := afero.NewMemMapFs()
 	meta := config.NewMetadata(filepath.FromSlash("/cfg/modlist.json"))
-	assert.NoError(t, fs.MkdirAll(meta.ModsFolderPath(models.ModsJson{ModsFolder: "mods"}), 0755))
+	assert.NoError(t, fs.MkdirAll(meta.ModsFolderPath(models.ModsJSON{ModsFolder: "mods"}), 0755))
 
 	cmd := &cobra.Command{}
 	cmd.SetIn(bytes.NewBufferString("\r"))
@@ -585,7 +585,7 @@ func TestCommandModelProgression(t *testing.T) {
 	fs := afero.NewMemMapFs()
 	meta := config.NewMetadata(filepath.FromSlash("/cfg/modlist.json"))
 	assert.NoError(t, fs.MkdirAll(filepath.Dir(meta.ConfigPath), 0755))
-	assert.NoError(t, fs.MkdirAll(meta.ModsFolderPath(models.ModsJson{ModsFolder: "mods"}), 0755))
+	assert.NoError(t, fs.MkdirAll(meta.ModsFolderPath(models.ModsJSON{ModsFolder: "mods"}), 0755))
 
 	model := NewModel(context.Background(), nil, initOptions{
 		ConfigPath:   meta.ConfigPath,
@@ -622,7 +622,7 @@ func TestModsFolderModelUsesPlaceholderWhenEmpty(t *testing.T) {
 	fs := afero.NewMemMapFs()
 	meta := config.NewMetadata(filepath.FromSlash("/cfg/modlist.json"))
 	assert.NoError(t, fs.MkdirAll(filepath.Dir(meta.ConfigPath), 0755))
-	assert.NoError(t, fs.MkdirAll(meta.ModsFolderPath(models.ModsJson{ModsFolder: "mods"}), 0755))
+	assert.NoError(t, fs.MkdirAll(meta.ModsFolderPath(models.ModsJSON{ModsFolder: "mods"}), 0755))
 
 	model := NewModsFolderModel("mods", meta, fs, false)
 	model.input.SetValue("")
@@ -640,7 +640,7 @@ func TestViewHidesProvidedQuestions(t *testing.T) {
 	fs := afero.NewMemMapFs()
 	meta := config.NewMetadata(filepath.FromSlash("/cfg/modlist.json"))
 	assert.NoError(t, fs.MkdirAll(filepath.Dir(meta.ConfigPath), 0755))
-	assert.NoError(t, fs.MkdirAll(meta.ModsFolderPath(models.ModsJson{ModsFolder: "mods"}), 0755))
+	assert.NoError(t, fs.MkdirAll(meta.ModsFolderPath(models.ModsJSON{ModsFolder: "mods"}), 0755))
 
 	model := NewModel(context.Background(), nil, initOptions{
 		ConfigPath:   meta.ConfigPath,

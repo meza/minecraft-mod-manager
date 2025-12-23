@@ -1,3 +1,4 @@
+// Package main provides the build helper binary.
 package main
 
 import (

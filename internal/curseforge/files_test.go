@@ -11,8 +11,8 @@ import (
 
 	stdErrors "errors"
 
-	"github.com/meza/minecraft-mod-manager/internal/globalErrors"
-	"github.com/meza/minecraft-mod-manager/internal/httpClient"
+	"github.com/meza/minecraft-mod-manager/internal/globalerrors"
+	"github.com/meza/minecraft-mod-manager/internal/httpclient"
 	"github.com/meza/minecraft-mod-manager/internal/models"
 	"github.com/meza/minecraft-mod-manager/testutil"
 	pkgErrors "github.com/pkg/errors"
@@ -134,9 +134,9 @@ func TestGetFilesForProject(t *testing.T) {
 	assert.NotNil(t, files)
 	assert.Equal(t, 2, len(files))
 
-	assert.Equal(t, 1, files[0].Id)
-	assert.Equal(t, 1, files[0].GameId)
-	assert.Equal(t, 1001, files[0].ProjectId)
+	assert.Equal(t, 1, files[0].ID)
+	assert.Equal(t, 1, files[0].GameID)
+	assert.Equal(t, 1001, files[0].ProjectID)
 	assert.True(t, files[0].IsAvailable)
 	assert.Equal(t, "File 1", files[0].DisplayName)
 	assert.Equal(t, "file1.zip", files[0].FileName)
@@ -153,7 +153,7 @@ func TestGetFilesForProject(t *testing.T) {
 	assert.Equal(t, 1024, files[0].FileLength)
 	assert.Equal(t, 100, files[0].DownloadCount)
 	assert.Equal(t, 2048, files[0].FileSizeOnDisk)
-	assert.Equal(t, "https://example.com/file1.zip", files[0].DownloadUrl)
+	assert.Equal(t, "https://example.com/file1.zip", files[0].DownloadURL)
 	assert.Equal(t, 1, len(files[0].GameVersions))
 	assert.Equal(t, "1.0.0", files[0].GameVersions[0])
 	assert.Equal(t, 1, len(files[0].SortableGameVersions))
@@ -165,15 +165,15 @@ func TestGetFilesForProject(t *testing.T) {
 	assert.NoError(t, err)
 	assert.Equal(t, sortableGameVersionDate1, files[0].SortableGameVersions[0].GameVersionReleaseDate)
 
-	assert.Equal(t, 1, files[0].SortableGameVersions[0].GameVersionTypeId)
+	assert.Equal(t, 1, files[0].SortableGameVersions[0].GameVersionTypeID)
 	assert.Equal(t, 1, len(files[0].Dependencies))
-	assert.Equal(t, 2001, files[0].Dependencies[0].ProjectId)
+	assert.Equal(t, 2001, files[0].Dependencies[0].ProjectID)
 	assert.Equal(t, RequiredDependency, files[0].Dependencies[0].Type)
 	assert.Equal(t, 1234567890, files[0].Fingerprint)
 
-	assert.Equal(t, 2, files[1].Id)
-	assert.Equal(t, 1, files[1].GameId)
-	assert.Equal(t, 1001, files[1].ProjectId)
+	assert.Equal(t, 2, files[1].ID)
+	assert.Equal(t, 1, files[1].GameID)
+	assert.Equal(t, 1001, files[1].ProjectID)
 	assert.True(t, files[1].IsAvailable)
 	assert.Equal(t, "File 2", files[1].DisplayName)
 	assert.Equal(t, "file2.zip", files[1].FileName)
@@ -190,7 +190,7 @@ func TestGetFilesForProject(t *testing.T) {
 	assert.Equal(t, 2048, files[1].FileLength)
 	assert.Equal(t, 200, files[1].DownloadCount)
 	assert.Equal(t, 4096, files[1].FileSizeOnDisk)
-	assert.Equal(t, "https://example.com/file2.zip", files[1].DownloadUrl)
+	assert.Equal(t, "https://example.com/file2.zip", files[1].DownloadURL)
 	assert.Equal(t, 1, len(files[1].GameVersions))
 	assert.Equal(t, "1.1.0", files[1].GameVersions[0])
 	assert.Equal(t, 1, len(files[1].SortableGameVersions))
@@ -202,9 +202,9 @@ func TestGetFilesForProject(t *testing.T) {
 	assert.NoError(t, err)
 	assert.Equal(t, sortableGameVersionDate2, files[1].SortableGameVersions[0].GameVersionReleaseDate)
 
-	assert.Equal(t, 1, files[1].SortableGameVersions[0].GameVersionTypeId)
+	assert.Equal(t, 1, files[1].SortableGameVersions[0].GameVersionTypeID)
 	assert.Equal(t, 1, len(files[1].Dependencies))
-	assert.Equal(t, 2002, files[1].Dependencies[0].ProjectId)
+	assert.Equal(t, 2002, files[1].Dependencies[0].ProjectID)
 	assert.Equal(t, OptionalDependency, files[1].Dependencies[0].Type)
 	assert.Equal(t, 1234567891, files[1].Fingerprint)
 }
@@ -336,9 +336,9 @@ func TestGetFilesForProjectWithPagination(t *testing.T) {
 	assert.Equal(t, 2, len(files))
 
 	// Assertions for the first file
-	assert.Equal(t, 1, files[0].Id)
-	assert.Equal(t, 1, files[0].GameId)
-	assert.Equal(t, 1001, files[0].ProjectId)
+	assert.Equal(t, 1, files[0].ID)
+	assert.Equal(t, 1, files[0].GameID)
+	assert.Equal(t, 1001, files[0].ProjectID)
 	assert.True(t, files[0].IsAvailable)
 	assert.Equal(t, "File 1", files[0].DisplayName)
 	assert.Equal(t, "file1.zip", files[0].FileName)
@@ -355,7 +355,7 @@ func TestGetFilesForProjectWithPagination(t *testing.T) {
 	assert.Equal(t, 1024, files[0].FileLength)
 	assert.Equal(t, 100, files[0].DownloadCount)
 	assert.Equal(t, 2048, files[0].FileSizeOnDisk)
-	assert.Equal(t, "https://example.com/file1.zip", files[0].DownloadUrl)
+	assert.Equal(t, "https://example.com/file1.zip", files[0].DownloadURL)
 	assert.Equal(t, 1, len(files[0].GameVersions))
 	assert.Equal(t, "1.0.0", files[0].GameVersions[0])
 	assert.Equal(t, 1, len(files[0].SortableGameVersions))
@@ -367,16 +367,16 @@ func TestGetFilesForProjectWithPagination(t *testing.T) {
 	assert.NoError(t, err)
 	assert.Equal(t, sortableGameVersionDate1, files[0].SortableGameVersions[0].GameVersionReleaseDate)
 
-	assert.Equal(t, 1, files[0].SortableGameVersions[0].GameVersionTypeId)
+	assert.Equal(t, 1, files[0].SortableGameVersions[0].GameVersionTypeID)
 	assert.Equal(t, 1, len(files[0].Dependencies))
-	assert.Equal(t, 2001, files[0].Dependencies[0].ProjectId)
+	assert.Equal(t, 2001, files[0].Dependencies[0].ProjectID)
 	assert.Equal(t, RequiredDependency, files[0].Dependencies[0].Type)
 	assert.Equal(t, 1234567890, files[0].Fingerprint)
 
 	// Assertions for the second file
-	assert.Equal(t, 2, files[1].Id)
-	assert.Equal(t, 1, files[1].GameId)
-	assert.Equal(t, 1001, files[1].ProjectId)
+	assert.Equal(t, 2, files[1].ID)
+	assert.Equal(t, 1, files[1].GameID)
+	assert.Equal(t, 1001, files[1].ProjectID)
 	assert.True(t, files[1].IsAvailable)
 	assert.Equal(t, "File 2", files[1].DisplayName)
 	assert.Equal(t, "file2.zip", files[1].FileName)
@@ -393,7 +393,7 @@ func TestGetFilesForProjectWithPagination(t *testing.T) {
 	assert.Equal(t, 2048, files[1].FileLength)
 	assert.Equal(t, 200, files[1].DownloadCount)
 	assert.Equal(t, 4096, files[1].FileSizeOnDisk)
-	assert.Equal(t, "https://example.com/file2.zip", files[1].DownloadUrl)
+	assert.Equal(t, "https://example.com/file2.zip", files[1].DownloadURL)
 	assert.Equal(t, 1, len(files[1].GameVersions))
 	assert.Equal(t, "1.1.0", files[1].GameVersions[0])
 	assert.Equal(t, 1, len(files[1].SortableGameVersions))
@@ -405,9 +405,9 @@ func TestGetFilesForProjectWithPagination(t *testing.T) {
 	assert.NoError(t, err)
 	assert.Equal(t, sortableGameVersionDate2, files[1].SortableGameVersions[0].GameVersionReleaseDate)
 
-	assert.Equal(t, 1, files[1].SortableGameVersions[0].GameVersionTypeId)
+	assert.Equal(t, 1, files[1].SortableGameVersions[0].GameVersionTypeID)
 	assert.Equal(t, 1, len(files[1].Dependencies))
-	assert.Equal(t, 2002, files[1].Dependencies[0].ProjectId)
+	assert.Equal(t, 2002, files[1].Dependencies[0].ProjectID)
 	assert.Equal(t, OptionalDependency, files[1].Dependencies[0].Type)
 	assert.Equal(t, 1234567891, files[1].Fingerprint)
 }
@@ -424,7 +424,7 @@ func TestGetFilesForProjectWhenProjectNotFound(t *testing.T) {
 
 	// Assertions
 	assert.Error(t, err)
-	assert.ErrorIs(t, err, &globalErrors.ProjectNotFoundError{
+	assert.ErrorIs(t, err, &globalerrors.ProjectNotFoundError{
 		ProjectID: "12345",
 		Platform:  models.CURSEFORGE,
 	})
@@ -474,7 +474,7 @@ func TestGetFilesForProjectWhenApiCallFails(t *testing.T) {
 
 	// Assertions
 	//assert.Error(t, err)
-	assert.ErrorIs(t, err, &globalErrors.ProjectApiError{
+	assert.ErrorIs(t, err, &globalerrors.ProjectAPIError{
 		ProjectID: "123456",
 		Platform:  models.CURSEFORGE,
 	})
@@ -486,7 +486,7 @@ func TestGetFilesForProjectWhenApiCallTimesOut(t *testing.T) {
 	project, err := GetFilesForProject(context.Background(), 123457, NewClient(errorDoer{err: context.DeadlineExceeded}))
 
 	assert.Error(t, err)
-	var timeoutErr *httpClient.TimeoutError
+	var timeoutErr *httpclient.TimeoutError
 	assert.ErrorAs(t, err, &timeoutErr)
 	assert.Nil(t, project)
 }
@@ -533,8 +533,8 @@ func TestGetFingerprintsMatchesWithOneExactMatch(t *testing.T) {
 	assert.NoError(t, err)
 	assert.Len(t, result.Matches, 1)
 	assert.Len(t, result.Unmatched, 0)
-	assert.Equal(t, 110, result.Matches[0].Id)
-	assert.Equal(t, 111, result.Matches[0].ProjectId)
+	assert.Equal(t, 110, result.Matches[0].ID)
+	assert.Equal(t, 111, result.Matches[0].ProjectID)
 	assert.Equal(t, "string", result.Matches[0].DisplayName)
 	assert.Equal(t, 1234, result.Matches[0].Fingerprint)
 }
@@ -584,10 +584,10 @@ func TestGetFingerprintsMatchesWithMultipleExactMatches(t *testing.T) {
 	assert.NoError(t, err)
 	assert.Len(t, result.Matches, 2)
 	assert.Len(t, result.Unmatched, 0)
-	assert.Equal(t, 20, result.Matches[0].Id)
-	assert.Equal(t, 200, result.Matches[0].ProjectId)
-	assert.Equal(t, 21, result.Matches[1].Id)
-	assert.Equal(t, 210, result.Matches[1].ProjectId)
+	assert.Equal(t, 20, result.Matches[0].ID)
+	assert.Equal(t, 200, result.Matches[0].ProjectID)
+	assert.Equal(t, 21, result.Matches[1].ID)
+	assert.Equal(t, 210, result.Matches[1].ProjectID)
 }
 
 func TestGetFingerprintsMatchesWithNoExactMatches(t *testing.T) {
@@ -653,8 +653,8 @@ func TestGetFingerprintsMatches_AllowsObjectFingerprintFields(t *testing.T) {
 	result, err := GetFingerprintsMatches(context.Background(), fingerprints, client)
 	assert.NoError(t, err)
 	assert.Len(t, result.Matches, 1)
-	assert.Equal(t, 20, result.Matches[0].Id)
-	assert.Equal(t, 200, result.Matches[0].ProjectId)
+	assert.Equal(t, 20, result.Matches[0].ID)
+	assert.Equal(t, 200, result.Matches[0].ProjectID)
 	assert.Len(t, result.Unmatched, 0)
 }
 
@@ -737,7 +737,7 @@ func TestGetFingerprintsMatchesWithApiTimeout(t *testing.T) {
 	client := NewClient(errorDoer{err: context.DeadlineExceeded})
 	result, err := GetFingerprintsMatches(context.Background(), fingerprints, client)
 	assert.Error(t, err)
-	var timeoutErr *httpClient.TimeoutError
+	var timeoutErr *httpclient.TimeoutError
 	assert.ErrorAs(t, err, &timeoutErr)
 	assert.Nil(t, result)
 }

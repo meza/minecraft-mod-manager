@@ -1,3 +1,4 @@
+// Package modpath resolves mod-related filesystem paths.
 package modpath
 
 import (

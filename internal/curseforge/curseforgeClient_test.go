@@ -7,7 +7,7 @@ import (
 	"testing"
 )
 
-// MockDoer is a mock implementation of the httpClient.Doer interface
+// MockDoer is a mock implementation of the httpclient.Doer interface
 type MockDoer struct {
 	mock.Mock
 }
@@ -51,9 +51,9 @@ func TestClient_Do(t *testing.T) {
 }
 
 func TestBaseURLIsConstant(t *testing.T) {
-	assert.Equal(t, "https://api.curseforge.com/v1", GetBaseUrl())
+	assert.Equal(t, "https://api.curseforge.com/v1", GetBaseURL())
 	t.Setenv("CURSEFORGE_API_URL", "https://example.com")
-	assert.Equal(t, "https://api.curseforge.com/v1", GetBaseUrl())
+	assert.Equal(t, "https://api.curseforge.com/v1", GetBaseURL())
 }
 
 func TestNewClient(t *testing.T) {

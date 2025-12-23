@@ -16,7 +16,7 @@ import (
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/meza/minecraft-mod-manager/cmd/mmm/install"
 	"github.com/meza/minecraft-mod-manager/internal/config"
-	"github.com/meza/minecraft-mod-manager/internal/httpClient"
+	"github.com/meza/minecraft-mod-manager/internal/httpclient"
 	"github.com/meza/minecraft-mod-manager/internal/i18n"
 	"github.com/meza/minecraft-mod-manager/internal/logger"
 	"github.com/meza/minecraft-mod-manager/internal/models"
@@ -51,7 +51,7 @@ type updateDeps struct {
 
 type fetcher func(context.Context, models.Platform, string, platform.FetchOptions, platform.Clients) (platform.RemoteMod, error)
 
-type downloader func(context.Context, string, string, httpClient.Doer, httpClient.Sender, ...afero.Fs) error
+type downloader func(context.Context, string, string, httpclient.Doer, httpclient.Sender, ...afero.Fs) error
 
 type installer func(context.Context, *cobra.Command, string, bool, bool) (install.Result, error)
 
@@ -91,7 +91,7 @@ func Command() *cobra.Command {
 				logger:     log,
 				clients:    platform.DefaultClients(limiter),
 				fetchMod:   platform.FetchMod,
-				downloader: httpClient.DownloadFile,
+				downloader: httpclient.DownloadFile,
 				install:    install.Run,
 				telemetry:  telemetry.RecordCommand,
 			}
@@ -267,7 +267,7 @@ var errUnmanagedFiles = errors.New("unmanaged files in mods folder")
 func processMod(
 	ctx context.Context,
 	meta config.Metadata,
-	cfg models.ModsJson,
+	cfg models.ModsJSON,
 	lock []models.ModInstall,
 	candidate modUpdateCandidate,
 	deps updateDeps,
@@ -448,12 +448,12 @@ func processMod(
 
 	updatedInstall := models.ModInstall{
 		Type:        mod.Type,
-		Id:          mod.ID,
+		ID:          mod.ID,
 		Name:        remote.Name,
 		FileName:    remote.FileName,
 		ReleasedOn:  remote.ReleaseDate,
 		Hash:        remote.Hash,
-		DownloadUrl: remote.DownloadURL,
+		DownloadURL: remote.DownloadURL,
 	}
 
 	outcome.NewInstall = updatedInstall
@@ -643,7 +643,7 @@ func isPinned(mod models.Mod) bool {
 	return strings.TrimSpace(*mod.Version) != ""
 }
 
-func effectiveAllowedReleaseTypes(mod models.Mod, cfg models.ModsJson) []models.ReleaseType {
+func effectiveAllowedReleaseTypes(mod models.Mod, cfg models.ModsJSON) []models.ReleaseType {
 	if len(mod.AllowedReleaseTypes) > 0 {
 		return mod.AllowedReleaseTypes
 	}
@@ -652,7 +652,7 @@ func effectiveAllowedReleaseTypes(mod models.Mod, cfg models.ModsJson) []models.
 
 func lockIndexFor(mod models.Mod, lock []models.ModInstall) int {
 	for i := range lock {
-		if lock[i].Type == mod.Type && lock[i].Id == mod.ID {
+		if lock[i].Type == mod.Type && lock[i].ID == mod.ID {
 			return i
 		}
 	}
@@ -674,7 +674,7 @@ type noopSender struct{}
 
 func (n *noopSender) Send(msg tea.Msg) { _ = msg }
 
-func downloadClient(clients platform.Clients) httpClient.Doer {
+func downloadClient(clients platform.Clients) httpclient.Doer {
 	if clients.Curseforge != nil {
 		return clients.Curseforge
 	}

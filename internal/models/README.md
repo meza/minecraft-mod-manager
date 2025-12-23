@@ -8,7 +8,7 @@ If you change anything in here, assume you are changing the user-facing contract
 
 ### Config and lock shapes
 
-- `ModsJson` is the shape of `modlist.json`
+- `ModsJSON` is the shape of `modlist.json`
 - `ModInstall` is the shape of each entry in `modlist-lock.json`
 - `Mod` is a single configured mod entry in `modlist.json`
 

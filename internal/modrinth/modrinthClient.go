@@ -1,3 +1,4 @@
+// Package modrinth implements Modrinth API helpers and models.
 package modrinth
 
 import (
@@ -5,7 +6,7 @@ import (
 	"net/http"
 
 	"github.com/meza/minecraft-mod-manager/internal/environment"
-	"github.com/meza/minecraft-mod-manager/internal/httpClient"
+	"github.com/meza/minecraft-mod-manager/internal/httpclient"
 	"github.com/meza/minecraft-mod-manager/internal/perf"
 	"go.opentelemetry.io/otel/attribute"
 )
@@ -13,10 +14,10 @@ import (
 const baseURL = "https://api.modrinth.com"
 
 type Client struct {
-	client httpClient.Doer
+	client httpclient.Doer
 }
 
-func NewClient(doer httpClient.Doer) *Client {
+func NewClient(doer httpclient.Doer) *Client {
 	return &Client{client: doer}
 }
 
@@ -26,7 +27,7 @@ func (modrinthClient *Client) Do(request *http.Request) (*http.Response, error) 
 	headers := map[string]string{
 		"user-agent":    fmt.Sprintf("github_com/meza/minecraft-mod-manager/%s", environment.AppVersion()),
 		"Accept":        "application/json",
-		"Authorization": environment.ModrinthApiKey(),
+		"Authorization": environment.ModrinthAPIKey(),
 	}
 
 	for key, value := range headers {
@@ -36,6 +37,6 @@ func (modrinthClient *Client) Do(request *http.Request) (*http.Response, error) 
 	return modrinthClient.client.Do(request.WithContext(ctx))
 }
 
-func GetBaseUrl() string {
+func GetBaseURL() string {
 	return baseURL
 }

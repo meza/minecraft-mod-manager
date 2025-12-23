@@ -17,7 +17,7 @@ import (
 )
 
 func TestModNameForConfig_ReturnsProjectIDWhenMissing(t *testing.T) {
-	cfg := models.ModsJson{
+	cfg := models.ModsJSON{
 		Mods: []models.Mod{
 			{Type: models.MODRINTH, ID: "abc", Name: "Example"},
 		},
@@ -40,7 +40,7 @@ func TestDownloadClientPrefersCurseforge(t *testing.T) {
 
 func TestResolveRemoteMod_WrappedErrorReturnsError(t *testing.T) {
 	ctx := context.Background()
-	cfg := models.ModsJson{
+	cfg := models.ModsJSON{
 		Loader:                     models.FABRIC,
 		GameVersion:                "1.20.1",
 		DefaultAllowedReleaseTypes: []models.ReleaseType{models.Release},

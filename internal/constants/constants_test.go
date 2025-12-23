@@ -6,6 +6,6 @@ import (
 )
 
 func TestConstants(t *testing.T) {
-	assert.Equal(t, "minecraft-mod-manager", APP_NAME, "APP_NAME should be 'minecraft-mod-manager'")
-	assert.Equal(t, "mmm", COMMAND_NAME, "COMMAND_NAME should be 'mmm'")
+	assert.Equal(t, "minecraft-mod-manager", AppName, "AppName should be 'minecraft-mod-manager'")
+	assert.Equal(t, "mmm", CommandName, "CommandName should be 'mmm'")
 }

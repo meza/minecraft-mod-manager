@@ -531,7 +531,7 @@ func TestWriteConfigUsesAtomicWrite(t *testing.T) {
 	fs := afero.NewMemMapFs()
 	meta := NewMetadata(filepath.FromSlash("/cfg/modlist.json"))
 
-	cfg := models.ModsJson{
+	cfg := models.ModsJSON{
 		Loader:                     models.FABRIC,
 		GameVersion:                "1.21.1",
 		DefaultAllowedReleaseTypes: []models.ReleaseType{models.Release},
@@ -551,7 +551,7 @@ func TestWriteLockUsesAtomicWrite(t *testing.T) {
 
 	assert.NoError(t, fs.MkdirAll(meta.Dir(), 0755))
 
-	expected := []models.ModInstall{{Id: "1", Name: "Example", Type: models.MODRINTH}}
+	expected := []models.ModInstall{{ID: "1", Name: "Example", Type: models.MODRINTH}}
 	assert.NoError(t, WriteLock(context.Background(), fs, meta, expected))
 
 	actual, err := ReadLock(context.Background(), fs, meta)

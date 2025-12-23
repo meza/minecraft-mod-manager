@@ -199,7 +199,7 @@ func readLockForRemove(ctx context.Context, fs afero.Fs, meta config.Metadata, d
 	return config.ReadLock(ctx, fs, meta)
 }
 
-func resolveModsToRemove(lookups []string, cfg models.ModsJson) ([]models.Mod, error) {
+func resolveModsToRemove(lookups []string, cfg models.ModsJSON) ([]models.Mod, error) {
 	matches := make([]models.Mod, 0)
 	seen := make(map[string]bool)
 
@@ -245,7 +245,7 @@ func globMatches(pattern string, value string) bool {
 
 func lockIndexFor(mod models.Mod, lock []models.ModInstall) int {
 	for i := range lock {
-		if lock[i].Type == mod.Type && lock[i].Id == mod.ID {
+		if lock[i].Type == mod.Type && lock[i].ID == mod.ID {
 			return i
 		}
 	}

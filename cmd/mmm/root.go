@@ -1,3 +1,4 @@
+// Package mmm wires CLI command registration and execution.
 package mmm
 
 import (
@@ -22,7 +23,7 @@ import (
 
 func Command() *cobra.Command {
 	rootCmd := &cobra.Command{
-		Use:     constants.COMMAND_NAME,
+		Use:     constants.CommandName,
 		Short:   i18n.T("app.description"),
 		Version: environment.AppVersion(),
 	}

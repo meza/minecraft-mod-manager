@@ -111,7 +111,7 @@ Evidence:
 - Command set mismatch: `mmm --help` does not list `change` or `prune`, but README/specs imply them. (Go port not complete per maintainer; therefore docs must reflect current state.)
 - Maintainer/package docs are also stale and conflict with code and build tooling:
   - `internal/config/README.md` documents `ReadConfig(fs, meta)` and `EnsureLock(fs, meta)`, but the actual public API is context-aware: `internal/config/config.go:16` and `internal/config/lock.go:14`.
-  - `internal/httpClient/README.md` documents `DownloadFile(url, filepath, ...)`, but the actual API includes context: `internal/httpClient/downloader.go:40`.
+  - `internal/httpclient/README.md` documents `DownloadFile(url, filepath, ...)`, but the actual API includes context: `internal/httpclient/downloader.go:40`.
   - `internal/environment/README.md` claims release/CI injection uses `-ldflags -X` and "not rewriting source files": `internal/environment/README.md:28`, but `scripts/prepare.sh` rewrites `internal/environment/environment.go` in-place via `sed`: `scripts/prepare.sh:10-12` (and `.releaserc.json` still references `./src/version.ts`: `.releaserc.json:42`).
 
 Impact:
@@ -195,7 +195,7 @@ Evidence:
   - `doc/adr/0002-console-log-only-in-actions.md:20-27`
 - ADR 0006 explicitly assumes a rate-limited client with retries, but the Go port often disables rate limiting and does not retry request errors:
   - ADR intent: `doc/adr/0006-verifying-minecraft-versions-error-handling.md:21-22`
-  - Go behavior: `cmd/mmm/test/test.go:106` (uses `rate.NewLimiter(rate.Inf, 0)`), `internal/httpClient/httpClient.go:80-92` (returns immediately on request error)
+  - Go behavior: `cmd/mmm/test/test.go:106` (uses `rate.NewLimiter(rate.Inf, 0)`), `internal/httpclient/httpclient.go:80-92` (returns immediately on request error)
 
 Impact:
 
@@ -313,8 +313,8 @@ Confidence: High (direct evidence in Makefile).
 
 Evidence:
 
-- Downloader writes directly to the destination path via `fs.Create(path)` with no attempt to detect symlinks or write to a temp file: `internal/httpClient/downloader.go:58`.
-- On download errors, it returns without removing partially-written files: `internal/httpClient/downloader.go:76-81`.
+- Downloader writes directly to the destination path via `fs.Create(path)` with no attempt to detect symlinks or write to a temp file: `internal/httpclient/downloader.go:58`.
+- On download errors, it returns without removing partially-written files: `internal/httpclient/downloader.go:76-81`.
 - Update flow deletes the previous jar after a successful download without validating the replacement content: `cmd/mmm/update/update.go:419-428`.
 
 Impact:
@@ -418,11 +418,11 @@ Confidence: Medium (attack requires local filesystem control/race, but the patte
 
 Evidence:
 
-- `http.Client` has no `Timeout`: `internal/httpClient/httpClient.go:124` (client created at `:125-131` without timeout).
+- `http.Client` has no `Timeout`: `internal/httpclient/httpclient.go:124` (client created at `:125-131` without timeout).
 - `init` uses `http.DefaultClient` directly (also no timeout): `cmd/mmm/init/init.go:66-69`.
 - Command-level contexts are derived from `context.Background()` without deadlines: `main.go:119`.
 - Request builder errors are routinely ignored (examples):
-  - `internal/httpClient/downloader.go:50`
+  - `internal/httpclient/downloader.go:50`
   - `internal/minecraft/minecraft.go:45`
 
 Impact:
@@ -443,7 +443,7 @@ Confidence: High.
 
 Evidence:
 
-- Downloader does not check HTTP status code before writing: `internal/httpClient/downloader.go:51` onward.
+- Downloader does not check HTTP status code before writing: `internal/httpclient/downloader.go:51` onward.
 - No post-download hashing is performed to validate content against expected SHA-1 (lock file contains hashes, but the download path does not verify them).
 
 Impact:
@@ -466,8 +466,8 @@ Confidence: High.
 
 Evidence:
 
-- Remote/lock-provided download URLs are accepted as-is and passed into `http.NewRequestWithContext`: `internal/httpClient/downloader.go:40-51`.
-- Multiple command flows use `remote.DownloadURL` / `install.DownloadUrl` directly (examples):
+- Remote/lock-provided download URLs are accepted as-is and passed into `http.NewRequestWithContext`: `internal/httpclient/downloader.go:40-51`.
+- Multiple command flows use `remote.DownloadURL` / `install.DownloadURL` directly (examples):
   - `internal/modinstall/modinstall.go:51-73`
   - `cmd/mmm/install/install.go:302-305`
   - `cmd/mmm/update/update.go:404-429`
@@ -491,7 +491,7 @@ Confidence: Medium-High (depends on upstream guarantees, but lock file tampering
 
 Evidence:
 
-- Downloader casts `response.ContentLength` (int64) to `int`: `internal/httpClient/downloader.go:65-66`.
+- Downloader casts `response.ContentLength` (int64) to `int`: `internal/httpclient/downloader.go:65-66`.
 
 Impact:
 
@@ -509,7 +509,7 @@ Confidence: Medium (MMM likely targets 64-bit desktops; still a real bug pattern
 
 Evidence:
 
-- The retry loop reuses the same `*http.Request` across attempts: `internal/httpClient/httpClient.go:51-115`.
+- The retry loop reuses the same `*http.Request` across attempts: `internal/httpclient/httpclient.go:51-115`.
 - At least one call site issues POST requests with a body: `internal/curseforge/files.go:115` uses `http.NewRequestWithContext(..., bytes.NewBuffer(body))`.
 
 Impact:
@@ -531,12 +531,12 @@ Confidence: Medium (depends on whether retries are enabled for POST paths and wh
 
 Evidence:
 
-- `NewRLClient` stores the passed limiter directly without validation: `internal/httpClient/httpClient.go:124-131`.
-- `Do` unconditionally calls `client.Ratelimiter.Wait(...)`: `internal/httpClient/httpClient.go:65-66`.
+- `NewRLClient` stores the passed limiter directly without validation: `internal/httpclient/httpclient.go:124-131`.
+- `Do` unconditionally calls `client.Ratelimiter.Wait(...)`: `internal/httpclient/httpclient.go:65-66`.
 
 Impact:
 
-- Any code path that calls `httpClient.NewRLClient(nil)` and then uses the client will panic at runtime.
+- Any code path that calls `httpclient.NewRLClient(nil)` and then uses the client will panic at runtime.
 - Some READMEs show examples that could easily drift into passing nil (for example, "use default clients") unless constructors are defensive.
 
 Remediation:
@@ -551,7 +551,7 @@ Confidence: Medium (most code uses `platform.DefaultClients` which guards agains
 
 Evidence:
 
-- Retries sleep using `time.Sleep(retryConfig.Interval)` (not context-aware): `internal/httpClient/httpClient.go:102-104`.
+- Retries sleep using `time.Sleep(retryConfig.Interval)` (not context-aware): `internal/httpclient/httpclient.go:102-104`.
 
 Impact:
 
@@ -633,9 +633,9 @@ Confidence: High.
 
 Evidence:
 
-- Retry loop returns immediately on request error and does not retry network errors: `internal/httpClient/httpClient.go:80-92`.
+- Retry loop returns immediately on request error and does not retry network errors: `internal/httpclient/httpclient.go:80-92`.
 - Rate limiting is typically disabled in commands by using `rate.NewLimiter(rate.Inf, 0)` (for example `cmd/mmm/test/test.go:106`).
-- No handling for 429 or rate limit headers; only 5xx triggers retry: `internal/httpClient/httpClient.go:94-106`.
+- No handling for 429 or rate limit headers; only 5xx triggers retry: `internal/httpclient/httpclient.go:94-106`.
 
 Impact:
 
@@ -694,7 +694,7 @@ Confidence: Medium-High (logic discrepancy is objective; impact depends on upstr
 Evidence:
 
 - Platform layer issues its own GET request and returns a plain error for non-200 responses: `internal/platform/curseforge.go:79-103` and `internal/platform/curseforge.go:93-100`.
-- Low-level CurseForge package wraps API failures into typed `globalErrors` failures: `internal/curseforge/files.go:61-82`.
+- Low-level CurseForge package wraps API failures into typed `globalerrors` failures: `internal/curseforge/files.go:61-82`.
 - Low-level CurseForge package also explicitly paginates file listings, while the platform layer does not: `internal/curseforge/files.go:86-104` and `internal/platform/curseforge.go:79-103`.
 
 Impact:
@@ -770,7 +770,7 @@ Impact:
 
 Remediation:
 
-- Check `Decode(...)` errors and wrap them in the existing platform error types (`globalErrors.ProjectApiErrorWrap(...)` and `VersionApiErrorWrap(...)`), preserving the underlying decode error for debugging.
+- Check `Decode(...)` errors and wrap them in the existing platform error types (`globalerrors.ProjectAPIErrorWrap(...)` and `VersionAPIErrorWrap(...)`), preserving the underlying decode error for debugging.
 
 Confidence: High.
 
@@ -800,7 +800,7 @@ Confidence: High.
 Evidence:
 
 - Multiple call sites discard the `error` returned by `http.NewRequestWithContext(...)` and proceed as if the request is valid:
-  - Downloader: `internal/httpClient/downloader.go:50-53`
+  - Downloader: `internal/httpclient/downloader.go:50-53`
   - Minecraft manifest: `internal/minecraft/minecraft.go:45-49`
   - Modrinth: `internal/modrinth/project.go:62-66`, `internal/modrinth/version.go:110-113`, `internal/modrinth/version.go:139-143`
   - CurseForge: `internal/curseforge/project.go:26-31`, `internal/curseforge/files.go:57-63`, `internal/curseforge/files.go:112-119`
@@ -947,13 +947,13 @@ Evidence:
 - Perf tracing is enabled unconditionally in the main entrypoint: `main.go:115-119`.
 - Perf tracing uses `trace.AlwaysSample()` (maximum collection) when enabled: `internal/perf/perf.go:42-45`.
 - Perf spans commonly include full request URLs and local file paths:
-  - `internal/httpClient/httpClient.go:31-36` records `url` and `host` for every request.
+  - `internal/httpclient/httpclient.go:31-36` records `url` and `host` for every request.
   - `internal/modrinth/modrinthClient.go:24` records `url` for Modrinth requests.
   - `internal/curseforge/curseforgeClient.go:23` records `url` for CurseForge requests.
-  - `internal/httpClient/downloader.go:41-46` records `url` and `path` for downloads.
+  - `internal/httpclient/downloader.go:41-46` records `url` and `path` for downloads.
 - Perf export normalization rewrites "path-like" keys but does not scrub `url` (including query strings): `internal/perf/export.go:291-340`.
 - No evidence in this repo that auth header values are recorded into perf attributes or telemetry payloads:
-  - Perf attributes record request URLs/hosts, not headers: `internal/httpClient/httpClient.go:31-36`.
+  - Perf attributes record request URLs/hosts, not headers: `internal/httpclient/httpclient.go:31-36`.
   - Platform HTTP wrappers set auth headers but only record the URL in spans: `internal/modrinth/modrinthClient.go:23-36`, `internal/curseforge/curseforgeClient.go:22-35`.
 - Some error strings explicitly include local filesystem paths:
   - `ConfigFileNotFoundException.Error()` embeds `Path`: `internal/config/ConfigErrors.go:18-20`.
@@ -1369,7 +1369,7 @@ Remediation:
 
 - Add a `CODEOWNERS` file (for example under `.github/CODEOWNERS`) covering:
   - release/CI (`.github/workflows/*`, `scripts/*`)
-  - networking/telemetry (`internal/httpClient/*`, `internal/telemetry/*`, `internal/perf/*`)
+  - networking/telemetry (`internal/httpclient/*`, `internal/telemetry/*`, `internal/perf/*`)
   - filesystem/data safety (`internal/config/*`, `internal/modinstall/*`, `cmd/mmm/*`)
 
 Confidence: High.
@@ -1687,7 +1687,7 @@ Confidence: High.
 Evidence:
 
 - Request creation errors ignored (nil request risk if URL is malformed):
-  - `internal/httpClient/downloader.go:50`
+  - `internal/httpclient/downloader.go:50`
   - `internal/minecraft/minecraft.go:45`
   - `internal/modrinth/project.go:62`
   - `internal/modrinth/version.go:110`
@@ -1754,14 +1754,14 @@ Evidence (examples):
     - Caller: `cmd/mmm/init/gameVersion.go:111` (`minecraft.GetAllMineCraftVersions`)
     - Tests: `internal/minecraft/minecraft_test.go:69`, `internal/minecraft/minecraft_test.go:101`, `internal/minecraft/minecraft_test.go:137`, `internal/minecraft/minecraft_test.go:145`
     - Package README: `internal/minecraft/README.md:15`
-- `internal/httpClient/httpClient.go:26` uses field name `Ratelimiter` (mixed casing; prefer `RateLimiter`).
+- `internal/httpclient/httpclient.go:26` uses field name `Ratelimiter` (mixed casing; prefer `RateLimiter`).
 - Go package naming deviates from standard practice (mixed case package names):
-  - `internal/httpClient/httpClient.go:1` (`package httpClient`)
-  - `internal/globalErrors` (`package globalErrors` across files)
+  - `internal/httpclient/httpclient.go:1` (`package httpclient`)
+  - `internal/globalerrors` (`package globalerrors` across files)
 - Inconsistent initialism handling in core models:
   - `internal/models/mod.go:5` uses `ID`
   - `internal/models/modInstall.go:5` uses `Id`
-  - `internal/models/modInstall.go:10` uses `DownloadUrl` instead of `DownloadURL`
+  - `internal/models/modInstall.go:10` uses `DownloadURL`
 
 Impact:
 
@@ -2142,7 +2142,7 @@ This is not a complete re-listing of all findings above; it is a quick "where th
 - `cmd/mmm/update/*`: update swap is not atomic and uses predictable temp/backup names (`cmd/mmm/update/update.go:389-456`), compounding the download integrity and symlink/TOCTOU issues.
 
 - `internal/config/*`: atomic write uses predictable sibling names (`internal/config/atomic_write.go:11-57`) and `afero.Exists` errors are ignored (`internal/config/config.go:20-23`, `internal/config/lock.go:18-26`).
-- `internal/httpClient/*`: no timeouts (`internal/httpClient/httpClient.go:124-131`), partial retry semantics and blocking sleep (`internal/httpClient/httpClient.go:51-105`), downloader writes without status checks and is not symlink-safe (`internal/httpClient/downloader.go:50-83`).
+- `internal/httpclient/*`: no timeouts (`internal/httpclient/httpclient.go:124-131`), partial retry semantics and blocking sleep (`internal/httpclient/httpclient.go:51-105`), downloader writes without status checks and is not symlink-safe (`internal/httpclient/downloader.go:50-83`).
 - `internal/modrinth/*`: base URL override via env (must be removed from production) and JSON decode errors ignored (`internal/modrinth/project.go:81-83`, `internal/modrinth/version.go:128-130`, `internal/modrinth/version.go:156-158`).
 - `internal/curseforge/*`: base URL override via env (must be removed from production) and request build errors ignored (`internal/curseforge/project.go:26-31`, `internal/curseforge/files.go:57-63`, `internal/curseforge/files.go:112-119`).
 - `internal/platform/*`: default clients disable rate limiting (`internal/platform/platform.go:35-44`) and inherit the API client weaknesses above.

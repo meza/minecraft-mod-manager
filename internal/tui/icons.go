@@ -1,3 +1,4 @@
+// Package tui provides shared terminal UI helpers.
 package tui
 
 func SuccessIcon(colorize bool) string {

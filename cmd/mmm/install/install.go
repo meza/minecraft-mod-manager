@@ -20,7 +20,7 @@ import (
 
 	"github.com/meza/minecraft-mod-manager/internal/config"
 	"github.com/meza/minecraft-mod-manager/internal/curseforge"
-	"github.com/meza/minecraft-mod-manager/internal/httpClient"
+	"github.com/meza/minecraft-mod-manager/internal/httpclient"
 	"github.com/meza/minecraft-mod-manager/internal/i18n"
 	"github.com/meza/minecraft-mod-manager/internal/logger"
 	"github.com/meza/minecraft-mod-manager/internal/mmmignore"
@@ -44,15 +44,15 @@ type installDeps struct {
 	telemetry  func(telemetry.CommandTelemetry)
 
 	curseforgeFingerprint      func(string) uint32
-	modrinthVersionForSha      func(context.Context, string, httpClient.Doer) (*modrinth.Version, error)
-	modrinthProjectTitle       func(context.Context, string, httpClient.Doer) (string, error)
-	curseforgeFingerprintMatch func(context.Context, []int, httpClient.Doer) (*curseforge.FingerprintResult, error)
-	curseforgeProjectName      func(context.Context, string, httpClient.Doer) (string, error)
+	modrinthVersionForSha      func(context.Context, string, httpclient.Doer) (*modrinth.Version, error)
+	modrinthProjectTitle       func(context.Context, string, httpclient.Doer) (string, error)
+	curseforgeFingerprintMatch func(context.Context, []int, httpclient.Doer) (*curseforge.FingerprintResult, error)
+	curseforgeProjectName      func(context.Context, string, httpclient.Doer) (string, error)
 }
 
 type fetcher func(context.Context, models.Platform, string, platform.FetchOptions, platform.Clients) (platform.RemoteMod, error)
 
-type downloader func(context.Context, string, string, httpClient.Doer, httpClient.Sender, ...afero.Fs) error
+type downloader func(context.Context, string, string, httpclient.Doer, httpclient.Sender, ...afero.Fs) error
 
 type installOptions struct {
 	ConfigPath string
@@ -105,7 +105,7 @@ func commandWithRunner(runner installRunner) *cobra.Command {
 				fs:         afero.NewOsFs(),
 				logger:     log,
 				clients:    platform.DefaultClients(limiter),
-				downloader: httpClient.DownloadFile,
+				downloader: httpclient.DownloadFile,
 				fetchMod:   platform.FetchMod,
 				telemetry:  telemetry.RecordCommand,
 
@@ -159,7 +159,7 @@ func Run(ctx context.Context, cmd *cobra.Command, configPath string, quiet bool,
 		fs:         afero.NewOsFs(),
 		logger:     log,
 		clients:    platform.DefaultClients(limiter),
-		downloader: httpClient.DownloadFile,
+		downloader: httpclient.DownloadFile,
 		fetchMod:   platform.FetchMod,
 		telemetry:  func(telemetry.CommandTelemetry) {},
 
@@ -330,12 +330,12 @@ func runInstall(ctx context.Context, cmd *cobra.Command, opts installOptions, de
 		cfg.Mods[i].Name = remote.Name
 		lock = append(lock, models.ModInstall{
 			Type:        mod.Type,
-			Id:          mod.ID,
+			ID:          mod.ID,
 			Name:        remote.Name,
 			FileName:    remote.FileName,
 			ReleasedOn:  remote.ReleaseDate,
 			Hash:        remote.Hash,
-			DownloadUrl: remote.DownloadURL,
+			DownloadURL: remote.DownloadURL,
 		})
 	}
 
@@ -361,7 +361,7 @@ func optionalStringValue(value *string) string {
 	return strings.TrimSpace(*value)
 }
 
-func effectiveAllowedReleaseTypes(mod models.Mod, cfg models.ModsJson) []models.ReleaseType {
+func effectiveAllowedReleaseTypes(mod models.Mod, cfg models.ModsJSON) []models.ReleaseType {
 	if len(mod.AllowedReleaseTypes) > 0 {
 		return mod.AllowedReleaseTypes
 	}
@@ -370,14 +370,14 @@ func effectiveAllowedReleaseTypes(mod models.Mod, cfg models.ModsJson) []models.
 
 func lockIndexFor(mod models.Mod, lock []models.ModInstall) int {
 	for i := range lock {
-		if lock[i].Type == mod.Type && lock[i].Id == mod.ID {
+		if lock[i].Type == mod.Type && lock[i].ID == mod.ID {
 			return i
 		}
 	}
 	return -1
 }
 
-func ensureLockInstall(ctx context.Context, meta config.Metadata, cfg models.ModsJson, mod models.Mod, install models.ModInstall, deps installDeps) error {
+func ensureLockInstall(ctx context.Context, meta config.Metadata, cfg models.ModsJSON, mod models.Mod, install models.ModInstall, deps installDeps) error {
 	installer := modinstall.NewInstaller(deps.fs, modinstall.Downloader(deps.downloader))
 	result, err := installer.EnsureLockedFile(ctx, meta, cfg, install, downloadClient(deps.clients), &noopSender{})
 	if err != nil {
@@ -461,7 +461,7 @@ func messageWithIcon(icon string, message string) string {
 	return fmt.Sprintf("%s %s", icon, message)
 }
 
-func preflightUnknownFiles(ctx context.Context, meta config.Metadata, cfg models.ModsJson, lock []models.ModInstall, deps installDeps, colorize bool) (bool, bool, error) {
+func preflightUnknownFiles(ctx context.Context, meta config.Metadata, cfg models.ModsJSON, lock []models.ModInstall, deps installDeps, colorize bool) (bool, bool, error) {
 	files, err := listModFiles(deps.fs, meta, cfg)
 	if err != nil {
 		return false, false, err
@@ -534,14 +534,14 @@ func scanFiles(ctx context.Context, files []string, deps installDeps) ([]scanned
 			return nil, err
 		}
 
-		name, err := deps.modrinthProjectTitle(ctx, version.ProjectId, deps.clients.Modrinth)
+		name, err := deps.modrinthProjectTitle(ctx, version.ProjectID, deps.clients.Modrinth)
 		if err != nil {
 			return nil, err
 		}
 
 		results[i].Hits = append(results[i].Hits, scanHit{
 			Platform: models.MODRINTH,
-			Project:  version.ProjectId,
+			Project:  version.ProjectID,
 			Name:     name,
 		})
 	}
@@ -584,7 +584,7 @@ func curseforgeMatchesByFingerprint(ctx context.Context, fingerprints []int, dep
 
 	matches := make(map[int]scanHit, len(result.Matches))
 	for _, file := range result.Matches {
-		projectID := fmt.Sprintf("%d", file.ProjectId)
+		projectID := fmt.Sprintf("%d", file.ProjectID)
 		name, err := deps.curseforgeProjectName(ctx, projectID, deps.clients.Curseforge)
 		if err != nil {
 			return nil, err
@@ -612,7 +612,7 @@ func uniqueInts(values []int) []int {
 	return result
 }
 
-func reportScanResults(scanned []scannedFile, cfg models.ModsJson, lock []models.ModInstall, deps installDeps, colorize bool) (bool, bool, error) {
+func reportScanResults(scanned []scannedFile, cfg models.ModsJSON, lock []models.ModInstall, deps installDeps, colorize bool) (bool, bool, error) {
 	unresolved := false
 	unmanagedFound := false
 
@@ -655,7 +655,7 @@ func reportScanResults(scanned []scannedFile, cfg models.ModsJson, lock []models
 	return unresolved, unmanagedFound, nil
 }
 
-func findConfiguredModIndex(cfg models.ModsJson, hits []scanHit) int {
+func findConfiguredModIndex(cfg models.ModsJSON, hits []scanHit) int {
 	for _, hit := range hits {
 		for i := range cfg.Mods {
 			if cfg.Mods[i].Type == hit.Platform && cfg.Mods[i].ID == hit.Project {
@@ -676,7 +676,7 @@ func fileIsManaged(filePath string, installations []models.ModInstall) bool {
 	return false
 }
 
-func listModFiles(fs afero.Fs, meta config.Metadata, cfg models.ModsJson) ([]string, error) {
+func listModFiles(fs afero.Fs, meta config.Metadata, cfg models.ModsJSON) ([]string, error) {
 	all, err := afero.ReadDir(fs, meta.ModsFolderPath(cfg))
 	if err != nil {
 		return nil, err
@@ -727,19 +727,19 @@ type noopSender struct{}
 
 func (n *noopSender) Send(msg tea.Msg) { _ = msg }
 
-func downloadClient(clients platform.Clients) httpClient.Doer {
+func downloadClient(clients platform.Clients) httpclient.Doer {
 	if clients.Curseforge != nil {
 		return clients.Curseforge
 	}
 	return clients.Modrinth
 }
 
-func defaultModrinthVersionForSha(ctx context.Context, sha1 string, doer httpClient.Doer) (*modrinth.Version, error) {
+func defaultModrinthVersionForSha(ctx context.Context, sha1 string, doer httpclient.Doer) (*modrinth.Version, error) {
 	client := modrinth.NewClient(doer)
-	return modrinth.GetVersionForHash(ctx, modrinth.NewVersionHashLookup(sha1, modrinth.Sha1), client)
+	return modrinth.GetVersionForHash(ctx, modrinth.NewVersionHashLookup(sha1, modrinth.SHA1), client)
 }
 
-func defaultModrinthProjectTitle(ctx context.Context, projectID string, doer httpClient.Doer) (string, error) {
+func defaultModrinthProjectTitle(ctx context.Context, projectID string, doer httpclient.Doer) (string, error) {
 	client := modrinth.NewClient(doer)
 	project, err := modrinth.GetProject(ctx, projectID, client)
 	if err != nil {
@@ -748,12 +748,12 @@ func defaultModrinthProjectTitle(ctx context.Context, projectID string, doer htt
 	return project.Title, nil
 }
 
-func defaultCurseforgeFingerprintMatch(ctx context.Context, fingerprints []int, doer httpClient.Doer) (*curseforge.FingerprintResult, error) {
+func defaultCurseforgeFingerprintMatch(ctx context.Context, fingerprints []int, doer httpclient.Doer) (*curseforge.FingerprintResult, error) {
 	client := curseforge.NewClient(doer)
 	return curseforge.GetFingerprintsMatches(ctx, fingerprints, client)
 }
 
-func defaultCurseforgeProjectName(ctx context.Context, projectID string, doer httpClient.Doer) (string, error) {
+func defaultCurseforgeProjectName(ctx context.Context, projectID string, doer httpclient.Doer) (string, error) {
 	client := curseforge.NewClient(doer)
 	project, err := curseforge.GetProject(ctx, projectID, client)
 	if err != nil {

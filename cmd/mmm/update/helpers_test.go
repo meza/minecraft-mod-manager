@@ -12,7 +12,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/meza/minecraft-mod-manager/internal/httpClient"
+	"github.com/meza/minecraft-mod-manager/internal/httpclient"
 	"github.com/meza/minecraft-mod-manager/internal/logger"
 	"github.com/meza/minecraft-mod-manager/internal/models"
 	"github.com/meza/minecraft-mod-manager/internal/modinstall"
@@ -43,7 +43,7 @@ func TestDownloadClientFallsBackToModrinth(t *testing.T) {
 
 func TestEffectiveAllowedReleaseTypesUsesOverrides(t *testing.T) {
 	mod := models.Mod{AllowedReleaseTypes: []models.ReleaseType{models.Beta}}
-	cfg := models.ModsJson{DefaultAllowedReleaseTypes: []models.ReleaseType{models.Release}}
+	cfg := models.ModsJSON{DefaultAllowedReleaseTypes: []models.ReleaseType{models.Release}}
 
 	assert.Equal(t, mod.AllowedReleaseTypes, effectiveAllowedReleaseTypes(mod, cfg))
 }
@@ -190,7 +190,7 @@ func TestDownloadAndSwapRemovesNewFileWhenOldRemovalFails(t *testing.T) {
 	deps := updateDeps{
 		fs:      fs,
 		clients: platform.Clients{Modrinth: noopDoer{}},
-		downloader: func(_ context.Context, _ string, destination string, _ httpClient.Doer, _ httpClient.Sender, filesystems ...afero.Fs) error {
+		downloader: func(_ context.Context, _ string, destination string, _ httpclient.Doer, _ httpclient.Sender, filesystems ...afero.Fs) error {
 			return afero.WriteFile(filesystems[0], destination, []byte("new"), 0644)
 		},
 	}
@@ -210,7 +210,7 @@ func TestDownloadAndSwapCleansTempOnDownloaderFailure(t *testing.T) {
 	deps := updateDeps{
 		fs:      fs,
 		clients: platform.Clients{Modrinth: noopDoer{}},
-		downloader: func(context.Context, string, string, httpClient.Doer, httpClient.Sender, ...afero.Fs) error {
+		downloader: func(context.Context, string, string, httpclient.Doer, httpclient.Sender, ...afero.Fs) error {
 			return errors.New("download failed")
 		},
 		logger: logger.New(io.Discard, io.Discard, false, false),
@@ -235,7 +235,7 @@ func TestDownloadAndSwapCleansTempOnReplaceFailure(t *testing.T) {
 	deps := updateDeps{
 		fs:      fs,
 		clients: platform.Clients{Modrinth: noopDoer{}},
-		downloader: func(_ context.Context, _ string, destination string, _ httpClient.Doer, _ httpClient.Sender, filesystems ...afero.Fs) error {
+		downloader: func(_ context.Context, _ string, destination string, _ httpclient.Doer, _ httpclient.Sender, filesystems ...afero.Fs) error {
 			return afero.WriteFile(filesystems[0], destination, []byte("new"), 0644)
 		},
 		logger: logger.New(io.Discard, io.Discard, false, false),
@@ -270,7 +270,7 @@ func TestDownloadAndSwapReturnsErrorOnHashReadFailure(t *testing.T) {
 	deps := updateDeps{
 		fs:      fs,
 		clients: platform.Clients{Modrinth: noopDoer{}},
-		downloader: func(_ context.Context, _ string, destination string, _ httpClient.Doer, _ httpClient.Sender, filesystems ...afero.Fs) error {
+		downloader: func(_ context.Context, _ string, destination string, _ httpclient.Doer, _ httpclient.Sender, filesystems ...afero.Fs) error {
 			return afero.WriteFile(filesystems[0], destination, []byte("data"), 0644)
 		},
 		logger: logger.New(io.Discard, io.Discard, false, false),

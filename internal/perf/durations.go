@@ -1,3 +1,4 @@
+// Package perf provides performance instrumentation helpers.
 package perf
 
 import (

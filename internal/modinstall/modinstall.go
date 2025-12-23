@@ -1,3 +1,4 @@
+// Package modinstall coordinates mod installation flows.
 package modinstall
 
 import (
@@ -15,13 +16,13 @@ import (
 	"github.com/spf13/afero"
 
 	"github.com/meza/minecraft-mod-manager/internal/config"
-	"github.com/meza/minecraft-mod-manager/internal/httpClient"
+	"github.com/meza/minecraft-mod-manager/internal/httpclient"
 	"github.com/meza/minecraft-mod-manager/internal/models"
 	"github.com/meza/minecraft-mod-manager/internal/modfilename"
 	"github.com/meza/minecraft-mod-manager/internal/modpath"
 )
 
-type Downloader func(context.Context, string, string, httpClient.Doer, httpClient.Sender, ...afero.Fs) error
+type Downloader func(context.Context, string, string, httpclient.Doer, httpclient.Sender, ...afero.Fs) error
 
 type EnsureReason string
 
@@ -66,7 +67,7 @@ func NewInstaller(fs afero.Fs, downloader Downloader) *Installer {
 	}
 }
 
-func (s *Installer) EnsureLockedFile(ctx context.Context, meta config.Metadata, cfg models.ModsJson, install models.ModInstall, downloadClient httpClient.Doer, sender httpClient.Sender) (EnsureResult, error) {
+func (s *Installer) EnsureLockedFile(ctx context.Context, meta config.Metadata, cfg models.ModsJSON, install models.ModInstall, downloadClient httpclient.Doer, sender httpclient.Sender) (EnsureResult, error) {
 	if strings.TrimSpace(install.FileName) == "" {
 		return EnsureResult{}, errors.New("missing lock fileName")
 	}
@@ -74,7 +75,7 @@ func (s *Installer) EnsureLockedFile(ctx context.Context, meta config.Metadata, 
 	if err != nil {
 		return EnsureResult{}, err
 	}
-	if strings.TrimSpace(install.DownloadUrl) == "" {
+	if strings.TrimSpace(install.DownloadURL) == "" {
 		return EnsureResult{}, errors.New("missing lock downloadUrl")
 	}
 	expectedHash := strings.TrimSpace(install.Hash)
@@ -105,7 +106,7 @@ func (s *Installer) EnsureLockedFile(ctx context.Context, meta config.Metadata, 
 		if s.downloader == nil {
 			return EnsureResult{}, errors.New("missing modinstall dependencies: downloader")
 		}
-		if err := s.downloadAndVerify(ctx, install.DownloadUrl, resolvedDestination, expectedHash, downloadClient, sender, normalizedFileName); err != nil {
+		if err := s.downloadAndVerify(ctx, install.DownloadURL, resolvedDestination, expectedHash, downloadClient, sender, normalizedFileName); err != nil {
 			return EnsureResult{}, err
 		}
 		return EnsureResult{Downloaded: true, Reason: EnsureReasonMissing}, nil
@@ -120,7 +121,7 @@ func (s *Installer) EnsureLockedFile(ctx context.Context, meta config.Metadata, 
 		if s.downloader == nil {
 			return EnsureResult{}, errors.New("missing modinstall dependencies: downloader")
 		}
-		if err := s.downloadAndVerify(ctx, install.DownloadUrl, resolvedDestination, expectedHash, downloadClient, sender, normalizedFileName); err != nil {
+		if err := s.downloadAndVerify(ctx, install.DownloadURL, resolvedDestination, expectedHash, downloadClient, sender, normalizedFileName); err != nil {
 			return EnsureResult{}, err
 		}
 		return EnsureResult{Downloaded: true, Reason: EnsureReasonHashMismatch}, nil
@@ -129,7 +130,7 @@ func (s *Installer) EnsureLockedFile(ctx context.Context, meta config.Metadata, 
 	return EnsureResult{Downloaded: false, Reason: EnsureReasonAlreadyPresent}, nil
 }
 
-func (s *Installer) DownloadAndVerify(ctx context.Context, url string, destination string, expectedHash string, downloadClient httpClient.Doer, sender httpClient.Sender) error {
+func (s *Installer) DownloadAndVerify(ctx context.Context, url string, destination string, expectedHash string, downloadClient httpclient.Doer, sender httpclient.Sender) error {
 	if strings.TrimSpace(expectedHash) == "" {
 		return MissingHashError{FileName: filepath.Base(destination)}
 	}
@@ -142,7 +143,7 @@ func (s *Installer) DownloadAndVerify(ctx context.Context, url string, destinati
 	return s.downloadAndVerify(ctx, url, destination, expectedHash, downloadClient, sender, filepath.Base(destination))
 }
 
-func (s *Installer) downloadAndVerify(ctx context.Context, url string, destination string, expectedHash string, downloadClient httpClient.Doer, sender httpClient.Sender, displayName string) error {
+func (s *Installer) downloadAndVerify(ctx context.Context, url string, destination string, expectedHash string, downloadClient httpclient.Doer, sender httpclient.Sender, displayName string) error {
 	tempFile, err := afero.TempFile(s.fs, filepath.Dir(destination), filepath.Base(destination)+".mmm.*.tmp")
 	if err != nil {
 		return err

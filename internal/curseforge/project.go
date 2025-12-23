@@ -5,8 +5,8 @@ import (
 	"encoding/json"
 	"fmt"
 
-	"github.com/meza/minecraft-mod-manager/internal/globalErrors"
-	"github.com/meza/minecraft-mod-manager/internal/httpClient"
+	"github.com/meza/minecraft-mod-manager/internal/globalerrors"
+	"github.com/meza/minecraft-mod-manager/internal/httpclient"
 	"github.com/meza/minecraft-mod-manager/internal/models"
 	"github.com/meza/minecraft-mod-manager/internal/perf"
 	"github.com/pkg/errors"
@@ -19,12 +19,12 @@ type getProjectResponse struct {
 	Data Project `json:"data"`
 }
 
-func GetProject(ctx context.Context, projectId string, client httpClient.Doer) (project *Project, returnErr error) {
-	ctx, span := perf.StartSpan(ctx, "api.curseforge.project.get", perf.WithAttributes(attribute.String("project_id", projectId)))
+func GetProject(ctx context.Context, projectID string, client httpclient.Doer) (project *Project, returnErr error) {
+	ctx, span := perf.StartSpan(ctx, "api.curseforge.project.get", perf.WithAttributes(attribute.String("project_id", projectID)))
 	defer span.End()
 
-	url := fmt.Sprintf("%s/mods/%s", GetBaseUrl(), projectId)
-	timeoutCtx, cancel := httpClient.WithMetadataTimeout(ctx)
+	url := fmt.Sprintf("%s/mods/%s", GetBaseURL(), projectID)
+	timeoutCtx, cancel := httpclient.WithMetadataTimeout(ctx)
 	defer cancel()
 	request, err := newRequestWithContext(timeoutCtx, http.MethodGet, url, nil)
 	if err != nil {
@@ -33,10 +33,10 @@ func GetProject(ctx context.Context, projectId string, client httpClient.Doer) (
 
 	response, err := client.Do(request)
 	if err != nil {
-		if httpClient.IsTimeoutError(err) {
-			return nil, httpClient.WrapTimeoutError(err)
+		if httpclient.IsTimeoutError(err) {
+			return nil, httpclient.WrapTimeoutError(err)
 		}
-		return nil, globalErrors.ProjectApiErrorWrap(err, projectId, models.CURSEFORGE)
+		return nil, globalerrors.ProjectAPIErrorWrap(err, projectID, models.CURSEFORGE)
 	}
 	defer func() {
 		if closeErr := response.Body.Close(); closeErr != nil && returnErr == nil {
@@ -45,20 +45,20 @@ func GetProject(ctx context.Context, projectId string, client httpClient.Doer) (
 	}()
 
 	if response.StatusCode == http.StatusNotFound {
-		return nil, &globalErrors.ProjectNotFoundError{
-			ProjectID: projectId,
+		return nil, &globalerrors.ProjectNotFoundError{
+			ProjectID: projectID,
 			Platform:  models.CURSEFORGE,
 		}
 	}
 
 	if response.StatusCode != http.StatusOK {
-		return nil, globalErrors.ProjectApiErrorWrap(errors.Errorf("unexpected status code: %d", response.StatusCode), projectId, models.CURSEFORGE)
+		return nil, globalerrors.ProjectAPIErrorWrap(errors.Errorf("unexpected status code: %d", response.StatusCode), projectID, models.CURSEFORGE)
 	}
 
 	var projectResponse getProjectResponse
 	err = json.NewDecoder(response.Body).Decode(&projectResponse)
 	if err != nil {
-		return nil, globalErrors.ProjectApiErrorWrap(errors.Wrap(err, "failed to decode response body"), projectId, models.CURSEFORGE)
+		return nil, globalerrors.ProjectAPIErrorWrap(errors.Wrap(err, "failed to decode response body"), projectID, models.CURSEFORGE)
 	}
 
 	return &projectResponse.Data, nil

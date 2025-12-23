@@ -21,17 +21,17 @@ func (e *VersionNotFoundError) Is(target error) bool {
 	return e.Lookup.algorithm == t.Lookup.algorithm && e.Lookup.hash == t.Lookup.hash
 }
 
-type VersionApiError struct {
+type VersionAPIError struct {
 	Lookup VersionHashLookup
 	Err    error
 }
 
-func (e *VersionApiError) Error() string {
+func (e *VersionAPIError) Error() string {
 	return fmt.Sprintf("Version cannot be fetched due to an api error: %s@%s", e.Lookup.algorithm, e.Lookup.hash)
 }
 
-func (e *VersionApiError) Is(target error) bool {
-	var t *VersionApiError
+func (e *VersionAPIError) Is(target error) bool {
+	var t *VersionAPIError
 	ok := errors.As(target, &t)
 	if !ok {
 		return false
@@ -39,12 +39,12 @@ func (e *VersionApiError) Is(target error) bool {
 	return e.Lookup.algorithm == t.Lookup.algorithm && e.Lookup.hash == t.Lookup.hash
 }
 
-func (e *VersionApiError) Unwrap() error {
+func (e *VersionAPIError) Unwrap() error {
 	return e.Err
 }
 
-func VersionApiErrorWrap(err error, lookup VersionHashLookup) error {
-	return &VersionApiError{
+func VersionAPIErrorWrap(err error, lookup VersionHashLookup) error {
+	return &VersionAPIError{
 		Lookup: lookup,
 		Err:    err,
 	}

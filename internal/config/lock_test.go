@@ -41,7 +41,7 @@ func TestWriteLockAndReadLockRoundTrip(t *testing.T) {
 	fs := afero.NewMemMapFs()
 	meta := NewMetadata(filepath.FromSlash("/modlist.json"))
 
-	expected := []models.ModInstall{{Id: "1", Name: "Example", Type: models.MODRINTH}}
+	expected := []models.ModInstall{{ID: "1", Name: "Example", Type: models.MODRINTH}}
 	err := WriteLock(context.Background(), fs, meta, expected)
 	assert.NoError(t, err)
 
@@ -62,7 +62,7 @@ func TestWriteLockReturnsErrorOnMarshalFailure(t *testing.T) {
 		marshalIndent = originalMarshal
 	})
 
-	err := WriteLock(context.Background(), fs, meta, []models.ModInstall{{Id: "1", Name: "Example", Type: models.MODRINTH}})
+	err := WriteLock(context.Background(), fs, meta, []models.ModInstall{{ID: "1", Name: "Example", Type: models.MODRINTH}})
 	assert.Error(t, err)
 }
 
@@ -70,7 +70,7 @@ func TestEnsureLockReadsExisting(t *testing.T) {
 	fs := afero.NewMemMapFs()
 	meta := NewMetadata(filepath.FromSlash("/modlist.json"))
 
-	expected := []models.ModInstall{{Id: "1", Name: "Example", Type: models.MODRINTH}}
+	expected := []models.ModInstall{{ID: "1", Name: "Example", Type: models.MODRINTH}}
 	err := WriteLock(context.Background(), fs, meta, expected)
 	assert.NoError(t, err)
 

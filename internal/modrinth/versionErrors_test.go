@@ -10,7 +10,7 @@ import (
 func TestVersionNotFoundError_Error(t *testing.T) {
 	err := &VersionNotFoundError{
 		Lookup: VersionHashLookup{
-			algorithm: Sha1,
+			algorithm: SHA1,
 			hash:      "AABBCCDD",
 		},
 	}
@@ -18,9 +18,9 @@ func TestVersionNotFoundError_Error(t *testing.T) {
 	assert.Equal(t, expected, err.Error())
 }
 
-func TestVersionApiError_Error(t *testing.T) {
+func TestVersionAPIError_Error(t *testing.T) {
 	underlyingErr := errors.New("underlying error")
-	err := &VersionApiError{Lookup: VersionHashLookup{
+	err := &VersionAPIError{Lookup: VersionHashLookup{
 		algorithm: Sha512,
 		hash:      "AABBCCDD1",
 	}, Err: underlyingErr}
@@ -28,9 +28,9 @@ func TestVersionApiError_Error(t *testing.T) {
 	assert.Equal(t, expected, err.Error())
 }
 
-func TestVersionApiError_Unwrap(t *testing.T) {
+func TestVersionAPIError_Unwrap(t *testing.T) {
 	underlyingErr := errors.New("underlying error")
-	err := &VersionApiError{
+	err := &VersionAPIError{
 		Lookup: VersionHashLookup{
 			algorithm: "sha1",
 			hash:      "AABBCCDD",
@@ -38,14 +38,14 @@ func TestVersionApiError_Unwrap(t *testing.T) {
 	assert.Equal(t, underlyingErr, err.Unwrap())
 }
 
-func TestVersionApiErrorWrap(t *testing.T) {
+func TestVersionAPIErrorWrap(t *testing.T) {
 	underlyingErr := errors.New("underlying error")
 	lookup := VersionHashLookup{
 		algorithm: "sha1",
 		hash:      "AABBCCDDEE",
 	}
-	err := VersionApiErrorWrap(underlyingErr, lookup)
-	expected := &VersionApiError{
+	err := VersionAPIErrorWrap(underlyingErr, lookup)
+	expected := &VersionAPIError{
 		Lookup: lookup,
 		Err:    underlyingErr,
 	}
@@ -55,19 +55,19 @@ func TestVersionApiErrorWrap(t *testing.T) {
 func TestVersionNotFoundError_Is(t *testing.T) {
 	err1 := &VersionNotFoundError{
 		Lookup: VersionHashLookup{
-			algorithm: Sha1,
+			algorithm: SHA1,
 			hash:      "AABBCCDD",
 		},
 	}
 	err2 := &VersionNotFoundError{
 		Lookup: VersionHashLookup{
-			algorithm: Sha1,
+			algorithm: SHA1,
 			hash:      "AABBCCDD",
 		},
 	}
 	err3 := &VersionNotFoundError{
 		Lookup: VersionHashLookup{
-			algorithm: Sha1,
+			algorithm: SHA1,
 			hash:      "EEFFGGHH",
 		},
 	}
@@ -83,21 +83,21 @@ func TestVersionNotFoundError_Is(t *testing.T) {
 	assert.False(t, err1.Is(errors.New("some other error")))
 }
 
-func TestVersionApiError_Is(t *testing.T) {
+func TestVersionAPIError_Is(t *testing.T) {
 	underlyingErr := errors.New("underlying error")
-	err1 := &VersionApiError{Lookup: VersionHashLookup{
-		algorithm: Sha1,
+	err1 := &VersionAPIError{Lookup: VersionHashLookup{
+		algorithm: SHA1,
 		hash:      "AABBCCDD",
 	}, Err: underlyingErr}
-	err2 := &VersionApiError{Lookup: VersionHashLookup{
-		algorithm: Sha1,
+	err2 := &VersionAPIError{Lookup: VersionHashLookup{
+		algorithm: SHA1,
 		hash:      "AABBCCDD",
 	}, Err: underlyingErr}
-	err3 := &VersionApiError{Lookup: VersionHashLookup{
-		algorithm: Sha1,
+	err3 := &VersionAPIError{Lookup: VersionHashLookup{
+		algorithm: SHA1,
 		hash:      "EEFFGGHH",
 	}, Err: underlyingErr}
-	err4 := &VersionApiError{Lookup: VersionHashLookup{
+	err4 := &VersionAPIError{Lookup: VersionHashLookup{
 		algorithm: Sha512,
 		hash:      "AABBCCDD",
 	}, Err: underlyingErr}

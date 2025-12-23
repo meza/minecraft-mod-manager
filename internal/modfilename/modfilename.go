@@ -1,3 +1,4 @@
+// Package modfilename validates mod file names.
 package modfilename
 
 import "strings"

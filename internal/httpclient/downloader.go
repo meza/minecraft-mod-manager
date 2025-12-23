@@ -1,4 +1,5 @@
-package httpClient
+// Package httpclient provides shared HTTP primitives.
+package httpclient
 
 import (
 	"context"

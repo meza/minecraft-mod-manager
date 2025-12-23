@@ -11,14 +11,14 @@ It is intentionally low-level: it does not try to decide which file should be in
 
 ## Quick start
 
-Wrap an `httpClient.Doer` with the Modrinth client (it adds headers), then call the API helpers:
+Wrap an `httpclient.Doer` with the Modrinth client (it adds headers), then call the API helpers:
 
 ```go
-client := modrinth.NewClient(httpClient.NewRLClient(limiter))
+client := modrinth.NewClient(httpclient.NewRLClient(limiter))
 
 project, err := modrinth.GetProject("AANobbMI", client)
 versions, err := modrinth.GetVersionsForProject(&modrinth.VersionLookup{
-	ProjectId:    "AANobbMI",
+	ProjectID:    "AANobbMI",
 	Loaders:      []models.Loader{models.FABRIC},
 	GameVersions: []string{"1.20.1"},
 }, client)
@@ -28,24 +28,24 @@ versions, err := modrinth.GetVersionsForProject(&modrinth.VersionLookup{
 
 ### Client and base URL
 
-- `NewClient(doer httpClient.Doer) *Client` (adds required headers)
-- `GetBaseUrl() string`
+- `NewClient(doer httpclient.Doer) *Client` (adds required headers)
+- `GetBaseURL() string`
 
-`GetBaseUrl` returns `https://api.modrinth.com`.
+`GetBaseURL` returns `https://api.modrinth.com`.
 
 ### Projects
 
-- `GetProject(projectId string, client httpClient.Doer) (*Project, error)`
+- `GetProject(projectId string, client httpclient.Doer) (*Project, error)`
 
 ### Versions (project lookups)
 
-- `GetVersionsForProject(lookup *VersionLookup, client httpClient.Doer) (Versions, error)`
+- `GetVersionsForProject(lookup *VersionLookup, client httpclient.Doer) (Versions, error)`
 
 `VersionLookup` defines the filter for the Modrinth `/version` endpoint (project ID, loaders, and game versions).
 
 ### Versions (hash lookups)
 
-- `GetVersionForHash(lookup *VersionHashLookup, client httpClient.Doer) (*Version, error)`
+- `GetVersionForHash(lookup *VersionHashLookup, client httpclient.Doer) (*Version, error)`
 
 `VersionHashLookup` has unexported fields, so callers outside this package cannot construct it today. The function is currently used only by this package's tests.
 
@@ -61,15 +61,15 @@ The version comes from `internal/environment.AppVersion()`, which is replaced at
 
 ## Expected errors
 
-Most project-level failures use `internal/globalErrors`:
+Most project-level failures use `internal/globalerrors`:
 
-- `*globalErrors.ProjectNotFoundError` for 404s
-- `*globalErrors.ProjectApiError` for network failures, non-200 status codes, and JSON decode failures
+- `*globalerrors.ProjectNotFoundError` for 404s
+- `*globalerrors.ProjectAPIError` for network failures, non-200 status codes, and JSON decode failures
 
 Hash lookups return Modrinth-specific typed errors from `versionErrors.go`:
 
 - `*VersionNotFoundError`
-- `*VersionApiError`
+- `*VersionAPIError`
 
 ## Tests
 

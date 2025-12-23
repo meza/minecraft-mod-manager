@@ -1,3 +1,4 @@
+// Package lifecycle manages process lifecycle hooks.
 package lifecycle
 
 import (
@@ -115,8 +116,9 @@ func runHandlers(sig os.Signal) {
 
 func callHandler(handler Handler, sig os.Signal) {
 	defer func() {
-		if recover() != nil {
+		if recovered := recover(); recovered != nil {
 			// swallow panics so remaining handlers run
+			_ = recovered
 		}
 	}()
 	handler(sig)

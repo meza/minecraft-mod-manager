@@ -1,3 +1,4 @@
+// Package main provides the packaging helper binary.
 package main
 
 import (

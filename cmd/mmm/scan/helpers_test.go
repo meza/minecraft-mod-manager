@@ -16,7 +16,7 @@ import (
 
 	"github.com/meza/minecraft-mod-manager/internal/config"
 	"github.com/meza/minecraft-mod-manager/internal/curseforge"
-	"github.com/meza/minecraft-mod-manager/internal/httpClient"
+	"github.com/meza/minecraft-mod-manager/internal/httpclient"
 	"github.com/meza/minecraft-mod-manager/internal/logger"
 	"github.com/meza/minecraft-mod-manager/internal/models"
 	"github.com/meza/minecraft-mod-manager/internal/modrinth"
@@ -126,8 +126,8 @@ func TestModrinthDownloadDetailsSelectsPrimaryFile(t *testing.T) {
 	version := &modrinth.Version{
 		DatePublished: time.Date(2024, 1, 2, 3, 4, 5, 0, time.UTC),
 		Files: []modrinth.VersionFile{
-			{Url: "https://example.invalid/secondary.jar"},
-			{Url: "https://example.invalid/primary.jar", Primary: true},
+			{URL: "https://example.invalid/secondary.jar"},
+			{URL: "https://example.invalid/primary.jar", Primary: true},
 		},
 	}
 
@@ -140,7 +140,7 @@ func TestModrinthDownloadDetailsSelectsPrimaryFile(t *testing.T) {
 func TestModrinthDownloadDetailsErrorsOnMissingURL(t *testing.T) {
 	version := &modrinth.Version{
 		DatePublished: time.Now(),
-		Files:         []modrinth.VersionFile{{Url: ""}},
+		Files:         []modrinth.VersionFile{{URL: ""}},
 	}
 
 	_, _, err := modrinthDownloadDetails(version)
@@ -228,10 +228,10 @@ func TestIdentifyCandidatesCombinesPreferredAndFallback(t *testing.T) {
 	}
 
 	version := &modrinth.Version{
-		ProjectId:     "proj-a",
+		ProjectID:     "proj-a",
 		DatePublished: time.Date(2024, 1, 2, 0, 0, 0, 0, time.UTC),
 		Files: []modrinth.VersionFile{
-			{Url: "https://example.invalid/a.jar", Primary: true},
+			{URL: "https://example.invalid/a.jar", Primary: true},
 		},
 	}
 
@@ -240,24 +240,24 @@ func TestIdentifyCandidatesCombinesPreferredAndFallback(t *testing.T) {
 			Modrinth:   noopDoer{},
 			Curseforge: noopDoer{},
 		},
-		modrinthVersionForSha: func(_ context.Context, hash string, _ httpClient.Doer) (*modrinth.Version, error) {
+		modrinthVersionForSha: func(_ context.Context, hash string, _ httpclient.Doer) (*modrinth.Version, error) {
 			if hash == "a" {
 				return version, nil
 			}
-			return nil, &modrinth.VersionNotFoundError{Lookup: *modrinth.NewVersionHashLookup(hash, modrinth.Sha1)}
+			return nil, &modrinth.VersionNotFoundError{Lookup: *modrinth.NewVersionHashLookup(hash, modrinth.SHA1)}
 		},
-		modrinthProjectTitle: func(context.Context, string, httpClient.Doer) (string, error) {
+		modrinthProjectTitle: func(context.Context, string, httpclient.Doer) (string, error) {
 			return "Modrinth Title", nil
 		},
 		curseforgeFingerprint: func(string) uint32 { return 101 },
-		curseforgeFingerprintMatch: func(context.Context, []int, httpClient.Doer) (*curseforge.FingerprintResult, error) {
+		curseforgeFingerprintMatch: func(context.Context, []int, httpclient.Doer) (*curseforge.FingerprintResult, error) {
 			return &curseforge.FingerprintResult{
 				Matches: []curseforge.File{
-					{ProjectId: 22, Fingerprint: 101, DownloadUrl: "https://example.invalid/b.jar", FileDate: time.Date(2024, 1, 3, 0, 0, 0, 0, time.UTC)},
+					{ProjectID: 22, Fingerprint: 101, DownloadURL: "https://example.invalid/b.jar", FileDate: time.Date(2024, 1, 3, 0, 0, 0, 0, time.UTC)},
 				},
 			}, nil
 		},
-		curseforgeProjectName: func(context.Context, string, httpClient.Doer) (string, error) {
+		curseforgeProjectName: func(context.Context, string, httpclient.Doer) (string, error) {
 			return "Curse Name", nil
 		},
 	}
@@ -279,9 +279,9 @@ func TestIdentifyCandidatesRemovesUnsureWhenMatchedPathExists(t *testing.T) {
 	}
 
 	version := &modrinth.Version{
-		ProjectId:     "proj-1",
+		ProjectID:     "proj-1",
 		DatePublished: time.Date(2024, 1, 2, 0, 0, 0, 0, time.UTC),
-		Files:         []modrinth.VersionFile{{Url: "https://example.invalid/a.jar", Primary: true}},
+		Files:         []modrinth.VersionFile{{URL: "https://example.invalid/a.jar", Primary: true}},
 	}
 
 	deps := scanDeps{
@@ -289,13 +289,13 @@ func TestIdentifyCandidatesRemovesUnsureWhenMatchedPathExists(t *testing.T) {
 			Modrinth:   noopDoer{},
 			Curseforge: noopDoer{},
 		},
-		modrinthVersionForSha: func(_ context.Context, sha string, _ httpClient.Doer) (*modrinth.Version, error) {
+		modrinthVersionForSha: func(_ context.Context, sha string, _ httpclient.Doer) (*modrinth.Version, error) {
 			if sha == "a" {
-				return nil, &modrinth.VersionApiError{}
+				return nil, &modrinth.VersionAPIError{}
 			}
 			return version, nil
 		},
-		modrinthProjectTitle: func(context.Context, string, httpClient.Doer) (string, error) {
+		modrinthProjectTitle: func(context.Context, string, httpclient.Doer) (string, error) {
 			return "Example", nil
 		},
 	}
@@ -316,11 +316,11 @@ func TestIdentifyCandidatesSkipsUnknownWhenUnsure(t *testing.T) {
 			Modrinth:   noopDoer{},
 			Curseforge: noopDoer{},
 		},
-		modrinthVersionForSha: func(context.Context, string, httpClient.Doer) (*modrinth.Version, error) {
+		modrinthVersionForSha: func(context.Context, string, httpclient.Doer) (*modrinth.Version, error) {
 			return nil, errors.New("modrinth error")
 		},
 		curseforgeFingerprint: func(string) uint32 { return 101 },
-		curseforgeFingerprintMatch: func(context.Context, []int, httpClient.Doer) (*curseforge.FingerprintResult, error) {
+		curseforgeFingerprintMatch: func(context.Context, []int, httpclient.Doer) (*curseforge.FingerprintResult, error) {
 			return &curseforge.FingerprintResult{}, nil
 		},
 	}
@@ -343,11 +343,11 @@ func TestIdentifyCandidatesAddsUnknownWhenUnmatched(t *testing.T) {
 			Modrinth:   noopDoer{},
 			Curseforge: noopDoer{},
 		},
-		modrinthVersionForSha: func(_ context.Context, hash string, _ httpClient.Doer) (*modrinth.Version, error) {
-			return nil, &modrinth.VersionNotFoundError{Lookup: *modrinth.NewVersionHashLookup(hash, modrinth.Sha1)}
+		modrinthVersionForSha: func(_ context.Context, hash string, _ httpclient.Doer) (*modrinth.Version, error) {
+			return nil, &modrinth.VersionNotFoundError{Lookup: *modrinth.NewVersionHashLookup(hash, modrinth.SHA1)}
 		},
 		curseforgeFingerprint: func(string) uint32 { return 101 },
-		curseforgeFingerprintMatch: func(context.Context, []int, httpClient.Doer) (*curseforge.FingerprintResult, error) {
+		curseforgeFingerprintMatch: func(context.Context, []int, httpclient.Doer) (*curseforge.FingerprintResult, error) {
 			return &curseforge.FingerprintResult{}, nil
 		},
 	}
@@ -368,11 +368,11 @@ func TestIdentifyCandidatesMergesFallbackUnsure(t *testing.T) {
 			Modrinth:   noopDoer{},
 			Curseforge: noopDoer{},
 		},
-		modrinthVersionForSha: func(_ context.Context, hash string, _ httpClient.Doer) (*modrinth.Version, error) {
-			return nil, &modrinth.VersionNotFoundError{Lookup: *modrinth.NewVersionHashLookup(hash, modrinth.Sha1)}
+		modrinthVersionForSha: func(_ context.Context, hash string, _ httpclient.Doer) (*modrinth.Version, error) {
+			return nil, &modrinth.VersionNotFoundError{Lookup: *modrinth.NewVersionHashLookup(hash, modrinth.SHA1)}
 		},
 		curseforgeFingerprint: func(string) uint32 { return 101 },
-		curseforgeFingerprintMatch: func(context.Context, []int, httpClient.Doer) (*curseforge.FingerprintResult, error) {
+		curseforgeFingerprintMatch: func(context.Context, []int, httpclient.Doer) (*curseforge.FingerprintResult, error) {
 			return nil, errors.New("fingerprint failed")
 		},
 	}
@@ -397,14 +397,14 @@ func TestIdentifyCandidatesSkipsUnknownWhenPathIsUnsure(t *testing.T) {
 			Modrinth:   noopDoer{},
 			Curseforge: noopDoer{},
 		},
-		modrinthVersionForSha: func(_ context.Context, hash string, _ httpClient.Doer) (*modrinth.Version, error) {
+		modrinthVersionForSha: func(_ context.Context, hash string, _ httpclient.Doer) (*modrinth.Version, error) {
 			if hash == "error" {
 				return nil, errors.New("modrinth error")
 			}
-			return nil, &modrinth.VersionNotFoundError{Lookup: *modrinth.NewVersionHashLookup(hash, modrinth.Sha1)}
+			return nil, &modrinth.VersionNotFoundError{Lookup: *modrinth.NewVersionHashLookup(hash, modrinth.SHA1)}
 		},
 		curseforgeFingerprint: func(string) uint32 { return 101 },
-		curseforgeFingerprintMatch: func(context.Context, []int, httpClient.Doer) (*curseforge.FingerprintResult, error) {
+		curseforgeFingerprintMatch: func(context.Context, []int, httpclient.Doer) (*curseforge.FingerprintResult, error) {
 			return &curseforge.FingerprintResult{}, nil
 		},
 	}
@@ -426,10 +426,10 @@ func TestIdentifyCandidatesSortsMatchesByNameAndFileName(t *testing.T) {
 
 	versionFor := func(projectID string) *modrinth.Version {
 		return &modrinth.Version{
-			ProjectId:     projectID,
+			ProjectID:     projectID,
 			DatePublished: time.Date(2024, 1, 2, 0, 0, 0, 0, time.UTC),
 			Files: []modrinth.VersionFile{
-				{Url: "https://example.invalid/" + projectID + ".jar", Primary: true},
+				{URL: "https://example.invalid/" + projectID + ".jar", Primary: true},
 			},
 		}
 	}
@@ -439,7 +439,7 @@ func TestIdentifyCandidatesSortsMatchesByNameAndFileName(t *testing.T) {
 			Modrinth:   noopDoer{},
 			Curseforge: noopDoer{},
 		},
-		modrinthVersionForSha: func(_ context.Context, hash string, _ httpClient.Doer) (*modrinth.Version, error) {
+		modrinthVersionForSha: func(_ context.Context, hash string, _ httpclient.Doer) (*modrinth.Version, error) {
 			switch hash {
 			case "a", "c":
 				return versionFor("proj-alpha"), nil
@@ -449,7 +449,7 @@ func TestIdentifyCandidatesSortsMatchesByNameAndFileName(t *testing.T) {
 				return nil, &modrinth.VersionNotFoundError{}
 			}
 		},
-		modrinthProjectTitle: func(_ context.Context, projectID string, _ httpClient.Doer) (string, error) {
+		modrinthProjectTitle: func(_ context.Context, projectID string, _ httpclient.Doer) (string, error) {
 			switch projectID {
 			case "proj-alpha":
 				return "Alpha", nil
@@ -476,7 +476,7 @@ func TestIdentifyCandidatesSortsMatchesByNameAndFileName(t *testing.T) {
 func TestListJarFilesReturnsErrorOnMissingFolder(t *testing.T) {
 	fs := afero.NewMemMapFs()
 	meta := config.NewMetadata(filepath.FromSlash("/cfg/modlist.json"))
-	cfg := models.ModsJson{ModsFolder: "mods"}
+	cfg := models.ModsJSON{ModsFolder: "mods"}
 
 	_, err := listJarFiles(fs, meta, cfg)
 	assert.Error(t, err)
@@ -485,7 +485,7 @@ func TestListJarFilesReturnsErrorOnMissingFolder(t *testing.T) {
 func TestListJarFilesFiltersDirectoriesAndNonJar(t *testing.T) {
 	fs := afero.NewMemMapFs()
 	meta := config.NewMetadata(filepath.FromSlash("/cfg/modlist.json"))
-	cfg := models.ModsJson{ModsFolder: "mods"}
+	cfg := models.ModsJSON{ModsFolder: "mods"}
 	modsFolder := meta.ModsFolderPath(cfg)
 	assert.NoError(t, fs.MkdirAll(filepath.Join(modsFolder, "dir"), 0755))
 	assert.NoError(t, afero.WriteFile(fs, filepath.Join(modsFolder, "good.jar"), []byte("x"), 0644))
@@ -500,7 +500,7 @@ func TestListJarFilesFiltersDirectoriesAndNonJar(t *testing.T) {
 func TestListJarFilesReturnsErrorOnIgnoreStatFailure(t *testing.T) {
 	baseFs := afero.NewMemMapFs()
 	meta := config.NewMetadata(filepath.FromSlash("/cfg/modlist.json"))
-	cfg := models.ModsJson{ModsFolder: "mods"}
+	cfg := models.ModsJSON{ModsFolder: "mods"}
 	assert.NoError(t, baseFs.MkdirAll(meta.ModsFolderPath(cfg), 0755))
 	assert.NoError(t, afero.WriteFile(baseFs, filepath.Join(meta.ModsFolderPath(cfg), "good.jar"), []byte("x"), 0644))
 
@@ -605,17 +605,17 @@ func TestLookupModrinthCachesProjectTitles(t *testing.T) {
 	}
 
 	version := &modrinth.Version{
-		ProjectId:     "proj-1",
+		ProjectID:     "proj-1",
 		DatePublished: time.Date(2024, 1, 2, 0, 0, 0, 0, time.UTC),
-		Files:         []modrinth.VersionFile{{Url: "https://example.invalid/a.jar", Primary: true}},
+		Files:         []modrinth.VersionFile{{URL: "https://example.invalid/a.jar", Primary: true}},
 	}
 
 	var titleCalls int
 	deps := scanDeps{
-		modrinthVersionForSha: func(_ context.Context, _ string, _ httpClient.Doer) (*modrinth.Version, error) {
+		modrinthVersionForSha: func(_ context.Context, _ string, _ httpclient.Doer) (*modrinth.Version, error) {
 			return version, nil
 		},
-		modrinthProjectTitle: func(context.Context, string, httpClient.Doer) (string, error) {
+		modrinthProjectTitle: func(context.Context, string, httpclient.Doer) (string, error) {
 			titleCalls++
 			return "Example", nil
 		},
@@ -632,16 +632,16 @@ func TestLookupModrinthProjectTitleErrorAddsUnsure(t *testing.T) {
 	candidates := []scanCandidate{{Path: "/mods/a.jar", FileName: "a.jar", Sha1: "a"}}
 
 	version := &modrinth.Version{
-		ProjectId:     "proj-1",
+		ProjectID:     "proj-1",
 		DatePublished: time.Date(2024, 1, 2, 0, 0, 0, 0, time.UTC),
-		Files:         []modrinth.VersionFile{{Url: "https://example.invalid/a.jar", Primary: true}},
+		Files:         []modrinth.VersionFile{{URL: "https://example.invalid/a.jar", Primary: true}},
 	}
 
 	deps := scanDeps{
-		modrinthVersionForSha: func(_ context.Context, _ string, _ httpClient.Doer) (*modrinth.Version, error) {
+		modrinthVersionForSha: func(_ context.Context, _ string, _ httpclient.Doer) (*modrinth.Version, error) {
 			return version, nil
 		},
-		modrinthProjectTitle: func(context.Context, string, httpClient.Doer) (string, error) {
+		modrinthProjectTitle: func(context.Context, string, httpclient.Doer) (string, error) {
 			return "", errors.New("boom")
 		},
 	}
@@ -656,16 +656,16 @@ func TestLookupModrinthDownloadDetailsErrorAddsUnsure(t *testing.T) {
 	candidates := []scanCandidate{{Path: "/mods/a.jar", FileName: "a.jar", Sha1: "a"}}
 
 	version := &modrinth.Version{
-		ProjectId:     "proj-1",
+		ProjectID:     "proj-1",
 		DatePublished: time.Date(2024, 1, 2, 0, 0, 0, 0, time.UTC),
-		Files:         []modrinth.VersionFile{{Url: ""}},
+		Files:         []modrinth.VersionFile{{URL: ""}},
 	}
 
 	deps := scanDeps{
-		modrinthVersionForSha: func(_ context.Context, _ string, _ httpClient.Doer) (*modrinth.Version, error) {
+		modrinthVersionForSha: func(_ context.Context, _ string, _ httpclient.Doer) (*modrinth.Version, error) {
 			return version, nil
 		},
-		modrinthProjectTitle: func(context.Context, string, httpClient.Doer) (string, error) {
+		modrinthProjectTitle: func(context.Context, string, httpclient.Doer) (string, error) {
 			return "Example", nil
 		},
 	}
@@ -688,14 +688,14 @@ func TestLookupCurseforgeMissingDownloadURLAddsUnsure(t *testing.T) {
 
 	deps := scanDeps{
 		curseforgeFingerprint: func(string) uint32 { return 101 },
-		curseforgeFingerprintMatch: func(context.Context, []int, httpClient.Doer) (*curseforge.FingerprintResult, error) {
+		curseforgeFingerprintMatch: func(context.Context, []int, httpclient.Doer) (*curseforge.FingerprintResult, error) {
 			return &curseforge.FingerprintResult{
 				Matches: []curseforge.File{
-					{ProjectId: 22, Fingerprint: 101, DownloadUrl: ""},
+					{ProjectID: 22, Fingerprint: 101, DownloadURL: ""},
 				},
 			}, nil
 		},
-		curseforgeProjectName: func(context.Context, string, httpClient.Doer) (string, error) {
+		curseforgeProjectName: func(context.Context, string, httpclient.Doer) (string, error) {
 			return "Curse Name", nil
 		},
 	}
@@ -719,14 +719,14 @@ func TestLookupCurseforgeSkipsUnknownFingerprint(t *testing.T) {
 			}
 			return 202
 		},
-		curseforgeFingerprintMatch: func(context.Context, []int, httpClient.Doer) (*curseforge.FingerprintResult, error) {
+		curseforgeFingerprintMatch: func(context.Context, []int, httpclient.Doer) (*curseforge.FingerprintResult, error) {
 			return &curseforge.FingerprintResult{
 				Matches: []curseforge.File{
-					{ProjectId: 42, Fingerprint: 999, DownloadUrl: "https://example.invalid/extra.jar"},
+					{ProjectID: 42, Fingerprint: 999, DownloadURL: "https://example.invalid/extra.jar"},
 				},
 			}, nil
 		},
-		curseforgeProjectName: func(context.Context, string, httpClient.Doer) (string, error) {
+		curseforgeProjectName: func(context.Context, string, httpclient.Doer) (string, error) {
 			t.Fatal("curseforgeProjectName should not be called")
 			return "", nil
 		},
@@ -743,14 +743,14 @@ func TestLookupCurseforgeProjectNameErrorAddsUnsure(t *testing.T) {
 
 	deps := scanDeps{
 		curseforgeFingerprint: func(string) uint32 { return 101 },
-		curseforgeFingerprintMatch: func(context.Context, []int, httpClient.Doer) (*curseforge.FingerprintResult, error) {
+		curseforgeFingerprintMatch: func(context.Context, []int, httpclient.Doer) (*curseforge.FingerprintResult, error) {
 			return &curseforge.FingerprintResult{
 				Matches: []curseforge.File{
-					{ProjectId: 22, Fingerprint: 101, DownloadUrl: "https://example.invalid/a.jar"},
+					{ProjectID: 22, Fingerprint: 101, DownloadURL: "https://example.invalid/a.jar"},
 				},
 			}, nil
 		},
-		curseforgeProjectName: func(context.Context, string, httpClient.Doer) (string, error) {
+		curseforgeProjectName: func(context.Context, string, httpclient.Doer) (string, error) {
 			return "", errors.New("boom")
 		},
 	}

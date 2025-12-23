@@ -3,39 +3,39 @@ package curseforge
 import "time"
 
 type ProjectLinks struct {
-	WebsiteUrl string `json:"websiteUrl"`
-	WikiUrl    string `json:"wikiUrl"`
-	IssuesUrl  string `json:"issuesUrl"`
-	SourceUrl  string `json:"sourceUrl"`
+	WebsiteURL string `json:"websiteUrl"`
+	WikiURL    string `json:"wikiUrl"`
+	IssuesURL  string `json:"issuesUrl"`
+	SourceURL  string `json:"sourceUrl"`
 }
 
 type Category struct {
-	Id               int       `json:"id"`
-	GameId           int       `json:"gameId"`
+	ID               int       `json:"id"`
+	GameID           int       `json:"gameId"`
 	Name             string    `json:"name"`
 	Slug             string    `json:"slug"`
-	Url              string    `json:"url"`
-	IconUrl          string    `json:"iconUrl"`
+	URL              string    `json:"url"`
+	IconURL          string    `json:"iconUrl"`
 	DateModified     time.Time `json:"dateModified"`
 	IsClass          bool      `json:"isClass"`
-	ClassId          int       `json:"classId"`
-	ParentCategoryId int       `json:"parentCategoryId"`
+	ClassID          int       `json:"classId"`
+	ParentCategoryID int       `json:"parentCategoryId"`
 	DisplayIndex     int       `json:"displayIndex"`
 }
 
 type Author struct {
-	Id   int    `json:"id"`
+	ID   int    `json:"id"`
 	Name string `json:"name"`
-	Url  string `json:"url"`
+	URL  string `json:"url"`
 }
 
 type Logo struct {
-	Id           int    `json:"id"`
-	ProjectId    int    `json:"modId"`
-	Url          string `json:"url"`
+	ID           int    `json:"id"`
+	ProjectID    int    `json:"modId"`
+	URL          string `json:"url"`
 	Title        string `json:"title"`
 	Description  string `json:"description"`
-	ThumbnailUrl string `json:"thumbnailUrl"`
+	ThumbnailURL string `json:"thumbnailUrl"`
 }
 
 type FileReleaseType int
@@ -85,7 +85,7 @@ const (
 )
 
 type Dependency struct {
-	ProjectId int              `json:"modId"`
+	ProjectID int              `json:"modId"`
 	Type      FileRelationType `json:"type"`
 }
 
@@ -99,13 +99,13 @@ type SortableGameVersion struct {
 	GameVersion            string    `json:"gameVersion"`
 	GameVersionPadded      string    `json:"gameVersionPadded"`
 	GameVersionReleaseDate time.Time `json:"gameVersionReleaseDate"`
-	GameVersionTypeId      int       `json:"gameVersionTypeId"`
+	GameVersionTypeID      int       `json:"gameVersionTypeId"`
 }
 
 type File struct {
-	Id                   int                   `json:"id"`
-	GameId               int                   `json:"gameId"`
-	ProjectId            int                   `json:"modId"`
+	ID                   int                   `json:"id"`
+	GameID               int                   `json:"gameId"`
+	ProjectID            int                   `json:"modId"`
 	IsAvailable          bool                  `json:"isAvailable"`
 	DisplayName          string                `json:"displayName"`
 	FileName             string                `json:"fileName"`
@@ -116,7 +116,7 @@ type File struct {
 	FileLength           int                   `json:"fileLength"`
 	DownloadCount        int                   `json:"downloadCount"`
 	FileSizeOnDisk       int                   `json:"fileSizeOnDisk"`
-	DownloadUrl          string                `json:"downloadUrl"`
+	DownloadURL          string                `json:"downloadUrl"`
 	GameVersions         []string              `json:"gameVersions"`
 	SortableGameVersions []SortableGameVersion `json:"sortableGameVersions"`
 	Dependencies         []Dependency          `json:"dependencies"`
@@ -125,19 +125,19 @@ type File struct {
 }
 
 type Project struct {
-	Id                 int          `json:"id"`
-	GameId             int          `json:"gameId"`
+	ID                 int          `json:"id"`
+	GameID             int          `json:"gameId"`
 	Name               string       `json:"name"`
 	Slug               string       `json:"slug"`
 	Links              ProjectLinks `json:"links"`
 	Summary            string       `json:"summary"`
 	DownloadCount      int          `json:"downloadCount"`
-	PrimaryCategoryId  int          `json:"primaryCategoryId"`
+	PrimaryCategoryID  int          `json:"primaryCategoryId"`
 	Categories         []Category   `json:"categories"`
-	ClassId            int          `json:"classId"`
+	ClassID            int          `json:"classId"`
 	Authors            []Author     `json:"authors"`
 	Logo               Logo         `json:"logo"`
-	MainFileId         int          `json:"mainFileId"`
+	MainFileID         int          `json:"mainFileId"`
 	LatestFiles        []File       `json:"latestFiles"`
 	DateCreated        time.Time    `json:"dateCreated"`
 	DateModified       time.Time    `json:"dateModified"`
@@ -166,10 +166,10 @@ const (
 	NeoForge   ModLoaderType = 6
 )
 
-type GameId int
+type GameID int
 
 const (
-	Minecraft GameId = 432
+	Minecraft GameID = 432
 )
 
 type FingerprintResult struct {

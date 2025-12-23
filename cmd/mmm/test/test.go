@@ -8,7 +8,7 @@ import (
 	"sync"
 
 	"github.com/meza/minecraft-mod-manager/internal/config"
-	"github.com/meza/minecraft-mod-manager/internal/httpClient"
+	"github.com/meza/minecraft-mod-manager/internal/httpclient"
 	"github.com/meza/minecraft-mod-manager/internal/i18n"
 	"github.com/meza/minecraft-mod-manager/internal/logger"
 	"github.com/meza/minecraft-mod-manager/internal/minecraft"
@@ -42,9 +42,9 @@ type testDeps struct {
 
 type fetcher func(context.Context, models.Platform, string, platform.FetchOptions, platform.Clients) (platform.RemoteMod, error)
 
-type latestVersionFetcher func(context.Context, httpClient.Doer) (string, error)
+type latestVersionFetcher func(context.Context, httpclient.Doer) (string, error)
 
-type versionValidator func(context.Context, string, httpClient.Doer) bool
+type versionValidator func(context.Context, string, httpclient.Doer) bool
 
 var errInvalidVersion = errors.New("invalid minecraft version")
 var errLatestVersionRequired = errors.New("could not determine latest version: please provide an explicit version")
@@ -253,7 +253,7 @@ func runTest(ctx context.Context, cmd *cobra.Command, opts testOptions, deps tes
 		waitGroup.Add(1)
 		go func() {
 			defer waitGroup.Done()
-			results <- checkMod(ctx, cfg, candidate, targetVersion, deps, colorize)
+			results <- checkMod(ctx, cfg, candidate, targetVersion, deps)
 		}()
 	}
 
@@ -308,11 +308,10 @@ func runTest(ctx context.Context, cmd *cobra.Command, opts testOptions, deps tes
 
 func checkMod(
 	ctx context.Context,
-	cfg models.ModsJson,
+	cfg models.ModsJSON,
 	candidate modCheckCandidate,
 	targetVersion string,
 	deps testDeps,
-	colorize bool,
 ) modCheckOutcome {
 	mod := candidate.Mod
 
@@ -351,9 +350,7 @@ func checkMod(
 		var notFound *platform.ModNotFoundError
 		var noFile *platform.NoCompatibleFileError
 
-		if errors.As(fetchErr, &notFound) || errors.As(fetchErr, &noFile) {
-			// No log event needed here - unsupported mods are reported in the summary
-		} else {
+		if !errors.As(fetchErr, &notFound) && !errors.As(fetchErr, &noFile) {
 			outcome.LogEvents = append(outcome.LogEvents, logEvent{
 				Kind:    logEventKindError,
 				Message: fetchErr.Error(),
@@ -364,7 +361,7 @@ func checkMod(
 	return outcome
 }
 
-func effectiveAllowedReleaseTypes(mod models.Mod, cfg models.ModsJson) []models.ReleaseType {
+func effectiveAllowedReleaseTypes(mod models.Mod, cfg models.ModsJSON) []models.ReleaseType {
 	if len(mod.AllowedReleaseTypes) > 0 {
 		return mod.AllowedReleaseTypes
 	}

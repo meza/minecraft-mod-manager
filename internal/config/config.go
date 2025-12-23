@@ -5,7 +5,7 @@ import (
 	"encoding/json"
 	"fmt"
 
-	"github.com/meza/minecraft-mod-manager/internal/httpClient"
+	"github.com/meza/minecraft-mod-manager/internal/httpclient"
 	"github.com/meza/minecraft-mod-manager/internal/minecraft"
 	"github.com/meza/minecraft-mod-manager/internal/models"
 	"github.com/meza/minecraft-mod-manager/internal/perf"
@@ -15,32 +15,32 @@ import (
 
 var marshalIndent = json.MarshalIndent
 
-func ReadConfig(ctx context.Context, fs afero.Fs, meta Metadata) (models.ModsJson, error) {
+func ReadConfig(ctx context.Context, fs afero.Fs, meta Metadata) (models.ModsJSON, error) {
 	_, span := perf.StartSpan(ctx, "io.config.read", perf.WithAttributes(attribute.String("config_path", meta.ConfigPath)))
 	defer span.End()
 
 	exists, err := afero.Exists(fs, meta.ConfigPath)
 	if err != nil {
-		return models.ModsJson{}, fmt.Errorf("failed to check configuration file: %w", err)
+		return models.ModsJSON{}, fmt.Errorf("failed to check configuration file: %w", err)
 	}
 	if !exists {
-		return models.ModsJson{}, &ConfigFileNotFoundException{Path: meta.ConfigPath}
+		return models.ModsJSON{}, &ConfigFileNotFoundException{Path: meta.ConfigPath}
 	}
 
 	data, err := afero.ReadFile(fs, meta.ConfigPath)
 	if err != nil {
-		return models.ModsJson{}, fmt.Errorf("failed to read configuration file: %w", err)
+		return models.ModsJSON{}, fmt.Errorf("failed to read configuration file: %w", err)
 	}
 
-	var config models.ModsJson
+	var config models.ModsJSON
 	if err := json.Unmarshal(data, &config); err != nil {
-		return models.ModsJson{}, &ConfigFileInvalidError{Err: err}
+		return models.ModsJSON{}, &FileInvalidError{Err: err}
 	}
 
 	return config, nil
 }
 
-func WriteConfig(ctx context.Context, fs afero.Fs, meta Metadata, config models.ModsJson) error {
+func WriteConfig(ctx context.Context, fs afero.Fs, meta Metadata, config models.ModsJSON) error {
 	_, span := perf.StartSpan(ctx, "io.config.write", perf.WithAttributes(attribute.String("config_path", meta.ConfigPath)))
 	defer span.End()
 
@@ -51,16 +51,16 @@ func WriteConfig(ctx context.Context, fs afero.Fs, meta Metadata, config models.
 	return writeFileAtomic(fs, meta.ConfigPath, data, 0644)
 }
 
-func InitConfig(ctx context.Context, fs afero.Fs, meta Metadata, minecraftClient httpClient.Doer) (models.ModsJson, error) {
+func InitConfig(ctx context.Context, fs afero.Fs, meta Metadata, minecraftClient httpclient.Doer) (models.ModsJSON, error) {
 	_, span := perf.StartSpan(ctx, "io.config.init", perf.WithAttributes(attribute.String("config_path", meta.ConfigPath)))
 	defer span.End()
 
 	latest, err := minecraft.GetLatestVersion(ctx, minecraftClient)
 	if err != nil {
-		return models.ModsJson{}, err
+		return models.ModsJSON{}, err
 	}
 
-	config := models.ModsJson{
+	config := models.ModsJSON{
 		Loader:                     models.FABRIC,
 		GameVersion:                latest,
 		DefaultAllowedReleaseTypes: []models.ReleaseType{models.Release, models.Beta},
@@ -69,7 +69,7 @@ func InitConfig(ctx context.Context, fs afero.Fs, meta Metadata, minecraftClient
 	}
 
 	if err := WriteConfig(ctx, fs, meta, config); err != nil {
-		return models.ModsJson{}, err
+		return models.ModsJSON{}, err
 	}
 	return config, nil
 }

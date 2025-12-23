@@ -632,7 +632,7 @@ func TestAddTUIResultErrorsWhenNotFinished(t *testing.T) {
 
 func TestResolveRemoteModWithTUIMissingRunTea(t *testing.T) {
 	ctx := context.Background()
-	remote, platformValue, projectID, err := resolveRemoteModWithTUI(ctx, nil, addTUIStateUnknownPlatformSelect, models.ModsJson{}, addOptions{}, models.MODRINTH, "abc", addDeps{}, strings.NewReader(""), io.Discard)
+	remote, platformValue, projectID, err := resolveRemoteModWithTUI(ctx, nil, addTUIStateUnknownPlatformSelect, models.ModsJSON{}, addOptions{}, models.MODRINTH, "abc", addDeps{}, strings.NewReader(""), io.Discard)
 	assert.Error(t, err)
 	assert.Empty(t, remote.FileName)
 	assert.Equal(t, models.MODRINTH, platformValue)
@@ -646,7 +646,7 @@ func TestResolveRemoteModWithTUIRunTeaError(t *testing.T) {
 			return nil, errors.New("boom")
 		},
 	}
-	_, _, _, err := resolveRemoteModWithTUI(ctx, nil, addTUIStateUnknownPlatformSelect, models.ModsJson{}, addOptions{}, models.MODRINTH, "abc", deps, strings.NewReader(""), io.Discard)
+	_, _, _, err := resolveRemoteModWithTUI(ctx, nil, addTUIStateUnknownPlatformSelect, models.ModsJSON{}, addOptions{}, models.MODRINTH, "abc", deps, strings.NewReader(""), io.Discard)
 	assert.Error(t, err)
 }
 
@@ -657,7 +657,7 @@ func TestResolveRemoteModWithTUIUnexpectedModel(t *testing.T) {
 			return fakeTeaModel{}, nil
 		},
 	}
-	_, _, _, err := resolveRemoteModWithTUI(ctx, nil, addTUIStateUnknownPlatformSelect, models.ModsJson{}, addOptions{}, models.MODRINTH, "abc", deps, strings.NewReader(""), io.Discard)
+	_, _, _, err := resolveRemoteModWithTUI(ctx, nil, addTUIStateUnknownPlatformSelect, models.ModsJSON{}, addOptions{}, models.MODRINTH, "abc", deps, strings.NewReader(""), io.Discard)
 	assert.Error(t, err)
 }
 
@@ -668,7 +668,7 @@ func TestResolveRemoteModWithTUIResultError(t *testing.T) {
 			return addTUIModel{state: addTUIStateDone}, nil
 		},
 	}
-	_, _, _, err := resolveRemoteModWithTUI(ctx, nil, addTUIStateUnknownPlatformSelect, models.ModsJson{}, addOptions{}, models.MODRINTH, "abc", deps, strings.NewReader(""), io.Discard)
+	_, _, _, err := resolveRemoteModWithTUI(ctx, nil, addTUIStateUnknownPlatformSelect, models.ModsJSON{}, addOptions{}, models.MODRINTH, "abc", deps, strings.NewReader(""), io.Discard)
 	assert.Error(t, err)
 }
 
@@ -679,7 +679,7 @@ func TestResolveRemoteModWithTUIResultAborted(t *testing.T) {
 			return addTUIModel{state: addTUIStateAborted}, nil
 		},
 	}
-	_, _, _, err := resolveRemoteModWithTUI(ctx, nil, addTUIStateUnknownPlatformSelect, models.ModsJson{}, addOptions{}, models.MODRINTH, "abc", deps, strings.NewReader(""), io.Discard)
+	_, _, _, err := resolveRemoteModWithTUI(ctx, nil, addTUIStateUnknownPlatformSelect, models.ModsJSON{}, addOptions{}, models.MODRINTH, "abc", deps, strings.NewReader(""), io.Discard)
 	assert.True(t, errors.Is(err, errAborted))
 }
 

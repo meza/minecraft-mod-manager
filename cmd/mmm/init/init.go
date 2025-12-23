@@ -11,7 +11,7 @@ import (
 
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/meza/minecraft-mod-manager/internal/config"
-	"github.com/meza/minecraft-mod-manager/internal/httpClient"
+	"github.com/meza/minecraft-mod-manager/internal/httpclient"
 	"github.com/meza/minecraft-mod-manager/internal/i18n"
 	"github.com/meza/minecraft-mod-manager/internal/logger"
 	"github.com/meza/minecraft-mod-manager/internal/minecraft"
@@ -151,7 +151,7 @@ type providedFlags struct {
 
 type initDeps struct {
 	fs              afero.Fs
-	minecraftClient httpClient.Doer
+	minecraftClient httpclient.Doer
 	prompter        prompter
 	logger          *logger.Logger
 	telemetry       func(telemetry.CommandTelemetry)
@@ -342,7 +342,7 @@ func validateModsFolder(fs afero.Fs, meta config.Metadata, modsFolder string) (s
 		return "", fmt.Errorf("mods folder cannot be empty")
 	}
 
-	modsFolderConfig := models.ModsJson{ModsFolder: modsFolder}
+	modsFolderConfig := models.ModsJSON{ModsFolder: modsFolder}
 	modsFolderPath := meta.ModsFolderPath(modsFolderConfig)
 	modsFolderExists, err := afero.Exists(fs, modsFolderPath)
 	if err != nil {
@@ -412,7 +412,7 @@ func initWithDeps(ctx context.Context, options initOptions, deps initDeps) (conf
 		return config.Metadata{}, err
 	}
 
-	cfg := models.ModsJson{
+	cfg := models.ModsJSON{
 		Loader:                     options.Loader,
 		GameVersion:                options.GameVersion,
 		DefaultAllowedReleaseTypes: options.ReleaseTypes,

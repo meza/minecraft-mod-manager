@@ -6,8 +6,8 @@ import (
 	"encoding/json"
 	"fmt"
 
-	"github.com/meza/minecraft-mod-manager/internal/globalErrors"
-	"github.com/meza/minecraft-mod-manager/internal/httpClient"
+	"github.com/meza/minecraft-mod-manager/internal/globalerrors"
+	"github.com/meza/minecraft-mod-manager/internal/httpclient"
 	"github.com/meza/minecraft-mod-manager/internal/models"
 	"github.com/meza/minecraft-mod-manager/internal/perf"
 	"github.com/pkg/errors"
@@ -27,7 +27,7 @@ type getFingerprintsRequest struct {
 }
 
 type fingerprintMatch struct {
-	ProjectId   int    `json:"id"`
+	ProjectID   int    `json:"id"`
 	File        File   `json:"file"`
 	LatestFiles []File `json:"latestFiles"`
 }
@@ -45,17 +45,17 @@ type getFingerprintsMatchesResponse struct {
 	Data fingerprintsMatchResult `json:"data"`
 }
 
-func getPaginatedFilesForProject(ctx context.Context, projectId int, client httpClient.Doer, cursor int) (filesResponse *getFilesResponse, returnErr error) {
+func getPaginatedFilesForProject(ctx context.Context, projectID int, client httpclient.Doer, cursor int) (filesResponse *getFilesResponse, returnErr error) {
 	ctx, span := perf.StartSpan(ctx, "api.curseforge.project.files.list",
 		perf.WithAttributes(
-			attribute.Int("project_id", projectId),
+			attribute.Int("project_id", projectID),
 			attribute.Int("cursor", cursor),
 		),
 	)
 	defer span.End()
 
-	url := fmt.Sprintf("%s/mods/%d/files?index=%d", GetBaseUrl(), projectId, cursor)
-	timeoutCtx, cancel := httpClient.WithMetadataTimeout(ctx)
+	url := fmt.Sprintf("%s/mods/%d/files?index=%d", GetBaseURL(), projectID, cursor)
+	timeoutCtx, cancel := httpclient.WithMetadataTimeout(ctx)
 	defer cancel()
 	request, err := newRequestWithContext(timeoutCtx, http.MethodGet, url, nil)
 	if err != nil {
@@ -64,10 +64,10 @@ func getPaginatedFilesForProject(ctx context.Context, projectId int, client http
 
 	response, err := client.Do(request)
 	if err != nil {
-		if httpClient.IsTimeoutError(err) {
-			return nil, httpClient.WrapTimeoutError(err)
+		if httpclient.IsTimeoutError(err) {
+			return nil, httpclient.WrapTimeoutError(err)
 		}
-		return nil, globalErrors.ProjectApiErrorWrap(err, strconv.Itoa(projectId), models.CURSEFORGE)
+		return nil, globalerrors.ProjectAPIErrorWrap(err, strconv.Itoa(projectID), models.CURSEFORGE)
 	}
 	defer func() {
 		if closeErr := response.Body.Close(); closeErr != nil && returnErr == nil {
@@ -76,30 +76,30 @@ func getPaginatedFilesForProject(ctx context.Context, projectId int, client http
 	}()
 
 	if response.StatusCode == http.StatusNotFound {
-		return nil, &globalErrors.ProjectNotFoundError{
-			ProjectID: strconv.Itoa(projectId),
+		return nil, &globalerrors.ProjectNotFoundError{
+			ProjectID: strconv.Itoa(projectID),
 			Platform:  models.CURSEFORGE,
 		}
 	}
 
 	if response.StatusCode != http.StatusOK {
-		return nil, globalErrors.ProjectApiErrorWrap(errors.Errorf("unexpected status code: %d", response.StatusCode), strconv.Itoa(projectId), models.CURSEFORGE)
+		return nil, globalerrors.ProjectAPIErrorWrap(errors.Errorf("unexpected status code: %d", response.StatusCode), strconv.Itoa(projectID), models.CURSEFORGE)
 	}
 
 	var decodedFilesResponse getFilesResponse
 	err = json.NewDecoder(response.Body).Decode(&decodedFilesResponse)
 	if err != nil {
-		return nil, globalErrors.ProjectApiErrorWrap(errors.Wrap(err, "failed to decode response body"), strconv.Itoa(projectId), models.CURSEFORGE)
+		return nil, globalerrors.ProjectAPIErrorWrap(errors.Wrap(err, "failed to decode response body"), strconv.Itoa(projectID), models.CURSEFORGE)
 	}
 
 	return &decodedFilesResponse, nil
 }
 
-func GetFilesForProject(ctx context.Context, projectId int, client httpClient.Doer) ([]File, error) {
+func GetFilesForProject(ctx context.Context, projectID int, client httpclient.Doer) ([]File, error) {
 	var files []File
 	cursor := 0
 	for {
-		filesResponse, err := getPaginatedFilesForProject(ctx, projectId, client, cursor)
+		filesResponse, err := getPaginatedFilesForProject(ctx, projectID, client, cursor)
 		if err != nil {
 			return nil, err
 		}
@@ -115,19 +115,19 @@ func GetFilesForProject(ctx context.Context, projectId int, client httpClient.Do
 	return files, nil
 }
 
-func GetFingerprintsMatches(ctx context.Context, fingerprints []int, client httpClient.Doer) (result *FingerprintResult, returnErr error) {
+func GetFingerprintsMatches(ctx context.Context, fingerprints []int, client httpclient.Doer) (result *FingerprintResult, returnErr error) {
 	ctx, span := perf.StartSpan(ctx, "api.curseforge.fingerprints.match", perf.WithAttributes(attribute.Int("fingerprints_count", len(fingerprints))))
 	defer span.End()
 
-	gameId := Minecraft
+	gameID := Minecraft
 
-	url := fmt.Sprintf("%s/fingerprints/%d", GetBaseUrl(), gameId)
+	url := fmt.Sprintf("%s/fingerprints/%d", GetBaseURL(), gameID)
 
 	body, err := marshalJSON(getFingerprintsRequest{Fingerprints: fingerprints})
 	if err != nil {
 		return nil, err
 	}
-	timeoutCtx, cancel := httpClient.WithMetadataTimeout(ctx)
+	timeoutCtx, cancel := httpclient.WithMetadataTimeout(ctx)
 	defer cancel()
 	request, err := newRequestWithContext(timeoutCtx, http.MethodPost, url, bytes.NewBuffer(body))
 	if err != nil {
@@ -137,10 +137,10 @@ func GetFingerprintsMatches(ctx context.Context, fingerprints []int, client http
 
 	response, err := client.Do(request)
 	if err != nil {
-		if httpClient.IsTimeoutError(err) {
-			return nil, httpClient.WrapTimeoutError(err)
+		if httpclient.IsTimeoutError(err) {
+			return nil, httpclient.WrapTimeoutError(err)
 		}
-		return nil, &FingerprintApiError{
+		return nil, &FingerprintAPIError{
 			Lookup: fingerprints,
 			Err:    err,
 		}
@@ -152,7 +152,7 @@ func GetFingerprintsMatches(ctx context.Context, fingerprints []int, client http
 	}()
 
 	if response.StatusCode != http.StatusOK {
-		return nil, &FingerprintApiError{
+		return nil, &FingerprintAPIError{
 			Lookup: fingerprints,
 			Err:    errors.Errorf("unexpected status code: %d", response.StatusCode),
 		}
@@ -161,7 +161,7 @@ func GetFingerprintsMatches(ctx context.Context, fingerprints []int, client http
 	var fingerprintsResponse getFingerprintsMatchesResponse
 	err = json.NewDecoder(response.Body).Decode(&fingerprintsResponse)
 	if err != nil {
-		return nil, &FingerprintApiError{
+		return nil, &FingerprintAPIError{
 			Lookup: fingerprints,
 			Err:    errors.Wrap(err, "failed to decode response body"),
 		}
@@ -182,7 +182,7 @@ func GetFingerprintsMatches(ctx context.Context, fingerprints []int, client http
 
 	unmatched, decodeErr := decodeUnmatchedFingerprints(fingerprintsResponse.Data.UnmatchedFingerprints)
 	if decodeErr != nil {
-		return nil, &FingerprintApiError{
+		return nil, &FingerprintAPIError{
 			Lookup: fingerprints,
 			Err:    errors.Wrap(decodeErr, "failed to decode unmatchedFingerprints"),
 		}

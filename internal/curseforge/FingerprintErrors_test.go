@@ -6,8 +6,8 @@ import (
 	"testing"
 )
 
-func TestFingerprintApiError_Error(t *testing.T) {
-	err := &FingerprintApiError{
+func TestFingerprintAPIError_Error(t *testing.T) {
+	err := &FingerprintAPIError{
 		Lookup: []int{1, 2, 3},
 		Err:    errors.New("underlying error"),
 	}
@@ -15,21 +15,21 @@ func TestFingerprintApiError_Error(t *testing.T) {
 	assert.Equal(t, expected, err.Error())
 }
 
-func TestFingerprintApiError_Is(t *testing.T) {
+func TestFingerprintAPIError_Is(t *testing.T) {
 	underlyingErr := errors.New("underlying error")
-	err1 := &FingerprintApiError{
+	err1 := &FingerprintAPIError{
 		Lookup: []int{1, 2, 3},
 		Err:    underlyingErr,
 	}
-	err2 := &FingerprintApiError{
+	err2 := &FingerprintAPIError{
 		Lookup: []int{1, 2, 3},
 		Err:    underlyingErr,
 	}
-	err3 := &FingerprintApiError{
+	err3 := &FingerprintAPIError{
 		Lookup: []int{4, 5, 6},
 		Err:    underlyingErr,
 	}
-	err4 := &FingerprintApiError{
+	err4 := &FingerprintAPIError{
 		Lookup: []int{1, 2, 3},
 		Err:    errors.New("different error"),
 	}
@@ -39,9 +39,9 @@ func TestFingerprintApiError_Is(t *testing.T) {
 	assert.False(t, err1.Is(errors.New("some other error")))
 }
 
-func TestFingerprintApiError_Unwrap(t *testing.T) {
+func TestFingerprintAPIError_Unwrap(t *testing.T) {
 	underlyingErr := errors.New("underlying error")
-	err := &FingerprintApiError{
+	err := &FingerprintAPIError{
 		Lookup: []int{1, 2, 3},
 		Err:    underlyingErr,
 	}

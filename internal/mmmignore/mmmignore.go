@@ -1,3 +1,4 @@
+// Package mmmignore parses .mmmignore patterns.
 package mmmignore
 
 import (

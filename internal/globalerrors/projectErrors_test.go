@@ -1,4 +1,4 @@
-package globalErrors
+package globalerrors
 
 import (
 	"errors"
@@ -14,23 +14,23 @@ func TestProjectNotFoundError_Error(t *testing.T) {
 	assert.Equal(t, expected, err.Error())
 }
 
-func TestProjectApiError_Error(t *testing.T) {
+func TestProjectAPIError_Error(t *testing.T) {
 	underlyingErr := errors.New("underlying error")
-	err := &ProjectApiError{ProjectID: "AABBCCDD", Err: underlyingErr, Platform: models.MODRINTH}
+	err := &ProjectAPIError{ProjectID: "AABBCCDD", Err: underlyingErr, Platform: models.MODRINTH}
 	expected := "Project cannot be fetched due to an api error on modrinth: AABBCCDD"
 	assert.Equal(t, expected, err.Error())
 }
 
-func TestProjectApiError_Unwrap(t *testing.T) {
+func TestProjectAPIError_Unwrap(t *testing.T) {
 	underlyingErr := errors.New("underlying error")
-	err := &ProjectApiError{ProjectID: "AABBCCDD", Err: underlyingErr, Platform: models.CURSEFORGE}
+	err := &ProjectAPIError{ProjectID: "AABBCCDD", Err: underlyingErr, Platform: models.CURSEFORGE}
 	assert.Equal(t, underlyingErr, err.Unwrap())
 }
 
-func TestProjectApiErrorWrap(t *testing.T) {
+func TestProjectAPIErrorWrap(t *testing.T) {
 	underlyingErr := errors.New("underlying error")
-	err := ProjectApiErrorWrap(underlyingErr, "AABBCCDD", models.MODRINTH)
-	expected := &ProjectApiError{ProjectID: "AABBCCDD", Err: underlyingErr, Platform: models.MODRINTH}
+	err := ProjectAPIErrorWrap(underlyingErr, "AABBCCDD", models.MODRINTH)
+	expected := &ProjectAPIError{ProjectID: "AABBCCDD", Err: underlyingErr, Platform: models.MODRINTH}
 	assert.Equal(t, expected, err)
 }
 
@@ -45,12 +45,12 @@ func TestProjectNotFoundError_Is(t *testing.T) {
 	assert.False(t, err1.Is(errors.New("some other error")))
 }
 
-func TestProjectApiError_Is(t *testing.T) {
+func TestProjectAPIError_Is(t *testing.T) {
 	underlyingErr := errors.New("underlying error")
-	err1 := &ProjectApiError{ProjectID: "AABBCCDD", Err: underlyingErr, Platform: models.CURSEFORGE}
-	err2 := &ProjectApiError{ProjectID: "AABBCCDD", Err: underlyingErr, Platform: models.CURSEFORGE}
-	err3 := &ProjectApiError{ProjectID: "EEFFGGHH", Err: underlyingErr, Platform: models.CURSEFORGE}
-	err4 := &ProjectApiError{ProjectID: "EEFFGGHH", Err: underlyingErr, Platform: models.MODRINTH}
+	err1 := &ProjectAPIError{ProjectID: "AABBCCDD", Err: underlyingErr, Platform: models.CURSEFORGE}
+	err2 := &ProjectAPIError{ProjectID: "AABBCCDD", Err: underlyingErr, Platform: models.CURSEFORGE}
+	err3 := &ProjectAPIError{ProjectID: "EEFFGGHH", Err: underlyingErr, Platform: models.CURSEFORGE}
+	err4 := &ProjectAPIError{ProjectID: "EEFFGGHH", Err: underlyingErr, Platform: models.MODRINTH}
 	assert.True(t, err1.Is(err2))
 	assert.False(t, err1.Is(err3))
 	assert.False(t, err3.Is(err4))

@@ -57,7 +57,7 @@ type addTUIModel struct {
 
 	sessionSpan *perf.Span
 
-	cfg models.ModsJson
+	cfg models.ModsJSON
 
 	failurePlatform models.Platform
 	failureProject  string
@@ -111,7 +111,7 @@ func (d addTUIListDelegate) Render(w io.Writer, m list.Model, itemIndex int, lis
 	fmt.Fprint(w, tui.ItemStyle.Render(itemLine))
 }
 
-func newAddTUIModel(ctx context.Context, sessionSpan *perf.Span, initialState addTUIState, platformValue models.Platform, projectID string, cfg models.ModsJson, fetchCmd addTUIFetchCmd) addTUIModel {
+func newAddTUIModel(ctx context.Context, sessionSpan *perf.Span, initialState addTUIState, platformValue models.Platform, projectID string, cfg models.ModsJSON, fetchCmd addTUIFetchCmd) addTUIModel {
 	model := addTUIModel{
 		ctx:               ctx,
 		sessionSpan:       sessionSpan,

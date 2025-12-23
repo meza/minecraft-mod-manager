@@ -105,7 +105,7 @@ func TestRun_ReturnsZeroWhenNoMods(t *testing.T) {
 	configPath := filepath.Join(tempDir, "modlist.json")
 	meta := config.NewMetadata(configPath)
 
-	cfg := models.ModsJson{
+	cfg := models.ModsJSON{
 		Loader:                     models.FABRIC,
 		GameVersion:                "1.20.1",
 		DefaultAllowedReleaseTypes: []models.ReleaseType{models.Release},

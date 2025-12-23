@@ -10,9 +10,9 @@ The manifest is cached in-memory to keep repeated calls fast.
 
 ## Public API
 
-- `GetLatestVersion(client httpClient.Doer) (string, error)`
-- `IsValidVersion(version string, client httpClient.Doer) bool`
-- `GetAllMineCraftVersions(client httpClient.Doer) []string`
+- `GetLatestVersion(client httpclient.Doer) (string, error)`
+- `IsValidVersion(version string, client httpclient.Doer) bool`
+- `GetAllMineCraftVersions(client httpclient.Doer) []string`
 - `ClearManifestCache()` (test helper)
 
 ## Offline / failure behavior

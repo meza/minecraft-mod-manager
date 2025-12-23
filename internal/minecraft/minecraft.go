@@ -1,3 +1,4 @@
+// Package minecraft provides Minecraft version lookups.
 package minecraft
 
 import (
@@ -6,7 +7,7 @@ import (
 	"net/http"
 	"time"
 
-	"github.com/meza/minecraft-mod-manager/internal/httpClient"
+	"github.com/meza/minecraft-mod-manager/internal/httpclient"
 	"github.com/meza/minecraft-mod-manager/internal/perf"
 )
 
@@ -16,9 +17,9 @@ type latest struct {
 }
 
 type version struct {
-	Id          string    `json:"id"`
+	ID          string    `json:"id"`
 	Type        string    `json:"type"`
-	Url         string    `json:"url"`
+	URL         string    `json:"url"`
 	Time        time.Time `json:"time"`
 	ReleaseTime time.Time `json:"releaseTime"`
 }
@@ -28,7 +29,7 @@ type versionManifest struct {
 	Versions []version `json:"versions"`
 }
 
-var versionManifestUrl = "https://launchermeta.mojang.com/mc/game/version_manifest.json"
+var versionManifestURL = "https://launchermeta.mojang.com/mc/game/version_manifest.json"
 var latestManifest *versionManifest
 var newRequestWithContext = http.NewRequestWithContext
 
@@ -36,33 +37,33 @@ func ClearManifestCache() {
 	latestManifest = nil
 }
 
-func getMinecraftVersionManifest(ctx context.Context, client httpClient.Doer) (*versionManifest, error) {
+func getMinecraftVersionManifest(ctx context.Context, client httpclient.Doer) (*versionManifest, error) {
 	_, span := perf.StartSpan(ctx, "api.minecraft.version_manifest.get")
 	defer span.End()
 	if latestManifest != nil {
 		return latestManifest, nil
 	}
 
-	timeoutCtx, cancel := httpClient.WithMetadataTimeout(ctx)
+	timeoutCtx, cancel := httpclient.WithMetadataTimeout(ctx)
 	defer cancel()
-	request, err := newRequestWithContext(timeoutCtx, "GET", versionManifestUrl, nil)
+	request, err := newRequestWithContext(timeoutCtx, "GET", versionManifestURL, nil)
 	if err != nil {
 		return nil, err
 	}
 
 	response, err := client.Do(request)
 	if err != nil {
-		if httpClient.IsTimeoutError(err) {
-			return nil, httpClient.WrapTimeoutError(err)
+		if httpclient.IsTimeoutError(err) {
+			return nil, httpclient.WrapTimeoutError(err)
 		}
-		return nil, ManifestNotFound
+		return nil, ErrManifestNotFound
 	}
 
 	var decodedManifest versionManifest
 	decodeErr := json.NewDecoder(response.Body).Decode(&decodedManifest)
 	closeErr := response.Body.Close()
 	if decodeErr != nil {
-		return nil, ManifestNotFound
+		return nil, ErrManifestNotFound
 	}
 	if closeErr != nil {
 		return nil, closeErr
@@ -71,20 +72,20 @@ func getMinecraftVersionManifest(ctx context.Context, client httpClient.Doer) (*
 	return latestManifest, nil
 }
 
-func GetLatestVersion(ctx context.Context, client httpClient.Doer) (string, error) {
+func GetLatestVersion(ctx context.Context, client httpclient.Doer) (string, error) {
 	manifest, err := getMinecraftVersionManifest(ctx, client)
 
 	if err != nil {
-		if httpClient.IsTimeoutError(err) {
-			return "", httpClient.WrapTimeoutError(err)
+		if httpclient.IsTimeoutError(err) {
+			return "", httpclient.WrapTimeoutError(err)
 		}
-		return "", CouldNotDetermineLatestVersion
+		return "", ErrCouldNotDetermineLatestVersion
 	}
 
 	return manifest.Latest.Release, nil
 }
 
-func IsValidVersion(ctx context.Context, version string, client httpClient.Doer) bool {
+func IsValidVersion(ctx context.Context, version string, client httpclient.Doer) bool {
 	if version == "" {
 		return false
 	}
@@ -98,7 +99,7 @@ func IsValidVersion(ctx context.Context, version string, client httpClient.Doer)
 	}
 
 	for _, v := range manifest.Versions {
-		if v.Id == version {
+		if v.ID == version {
 			return true
 		}
 	}
@@ -106,7 +107,7 @@ func IsValidVersion(ctx context.Context, version string, client httpClient.Doer)
 	return false
 }
 
-func GetAllMineCraftVersions(ctx context.Context, client httpClient.Doer) []string {
+func GetAllMineCraftVersions(ctx context.Context, client httpclient.Doer) []string {
 	manifest, err := getMinecraftVersionManifest(ctx, client)
 
 	if err != nil {
@@ -115,7 +116,7 @@ func GetAllMineCraftVersions(ctx context.Context, client httpClient.Doer) []stri
 
 	versions := make([]string, 0)
 	for _, v := range manifest.Versions {
-		versions = append(versions, v.Id)
+		versions = append(versions, v.ID)
 	}
 
 	return versions

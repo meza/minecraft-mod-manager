@@ -8,8 +8,8 @@ import (
 )
 
 func TestConfigErrors(t *testing.T) {
-	t.Run("ConfigFileInvalidError", func(t *testing.T) {
-		err := &ConfigFileInvalidError{
+	t.Run("FileInvalidError", func(t *testing.T) {
+		err := &FileInvalidError{
 			Err: errors.New("sample error"),
 		}
 		expected := "Configuration file is invalid: sample error"

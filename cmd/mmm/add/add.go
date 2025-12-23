@@ -1,3 +1,4 @@
+// Package add implements the add command.
 package add
 
 import (
@@ -14,7 +15,7 @@ import (
 	"golang.org/x/time/rate"
 
 	"github.com/meza/minecraft-mod-manager/internal/config"
-	"github.com/meza/minecraft-mod-manager/internal/httpClient"
+	"github.com/meza/minecraft-mod-manager/internal/httpclient"
 	"github.com/meza/minecraft-mod-manager/internal/i18n"
 	"github.com/meza/minecraft-mod-manager/internal/logger"
 	"github.com/meza/minecraft-mod-manager/internal/models"
@@ -42,7 +43,7 @@ type addOptions struct {
 type addDeps struct {
 	fs              afero.Fs
 	clients         platform.Clients
-	minecraftClient httpClient.Doer
+	minecraftClient httpclient.Doer
 	logger          *logger.Logger
 	fetchMod        fetcher
 	downloader      downloader
@@ -51,12 +52,13 @@ type addDeps struct {
 
 type fetcher func(context.Context, models.Platform, string, platform.FetchOptions, platform.Clients) (platform.RemoteMod, error)
 
-type downloader func(context.Context, string, string, httpClient.Doer, httpClient.Sender, ...afero.Fs) error
+type downloader func(context.Context, string, string, httpclient.Doer, httpclient.Sender, ...afero.Fs) error
 
 var errAborted = errors.New("add aborted")
 
 type addRunner func(context.Context, *perf.Span, *cobra.Command, addOptions, addDeps) (telemetry.CommandTelemetry, error)
 
+// Command builds the add command.
 func Command() *cobra.Command {
 	return commandWithRunner(runAdd)
 }
@@ -120,10 +122,10 @@ func commandWithRunner(runner addRunner) *cobra.Command {
 			}, addDeps{
 				fs:              afero.NewOsFs(),
 				clients:         platform.DefaultClients(limiter),
-				minecraftClient: httpClient.NewRLClient(limiter),
+				minecraftClient: httpclient.NewRLClient(limiter),
 				logger:          log,
 				fetchMod:        platform.FetchMod,
-				downloader:      httpClient.DownloadFile,
+				downloader:      httpclient.DownloadFile,
 				runTea: func(model tea.Model, options ...tea.ProgramOption) (tea.Model, error) {
 					return tea.NewProgram(model, options...).Run()
 				},
@@ -349,7 +351,7 @@ func runAdd(ctx context.Context, commandSpan *perf.Span, cmd *cobra.Command, opt
 	ensureResult, err := ensureInstaller.EnsureLockedFile(downloadCtx, meta, cfg, models.ModInstall{
 		FileName:    remoteMod.FileName,
 		Hash:        remoteMod.Hash,
-		DownloadUrl: remoteMod.DownloadURL,
+		DownloadURL: remoteMod.DownloadURL,
 	}, downloadClient(deps.clients), nil)
 	if err != nil {
 		if message, handled := integrityErrorMessage(err, remoteMod.Name); handled {
@@ -460,7 +462,7 @@ func integrityErrorMessage(err error, modName string) (string, bool) {
 	return "", false
 }
 
-func resolveRemoteMod(ctx context.Context, commandSpan *perf.Span, cfg models.ModsJson, opts addOptions, platformValue models.Platform, projectID string, deps addDeps, useTUI bool, in io.Reader, out io.Writer) (platform.RemoteMod, models.Platform, string, error) {
+func resolveRemoteMod(ctx context.Context, commandSpan *perf.Span, cfg models.ModsJSON, opts addOptions, platformValue models.Platform, projectID string, deps addDeps, useTUI bool, in io.Reader, out io.Writer) (platform.RemoteMod, models.Platform, string, error) {
 	deps.logger.Debug(fmt.Sprintf("fetching %s/%s (loader=%s, gameVersion=%s, fallback=%t, fixedVersion=%s)", platformValue, projectID, cfg.Loader, cfg.GameVersion, opts.AllowVersionFallback, opts.Version))
 
 	attemptCtx, attemptSpan := perf.StartSpan(ctx, "app.command.add.resolve.attempt",
@@ -520,14 +522,14 @@ func resolveRemoteMod(ctx context.Context, commandSpan *perf.Span, cfg models.Mo
 
 func findLockInstall(lock []models.ModInstall, platformValue models.Platform, projectID string) (models.ModInstall, bool) {
 	for i := range lock {
-		if lock[i].Type == platformValue && lock[i].Id == projectID {
+		if lock[i].Type == platformValue && lock[i].ID == projectID {
 			return lock[i], true
 		}
 	}
 	return models.ModInstall{}, false
 }
 
-func modNameForConfig(cfg models.ModsJson, platformValue models.Platform, projectID string) string {
+func modNameForConfig(cfg models.ModsJSON, platformValue models.Platform, projectID string) string {
 	for i := range cfg.Mods {
 		if cfg.Mods[i].Type == platformValue && cfg.Mods[i].ID == projectID {
 			return cfg.Mods[i].Name
@@ -554,14 +556,14 @@ func alternatePlatform(platform models.Platform) models.Platform {
 	return models.CURSEFORGE
 }
 
-func downloadClient(clients platform.Clients) httpClient.Doer {
+func downloadClient(clients platform.Clients) httpclient.Doer {
 	if clients.Curseforge != nil {
 		return clients.Curseforge
 	}
 	return clients.Modrinth
 }
 
-func resolveRemoteModWithTUI(ctx context.Context, commandSpan *perf.Span, initialState addTUIState, cfg models.ModsJson, opts addOptions, platformValue models.Platform, projectID string, deps addDeps, in io.Reader, out io.Writer) (platform.RemoteMod, models.Platform, string, error) {
+func resolveRemoteModWithTUI(ctx context.Context, commandSpan *perf.Span, initialState addTUIState, cfg models.ModsJSON, opts addOptions, platformValue models.Platform, projectID string, deps addDeps, in io.Reader, out io.Writer) (platform.RemoteMod, models.Platform, string, error) {
 	if commandSpan != nil {
 		commandSpan.AddEvent("app.command.add.tui.open", perf.WithEventAttributes(
 			attribute.Int("initial_state", int(initialState)),

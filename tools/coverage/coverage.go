@@ -1,3 +1,4 @@
+// Package main provides the coverage helper binary.
 package main
 
 import (

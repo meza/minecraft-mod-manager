@@ -28,9 +28,9 @@ if err != nil {
 
 ### Config file (`modlist.json`)
 
-- `ReadConfig(fs afero.Fs, meta Metadata) (models.ModsJson, error)`
-- `WriteConfig(fs afero.Fs, meta Metadata, cfg models.ModsJson) error`
-- `InitConfig(fs afero.Fs, meta Metadata, minecraftClient httpClient.Doer) (models.ModsJson, error)`
+- `ReadConfig(fs afero.Fs, meta Metadata) (models.ModsJSON, error)`
+- `WriteConfig(fs afero.Fs, meta Metadata, cfg models.ModsJSON) error`
+- `InitConfig(fs afero.Fs, meta Metadata, minecraftClient httpclient.Doer) (models.ModsJSON, error)`
 
 `InitConfig` creates a minimal config file when one does not exist yet. It calls `internal/minecraft.GetLatestVersion` to seed `gameVersion`, then writes the file to disk.
 
@@ -47,14 +47,14 @@ if err != nil {
 - `NewMetadata(configPath string) Metadata`
 - `Metadata.Dir() string`
 - `Metadata.LockPath() string` (same basename as config, with `-lock.json`)
-- `Metadata.ModsFolderPath(cfg models.ModsJson) string` (absolute paths stay absolute; relative paths are relative to the config directory)
+- `Metadata.ModsFolderPath(cfg models.ModsJSON) string` (absolute paths stay absolute; relative paths are relative to the config directory)
 
 ## Expected errors
 
 `ReadConfig` returns typed errors so commands can decide what to do next:
 
 - `*ConfigFileNotFoundException` when `meta.ConfigPath` does not exist
-- `*ConfigFileInvalidError` when JSON cannot be unmarshaled
+- `*FileInvalidError` when JSON cannot be unmarshaled
 
 Other failures (read/write permissions, etc) are returned as wrapped `error` values.
 

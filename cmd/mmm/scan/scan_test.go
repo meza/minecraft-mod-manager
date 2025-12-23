@@ -17,7 +17,7 @@ import (
 
 	"github.com/meza/minecraft-mod-manager/internal/config"
 	"github.com/meza/minecraft-mod-manager/internal/curseforge"
-	"github.com/meza/minecraft-mod-manager/internal/httpClient"
+	"github.com/meza/minecraft-mod-manager/internal/httpclient"
 	"github.com/meza/minecraft-mod-manager/internal/logger"
 	"github.com/meza/minecraft-mod-manager/internal/models"
 	"github.com/meza/minecraft-mod-manager/internal/modrinth"
@@ -39,7 +39,7 @@ func TestRunScan_PreferModrinthDoesNotCallCurseforgeWhenHit(t *testing.T) {
 	meta := config.NewMetadata(filepath.FromSlash("/cfg/modlist.json"))
 	assert.NoError(t, fs.MkdirAll(meta.Dir(), 0755))
 
-	cfg := models.ModsJson{
+	cfg := models.ModsJSON{
 		ModsFolder:                 "mods",
 		Loader:                     models.FABRIC,
 		GameVersion:                "1.20.1",
@@ -74,26 +74,26 @@ func TestRunScan_PreferModrinthDoesNotCallCurseforgeWhenHit(t *testing.T) {
 		prompter: nil,
 		telemetry: func(telemetry.CommandTelemetry) {
 		},
-		modrinthVersionForSha: func(context.Context, string, httpClient.Doer) (*modrinth.Version, error) {
+		modrinthVersionForSha: func(context.Context, string, httpclient.Doer) (*modrinth.Version, error) {
 			return &modrinth.Version{
-				ProjectId:     "proj-1",
+				ProjectID:     "proj-1",
 				DatePublished: time.Date(2024, 1, 1, 0, 0, 0, 0, time.UTC),
 				Files: []modrinth.VersionFile{
-					{Url: "https://example.invalid/mod.jar", Primary: true},
+					{URL: "https://example.invalid/mod.jar", Primary: true},
 				},
 			}, nil
 		},
-		modrinthProjectTitle: func(context.Context, string, httpClient.Doer) (string, error) {
+		modrinthProjectTitle: func(context.Context, string, httpclient.Doer) (string, error) {
 			return "Example Mod", nil
 		},
 		curseforgeFingerprint: func(string) uint32 {
 			return 123
 		},
-		curseforgeFingerprintMatch: func(context.Context, []int, httpClient.Doer) (*curseforge.FingerprintResult, error) {
+		curseforgeFingerprintMatch: func(context.Context, []int, httpclient.Doer) (*curseforge.FingerprintResult, error) {
 			curseforgeCalled = true
 			return &curseforge.FingerprintResult{}, nil
 		},
-		curseforgeProjectName: func(context.Context, string, httpClient.Doer) (string, error) {
+		curseforgeProjectName: func(context.Context, string, httpclient.Doer) (string, error) {
 			return "CF", nil
 		},
 	})
@@ -111,7 +111,7 @@ func TestRunScan_FallbackOnMissUsesOtherPlatform(t *testing.T) {
 	meta := config.NewMetadata(filepath.FromSlash("/cfg/modlist.json"))
 	assert.NoError(t, fs.MkdirAll(meta.Dir(), 0755))
 
-	cfg := models.ModsJson{
+	cfg := models.ModsJSON{
 		ModsFolder:                 "mods",
 		Loader:                     models.FABRIC,
 		GameVersion:                "1.20.1",
@@ -142,29 +142,29 @@ func TestRunScan_FallbackOnMissUsesOtherPlatform(t *testing.T) {
 			Curseforge: nil,
 		},
 		telemetry: func(telemetry.CommandTelemetry) {},
-		modrinthVersionForSha: func(context.Context, string, httpClient.Doer) (*modrinth.Version, error) {
+		modrinthVersionForSha: func(context.Context, string, httpclient.Doer) (*modrinth.Version, error) {
 			return nil, &modrinth.VersionNotFoundError{}
 		},
-		modrinthProjectTitle: func(context.Context, string, httpClient.Doer) (string, error) {
+		modrinthProjectTitle: func(context.Context, string, httpclient.Doer) (string, error) {
 			t.Fatal("modrinthProjectTitle should not be called on not found")
 			return "", nil
 		},
 		curseforgeFingerprint: func(string) uint32 {
 			return 999
 		},
-		curseforgeFingerprintMatch: func(context.Context, []int, httpClient.Doer) (*curseforge.FingerprintResult, error) {
+		curseforgeFingerprintMatch: func(context.Context, []int, httpclient.Doer) (*curseforge.FingerprintResult, error) {
 			return &curseforge.FingerprintResult{
 				Matches: []curseforge.File{
 					{
-						ProjectId:   42,
+						ProjectID:   42,
 						Fingerprint: 999,
-						DownloadUrl: "https://example.invalid/cf.jar",
+						DownloadURL: "https://example.invalid/cf.jar",
 						FileDate:    time.Date(2024, 2, 1, 0, 0, 0, 0, time.UTC),
 					},
 				},
 			}, nil
 		},
-		curseforgeProjectName: func(context.Context, string, httpClient.Doer) (string, error) {
+		curseforgeProjectName: func(context.Context, string, httpclient.Doer) (string, error) {
 			return "CurseForge Mod", nil
 		},
 	})
@@ -180,7 +180,7 @@ func TestRunScan_Curseforge403ErrorIncludesPerFileFingerprint(t *testing.T) {
 	meta := config.NewMetadata(filepath.FromSlash("/cfg/modlist.json"))
 	assert.NoError(t, fs.MkdirAll(meta.Dir(), 0755))
 
-	cfg := models.ModsJson{
+	cfg := models.ModsJSON{
 		ModsFolder:                 "mods",
 		Loader:                     models.FABRIC,
 		GameVersion:                "1.20.1",
@@ -213,7 +213,7 @@ func TestRunScan_Curseforge403ErrorIncludesPerFileFingerprint(t *testing.T) {
 			Curseforge: nil,
 		},
 		telemetry: func(telemetry.CommandTelemetry) {},
-		modrinthVersionForSha: func(context.Context, string, httpClient.Doer) (*modrinth.Version, error) {
+		modrinthVersionForSha: func(context.Context, string, httpclient.Doer) (*modrinth.Version, error) {
 			return nil, &modrinth.VersionNotFoundError{}
 		},
 		curseforgeFingerprint: func(path string) uint32 {
@@ -226,8 +226,8 @@ func TestRunScan_Curseforge403ErrorIncludesPerFileFingerprint(t *testing.T) {
 				return 0
 			}
 		},
-		curseforgeFingerprintMatch: func(context.Context, []int, httpClient.Doer) (*curseforge.FingerprintResult, error) {
-			return nil, &curseforge.FingerprintApiError{
+		curseforgeFingerprintMatch: func(context.Context, []int, httpclient.Doer) (*curseforge.FingerprintResult, error) {
+			return nil, &curseforge.FingerprintAPIError{
 				Lookup: []int{111, 222},
 				Err:    errors.New("unexpected status code: 403"),
 			}
@@ -247,7 +247,7 @@ func TestRunScan_PreferredLookupErrorDoesNotFallbackAndIsUnsure(t *testing.T) {
 	meta := config.NewMetadata(filepath.FromSlash("/cfg/modlist.json"))
 	assert.NoError(t, fs.MkdirAll(meta.Dir(), 0755))
 
-	cfg := models.ModsJson{
+	cfg := models.ModsJSON{
 		ModsFolder:                 "mods",
 		Loader:                     models.FABRIC,
 		GameVersion:                "1.20.1",
@@ -280,11 +280,11 @@ func TestRunScan_PreferredLookupErrorDoesNotFallbackAndIsUnsure(t *testing.T) {
 			Curseforge: nil,
 		},
 		telemetry: func(telemetry.CommandTelemetry) {},
-		modrinthVersionForSha: func(context.Context, string, httpClient.Doer) (*modrinth.Version, error) {
-			return nil, &modrinth.VersionApiError{}
+		modrinthVersionForSha: func(context.Context, string, httpclient.Doer) (*modrinth.Version, error) {
+			return nil, &modrinth.VersionAPIError{}
 		},
 		curseforgeFingerprint: func(string) uint32 { return 999 },
-		curseforgeFingerprintMatch: func(context.Context, []int, httpClient.Doer) (*curseforge.FingerprintResult, error) {
+		curseforgeFingerprintMatch: func(context.Context, []int, httpclient.Doer) (*curseforge.FingerprintResult, error) {
 			curseforgeCalled = true
 			return &curseforge.FingerprintResult{}, nil
 		},
@@ -303,7 +303,7 @@ func TestRunScan_AddPersistsConfigAndLock(t *testing.T) {
 	meta := config.NewMetadata(filepath.FromSlash("/cfg/modlist.json"))
 	assert.NoError(t, fs.MkdirAll(meta.Dir(), 0755))
 
-	cfg := models.ModsJson{
+	cfg := models.ModsJSON{
 		ModsFolder:                 "mods",
 		Loader:                     models.FABRIC,
 		GameVersion:                "1.20.1",
@@ -332,16 +332,16 @@ func TestRunScan_AddPersistsConfigAndLock(t *testing.T) {
 		logger: logger.New(out, errOut, false, false),
 		telemetry: func(telemetry.CommandTelemetry) {
 		},
-		modrinthVersionForSha: func(context.Context, string, httpClient.Doer) (*modrinth.Version, error) {
+		modrinthVersionForSha: func(context.Context, string, httpclient.Doer) (*modrinth.Version, error) {
 			return &modrinth.Version{
-				ProjectId:     "proj-1",
+				ProjectID:     "proj-1",
 				DatePublished: time.Date(2024, 1, 1, 0, 0, 0, 0, time.UTC),
 				Files: []modrinth.VersionFile{
-					{Url: "https://example.invalid/mod.jar", Primary: true},
+					{URL: "https://example.invalid/mod.jar", Primary: true},
 				},
 			}, nil
 		},
-		modrinthProjectTitle: func(context.Context, string, httpClient.Doer) (string, error) {
+		modrinthProjectTitle: func(context.Context, string, httpclient.Doer) (string, error) {
 			return "Example Mod", nil
 		},
 		clients: platform.Clients{},
@@ -360,7 +360,7 @@ func TestRunScan_AddPersistsConfigAndLock(t *testing.T) {
 	assert.Len(t, lock, 1)
 	assert.Equal(t, "unmanaged.jar", lock[0].FileName)
 	assert.Equal(t, models.MODRINTH, lock[0].Type)
-	assert.Equal(t, "proj-1", lock[0].Id)
+	assert.Equal(t, "proj-1", lock[0].ID)
 }
 
 func TestRunScan_AddDoesNotPersistWhenAnyFileIsUnsure(t *testing.T) {
@@ -370,7 +370,7 @@ func TestRunScan_AddDoesNotPersistWhenAnyFileIsUnsure(t *testing.T) {
 	meta := config.NewMetadata(filepath.FromSlash("/cfg/modlist.json"))
 	assert.NoError(t, fs.MkdirAll(meta.Dir(), 0755))
 
-	cfg := models.ModsJson{
+	cfg := models.ModsJSON{
 		ModsFolder:                 "mods",
 		Loader:                     models.FABRIC,
 		GameVersion:                "1.20.1",
@@ -404,19 +404,19 @@ func TestRunScan_AddDoesNotPersistWhenAnyFileIsUnsure(t *testing.T) {
 		logger: logger.New(out, errOut, false, false),
 		telemetry: func(telemetry.CommandTelemetry) {
 		},
-		modrinthVersionForSha: func(_ context.Context, sha string, _ httpClient.Doer) (*modrinth.Version, error) {
+		modrinthVersionForSha: func(_ context.Context, sha string, _ httpclient.Doer) (*modrinth.Version, error) {
 			if sha == matchShaHex {
 				return &modrinth.Version{
-					ProjectId:     "proj-1",
+					ProjectID:     "proj-1",
 					DatePublished: time.Date(2024, 1, 1, 0, 0, 0, 0, time.UTC),
 					Files: []modrinth.VersionFile{
-						{Url: "https://example.invalid/mod.jar", Primary: true},
+						{URL: "https://example.invalid/mod.jar", Primary: true},
 					},
 				}, nil
 			}
-			return nil, &modrinth.VersionApiError{}
+			return nil, &modrinth.VersionAPIError{}
 		},
-		modrinthProjectTitle: func(context.Context, string, httpClient.Doer) (string, error) {
+		modrinthProjectTitle: func(context.Context, string, httpclient.Doer) (string, error) {
 			return "Example Mod", nil
 		},
 		clients: platform.Clients{},
@@ -440,7 +440,7 @@ func TestRunScan_QuietSuppressesNormalOutput(t *testing.T) {
 	meta := config.NewMetadata(filepath.FromSlash("/cfg/modlist.json"))
 	assert.NoError(t, fs.MkdirAll(meta.Dir(), 0755))
 
-	cfg := models.ModsJson{
+	cfg := models.ModsJSON{
 		ModsFolder:                 "mods",
 		Loader:                     models.FABRIC,
 		GameVersion:                "1.20.1",
@@ -468,16 +468,16 @@ func TestRunScan_QuietSuppressesNormalOutput(t *testing.T) {
 		fs:        fs,
 		logger:    logger.New(out, errOut, true, false),
 		telemetry: func(telemetry.CommandTelemetry) {},
-		modrinthVersionForSha: func(context.Context, string, httpClient.Doer) (*modrinth.Version, error) {
+		modrinthVersionForSha: func(context.Context, string, httpclient.Doer) (*modrinth.Version, error) {
 			return &modrinth.Version{
-				ProjectId:     "proj-1",
+				ProjectID:     "proj-1",
 				DatePublished: time.Date(2024, 1, 1, 0, 0, 0, 0, time.UTC),
 				Files: []modrinth.VersionFile{
-					{Url: "https://example.invalid/mod.jar", Primary: true},
+					{URL: "https://example.invalid/mod.jar", Primary: true},
 				},
 			}, nil
 		},
-		modrinthProjectTitle: func(context.Context, string, httpClient.Doer) (string, error) {
+		modrinthProjectTitle: func(context.Context, string, httpclient.Doer) (string, error) {
 			return "Example Mod", nil
 		},
 		clients: platform.Clients{},
@@ -493,7 +493,7 @@ func TestRunScan_AddBackfillsMissingLockEntry(t *testing.T) {
 	meta := config.NewMetadata(filepath.FromSlash("/cfg/modlist.json"))
 	assert.NoError(t, fs.MkdirAll(meta.Dir(), 0755))
 
-	cfg := models.ModsJson{
+	cfg := models.ModsJSON{
 		ModsFolder:                 "mods",
 		Loader:                     models.FABRIC,
 		GameVersion:                "1.20.1",
@@ -523,16 +523,16 @@ func TestRunScan_AddBackfillsMissingLockEntry(t *testing.T) {
 	}, scanDeps{
 		fs:     fs,
 		logger: logger.New(out, errOut, false, false),
-		modrinthVersionForSha: func(context.Context, string, httpClient.Doer) (*modrinth.Version, error) {
+		modrinthVersionForSha: func(context.Context, string, httpclient.Doer) (*modrinth.Version, error) {
 			return &modrinth.Version{
-				ProjectId:     "proj-1",
+				ProjectID:     "proj-1",
 				DatePublished: time.Date(2024, 1, 1, 0, 0, 0, 0, time.UTC),
 				Files: []modrinth.VersionFile{
-					{Url: "https://example.invalid/mod.jar", Primary: true},
+					{URL: "https://example.invalid/mod.jar", Primary: true},
 				},
 			}, nil
 		},
-		modrinthProjectTitle: func(context.Context, string, httpClient.Doer) (string, error) {
+		modrinthProjectTitle: func(context.Context, string, httpclient.Doer) (string, error) {
 			return "New Name", nil
 		},
 		telemetry: func(telemetry.CommandTelemetry) {},
@@ -548,7 +548,7 @@ func TestRunScan_AddBackfillsMissingLockEntry(t *testing.T) {
 	lock, err := config.ReadLock(context.Background(), fs, meta)
 	assert.NoError(t, err)
 	assert.Len(t, lock, 1)
-	assert.Equal(t, "proj-1", lock[0].Id)
+	assert.Equal(t, "proj-1", lock[0].ID)
 }
 
 func TestRunScan_RespectsMmmignoreAndSkipsManagedFiles(t *testing.T) {
@@ -558,7 +558,7 @@ func TestRunScan_RespectsMmmignoreAndSkipsManagedFiles(t *testing.T) {
 	meta := config.NewMetadata(filepath.FromSlash("/cfg/modlist.json"))
 	assert.NoError(t, fs.MkdirAll(meta.Dir(), 0755))
 
-	cfg := models.ModsJson{
+	cfg := models.ModsJSON{
 		ModsFolder:                 "mods",
 		Loader:                     models.FABRIC,
 		GameVersion:                "1.20.1",
@@ -566,7 +566,7 @@ func TestRunScan_RespectsMmmignoreAndSkipsManagedFiles(t *testing.T) {
 	}
 	assert.NoError(t, config.WriteConfig(context.Background(), fs, meta, cfg))
 	assert.NoError(t, config.WriteLock(context.Background(), fs, meta, []models.ModInstall{
-		{Type: models.MODRINTH, Id: "managed", FileName: "managed.jar"},
+		{Type: models.MODRINTH, ID: "managed", FileName: "managed.jar"},
 	}))
 	assert.NoError(t, fs.MkdirAll(meta.ModsFolderPath(cfg), 0755))
 
@@ -589,17 +589,17 @@ func TestRunScan_RespectsMmmignoreAndSkipsManagedFiles(t *testing.T) {
 	}, scanDeps{
 		fs:     fs,
 		logger: logger.New(out, errOut, false, false),
-		modrinthVersionForSha: func(context.Context, string, httpClient.Doer) (*modrinth.Version, error) {
+		modrinthVersionForSha: func(context.Context, string, httpclient.Doer) (*modrinth.Version, error) {
 			called++
 			return &modrinth.Version{
-				ProjectId:     "proj-1",
+				ProjectID:     "proj-1",
 				DatePublished: time.Date(2024, 1, 1, 0, 0, 0, 0, time.UTC),
 				Files: []modrinth.VersionFile{
-					{Url: "https://example.invalid/mod.jar", Primary: true},
+					{URL: "https://example.invalid/mod.jar", Primary: true},
 				},
 			}, nil
 		},
-		modrinthProjectTitle: func(context.Context, string, httpClient.Doer) (string, error) {
+		modrinthProjectTitle: func(context.Context, string, httpclient.Doer) (string, error) {
 			return "Example", nil
 		},
 		telemetry: func(telemetry.CommandTelemetry) {},
@@ -617,7 +617,7 @@ func TestRunScan_InvalidPreferReturnsError(t *testing.T) {
 	meta := config.NewMetadata(filepath.FromSlash("/cfg/modlist.json"))
 	assert.NoError(t, fs.MkdirAll(meta.Dir(), 0755))
 
-	cfg := models.ModsJson{
+	cfg := models.ModsJSON{
 		ModsFolder:                 "mods",
 		Loader:                     models.FABRIC,
 		GameVersion:                "1.20.1",
@@ -653,7 +653,7 @@ func TestRunScan_ReturnsErrorOnListJarFailure(t *testing.T) {
 	meta := config.NewMetadata(filepath.FromSlash("/cfg/modlist.json"))
 	assert.NoError(t, fs.MkdirAll(meta.Dir(), 0755))
 
-	cfg := models.ModsJson{
+	cfg := models.ModsJSON{
 		ModsFolder:                 "mods",
 		Loader:                     models.FABRIC,
 		GameVersion:                "1.20.1",
@@ -688,7 +688,7 @@ func TestRunScan_ReturnsErrorOnSha1Failure(t *testing.T) {
 	meta := config.NewMetadata(filepath.FromSlash("/cfg/modlist.json"))
 	assert.NoError(t, baseFs.MkdirAll(meta.Dir(), 0755))
 
-	cfg := models.ModsJson{
+	cfg := models.ModsJSON{
 		ModsFolder:                 "mods",
 		Loader:                     models.FABRIC,
 		GameVersion:                "1.20.1",
@@ -729,7 +729,7 @@ func TestRunScan_ReturnsErrorOnPrompterFailure(t *testing.T) {
 	meta := config.NewMetadata(filepath.FromSlash("/cfg/modlist.json"))
 	assert.NoError(t, fs.MkdirAll(meta.Dir(), 0755))
 
-	cfg := models.ModsJson{
+	cfg := models.ModsJSON{
 		ModsFolder:                 "mods",
 		Loader:                     models.FABRIC,
 		GameVersion:                "1.20.1",
@@ -757,16 +757,16 @@ func TestRunScan_ReturnsErrorOnPrompterFailure(t *testing.T) {
 		logger:    logger.New(out, errOut, false, false),
 		prompter:  fakePrompter{err: errors.New("confirm failed")},
 		telemetry: func(telemetry.CommandTelemetry) {},
-		modrinthVersionForSha: func(context.Context, string, httpClient.Doer) (*modrinth.Version, error) {
+		modrinthVersionForSha: func(context.Context, string, httpclient.Doer) (*modrinth.Version, error) {
 			return &modrinth.Version{
-				ProjectId:     "proj-1",
+				ProjectID:     "proj-1",
 				DatePublished: time.Date(2024, 1, 1, 0, 0, 0, 0, time.UTC),
 				Files: []modrinth.VersionFile{
-					{Url: "https://example.invalid/mod.jar", Primary: true},
+					{URL: "https://example.invalid/mod.jar", Primary: true},
 				},
 			}, nil
 		},
-		modrinthProjectTitle: func(context.Context, string, httpClient.Doer) (string, error) {
+		modrinthProjectTitle: func(context.Context, string, httpclient.Doer) (string, error) {
 			return "Example", nil
 		},
 		clients: platform.Clients{},
@@ -782,7 +782,7 @@ func TestRunScan_PromptDeclineSkipsPersist(t *testing.T) {
 	meta := config.NewMetadata(filepath.FromSlash("/cfg/modlist.json"))
 	assert.NoError(t, fs.MkdirAll(meta.Dir(), 0755))
 
-	cfg := models.ModsJson{
+	cfg := models.ModsJSON{
 		ModsFolder:                 "mods",
 		Loader:                     models.FABRIC,
 		GameVersion:                "1.20.1",
@@ -810,16 +810,16 @@ func TestRunScan_PromptDeclineSkipsPersist(t *testing.T) {
 		logger:    logger.New(out, errOut, false, false),
 		prompter:  fakePrompter{confirm: false},
 		telemetry: func(telemetry.CommandTelemetry) {},
-		modrinthVersionForSha: func(context.Context, string, httpClient.Doer) (*modrinth.Version, error) {
+		modrinthVersionForSha: func(context.Context, string, httpclient.Doer) (*modrinth.Version, error) {
 			return &modrinth.Version{
-				ProjectId:     "proj-1",
+				ProjectID:     "proj-1",
 				DatePublished: time.Date(2024, 1, 1, 0, 0, 0, 0, time.UTC),
 				Files: []modrinth.VersionFile{
-					{Url: "https://example.invalid/mod.jar", Primary: true},
+					{URL: "https://example.invalid/mod.jar", Primary: true},
 				},
 			}, nil
 		},
-		modrinthProjectTitle: func(context.Context, string, httpClient.Doer) (string, error) {
+		modrinthProjectTitle: func(context.Context, string, httpclient.Doer) (string, error) {
 			return "Example", nil
 		},
 		clients: platform.Clients{},
@@ -839,7 +839,7 @@ func TestRunScan_AllManagedReturnsEarly(t *testing.T) {
 	meta := config.NewMetadata(filepath.FromSlash("/cfg/modlist.json"))
 	assert.NoError(t, fs.MkdirAll(meta.Dir(), 0755))
 
-	cfg := models.ModsJson{
+	cfg := models.ModsJSON{
 		ModsFolder:                 "mods",
 		Loader:                     models.FABRIC,
 		GameVersion:                "1.20.1",
@@ -903,7 +903,7 @@ func TestRunScan_AddLogsPersistFailureAndContinues(t *testing.T) {
 	meta := config.NewMetadata(filepath.FromSlash("/cfg/modlist.json"))
 	assert.NoError(t, fs.MkdirAll(meta.Dir(), 0755))
 
-	cfg := models.ModsJson{
+	cfg := models.ModsJSON{
 		ModsFolder:                 "mods",
 		Loader:                     models.FABRIC,
 		GameVersion:                "1.20.1",
@@ -931,20 +931,20 @@ func TestRunScan_AddLogsPersistFailureAndContinues(t *testing.T) {
 		fs:        fs,
 		logger:    logger.New(out, errOut, false, false),
 		telemetry: func(telemetry.CommandTelemetry) {},
-		modrinthVersionForSha: func(context.Context, string, httpClient.Doer) (*modrinth.Version, error) {
+		modrinthVersionForSha: func(context.Context, string, httpclient.Doer) (*modrinth.Version, error) {
 			return &modrinth.Version{
-				ProjectId:     "",
+				ProjectID:     "",
 				DatePublished: time.Date(2024, 1, 1, 0, 0, 0, 0, time.UTC),
 				Files: []modrinth.VersionFile{
-					{Url: "https://example.invalid/mod.jar", Primary: true},
+					{URL: "https://example.invalid/mod.jar", Primary: true},
 				},
 			}, nil
 		},
-		modrinthProjectTitle: func(context.Context, string, httpClient.Doer) (string, error) {
+		modrinthProjectTitle: func(context.Context, string, httpclient.Doer) (string, error) {
 			return "Example", nil
 		},
 		curseforgeFingerprint: func(string) uint32 { return 123 },
-		curseforgeFingerprintMatch: func(context.Context, []int, httpClient.Doer) (*curseforge.FingerprintResult, error) {
+		curseforgeFingerprintMatch: func(context.Context, []int, httpclient.Doer) (*curseforge.FingerprintResult, error) {
 			return &curseforge.FingerprintResult{}, nil
 		},
 	})
@@ -960,7 +960,7 @@ func TestRunScan_WriteConfigFailure(t *testing.T) {
 	meta := config.NewMetadata(filepath.FromSlash("/cfg/modlist.json"))
 	assert.NoError(t, baseFs.MkdirAll(meta.Dir(), 0755))
 
-	cfg := models.ModsJson{
+	cfg := models.ModsJSON{
 		ModsFolder:                 "mods",
 		Loader:                     models.FABRIC,
 		GameVersion:                "1.20.1",
@@ -990,16 +990,16 @@ func TestRunScan_WriteConfigFailure(t *testing.T) {
 		fs:        fs,
 		logger:    logger.New(out, errOut, false, false),
 		telemetry: func(telemetry.CommandTelemetry) {},
-		modrinthVersionForSha: func(context.Context, string, httpClient.Doer) (*modrinth.Version, error) {
+		modrinthVersionForSha: func(context.Context, string, httpclient.Doer) (*modrinth.Version, error) {
 			return &modrinth.Version{
-				ProjectId:     "proj-1",
+				ProjectID:     "proj-1",
 				DatePublished: time.Date(2024, 1, 1, 0, 0, 0, 0, time.UTC),
 				Files: []modrinth.VersionFile{
-					{Url: "https://example.invalid/mod.jar", Primary: true},
+					{URL: "https://example.invalid/mod.jar", Primary: true},
 				},
 			}, nil
 		},
-		modrinthProjectTitle: func(context.Context, string, httpClient.Doer) (string, error) {
+		modrinthProjectTitle: func(context.Context, string, httpclient.Doer) (string, error) {
 			return "Example Mod", nil
 		},
 		clients: platform.Clients{},
@@ -1015,7 +1015,7 @@ func TestRunScan_WriteLockFailure(t *testing.T) {
 	meta := config.NewMetadata(filepath.FromSlash("/cfg/modlist.json"))
 	assert.NoError(t, baseFs.MkdirAll(meta.Dir(), 0755))
 
-	cfg := models.ModsJson{
+	cfg := models.ModsJSON{
 		ModsFolder:                 "mods",
 		Loader:                     models.FABRIC,
 		GameVersion:                "1.20.1",
@@ -1045,16 +1045,16 @@ func TestRunScan_WriteLockFailure(t *testing.T) {
 		fs:        fs,
 		logger:    logger.New(out, errOut, false, false),
 		telemetry: func(telemetry.CommandTelemetry) {},
-		modrinthVersionForSha: func(context.Context, string, httpClient.Doer) (*modrinth.Version, error) {
+		modrinthVersionForSha: func(context.Context, string, httpclient.Doer) (*modrinth.Version, error) {
 			return &modrinth.Version{
-				ProjectId:     "proj-1",
+				ProjectID:     "proj-1",
 				DatePublished: time.Date(2024, 1, 1, 0, 0, 0, 0, time.UTC),
 				Files: []modrinth.VersionFile{
-					{Url: "https://example.invalid/mod.jar", Primary: true},
+					{URL: "https://example.invalid/mod.jar", Primary: true},
 				},
 			}, nil
 		},
-		modrinthProjectTitle: func(context.Context, string, httpClient.Doer) (string, error) {
+		modrinthProjectTitle: func(context.Context, string, httpclient.Doer) (string, error) {
 			return "Example Mod", nil
 		},
 		clients: platform.Clients{},
@@ -1160,11 +1160,11 @@ func TestLookupModrinthReturnsUnsureOnContextCancel(t *testing.T) {
 	}
 
 	matches, misses, unsure := lookupModrinth(ctx, candidates, scanDeps{
-		modrinthVersionForSha: func(context.Context, string, httpClient.Doer) (*modrinth.Version, error) {
+		modrinthVersionForSha: func(context.Context, string, httpclient.Doer) (*modrinth.Version, error) {
 			t.Fatalf("unexpected lookup call after context cancellation")
 			return nil, nil
 		},
-		modrinthProjectTitle: func(context.Context, string, httpClient.Doer) (string, error) {
+		modrinthProjectTitle: func(context.Context, string, httpclient.Doer) (string, error) {
 			t.Fatalf("unexpected title lookup after context cancellation")
 			return "", nil
 		},

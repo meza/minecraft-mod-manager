@@ -25,7 +25,7 @@ func (m Metadata) LockPath() string {
 	return filepath.Join(m.Dir(), baseNoExt+"-lock.json")
 }
 
-func (m Metadata) ModsFolderPath(config models.ModsJson) string {
+func (m Metadata) ModsFolderPath(config models.ModsJSON) string {
 	if isAbsoluteOrRootedPath(config.ModsFolder) {
 		return config.ModsFolder
 	}

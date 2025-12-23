@@ -1,4 +1,4 @@
-# internal/globalErrors
+# internal/globalerrors
 
 This package holds error types that are shared across platform integrations.
 
@@ -9,16 +9,16 @@ The goal is consistent UX: callers can detect "not found" and "API failure" in a
 ### Project errors
 
 - `ProjectNotFoundError` (project ID does not exist on a platform)
-- `ProjectApiError` (request failed due to network/API/decoding issues)
-- `ProjectApiErrorWrap(err error, projectId string, platform models.Platform) error`
+- `ProjectAPIError` (request failed due to network/API/decoding issues)
+- `ProjectAPIErrorWrap(err error, projectID string, platform models.Platform) error`
 
-`ProjectApiError` implements `Unwrap` so the underlying error is still available.
+`ProjectAPIError` implements `Unwrap` so the underlying error is still available.
 
 ## Quick start
 
 ```go
 project, err := curseforge.GetProject("1234", client)
-if errors.Is(err, &globalErrors.ProjectNotFoundError{ProjectID: "1234", Platform: models.CURSEFORGE}) {
+if errors.Is(err, &globalerrors.ProjectNotFoundError{ProjectID: "1234", Platform: models.CURSEFORGE}) {
 	// show a "mod not found" message
 }
 ```

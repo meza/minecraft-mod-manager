@@ -26,7 +26,7 @@ func TestRunListPrintsInstalledAndMissing(t *testing.T) {
 	fs := afero.NewMemMapFs()
 	meta := config.NewMetadata(filepath.FromSlash("/cfg/modlist.json"))
 
-	cfg := models.ModsJson{
+	cfg := models.ModsJSON{
 		Loader:                     models.FABRIC,
 		GameVersion:                "1.20.1",
 		DefaultAllowedReleaseTypes: []models.ReleaseType{models.Release},
@@ -42,8 +42,8 @@ func TestRunListPrintsInstalledAndMissing(t *testing.T) {
 	assert.NoError(t, config.WriteConfig(context.Background(), fs, meta, cfg))
 
 	lock := []models.ModInstall{
-		{Id: "mod-a", Type: models.MODRINTH, FileName: "mod-a.jar"},
-		{Id: "mod-b", Type: models.CURSEFORGE, FileName: "mod-b.jar"},
+		{ID: "mod-a", Type: models.MODRINTH, FileName: "mod-a.jar"},
+		{ID: "mod-b", Type: models.CURSEFORGE, FileName: "mod-b.jar"},
 	}
 	assert.NoError(t, config.WriteLock(context.Background(), fs, meta, lock))
 
@@ -77,7 +77,7 @@ func TestRunListLogsInvalidLockFileName(t *testing.T) {
 	fs := afero.NewMemMapFs()
 	meta := config.NewMetadata(filepath.FromSlash("/cfg/modlist.json"))
 
-	cfg := models.ModsJson{
+	cfg := models.ModsJSON{
 		Loader:                     models.FABRIC,
 		GameVersion:                "1.20.1",
 		DefaultAllowedReleaseTypes: []models.ReleaseType{models.Release},
@@ -90,7 +90,7 @@ func TestRunListLogsInvalidLockFileName(t *testing.T) {
 	assert.NoError(t, fs.MkdirAll(meta.Dir(), 0755))
 	assert.NoError(t, config.WriteConfig(context.Background(), fs, meta, cfg))
 	assert.NoError(t, config.WriteLock(context.Background(), fs, meta, []models.ModInstall{
-		{Id: "mod-a", Name: " ", Type: models.MODRINTH, FileName: "mods/mod-a.jar"},
+		{ID: "mod-a", Name: " ", Type: models.MODRINTH, FileName: "mods/mod-a.jar"},
 	}))
 
 	out := &bytes.Buffer{}
@@ -116,7 +116,7 @@ func TestRunListMissingLockTreatsAllAsNotInstalled(t *testing.T) {
 	fs := afero.NewMemMapFs()
 	meta := config.NewMetadata(filepath.FromSlash("/cfg/modlist.json"))
 
-	cfg := models.ModsJson{
+	cfg := models.ModsJSON{
 		Loader:                     models.FABRIC,
 		GameVersion:                "1.20.1",
 		DefaultAllowedReleaseTypes: []models.ReleaseType{models.Release},
@@ -155,7 +155,7 @@ func TestRunListInvalidLockErrors(t *testing.T) {
 	fs := afero.NewMemMapFs()
 	meta := config.NewMetadata(filepath.FromSlash("/cfg/modlist.json"))
 
-	cfg := models.ModsJson{
+	cfg := models.ModsJSON{
 		Loader:                     models.FABRIC,
 		GameVersion:                "1.20.1",
 		DefaultAllowedReleaseTypes: []models.ReleaseType{models.Release},
@@ -219,7 +219,7 @@ func TestRunListShowsEmptyMessageWhenNoMods(t *testing.T) {
 	fs := afero.NewMemMapFs()
 	meta := config.NewMetadata(filepath.FromSlash("/cfg/modlist.json"))
 
-	cfg := models.ModsJson{
+	cfg := models.ModsJSON{
 		Loader:                     models.FABRIC,
 		GameVersion:                "1.20.1",
 		DefaultAllowedReleaseTypes: []models.ReleaseType{models.Release},
@@ -254,7 +254,7 @@ func TestRunListQuietStillPrints(t *testing.T) {
 	fs := afero.NewMemMapFs()
 	meta := config.NewMetadata(filepath.FromSlash("/cfg/modlist.json"))
 
-	cfg := models.ModsJson{
+	cfg := models.ModsJSON{
 		Loader:                     models.FABRIC,
 		GameVersion:                "1.20.1",
 		DefaultAllowedReleaseTypes: []models.ReleaseType{models.Release},
@@ -300,7 +300,7 @@ func TestReadLockOrEmptyReturnsErrorOnStatFailure(t *testing.T) {
 }
 
 func TestBuildEntriesUsesIDWhenNameBlank(t *testing.T) {
-	cfg := models.ModsJson{
+	cfg := models.ModsJSON{
 		Mods: []models.Mod{
 			{ID: "mod-a", Name: " ", Type: models.MODRINTH},
 		},
@@ -314,23 +314,23 @@ func TestBuildEntriesUsesIDWhenNameBlank(t *testing.T) {
 
 func TestIsInstalledReturnsFalseWhenFileNameMissing(t *testing.T) {
 	mod := models.Mod{ID: "mod-a", Type: models.MODRINTH}
-	lock := []models.ModInstall{{Id: "mod-a", Type: models.MODRINTH, FileName: ""}}
+	lock := []models.ModInstall{{ID: "mod-a", Type: models.MODRINTH, FileName: ""}}
 
-	assert.False(t, isInstalled(mod, lock, config.NewMetadata("modlist.json"), models.ModsJson{}, afero.NewMemMapFs()))
+	assert.False(t, isInstalled(mod, lock, config.NewMetadata("modlist.json"), models.ModsJSON{}, afero.NewMemMapFs()))
 }
 
 func TestIsInstalledReturnsFalseWhenFileNameInvalid(t *testing.T) {
 	mod := models.Mod{ID: "mod-a", Type: models.MODRINTH}
-	lock := []models.ModInstall{{Id: "mod-a", Type: models.MODRINTH, FileName: "mods/mod-a.jar"}}
+	lock := []models.ModInstall{{ID: "mod-a", Type: models.MODRINTH, FileName: "mods/mod-a.jar"}}
 
-	assert.False(t, isInstalled(mod, lock, config.NewMetadata("modlist.json"), models.ModsJson{}, afero.NewMemMapFs()))
+	assert.False(t, isInstalled(mod, lock, config.NewMetadata("modlist.json"), models.ModsJSON{}, afero.NewMemMapFs()))
 }
 
 func TestIsInstalledReturnsFalseWhenStatFails(t *testing.T) {
 	meta := config.NewMetadata(filepath.FromSlash("/cfg/modlist.json"))
-	cfg := models.ModsJson{ModsFolder: "mods"}
+	cfg := models.ModsJSON{ModsFolder: "mods"}
 	mod := models.Mod{ID: "mod-a", Type: models.MODRINTH}
-	lock := []models.ModInstall{{Id: "mod-a", Type: models.MODRINTH, FileName: "mod-a.jar"}}
+	lock := []models.ModInstall{{ID: "mod-a", Type: models.MODRINTH, FileName: "mod-a.jar"}}
 
 	failPath := filepath.Join(meta.ModsFolderPath(cfg), "mod-a.jar")
 	fs := statErrorFs{
@@ -350,7 +350,7 @@ func TestRunListTuiProgramRunnerError(t *testing.T) {
 
 	fs := afero.NewMemMapFs()
 	meta := config.NewMetadata(filepath.FromSlash("/cfg/modlist.json"))
-	cfg := models.ModsJson{
+	cfg := models.ModsJSON{
 		Loader:                     models.FABRIC,
 		GameVersion:                "1.20.1",
 		DefaultAllowedReleaseTypes: []models.ReleaseType{models.Release},
@@ -388,7 +388,7 @@ func TestRunListTuiLogsEmptyView(t *testing.T) {
 
 	fs := afero.NewMemMapFs()
 	meta := config.NewMetadata(filepath.FromSlash("/cfg/modlist.json"))
-	cfg := models.ModsJson{
+	cfg := models.ModsJSON{
 		Loader:                     models.FABRIC,
 		GameVersion:                "1.20.1",
 		DefaultAllowedReleaseTypes: []models.ReleaseType{models.Release},
@@ -426,7 +426,7 @@ func TestRunListUsesDefaultProgramRunner(t *testing.T) {
 
 	fs := afero.NewMemMapFs()
 	meta := config.NewMetadata(filepath.FromSlash("/cfg/modlist.json"))
-	cfg := models.ModsJson{
+	cfg := models.ModsJSON{
 		Loader:                     models.FABRIC,
 		GameVersion:                "1.20.1",
 		DefaultAllowedReleaseTypes: []models.ReleaseType{models.Release},

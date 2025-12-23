@@ -21,7 +21,7 @@ func fetchModrinth(ctx context.Context, projectID string, opts FetchOptions, cli
 
 	for {
 		versions, versionErr := modrinth.GetVersionsForProject(ctx, &modrinth.VersionLookup{
-			ProjectId:    projectID,
+			ProjectID:    projectID,
 			Loaders:      []models.Loader{opts.Loader},
 			GameVersions: []string{currentVersion},
 		}, modrinthClient)
@@ -44,7 +44,7 @@ func fetchModrinth(ctx context.Context, projectID string, opts FetchOptions, cli
 		})
 
 		selectedVersion := candidates[0]
-		if len(selectedVersion.Files) == 0 || selectedVersion.Files[0].Hashes.Sha1 == "" || selectedVersion.Files[0].Url == "" {
+		if len(selectedVersion.Files) == 0 || selectedVersion.Files[0].Hashes.SHA1 == "" || selectedVersion.Files[0].URL == "" {
 			return RemoteMod{}, &NoCompatibleFileError{Platform: models.MODRINTH, ProjectID: projectID}
 		}
 
@@ -54,8 +54,8 @@ func fetchModrinth(ctx context.Context, projectID string, opts FetchOptions, cli
 			Name:        project.Title,
 			FileName:    file.FileName,
 			ReleaseDate: formatTime(selectedVersion.DatePublished),
-			Hash:        file.Hashes.Sha1,
-			DownloadURL: file.Url,
+			Hash:        file.Hashes.SHA1,
+			DownloadURL: file.URL,
 		}, nil
 	}
 }

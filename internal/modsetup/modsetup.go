@@ -1,3 +1,4 @@
+// Package modsetup orchestrates setup flows for config and lock files.
 package modsetup
 
 import (
@@ -10,7 +11,7 @@ import (
 	"github.com/spf13/afero"
 
 	"github.com/meza/minecraft-mod-manager/internal/config"
-	"github.com/meza/minecraft-mod-manager/internal/httpClient"
+	"github.com/meza/minecraft-mod-manager/internal/httpclient"
 	"github.com/meza/minecraft-mod-manager/internal/models"
 	"github.com/meza/minecraft-mod-manager/internal/modfilename"
 	"github.com/meza/minecraft-mod-manager/internal/modinstall"
@@ -18,15 +19,15 @@ import (
 	"github.com/meza/minecraft-mod-manager/internal/platform"
 )
 
-type Downloader func(context.Context, string, string, httpClient.Doer, httpClient.Sender, ...afero.Fs) error
+type Downloader func(context.Context, string, string, httpclient.Doer, httpclient.Sender, ...afero.Fs) error
 
 type SetupCoordinator struct {
 	fs              afero.Fs
-	minecraftClient httpClient.Doer
+	minecraftClient httpclient.Doer
 	downloader      Downloader
 }
 
-func NewSetupCoordinator(fs afero.Fs, minecraftClient httpClient.Doer, downloader Downloader) *SetupCoordinator {
+func NewSetupCoordinator(fs afero.Fs, minecraftClient httpclient.Doer, downloader Downloader) *SetupCoordinator {
 	return &SetupCoordinator{
 		fs:              fs,
 		minecraftClient: minecraftClient,
@@ -34,35 +35,35 @@ func NewSetupCoordinator(fs afero.Fs, minecraftClient httpClient.Doer, downloade
 	}
 }
 
-func (s *SetupCoordinator) EnsureConfigAndLock(ctx context.Context, meta config.Metadata, quiet bool) (models.ModsJson, []models.ModInstall, error) {
+func (s *SetupCoordinator) EnsureConfigAndLock(ctx context.Context, meta config.Metadata, quiet bool) (models.ModsJSON, []models.ModInstall, error) {
 	cfg, err := config.ReadConfig(ctx, s.fs, meta)
 	if err != nil {
 		var notFound *config.ConfigFileNotFoundException
 		if errors.As(err, &notFound) {
 			if quiet {
-				return models.ModsJson{}, nil, err
+				return models.ModsJSON{}, nil, err
 			}
 			if s.minecraftClient == nil {
-				return models.ModsJson{}, nil, errors.New("missing modsetup dependencies: minecraftClient")
+				return models.ModsJSON{}, nil, errors.New("missing modsetup dependencies: minecraftClient")
 			}
 			cfg, err = config.InitConfig(ctx, s.fs, meta, s.minecraftClient)
 			if err != nil {
-				return models.ModsJson{}, nil, err
+				return models.ModsJSON{}, nil, err
 			}
 		} else {
-			return models.ModsJson{}, nil, err
+			return models.ModsJSON{}, nil, err
 		}
 	}
 
 	lock, err := config.EnsureLock(ctx, s.fs, meta)
 	if err != nil {
-		return models.ModsJson{}, nil, err
+		return models.ModsJSON{}, nil, err
 	}
 
 	return cfg, lock, nil
 }
 
-func (s *SetupCoordinator) EnsureDownloaded(ctx context.Context, meta config.Metadata, cfg models.ModsJson, remote platform.RemoteMod, downloadClient httpClient.Doer) (string, error) {
+func (s *SetupCoordinator) EnsureDownloaded(ctx context.Context, meta config.Metadata, cfg models.ModsJSON, remote platform.RemoteMod, downloadClient httpclient.Doer) (string, error) {
 	normalizedFileName, err := modfilename.Normalize(remote.FileName)
 	if err != nil {
 		return "", err
@@ -105,12 +106,12 @@ type EnsureResult struct {
 	LockAdded   bool
 }
 
-func (s *SetupCoordinator) EnsurePersisted(ctx context.Context, meta config.Metadata, cfg models.ModsJson, lock []models.ModInstall, resolvedPlatform models.Platform, resolvedID string, remote platform.RemoteMod, options EnsurePersistOptions) (models.ModsJson, []models.ModInstall, EnsureResult, error) {
+func (s *SetupCoordinator) EnsurePersisted(ctx context.Context, meta config.Metadata, cfg models.ModsJSON, lock []models.ModInstall, resolvedPlatform models.Platform, resolvedID string, remote platform.RemoteMod, options EnsurePersistOptions) (models.ModsJSON, []models.ModInstall, EnsureResult, error) {
 	if strings.TrimSpace(string(resolvedPlatform)) == "" {
-		return models.ModsJson{}, nil, EnsureResult{}, errors.New("missing resolved platform")
+		return models.ModsJSON{}, nil, EnsureResult{}, errors.New("missing resolved platform")
 	}
 	if strings.TrimSpace(resolvedID) == "" {
-		return models.ModsJson{}, nil, EnsureResult{}, errors.New("missing resolved id")
+		return models.ModsJSON{}, nil, EnsureResult{}, errors.New("missing resolved id")
 	}
 
 	configIndex := findConfigIndex(cfg, resolvedPlatform, resolvedID)
@@ -132,30 +133,30 @@ func (s *SetupCoordinator) EnsurePersisted(ctx context.Context, meta config.Meta
 	if lockIndex < 0 {
 		normalizedFileName, err := validateRemoteForLock(remote)
 		if err != nil {
-			return models.ModsJson{}, nil, EnsureResult{}, err
+			return models.ModsJSON{}, nil, EnsureResult{}, err
 		}
 		remote.FileName = normalizedFileName
 
 		lock = append(lock, models.ModInstall{
 			Type:        resolvedPlatform,
-			Id:          resolvedID,
+			ID:          resolvedID,
 			Name:        remote.Name,
 			FileName:    remote.FileName,
 			ReleasedOn:  remote.ReleaseDate,
 			Hash:        remote.Hash,
-			DownloadUrl: remote.DownloadURL,
+			DownloadURL: remote.DownloadURL,
 		})
 		result.LockAdded = true
 	}
 
 	if result.ConfigAdded {
 		if err := config.WriteConfig(ctx, s.fs, meta, cfg); err != nil {
-			return models.ModsJson{}, nil, EnsureResult{}, err
+			return models.ModsJSON{}, nil, EnsureResult{}, err
 		}
 	}
 	if result.LockAdded {
 		if err := config.WriteLock(ctx, s.fs, meta, lock); err != nil {
-			return models.ModsJson{}, nil, EnsureResult{}, err
+			return models.ModsJSON{}, nil, EnsureResult{}, err
 		}
 	}
 
@@ -169,12 +170,12 @@ type UpsertResult struct {
 	LockUpdated   bool
 }
 
-func (s *SetupCoordinator) UpsertConfigAndLock(cfg models.ModsJson, lock []models.ModInstall, resolvedPlatform models.Platform, resolvedID string, remote platform.RemoteMod, options EnsurePersistOptions) (models.ModsJson, []models.ModInstall, UpsertResult, error) {
+func (s *SetupCoordinator) UpsertConfigAndLock(cfg models.ModsJSON, lock []models.ModInstall, resolvedPlatform models.Platform, resolvedID string, remote platform.RemoteMod, options EnsurePersistOptions) (models.ModsJSON, []models.ModInstall, UpsertResult, error) {
 	if strings.TrimSpace(string(resolvedPlatform)) == "" {
-		return models.ModsJson{}, nil, UpsertResult{}, errors.New("missing resolved platform")
+		return models.ModsJSON{}, nil, UpsertResult{}, errors.New("missing resolved platform")
 	}
 	if strings.TrimSpace(resolvedID) == "" {
-		return models.ModsJson{}, nil, UpsertResult{}, errors.New("missing resolved id")
+		return models.ModsJSON{}, nil, UpsertResult{}, errors.New("missing resolved id")
 	}
 
 	configIndex := findConfigIndex(cfg, resolvedPlatform, resolvedID)
@@ -199,41 +200,41 @@ func (s *SetupCoordinator) UpsertConfigAndLock(cfg models.ModsJson, lock []model
 	if lockIndex < 0 {
 		normalizedFileName, err := validateRemoteForLock(remote)
 		if err != nil {
-			return models.ModsJson{}, nil, UpsertResult{}, err
+			return models.ModsJSON{}, nil, UpsertResult{}, err
 		}
 		remote.FileName = normalizedFileName
 		lock = append(lock, models.ModInstall{
 			Type:        resolvedPlatform,
-			Id:          resolvedID,
+			ID:          resolvedID,
 			Name:        remote.Name,
 			FileName:    remote.FileName,
 			ReleasedOn:  remote.ReleaseDate,
 			Hash:        remote.Hash,
-			DownloadUrl: remote.DownloadURL,
+			DownloadURL: remote.DownloadURL,
 		})
 		result.LockAdded = true
 	} else {
 		normalizedFileName, err := validateRemoteForLock(remote)
 		if err != nil {
-			return models.ModsJson{}, nil, UpsertResult{}, err
+			return models.ModsJSON{}, nil, UpsertResult{}, err
 		}
 		remote.FileName = normalizedFileName
 
 		current := lock[lockIndex]
 		next := models.ModInstall{
 			Type:        resolvedPlatform,
-			Id:          resolvedID,
+			ID:          resolvedID,
 			Name:        remote.Name,
 			FileName:    remote.FileName,
 			ReleasedOn:  remote.ReleaseDate,
 			Hash:        remote.Hash,
-			DownloadUrl: remote.DownloadURL,
+			DownloadURL: remote.DownloadURL,
 		}
 		if current.Name != next.Name ||
 			current.FileName != next.FileName ||
 			current.ReleasedOn != next.ReleasedOn ||
 			!strings.EqualFold(current.Hash, next.Hash) ||
-			current.DownloadUrl != next.DownloadUrl {
+			current.DownloadURL != next.DownloadURL {
 			lock[lockIndex] = next
 			result.LockUpdated = true
 		}
@@ -242,7 +243,7 @@ func (s *SetupCoordinator) UpsertConfigAndLock(cfg models.ModsJson, lock []model
 	return cfg, lock, result, nil
 }
 
-func ModExists(cfg models.ModsJson, platform models.Platform, projectID string) bool {
+func ModExists(cfg models.ModsJSON, platform models.Platform, projectID string) bool {
 	for _, mod := range cfg.Mods {
 		if mod.ID == projectID && mod.Type == platform {
 			return true
@@ -265,7 +266,7 @@ func optionalString(value string) *string {
 	return &value
 }
 
-func findConfigIndex(cfg models.ModsJson, platform models.Platform, projectID string) int {
+func findConfigIndex(cfg models.ModsJSON, platform models.Platform, projectID string) int {
 	for i := range cfg.Mods {
 		if cfg.Mods[i].ID == projectID && cfg.Mods[i].Type == platform {
 			return i
@@ -276,7 +277,7 @@ func findConfigIndex(cfg models.ModsJson, platform models.Platform, projectID st
 
 func findLockIndex(lock []models.ModInstall, platform models.Platform, projectID string) int {
 	for i := range lock {
-		if lock[i].Type == platform && lock[i].Id == projectID {
+		if lock[i].Type == platform && lock[i].ID == projectID {
 			return i
 		}
 	}

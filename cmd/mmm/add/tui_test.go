@@ -20,7 +20,7 @@ import (
 func TestAddTUIStateSnapshots(t *testing.T) {
 	t.Setenv("MMM_TEST", "true")
 
-	cfg := models.ModsJson{
+	cfg := models.ModsJSON{
 		Loader:                     models.FABRIC,
 		GameVersion:                "1.20.1",
 		DefaultAllowedReleaseTypes: []models.ReleaseType{models.Release},
@@ -185,7 +185,7 @@ func TestAddTUIThinkingTime_RecordsWaitRegions(t *testing.T) {
 	t.Setenv("MMM_TEST", "true")
 	ctx, span := startAddTUIPerf(t)
 
-	cfg := models.ModsJson{
+	cfg := models.ModsJSON{
 		Loader:                     models.FABRIC,
 		GameVersion:                "1.20.1",
 		DefaultAllowedReleaseTypes: []models.ReleaseType{models.Release},

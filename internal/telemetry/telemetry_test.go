@@ -10,7 +10,7 @@ import (
 	"time"
 
 	"github.com/meza/minecraft-mod-manager/internal/environment"
-	"github.com/meza/minecraft-mod-manager/internal/globalErrors"
+	"github.com/meza/minecraft-mod-manager/internal/globalerrors"
 	"github.com/meza/minecraft-mod-manager/internal/models"
 	"github.com/meza/minecraft-mod-manager/internal/perf"
 	"github.com/posthog/posthog-go"
@@ -109,7 +109,7 @@ func TestRecordCommandDoesNotEnqueueImmediately(t *testing.T) {
 	initWithClient(t, client, "cmd-test")
 
 	err := errors.New("boom")
-	config := &models.ModsJson{}
+	config := &models.ModsJSON{}
 	RecordCommand(CommandTelemetry{
 		Command:   "list",
 		Success:   false,
@@ -580,8 +580,8 @@ func TestCommandExitCode_UsesExplicitValue(t *testing.T) {
 func TestErrorCategory_RecognizesKnownErrors(t *testing.T) {
 	assert.Equal(t, "", errorCategory(nil))
 	assert.Equal(t, "canceled", errorCategory(context.Canceled))
-	assert.Equal(t, "project_not_found", errorCategory(&globalErrors.ProjectNotFoundError{ProjectID: "x", Platform: models.MODRINTH}))
-	assert.Equal(t, "project_api_error", errorCategory(&globalErrors.ProjectApiError{Err: errors.New("boom"), ProjectID: "x", Platform: models.MODRINTH}))
+	assert.Equal(t, "project_not_found", errorCategory(&globalerrors.ProjectNotFoundError{ProjectID: "x", Platform: models.MODRINTH}))
+	assert.Equal(t, "project_api_error", errorCategory(&globalerrors.ProjectAPIError{Err: errors.New("boom"), ProjectID: "x", Platform: models.MODRINTH}))
 	assert.Equal(t, "unknown", errorCategory(errors.New("boom")))
 }
 

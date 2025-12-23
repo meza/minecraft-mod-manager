@@ -10,7 +10,7 @@ import (
 	"testing"
 
 	"github.com/meza/minecraft-mod-manager/internal/config"
-	"github.com/meza/minecraft-mod-manager/internal/httpClient"
+	"github.com/meza/minecraft-mod-manager/internal/httpclient"
 	"github.com/meza/minecraft-mod-manager/internal/logger"
 	"github.com/meza/minecraft-mod-manager/internal/models"
 	"github.com/meza/minecraft-mod-manager/internal/platform"
@@ -37,7 +37,7 @@ func TestExitCode0WhenAllModsSupported(t *testing.T) {
 	fs := afero.NewMemMapFs()
 	meta := config.NewMetadata(filepath.FromSlash("/cfg/modlist.json"))
 
-	cfg := models.ModsJson{
+	cfg := models.ModsJSON{
 		Loader:                     models.FABRIC,
 		GameVersion:                "1.21.1",
 		DefaultAllowedReleaseTypes: []models.ReleaseType{models.Release},
@@ -71,10 +71,10 @@ func TestExitCode0WhenAllModsSupported(t *testing.T) {
 		fetchMod: func(ctx context.Context, p models.Platform, id string, opts platform.FetchOptions, clients platform.Clients) (platform.RemoteMod, error) {
 			return platform.RemoteMod{Name: "TestMod"}, nil
 		},
-		latestVersion: func(ctx context.Context, client httpClient.Doer) (string, error) {
+		latestVersion: func(ctx context.Context, client httpclient.Doer) (string, error) {
 			return "1.22.0", nil
 		},
-		isValidVersion: func(ctx context.Context, version string, client httpClient.Doer) bool {
+		isValidVersion: func(ctx context.Context, version string, client httpclient.Doer) bool {
 			return version == "1.22.0" || version == "1.21.1"
 		},
 		telemetry: func(telemetry.CommandTelemetry) {},
@@ -91,7 +91,7 @@ func TestExitCode1WhenSomeModsUnsupported(t *testing.T) {
 	fs := afero.NewMemMapFs()
 	meta := config.NewMetadata(filepath.FromSlash("/cfg/modlist.json"))
 
-	cfg := models.ModsJson{
+	cfg := models.ModsJSON{
 		Loader:                     models.FABRIC,
 		GameVersion:                "1.21.1",
 		DefaultAllowedReleaseTypes: []models.ReleaseType{models.Release},
@@ -127,10 +127,10 @@ func TestExitCode1WhenSomeModsUnsupported(t *testing.T) {
 			}
 			return platform.RemoteMod{Name: "SupportedMod"}, nil
 		},
-		latestVersion: func(ctx context.Context, client httpClient.Doer) (string, error) {
+		latestVersion: func(ctx context.Context, client httpclient.Doer) (string, error) {
 			return "1.22.0", nil
 		},
-		isValidVersion: func(ctx context.Context, version string, client httpClient.Doer) bool {
+		isValidVersion: func(ctx context.Context, version string, client httpclient.Doer) bool {
 			return true
 		},
 		telemetry: func(telemetry.CommandTelemetry) {},
@@ -151,7 +151,7 @@ func TestExitCode2WhenVersionMatchesCurrent(t *testing.T) {
 	fs := afero.NewMemMapFs()
 	meta := config.NewMetadata(filepath.FromSlash("/cfg/modlist.json"))
 
-	cfg := models.ModsJson{
+	cfg := models.ModsJSON{
 		Loader:                     models.FABRIC,
 		GameVersion:                "1.21.1",
 		DefaultAllowedReleaseTypes: []models.ReleaseType{models.Release},
@@ -184,10 +184,10 @@ func TestExitCode2WhenVersionMatchesCurrent(t *testing.T) {
 			t.Fatal("fetchMod should not be called when version matches current")
 			return platform.RemoteMod{}, nil
 		},
-		latestVersion: func(ctx context.Context, client httpClient.Doer) (string, error) {
+		latestVersion: func(ctx context.Context, client httpclient.Doer) (string, error) {
 			return "1.22.0", nil
 		},
-		isValidVersion: func(ctx context.Context, version string, client httpClient.Doer) bool {
+		isValidVersion: func(ctx context.Context, version string, client httpclient.Doer) bool {
 			return true
 		},
 		telemetry: func(telemetry.CommandTelemetry) {},
@@ -208,7 +208,7 @@ func TestLatestVersionResolution(t *testing.T) {
 	fs := afero.NewMemMapFs()
 	meta := config.NewMetadata(filepath.FromSlash("/cfg/modlist.json"))
 
-	cfg := models.ModsJson{
+	cfg := models.ModsJSON{
 		Loader:                     models.FABRIC,
 		GameVersion:                "1.21.1",
 		DefaultAllowedReleaseTypes: []models.ReleaseType{models.Release},
@@ -242,10 +242,10 @@ func TestLatestVersionResolution(t *testing.T) {
 			fetchedVersion = opts.GameVersion
 			return platform.RemoteMod{Name: "SomeMod"}, nil
 		},
-		latestVersion: func(ctx context.Context, client httpClient.Doer) (string, error) {
+		latestVersion: func(ctx context.Context, client httpclient.Doer) (string, error) {
 			return "1.22.0", nil
 		},
-		isValidVersion: func(ctx context.Context, version string, client httpClient.Doer) bool {
+		isValidVersion: func(ctx context.Context, version string, client httpclient.Doer) bool {
 			return true
 		},
 		telemetry: func(telemetry.CommandTelemetry) {},
@@ -262,7 +262,7 @@ func TestInvalidVersionHandling(t *testing.T) {
 	fs := afero.NewMemMapFs()
 	meta := config.NewMetadata(filepath.FromSlash("/cfg/modlist.json"))
 
-	cfg := models.ModsJson{
+	cfg := models.ModsJSON{
 		Loader:                     models.FABRIC,
 		GameVersion:                "1.21.1",
 		DefaultAllowedReleaseTypes: []models.ReleaseType{models.Release},
@@ -295,10 +295,10 @@ func TestInvalidVersionHandling(t *testing.T) {
 			t.Fatal("fetchMod should not be called for invalid version")
 			return platform.RemoteMod{}, nil
 		},
-		latestVersion: func(ctx context.Context, client httpClient.Doer) (string, error) {
+		latestVersion: func(ctx context.Context, client httpclient.Doer) (string, error) {
 			return "1.22.0", nil
 		},
-		isValidVersion: func(ctx context.Context, version string, client httpClient.Doer) bool {
+		isValidVersion: func(ctx context.Context, version string, client httpclient.Doer) bool {
 			return version == "1.22.0" || version == "1.21.1"
 		},
 		telemetry: func(telemetry.CommandTelemetry) {},
@@ -314,7 +314,7 @@ func TestQuietFlagBehavior(t *testing.T) {
 	fs := afero.NewMemMapFs()
 	meta := config.NewMetadata(filepath.FromSlash("/cfg/modlist.json"))
 
-	cfg := models.ModsJson{
+	cfg := models.ModsJSON{
 		Loader:                     models.FABRIC,
 		GameVersion:                "1.21.1",
 		DefaultAllowedReleaseTypes: []models.ReleaseType{models.Release},
@@ -347,10 +347,10 @@ func TestQuietFlagBehavior(t *testing.T) {
 		fetchMod: func(ctx context.Context, p models.Platform, id string, opts platform.FetchOptions, clients platform.Clients) (platform.RemoteMod, error) {
 			return platform.RemoteMod{Name: "SomeMod"}, nil
 		},
-		latestVersion: func(ctx context.Context, client httpClient.Doer) (string, error) {
+		latestVersion: func(ctx context.Context, client httpclient.Doer) (string, error) {
 			return "1.22.0", nil
 		},
-		isValidVersion: func(ctx context.Context, version string, client httpClient.Doer) bool {
+		isValidVersion: func(ctx context.Context, version string, client httpclient.Doer) bool {
 			return true
 		},
 		telemetry: func(telemetry.CommandTelemetry) {},
@@ -368,7 +368,7 @@ func TestDebugFlagBehavior(t *testing.T) {
 	fs := afero.NewMemMapFs()
 	meta := config.NewMetadata(filepath.FromSlash("/cfg/modlist.json"))
 
-	cfg := models.ModsJson{
+	cfg := models.ModsJSON{
 		Loader:                     models.FABRIC,
 		GameVersion:                "1.21.1",
 		DefaultAllowedReleaseTypes: []models.ReleaseType{models.Release},
@@ -401,10 +401,10 @@ func TestDebugFlagBehavior(t *testing.T) {
 		fetchMod: func(ctx context.Context, p models.Platform, id string, opts platform.FetchOptions, clients platform.Clients) (platform.RemoteMod, error) {
 			return platform.RemoteMod{Name: "SomeMod"}, nil
 		},
-		latestVersion: func(ctx context.Context, client httpClient.Doer) (string, error) {
+		latestVersion: func(ctx context.Context, client httpclient.Doer) (string, error) {
 			return "1.22.0", nil
 		},
-		isValidVersion: func(ctx context.Context, version string, client httpClient.Doer) bool {
+		isValidVersion: func(ctx context.Context, version string, client httpclient.Doer) bool {
 			return true
 		},
 		telemetry: func(telemetry.CommandTelemetry) {},
@@ -423,7 +423,7 @@ func TestAllowVersionFallbackHonored(t *testing.T) {
 
 	trueVal := true
 	falseVal := false
-	cfg := models.ModsJson{
+	cfg := models.ModsJSON{
 		Loader:                     models.FABRIC,
 		GameVersion:                "1.21.1",
 		DefaultAllowedReleaseTypes: []models.ReleaseType{models.Release},
@@ -462,10 +462,10 @@ func TestAllowVersionFallbackHonored(t *testing.T) {
 			fetchOptionsMu.Unlock()
 			return platform.RemoteMod{Name: "SomeMod"}, nil
 		},
-		latestVersion: func(ctx context.Context, client httpClient.Doer) (string, error) {
+		latestVersion: func(ctx context.Context, client httpclient.Doer) (string, error) {
 			return "1.22.0", nil
 		},
-		isValidVersion: func(ctx context.Context, version string, client httpClient.Doer) bool {
+		isValidVersion: func(ctx context.Context, version string, client httpclient.Doer) bool {
 			return true
 		},
 		telemetry: func(telemetry.CommandTelemetry) {},
@@ -485,7 +485,7 @@ func TestPinnedModsAreChecked(t *testing.T) {
 	meta := config.NewMetadata(filepath.FromSlash("/cfg/modlist.json"))
 
 	pinnedVersion := "1.0.0"
-	cfg := models.ModsJson{
+	cfg := models.ModsJSON{
 		Loader:                     models.FABRIC,
 		GameVersion:                "1.21.1",
 		DefaultAllowedReleaseTypes: []models.ReleaseType{models.Release},
@@ -523,10 +523,10 @@ func TestPinnedModsAreChecked(t *testing.T) {
 			checkedModsMu.Unlock()
 			return platform.RemoteMod{Name: "SomeMod"}, nil
 		},
-		latestVersion: func(ctx context.Context, client httpClient.Doer) (string, error) {
+		latestVersion: func(ctx context.Context, client httpclient.Doer) (string, error) {
 			return "1.22.0", nil
 		},
-		isValidVersion: func(ctx context.Context, version string, client httpClient.Doer) bool {
+		isValidVersion: func(ctx context.Context, version string, client httpclient.Doer) bool {
 			return true
 		},
 		telemetry: func(telemetry.CommandTelemetry) {},
@@ -544,7 +544,7 @@ func TestModNotFoundError(t *testing.T) {
 	fs := afero.NewMemMapFs()
 	meta := config.NewMetadata(filepath.FromSlash("/cfg/modlist.json"))
 
-	cfg := models.ModsJson{
+	cfg := models.ModsJSON{
 		Loader:                     models.FABRIC,
 		GameVersion:                "1.21.1",
 		DefaultAllowedReleaseTypes: []models.ReleaseType{models.Release},
@@ -576,10 +576,10 @@ func TestModNotFoundError(t *testing.T) {
 		fetchMod: func(ctx context.Context, p models.Platform, id string, opts platform.FetchOptions, clients platform.Clients) (platform.RemoteMod, error) {
 			return platform.RemoteMod{}, &platform.ModNotFoundError{Platform: p, ProjectID: id}
 		},
-		latestVersion: func(ctx context.Context, client httpClient.Doer) (string, error) {
+		latestVersion: func(ctx context.Context, client httpclient.Doer) (string, error) {
 			return "1.22.0", nil
 		},
-		isValidVersion: func(ctx context.Context, version string, client httpClient.Doer) bool {
+		isValidVersion: func(ctx context.Context, version string, client httpclient.Doer) bool {
 			return true
 		},
 		telemetry: func(telemetry.CommandTelemetry) {},
@@ -618,10 +618,10 @@ func TestConfigFileNotFound(t *testing.T) {
 			t.Fatal("fetchMod should not be called when config is missing")
 			return platform.RemoteMod{}, nil
 		},
-		latestVersion: func(ctx context.Context, client httpClient.Doer) (string, error) {
+		latestVersion: func(ctx context.Context, client httpclient.Doer) (string, error) {
 			return "1.22.0", nil
 		},
-		isValidVersion: func(ctx context.Context, version string, client httpClient.Doer) bool {
+		isValidVersion: func(ctx context.Context, version string, client httpclient.Doer) bool {
 			return true
 		},
 		telemetry: func(telemetry.CommandTelemetry) {},
@@ -639,7 +639,7 @@ func TestLatestVersionResolutionError(t *testing.T) {
 	fs := afero.NewMemMapFs()
 	meta := config.NewMetadata(filepath.FromSlash("/cfg/modlist.json"))
 
-	cfg := models.ModsJson{
+	cfg := models.ModsJSON{
 		Loader:                     models.FABRIC,
 		GameVersion:                "1.21.1",
 		DefaultAllowedReleaseTypes: []models.ReleaseType{models.Release},
@@ -672,10 +672,10 @@ func TestLatestVersionResolutionError(t *testing.T) {
 			t.Fatal("fetchMod should not be called when latest version resolution fails")
 			return platform.RemoteMod{}, nil
 		},
-		latestVersion: func(ctx context.Context, client httpClient.Doer) (string, error) {
+		latestVersion: func(ctx context.Context, client httpclient.Doer) (string, error) {
 			return "", errors.New("network error")
 		},
-		isValidVersion: func(ctx context.Context, version string, client httpClient.Doer) bool {
+		isValidVersion: func(ctx context.Context, version string, client httpclient.Doer) bool {
 			return true
 		},
 		telemetry: func(telemetry.CommandTelemetry) {},
@@ -693,7 +693,7 @@ func TestEmptyModListSuccess(t *testing.T) {
 	fs := afero.NewMemMapFs()
 	meta := config.NewMetadata(filepath.FromSlash("/cfg/modlist.json"))
 
-	cfg := models.ModsJson{
+	cfg := models.ModsJSON{
 		Loader:                     models.FABRIC,
 		GameVersion:                "1.21.1",
 		DefaultAllowedReleaseTypes: []models.ReleaseType{models.Release},
@@ -724,10 +724,10 @@ func TestEmptyModListSuccess(t *testing.T) {
 			t.Fatal("fetchMod should not be called for empty mod list")
 			return platform.RemoteMod{}, nil
 		},
-		latestVersion: func(ctx context.Context, client httpClient.Doer) (string, error) {
+		latestVersion: func(ctx context.Context, client httpclient.Doer) (string, error) {
 			return "1.22.0", nil
 		},
-		isValidVersion: func(ctx context.Context, version string, client httpClient.Doer) bool {
+		isValidVersion: func(ctx context.Context, version string, client httpclient.Doer) bool {
 			return true
 		},
 		telemetry: func(telemetry.CommandTelemetry) {},
@@ -744,7 +744,7 @@ func TestRunTestReturnsCorrectExitCodeForTelemetry(t *testing.T) {
 	fs := afero.NewMemMapFs()
 	meta := config.NewMetadata(filepath.FromSlash("/cfg/modlist.json"))
 
-	cfg := models.ModsJson{
+	cfg := models.ModsJSON{
 		Loader:                     models.FABRIC,
 		GameVersion:                "1.21.1",
 		DefaultAllowedReleaseTypes: []models.ReleaseType{models.Release},
@@ -776,10 +776,10 @@ func TestRunTestReturnsCorrectExitCodeForTelemetry(t *testing.T) {
 		fetchMod: func(ctx context.Context, p models.Platform, id string, opts platform.FetchOptions, clients platform.Clients) (platform.RemoteMod, error) {
 			return platform.RemoteMod{Name: "SomeMod"}, nil
 		},
-		latestVersion: func(ctx context.Context, client httpClient.Doer) (string, error) {
+		latestVersion: func(ctx context.Context, client httpclient.Doer) (string, error) {
 			return "1.22.0", nil
 		},
-		isValidVersion: func(ctx context.Context, version string, client httpClient.Doer) bool {
+		isValidVersion: func(ctx context.Context, version string, client httpclient.Doer) bool {
 			return true
 		},
 		telemetry: func(telemetry.CommandTelemetry) {},
@@ -798,7 +798,7 @@ func TestParallelModChecks(t *testing.T) {
 	fs := afero.NewMemMapFs()
 	meta := config.NewMetadata(filepath.FromSlash("/cfg/modlist.json"))
 
-	cfg := models.ModsJson{
+	cfg := models.ModsJSON{
 		Loader:                     models.FABRIC,
 		GameVersion:                "1.21.1",
 		DefaultAllowedReleaseTypes: []models.ReleaseType{models.Release},
@@ -838,10 +838,10 @@ func TestParallelModChecks(t *testing.T) {
 			callCountMu.Unlock()
 			return platform.RemoteMod{Name: "SomeMod"}, nil
 		},
-		latestVersion: func(ctx context.Context, client httpClient.Doer) (string, error) {
+		latestVersion: func(ctx context.Context, client httpclient.Doer) (string, error) {
 			return "1.22.0", nil
 		},
-		isValidVersion: func(ctx context.Context, version string, client httpClient.Doer) bool {
+		isValidVersion: func(ctx context.Context, version string, client httpclient.Doer) bool {
 			return true
 		},
 		telemetry: func(telemetry.CommandTelemetry) {},
@@ -858,7 +858,7 @@ func TestMixedPlatformMods(t *testing.T) {
 	fs := afero.NewMemMapFs()
 	meta := config.NewMetadata(filepath.FromSlash("/cfg/modlist.json"))
 
-	cfg := models.ModsJson{
+	cfg := models.ModsJSON{
 		Loader:                     models.FABRIC,
 		GameVersion:                "1.21.1",
 		DefaultAllowedReleaseTypes: []models.ReleaseType{models.Release},
@@ -897,10 +897,10 @@ func TestMixedPlatformMods(t *testing.T) {
 			platformCallsMu.Unlock()
 			return platform.RemoteMod{Name: "SomeMod"}, nil
 		},
-		latestVersion: func(ctx context.Context, client httpClient.Doer) (string, error) {
+		latestVersion: func(ctx context.Context, client httpclient.Doer) (string, error) {
 			return "1.22.0", nil
 		},
-		isValidVersion: func(ctx context.Context, version string, client httpClient.Doer) bool {
+		isValidVersion: func(ctx context.Context, version string, client httpclient.Doer) bool {
 			return true
 		},
 		telemetry: func(telemetry.CommandTelemetry) {},
@@ -918,7 +918,7 @@ func TestCustomAllowedReleaseTypes(t *testing.T) {
 	fs := afero.NewMemMapFs()
 	meta := config.NewMetadata(filepath.FromSlash("/cfg/modlist.json"))
 
-	cfg := models.ModsJson{
+	cfg := models.ModsJSON{
 		Loader:                     models.FABRIC,
 		GameVersion:                "1.21.1",
 		DefaultAllowedReleaseTypes: []models.ReleaseType{models.Release},
@@ -956,10 +956,10 @@ func TestCustomAllowedReleaseTypes(t *testing.T) {
 			fetchOptionsMu.Unlock()
 			return platform.RemoteMod{Name: "SomeMod"}, nil
 		},
-		latestVersion: func(ctx context.Context, client httpClient.Doer) (string, error) {
+		latestVersion: func(ctx context.Context, client httpclient.Doer) (string, error) {
 			return "1.22.0", nil
 		},
-		isValidVersion: func(ctx context.Context, version string, client httpClient.Doer) bool {
+		isValidVersion: func(ctx context.Context, version string, client httpclient.Doer) bool {
 			return true
 		},
 		telemetry: func(telemetry.CommandTelemetry) {},
@@ -977,7 +977,7 @@ func TestGenericFetchErrorLogsToErrorOutput(t *testing.T) {
 	fs := afero.NewMemMapFs()
 	meta := config.NewMetadata(filepath.FromSlash("/cfg/modlist.json"))
 
-	cfg := models.ModsJson{
+	cfg := models.ModsJSON{
 		Loader:                     models.FABRIC,
 		GameVersion:                "1.21.1",
 		DefaultAllowedReleaseTypes: []models.ReleaseType{models.Release},
@@ -1009,10 +1009,10 @@ func TestGenericFetchErrorLogsToErrorOutput(t *testing.T) {
 		fetchMod: func(ctx context.Context, p models.Platform, id string, opts platform.FetchOptions, clients platform.Clients) (platform.RemoteMod, error) {
 			return platform.RemoteMod{}, errors.New("network timeout")
 		},
-		latestVersion: func(ctx context.Context, client httpClient.Doer) (string, error) {
+		latestVersion: func(ctx context.Context, client httpclient.Doer) (string, error) {
 			return "1.22.0", nil
 		},
-		isValidVersion: func(ctx context.Context, version string, client httpClient.Doer) bool {
+		isValidVersion: func(ctx context.Context, version string, client httpclient.Doer) bool {
 			return true
 		},
 		telemetry: func(telemetry.CommandTelemetry) {},

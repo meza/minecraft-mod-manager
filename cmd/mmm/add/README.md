@@ -30,7 +30,7 @@ At a high level, `runAdd` does:
      - `platform.UnknownPlatformError`
      - `platform.ModNotFoundError`
      - `platform.NoCompatibleFileError`
-4. Download the resolved jar into the mods directory via `internal/httpClient.DownloadFile`.
+4. Download the resolved jar into the mods directory via `internal/httpclient.DownloadFile`.
 5. Append:
    - a `models.Mod` entry to `modlist.json`
    - a `models.ModInstall` entry to `modlist-lock.json`

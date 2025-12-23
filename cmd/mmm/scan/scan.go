@@ -24,7 +24,7 @@ import (
 
 	"github.com/meza/minecraft-mod-manager/internal/config"
 	"github.com/meza/minecraft-mod-manager/internal/curseforge"
-	"github.com/meza/minecraft-mod-manager/internal/httpClient"
+	"github.com/meza/minecraft-mod-manager/internal/httpclient"
 	"github.com/meza/minecraft-mod-manager/internal/i18n"
 	"github.com/meza/minecraft-mod-manager/internal/logger"
 	"github.com/meza/minecraft-mod-manager/internal/mmmignore"
@@ -48,16 +48,16 @@ type scanOptions struct {
 type scanDeps struct {
 	fs              afero.Fs
 	clients         platform.Clients
-	minecraftClient httpClient.Doer
+	minecraftClient httpclient.Doer
 	logger          *logger.Logger
 	prompter        prompter
 	telemetry       func(telemetry.CommandTelemetry)
 
 	curseforgeFingerprint      func(string) uint32
-	modrinthVersionForSha      func(context.Context, string, httpClient.Doer) (*modrinth.Version, error)
-	modrinthProjectTitle       func(context.Context, string, httpClient.Doer) (string, error)
-	curseforgeFingerprintMatch func(context.Context, []int, httpClient.Doer) (*curseforge.FingerprintResult, error)
-	curseforgeProjectName      func(context.Context, string, httpClient.Doer) (string, error)
+	modrinthVersionForSha      func(context.Context, string, httpclient.Doer) (*modrinth.Version, error)
+	modrinthProjectTitle       func(context.Context, string, httpclient.Doer) (string, error)
+	curseforgeFingerprintMatch func(context.Context, []int, httpclient.Doer) (*curseforge.FingerprintResult, error)
+	curseforgeProjectName      func(context.Context, string, httpclient.Doer) (string, error)
 }
 
 type prompter interface {
@@ -134,7 +134,7 @@ func Command() *cobra.Command {
 			deps := scanDeps{
 				fs:              afero.NewOsFs(),
 				clients:         platform.DefaultClients(limiter),
-				minecraftClient: httpClient.NewRLClient(limiter),
+				minecraftClient: httpclient.NewRLClient(limiter),
 				logger:          log,
 				prompter:        terminalPrompter{in: cmd.InOrStdin(), out: cmd.OutOrStdout()},
 				telemetry:       telemetry.RecordCommand,
@@ -311,7 +311,7 @@ func runScan(ctx context.Context, cmd *cobra.Command, opts scanOptions, deps sca
 	}, nil
 }
 
-func listJarFiles(fs afero.Fs, meta config.Metadata, cfg models.ModsJson) ([]string, error) {
+func listJarFiles(fs afero.Fs, meta config.Metadata, cfg models.ModsJSON) ([]string, error) {
 	all, err := afero.ReadDir(fs, meta.ModsFolderPath(cfg))
 	if err != nil {
 		return nil, err
@@ -507,7 +507,7 @@ func lookupModrinth(ctx context.Context, candidates []scanCandidate, deps scanDe
 				return nil
 			}
 
-			projectID := version.ProjectId
+			projectID := version.ProjectID
 
 			titleMu.Lock()
 			title, ok := titleCache[projectID]
@@ -612,7 +612,7 @@ func lookupCurseforge(ctx context.Context, candidates []scanCandidate, deps scan
 			continue
 		}
 
-		projectID := fmt.Sprintf("%d", file.ProjectId)
+		projectID := fmt.Sprintf("%d", file.ProjectID)
 
 		nameMu.Lock()
 		name, ok := nameCache[projectID]
@@ -630,7 +630,7 @@ func lookupCurseforge(ctx context.Context, candidates []scanCandidate, deps scan
 			nameMu.Unlock()
 		}
 
-		if strings.TrimSpace(file.DownloadUrl) == "" {
+		if strings.TrimSpace(file.DownloadURL) == "" {
 			for _, index := range indices {
 				unsure[candidates[index].Path] = errors.New("curseforge match missing download url")
 			}
@@ -647,7 +647,7 @@ func lookupCurseforge(ctx context.Context, candidates []scanCandidate, deps scan
 				FileName:    candidates[index].FileName,
 				Hash:        candidates[index].Sha1,
 				ReleaseDate: published,
-				DownloadURL: file.DownloadUrl,
+				DownloadURL: file.DownloadURL,
 			})
 		}
 	}
@@ -671,7 +671,7 @@ func lookupCurseforge(ctx context.Context, candidates []scanCandidate, deps scan
 }
 
 func curseforgeFingerprintFailureReason(err error) string {
-	var apiError *curseforge.FingerprintApiError
+	var apiError *curseforge.FingerprintAPIError
 	if errors.As(err, &apiError) {
 		err = apiError.Unwrap()
 	}
@@ -699,11 +699,11 @@ func modrinthDownloadDetails(version *modrinth.Version) (string, string, error) 
 		}
 	}
 
-	if strings.TrimSpace(chosen.Url) == "" {
+	if strings.TrimSpace(chosen.URL) == "" {
 		return "", "", errors.New("modrinth file missing url")
 	}
 
-	return chosen.Url, version.DatePublished.Format(time.RFC3339), nil
+	return chosen.URL, version.DatePublished.Format(time.RFC3339), nil
 }
 
 func uniqueInts(values []int) []int {
@@ -788,12 +788,12 @@ func printResults(log *logger.Logger, out io.Writer, _ models.Platform, matches 
 	}
 }
 
-func defaultModrinthVersionForSha(ctx context.Context, sha1 string, doer httpClient.Doer) (*modrinth.Version, error) {
+func defaultModrinthVersionForSha(ctx context.Context, sha1 string, doer httpclient.Doer) (*modrinth.Version, error) {
 	client := modrinth.NewClient(doer)
-	return modrinth.GetVersionForHash(ctx, modrinth.NewVersionHashLookup(sha1, modrinth.Sha1), client)
+	return modrinth.GetVersionForHash(ctx, modrinth.NewVersionHashLookup(sha1, modrinth.SHA1), client)
 }
 
-func defaultModrinthProjectTitle(ctx context.Context, projectID string, doer httpClient.Doer) (string, error) {
+func defaultModrinthProjectTitle(ctx context.Context, projectID string, doer httpclient.Doer) (string, error) {
 	client := modrinth.NewClient(doer)
 	project, err := modrinth.GetProject(ctx, projectID, client)
 	if err != nil {
@@ -802,12 +802,12 @@ func defaultModrinthProjectTitle(ctx context.Context, projectID string, doer htt
 	return project.Title, nil
 }
 
-func defaultCurseforgeFingerprintMatch(ctx context.Context, fingerprints []int, doer httpClient.Doer) (*curseforge.FingerprintResult, error) {
+func defaultCurseforgeFingerprintMatch(ctx context.Context, fingerprints []int, doer httpclient.Doer) (*curseforge.FingerprintResult, error) {
 	client := curseforge.NewClient(doer)
 	return curseforge.GetFingerprintsMatches(ctx, fingerprints, client)
 }
 
-func defaultCurseforgeProjectName(ctx context.Context, projectID string, doer httpClient.Doer) (string, error) {
+func defaultCurseforgeProjectName(ctx context.Context, projectID string, doer httpclient.Doer) (string, error) {
 	client := curseforge.NewClient(doer)
 	project, err := curseforge.GetProject(ctx, projectID, client)
 	if err != nil {

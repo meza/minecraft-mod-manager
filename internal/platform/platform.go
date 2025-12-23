@@ -6,8 +6,8 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/meza/minecraft-mod-manager/internal/globalErrors"
-	"github.com/meza/minecraft-mod-manager/internal/httpClient"
+	"github.com/meza/minecraft-mod-manager/internal/globalerrors"
+	"github.com/meza/minecraft-mod-manager/internal/httpclient"
 	"github.com/meza/minecraft-mod-manager/internal/models"
 	"github.com/meza/minecraft-mod-manager/internal/perf"
 	"go.opentelemetry.io/otel/attribute"
@@ -31,15 +31,15 @@ type FetchOptions struct {
 }
 
 type Clients struct {
-	Modrinth   httpClient.Doer
-	Curseforge httpClient.Doer
+	Modrinth   httpclient.Doer
+	Curseforge httpclient.Doer
 }
 
 func DefaultClients(limiter *rate.Limiter) Clients {
 	if limiter == nil {
 		limiter = rate.NewLimiter(rate.Inf, 0)
 	}
-	client := httpClient.NewRLClient(limiter)
+	client := httpclient.NewRLClient(limiter)
 	return Clients{
 		Modrinth:   client,
 		Curseforge: client,
@@ -82,7 +82,7 @@ func FetchMod(ctx context.Context, platform models.Platform, projectID string, o
 }
 
 func mapProjectNotFound(platform models.Platform, projectID string, err error) error {
-	var notFound *globalErrors.ProjectNotFoundError
+	var notFound *globalerrors.ProjectNotFoundError
 	if errors.As(err, &notFound) {
 		return &ModNotFoundError{
 			Platform:  platform,

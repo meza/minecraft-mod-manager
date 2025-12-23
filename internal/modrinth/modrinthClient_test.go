@@ -9,7 +9,7 @@ import (
 	"github.com/stretchr/testify/mock"
 )
 
-// MockDoer is a mock implementation of the httpClient.Doer interface
+// MockDoer is a mock implementation of the httpclient.Doer interface
 type MockDoer struct {
 	mock.Mock
 }
@@ -60,9 +60,9 @@ func TestClient_Do(t *testing.T) {
 }
 
 func TestBaseURLIsConstant(t *testing.T) {
-	assert.Equal(t, "https://api.modrinth.com", GetBaseUrl())
+	assert.Equal(t, "https://api.modrinth.com", GetBaseURL())
 	t.Setenv("MODRINTH_API_URL", "https://example.com/v2")
-	assert.Equal(t, "https://api.modrinth.com", GetBaseUrl())
+	assert.Equal(t, "https://api.modrinth.com", GetBaseURL())
 }
 
 func TestNewClient(t *testing.T) {

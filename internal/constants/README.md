@@ -6,8 +6,8 @@ Right now it exists to avoid "stringly-typed" drift when code needs the applicat
 
 ## What is here
 
-- `APP_NAME`: the project identifier (`minecraft-mod-manager`)
-- `COMMAND_NAME`: the CLI command (`mmm`)
+- `AppName`: the project identifier (`minecraft-mod-manager`)
+- `CommandName`: the CLI command (`mmm`)
 
 ## When to add something here
 

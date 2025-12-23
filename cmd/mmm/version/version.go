@@ -1,3 +1,4 @@
+// Package version implements the version command.
 package version
 
 import (
@@ -14,7 +15,7 @@ func Command() *cobra.Command {
 	versionCmd := &cobra.Command{
 		Use: "version",
 		Short: i18n.T("cmd.version.short", i18n.Tvars{
-			Data: &i18n.TData{"appName": constants.APP_NAME},
+			Data: &i18n.TData{"appName": constants.AppName},
 		}),
 		RunE: func(cmd *cobra.Command, _ []string) (err error) {
 			_, span := perf.StartSpan(cmd.Context(), "app.command.version")

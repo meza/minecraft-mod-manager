@@ -16,7 +16,7 @@ import (
 
 	"github.com/meza/minecraft-mod-manager/internal/config"
 	"github.com/meza/minecraft-mod-manager/internal/curseforge"
-	"github.com/meza/minecraft-mod-manager/internal/httpClient"
+	"github.com/meza/minecraft-mod-manager/internal/httpclient"
 	"github.com/meza/minecraft-mod-manager/internal/logger"
 	"github.com/meza/minecraft-mod-manager/internal/models"
 	"github.com/meza/minecraft-mod-manager/internal/modrinth"
@@ -42,7 +42,7 @@ func TestRunInstallReturnsErrorOnConfigReadFailure(t *testing.T) {
 func TestRunInstallReturnsErrorOnEnsureLockFailure(t *testing.T) {
 	baseFs := afero.NewMemMapFs()
 	meta := config.NewMetadata("modlist.json")
-	cfg := models.ModsJson{
+	cfg := models.ModsJSON{
 		Loader:                     models.FABRIC,
 		GameVersion:                "1.20.1",
 		DefaultAllowedReleaseTypes: []models.ReleaseType{models.Release},
@@ -65,7 +65,7 @@ func TestRunInstallReturnsErrorOnEnsureLockFailure(t *testing.T) {
 
 func TestRunInstallReturnsErrorOnPreflightFailure(t *testing.T) {
 	meta := config.NewMetadata(filepath.FromSlash("/cfg/modlist.json"))
-	cfg := models.ModsJson{
+	cfg := models.ModsJSON{
 		Loader:                     models.FABRIC,
 		GameVersion:                "1.20.1",
 		DefaultAllowedReleaseTypes: []models.ReleaseType{models.Release},
@@ -96,7 +96,7 @@ func TestRunInstallReturnsErrorOnPreflightFailure(t *testing.T) {
 func TestRunInstallReturnsUnresolvedFilesError(t *testing.T) {
 	fs := afero.NewMemMapFs()
 	meta := config.NewMetadata(filepath.FromSlash("/cfg/modlist.json"))
-	cfg := models.ModsJson{
+	cfg := models.ModsJSON{
 		Loader:                     models.FABRIC,
 		GameVersion:                "1.20.1",
 		DefaultAllowedReleaseTypes: []models.ReleaseType{models.Release},
@@ -121,16 +121,16 @@ func TestRunInstallReturnsUnresolvedFilesError(t *testing.T) {
 		logger:                logger.New(io.Discard, io.Discard, false, false),
 		clients:               platform.DefaultClients(rate.NewLimiter(rate.Inf, 0)),
 		curseforgeFingerprint: func(string) uint32 { return 1 },
-		curseforgeFingerprintMatch: func(context.Context, []int, httpClient.Doer) (*curseforge.FingerprintResult, error) {
+		curseforgeFingerprintMatch: func(context.Context, []int, httpclient.Doer) (*curseforge.FingerprintResult, error) {
 			return &curseforge.FingerprintResult{
-				Matches: []curseforge.File{{ProjectId: 123, Fingerprint: 1}},
+				Matches: []curseforge.File{{ProjectID: 123, Fingerprint: 1}},
 			}, nil
 		},
-		curseforgeProjectName: func(context.Context, string, httpClient.Doer) (string, error) {
+		curseforgeProjectName: func(context.Context, string, httpclient.Doer) (string, error) {
 			return "Example", nil
 		},
-		modrinthVersionForSha: func(context.Context, string, httpClient.Doer) (*modrinth.Version, error) {
-			return nil, &modrinth.VersionNotFoundError{Lookup: *modrinth.NewVersionHashLookup("missing", modrinth.Sha1)}
+		modrinthVersionForSha: func(context.Context, string, httpclient.Doer) (*modrinth.Version, error) {
+			return nil, &modrinth.VersionNotFoundError{Lookup: *modrinth.NewVersionHashLookup("missing", modrinth.SHA1)}
 		},
 	})
 	assert.ErrorIs(t, err, errUnresolvedFiles)
@@ -139,7 +139,7 @@ func TestRunInstallReturnsUnresolvedFilesError(t *testing.T) {
 func TestRunInstallEnsuresExistingLockEntry(t *testing.T) {
 	fs := afero.NewMemMapFs()
 	meta := config.NewMetadata(filepath.FromSlash("/cfg/modlist.json"))
-	cfg := models.ModsJson{
+	cfg := models.ModsJSON{
 		Loader:                     models.FABRIC,
 		GameVersion:                "1.20.1",
 		DefaultAllowedReleaseTypes: []models.ReleaseType{models.Release},
@@ -154,7 +154,7 @@ func TestRunInstallEnsuresExistingLockEntry(t *testing.T) {
 	require.NoError(t, afero.WriteFile(fs, filePath, []byte("data"), 0644))
 	require.NoError(t, config.WriteConfig(context.Background(), fs, meta, cfg))
 	require.NoError(t, config.WriteLock(context.Background(), fs, meta, []models.ModInstall{
-		{Type: models.MODRINTH, Id: "abc", FileName: "example.jar", Hash: sha1Hex("data"), DownloadUrl: "https://example.invalid/example.jar"},
+		{Type: models.MODRINTH, ID: "abc", FileName: "example.jar", Hash: sha1Hex("data"), DownloadURL: "https://example.invalid/example.jar"},
 	}))
 
 	cmd := &cobra.Command{}
@@ -165,7 +165,7 @@ func TestRunInstallEnsuresExistingLockEntry(t *testing.T) {
 		fs:      fs,
 		logger:  logger.New(io.Discard, io.Discard, false, false),
 		clients: platform.DefaultClients(rate.NewLimiter(rate.Inf, 0)),
-		downloader: func(context.Context, string, string, httpClient.Doer, httpClient.Sender, ...afero.Fs) error {
+		downloader: func(context.Context, string, string, httpclient.Doer, httpclient.Sender, ...afero.Fs) error {
 			t.Fatal("downloader should not be called")
 			return nil
 		},
@@ -180,7 +180,7 @@ func TestRunInstallEnsuresExistingLockEntry(t *testing.T) {
 func TestRunInstallFetchesWhenLockMissing(t *testing.T) {
 	fs := afero.NewMemMapFs()
 	meta := config.NewMetadata(filepath.FromSlash("/cfg/modlist.json"))
-	cfg := models.ModsJson{
+	cfg := models.ModsJSON{
 		Loader:                     models.FABRIC,
 		GameVersion:                "1.20.1",
 		DefaultAllowedReleaseTypes: []models.ReleaseType{models.Release},
@@ -212,7 +212,7 @@ func TestRunInstallFetchesWhenLockMissing(t *testing.T) {
 		fetchMod: func(context.Context, models.Platform, string, platform.FetchOptions, platform.Clients) (platform.RemoteMod, error) {
 			return remote, nil
 		},
-		downloader: func(_ context.Context, _ string, destination string, _ httpClient.Doer, _ httpClient.Sender, filesystems ...afero.Fs) error {
+		downloader: func(_ context.Context, _ string, destination string, _ httpclient.Doer, _ httpclient.Sender, filesystems ...afero.Fs) error {
 			return afero.WriteFile(filesystems[0], destination, []byte("data"), 0644)
 		},
 	})
@@ -223,7 +223,7 @@ func TestRunInstallFetchesWhenLockMissing(t *testing.T) {
 func TestRunInstallHandlesExpectedFetchError(t *testing.T) {
 	fs := afero.NewMemMapFs()
 	meta := config.NewMetadata(filepath.FromSlash("/cfg/modlist.json"))
-	cfg := models.ModsJson{
+	cfg := models.ModsJSON{
 		Loader:                     models.FABRIC,
 		GameVersion:                "1.20.1",
 		DefaultAllowedReleaseTypes: []models.ReleaseType{models.Release},
@@ -255,7 +255,7 @@ func TestRunInstallHandlesExpectedFetchError(t *testing.T) {
 func TestRunInstallReturnsErrorOnFetchFailure(t *testing.T) {
 	fs := afero.NewMemMapFs()
 	meta := config.NewMetadata(filepath.FromSlash("/cfg/modlist.json"))
-	cfg := models.ModsJson{
+	cfg := models.ModsJSON{
 		Loader:                     models.FABRIC,
 		GameVersion:                "1.20.1",
 		DefaultAllowedReleaseTypes: []models.ReleaseType{models.Release},
@@ -286,7 +286,7 @@ func TestRunInstallReturnsErrorOnFetchFailure(t *testing.T) {
 func TestRunInstallReturnsErrorOnDownloadFailureWithDefaultClients(t *testing.T) {
 	fs := afero.NewMemMapFs()
 	meta := config.NewMetadata(filepath.FromSlash("/cfg/modlist.json"))
-	cfg := models.ModsJson{
+	cfg := models.ModsJSON{
 		Loader:                     models.FABRIC,
 		GameVersion:                "1.20.1",
 		DefaultAllowedReleaseTypes: []models.ReleaseType{models.Release},
@@ -317,7 +317,7 @@ func TestRunInstallReturnsErrorOnDownloadFailureWithDefaultClients(t *testing.T)
 		fetchMod: func(context.Context, models.Platform, string, platform.FetchOptions, platform.Clients) (platform.RemoteMod, error) {
 			return remote, nil
 		},
-		downloader: func(context.Context, string, string, httpClient.Doer, httpClient.Sender, ...afero.Fs) error {
+		downloader: func(context.Context, string, string, httpclient.Doer, httpclient.Sender, ...afero.Fs) error {
 			return errors.New("download failed")
 		},
 	})
@@ -327,7 +327,7 @@ func TestRunInstallReturnsErrorOnDownloadFailureWithDefaultClients(t *testing.T)
 func TestRunInstallReturnsErrorOnWriteLockFailure(t *testing.T) {
 	baseFs := afero.NewMemMapFs()
 	meta := config.NewMetadata(filepath.FromSlash("/cfg/modlist.json"))
-	cfg := models.ModsJson{
+	cfg := models.ModsJSON{
 		Loader:                     models.FABRIC,
 		GameVersion:                "1.20.1",
 		DefaultAllowedReleaseTypes: []models.ReleaseType{models.Release},
@@ -353,7 +353,7 @@ func TestRunInstallReturnsErrorOnWriteLockFailure(t *testing.T) {
 func TestRunInstallReturnsErrorOnWriteConfigFailure(t *testing.T) {
 	baseFs := afero.NewMemMapFs()
 	meta := config.NewMetadata(filepath.FromSlash("/cfg/modlist.json"))
-	cfg := models.ModsJson{
+	cfg := models.ModsJSON{
 		Loader:                     models.FABRIC,
 		GameVersion:                "1.20.1",
 		DefaultAllowedReleaseTypes: []models.ReleaseType{models.Release},
@@ -380,7 +380,7 @@ func TestRunInstallReturnsErrorOnWriteConfigFailure(t *testing.T) {
 func TestRunInstallReturnsErrorOnMkdirFailure(t *testing.T) {
 	baseFs := afero.NewMemMapFs()
 	meta := config.NewMetadata(filepath.FromSlash("/cfg/modlist.json"))
-	cfg := models.ModsJson{
+	cfg := models.ModsJSON{
 		Loader:                     models.FABRIC,
 		GameVersion:                "1.20.1",
 		DefaultAllowedReleaseTypes: []models.ReleaseType{models.Release},
@@ -408,7 +408,7 @@ func TestRunInstallReturnsErrorOnEnsureLockInstallFailure(t *testing.T) {
 	fs := afero.NewMemMapFs()
 	meta := config.NewMetadata(filepath.FromSlash("/cfg/modlist.json"))
 	version := "1.2.3"
-	cfg := models.ModsJson{
+	cfg := models.ModsJSON{
 		Loader:                     models.FABRIC,
 		GameVersion:                "1.20.1",
 		DefaultAllowedReleaseTypes: []models.ReleaseType{models.Release},
@@ -421,7 +421,7 @@ func TestRunInstallReturnsErrorOnEnsureLockInstallFailure(t *testing.T) {
 	require.NoError(t, fs.MkdirAll(meta.ModsFolderPath(cfg), 0755))
 	require.NoError(t, config.WriteConfig(context.Background(), fs, meta, cfg))
 	require.NoError(t, config.WriteLock(context.Background(), fs, meta, []models.ModInstall{
-		{Type: models.MODRINTH, Id: "sodium", FileName: "sodium.jar"},
+		{Type: models.MODRINTH, ID: "sodium", FileName: "sodium.jar"},
 	}))
 
 	cmd := &cobra.Command{}
@@ -439,7 +439,7 @@ func TestRunInstallReturnsErrorOnEnsureLockInstallFailure(t *testing.T) {
 func TestRunInstallReturnsErrorOnFetchUnexpected(t *testing.T) {
 	fs := afero.NewMemMapFs()
 	meta := config.NewMetadata(filepath.FromSlash("/cfg/modlist.json"))
-	cfg := models.ModsJson{
+	cfg := models.ModsJSON{
 		Loader:                     models.FABRIC,
 		GameVersion:                "1.20.1",
 		DefaultAllowedReleaseTypes: []models.ReleaseType{models.Release},
@@ -471,7 +471,7 @@ func TestRunInstallReturnsErrorOnFetchUnexpected(t *testing.T) {
 func TestRunInstallReturnsErrorOnDownloadFailureWithCreatedModsFolder(t *testing.T) {
 	fs := afero.NewMemMapFs()
 	meta := config.NewMetadata(filepath.FromSlash("/cfg/modlist.json"))
-	cfg := models.ModsJson{
+	cfg := models.ModsJSON{
 		Loader:                     models.FABRIC,
 		GameVersion:                "1.20.1",
 		DefaultAllowedReleaseTypes: []models.ReleaseType{models.Release},
@@ -502,7 +502,7 @@ func TestRunInstallReturnsErrorOnDownloadFailureWithCreatedModsFolder(t *testing
 				DownloadURL: "https://example.invalid/sodium.jar",
 			}, nil
 		},
-		downloader: func(context.Context, string, string, httpClient.Doer, httpClient.Sender, ...afero.Fs) error {
+		downloader: func(context.Context, string, string, httpclient.Doer, httpclient.Sender, ...afero.Fs) error {
 			return errors.New("download failed")
 		},
 	})
@@ -512,7 +512,7 @@ func TestRunInstallReturnsErrorOnDownloadFailureWithCreatedModsFolder(t *testing
 func TestRunInstallReturnsErrorOnLockWriteFailure(t *testing.T) {
 	baseFs := afero.NewMemMapFs()
 	meta := config.NewMetadata(filepath.FromSlash("/cfg/modlist.json"))
-	cfg := models.ModsJson{
+	cfg := models.ModsJSON{
 		Loader:                     models.FABRIC,
 		GameVersion:                "1.20.1",
 		DefaultAllowedReleaseTypes: []models.ReleaseType{models.Release},
@@ -540,7 +540,7 @@ func TestRunInstallReturnsErrorOnLockWriteFailure(t *testing.T) {
 func TestRunInstallReportsUnmanagedFound(t *testing.T) {
 	fs := afero.NewMemMapFs()
 	meta := config.NewMetadata(filepath.FromSlash("/cfg/modlist.json"))
-	cfg := models.ModsJson{
+	cfg := models.ModsJSON{
 		Loader:                     models.FABRIC,
 		GameVersion:                "1.20.1",
 		DefaultAllowedReleaseTypes: []models.ReleaseType{models.Release},
@@ -563,16 +563,16 @@ func TestRunInstallReportsUnmanagedFound(t *testing.T) {
 		logger:                logger.New(io.Discard, io.Discard, false, false),
 		clients:               platform.DefaultClients(rate.NewLimiter(rate.Inf, 0)),
 		curseforgeFingerprint: func(string) uint32 { return 1 },
-		curseforgeFingerprintMatch: func(context.Context, []int, httpClient.Doer) (*curseforge.FingerprintResult, error) {
+		curseforgeFingerprintMatch: func(context.Context, []int, httpclient.Doer) (*curseforge.FingerprintResult, error) {
 			return &curseforge.FingerprintResult{
-				Matches: []curseforge.File{{ProjectId: 456, Fingerprint: 1}},
+				Matches: []curseforge.File{{ProjectID: 456, Fingerprint: 1}},
 			}, nil
 		},
-		curseforgeProjectName: func(context.Context, string, httpClient.Doer) (string, error) {
+		curseforgeProjectName: func(context.Context, string, httpclient.Doer) (string, error) {
 			return "Unknown", nil
 		},
-		modrinthVersionForSha: func(context.Context, string, httpClient.Doer) (*modrinth.Version, error) {
-			return nil, &modrinth.VersionNotFoundError{Lookup: *modrinth.NewVersionHashLookup("missing", modrinth.Sha1)}
+		modrinthVersionForSha: func(context.Context, string, httpclient.Doer) (*modrinth.Version, error) {
+			return nil, &modrinth.VersionNotFoundError{Lookup: *modrinth.NewVersionHashLookup("missing", modrinth.SHA1)}
 		},
 	})
 

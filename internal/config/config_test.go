@@ -52,7 +52,7 @@ func TestReadConfigMalformedJSONReturnsInvalid(t *testing.T) {
 	assert.NoError(t, afero.WriteFile(fs, meta.ConfigPath, []byte("not json"), 0644))
 
 	_, err := ReadConfig(context.Background(), fs, meta)
-	var invalid *ConfigFileInvalidError
+	var invalid *FileInvalidError
 	assert.ErrorAs(t, err, &invalid)
 }
 
@@ -99,7 +99,7 @@ func TestWriteConfigReturnsErrorOnMarshalFailure(t *testing.T) {
 		marshalIndent = originalMarshal
 	})
 
-	err := WriteConfig(context.Background(), fs, meta, models.ModsJson{Loader: models.FABRIC})
+	err := WriteConfig(context.Background(), fs, meta, models.ModsJSON{Loader: models.FABRIC})
 	assert.Error(t, err)
 }
 
@@ -125,7 +125,7 @@ func TestWriteConfigReturnsErrorWhenPathIsDirectory(t *testing.T) {
 	fs := afero.NewReadOnlyFs(afero.NewMemMapFs())
 	meta := NewMetadata(filepath.FromSlash("/modlist.json"))
 
-	err := WriteConfig(context.Background(), fs, meta, models.ModsJson{Loader: models.FABRIC})
+	err := WriteConfig(context.Background(), fs, meta, models.ModsJSON{Loader: models.FABRIC})
 	assert.Error(t, err)
 }
 

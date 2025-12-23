@@ -20,7 +20,7 @@ import (
 )
 
 func TestResolveModsToRemoveMatchesIDsAndNamesAndPreservesOrder(t *testing.T) {
-	cfg := models.ModsJson{
+	cfg := models.ModsJSON{
 		Mods: []models.Mod{
 			{Type: models.MODRINTH, ID: "AANobbMI", Name: "Sodium"},
 			{Type: models.CURSEFORGE, ID: "123", Name: "Fabric API"},
@@ -36,13 +36,13 @@ func TestResolveModsToRemoveMatchesIDsAndNamesAndPreservesOrder(t *testing.T) {
 }
 
 func TestResolveModsToRemoveErrorsOnInvalidPattern(t *testing.T) {
-	cfg := models.ModsJson{Mods: []models.Mod{{Type: models.MODRINTH, ID: "x", Name: "y"}}}
+	cfg := models.ModsJSON{Mods: []models.Mod{{Type: models.MODRINTH, ID: "x", Name: "y"}}}
 	_, err := resolveModsToRemove([]string{"["}, cfg)
 	assert.Error(t, err)
 }
 
 func TestResolveModsToRemoveSkipsBlanksAndDedupes(t *testing.T) {
-	cfg := models.ModsJson{
+	cfg := models.ModsJSON{
 		Mods: []models.Mod{
 			{Type: models.MODRINTH, ID: "sodium", Name: "Sodium"},
 		},
@@ -59,7 +59,7 @@ func TestRunRemoveDryRunPrintsHeaderAndWouldHaveLines(t *testing.T) {
 	var out bytes.Buffer
 	log := logger.New(&out, &out, false, false)
 
-	cfg := models.ModsJson{
+	cfg := models.ModsJSON{
 		Loader:                     models.FABRIC,
 		GameVersion:                "1.20.1",
 		DefaultAllowedReleaseTypes: []models.ReleaseType{models.Release},
@@ -96,7 +96,7 @@ func TestRunRemoveDryRunDoesNotCreateLockFileWhenMissing(t *testing.T) {
 	var out bytes.Buffer
 	log := logger.New(&out, &out, false, false)
 
-	cfg := models.ModsJson{
+	cfg := models.ModsJSON{
 		Loader:                     models.FABRIC,
 		GameVersion:                "1.20.1",
 		DefaultAllowedReleaseTypes: []models.ReleaseType{models.Release},
@@ -145,7 +145,7 @@ func TestRunRemoveQuietSuppressesNormalOutput(t *testing.T) {
 	var out bytes.Buffer
 	log := logger.New(&out, &out, true, false)
 
-	cfg := models.ModsJson{
+	cfg := models.ModsJSON{
 		Loader:                     models.FABRIC,
 		GameVersion:                "1.20.1",
 		DefaultAllowedReleaseTypes: []models.ReleaseType{models.Release},
@@ -157,7 +157,7 @@ func TestRunRemoveQuietSuppressesNormalOutput(t *testing.T) {
 	meta := config.NewMetadata("modlist.json")
 	require.NoError(t, config.WriteConfig(context.Background(), fs, meta, cfg))
 	require.NoError(t, config.WriteLock(context.Background(), fs, meta, []models.ModInstall{
-		{Type: models.MODRINTH, Id: "sodium", Name: "Sodium", FileName: "missing.jar"},
+		{Type: models.MODRINTH, ID: "sodium", Name: "Sodium", FileName: "missing.jar"},
 	}))
 
 	deps := removeDeps{
@@ -182,7 +182,7 @@ func TestRunRemoveDeletesFilesUpdatesLockAndConfig(t *testing.T) {
 	var out bytes.Buffer
 	log := logger.New(&out, &out, false, false)
 
-	cfg := models.ModsJson{
+	cfg := models.ModsJSON{
 		Loader:                     models.FABRIC,
 		GameVersion:                "1.20.1",
 		DefaultAllowedReleaseTypes: []models.ReleaseType{models.Release},
@@ -200,8 +200,8 @@ func TestRunRemoveDeletesFilesUpdatesLockAndConfig(t *testing.T) {
 	require.NoError(t, fs.MkdirAll(modsDir, 0755))
 
 	lock := []models.ModInstall{
-		{Type: models.MODRINTH, Id: "sodium", Name: "Sodium", FileName: "sodium.jar"},
-		{Type: models.CURSEFORGE, Id: "fabric-api", Name: "Fabric API", FileName: "fabric-api.jar"},
+		{Type: models.MODRINTH, ID: "sodium", Name: "Sodium", FileName: "sodium.jar"},
+		{Type: models.CURSEFORGE, ID: "fabric-api", Name: "Fabric API", FileName: "fabric-api.jar"},
 	}
 	require.NoError(t, config.WriteLock(context.Background(), fs, meta, lock))
 	require.NoError(t, afero.WriteFile(fs, filepath.Join(modsDir, "sodium.jar"), []byte("x"), 0644))
@@ -246,7 +246,7 @@ func TestRunRemoveSkipsMissingFilesWithoutFailing(t *testing.T) {
 	var out bytes.Buffer
 	log := logger.New(&out, &out, false, false)
 
-	cfg := models.ModsJson{
+	cfg := models.ModsJSON{
 		Loader:                     models.FABRIC,
 		GameVersion:                "1.20.1",
 		DefaultAllowedReleaseTypes: []models.ReleaseType{models.Release},
@@ -259,7 +259,7 @@ func TestRunRemoveSkipsMissingFilesWithoutFailing(t *testing.T) {
 	require.NoError(t, config.WriteConfig(context.Background(), fs, meta, cfg))
 
 	lock := []models.ModInstall{
-		{Type: models.MODRINTH, Id: "sodium", Name: "Sodium", FileName: "missing.jar"},
+		{Type: models.MODRINTH, ID: "sodium", Name: "Sodium", FileName: "missing.jar"},
 	}
 	require.NoError(t, config.WriteLock(context.Background(), fs, meta, lock))
 
@@ -294,7 +294,7 @@ func TestRunRemoveReturnsZeroWhenNoMatches(t *testing.T) {
 	var out bytes.Buffer
 	log := logger.New(&out, &out, false, false)
 
-	cfg := models.ModsJson{
+	cfg := models.ModsJSON{
 		Loader:                     models.FABRIC,
 		GameVersion:                "1.20.1",
 		DefaultAllowedReleaseTypes: []models.ReleaseType{models.Release},
@@ -344,7 +344,7 @@ func TestRunRemoveReturnsErrorWhenReadLockFails(t *testing.T) {
 	baseFs := afero.NewMemMapFs()
 	log := logger.New(io.Discard, io.Discard, false, false)
 
-	cfg := models.ModsJson{
+	cfg := models.ModsJSON{
 		Loader:                     models.FABRIC,
 		GameVersion:                "1.20.1",
 		DefaultAllowedReleaseTypes: []models.ReleaseType{models.Release},
@@ -375,7 +375,7 @@ func TestRunRemoveReturnsErrorWhenResolveModsFails(t *testing.T) {
 	fs := afero.NewMemMapFs()
 	log := logger.New(io.Discard, io.Discard, false, false)
 
-	cfg := models.ModsJson{
+	cfg := models.ModsJSON{
 		Loader:                     models.FABRIC,
 		GameVersion:                "1.20.1",
 		DefaultAllowedReleaseTypes: []models.ReleaseType{models.Release},
@@ -406,7 +406,7 @@ func TestRunRemoveReturnsErrorWhenWriteLockFails(t *testing.T) {
 	baseFs := afero.NewMemMapFs()
 	log := logger.New(io.Discard, io.Discard, false, false)
 
-	cfg := models.ModsJson{
+	cfg := models.ModsJSON{
 		Loader:                     models.FABRIC,
 		GameVersion:                "1.20.1",
 		DefaultAllowedReleaseTypes: []models.ReleaseType{models.Release},
@@ -418,7 +418,7 @@ func TestRunRemoveReturnsErrorWhenWriteLockFails(t *testing.T) {
 	meta := config.NewMetadata("modlist.json")
 	require.NoError(t, config.WriteConfig(context.Background(), baseFs, meta, cfg))
 	require.NoError(t, config.WriteLock(context.Background(), baseFs, meta, []models.ModInstall{
-		{Type: models.MODRINTH, Id: "sodium", FileName: "missing.jar"},
+		{Type: models.MODRINTH, ID: "sodium", FileName: "missing.jar"},
 	}))
 
 	fs := renameErrorFs{Fs: baseFs, failNew: meta.LockPath(), err: errors.New("rename failed")}
@@ -440,7 +440,7 @@ func TestRunRemoveReturnsErrorWhenWriteConfigFails(t *testing.T) {
 	baseFs := afero.NewMemMapFs()
 	log := logger.New(io.Discard, io.Discard, false, false)
 
-	cfg := models.ModsJson{
+	cfg := models.ModsJSON{
 		Loader:                     models.FABRIC,
 		GameVersion:                "1.20.1",
 		DefaultAllowedReleaseTypes: []models.ReleaseType{models.Release},
@@ -452,7 +452,7 @@ func TestRunRemoveReturnsErrorWhenWriteConfigFails(t *testing.T) {
 	meta := config.NewMetadata("modlist.json")
 	require.NoError(t, config.WriteConfig(context.Background(), baseFs, meta, cfg))
 	require.NoError(t, config.WriteLock(context.Background(), baseFs, meta, []models.ModInstall{
-		{Type: models.MODRINTH, Id: "sodium", FileName: "missing.jar"},
+		{Type: models.MODRINTH, ID: "sodium", FileName: "missing.jar"},
 	}))
 
 	fs := renameErrorFs{Fs: baseFs, failNew: meta.ConfigPath, err: errors.New("rename failed")}
@@ -474,7 +474,7 @@ func TestRunRemoveSkipsLockWhenMissing(t *testing.T) {
 	fs := afero.NewMemMapFs()
 	log := logger.New(io.Discard, io.Discard, false, false)
 
-	cfg := models.ModsJson{
+	cfg := models.ModsJSON{
 		Loader:                     models.FABRIC,
 		GameVersion:                "1.20.1",
 		DefaultAllowedReleaseTypes: []models.ReleaseType{models.Release},
@@ -518,7 +518,7 @@ func TestRunRemoveSkipsFileRemovalWhenFileNameEmpty(t *testing.T) {
 	errOut := &bytes.Buffer{}
 	log := logger.New(out, errOut, false, false)
 
-	cfg := models.ModsJson{
+	cfg := models.ModsJSON{
 		Loader:                     models.FABRIC,
 		GameVersion:                "1.20.1",
 		DefaultAllowedReleaseTypes: []models.ReleaseType{models.Release},
@@ -531,7 +531,7 @@ func TestRunRemoveSkipsFileRemovalWhenFileNameEmpty(t *testing.T) {
 	meta := config.NewMetadata("modlist.json")
 	require.NoError(t, config.WriteConfig(context.Background(), fs, meta, cfg))
 	require.NoError(t, config.WriteLock(context.Background(), fs, meta, []models.ModInstall{
-		{Type: models.MODRINTH, Id: "sodium", FileName: ""},
+		{Type: models.MODRINTH, ID: "sodium", FileName: ""},
 	}))
 
 	deps := removeDeps{
@@ -553,7 +553,7 @@ func TestRunRemoveSkipsFileRemovalWhenFileNameEmpty(t *testing.T) {
 func TestRunRemoveReturnsErrorWhenFileRemovalFails(t *testing.T) {
 	baseFs := afero.NewMemMapFs()
 	meta := config.NewMetadata(filepath.FromSlash("/cfg/modlist.json"))
-	cfg := models.ModsJson{
+	cfg := models.ModsJSON{
 		Loader:                     models.FABRIC,
 		GameVersion:                "1.20.1",
 		DefaultAllowedReleaseTypes: []models.ReleaseType{models.Release},
@@ -565,7 +565,7 @@ func TestRunRemoveReturnsErrorWhenFileRemovalFails(t *testing.T) {
 	require.NoError(t, baseFs.MkdirAll(meta.ModsFolderPath(cfg), 0755))
 	require.NoError(t, config.WriteConfig(context.Background(), baseFs, meta, cfg))
 	require.NoError(t, config.WriteLock(context.Background(), baseFs, meta, []models.ModInstall{
-		{Type: models.MODRINTH, Id: "sodium", FileName: "bad.jar"},
+		{Type: models.MODRINTH, ID: "sodium", FileName: "bad.jar"},
 	}))
 	require.NoError(t, afero.WriteFile(baseFs, filepath.Join(meta.ModsFolderPath(cfg), "bad.jar"), []byte("x"), 0644))
 
@@ -613,13 +613,13 @@ func TestReadLockForRemoveReadsExistingLockOnDryRun(t *testing.T) {
 	fs := afero.NewMemMapFs()
 	meta := config.NewMetadata("modlist.json")
 
-	lock := []models.ModInstall{{Type: models.MODRINTH, Id: "proj-1"}}
+	lock := []models.ModInstall{{Type: models.MODRINTH, ID: "proj-1"}}
 	require.NoError(t, config.WriteLock(context.Background(), fs, meta, lock))
 
 	readLock, err := readLockForRemove(context.Background(), fs, meta, true)
 	require.NoError(t, err)
 	assert.Len(t, readLock, 1)
-	assert.Equal(t, "proj-1", readLock[0].Id)
+	assert.Equal(t, "proj-1", readLock[0].ID)
 }
 
 func TestLockAndConfigIndexForReturnMinusOneWhenMissing(t *testing.T) {

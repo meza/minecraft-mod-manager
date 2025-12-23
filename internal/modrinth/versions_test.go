@@ -12,8 +12,8 @@ import (
 
 	stdErrors "errors"
 
-	"github.com/meza/minecraft-mod-manager/internal/globalErrors"
-	"github.com/meza/minecraft-mod-manager/internal/httpClient"
+	"github.com/meza/minecraft-mod-manager/internal/globalerrors"
+	"github.com/meza/minecraft-mod-manager/internal/httpclient"
 	"github.com/meza/minecraft-mod-manager/internal/models"
 	"github.com/meza/minecraft-mod-manager/testutil"
 	pkgErrors "github.com/pkg/errors"
@@ -84,7 +84,7 @@ func TestGetVersionsForProject_SingleVersion(t *testing.T) {
 	t.Setenv("MODRINTH_API_KEY", "test-api-key")
 	client := NewClient(testutil.MustNewHostRewriteDoer(mockServer.URL, mockServer.Client()))
 	lookup := &VersionLookup{
-		ProjectId:    "AABBCCDD",
+		ProjectID:    "AABBCCDD",
 		Loaders:      []models.Loader{"fabric", "forge"},
 		GameVersions: []string{"1.16.5", "1.17.1"},
 	}
@@ -102,16 +102,16 @@ func TestGetVersionsForProject_SingleVersion(t *testing.T) {
 	assert.Equal(t, Listed, versions[0].Status)
 	assert.Contains(t, versions[0].Loaders, models.FABRIC)
 	assert.Contains(t, versions[0].Loaders, models.FORGE)
-	assert.Equal(t, "IIJJKKLL", versions[0].VersionId)
-	assert.Equal(t, "AABBCCDD", versions[0].ProjectId)
+	assert.Equal(t, "IIJJKKLL", versions[0].VersionID)
+	assert.Equal(t, "AABBCCDD", versions[0].ProjectID)
 
 	expectedTime := time.Date(2024, 8, 7, 20, 21, 13, 726918000, time.UTC)
 
 	assert.Equal(t, expectedTime, versions[0].DatePublished)
 	assert.Len(t, versions[0].Files, 1)
 	assert.Equal(t, "93ecf5fe02914fb53d94aa3d28c1fb562e23985f8e4d48b9038422798618761fe208a31ca9b723667a4e05de0d91a3f86bcd8d018f6a686c39550e21b198d96f", versions[0].Files[0].Hashes.Sha512)
-	assert.Equal(t, "c84dd4b3580c02b79958a0590afd5783d80ef504", versions[0].Files[0].Hashes.Sha1)
-	assert.Equal(t, "https://cdn.modrinth.com/data/AABBCCDD/versions/1.0.0/my_file.jar", versions[0].Files[0].Url)
+	assert.Equal(t, "c84dd4b3580c02b79958a0590afd5783d80ef504", versions[0].Files[0].Hashes.SHA1)
+	assert.Equal(t, "https://cdn.modrinth.com/data/AABBCCDD/versions/1.0.0/my_file.jar", versions[0].Files[0].URL)
 	assert.Equal(t, "my_file.jar", versions[0].Files[0].FileName)
 	assert.False(t, versions[0].Files[0].Primary)
 	assert.Equal(t, int64(1097270), versions[0].Files[0].Size)
@@ -195,7 +195,7 @@ func TestGetVersionsForProject_MultipleVersions(t *testing.T) {
 
 	client := NewClient(testutil.MustNewHostRewriteDoer(mockServer.URL, mockServer.Client()))
 	lookup := &VersionLookup{
-		ProjectId:    "AABBCCDD",
+		ProjectID:    "AABBCCDD",
 		Loaders:      []models.Loader{models.FABRIC, models.FORGE},
 		GameVersions: []string{"1.16.5", "1.17.1"},
 	}
@@ -208,14 +208,14 @@ func TestGetVersionsForProject_MultipleVersions(t *testing.T) {
 	assert.Equal(t, Archived, versions[0].Status)
 	assert.Equal(t, Unlisted, versions[1].Status)
 	assert.ObjectsAreEqualValues(versions[0].Dependencies, &VersionDependency{
-		VersionId: "IIJJKKLL",
-		ProjectId: "QQRRSSTT",
+		VersionID: "IIJJKKLL",
+		ProjectID: "QQRRSSTT",
 		FileName:  "sodium-fabric-mc1.16-0.4.2+build.16.jar",
 		Type:      RequiredDependency,
 	})
 	assert.ObjectsAreEqualValues(versions[1].Dependencies, &VersionDependency{
-		VersionId: "MMNNOOPP",
-		ProjectId: "QQRRSSTT",
+		VersionID: "MMNNOOPP",
+		ProjectID: "QQRRSSTT",
 		FileName:  "sodium-fabric-mc1.19-0.4.2+build.16.jar",
 		Type:      OptionalDependency,
 	})
@@ -233,7 +233,7 @@ func TestGetVersionsForProject_NoVersions(t *testing.T) {
 
 	client := NewClient(testutil.MustNewHostRewriteDoer(mockServer.URL, mockServer.Client()))
 	lookup := &VersionLookup{
-		ProjectId:    "AABBCCDD",
+		ProjectID:    "AABBCCDD",
 		Loaders:      []models.Loader{models.FABRIC, models.FORGE},
 		GameVersions: []string{"1.16.5", "1.17.1"},
 	}
@@ -260,7 +260,7 @@ func TestGetVersionsForProjectWhenProjectNotFound(t *testing.T) {
 
 	// Call the function
 	lookup := &VersionLookup{
-		ProjectId:    "AABBCCD1",
+		ProjectID:    "AABBCCD1",
 		Loaders:      []models.Loader{models.FORGE},
 		GameVersions: []string{"1.19"},
 	}
@@ -268,7 +268,7 @@ func TestGetVersionsForProjectWhenProjectNotFound(t *testing.T) {
 
 	// Assertions
 	assert.Error(t, err)
-	assert.ErrorIs(t, err, &globalErrors.ProjectNotFoundError{
+	assert.ErrorIs(t, err, &globalerrors.ProjectNotFoundError{
 		ProjectID: "AABBCCD1",
 		Platform:  models.MODRINTH,
 	})
@@ -286,7 +286,7 @@ func TestGetVersionsForProjectWhenProjectApiUnknownStatus(t *testing.T) {
 	defer mockServer.Close()
 
 	lookup := &VersionLookup{
-		ProjectId:    "AABBCCD2",
+		ProjectID:    "AABBCCD2",
 		Loaders:      []models.Loader{models.FABRIC},
 		GameVersions: []string{"1.18.1"},
 	}
@@ -305,7 +305,7 @@ func TestGetVersionsForProjectWhenApiCallFails(t *testing.T) {
 	defer mockServer.Close()
 
 	lookup := &VersionLookup{
-		ProjectId:    "AABBCCD3",
+		ProjectID:    "AABBCCD3",
 		Loaders:      []models.Loader{models.QUILT},
 		GameVersions: []string{"1.21.1"},
 	}
@@ -313,7 +313,7 @@ func TestGetVersionsForProjectWhenApiCallFails(t *testing.T) {
 
 	// Assertions
 	//assert.Error(t, err)
-	assert.ErrorIs(t, err, &globalErrors.ProjectApiError{
+	assert.ErrorIs(t, err, &globalerrors.ProjectAPIError{
 		ProjectID: "AABBCCD3",
 		Platform:  models.MODRINTH,
 	})
@@ -323,14 +323,14 @@ func TestGetVersionsForProjectWhenApiCallFails(t *testing.T) {
 
 func TestGetVersionsForProjectWhenApiCallTimesOut(t *testing.T) {
 	lookup := &VersionLookup{
-		ProjectId:    "AABBCCD4",
+		ProjectID:    "AABBCCD4",
 		Loaders:      []models.Loader{models.FABRIC},
 		GameVersions: []string{"1.16.5"},
 	}
 	project, err := GetVersionsForProject(context.Background(), lookup, NewClient(errorDoer{err: context.DeadlineExceeded}))
 
 	assert.Error(t, err)
-	var timeoutErr *httpClient.TimeoutError
+	var timeoutErr *httpclient.TimeoutError
 	assert.ErrorAs(t, err, &timeoutErr)
 	assert.Nil(t, project)
 }
@@ -390,7 +390,7 @@ func TestGetVersionForHash_SingleVersion(t *testing.T) {
 	t.Setenv("MODRINTH_API_KEY", "test-api-key")
 	client := NewClient(testutil.MustNewHostRewriteDoer(mockServer.URL, mockServer.Client()))
 	lookup := &VersionHashLookup{
-		algorithm: Sha1,
+		algorithm: SHA1,
 		hash:      "c84dd4b3580c02b79958a0590afd5783d80ef504",
 	}
 
@@ -406,16 +406,16 @@ func TestGetVersionForHash_SingleVersion(t *testing.T) {
 	assert.Equal(t, Listed, version.Status)
 	assert.Contains(t, version.Loaders, models.FABRIC)
 	assert.Contains(t, version.Loaders, models.FORGE)
-	assert.Equal(t, "IIJJKKLL", version.VersionId)
-	assert.Equal(t, "AABBCCDD", version.ProjectId)
+	assert.Equal(t, "IIJJKKLL", version.VersionID)
+	assert.Equal(t, "AABBCCDD", version.ProjectID)
 
 	expectedTime := time.Date(2024, 8, 7, 20, 21, 13, 726918000, time.UTC)
 
 	assert.Equal(t, expectedTime, version.DatePublished)
 	assert.Len(t, version.Files, 1)
 	assert.Equal(t, "93ecf5fe02914fb53d94aa3d28c1fb562e23985f8e4d48b9038422798618761fe208a31ca9b723667a4e05de0d91a3f86bcd8d018f6a686c39550e21b198d96f", version.Files[0].Hashes.Sha512)
-	assert.Equal(t, "c84dd4b3580c02b79958a0590afd5783d80ef504", version.Files[0].Hashes.Sha1)
-	assert.Equal(t, "https://cdn.modrinth.com/data/AABBCCDD/versions/1.0.0/my_file.jar", version.Files[0].Url)
+	assert.Equal(t, "c84dd4b3580c02b79958a0590afd5783d80ef504", version.Files[0].Hashes.SHA1)
+	assert.Equal(t, "https://cdn.modrinth.com/data/AABBCCDD/versions/1.0.0/my_file.jar", version.Files[0].URL)
 	assert.Equal(t, "my_file.jar", version.Files[0].FileName)
 	assert.False(t, version.Files[0].Primary)
 	assert.Equal(t, int64(1097270), version.Files[0].Size)
@@ -438,7 +438,7 @@ func TestGetVersionForHashWhenProjectNotFound(t *testing.T) {
 
 	// Call the function
 	lookup := &VersionHashLookup{
-		algorithm: Sha1,
+		algorithm: SHA1,
 		hash:      "c84dd4b3580c02b79958a0590afd5783d80ef504",
 	}
 	project, err := GetVersionForHash(context.Background(), lookup, NewClient(testutil.MustNewHostRewriteDoer(mockServer.URL, mockServer.Client())))
@@ -462,7 +462,7 @@ func TestGetVersionForHashWhenProjectApiUnknownStatus(t *testing.T) {
 	defer mockServer.Close()
 
 	lookup := &VersionHashLookup{
-		algorithm: Sha1,
+		algorithm: SHA1,
 		hash:      "c84dd4b3580c02b79958a0590afd5783d80ef504",
 	}
 	project, err := GetVersionForHash(context.Background(), lookup, NewClient(testutil.MustNewHostRewriteDoer(mockServer.URL, mockServer.Client())))
@@ -480,14 +480,14 @@ func TestGetVersionForHashWhenApiCallFails(t *testing.T) {
 	defer mockServer.Close()
 
 	lookup := &VersionHashLookup{
-		algorithm: Sha1,
+		algorithm: SHA1,
 		hash:      "c84dd4b3580c02b79958a0590afd5783d80ef504",
 	}
 	project, err := GetVersionForHash(context.Background(), lookup, NewClient(errorDoer{err: pkgErrors.New("request failed")}))
 
 	// Assertions
 	//assert.Error(t, err)
-	assert.ErrorIs(t, err, &VersionApiError{
+	assert.ErrorIs(t, err, &VersionAPIError{
 		Lookup: *lookup,
 	})
 	assert.Equal(t, "request failed", pkgErrors.Unwrap(err).Error())
@@ -496,13 +496,13 @@ func TestGetVersionForHashWhenApiCallFails(t *testing.T) {
 
 func TestGetVersionForHashWhenApiCallTimesOut(t *testing.T) {
 	lookup := &VersionHashLookup{
-		algorithm: Sha1,
+		algorithm: SHA1,
 		hash:      "c84dd4b3580c02b79958a0590afd5783d80ef504",
 	}
 	project, err := GetVersionForHash(context.Background(), lookup, NewClient(errorDoer{err: context.DeadlineExceeded}))
 
 	assert.Error(t, err)
-	var timeoutErr *httpClient.TimeoutError
+	var timeoutErr *httpclient.TimeoutError
 	assert.ErrorAs(t, err, &timeoutErr)
 	assert.Nil(t, project)
 }
@@ -517,7 +517,7 @@ func TestGetVersionsForProjectReturnsErrorOnMarshalFailure(t *testing.T) {
 	})
 
 	lookup := &VersionLookup{
-		ProjectId:    "AABBCCDD",
+		ProjectID:    "AABBCCDD",
 		Loaders:      []models.Loader{models.FABRIC},
 		GameVersions: []string{"1.16.5"},
 	}
@@ -542,7 +542,7 @@ func TestGetVersionsForProjectReturnsErrorOnLoaderMarshalFailure(t *testing.T) {
 	})
 
 	lookup := &VersionLookup{
-		ProjectId:    "AABBCCDD",
+		ProjectID:    "AABBCCDD",
 		Loaders:      []models.Loader{models.FABRIC},
 		GameVersions: []string{"1.16.5"},
 	}
@@ -562,7 +562,7 @@ func TestGetVersionsForProjectReturnsErrorOnURLParseFailure(t *testing.T) {
 	})
 
 	lookup := &VersionLookup{
-		ProjectId:    "AABBCCDD",
+		ProjectID:    "AABBCCDD",
 		Loaders:      []models.Loader{models.FABRIC},
 		GameVersions: []string{"1.16.5"},
 	}
@@ -582,7 +582,7 @@ func TestGetVersionsForProjectReturnsErrorOnRequestBuildFailure(t *testing.T) {
 	})
 
 	lookup := &VersionLookup{
-		ProjectId:    "AABBCCDD",
+		ProjectID:    "AABBCCDD",
 		Loaders:      []models.Loader{models.FABRIC},
 		GameVersions: []string{"1.16.5"},
 	}
@@ -604,7 +604,7 @@ func TestGetVersionsForProjectReturnsErrorOnResponseCloseFailure(t *testing.T) {
 	})
 
 	lookup := &VersionLookup{
-		ProjectId:    "AABBCCDD",
+		ProjectID:    "AABBCCDD",
 		Loaders:      []models.Loader{models.FABRIC},
 		GameVersions: []string{"1.16.5"},
 	}
@@ -624,7 +624,7 @@ func TestGetVersionsForProjectReturnsErrorOnDecodeFailure(t *testing.T) {
 	})
 
 	lookup := &VersionLookup{
-		ProjectId:    "AABBCCDD",
+		ProjectID:    "AABBCCDD",
 		Loaders:      []models.Loader{models.FABRIC},
 		GameVersions: []string{"1.16.5"},
 	}
@@ -643,7 +643,7 @@ func TestGetVersionForHashReturnsErrorOnRequestBuildFailure(t *testing.T) {
 		newRequestWithContext = originalRequest
 	})
 
-	lookup := NewVersionHashLookup("abc", Sha1)
+	lookup := NewVersionHashLookup("abc", SHA1)
 	version, err := GetVersionForHash(context.Background(), lookup, NewClient(errorDoer{}))
 	assert.Error(t, err)
 	assert.Nil(t, version)
@@ -660,7 +660,7 @@ func TestGetVersionForHashReturnsErrorOnResponseCloseFailure(t *testing.T) {
 		},
 	})
 
-	lookup := NewVersionHashLookup("abc", Sha1)
+	lookup := NewVersionHashLookup("abc", SHA1)
 	version, err := GetVersionForHash(context.Background(), lookup, client)
 	assert.ErrorIs(t, err, closeErr)
 	assert.NotNil(t, version)
@@ -675,7 +675,7 @@ func TestGetVersionForHashReturnsErrorOnDecodeFailure(t *testing.T) {
 		},
 	})
 
-	lookup := NewVersionHashLookup("abc", Sha1)
+	lookup := NewVersionHashLookup("abc", SHA1)
 	version, err := GetVersionForHash(context.Background(), lookup, client)
 	assert.Error(t, err)
 	assert.Nil(t, version)

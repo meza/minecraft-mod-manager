@@ -11,7 +11,7 @@ import (
 	"testing"
 
 	"github.com/meza/minecraft-mod-manager/internal/curseforge"
-	"github.com/meza/minecraft-mod-manager/internal/httpClient"
+	"github.com/meza/minecraft-mod-manager/internal/httpclient"
 	"github.com/meza/minecraft-mod-manager/internal/models"
 	"github.com/meza/minecraft-mod-manager/internal/modrinth"
 	"github.com/meza/minecraft-mod-manager/internal/perf"
@@ -109,7 +109,7 @@ func TestFetchModrinth_Succeeds(t *testing.T) {
 	}))
 	defer server.Close()
 
-	client := testutil.MustNewHostRewriteDoer(server.URL, httpClient.NewRLClient(rate.NewLimiter(rate.Inf, 0)))
+	client := testutil.MustNewHostRewriteDoer(server.URL, httpclient.NewRLClient(rate.NewLimiter(rate.Inf, 0)))
 
 	mod, err := FetchMod(context.Background(), models.MODRINTH, "test-mod", FetchOptions{
 		AllowedReleaseTypes: []models.ReleaseType{models.Release},
@@ -212,7 +212,7 @@ func TestFetchModrinth_Fallback(t *testing.T) {
 	}))
 	defer server.Close()
 
-	client := testutil.MustNewHostRewriteDoer(server.URL, httpClient.NewRLClient(rate.NewLimiter(rate.Inf, 0)))
+	client := testutil.MustNewHostRewriteDoer(server.URL, httpclient.NewRLClient(rate.NewLimiter(rate.Inf, 0)))
 
 	mod, err := FetchMod(context.Background(), models.MODRINTH, "test-mod", FetchOptions{
 		AllowedReleaseTypes: []models.ReleaseType{models.Release},
@@ -305,7 +305,7 @@ func TestFetchModrinth_FixedVersion(t *testing.T) {
 	}))
 	defer server.Close()
 
-	client := testutil.MustNewHostRewriteDoer(server.URL, httpClient.NewRLClient(rate.NewLimiter(rate.Inf, 0)))
+	client := testutil.MustNewHostRewriteDoer(server.URL, httpclient.NewRLClient(rate.NewLimiter(rate.Inf, 0)))
 
 	mod, err := FetchMod(context.Background(), models.MODRINTH, "test-mod", FetchOptions{
 		AllowedReleaseTypes: []models.ReleaseType{models.Release},
@@ -326,7 +326,7 @@ func TestFetchModrinth_NotFound(t *testing.T) {
 	}))
 	defer server.Close()
 
-	client := testutil.MustNewHostRewriteDoer(server.URL, httpClient.NewRLClient(rate.NewLimiter(rate.Inf, 0)))
+	client := testutil.MustNewHostRewriteDoer(server.URL, httpclient.NewRLClient(rate.NewLimiter(rate.Inf, 0)))
 
 	_, err := FetchMod(context.Background(), models.MODRINTH, "missing-mod", FetchOptions{
 		AllowedReleaseTypes: []models.ReleaseType{models.Release},
@@ -350,7 +350,7 @@ func TestFetchModrinth_NoFile(t *testing.T) {
 	}))
 	defer server.Close()
 
-	client := testutil.MustNewHostRewriteDoer(server.URL, httpClient.NewRLClient(rate.NewLimiter(rate.Inf, 0)))
+	client := testutil.MustNewHostRewriteDoer(server.URL, httpclient.NewRLClient(rate.NewLimiter(rate.Inf, 0)))
 
 	_, err := FetchMod(context.Background(), models.MODRINTH, "test-mod", FetchOptions{
 		AllowedReleaseTypes: []models.ReleaseType{models.Release},
@@ -413,7 +413,7 @@ func TestFetchCurseforge_Succeeds(t *testing.T) {
 	}))
 	defer server.Close()
 
-	client := testutil.MustNewHostRewriteDoer(server.URL, httpClient.NewRLClient(rate.NewLimiter(rate.Inf, 0)))
+	client := testutil.MustNewHostRewriteDoer(server.URL, httpclient.NewRLClient(rate.NewLimiter(rate.Inf, 0)))
 
 	mod, err := FetchMod(context.Background(), models.CURSEFORGE, "1234", FetchOptions{
 		AllowedReleaseTypes: []models.ReleaseType{models.Release},
@@ -468,7 +468,7 @@ func TestFetchCurseforge_Fallback(t *testing.T) {
 	}))
 	defer server.Close()
 
-	client := testutil.MustNewHostRewriteDoer(server.URL, httpClient.NewRLClient(rate.NewLimiter(rate.Inf, 0)))
+	client := testutil.MustNewHostRewriteDoer(server.URL, httpclient.NewRLClient(rate.NewLimiter(rate.Inf, 0)))
 
 	mod, err := FetchMod(context.Background(), models.CURSEFORGE, "1234", FetchOptions{
 		AllowedReleaseTypes: []models.ReleaseType{models.Release},
@@ -487,7 +487,7 @@ func TestFetchCurseforge_NotFound(t *testing.T) {
 	}))
 	defer server.Close()
 
-	client := testutil.MustNewHostRewriteDoer(server.URL, httpClient.NewRLClient(rate.NewLimiter(rate.Inf, 0)))
+	client := testutil.MustNewHostRewriteDoer(server.URL, httpclient.NewRLClient(rate.NewLimiter(rate.Inf, 0)))
 
 	_, err := FetchMod(context.Background(), models.CURSEFORGE, "missing", FetchOptions{
 		AllowedReleaseTypes: []models.ReleaseType{models.Release},
@@ -517,7 +517,7 @@ func TestFetchCurseforge_NoFile(t *testing.T) {
 	}))
 	defer server.Close()
 
-	client := testutil.MustNewHostRewriteDoer(server.URL, httpClient.NewRLClient(rate.NewLimiter(rate.Inf, 0)))
+	client := testutil.MustNewHostRewriteDoer(server.URL, httpclient.NewRLClient(rate.NewLimiter(rate.Inf, 0)))
 
 	_, err := FetchMod(context.Background(), models.CURSEFORGE, "1234", FetchOptions{
 		AllowedReleaseTypes: []models.ReleaseType{models.Release},
@@ -564,7 +564,7 @@ func TestFetchCurseforge_MissingDownloadURL(t *testing.T) {
 	}))
 	defer server.Close()
 
-	client := testutil.MustNewHostRewriteDoer(server.URL, httpClient.NewRLClient(rate.NewLimiter(rate.Inf, 0)))
+	client := testutil.MustNewHostRewriteDoer(server.URL, httpclient.NewRLClient(rate.NewLimiter(rate.Inf, 0)))
 
 	_, err := FetchMod(context.Background(), models.CURSEFORGE, "1234", FetchOptions{
 		AllowedReleaseTypes: []models.ReleaseType{models.Release},
@@ -608,7 +608,7 @@ func TestFetchCurseforge_MissingHash(t *testing.T) {
 	}))
 	defer server.Close()
 
-	client := testutil.MustNewHostRewriteDoer(server.URL, httpClient.NewRLClient(rate.NewLimiter(rate.Inf, 0)))
+	client := testutil.MustNewHostRewriteDoer(server.URL, httpclient.NewRLClient(rate.NewLimiter(rate.Inf, 0)))
 
 	_, err := FetchMod(context.Background(), models.CURSEFORGE, "1234", FetchOptions{
 		AllowedReleaseTypes: []models.ReleaseType{models.Release},
@@ -630,7 +630,7 @@ func TestFetchCurseforge_UnsupportedLoader(t *testing.T) {
 	}))
 	defer server.Close()
 
-	client := testutil.MustNewHostRewriteDoer(server.URL, httpClient.NewRLClient(rate.NewLimiter(rate.Inf, 0)))
+	client := testutil.MustNewHostRewriteDoer(server.URL, httpclient.NewRLClient(rate.NewLimiter(rate.Inf, 0)))
 
 	_, err := FetchMod(context.Background(), models.CURSEFORGE, "1234", FetchOptions{
 		AllowedReleaseTypes: []models.ReleaseType{models.Release},
@@ -647,7 +647,7 @@ func TestFetchCurseforgeFilesErrors(t *testing.T) {
 	}))
 	defer notFoundServer.Close()
 
-	baseClient := httpClient.NewRLClient(rate.NewLimiter(rate.Inf, 0))
+	baseClient := httpclient.NewRLClient(rate.NewLimiter(rate.Inf, 0))
 	_, err := fetchCurseforgeFiles(context.Background(), "1234", "1.20.1", curseforge.Forge, testutil.MustNewHostRewriteDoer(notFoundServer.URL, baseClient))
 	assert.Error(t, err)
 
@@ -666,7 +666,7 @@ func TestFetchCurseforgeFilesErrors(t *testing.T) {
 	timeoutDoer := timeoutDoer{}
 	_, err = fetchCurseforgeFiles(context.Background(), "1234", "1.20.1", curseforge.Forge, timeoutDoer)
 	assert.Error(t, err)
-	var timeoutErr *httpClient.TimeoutError
+	var timeoutErr *httpclient.TimeoutError
 	assert.ErrorAs(t, err, &timeoutErr)
 }
 
@@ -778,7 +778,7 @@ func TestFetchModrinth_MissingFields(t *testing.T) {
 	}))
 	defer server.Close()
 
-	client := testutil.MustNewHostRewriteDoer(server.URL, httpClient.NewRLClient(rate.NewLimiter(rate.Inf, 0)))
+	client := testutil.MustNewHostRewriteDoer(server.URL, httpclient.NewRLClient(rate.NewLimiter(rate.Inf, 0)))
 
 	_, err := FetchMod(context.Background(), models.MODRINTH, "test-mod", FetchOptions{
 		AllowedReleaseTypes: []models.ReleaseType{models.Release},
@@ -817,7 +817,7 @@ func TestFetchModrinth_FixedVersionNotFound(t *testing.T) {
 	}))
 	defer server.Close()
 
-	client := testutil.MustNewHostRewriteDoer(server.URL, httpClient.NewRLClient(rate.NewLimiter(rate.Inf, 0)))
+	client := testutil.MustNewHostRewriteDoer(server.URL, httpclient.NewRLClient(rate.NewLimiter(rate.Inf, 0)))
 
 	_, err := FetchMod(context.Background(), models.MODRINTH, "test-mod", FetchOptions{
 		AllowedReleaseTypes: []models.ReleaseType{models.Release},
@@ -849,7 +849,7 @@ func TestFetchModrinth_NoFiles(t *testing.T) {
 	}))
 	defer server.Close()
 
-	client := testutil.MustNewHostRewriteDoer(server.URL, httpClient.NewRLClient(rate.NewLimiter(rate.Inf, 0)))
+	client := testutil.MustNewHostRewriteDoer(server.URL, httpclient.NewRLClient(rate.NewLimiter(rate.Inf, 0)))
 
 	_, err := FetchMod(context.Background(), models.MODRINTH, "test-mod", FetchOptions{
 		AllowedReleaseTypes: []models.ReleaseType{models.Release},
@@ -860,7 +860,7 @@ func TestFetchModrinth_NoFiles(t *testing.T) {
 	assert.Error(t, err)
 }
 
-func TestFetchModrinth_VersionApiError(t *testing.T) {
+func TestFetchModrinth_VersionAPIError(t *testing.T) {
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		if r.URL.Path == "/v2/project/test-mod" {
 			writeStringResponse(t, w, `{"title":"Test Mod","id":"test-mod"}`)
@@ -870,7 +870,7 @@ func TestFetchModrinth_VersionApiError(t *testing.T) {
 	}))
 	defer server.Close()
 
-	client := testutil.MustNewHostRewriteDoer(server.URL, httpClient.NewRLClient(rate.NewLimiter(rate.Inf, 0)))
+	client := testutil.MustNewHostRewriteDoer(server.URL, httpclient.NewRLClient(rate.NewLimiter(rate.Inf, 0)))
 
 	_, err := FetchMod(context.Background(), models.MODRINTH, "test-mod", FetchOptions{
 		AllowedReleaseTypes: []models.ReleaseType{models.Release},
@@ -890,7 +890,7 @@ func TestFetchCurseforge_FixedVersionFilter(t *testing.T) {
 			Hashes: []curseforge.FileHash{
 				{Algorithm: curseforge.SHA1, Hash: "abc"},
 			},
-			DownloadUrl: "https://example.com/match.jar",
+			DownloadURL: "https://example.com/match.jar",
 			SortableGameVersions: []curseforge.SortableGameVersion{
 				{GameVersionName: "1.20.1"},
 			},
@@ -903,7 +903,7 @@ func TestFetchCurseforge_FixedVersionFilter(t *testing.T) {
 			Hashes: []curseforge.FileHash{
 				{Algorithm: curseforge.SHA1, Hash: "def"},
 			},
-			DownloadUrl: "https://example.com/other.jar",
+			DownloadURL: "https://example.com/other.jar",
 			SortableGameVersions: []curseforge.SortableGameVersion{
 				{GameVersionName: "1.20.1"},
 			},
@@ -927,7 +927,7 @@ func TestFetchCurseforge_FixedVersionMismatch(t *testing.T) {
 			Hashes: []curseforge.FileHash{
 				{Algorithm: curseforge.SHA1, Hash: "def"},
 			},
-			DownloadUrl: "https://example.com/other.jar",
+			DownloadURL: "https://example.com/other.jar",
 			SortableGameVersions: []curseforge.SortableGameVersion{
 				{GameVersionName: "1.20.1"},
 			},
@@ -947,7 +947,7 @@ func TestFilterCurseforgeFilesInvalidReleaseType(t *testing.T) {
 			FileName:    "file.jar",
 			ReleaseType: curseforge.FileReleaseType(99),
 			FileStatus:  curseforge.Approved,
-			DownloadUrl: "https://example.com/file.jar",
+			DownloadURL: "https://example.com/file.jar",
 			Hashes: []curseforge.FileHash{
 				{Algorithm: curseforge.SHA1, Hash: "abc"},
 			},
@@ -972,7 +972,7 @@ func TestFilterCurseforgeFilesVersionMismatch(t *testing.T) {
 			Hashes: []curseforge.FileHash{
 				{Algorithm: curseforge.SHA1, Hash: "abc"},
 			},
-			DownloadUrl: "https://example.com/file.jar",
+			DownloadURL: "https://example.com/file.jar",
 			SortableGameVersions: []curseforge.SortableGameVersion{
 				{GameVersionName: "1.19.4"},
 			},
@@ -994,7 +994,7 @@ func TestFilterCurseforgeFilesUnavailable(t *testing.T) {
 			Hashes: []curseforge.FileHash{
 				{Algorithm: curseforge.SHA1, Hash: "abc"},
 			},
-			DownloadUrl: "https://example.com/file.jar",
+			DownloadURL: "https://example.com/file.jar",
 			SortableGameVersions: []curseforge.SortableGameVersion{
 				{GameVersionName: "1.20.1"},
 			},
@@ -1013,7 +1013,7 @@ func TestFetchCurseforgeFilesUnexpectedStatus(t *testing.T) {
 	}))
 	defer server.Close()
 
-	client := httpClient.NewRLClient(rate.NewLimiter(rate.Inf, 0))
+	client := httpclient.NewRLClient(rate.NewLimiter(rate.Inf, 0))
 
 	_, err := fetchCurseforgeFiles(context.Background(), "1234", "1.20.1", curseforge.Forge, testutil.MustNewHostRewriteDoer(server.URL, client))
 	assert.Error(t, err)
@@ -1029,7 +1029,7 @@ func TestFetchModrinth_FallbackCannotGoDown(t *testing.T) {
 	}))
 	defer server.Close()
 
-	client := testutil.MustNewHostRewriteDoer(server.URL, httpClient.NewRLClient(rate.NewLimiter(rate.Inf, 0)))
+	client := testutil.MustNewHostRewriteDoer(server.URL, httpclient.NewRLClient(rate.NewLimiter(rate.Inf, 0)))
 
 	_, err := FetchMod(context.Background(), models.MODRINTH, "test-mod", FetchOptions{
 		AllowedReleaseTypes: []models.ReleaseType{models.Release},
@@ -1056,7 +1056,7 @@ func TestFetchCurseforge_ProjectNotFoundFromFiles(t *testing.T) {
 	}))
 	defer server.Close()
 
-	client := testutil.MustNewHostRewriteDoer(server.URL, httpClient.NewRLClient(rate.NewLimiter(rate.Inf, 0)))
+	client := testutil.MustNewHostRewriteDoer(server.URL, httpclient.NewRLClient(rate.NewLimiter(rate.Inf, 0)))
 
 	_, err := FetchMod(context.Background(), models.CURSEFORGE, "1234", FetchOptions{
 		AllowedReleaseTypes: []models.ReleaseType{models.Release},
@@ -1077,7 +1077,7 @@ func TestFetchModrinth_VersionsNotFound(t *testing.T) {
 	}))
 	defer server.Close()
 
-	client := testutil.MustNewHostRewriteDoer(server.URL, httpClient.NewRLClient(rate.NewLimiter(rate.Inf, 0)))
+	client := testutil.MustNewHostRewriteDoer(server.URL, httpclient.NewRLClient(rate.NewLimiter(rate.Inf, 0)))
 
 	_, err := FetchMod(context.Background(), models.MODRINTH, "test-mod", FetchOptions{
 		AllowedReleaseTypes: []models.ReleaseType{models.Release},

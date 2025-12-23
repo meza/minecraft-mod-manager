@@ -1,3 +1,4 @@
+// Package platform coordinates platform-specific integrations.
 package platform
 
 import (
@@ -9,8 +10,8 @@ import (
 	"strings"
 
 	"github.com/meza/minecraft-mod-manager/internal/curseforge"
-	"github.com/meza/minecraft-mod-manager/internal/globalErrors"
-	"github.com/meza/minecraft-mod-manager/internal/httpClient"
+	"github.com/meza/minecraft-mod-manager/internal/globalerrors"
+	"github.com/meza/minecraft-mod-manager/internal/httpclient"
 	"github.com/meza/minecraft-mod-manager/internal/models"
 )
 
@@ -60,7 +61,7 @@ func fetchCurseforge(ctx context.Context, projectID string, opts FetchOptions, c
 		})
 
 		selected := candidates[0]
-		if selected.DownloadUrl == "" {
+		if selected.DownloadURL == "" {
 			return RemoteMod{}, &NoCompatibleFileError{Platform: models.CURSEFORGE, ProjectID: projectID}
 		}
 
@@ -74,14 +75,14 @@ func fetchCurseforge(ctx context.Context, projectID string, opts FetchOptions, c
 			FileName:    selected.FileName,
 			ReleaseDate: formatTime(selected.FileDate),
 			Hash:        hash,
-			DownloadURL: selected.DownloadUrl,
+			DownloadURL: selected.DownloadURL,
 		}, nil
 	}
 }
 
 func fetchCurseforgeFiles(ctx context.Context, projectID string, gameVersion string, loader curseforge.ModLoaderType, client curseforgeDoer) (files []curseforge.File, returnErr error) {
-	url := fmt.Sprintf("%s/mods/%s/files?gameVersion=%s&modLoaderType=%d", curseforge.GetBaseUrl(), projectID, gameVersion, loader)
-	timeoutCtx, cancel := httpClient.WithMetadataTimeout(ctx)
+	url := fmt.Sprintf("%s/mods/%s/files?gameVersion=%s&modLoaderType=%d", curseforge.GetBaseURL(), projectID, gameVersion, loader)
+	timeoutCtx, cancel := httpclient.WithMetadataTimeout(ctx)
 	defer cancel()
 	request, err := newRequestWithContext(timeoutCtx, http.MethodGet, url, nil)
 	if err != nil {
@@ -90,8 +91,8 @@ func fetchCurseforgeFiles(ctx context.Context, projectID string, gameVersion str
 
 	response, err := client.Do(request)
 	if err != nil {
-		if httpClient.IsTimeoutError(err) {
-			return nil, httpClient.WrapTimeoutError(err)
+		if httpclient.IsTimeoutError(err) {
+			return nil, httpclient.WrapTimeoutError(err)
 		}
 		return nil, err
 	}
@@ -102,7 +103,7 @@ func fetchCurseforgeFiles(ctx context.Context, projectID string, gameVersion str
 	}()
 
 	if response.StatusCode == http.StatusNotFound {
-		return nil, &globalErrors.ProjectNotFoundError{ProjectID: projectID, Platform: models.CURSEFORGE}
+		return nil, &globalerrors.ProjectNotFoundError{ProjectID: projectID, Platform: models.CURSEFORGE}
 	}
 
 	if response.StatusCode != http.StatusOK {

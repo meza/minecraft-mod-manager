@@ -10,8 +10,8 @@ import (
 
 	stdErrors "errors"
 
-	"github.com/meza/minecraft-mod-manager/internal/globalErrors"
-	"github.com/meza/minecraft-mod-manager/internal/httpClient"
+	"github.com/meza/minecraft-mod-manager/internal/globalerrors"
+	"github.com/meza/minecraft-mod-manager/internal/httpclient"
 	"github.com/meza/minecraft-mod-manager/internal/models"
 	"github.com/meza/minecraft-mod-manager/testutil"
 	pkgErrors "github.com/pkg/errors"
@@ -96,7 +96,7 @@ func TestGetProject(t *testing.T) {
 	assert.Equal(t, Required, project.ClientSide)
 	assert.Equal(t, Optional, project.ServerSide)
 	assert.Equal(t, Approved, project.Status)
-	assert.Equal(t, "AABBCCDD", project.Id)
+	assert.Equal(t, "AABBCCDD", project.ID)
 	assert.Equal(t, Mod, project.Type)
 	assert.Equal(t, []string{"1.19", "1.19.1", "1.19.2", "1.19.3"}, project.GameVersions)
 	assert.Equal(t, []models.Loader{"forge", "fabric", "quilt"}, project.Loaders)
@@ -122,7 +122,7 @@ func TestGetProjectWhenProjectNotFound(t *testing.T) {
 
 	// Assertions
 	assert.Error(t, err)
-	assert.ErrorIs(t, err, &globalErrors.ProjectNotFoundError{
+	assert.ErrorIs(t, err, &globalerrors.ProjectNotFoundError{
 		ProjectID: "AABBCCDD",
 		Platform:  models.MODRINTH,
 	})
@@ -153,7 +153,7 @@ func TestGetProjectWhenApiCallFails(t *testing.T) {
 
 	// Assertions
 	//assert.Error(t, err)
-	assert.ErrorIs(t, err, &globalErrors.ProjectApiError{
+	assert.ErrorIs(t, err, &globalerrors.ProjectAPIError{
 		ProjectID: "AABBCCDDEE",
 		Platform:  models.MODRINTH,
 	})
@@ -165,7 +165,7 @@ func TestGetProjectWhenApiCallTimesOut(t *testing.T) {
 	project, err := GetProject(context.Background(), "AABBCCDDEE", NewClient(errorDoer{err: context.DeadlineExceeded}))
 
 	assert.Error(t, err)
-	var timeoutErr *httpClient.TimeoutError
+	var timeoutErr *httpclient.TimeoutError
 	assert.ErrorAs(t, err, &timeoutErr)
 	assert.Nil(t, project)
 }

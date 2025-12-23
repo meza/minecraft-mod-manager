@@ -155,7 +155,7 @@ func readLockOrEmpty(ctx context.Context, fs afero.Fs, meta config.Metadata) ([]
 	return config.ReadLock(ctx, fs, meta)
 }
 
-func buildEntries(cfg models.ModsJson, lock []models.ModInstall, meta config.Metadata, fs afero.Fs) []listEntry {
+func buildEntries(cfg models.ModsJSON, lock []models.ModInstall, meta config.Metadata, fs afero.Fs) []listEntry {
 	entries := make([]listEntry, 0, len(cfg.Mods))
 
 	for _, mod := range cfg.Mods {
@@ -181,9 +181,9 @@ func buildEntries(cfg models.ModsJson, lock []models.ModInstall, meta config.Met
 	return entries
 }
 
-func isInstalled(mod models.Mod, lock []models.ModInstall, meta config.Metadata, cfg models.ModsJson, fs afero.Fs) bool {
+func isInstalled(mod models.Mod, lock []models.ModInstall, meta config.Metadata, cfg models.ModsJSON, fs afero.Fs) bool {
 	for _, install := range lock {
-		if install.Id != mod.ID || install.Type != mod.Type {
+		if install.ID != mod.ID || install.Type != mod.Type {
 			continue
 		}
 
@@ -210,7 +210,7 @@ func logInvalidLockEntries(lock []models.ModInstall, log *logger.Logger) {
 		if _, err := modfilename.Normalize(install.FileName); err != nil {
 			name := strings.TrimSpace(install.Name)
 			if name == "" {
-				name = install.Id
+				name = install.ID
 			}
 			log.Error(i18n.T("cmd.list.error.invalid_filename_lock", i18n.Tvars{
 				Data: &i18n.TData{

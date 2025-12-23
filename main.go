@@ -1,3 +1,4 @@
+// Package main is the CLI entrypoint.
 package main
 
 import (

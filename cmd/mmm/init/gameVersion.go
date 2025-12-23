@@ -9,16 +9,18 @@ import (
 	"github.com/charmbracelet/bubbles/textinput"
 	tea "github.com/charmbracelet/bubbletea"
 
-	"github.com/meza/minecraft-mod-manager/internal/httpClient"
+	"github.com/meza/minecraft-mod-manager/internal/httpclient"
 	"github.com/meza/minecraft-mod-manager/internal/i18n"
 	"github.com/meza/minecraft-mod-manager/internal/minecraft"
 	"github.com/meza/minecraft-mod-manager/internal/tui"
 )
 
+// GameVersionSelectedMessage signals a selected game version.
 type GameVersionSelectedMessage struct {
 	GameVersion string
 }
 
+// GameVersionModel drives the game version prompt UI.
 type GameVersionModel struct {
 	tea.Model
 	input  textinput.Model
@@ -30,10 +32,12 @@ type GameVersionModel struct {
 	validate func(string) error
 }
 
+// Init implements tea.Model.
 func (m GameVersionModel) Init() tea.Cmd {
 	return nil
 }
 
+// Update implements tea.Model.
 func (m GameVersionModel) Update(msg tea.Msg) (GameVersionModel, tea.Cmd) {
 	var cmd tea.Cmd
 	var cmds []tea.Cmd
@@ -85,6 +89,7 @@ func (m GameVersionModel) Update(msg tea.Msg) (GameVersionModel, tea.Cmd) {
 	return m, tea.Batch(cmds...)
 }
 
+// View renders the game version prompt.
 func (m GameVersionModel) View() string {
 	if m.Value != "" {
 		return fmt.Sprintf("%s%s", m.input.Prompt, tui.SelectedItemStyle.Render(m.Value))
@@ -106,7 +111,8 @@ func (m GameVersionModel) gameVersionSelected() tea.Cmd {
 	}
 }
 
-func NewGameVersionModel(ctx context.Context, minecraftClient httpClient.Doer, gameVersion string) GameVersionModel {
+// NewGameVersionModel builds a game version prompt model.
+func NewGameVersionModel(ctx context.Context, minecraftClient httpclient.Doer, gameVersion string) GameVersionModel {
 	latestVersion, err := minecraft.GetLatestVersion(ctx, minecraftClient)
 	if err != nil {
 		latestVersion = ""
@@ -148,7 +154,8 @@ func NewGameVersionModel(ctx context.Context, minecraftClient httpClient.Doer, g
 
 	return model
 }
-func validateMinecraftVersion(ctx context.Context, value string, client httpClient.Doer) error {
+
+func validateMinecraftVersion(ctx context.Context, value string, client httpclient.Doer) error {
 	if value == "" {
 		return fmt.Errorf("%s", i18n.T("cmd.init.tui.game-version.error"))
 	}

@@ -66,7 +66,7 @@ func TestCommandSuccessRemovesFiles(t *testing.T) {
 	configPath := filepath.Join(tempDir, "modlist.json")
 	meta := config.NewMetadata(configPath)
 
-	cfg := models.ModsJson{
+	cfg := models.ModsJSON{
 		Loader:                     models.FABRIC,
 		GameVersion:                "1.20.1",
 		DefaultAllowedReleaseTypes: []models.ReleaseType{models.Release},
@@ -81,7 +81,7 @@ func TestCommandSuccessRemovesFiles(t *testing.T) {
 	require.NoError(t, config.WriteConfig(context.Background(), fs, meta, cfg))
 
 	lock := []models.ModInstall{
-		{Id: "mod-a", Type: models.MODRINTH, FileName: "mod-a.jar"},
+		{ID: "mod-a", Type: models.MODRINTH, FileName: "mod-a.jar"},
 	}
 	require.NoError(t, config.WriteLock(context.Background(), fs, meta, lock))
 	require.NoError(t, afero.WriteFile(fs, filepath.Join(meta.ModsFolderPath(cfg), "mod-a.jar"), []byte("mod"), 0644))

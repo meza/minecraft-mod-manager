@@ -5,8 +5,8 @@ import (
 	"encoding/json"
 	"fmt"
 
-	"github.com/meza/minecraft-mod-manager/internal/globalErrors"
-	"github.com/meza/minecraft-mod-manager/internal/httpClient"
+	"github.com/meza/minecraft-mod-manager/internal/globalerrors"
+	"github.com/meza/minecraft-mod-manager/internal/httpclient"
 	"github.com/meza/minecraft-mod-manager/internal/models"
 	"github.com/meza/minecraft-mod-manager/internal/perf"
 	"github.com/pkg/errors"
@@ -35,12 +35,12 @@ const (
 )
 
 const (
-	Sha1   VersionAlgorithm = "sha1"
+	SHA1   VersionAlgorithm = "sha1"
 	Sha512 VersionAlgorithm = "sha512"
 )
 
 type VersionFileHash struct {
-	Sha1   string `json:"sha1"`
+	SHA1   string `json:"sha1"`
 	Sha512 string `json:"sha512"`
 }
 
@@ -49,14 +49,14 @@ type VersionFile struct {
 	Hashes   VersionFileHash `json:"hashes"`
 	Primary  bool            `json:"primary"`
 	Size     int64           `json:"size"`
-	Url      string          `json:"url"`
+	URL      string          `json:"url"`
 }
 
 type VersionDependency struct {
 	FileName  string         `json:"file_name"`
-	ProjectId string         `json:"project_id"`
+	ProjectID string         `json:"project_id"`
 	Type      DependencyType `json:"type"`
-	VersionId string         `json:"version_id"`
+	VersionID string         `json:"version_id"`
 }
 
 type Version struct {
@@ -67,17 +67,17 @@ type Version struct {
 	GameVersions  []string            `json:"game_versions"`
 	Loaders       []models.Loader     `json:"loaders"`
 	Name          string              `json:"name"`
-	ProjectId     string              `json:"project_id"`
+	ProjectID     string              `json:"project_id"`
 	Status        VersionStatus       `json:"status"`
 	Type          models.ReleaseType  `json:"version_type"`
-	VersionId     string              `json:"id"`
+	VersionID     string              `json:"id"`
 	VersionNumber string              `json:"version_number"`
 }
 
 type Versions []Version
 
 type VersionLookup struct {
-	ProjectId    string          `json:"project_id"`
+	ProjectID    string          `json:"project_id"`
 	Loaders      []models.Loader `json:"loaders"`
 	GameVersions []string        `json:"game_versions"`
 }
@@ -94,8 +94,8 @@ func NewVersionHashLookup(hash string, algorithm VersionAlgorithm) *VersionHashL
 	}
 }
 
-func GetVersionsForProject(ctx context.Context, lookup *VersionLookup, client httpClient.Doer) (versions Versions, returnErr error) {
-	ctx, span := perf.StartSpan(ctx, "api.modrinth.version.list", perf.WithAttributes(attribute.String("project_id", lookup.ProjectId)))
+func GetVersionsForProject(ctx context.Context, lookup *VersionLookup, client httpclient.Doer) (versions Versions, returnErr error) {
+	ctx, span := perf.StartSpan(ctx, "api.modrinth.version.list", perf.WithAttributes(attribute.String("project_id", lookup.ProjectID)))
 	defer span.End()
 
 	gameVersionsJSON, err := marshalJSON(lookup.GameVersions)
@@ -107,7 +107,7 @@ func GetVersionsForProject(ctx context.Context, lookup *VersionLookup, client ht
 		return nil, err
 	}
 
-	baseURL, err := parseURL(fmt.Sprintf("%s/v2/project/%s/version", GetBaseUrl(), lookup.ProjectId))
+	baseURL, err := parseURL(fmt.Sprintf("%s/v2/project/%s/version", GetBaseURL(), lookup.ProjectID))
 	if err != nil {
 		return nil, err
 	}
@@ -116,7 +116,7 @@ func GetVersionsForProject(ctx context.Context, lookup *VersionLookup, client ht
 	query.Set("loaders", string(loadersJSON))
 	baseURL.RawQuery = query.Encode()
 
-	timeoutCtx, cancel := httpClient.WithMetadataTimeout(ctx)
+	timeoutCtx, cancel := httpclient.WithMetadataTimeout(ctx)
 	defer cancel()
 	request, err := newRequestWithContext(timeoutCtx, "GET", baseURL.String(), nil)
 	if err != nil {
@@ -124,10 +124,10 @@ func GetVersionsForProject(ctx context.Context, lookup *VersionLookup, client ht
 	}
 	response, err := client.Do(request)
 	if err != nil {
-		if httpClient.IsTimeoutError(err) {
-			return nil, httpClient.WrapTimeoutError(err)
+		if httpclient.IsTimeoutError(err) {
+			return nil, httpclient.WrapTimeoutError(err)
 		}
-		return nil, globalErrors.ProjectApiErrorWrap(err, lookup.ProjectId, models.MODRINTH)
+		return nil, globalerrors.ProjectAPIErrorWrap(err, lookup.ProjectID, models.MODRINTH)
 	}
 	defer func() {
 		if closeErr := response.Body.Close(); closeErr != nil && returnErr == nil {
@@ -136,29 +136,29 @@ func GetVersionsForProject(ctx context.Context, lookup *VersionLookup, client ht
 	}()
 
 	if response.StatusCode == http.StatusNotFound {
-		return nil, &globalErrors.ProjectNotFoundError{
-			ProjectID: lookup.ProjectId,
+		return nil, &globalerrors.ProjectNotFoundError{
+			ProjectID: lookup.ProjectID,
 			Platform:  models.MODRINTH,
 		}
 	}
 
 	if response.StatusCode != http.StatusOK {
-		return nil, globalErrors.ProjectApiErrorWrap(errors.Errorf("unexpected status code: %d", response.StatusCode), lookup.ProjectId, models.MODRINTH)
+		return nil, globalerrors.ProjectAPIErrorWrap(errors.Errorf("unexpected status code: %d", response.StatusCode), lookup.ProjectID, models.MODRINTH)
 	}
 
 	if err := json.NewDecoder(response.Body).Decode(&versions); err != nil {
-		return nil, globalErrors.ProjectApiErrorWrap(errors.Wrap(err, "failed to decode response body"), lookup.ProjectId, models.MODRINTH)
+		return nil, globalerrors.ProjectAPIErrorWrap(errors.Wrap(err, "failed to decode response body"), lookup.ProjectID, models.MODRINTH)
 	}
 	return versions, nil
 }
 
-func GetVersionForHash(ctx context.Context, lookup *VersionHashLookup, client httpClient.Doer) (version *Version, returnErr error) {
+func GetVersionForHash(ctx context.Context, lookup *VersionHashLookup, client httpclient.Doer) (version *Version, returnErr error) {
 	ctx, span := perf.StartSpan(ctx, "api.modrinth.version_file.get", perf.WithAttributes(attribute.String("hash", lookup.hash)))
 	defer span.End()
 
-	url := fmt.Sprintf("%s/v2/version_file/%s?algorithm=%s", GetBaseUrl(), lookup.hash, lookup.algorithm)
+	url := fmt.Sprintf("%s/v2/version_file/%s?algorithm=%s", GetBaseURL(), lookup.hash, lookup.algorithm)
 
-	timeoutCtx, cancel := httpClient.WithMetadataTimeout(ctx)
+	timeoutCtx, cancel := httpclient.WithMetadataTimeout(ctx)
 	defer cancel()
 	request, err := newRequestWithContext(timeoutCtx, "GET", url, nil)
 	if err != nil {
@@ -166,10 +166,10 @@ func GetVersionForHash(ctx context.Context, lookup *VersionHashLookup, client ht
 	}
 	response, err := client.Do(request)
 	if err != nil {
-		if httpClient.IsTimeoutError(err) {
-			return nil, httpClient.WrapTimeoutError(err)
+		if httpclient.IsTimeoutError(err) {
+			return nil, httpclient.WrapTimeoutError(err)
 		}
-		return nil, VersionApiErrorWrap(err, *lookup)
+		return nil, VersionAPIErrorWrap(err, *lookup)
 	}
 	defer func() {
 		if closeErr := response.Body.Close(); closeErr != nil && returnErr == nil {
@@ -184,12 +184,12 @@ func GetVersionForHash(ctx context.Context, lookup *VersionHashLookup, client ht
 	}
 
 	if response.StatusCode != http.StatusOK {
-		return nil, VersionApiErrorWrap(errors.Errorf("unexpected status code: %d", response.StatusCode), *lookup)
+		return nil, VersionAPIErrorWrap(errors.Errorf("unexpected status code: %d", response.StatusCode), *lookup)
 	}
 
 	version = &Version{}
 	if err := json.NewDecoder(response.Body).Decode(version); err != nil {
-		return nil, VersionApiErrorWrap(errors.Wrap(err, "failed to decode response body"), *lookup)
+		return nil, VersionAPIErrorWrap(errors.Wrap(err, "failed to decode response body"), *lookup)
 	}
 	return version, nil
 }

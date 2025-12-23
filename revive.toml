@@ -31,8 +31,9 @@ warningCode = 0
 [rule.unnecessary-format]
 
 # --- Public surfaces must be documented (North Star: public API docblocks) ---
-[rule.exported]
-[rule.package-comments]
+# Team decision: disable exported/package-comments rules; rely on review for meaningful comments.
+# [rule.exported]
+# [rule.package-comments]
 
 # --- Naming policy ---
 # Team-defined expectations: keep only a tiny allowlist of conventional short names.

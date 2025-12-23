@@ -33,7 +33,7 @@ type ModsFolderModel struct {
 func NewModsFolderModel(modsFolder string, meta config.Metadata, fs afero.Fs, prefill bool) ModsFolderModel {
 	m := textinput.New()
 	m.Prompt = tui.QuestionStyle.Render("? ") + tui.TitleStyle.Render(i18n.T("cmd.init.tui.mods-folder.question")) + " "
-	resolvedModsFolder := meta.ModsFolderPath(models.ModsJson{ModsFolder: modsFolder})
+	resolvedModsFolder := meta.ModsFolderPath(models.ModsJSON{ModsFolder: modsFolder})
 	m.Placeholder = modsFolder
 	// Ensure the placeholder fits so the full path is visible to the user.
 	minWidth := len(resolvedModsFolder) + 2

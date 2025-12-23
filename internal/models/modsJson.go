@@ -1,6 +1,6 @@
 package models
 
-type ModsJson struct {
+type ModsJSON struct {
 	Loader                     Loader        `json:"loader"`
 	GameVersion                string        `json:"gameVersion"`
 	DefaultAllowedReleaseTypes []ReleaseType `json:"defaultAllowedReleaseTypes"`

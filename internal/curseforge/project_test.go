@@ -10,8 +10,8 @@ import (
 
 	stdErrors "errors"
 
-	"github.com/meza/minecraft-mod-manager/internal/globalErrors"
-	"github.com/meza/minecraft-mod-manager/internal/httpClient"
+	"github.com/meza/minecraft-mod-manager/internal/globalerrors"
+	"github.com/meza/minecraft-mod-manager/internal/httpclient"
 	"github.com/meza/minecraft-mod-manager/internal/models"
 	"github.com/meza/minecraft-mod-manager/testutil"
 	pkgErrors "github.com/pkg/errors"
@@ -142,25 +142,25 @@ func TestGetProject(t *testing.T) {
 	// Assertions
 	assert.NoError(t, err)
 	assert.NotNil(t, project)
-	assert.Equal(t, 12345, project.Id)
+	assert.Equal(t, 12345, project.ID)
 	assert.Equal(t, "Example Project", project.Name)
 	assert.Equal(t, "example-project", project.Slug)
 	assert.Equal(t, "This is an example project.", project.Summary)
 	assert.Equal(t, 1000, project.DownloadCount)
-	assert.Equal(t, 1, project.PrimaryCategoryId)
+	assert.Equal(t, 1, project.PrimaryCategoryID)
 	assert.Equal(t, 1, len(project.Categories))
 	assert.Equal(t, "Category 1", project.Categories[0].Name)
-	assert.Equal(t, "https://example.com", project.Links.WebsiteUrl)
-	assert.Equal(t, "https://example.com/wiki", project.Links.WikiUrl)
-	assert.Equal(t, "https://example.com/issues", project.Links.IssuesUrl)
-	assert.Equal(t, "https://example.com/source", project.Links.SourceUrl)
+	assert.Equal(t, "https://example.com", project.Links.WebsiteURL)
+	assert.Equal(t, "https://example.com/wiki", project.Links.WikiURL)
+	assert.Equal(t, "https://example.com/issues", project.Links.IssuesURL)
+	assert.Equal(t, "https://example.com/source", project.Links.SourceURL)
 	assert.Equal(t, 1, len(project.Authors))
 	assert.Equal(t, "Author 1", project.Authors[0].Name)
-	assert.Equal(t, "https://example.com/author1", project.Authors[0].Url)
-	assert.Equal(t, "https://example.com/logo.png", project.Logo.Url)
+	assert.Equal(t, "https://example.com/author1", project.Authors[0].URL)
+	assert.Equal(t, "https://example.com/logo.png", project.Logo.URL)
 	assert.Equal(t, "Example Logo", project.Logo.Title)
 	assert.Equal(t, "This is an example logo.", project.Logo.Description)
-	assert.Equal(t, "https://example.com/logo_thumbnail.png", project.Logo.ThumbnailUrl)
+	assert.Equal(t, "https://example.com/logo_thumbnail.png", project.Logo.ThumbnailURL)
 	assert.Equal(t, 1, len(project.LatestFiles))
 	assert.Equal(t, "Example File", project.LatestFiles[0].DisplayName)
 	assert.Equal(t, "example_file.zip", project.LatestFiles[0].FileName)
@@ -195,7 +195,7 @@ func TestGetProjectWhenProjectNotFound(t *testing.T) {
 
 	// Assertions
 	assert.Error(t, err)
-	assert.ErrorIs(t, err, &globalErrors.ProjectNotFoundError{
+	assert.ErrorIs(t, err, &globalerrors.ProjectNotFoundError{
 		ProjectID: "AABBCCDD",
 		Platform:  models.CURSEFORGE,
 	})
@@ -245,7 +245,7 @@ func TestGetProjectWhenApiCallFails(t *testing.T) {
 
 	// Assertions
 	//assert.Error(t, err)
-	assert.ErrorIs(t, err, &globalErrors.ProjectApiError{
+	assert.ErrorIs(t, err, &globalerrors.ProjectAPIError{
 		ProjectID: "AABBCCDDEE",
 		Platform:  models.CURSEFORGE,
 	})
@@ -257,7 +257,7 @@ func TestGetProjectWhenApiCallTimesOut(t *testing.T) {
 	project, err := GetProject(context.Background(), "AABBCCDDEE", NewClient(errorDoer{err: context.DeadlineExceeded}))
 
 	assert.Error(t, err)
-	var timeoutErr *httpClient.TimeoutError
+	var timeoutErr *httpclient.TimeoutError
 	assert.ErrorAs(t, err, &timeoutErr)
 	assert.Nil(t, project)
 }

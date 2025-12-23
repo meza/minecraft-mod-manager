@@ -176,7 +176,7 @@ func newSnapshotModelWithOptions(t *testing.T, options initOptions, createModsFo
 		if mods == "" {
 			mods = "mods"
 		}
-		assert.NoError(t, fs.MkdirAll(meta.ModsFolderPath(models.ModsJson{ModsFolder: mods}), 0755))
+		assert.NoError(t, fs.MkdirAll(meta.ModsFolderPath(models.ModsJSON{ModsFolder: mods}), 0755))
 	}
 
 	deps := initDeps{
@@ -229,7 +229,7 @@ func TestInitTUIHidesProvidedGameVersion(t *testing.T) {
 	meta := config.NewMetadata(filepath.FromSlash("/cfg/modlist.json"))
 
 	assert.NoError(t, fs.MkdirAll(filepath.Dir(meta.ConfigPath), 0755))
-	assert.NoError(t, fs.MkdirAll(meta.ModsFolderPath(models.ModsJson{ModsFolder: "mods"}), 0755))
+	assert.NoError(t, fs.MkdirAll(meta.ModsFolderPath(models.ModsJSON{ModsFolder: "mods"}), 0755))
 
 	deps := initDeps{
 		fs:              fs,
@@ -261,11 +261,11 @@ func TestModsFolderPlaceholderUsesResolvedPath(t *testing.T) {
 	meta := config.NewMetadata(filepath.FromSlash("/cfg/modlist.json"))
 
 	assert.NoError(t, fs.MkdirAll(filepath.Dir(meta.ConfigPath), 0755))
-	assert.NoError(t, fs.MkdirAll(meta.ModsFolderPath(models.ModsJson{ModsFolder: "mods"}), 0755))
+	assert.NoError(t, fs.MkdirAll(meta.ModsFolderPath(models.ModsJSON{ModsFolder: "mods"}), 0755))
 
 	model := NewModsFolderModel("mods", meta, fs, false)
 	assert.Equal(t, "mods", model.input.Placeholder)
-	assert.GreaterOrEqual(t, model.input.Width, len(meta.ModsFolderPath(models.ModsJson{ModsFolder: "mods"})))
+	assert.GreaterOrEqual(t, model.input.Width, len(meta.ModsFolderPath(models.ModsJSON{ModsFolder: "mods"})))
 }
 
 func enterGameVersion(t *testing.T, model CommandModel, version string) CommandModel {

@@ -10,7 +10,7 @@ import (
 
 	"github.com/meza/minecraft-mod-manager/internal/config"
 	"github.com/meza/minecraft-mod-manager/internal/curseforge"
-	"github.com/meza/minecraft-mod-manager/internal/httpClient"
+	"github.com/meza/minecraft-mod-manager/internal/httpclient"
 	"github.com/meza/minecraft-mod-manager/internal/logger"
 	"github.com/meza/minecraft-mod-manager/internal/models"
 	"github.com/meza/minecraft-mod-manager/internal/modpath"
@@ -28,7 +28,7 @@ func TestRunInstallHaltsWhenPreflightFindsUnsureHashMismatch(t *testing.T) {
 	fs := afero.NewMemMapFs()
 	meta := config.NewMetadata(filepath.FromSlash("/cfg/modlist.json"))
 
-	cfg := models.ModsJson{
+	cfg := models.ModsJSON{
 		Loader:                     models.FABRIC,
 		GameVersion:                "1.21.1",
 		DefaultAllowedReleaseTypes: []models.ReleaseType{models.Release},
@@ -42,7 +42,7 @@ func TestRunInstallHaltsWhenPreflightFindsUnsureHashMismatch(t *testing.T) {
 	assert.NoError(t, fs.MkdirAll(meta.ModsFolderPath(cfg), 0755))
 	assert.NoError(t, config.WriteConfig(context.Background(), fs, meta, cfg))
 	assert.NoError(t, config.WriteLock(context.Background(), fs, meta, []models.ModInstall{
-		{Id: "proj-1", Type: models.MODRINTH, Hash: "expected", FileName: "managed.jar", DownloadUrl: "https://example.invalid/managed.jar"},
+		{ID: "proj-1", Type: models.MODRINTH, Hash: "expected", FileName: "managed.jar", DownloadURL: "https://example.invalid/managed.jar"},
 	}))
 
 	foreignPath := filepath.Join(meta.ModsFolderPath(cfg), "foreign.jar")
@@ -59,7 +59,7 @@ func TestRunInstallHaltsWhenPreflightFindsUnsureHashMismatch(t *testing.T) {
 		fs:      fs,
 		logger:  logger.New(out, errOut, false, false),
 		clients: platform.Clients{},
-		downloader: func(context.Context, string, string, httpClient.Doer, httpClient.Sender, ...afero.Fs) error {
+		downloader: func(context.Context, string, string, httpclient.Doer, httpclient.Sender, ...afero.Fs) error {
 			return nil
 		},
 		fetchMod: func(context.Context, models.Platform, string, platform.FetchOptions, platform.Clients) (platform.RemoteMod, error) {
@@ -68,16 +68,16 @@ func TestRunInstallHaltsWhenPreflightFindsUnsureHashMismatch(t *testing.T) {
 		telemetry: func(telemetry.CommandTelemetry) {},
 
 		curseforgeFingerprint: func(string) uint32 { return 0 },
-		curseforgeFingerprintMatch: func(context.Context, []int, httpClient.Doer) (*curseforge.FingerprintResult, error) {
+		curseforgeFingerprintMatch: func(context.Context, []int, httpclient.Doer) (*curseforge.FingerprintResult, error) {
 			return &curseforge.FingerprintResult{}, nil
 		},
-		curseforgeProjectName: func(context.Context, string, httpClient.Doer) (string, error) {
+		curseforgeProjectName: func(context.Context, string, httpclient.Doer) (string, error) {
 			return "", nil
 		},
-		modrinthVersionForSha: func(context.Context, string, httpClient.Doer) (*modrinth.Version, error) {
-			return &modrinth.Version{ProjectId: "proj-1"}, nil
+		modrinthVersionForSha: func(context.Context, string, httpclient.Doer) (*modrinth.Version, error) {
+			return &modrinth.Version{ProjectID: "proj-1"}, nil
 		},
-		modrinthProjectTitle: func(context.Context, string, httpClient.Doer) (string, error) {
+		modrinthProjectTitle: func(context.Context, string, httpclient.Doer) (string, error) {
 			return "Matched Project", nil
 		},
 	}
@@ -95,7 +95,7 @@ func TestRunInstallReportsUnmanagedButDoesNotHalt(t *testing.T) {
 	fs := afero.NewMemMapFs()
 	meta := config.NewMetadata(filepath.FromSlash("/cfg/modlist.json"))
 
-	cfg := models.ModsJson{
+	cfg := models.ModsJSON{
 		Loader:                     models.FABRIC,
 		GameVersion:                "1.21.1",
 		DefaultAllowedReleaseTypes: []models.ReleaseType{models.Release},
@@ -123,7 +123,7 @@ func TestRunInstallReportsUnmanagedButDoesNotHalt(t *testing.T) {
 		fs:      fs,
 		logger:  logger.New(out, errOut, false, false),
 		clients: platform.Clients{},
-		downloader: func(context.Context, string, string, httpClient.Doer, httpClient.Sender, ...afero.Fs) error {
+		downloader: func(context.Context, string, string, httpclient.Doer, httpclient.Sender, ...afero.Fs) error {
 			return nil
 		},
 		fetchMod: func(context.Context, models.Platform, string, platform.FetchOptions, platform.Clients) (platform.RemoteMod, error) {
@@ -132,16 +132,16 @@ func TestRunInstallReportsUnmanagedButDoesNotHalt(t *testing.T) {
 		telemetry: func(telemetry.CommandTelemetry) {},
 
 		curseforgeFingerprint: func(string) uint32 { return 0 },
-		curseforgeFingerprintMatch: func(context.Context, []int, httpClient.Doer) (*curseforge.FingerprintResult, error) {
+		curseforgeFingerprintMatch: func(context.Context, []int, httpclient.Doer) (*curseforge.FingerprintResult, error) {
 			return &curseforge.FingerprintResult{}, nil
 		},
-		curseforgeProjectName: func(context.Context, string, httpClient.Doer) (string, error) {
+		curseforgeProjectName: func(context.Context, string, httpclient.Doer) (string, error) {
 			return "", nil
 		},
-		modrinthVersionForSha: func(context.Context, string, httpClient.Doer) (*modrinth.Version, error) {
-			return &modrinth.Version{ProjectId: "unmanaged-proj"}, nil
+		modrinthVersionForSha: func(context.Context, string, httpclient.Doer) (*modrinth.Version, error) {
+			return &modrinth.Version{ProjectID: "unmanaged-proj"}, nil
 		},
-		modrinthProjectTitle: func(context.Context, string, httpClient.Doer) (string, error) {
+		modrinthProjectTitle: func(context.Context, string, httpclient.Doer) (string, error) {
 			return "Some Project", nil
 		},
 	}
@@ -161,7 +161,7 @@ func TestRunInstallPreflightRespectsMmmignoreAndDisabledFiles(t *testing.T) {
 	fs := afero.NewMemMapFs()
 	meta := config.NewMetadata(filepath.FromSlash("/cfg/modlist.json"))
 
-	cfg := models.ModsJson{
+	cfg := models.ModsJSON{
 		Loader:                     models.FABRIC,
 		GameVersion:                "1.21.1",
 		DefaultAllowedReleaseTypes: []models.ReleaseType{models.Release},
@@ -198,7 +198,7 @@ func TestRunInstallPreflightRespectsMmmignoreAndDisabledFiles(t *testing.T) {
 			Modrinth:   nil,
 			Curseforge: nil,
 		},
-		downloader: func(context.Context, string, string, httpClient.Doer, httpClient.Sender, ...afero.Fs) error {
+		downloader: func(context.Context, string, string, httpclient.Doer, httpclient.Sender, ...afero.Fs) error {
 			return nil
 		},
 		fetchMod: func(context.Context, models.Platform, string, platform.FetchOptions, platform.Clients) (platform.RemoteMod, error) {
@@ -210,17 +210,17 @@ func TestRunInstallPreflightRespectsMmmignoreAndDisabledFiles(t *testing.T) {
 			fingerprintCalls++
 			return 123
 		},
-		curseforgeFingerprintMatch: func(context.Context, []int, httpClient.Doer) (*curseforge.FingerprintResult, error) {
+		curseforgeFingerprintMatch: func(context.Context, []int, httpclient.Doer) (*curseforge.FingerprintResult, error) {
 			return &curseforge.FingerprintResult{}, nil
 		},
-		curseforgeProjectName: func(context.Context, string, httpClient.Doer) (string, error) {
+		curseforgeProjectName: func(context.Context, string, httpclient.Doer) (string, error) {
 			return "", nil
 		},
-		modrinthVersionForSha: func(context.Context, string, httpClient.Doer) (*modrinth.Version, error) {
+		modrinthVersionForSha: func(context.Context, string, httpclient.Doer) (*modrinth.Version, error) {
 			modrinthCalls++
 			return nil, &modrinth.VersionNotFoundError{}
 		},
-		modrinthProjectTitle: func(context.Context, string, httpClient.Doer) (string, error) {
+		modrinthProjectTitle: func(context.Context, string, httpclient.Doer) (string, error) {
 			return "", nil
 		},
 	}
@@ -238,7 +238,7 @@ func TestRunInstallSilentlyIgnoresFilesWithNoPlatformHits(t *testing.T) {
 	fs := afero.NewMemMapFs()
 	meta := config.NewMetadata(filepath.FromSlash("/cfg/modlist.json"))
 
-	cfg := models.ModsJson{
+	cfg := models.ModsJSON{
 		Loader:                     models.FABRIC,
 		GameVersion:                "1.21.1",
 		DefaultAllowedReleaseTypes: []models.ReleaseType{models.Release},
@@ -266,7 +266,7 @@ func TestRunInstallSilentlyIgnoresFilesWithNoPlatformHits(t *testing.T) {
 		fs:      fs,
 		logger:  logger.New(out, errOut, false, false),
 		clients: platform.Clients{},
-		downloader: func(context.Context, string, string, httpClient.Doer, httpClient.Sender, ...afero.Fs) error {
+		downloader: func(context.Context, string, string, httpclient.Doer, httpclient.Sender, ...afero.Fs) error {
 			return nil
 		},
 		fetchMod: func(context.Context, models.Platform, string, platform.FetchOptions, platform.Clients) (platform.RemoteMod, error) {
@@ -275,16 +275,16 @@ func TestRunInstallSilentlyIgnoresFilesWithNoPlatformHits(t *testing.T) {
 		telemetry: func(telemetry.CommandTelemetry) {},
 
 		curseforgeFingerprint: func(string) uint32 { return 123 },
-		curseforgeFingerprintMatch: func(context.Context, []int, httpClient.Doer) (*curseforge.FingerprintResult, error) {
+		curseforgeFingerprintMatch: func(context.Context, []int, httpclient.Doer) (*curseforge.FingerprintResult, error) {
 			return &curseforge.FingerprintResult{}, nil
 		},
-		curseforgeProjectName: func(context.Context, string, httpClient.Doer) (string, error) {
+		curseforgeProjectName: func(context.Context, string, httpclient.Doer) (string, error) {
 			return "", nil
 		},
-		modrinthVersionForSha: func(context.Context, string, httpClient.Doer) (*modrinth.Version, error) {
+		modrinthVersionForSha: func(context.Context, string, httpclient.Doer) (*modrinth.Version, error) {
 			return nil, &modrinth.VersionNotFoundError{}
 		},
-		modrinthProjectTitle: func(context.Context, string, httpClient.Doer) (string, error) {
+		modrinthProjectTitle: func(context.Context, string, httpclient.Doer) (string, error) {
 			return "", nil
 		},
 	}
@@ -304,7 +304,7 @@ func TestRunInstallDownloadsMissingManagedFileFromLock(t *testing.T) {
 	fs := afero.NewMemMapFs()
 	meta := config.NewMetadata(filepath.FromSlash("/cfg/modlist.json"))
 
-	cfg := models.ModsJson{
+	cfg := models.ModsJSON{
 		Loader:                     models.FABRIC,
 		GameVersion:                "1.21.1",
 		DefaultAllowedReleaseTypes: []models.ReleaseType{models.Release},
@@ -318,7 +318,7 @@ func TestRunInstallDownloadsMissingManagedFileFromLock(t *testing.T) {
 	assert.NoError(t, fs.MkdirAll(meta.ModsFolderPath(cfg), 0755))
 	assert.NoError(t, config.WriteConfig(context.Background(), fs, meta, cfg))
 	assert.NoError(t, config.WriteLock(context.Background(), fs, meta, []models.ModInstall{
-		{Id: "proj-1", Type: models.MODRINTH, Hash: sha1Hex("downloaded"), FileName: "managed.jar", DownloadUrl: "https://example.invalid/managed.jar"},
+		{ID: "proj-1", Type: models.MODRINTH, Hash: sha1Hex("downloaded"), FileName: "managed.jar", DownloadURL: "https://example.invalid/managed.jar"},
 	}))
 
 	out := &bytes.Buffer{}
@@ -333,7 +333,7 @@ func TestRunInstallDownloadsMissingManagedFileFromLock(t *testing.T) {
 		fs:      fs,
 		logger:  logger.New(out, errOut, false, false),
 		clients: platform.Clients{},
-		downloader: func(_ context.Context, _ string, dest string, _ httpClient.Doer, _ httpClient.Sender, filesystem ...afero.Fs) error {
+		downloader: func(_ context.Context, _ string, dest string, _ httpclient.Doer, _ httpclient.Sender, filesystem ...afero.Fs) error {
 			downloaded = true
 			useFS := fs
 			if len(filesystem) > 0 {
@@ -347,16 +347,16 @@ func TestRunInstallDownloadsMissingManagedFileFromLock(t *testing.T) {
 		telemetry: func(telemetry.CommandTelemetry) {},
 
 		curseforgeFingerprint: func(string) uint32 { return 0 },
-		curseforgeFingerprintMatch: func(context.Context, []int, httpClient.Doer) (*curseforge.FingerprintResult, error) {
+		curseforgeFingerprintMatch: func(context.Context, []int, httpclient.Doer) (*curseforge.FingerprintResult, error) {
 			return &curseforge.FingerprintResult{}, nil
 		},
-		curseforgeProjectName: func(context.Context, string, httpClient.Doer) (string, error) {
+		curseforgeProjectName: func(context.Context, string, httpclient.Doer) (string, error) {
 			return "", nil
 		},
-		modrinthVersionForSha: func(context.Context, string, httpClient.Doer) (*modrinth.Version, error) {
+		modrinthVersionForSha: func(context.Context, string, httpclient.Doer) (*modrinth.Version, error) {
 			return nil, &modrinth.VersionNotFoundError{}
 		},
-		modrinthProjectTitle: func(context.Context, string, httpClient.Doer) (string, error) {
+		modrinthProjectTitle: func(context.Context, string, httpclient.Doer) (string, error) {
 			return "", nil
 		},
 	}
@@ -376,7 +376,7 @@ func TestRunInstallDownloadsWhenHashMismatch(t *testing.T) {
 	fs := afero.NewMemMapFs()
 	meta := config.NewMetadata(filepath.FromSlash("/cfg/modlist.json"))
 
-	cfg := models.ModsJson{
+	cfg := models.ModsJSON{
 		Loader:                     models.FABRIC,
 		GameVersion:                "1.21.1",
 		DefaultAllowedReleaseTypes: []models.ReleaseType{models.Release},
@@ -390,7 +390,7 @@ func TestRunInstallDownloadsWhenHashMismatch(t *testing.T) {
 	assert.NoError(t, fs.MkdirAll(meta.ModsFolderPath(cfg), 0755))
 	assert.NoError(t, config.WriteConfig(context.Background(), fs, meta, cfg))
 	assert.NoError(t, config.WriteLock(context.Background(), fs, meta, []models.ModInstall{
-		{Id: "proj-1", Type: models.MODRINTH, Hash: sha1Hex("downloaded"), FileName: "managed.jar", DownloadUrl: "https://example.invalid/managed.jar"},
+		{ID: "proj-1", Type: models.MODRINTH, Hash: sha1Hex("downloaded"), FileName: "managed.jar", DownloadURL: "https://example.invalid/managed.jar"},
 	}))
 
 	managedPath := filepath.Join(meta.ModsFolderPath(cfg), "managed.jar")
@@ -408,7 +408,7 @@ func TestRunInstallDownloadsWhenHashMismatch(t *testing.T) {
 		fs:      fs,
 		logger:  logger.New(out, errOut, false, false),
 		clients: platform.Clients{},
-		downloader: func(_ context.Context, _ string, dest string, _ httpClient.Doer, _ httpClient.Sender, filesystem ...afero.Fs) error {
+		downloader: func(_ context.Context, _ string, dest string, _ httpclient.Doer, _ httpclient.Sender, filesystem ...afero.Fs) error {
 			downloaded = true
 			useFS := fs
 			if len(filesystem) > 0 {
@@ -422,16 +422,16 @@ func TestRunInstallDownloadsWhenHashMismatch(t *testing.T) {
 		telemetry: func(telemetry.CommandTelemetry) {},
 
 		curseforgeFingerprint: func(string) uint32 { return 0 },
-		curseforgeFingerprintMatch: func(context.Context, []int, httpClient.Doer) (*curseforge.FingerprintResult, error) {
+		curseforgeFingerprintMatch: func(context.Context, []int, httpclient.Doer) (*curseforge.FingerprintResult, error) {
 			return &curseforge.FingerprintResult{}, nil
 		},
-		curseforgeProjectName: func(context.Context, string, httpClient.Doer) (string, error) {
+		curseforgeProjectName: func(context.Context, string, httpclient.Doer) (string, error) {
 			return "", nil
 		},
-		modrinthVersionForSha: func(context.Context, string, httpClient.Doer) (*modrinth.Version, error) {
+		modrinthVersionForSha: func(context.Context, string, httpclient.Doer) (*modrinth.Version, error) {
 			return nil, &modrinth.VersionNotFoundError{}
 		},
-		modrinthProjectTitle: func(context.Context, string, httpClient.Doer) (string, error) {
+		modrinthProjectTitle: func(context.Context, string, httpclient.Doer) (string, error) {
 			return "", nil
 		},
 	}
@@ -451,7 +451,7 @@ func TestRunInstallFetchesAndAppendsLockWhenMissing(t *testing.T) {
 	fs := afero.NewMemMapFs()
 	meta := config.NewMetadata(filepath.FromSlash("/cfg/modlist.json"))
 
-	cfg := models.ModsJson{
+	cfg := models.ModsJSON{
 		Loader:                     models.FABRIC,
 		GameVersion:                "1.21.1",
 		DefaultAllowedReleaseTypes: []models.ReleaseType{models.Release},
@@ -478,7 +478,7 @@ func TestRunInstallFetchesAndAppendsLockWhenMissing(t *testing.T) {
 		fs:      fs,
 		logger:  logger.New(out, errOut, false, false),
 		clients: platform.Clients{},
-		downloader: func(_ context.Context, _ string, dest string, _ httpClient.Doer, _ httpClient.Sender, filesystem ...afero.Fs) error {
+		downloader: func(_ context.Context, _ string, dest string, _ httpclient.Doer, _ httpclient.Sender, filesystem ...afero.Fs) error {
 			useFS := fs
 			if len(filesystem) > 0 {
 				useFS = filesystem[0]
@@ -497,16 +497,16 @@ func TestRunInstallFetchesAndAppendsLockWhenMissing(t *testing.T) {
 		telemetry: func(telemetry.CommandTelemetry) {},
 
 		curseforgeFingerprint: func(string) uint32 { return 0 },
-		curseforgeFingerprintMatch: func(context.Context, []int, httpClient.Doer) (*curseforge.FingerprintResult, error) {
+		curseforgeFingerprintMatch: func(context.Context, []int, httpclient.Doer) (*curseforge.FingerprintResult, error) {
 			return &curseforge.FingerprintResult{}, nil
 		},
-		curseforgeProjectName: func(context.Context, string, httpClient.Doer) (string, error) {
+		curseforgeProjectName: func(context.Context, string, httpclient.Doer) (string, error) {
 			return "", nil
 		},
-		modrinthVersionForSha: func(context.Context, string, httpClient.Doer) (*modrinth.Version, error) {
+		modrinthVersionForSha: func(context.Context, string, httpclient.Doer) (*modrinth.Version, error) {
 			return nil, &modrinth.VersionNotFoundError{}
 		},
-		modrinthProjectTitle: func(context.Context, string, httpClient.Doer) (string, error) {
+		modrinthProjectTitle: func(context.Context, string, httpclient.Doer) (string, error) {
 			return "", nil
 		},
 	}
@@ -534,7 +534,7 @@ func TestRunInstallReportsMissingHashWithoutHalting(t *testing.T) {
 	fs := afero.NewMemMapFs()
 	meta := config.NewMetadata(filepath.FromSlash("/cfg/modlist.json"))
 
-	cfg := models.ModsJson{
+	cfg := models.ModsJSON{
 		Loader:                     models.FABRIC,
 		GameVersion:                "1.21.1",
 		DefaultAllowedReleaseTypes: []models.ReleaseType{models.Release},
@@ -580,21 +580,21 @@ func TestRunInstallReportsMissingHashWithoutHalting(t *testing.T) {
 				DownloadURL: "https://example.invalid/good.jar",
 			}, nil
 		},
-		downloader: func(_ context.Context, _ string, dest string, _ httpClient.Doer, _ httpClient.Sender, _ ...afero.Fs) error {
+		downloader: func(_ context.Context, _ string, dest string, _ httpclient.Doer, _ httpclient.Sender, _ ...afero.Fs) error {
 			return afero.WriteFile(fs, dest, []byte("data"), 0644)
 		},
 		telemetry:             func(telemetry.CommandTelemetry) {},
 		curseforgeFingerprint: func(string) uint32 { return 0 },
-		curseforgeFingerprintMatch: func(context.Context, []int, httpClient.Doer) (*curseforge.FingerprintResult, error) {
+		curseforgeFingerprintMatch: func(context.Context, []int, httpclient.Doer) (*curseforge.FingerprintResult, error) {
 			return &curseforge.FingerprintResult{}, nil
 		},
-		curseforgeProjectName: func(context.Context, string, httpClient.Doer) (string, error) {
+		curseforgeProjectName: func(context.Context, string, httpclient.Doer) (string, error) {
 			return "", nil
 		},
-		modrinthVersionForSha: func(context.Context, string, httpClient.Doer) (*modrinth.Version, error) {
+		modrinthVersionForSha: func(context.Context, string, httpclient.Doer) (*modrinth.Version, error) {
 			return nil, &modrinth.VersionNotFoundError{}
 		},
-		modrinthProjectTitle: func(context.Context, string, httpClient.Doer) (string, error) {
+		modrinthProjectTitle: func(context.Context, string, httpclient.Doer) (string, error) {
 			return "", nil
 		},
 	}
@@ -615,7 +615,7 @@ func TestRunInstallReportsHashMismatch(t *testing.T) {
 	fs := afero.NewMemMapFs()
 	meta := config.NewMetadata(filepath.FromSlash("/cfg/modlist.json"))
 
-	cfg := models.ModsJson{
+	cfg := models.ModsJSON{
 		Loader:                     models.FABRIC,
 		GameVersion:                "1.21.1",
 		DefaultAllowedReleaseTypes: []models.ReleaseType{models.Release},
@@ -651,21 +651,21 @@ func TestRunInstallReportsHashMismatch(t *testing.T) {
 				DownloadURL: "https://example.invalid/remote.jar",
 			}, nil
 		},
-		downloader: func(_ context.Context, _ string, dest string, _ httpClient.Doer, _ httpClient.Sender, _ ...afero.Fs) error {
+		downloader: func(_ context.Context, _ string, dest string, _ httpclient.Doer, _ httpclient.Sender, _ ...afero.Fs) error {
 			return afero.WriteFile(fs, dest, []byte("actual"), 0644)
 		},
 		telemetry:             func(telemetry.CommandTelemetry) {},
 		curseforgeFingerprint: func(string) uint32 { return 0 },
-		curseforgeFingerprintMatch: func(context.Context, []int, httpClient.Doer) (*curseforge.FingerprintResult, error) {
+		curseforgeFingerprintMatch: func(context.Context, []int, httpclient.Doer) (*curseforge.FingerprintResult, error) {
 			return &curseforge.FingerprintResult{}, nil
 		},
-		curseforgeProjectName: func(context.Context, string, httpClient.Doer) (string, error) {
+		curseforgeProjectName: func(context.Context, string, httpclient.Doer) (string, error) {
 			return "", nil
 		},
-		modrinthVersionForSha: func(context.Context, string, httpClient.Doer) (*modrinth.Version, error) {
+		modrinthVersionForSha: func(context.Context, string, httpclient.Doer) (*modrinth.Version, error) {
 			return nil, &modrinth.VersionNotFoundError{}
 		},
-		modrinthProjectTitle: func(context.Context, string, httpClient.Doer) (string, error) {
+		modrinthProjectTitle: func(context.Context, string, httpclient.Doer) (string, error) {
 			return "", nil
 		},
 	}
@@ -685,7 +685,7 @@ func TestRunInstallReportsMissingHashForLockEntry(t *testing.T) {
 	fs := afero.NewMemMapFs()
 	meta := config.NewMetadata(filepath.FromSlash("/cfg/modlist.json"))
 
-	cfg := models.ModsJson{
+	cfg := models.ModsJSON{
 		Loader:                     models.FABRIC,
 		GameVersion:                "1.21.1",
 		DefaultAllowedReleaseTypes: []models.ReleaseType{models.Release},
@@ -701,12 +701,12 @@ func TestRunInstallReportsMissingHashForLockEntry(t *testing.T) {
 	assert.NoError(t, config.WriteLock(context.Background(), fs, meta, []models.ModInstall{
 		{
 			Type:        models.MODRINTH,
-			Id:          "proj-1",
+			ID:          "proj-1",
 			Name:        "Mod",
 			FileName:    "missing.jar",
 			ReleasedOn:  "2024-01-01T00:00:00Z",
 			Hash:        "",
-			DownloadUrl: "https://example.invalid/missing.jar",
+			DownloadURL: "https://example.invalid/missing.jar",
 		},
 	}))
 
@@ -721,7 +721,7 @@ func TestRunInstallReportsMissingHashForLockEntry(t *testing.T) {
 		fs:      fs,
 		logger:  logger.New(out, errOut, false, false),
 		clients: platform.Clients{},
-		downloader: func(context.Context, string, string, httpClient.Doer, httpClient.Sender, ...afero.Fs) error {
+		downloader: func(context.Context, string, string, httpclient.Doer, httpclient.Sender, ...afero.Fs) error {
 			t.Fatal("downloader should not be called when hash is missing")
 			return nil
 		},
@@ -731,16 +731,16 @@ func TestRunInstallReportsMissingHashForLockEntry(t *testing.T) {
 		},
 		telemetry:             func(telemetry.CommandTelemetry) {},
 		curseforgeFingerprint: func(string) uint32 { return 0 },
-		curseforgeFingerprintMatch: func(context.Context, []int, httpClient.Doer) (*curseforge.FingerprintResult, error) {
+		curseforgeFingerprintMatch: func(context.Context, []int, httpclient.Doer) (*curseforge.FingerprintResult, error) {
 			return &curseforge.FingerprintResult{}, nil
 		},
-		curseforgeProjectName: func(context.Context, string, httpClient.Doer) (string, error) {
+		curseforgeProjectName: func(context.Context, string, httpclient.Doer) (string, error) {
 			return "", nil
 		},
-		modrinthVersionForSha: func(context.Context, string, httpClient.Doer) (*modrinth.Version, error) {
+		modrinthVersionForSha: func(context.Context, string, httpclient.Doer) (*modrinth.Version, error) {
 			return nil, &modrinth.VersionNotFoundError{}
 		},
-		modrinthProjectTitle: func(context.Context, string, httpClient.Doer) (string, error) {
+		modrinthProjectTitle: func(context.Context, string, httpclient.Doer) (string, error) {
 			return "", nil
 		},
 	}
@@ -756,7 +756,7 @@ func TestRunInstallReportsInvalidLockFileName(t *testing.T) {
 	fs := afero.NewMemMapFs()
 	meta := config.NewMetadata(filepath.FromSlash("/cfg/modlist.json"))
 
-	cfg := models.ModsJson{
+	cfg := models.ModsJSON{
 		Loader:                     models.FABRIC,
 		GameVersion:                "1.21.1",
 		DefaultAllowedReleaseTypes: []models.ReleaseType{models.Release},
@@ -772,12 +772,12 @@ func TestRunInstallReportsInvalidLockFileName(t *testing.T) {
 	assert.NoError(t, config.WriteLock(context.Background(), fs, meta, []models.ModInstall{
 		{
 			Type:        models.MODRINTH,
-			Id:          "proj-1",
+			ID:          "proj-1",
 			Name:        "Mod",
 			FileName:    "mods/bad.jar",
 			ReleasedOn:  "2024-01-01T00:00:00Z",
 			Hash:        sha1Hex("data"),
-			DownloadUrl: "https://example.invalid/bad.jar",
+			DownloadURL: "https://example.invalid/bad.jar",
 		},
 	}))
 
@@ -792,7 +792,7 @@ func TestRunInstallReportsInvalidLockFileName(t *testing.T) {
 		fs:      fs,
 		logger:  logger.New(out, errOut, false, false),
 		clients: platform.Clients{},
-		downloader: func(context.Context, string, string, httpClient.Doer, httpClient.Sender, ...afero.Fs) error {
+		downloader: func(context.Context, string, string, httpclient.Doer, httpclient.Sender, ...afero.Fs) error {
 			t.Fatal("downloader should not be called for invalid lock filename")
 			return nil
 		},
@@ -802,16 +802,16 @@ func TestRunInstallReportsInvalidLockFileName(t *testing.T) {
 		},
 		telemetry:             func(telemetry.CommandTelemetry) {},
 		curseforgeFingerprint: func(string) uint32 { return 0 },
-		curseforgeFingerprintMatch: func(context.Context, []int, httpClient.Doer) (*curseforge.FingerprintResult, error) {
+		curseforgeFingerprintMatch: func(context.Context, []int, httpclient.Doer) (*curseforge.FingerprintResult, error) {
 			return &curseforge.FingerprintResult{}, nil
 		},
-		curseforgeProjectName: func(context.Context, string, httpClient.Doer) (string, error) {
+		curseforgeProjectName: func(context.Context, string, httpclient.Doer) (string, error) {
 			return "", nil
 		},
-		modrinthVersionForSha: func(context.Context, string, httpClient.Doer) (*modrinth.Version, error) {
+		modrinthVersionForSha: func(context.Context, string, httpclient.Doer) (*modrinth.Version, error) {
 			return nil, &modrinth.VersionNotFoundError{}
 		},
-		modrinthProjectTitle: func(context.Context, string, httpClient.Doer) (string, error) {
+		modrinthProjectTitle: func(context.Context, string, httpclient.Doer) (string, error) {
 			return "", nil
 		},
 	}
@@ -827,7 +827,7 @@ func TestRunInstallReportsInvalidRemoteFileName(t *testing.T) {
 	fs := afero.NewMemMapFs()
 	meta := config.NewMetadata(filepath.FromSlash("/cfg/modlist.json"))
 
-	cfg := models.ModsJson{
+	cfg := models.ModsJSON{
 		Loader:                     models.FABRIC,
 		GameVersion:                "1.21.1",
 		DefaultAllowedReleaseTypes: []models.ReleaseType{models.Release},
@@ -863,22 +863,22 @@ func TestRunInstallReportsInvalidRemoteFileName(t *testing.T) {
 				DownloadURL: "https://example.invalid/remote.jar",
 			}, nil
 		},
-		downloader: func(context.Context, string, string, httpClient.Doer, httpClient.Sender, ...afero.Fs) error {
+		downloader: func(context.Context, string, string, httpclient.Doer, httpclient.Sender, ...afero.Fs) error {
 			t.Fatal("downloader should not be called for invalid remote filename")
 			return nil
 		},
 		telemetry:             func(telemetry.CommandTelemetry) {},
 		curseforgeFingerprint: func(string) uint32 { return 0 },
-		curseforgeFingerprintMatch: func(context.Context, []int, httpClient.Doer) (*curseforge.FingerprintResult, error) {
+		curseforgeFingerprintMatch: func(context.Context, []int, httpclient.Doer) (*curseforge.FingerprintResult, error) {
 			return &curseforge.FingerprintResult{}, nil
 		},
-		curseforgeProjectName: func(context.Context, string, httpClient.Doer) (string, error) {
+		curseforgeProjectName: func(context.Context, string, httpclient.Doer) (string, error) {
 			return "", nil
 		},
-		modrinthVersionForSha: func(context.Context, string, httpClient.Doer) (*modrinth.Version, error) {
+		modrinthVersionForSha: func(context.Context, string, httpclient.Doer) (*modrinth.Version, error) {
 			return nil, &modrinth.VersionNotFoundError{}
 		},
-		modrinthProjectTitle: func(context.Context, string, httpClient.Doer) (string, error) {
+		modrinthProjectTitle: func(context.Context, string, httpclient.Doer) (string, error) {
 			return "", nil
 		},
 	}
@@ -894,7 +894,7 @@ func TestRunInstallContinuesWhenFetchReturnsExpectedErrors(t *testing.T) {
 	fs := afero.NewMemMapFs()
 	meta := config.NewMetadata(filepath.FromSlash("/cfg/modlist.json"))
 
-	cfg := models.ModsJson{
+	cfg := models.ModsJSON{
 		Loader:                     models.FABRIC,
 		GameVersion:                "1.21.1",
 		DefaultAllowedReleaseTypes: []models.ReleaseType{models.Release},
@@ -923,7 +923,7 @@ func TestRunInstallContinuesWhenFetchReturnsExpectedErrors(t *testing.T) {
 		fs:      fs,
 		logger:  logger.New(out, errOut, false, false),
 		clients: platform.Clients{},
-		downloader: func(context.Context, string, string, httpClient.Doer, httpClient.Sender, ...afero.Fs) error {
+		downloader: func(context.Context, string, string, httpclient.Doer, httpclient.Sender, ...afero.Fs) error {
 			return nil
 		},
 		fetchMod: func(context.Context, models.Platform, string, platform.FetchOptions, platform.Clients) (platform.RemoteMod, error) {
@@ -936,16 +936,16 @@ func TestRunInstallContinuesWhenFetchReturnsExpectedErrors(t *testing.T) {
 		telemetry: func(telemetry.CommandTelemetry) {},
 
 		curseforgeFingerprint: func(string) uint32 { return 0 },
-		curseforgeFingerprintMatch: func(context.Context, []int, httpClient.Doer) (*curseforge.FingerprintResult, error) {
+		curseforgeFingerprintMatch: func(context.Context, []int, httpclient.Doer) (*curseforge.FingerprintResult, error) {
 			return &curseforge.FingerprintResult{}, nil
 		},
-		curseforgeProjectName: func(context.Context, string, httpClient.Doer) (string, error) {
+		curseforgeProjectName: func(context.Context, string, httpclient.Doer) (string, error) {
 			return "", nil
 		},
-		modrinthVersionForSha: func(context.Context, string, httpClient.Doer) (*modrinth.Version, error) {
+		modrinthVersionForSha: func(context.Context, string, httpclient.Doer) (*modrinth.Version, error) {
 			return nil, &modrinth.VersionNotFoundError{}
 		},
-		modrinthProjectTitle: func(context.Context, string, httpClient.Doer) (string, error) {
+		modrinthProjectTitle: func(context.Context, string, httpclient.Doer) (string, error) {
 			return "", nil
 		},
 	}
@@ -966,7 +966,7 @@ func TestRunInstallReportsSymlinkOutsideMods(t *testing.T) {
 	root := t.TempDir()
 	meta := config.NewMetadata(filepath.Join(root, "modlist.json"))
 
-	cfg := models.ModsJson{
+	cfg := models.ModsJSON{
 		Loader:                     models.FABRIC,
 		GameVersion:                "1.21.1",
 		DefaultAllowedReleaseTypes: []models.ReleaseType{models.Release},
@@ -982,11 +982,11 @@ func TestRunInstallReportsSymlinkOutsideMods(t *testing.T) {
 	assert.NoError(t, config.WriteLock(context.Background(), fs, meta, []models.ModInstall{
 		{
 			Type:        models.MODRINTH,
-			Id:          "other",
+			ID:          "other",
 			Name:        "Other",
 			FileName:    "link.jar",
 			Hash:        "expected-hash",
-			DownloadUrl: "https://example.invalid/link.jar",
+			DownloadURL: "https://example.invalid/link.jar",
 		},
 	}))
 
@@ -1010,7 +1010,7 @@ func TestRunInstallReportsSymlinkOutsideMods(t *testing.T) {
 		fs:      fs,
 		logger:  logger.New(out, errOut, false, false),
 		clients: platform.Clients{},
-		downloader: func(context.Context, string, string, httpClient.Doer, httpClient.Sender, ...afero.Fs) error {
+		downloader: func(context.Context, string, string, httpclient.Doer, httpclient.Sender, ...afero.Fs) error {
 			return errors.New("unexpected download")
 		},
 		fetchMod: func(context.Context, models.Platform, string, platform.FetchOptions, platform.Clients) (platform.RemoteMod, error) {
@@ -1024,16 +1024,16 @@ func TestRunInstallReportsSymlinkOutsideMods(t *testing.T) {
 		telemetry: func(telemetry.CommandTelemetry) {},
 
 		curseforgeFingerprint: func(string) uint32 { return 0 },
-		curseforgeFingerprintMatch: func(context.Context, []int, httpClient.Doer) (*curseforge.FingerprintResult, error) {
+		curseforgeFingerprintMatch: func(context.Context, []int, httpclient.Doer) (*curseforge.FingerprintResult, error) {
 			return &curseforge.FingerprintResult{}, nil
 		},
-		curseforgeProjectName: func(context.Context, string, httpClient.Doer) (string, error) {
+		curseforgeProjectName: func(context.Context, string, httpclient.Doer) (string, error) {
 			return "", nil
 		},
-		modrinthVersionForSha: func(context.Context, string, httpClient.Doer) (*modrinth.Version, error) {
+		modrinthVersionForSha: func(context.Context, string, httpclient.Doer) (*modrinth.Version, error) {
 			return nil, &modrinth.VersionNotFoundError{}
 		},
-		modrinthProjectTitle: func(context.Context, string, httpClient.Doer) (string, error) {
+		modrinthProjectTitle: func(context.Context, string, httpclient.Doer) (string, error) {
 			return "", nil
 		},
 	}
@@ -1049,7 +1049,7 @@ func TestRunInstallReturnsErrorOnResolveFailure(t *testing.T) {
 	root := t.TempDir()
 	meta := config.NewMetadata(filepath.Join(root, "modlist.json"))
 
-	cfg := models.ModsJson{
+	cfg := models.ModsJSON{
 		Loader:                     models.FABRIC,
 		GameVersion:                "1.21.1",
 		DefaultAllowedReleaseTypes: []models.ReleaseType{models.Release},
@@ -1075,7 +1075,7 @@ func TestRunInstallReturnsErrorOnResolveFailure(t *testing.T) {
 		fs:      lstatErrorFs{OsFs: &afero.OsFs{}, err: errors.New("lstat failed")},
 		logger:  logger.New(out, errOut, false, false),
 		clients: platform.Clients{},
-		downloader: func(context.Context, string, string, httpClient.Doer, httpClient.Sender, ...afero.Fs) error {
+		downloader: func(context.Context, string, string, httpclient.Doer, httpclient.Sender, ...afero.Fs) error {
 			return errors.New("unexpected download")
 		},
 		fetchMod: func(context.Context, models.Platform, string, platform.FetchOptions, platform.Clients) (platform.RemoteMod, error) {
@@ -1089,16 +1089,16 @@ func TestRunInstallReturnsErrorOnResolveFailure(t *testing.T) {
 		telemetry: func(telemetry.CommandTelemetry) {},
 
 		curseforgeFingerprint: func(string) uint32 { return 0 },
-		curseforgeFingerprintMatch: func(context.Context, []int, httpClient.Doer) (*curseforge.FingerprintResult, error) {
+		curseforgeFingerprintMatch: func(context.Context, []int, httpclient.Doer) (*curseforge.FingerprintResult, error) {
 			return &curseforge.FingerprintResult{}, nil
 		},
-		curseforgeProjectName: func(context.Context, string, httpClient.Doer) (string, error) {
+		curseforgeProjectName: func(context.Context, string, httpclient.Doer) (string, error) {
 			return "", nil
 		},
-		modrinthVersionForSha: func(context.Context, string, httpClient.Doer) (*modrinth.Version, error) {
+		modrinthVersionForSha: func(context.Context, string, httpclient.Doer) (*modrinth.Version, error) {
 			return nil, &modrinth.VersionNotFoundError{}
 		},
-		modrinthProjectTitle: func(context.Context, string, httpClient.Doer) (string, error) {
+		modrinthProjectTitle: func(context.Context, string, httpclient.Doer) (string, error) {
 			return "", nil
 		},
 	}
