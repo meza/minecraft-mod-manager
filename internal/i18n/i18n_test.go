@@ -4,6 +4,7 @@ import (
 	"embed"
 	"errors"
 	"os"
+	"sync"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -45,6 +46,7 @@ func TestSimpleTranslations(t *testing.T) {
 	langDir = "__fixtures__"
 
 	t.Run("simple translation", func(t *testing.T) {
+		ResetForTesting()
 		//Assuming that all systems running the tests have
 		//English as their default language
 
@@ -53,6 +55,7 @@ func TestSimpleTranslations(t *testing.T) {
 	})
 
 	t.Run("simple translation for tests", func(t *testing.T) {
+		ResetForTesting()
 		//Assuming that all systems running the tests have
 		//English as their default language
 		t.Setenv("MMM_TEST", "true")
@@ -63,7 +66,7 @@ func TestSimpleTranslations(t *testing.T) {
 	t.Run("simple translation to german", func(t *testing.T) {
 		//Assuming that all systems running the tests have
 		//English as their default language
-		localizer = nil
+		ResetForTesting()
 
 		t.Setenv("LANG", "de_DE")
 
@@ -72,7 +75,7 @@ func TestSimpleTranslations(t *testing.T) {
 	})
 
 	t.Run("custom type values are interpolated", func(t *testing.T) {
-		localizer = nil
+		ResetForTesting()
 
 		actual := T("test.customType", Tvars{
 			Data: &TData{"val": customString("XYZ")},
@@ -89,7 +92,7 @@ func TestPluralsTranslations(t *testing.T) {
 	t.Run("plurals in English", func(t *testing.T) {
 		//Assuming that all systems running the tests have
 		//English as their default language
-		localizer = nil
+		ResetForTesting()
 		noPlural := T("test.multiple", Tvars{
 			Data: &TData{"injectedData": "in English"},
 		})
@@ -106,7 +109,7 @@ func TestPluralsTranslations(t *testing.T) {
 	t.Run("plurals in German", func(t *testing.T) {
 		//Assuming that all systems running the tests have
 		//English as their default language
-		localizer = nil
+		ResetForTesting()
 		t.Setenv("LANG", "de_DE")
 		noPlural := T("test.multiple", Tvars{
 			Data: &TData{"injectedData": "in English"},
@@ -142,7 +145,7 @@ func TestPluralsTranslations(t *testing.T) {
 func TestMissingTranslation(t *testing.T) {
 	enFS = testData
 	langDir = "__fixtures__"
-	localizer = nil
+	ResetForTesting()
 
 	t.Run("missing translation", func(t *testing.T) {
 		actual := T("test.missing")
@@ -155,6 +158,7 @@ func TestBadLangDir(t *testing.T) {
 	langDir = "bogus"
 
 	t.Run("bad lang dir", func(t *testing.T) {
+		ResetForTesting()
 		langDir = "badDir"
 		assert.Panics(t, func() {
 			setup()
@@ -165,8 +169,7 @@ func TestBadLangDir(t *testing.T) {
 func TestInvalidLocaleFiles(t *testing.T) {
 	enFS = invalidLocales
 	langDir = "__fixtures_invalid__"
-	localizer = nil
-	bundle = nil
+	ResetForTesting()
 
 	assert.Panics(t, func() {
 		setup()
@@ -179,14 +182,12 @@ func TestSetupKeepsDefaultFirst(t *testing.T) {
 
 	enFS = testData
 	langDir = "__fixtures__"
-	localizer = nil
-	bundle = nil
+	ResetForTesting()
 
 	t.Cleanup(func() {
 		enFS = originalFS
 		langDir = originalLangDir
-		localizer = nil
-		bundle = nil
+		ResetForTesting()
 	})
 
 	setup()
@@ -200,7 +201,7 @@ func TestWrongNumberOfArguments(t *testing.T) {
 	langDir = "__fixtures__"
 
 	t.Run("wrong number of arguments", func(t *testing.T) {
-		localizer = nil
+		ResetForTesting()
 		assert.Panicsf(t, func() {
 			T("test.simple", Tvars{}, Tvars{})
 		}, "Too many arguments")
@@ -213,7 +214,7 @@ func TestFallbackToEnglish(t *testing.T) {
 	localeProvider = MockLocaleProvider{}
 
 	t.Run("fallback to English", func(t *testing.T) {
-		localizer = nil
+		ResetForTesting()
 
 		actual := T("test.simple")
 		assert.Equal(t, "Hello World", actual)
@@ -273,4 +274,100 @@ func TestGetUserLocalesSkipsEmptyEntries(t *testing.T) {
 
 	locales := getUserLocales()
 	assert.Equal(t, []string{"es_ES"}, locales)
+}
+
+func TestConcurrentAccess(t *testing.T) {
+	// This test verifies that concurrent calls to T() do not cause race conditions.
+	// Run with `go test -race ./...` to detect data races.
+	enFS = testData
+	langDir = "__fixtures__"
+	ResetForTesting()
+
+	const goroutineCount = 100
+	const iterationsPerGoroutine = 50
+
+	var waitGroup sync.WaitGroup
+	waitGroup.Add(goroutineCount)
+
+	// Start signal ensures all goroutines begin concurrently
+	startSignal := make(chan struct{})
+
+	for index := 0; index < goroutineCount; index++ {
+		go func(routineIndex int) {
+			defer waitGroup.Done()
+
+			// Wait for start signal to maximize concurrent access
+			<-startSignal
+
+			for iteration := 0; iteration < iterationsPerGoroutine; iteration++ {
+				// Mix of different translation calls to exercise various code paths
+				switch iteration % 4 {
+				case 0:
+					result := T("test.simple")
+					assert.NotEmpty(t, result)
+				case 1:
+					result := T("test.multiple", Tvars{
+						Count: iteration,
+						Data:  &TData{"injectedData": "concurrent"},
+					})
+					assert.NotEmpty(t, result)
+				case 2:
+					result := T("test.missing")
+					assert.Equal(t, "test.missing", result)
+				case 3:
+					result := T("test.customType", Tvars{
+						Data: &TData{"val": "test"},
+					})
+					assert.NotEmpty(t, result)
+				}
+			}
+		}(index)
+	}
+
+	// Release all goroutines simultaneously
+	close(startSignal)
+
+	// Wait for all goroutines to complete
+	waitGroup.Wait()
+}
+
+func TestConcurrentInitialization(t *testing.T) {
+	// This test specifically verifies that concurrent initialization via sync.Once is thread-safe.
+	// Multiple goroutines attempt to initialize the i18n system simultaneously.
+	enFS = testData
+	langDir = "__fixtures__"
+	ResetForTesting()
+
+	const goroutineCount = 50
+
+	var waitGroup sync.WaitGroup
+	waitGroup.Add(goroutineCount)
+
+	startSignal := make(chan struct{})
+
+	results := make([]string, goroutineCount)
+
+	for index := 0; index < goroutineCount; index++ {
+		go func(routineIndex int) {
+			defer waitGroup.Done()
+
+			<-startSignal
+
+			// All goroutines try to get a translation simultaneously
+			// This forces concurrent initialization if not already initialized
+			results[routineIndex] = T("test.simple")
+		}(index)
+	}
+
+	// Release all goroutines simultaneously
+	close(startSignal)
+
+	// Wait for all goroutines to complete
+	waitGroup.Wait()
+
+	// All results should be identical since they use the same translation
+	expectedResult := "Hello World"
+	for index, result := range results {
+		assert.Equal(t, expectedResult, result, "goroutine %d returned unexpected result", index)
+	}
 }

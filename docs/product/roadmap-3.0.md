@@ -54,8 +54,11 @@ The three non-port issues on the 3.0.0 milestone require explicit disposition:
 - Error messages for version incompatibility explicitly mention the version constraint
 - No generic "not found" or timeout errors when the root cause is version mismatch
 - Related error (#349 connect timeout) is also addressed if still present
+- All error paths must be surveyed before scope is finalized (comprehensive audit)
 
-**Disposition**: Must be addressed in 3.0.0 scope.
+**Disposition**: Must be addressed in 3.0.0 scope. Requires comprehensive error audit.
+
+**Decision record** (2025-12-23): Stakeholder decided on comprehensive error audit approach rather than narrow scope (documented scenarios only). Engineering must survey all error paths before defining final scope.
 
 #### #630 - Cache the minecraft manifest file
 
@@ -78,11 +81,9 @@ The three non-port issues on the 3.0.0 milestone require explicit disposition:
 - Proxy configuration works for all outbound HTTP requests (API calls, downloads)
 - Documentation explains proxy configuration
 
-**Disposition**: Requires design decision. Either:
-- (A) Include in 3.0.0 scope, or
-- (B) Defer to 3.1.0 with explicit milestone reassignment
+**Disposition**: Must be addressed in 3.0.0 scope.
 
-This is a new feature request (November 2025) and may represent scope creep for an already substantial release.
+**Decision record** (2025-12-23): Stakeholder decided to include proxy support in 3.0.0, overriding PO recommendation to defer. Rationale: stakeholder requirement.
 
 ## Work Phases
 
@@ -108,11 +109,11 @@ All remaining work items under mmm-1 must be completed. This includes command im
 
 | Work Item | Priority | Description |
 |-----------|----------|-------------|
-| #452 | TBD | Error message improvements |
-| #630 | TBD | Manifest caching |
-| #1030 | TBD | Proxy support (requires disposition decision) |
+| #452 | P1 | Error message improvements (comprehensive audit required) |
+| #630 | P1 | Manifest caching |
+| #1030 | P1 | Proxy support |
 
-**Exit criteria**: Each issue is either closed or explicitly moved to a future milestone with documented rationale.
+**Exit criteria**: All three issues are closed.
 
 ### Phase 4: Release Automation
 
@@ -149,17 +150,13 @@ Phase 3 (Milestone Features) -----> Phase 5 (Validation)
 
 Phase 1 must complete before Phase 2. Phase 4 can proceed in parallel. Phase 5 depends on all prior phases completing.
 
-## Open Questions
+## Resolved Questions
 
-The following require stakeholder input before Phase 3 can complete:
+The following questions have been resolved by stakeholder decision (2025-12-23):
 
-1. **Proxy support scope**: Should #1030 be included in 3.0.0 or deferred?
-   - Including it expands scope but addresses a user-reported need
-   - Deferring it keeps release focused but leaves a feature request unaddressed
+1. **Proxy support scope**: #1030 is included in 3.0.0 scope (stakeholder decision, overriding PO deferral recommendation).
 
-2. **Error message scope (#452)**: What specific error scenarios must be addressed?
-   - The issue mentions version incompatibility and connect timeout
-   - A comprehensive error audit may reveal additional cases
+2. **Error message scope (#452)**: Comprehensive error audit required. Engineering must survey all error paths before defining final scope (not limited to documented scenarios).
 
 ## Tracking
 
@@ -179,6 +176,8 @@ Work items are tracked in the beads issue tracker. Use `bd list --status open` t
 1. Audit epic closed (mmm-63)
 2. Feature parity epic closed (mmm-1)
 3. Release automation functional (mmm-62)
-4. Milestone features addressed (#452, #630, #1030 with proxy disposition decision)
+4. Milestone features closed (#452, #630, #1030)
+
+All milestone feature dispositions are now resolved. Proxy support (#1030) is confirmed in scope. Error messages (#452) require comprehensive error audit before final scope definition.
 
 The release represents a major rewrite. The audit identified substantial technical debt that will require ongoing attention beyond 3.0.0. The remaining work is tractable once the epic-level blockers are resolved.

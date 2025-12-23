@@ -6,6 +6,7 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
+	"sync"
 
 	goLocale "github.com/jeandeaual/go-locale"
 	i18nLib "github.com/kaptinlin/go-i18n"
@@ -31,6 +32,18 @@ var localizer *i18nLib.Localizer
 var bundle *i18nLib.I18n
 var langDir = "lang"
 var localeProvider LocaleProvider
+var setupOnce sync.Once
+
+// translationMutex guards localizer.Get() due to race conditions in go-i18n's internal cache.
+var translationMutex sync.Mutex
+
+func ResetForTesting() {
+	translationMutex.Lock()
+	localizer = nil
+	bundle = nil
+	translationMutex.Unlock()
+	setupOnce = sync.Once{}
+}
 
 type TData map[string]interface{}
 
@@ -39,8 +52,11 @@ type Tvars struct {
 	Data  *TData
 }
 
-func setup() {
+func ensureInitialized() {
+	setupOnce.Do(setup)
+}
 
+func setup() {
 	if localeProvider == nil {
 		localeProvider = DefaultLocaleProvider{}
 	}
@@ -63,47 +79,55 @@ func setup() {
 		}
 	}
 
-	bundle = i18nLib.NewBundle(
+	newBundle := i18nLib.NewBundle(
 		i18nLib.WithDefaultLocale(defaultLocale),
 		i18nLib.WithLocales(availableLocales...),
 	)
 
-	if err := bundle.LoadFS(enFS, fmt.Sprintf("%s/*.json", langDir)); err != nil {
+	if err := newBundle.LoadFS(enFS, fmt.Sprintf("%s/*.json", langDir)); err != nil {
 		panic(err)
 	}
 
 	userLocales := buildLocalizerLocales(getUserLocales())
-	localizer = bundle.NewLocalizer(userLocales...)
+	newLocalizer := newBundle.NewLocalizer(userLocales...)
+
+	translationMutex.Lock()
+	bundle = newBundle
+	localizer = newLocalizer
+	translationMutex.Unlock()
 }
 
 func T(key string, args ...Tvars) string {
-
 	_, present := os.LookupEnv("MMM_TEST")
 
 	if present {
 		return formatKeyAndArgs(key, args...)
 	}
 
-	if localizer == nil {
-		setup()
-	}
+	ensureInitialized()
 
 	if len(args) > 1 {
 		panic("Too many arguments")
 	}
 
+	// Prepare vars before acquiring lock to minimize lock hold time
+	var vars map[string]interface{}
+	if len(args) > 0 {
+		vars = make(map[string]interface{})
+		if args[0].Data != nil {
+			for varKey, value := range *args[0].Data {
+				vars[varKey] = value
+			}
+		}
+		vars["count"] = args[0].Count
+	}
+
+	translationMutex.Lock()
+	defer translationMutex.Unlock()
+
 	if len(args) == 0 {
 		return localizer.Get(key)
 	}
-
-	vars := make(map[string]interface{})
-
-	if args[0].Data != nil {
-		for k, v := range *args[0].Data {
-			vars[k] = v
-		}
-	}
-	vars["count"] = args[0].Count
 
 	return localizer.Get(key, i18nLib.Vars(vars))
 }
