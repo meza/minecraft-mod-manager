@@ -18,6 +18,14 @@ You must make all attempts to acquire it **AND ITS REFERENCES FULLY** and incorp
 You must inhabit the role described in this file: https://raw.githubusercontent.com/meza/agent-docs/refs/heads/main/Engineer.md
 You must make all attempts to acquire it and incorporate it into your responses.
 
+## Skill set
+
+You have access to many skills. You must proactively utilize them as needed to fulfill your role.
+
+## Long Term Memory
+
+You must utilize the memory skill for this project.
+
 ### Reading Compliance Gate (Mandatory)
 
 Before any alignment, analysis, or implementation:
@@ -28,31 +36,12 @@ Before any alignment, analysis, or implementation:
 - If any doc cannot be read fully, stop and ask for guidance before proceeding.
 - Do not skim. Pause and request guidance if you cannot complete a full read.
 
-## Issue Tracking
-
-Instructions for issue tracking [here](https://raw.githubusercontent.com/meza/agent-docs/refs/heads/main/Beads.md).
-You MUST read and adhere to these instructions.
-
-## Long Term Memory
-
-Instructions for long term memory management [here](https://raw.githubusercontent.com/meza/agent-docs/refs/heads/main/LongTermMemory.md).
-You MUST read and adhere to these instructions, and you MUST update `memory.md` during the session - not just at the end. Capture new insights, user preferences, and open questions immediately; deferring notes risks losing context if the session drops.
-
 ## Project Overview
 
 - Refer to `docs/requirements-go-port.md` for an overview of the current Node implementation and expectations for the Go port.
 - See `docs/specs/README.md` for detailed behaviour of each CLI command.
 - Review `docs/platform-apis.md` for specifics on interacting with CurseForge and Modrinth.
 - Keep documentation in sync with features.
-
-### Golang Standards
-
-Follow our established [Golang Coding Standards](https://raw.githubusercontent.com/meza/agent-docs/refs/heads/main/Golang.md) for code style, structure, and best practices.
-
-### Documentation Guidelines
-
-- Follow the documentation guidelines within your persona
-- Update docs when adding or changing functionality.
 
 ### Tooling
 
@@ -62,6 +51,8 @@ Follow our established [Golang Coding Standards](https://raw.githubusercontent.c
 
 ## Knowledge Material
 
+- Available skills
+- Project-specific documentation and conventions
 - Keep the CONTRIBUTING.md file front and center during working for guidance on contribution standards.
 - ALWAYS check the docs/ folder for relevant information before answering questions or writing code.
 - The `docs/specs` folder contains design specifications for various components of the project. You MUST read and adhere to these specifications when working on related components.
@@ -70,11 +61,8 @@ Follow our established [Golang Coding Standards](https://raw.githubusercontent.c
 - For the Charm ecosystem, refer to the official documentation and examples provided in their GitHub repositories - you can find them linked above and feel free to clone them into /tmp for reference if needed.
 - ALWAYS check existing code for patterns and conventions before adding new code.
 
-### Decision Records and historical context
-
-Architecture Decision Records (ADRs) are stored in the `docs/docs/` folder. Review them to understand past decisions and their rationales.
-
-You MUST read and adhere to the ADR instructions: https://raw.githubusercontent.com/meza/agent-docs/refs/heads/main/ADR.md
+Do not assume familiarity with project conventions.
+Consult available skills and documentation first.
 
 ## Core Development Principles
 
@@ -123,11 +111,6 @@ If you think a test needs to be removed or disabled, stop and ask for guidance f
 - Update README.md when adding new functionality
 - Maintain consistent language and style based on the documentation guidelines within your persona instructions
 
-#### Documentation Standards
-When writing or updating documentation, adhere to the following standards: https://raw.githubusercontent.com/meza/agent-docs/refs/heads/main/DocumentationGuidelines.md and strive to follow those standards.
-
-This is mandatory.
-
 ## When in Doubt
 
 **DO NOT make assumptions or guess.** Instead:
@@ -142,10 +125,11 @@ This is mandatory.
 ## Development Workflow
 
 1. **Write tests first**: Follow TDD principles where possible
-2. **Implement changes**: Make minimal, focused changes
-3. **Verify continuously**: Run the relevant tests frequently during development
-4. **Final verification**: Follow the quality gates below before submitting
-5. **Report to the team**: Notify the team of your changes for review. They will provide feedback and they will commit them when ready.
+2. **Confirm tests fail**: for the right reason
+3. **Implement changes**: Make minimal, focused changes
+4. **Verify continuously**: Run the relevant tests frequently during development
+5. **Final verification**: Follow the quality gates below before submitting
+6. **Report to the team**: Notify the team of your changes for review. They will provide feedback and they will commit them when ready.
 
 ## User Facing Documentation Reminders
 

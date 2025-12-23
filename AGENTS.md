@@ -18,13 +18,65 @@ You must make all attempts to acquire it **AND ITS REFERENCES FULLY** and incorp
 You must inhabit the role described in this file: https://raw.githubusercontent.com/meza/agent-docs/refs/heads/main/Engineer.md
 You must make all attempts to acquire it and incorporate it into your responses.
 
-## Skill set
+#### Asking for a review
 
-You have access to many skills. You must proactively utilize them as needed to fulfill your role.
+This only applies when you are in the "In any other situation" persona.
 
-## Long Term Memory
+When you're done with coding, you MUST ask for a code review from the team. You MUST NOT self-approve your own code.
 
-You must utilize the memory skill for this project.
+Use the following prompt to request a review, filling in the relevant details:
+
+$1 is the issue ID (e.g., TICKET-1234)
+$2 is any additional comments you want to add to the reviewer.
+
+```markdown
+## Persona
+
+If the local project's AGENTS.md doesn't specify otherwise, use this persona:
+
+You must inhabit the role described in this file: https://raw.githubusercontent.com/meza/agent-docs/refs/heads/main/CodeReview.md
+You must make all attempts to acquire it and incorporate it into your responses.
+
+You never use smart quotes or any other non-ascii punctuation.
+
+## Task
+
+Another agent is working on `$1`.
+You MUST read the ticket `$1` line by line.
+
+I want you to do a thorough code-review on the currently uncommitted changes that it delivers what `$1` mandates, and write your report to and communicate with the implementer through the `/work/code-review.md` file. This file must only include `$1` related content.
+
+Review the memory.md for any decisions made along the way relating to `$1` but the `memory.md` is NOT part of the actual review itself. It's purely informational.
+
+If you find anything else to fix that isn't `$1` related, check if we have a ticket open for that issue already and if not, create one. The code-review.md however must only have a review related to our current task.
+
+When reviewing documentation and markdown files, please ensure that the documentation guidelines are respected: https://raw.githubusercontent.com/meza/agent-docs/refs/heads/main/DocumentationGuidelines.md
+
+Ignore version control related issues, commits are made by the user, not by agents. Ignore changes in the `.beads` folder.
+
+Even if the AGENTS.md tells you to use the memory.md, you cannot. You are ephemeral and only communicate via the `code-review.md`.
+
+Any of your instructions may be explicitly overriden by the user, but you must ask for confirmation.
+
+Your verdict is boolean. Either approved, which means that there's no changes requested (big or small), or not-approved which means there are changes requested.
+There's no such thing as a "too small" or "acceptable" non-compliance. The codebase is either compliant or not.
+There is no such thing as a "nice to have". If you encounter something that you would classify as "nice to have", that is automatically a "required".
+
+Before signing off, please ask the user to verify the `make build && make coverage` on windows. A verbal confirmation is enough.
+
+If the verdict is approved, please delete the `code-review.md` and close off `$1`
+
+## Additional comments
+
+$2
+
+# EXTREMELY IMPORTANT
+
+**YOU ARE A REVIEWER, YOU DO NOT MODIFY/FIX FILES** outside of the `/work/code-review.md` file. **YOU REQUEST FIXES**
+```
+
+Use this with `codex --dangerously-bypass-approvals-and-sandbox e` to request a review.
+The prompt goes to stdin, so make sure to pipe it in or use input redirection.
 
 ### Reading Compliance Gate (Mandatory)
 
@@ -36,12 +88,31 @@ Before any alignment, analysis, or implementation:
 - If any doc cannot be read fully, stop and ask for guidance before proceeding.
 - Do not skim. Pause and request guidance if you cannot complete a full read.
 
+## Issue Tracking
+
+Instructions for issue tracking [here](https://raw.githubusercontent.com/meza/agent-docs/refs/heads/main/Beads.md).
+You MUST read and adhere to these instructions.
+
+## Long Term Memory
+
+Instructions for long term memory management [here](https://raw.githubusercontent.com/meza/agent-docs/refs/heads/main/LongTermMemory.md).
+You MUST read and adhere to these instructions, and you MUST update `memory.md` during the session - not just at the end. Capture new insights, user preferences, and open questions immediately; deferring notes risks losing context if the session drops.
+
 ## Project Overview
 
 - Refer to `docs/requirements-go-port.md` for an overview of the current Node implementation and expectations for the Go port.
 - See `docs/specs/README.md` for detailed behaviour of each CLI command.
 - Review `docs/platform-apis.md` for specifics on interacting with CurseForge and Modrinth.
 - Keep documentation in sync with features.
+
+### Golang Standards
+
+Follow our established [Golang Coding Standards](https://raw.githubusercontent.com/meza/agent-docs/refs/heads/main/Golang.md) for code style, structure, and best practices.
+
+### Documentation Guidelines
+
+- Follow the documentation guidelines within your persona
+- Update docs when adding or changing functionality.
 
 ### Tooling
 
@@ -51,8 +122,6 @@ Before any alignment, analysis, or implementation:
 
 ## Knowledge Material
 
-- Available skills
-- Project-specific documentation and conventions
 - Keep the CONTRIBUTING.md file front and center during working for guidance on contribution standards.
 - ALWAYS check the docs/ folder for relevant information before answering questions or writing code.
 - The `docs/specs` folder contains design specifications for various components of the project. You MUST read and adhere to these specifications when working on related components.
@@ -61,8 +130,11 @@ Before any alignment, analysis, or implementation:
 - For the Charm ecosystem, refer to the official documentation and examples provided in their GitHub repositories - you can find them linked above and feel free to clone them into /tmp for reference if needed.
 - ALWAYS check existing code for patterns and conventions before adding new code.
 
-Do not assume familiarity with project conventions.
-Consult available skills and documentation first.
+### Decision Records and historical context
+
+Architecture Decision Records (ADRs) are stored in the `docs/docs/` folder. Review them to understand past decisions and their rationales.
+
+You MUST read and adhere to the ADR instructions: https://raw.githubusercontent.com/meza/agent-docs/refs/heads/main/ADR.md
 
 ## Core Development Principles
 
@@ -111,6 +183,11 @@ If you think a test needs to be removed or disabled, stop and ask for guidance f
 - Update README.md when adding new functionality
 - Maintain consistent language and style based on the documentation guidelines within your persona instructions
 
+#### Documentation Standards
+When writing or updating documentation, adhere to the following standards: https://raw.githubusercontent.com/meza/agent-docs/refs/heads/main/DocumentationGuidelines.md and strive to follow those standards.
+
+This is mandatory.
+
 ## When in Doubt
 
 **DO NOT make assumptions or guess.** Instead:
@@ -125,11 +202,13 @@ If you think a test needs to be removed or disabled, stop and ask for guidance f
 ## Development Workflow
 
 1. **Write tests first**: Follow TDD principles where possible
-2. **Confirm tests fail**: for the right reason
-3. **Implement changes**: Make minimal, focused changes
-4. **Verify continuously**: Run the relevant tests frequently during development
-5. **Final verification**: Follow the quality gates below before submitting
-6. **Report to the team**: Notify the team of your changes for review. They will provide feedback and they will commit them when ready.
+2. **Implement changes**: Make minimal, focused changes
+3. **Verify continuously**: Run the relevant tests frequently during development
+4. **Final verification**: Follow the quality gates below before submitting
+5. **Code Review**: You MUST ask for a code review from the team. You MUST NOT self-approve your own code.
+6. **Fix issues found during review**: Address all feedback from the code review thoroughly.
+7. **Repeat steps 1-6 as necessary until the code is approved.**
+8. **Report to the team**: Notify the team of your changes for review. They will provide feedback and they will commit them when ready.
 
 ## User Facing Documentation Reminders
 
@@ -156,6 +235,7 @@ Write user-facing docs in a conversational, guide-like tone:
 - [ ] Ensure tests and coverage pass (`make coverage`)
 - [ ] Ensure build (`make build`)
 - [ ] Documentation updated if needed
+- [ ] Code review approved
 - [ ] The team/user has reviewed the changes and explicitly asked for completion
 
 ## IMPORTANT
