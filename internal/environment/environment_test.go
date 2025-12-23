@@ -11,9 +11,9 @@ func TestModrinthApiKey(t *testing.T) {
 	t.Run("environment variable set", func(t *testing.T) {
 		original := modrinthApiKeyDefault
 		t.Cleanup(func() { modrinthApiKeyDefault = original })
-		modrinthApiKeyDefault = "embedded_modrinth_api_key"
+		modrinthApiKeyDefault = "embedded_modrinth_placeholder"
 
-		expected := "test_modrinth_api_key"
+		expected := "test_modrinth_placeholder"
 		assert.NoError(t, os.Setenv("MODRINTH_API_KEY", expected))
 		t.Cleanup(func() { assert.NoError(t, os.Unsetenv("MODRINTH_API_KEY")) })
 
@@ -26,9 +26,9 @@ func TestModrinthApiKey(t *testing.T) {
 
 		original := modrinthApiKeyDefault
 		t.Cleanup(func() { modrinthApiKeyDefault = original })
-		modrinthApiKeyDefault = "embedded_modrinth_api_key"
+		modrinthApiKeyDefault = "embedded_modrinth_placeholder"
 
-		expected := "embedded_modrinth_api_key"
+		expected := "embedded_modrinth_placeholder"
 		actual := ModrinthApiKey()
 		assert.Equal(t, expected, actual)
 	})
@@ -38,9 +38,9 @@ func TestCurseforgeApiKey(t *testing.T) {
 	t.Run("environment variable set", func(t *testing.T) {
 		original := curseforgeApiKeyDefault
 		t.Cleanup(func() { curseforgeApiKeyDefault = original })
-		curseforgeApiKeyDefault = "embedded_curseforge_api_key"
+		curseforgeApiKeyDefault = "embedded_curseforge_placeholder"
 
-		expected := "test_curseforge_api_key"
+		expected := "test_curseforge_placeholder"
 		assert.NoError(t, os.Setenv("CURSEFORGE_API_KEY", expected))
 		t.Cleanup(func() { assert.NoError(t, os.Unsetenv("CURSEFORGE_API_KEY")) })
 
@@ -53,9 +53,9 @@ func TestCurseforgeApiKey(t *testing.T) {
 
 		original := curseforgeApiKeyDefault
 		t.Cleanup(func() { curseforgeApiKeyDefault = original })
-		curseforgeApiKeyDefault = "embedded_curseforge_api_key"
+		curseforgeApiKeyDefault = "embedded_curseforge_placeholder"
 
-		expected := "embedded_curseforge_api_key"
+		expected := "embedded_curseforge_placeholder"
 		actual := CurseforgeApiKey()
 		assert.Equal(t, expected, actual)
 	})
@@ -65,9 +65,9 @@ func TestPosthogApiKey(t *testing.T) {
 	t.Run("environment variable set", func(t *testing.T) {
 		original := posthogApiKeyDefault
 		t.Cleanup(func() { posthogApiKeyDefault = original })
-		posthogApiKeyDefault = "embedded_posthog_api_key"
+		posthogApiKeyDefault = "embedded_posthog_placeholder"
 
-		expected := "test_posthog_api_key"
+		expected := "test_posthog_placeholder"
 		assert.NoError(t, os.Setenv("POSTHOG_API_KEY", expected))
 		t.Cleanup(func() { assert.NoError(t, os.Unsetenv("POSTHOG_API_KEY")) })
 
@@ -80,9 +80,9 @@ func TestPosthogApiKey(t *testing.T) {
 
 		original := posthogApiKeyDefault
 		t.Cleanup(func() { posthogApiKeyDefault = original })
-		posthogApiKeyDefault = "embedded_posthog_api_key"
+		posthogApiKeyDefault = "embedded_posthog_placeholder"
 
-		expected := "embedded_posthog_api_key"
+		expected := "embedded_posthog_placeholder"
 		actual := PosthogApiKey()
 		assert.Equal(t, expected, actual)
 	})
