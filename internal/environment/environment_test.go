@@ -14,15 +14,15 @@ func TestModrinthApiKey(t *testing.T) {
 		modrinthApiKeyDefault = "embedded_modrinth_api_key"
 
 		expected := "test_modrinth_api_key"
-		os.Setenv("MODRINTH_API_KEY", expected)
-		defer os.Unsetenv("MODRINTH_API_KEY")
+		assert.NoError(t, os.Setenv("MODRINTH_API_KEY", expected))
+		t.Cleanup(func() { assert.NoError(t, os.Unsetenv("MODRINTH_API_KEY")) })
 
 		actual := ModrinthApiKey()
 		assert.Equal(t, expected, actual)
 	})
 
 	t.Run("environment variable not set", func(t *testing.T) {
-		os.Unsetenv("MODRINTH_API_KEY")
+		assert.NoError(t, os.Unsetenv("MODRINTH_API_KEY"))
 
 		original := modrinthApiKeyDefault
 		t.Cleanup(func() { modrinthApiKeyDefault = original })
@@ -41,15 +41,15 @@ func TestCurseforgeApiKey(t *testing.T) {
 		curseforgeApiKeyDefault = "embedded_curseforge_api_key"
 
 		expected := "test_curseforge_api_key"
-		os.Setenv("CURSEFORGE_API_KEY", expected)
-		defer os.Unsetenv("CURSEFORGE_API_KEY")
+		assert.NoError(t, os.Setenv("CURSEFORGE_API_KEY", expected))
+		t.Cleanup(func() { assert.NoError(t, os.Unsetenv("CURSEFORGE_API_KEY")) })
 
 		actual := CurseforgeApiKey()
 		assert.Equal(t, expected, actual)
 	})
 
 	t.Run("environment variable not set", func(t *testing.T) {
-		os.Unsetenv("CURSEFORGE_API_KEY")
+		assert.NoError(t, os.Unsetenv("CURSEFORGE_API_KEY"))
 
 		original := curseforgeApiKeyDefault
 		t.Cleanup(func() { curseforgeApiKeyDefault = original })
@@ -68,15 +68,15 @@ func TestPosthogApiKey(t *testing.T) {
 		posthogApiKeyDefault = "embedded_posthog_api_key"
 
 		expected := "test_posthog_api_key"
-		os.Setenv("POSTHOG_API_KEY", expected)
-		defer os.Unsetenv("POSTHOG_API_KEY")
+		assert.NoError(t, os.Setenv("POSTHOG_API_KEY", expected))
+		t.Cleanup(func() { assert.NoError(t, os.Unsetenv("POSTHOG_API_KEY")) })
 
 		actual := PosthogApiKey()
 		assert.Equal(t, expected, actual)
 	})
 
 	t.Run("environment variable not set", func(t *testing.T) {
-		os.Unsetenv("POSTHOG_API_KEY")
+		assert.NoError(t, os.Unsetenv("POSTHOG_API_KEY"))
 
 		original := posthogApiKeyDefault
 		t.Cleanup(func() { posthogApiKeyDefault = original })

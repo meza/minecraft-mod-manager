@@ -3,6 +3,7 @@ package perf
 import (
 	"context"
 	"errors"
+	"log"
 	"sync"
 
 	"go.opentelemetry.io/otel"
@@ -22,12 +23,18 @@ var (
 	globalExp     *spanExporter
 )
 
+var shutdownTracerProvider = func(provider *trace.TracerProvider) error {
+	return provider.Shutdown(context.Background())
+}
+
 func Init(cfg Config) error {
 	globalMu.Lock()
 	defer globalMu.Unlock()
 
 	if globalTP != nil {
-		_ = globalTP.Shutdown(context.Background())
+		if err := shutdownTracerProvider(globalTP); err != nil {
+			return err
+		}
 		globalTP = nil
 	}
 
@@ -66,7 +73,9 @@ func Reset() {
 	globalEnabled = false
 	globalExp = nil
 	if globalTP != nil {
-		_ = globalTP.Shutdown(context.Background())
+		if err := shutdownTracerProvider(globalTP); err != nil {
+			log.Printf("perf reset shutdown failed: %v", err)
+		}
 		globalTP = nil
 	}
 	otel.SetTracerProvider(oteltrace.NewNoopTracerProvider())

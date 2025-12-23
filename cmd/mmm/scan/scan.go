@@ -382,14 +382,20 @@ func sha1Candidates(ctx context.Context, fs afero.Fs, files []string) ([]scanCan
 	return out, nil
 }
 
-func sha1ForFile(ctx context.Context, fs afero.Fs, path string) (string, error) {
+var newSha1Hasher = sha1.New
+
+func sha1ForFile(ctx context.Context, fs afero.Fs, path string) (hash string, returnErr error) {
 	file, err := fs.Open(path)
 	if err != nil {
 		return "", err
 	}
-	defer file.Close()
+	defer func() {
+		if closeErr := file.Close(); closeErr != nil && returnErr == nil {
+			returnErr = closeErr
+		}
+	}()
 
-	hasher := sha1.New()
+	hasher := newSha1Hasher()
 	buf := make([]byte, 32*1024)
 	for {
 		if err := ctx.Err(); err != nil {
@@ -397,7 +403,9 @@ func sha1ForFile(ctx context.Context, fs afero.Fs, path string) (string, error) 
 		}
 		n, readErr := file.Read(buf)
 		if n > 0 {
-			_, _ = hasher.Write(buf[:n])
+			if _, err := hasher.Write(buf[:n]); err != nil {
+				return "", err
+			}
 		}
 		if readErr != nil {
 			if errors.Is(readErr, io.EOF) {
@@ -483,6 +491,9 @@ func lookupModrinth(ctx context.Context, candidates []scanCandidate, deps scanDe
 	for i := range candidates {
 		i := i
 		group.Go(func() error {
+			if err := groupCtx.Err(); err != nil {
+				return err
+			}
 			candidate := candidates[i]
 
 			version, err := deps.modrinthVersionForSha(groupCtx, candidate.Sha1, deps.clients.Modrinth)
@@ -531,7 +542,13 @@ func lookupModrinth(ctx context.Context, candidates []scanCandidate, deps scanDe
 			return nil
 		})
 	}
-	_ = group.Wait()
+	if err := group.Wait(); err != nil {
+		unsure := make(map[string]error, len(candidates))
+		for _, candidate := range candidates {
+			unsure[candidate.Path] = err
+		}
+		return nil, candidates, unsure
+	}
 
 	matches := make([]scanMatch, 0, len(candidates))
 	misses := make([]scanCandidate, 0, len(candidates))

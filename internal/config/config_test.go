@@ -37,10 +37,19 @@ func TestReadConfigMissingFileReturnsNotFound(t *testing.T) {
 	assert.ErrorAs(t, err, &notFound)
 }
 
+func TestReadConfigReturnsErrorWhenExistsCheckFails(t *testing.T) {
+	base := afero.NewMemMapFs()
+	meta := NewMetadata(filepath.FromSlash("/modlist.json"))
+	fs := statErrorFs{Fs: base, failPath: meta.ConfigPath, err: errors.New("stat failed")}
+
+	_, err := ReadConfig(context.Background(), fs, meta)
+	assert.Error(t, err)
+}
+
 func TestReadConfigMalformedJSONReturnsInvalid(t *testing.T) {
 	fs := afero.NewMemMapFs()
 	meta := NewMetadata(filepath.FromSlash("/modlist.json"))
-	_ = afero.WriteFile(fs, meta.ConfigPath, []byte("not json"), 0644)
+	assert.NoError(t, afero.WriteFile(fs, meta.ConfigPath, []byte("not json"), 0644))
 
 	_, err := ReadConfig(context.Background(), fs, meta)
 	var invalid *ConfigFileInvalidError
@@ -76,6 +85,22 @@ func TestWriteConfigOverwrites(t *testing.T) {
 	read, err := ReadConfig(context.Background(), fs, meta)
 	assert.NoError(t, err)
 	assert.Equal(t, "1.20.1", read.GameVersion)
+}
+
+func TestWriteConfigReturnsErrorOnMarshalFailure(t *testing.T) {
+	fs := afero.NewMemMapFs()
+	meta := NewMetadata(filepath.FromSlash("/modlist.json"))
+
+	originalMarshal := marshalIndent
+	marshalIndent = func(any, string, string) ([]byte, error) {
+		return nil, errors.New("marshal failed")
+	}
+	t.Cleanup(func() {
+		marshalIndent = originalMarshal
+	})
+
+	err := WriteConfig(context.Background(), fs, meta, models.ModsJson{Loader: models.FABRIC})
+	assert.Error(t, err)
 }
 
 func TestReadConfigReturnsErrorWhenPathIsDirectory(t *testing.T) {

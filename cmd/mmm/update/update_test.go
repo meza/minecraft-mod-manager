@@ -6,6 +6,7 @@ import (
 	"errors"
 	"io"
 	"net/http"
+	"os"
 	"path/filepath"
 	"strings"
 	"testing"
@@ -51,6 +52,97 @@ func (f failRemoveBackupFs) Remove(name string) error {
 		return errors.New("cannot remove backup")
 	}
 	return f.Fs.Remove(name)
+}
+
+type removeMatchErrorFs struct {
+	afero.Fs
+	failPaths map[string]error
+	failMatch []string
+}
+
+func (r removeMatchErrorFs) Remove(name string) error {
+	if err, ok := r.failPaths[filepath.Clean(name)]; ok {
+		if err != nil {
+			return err
+		}
+		return errors.New("remove failed")
+	}
+	for _, match := range r.failMatch {
+		if strings.Contains(filepath.Clean(name), match) {
+			return errors.New("remove failed")
+		}
+	}
+	return r.Fs.Remove(name)
+}
+
+type closeErrorFile struct {
+	afero.File
+	closeErr error
+}
+
+func (c closeErrorFile) Close() error {
+	_ = c.File.Close()
+	if c.closeErr != nil {
+		return c.closeErr
+	}
+	return nil
+}
+
+type closeErrorFs struct {
+	afero.Fs
+	closeErr error
+}
+
+func (c closeErrorFs) Create(name string) (afero.File, error) {
+	file, err := c.Fs.Create(name)
+	if err != nil {
+		return nil, err
+	}
+	return closeErrorFile{File: file, closeErr: c.closeErr}, nil
+}
+
+func (c closeErrorFs) OpenFile(name string, flag int, perm os.FileMode) (afero.File, error) {
+	file, err := c.Fs.OpenFile(name, flag, perm)
+	if err != nil {
+		return nil, err
+	}
+	return closeErrorFile{File: file, closeErr: c.closeErr}, nil
+}
+
+func (c closeErrorFs) Open(name string) (afero.File, error) {
+	file, err := c.Fs.Open(name)
+	if err != nil {
+		return nil, err
+	}
+	return closeErrorFile{File: file, closeErr: c.closeErr}, nil
+}
+
+type failingReadFs struct {
+	afero.Fs
+	failPath     string
+	failContains string
+}
+
+func (f failingReadFs) Open(name string) (afero.File, error) {
+	file, err := f.Fs.Open(name)
+	if err != nil {
+		return nil, err
+	}
+	if f.failPath != "" && filepath.Clean(name) == filepath.Clean(f.failPath) {
+		return failingReaderFile{File: file}, nil
+	}
+	if f.failContains != "" && strings.Contains(filepath.Clean(name), f.failContains) {
+		return failingReaderFile{File: file}, nil
+	}
+	return file, nil
+}
+
+type failingReaderFile struct {
+	afero.File
+}
+
+func (f failingReaderFile) Read([]byte) (int, error) {
+	return 0, errors.New("read failed")
 }
 
 func TestDownloadAndSwapInPlaceLogsBackupDeletionFailureAtDebugLevel(t *testing.T) {
@@ -594,11 +686,13 @@ func TestRunUpdateDownloadsAndSwapsWhenNewerReleaseExists(t *testing.T) {
 	assert.Equal(t, 1, updated)
 	assert.Equal(t, 0, failed)
 
-	exists, _ := afero.Exists(fs, oldPath)
+	exists, err := afero.Exists(fs, oldPath)
+	assert.NoError(t, err)
 	assert.False(t, exists)
 
 	newPath := filepath.Join(meta.ModsFolderPath(cfg), "new.jar")
-	exists, _ = afero.Exists(fs, newPath)
+	exists, err = afero.Exists(fs, newPath)
+	assert.NoError(t, err)
 	assert.True(t, exists)
 
 	updatedLock, lockErr := config.ReadLock(context.Background(), fs, meta)
@@ -687,11 +781,13 @@ func TestRunUpdateKeepsPreviousFileAndLockWhenDownloadFails(t *testing.T) {
 	assert.Equal(t, 0, updated)
 	assert.Equal(t, 1, failed)
 
-	exists, _ := afero.Exists(fs, oldPath)
+	exists, err := afero.Exists(fs, oldPath)
+	assert.NoError(t, err)
 	assert.True(t, exists)
 
 	newPath := filepath.Join(meta.ModsFolderPath(cfg), "new.jar")
-	exists, _ = afero.Exists(fs, newPath)
+	exists, err = afero.Exists(fs, newPath)
+	assert.NoError(t, err)
 	assert.False(t, exists)
 
 	updatedLock, lockErr := config.ReadLock(context.Background(), fs, meta)
@@ -1057,9 +1153,11 @@ func TestRunUpdateReportsHashMismatch(t *testing.T) {
 	assert.Equal(t, 1, failed)
 	assert.Contains(t, errOut.String(), "cmd.update.error.hash_mismatch")
 
-	exists, _ := afero.Exists(fs, oldPath)
+	exists, err := afero.Exists(fs, oldPath)
+	assert.NoError(t, err)
 	assert.True(t, exists)
-	exists, _ = afero.Exists(fs, filepath.Join(meta.ModsFolderPath(cfg), "new.jar"))
+	exists, err = afero.Exists(fs, filepath.Join(meta.ModsFolderPath(cfg), "new.jar"))
+	assert.NoError(t, err)
 	assert.False(t, exists)
 }
 
@@ -1141,8 +1239,267 @@ func TestDownloadAndSwapInPlaceDoesNotFailWhenBackupDeletionFails(t *testing.T) 
 	assert.NoError(t, err)
 	assert.Equal(t, []byte("new"), content)
 
-	exists, _ := afero.Exists(fs, installedPath+".mmm.bak")
+	exists, err := afero.Exists(fs, installedPath+".mmm.bak")
+	assert.NoError(t, err)
 	assert.True(t, exists)
+}
+
+func TestDownloadAndSwapReturnsJoinedErrorOnTempCloseCleanupFailure(t *testing.T) {
+	t.Setenv("MMM_TEST", "true")
+
+	baseFs := afero.NewMemMapFs()
+	fs := removeMatchErrorFs{
+		Fs:        baseFs,
+		failMatch: []string{".mmm."},
+	}
+	closeFs := closeErrorFs{Fs: fs, closeErr: errors.New("close failed")}
+
+	cfg := models.ModsJson{
+		Loader:                     models.FABRIC,
+		GameVersion:                "1.21.1",
+		DefaultAllowedReleaseTypes: []models.ReleaseType{models.Release},
+		ModsFolder:                 "mods",
+		Mods:                       []models.Mod{},
+	}
+	meta := config.NewMetadata(filepath.FromSlash("/cfg/modlist.json"))
+	assert.NoError(t, closeFs.MkdirAll(meta.Dir(), 0755))
+	assert.NoError(t, closeFs.MkdirAll(meta.ModsFolderPath(cfg), 0755))
+
+	deps := updateDeps{
+		fs:      closeFs,
+		clients: platform.Clients{Modrinth: noopDoer{}},
+		downloader: func(context.Context, string, string, httpClient.Doer, httpClient.Sender, ...afero.Fs) error {
+			return nil
+		},
+	}
+
+	err := downloadAndSwap(context.Background(), deps, filepath.Join(meta.ModsFolderPath(cfg), "old.jar"), filepath.Join(meta.ModsFolderPath(cfg), "new.jar"), meta.ModsFolderPath(cfg), "https://example.invalid/new.jar", sha1Hex("data"))
+	assert.Error(t, err)
+	assert.Contains(t, err.Error(), "failed to remove temp file")
+}
+
+func TestDownloadAndSwapReturnsCloseErrorWhenTempCloseFails(t *testing.T) {
+	t.Setenv("MMM_TEST", "true")
+
+	baseFs := afero.NewMemMapFs()
+	fs := closeErrorFs{Fs: baseFs, closeErr: errors.New("close failed")}
+
+	cfg := models.ModsJson{
+		Loader:                     models.FABRIC,
+		GameVersion:                "1.21.1",
+		DefaultAllowedReleaseTypes: []models.ReleaseType{models.Release},
+		ModsFolder:                 "mods",
+		Mods:                       []models.Mod{},
+	}
+	meta := config.NewMetadata(filepath.FromSlash("/cfg/modlist.json"))
+	assert.NoError(t, fs.MkdirAll(meta.Dir(), 0755))
+	assert.NoError(t, fs.MkdirAll(meta.ModsFolderPath(cfg), 0755))
+
+	deps := updateDeps{
+		fs:      fs,
+		clients: platform.Clients{Modrinth: noopDoer{}},
+		downloader: func(context.Context, string, string, httpClient.Doer, httpClient.Sender, ...afero.Fs) error {
+			return nil
+		},
+	}
+
+	err := downloadAndSwap(context.Background(), deps, filepath.Join(meta.ModsFolderPath(cfg), "old.jar"), filepath.Join(meta.ModsFolderPath(cfg), "new.jar"), meta.ModsFolderPath(cfg), "https://example.invalid/new.jar", sha1Hex("data"))
+	assert.ErrorContains(t, err, "close failed")
+}
+
+func TestDownloadAndSwapReturnsJoinedErrorOnDownloadCleanupFailure(t *testing.T) {
+	t.Setenv("MMM_TEST", "true")
+
+	baseFs := afero.NewMemMapFs()
+	fs := removeMatchErrorFs{
+		Fs:        baseFs,
+		failMatch: []string{".mmm."},
+	}
+
+	cfg := models.ModsJson{
+		Loader:                     models.FABRIC,
+		GameVersion:                "1.21.1",
+		DefaultAllowedReleaseTypes: []models.ReleaseType{models.Release},
+		ModsFolder:                 "mods",
+		Mods:                       []models.Mod{},
+	}
+	meta := config.NewMetadata(filepath.FromSlash("/cfg/modlist.json"))
+	assert.NoError(t, fs.MkdirAll(meta.Dir(), 0755))
+	assert.NoError(t, fs.MkdirAll(meta.ModsFolderPath(cfg), 0755))
+
+	deps := updateDeps{
+		fs:      fs,
+		clients: platform.Clients{Modrinth: noopDoer{}},
+		downloader: func(context.Context, string, string, httpClient.Doer, httpClient.Sender, ...afero.Fs) error {
+			return errors.New("download failed")
+		},
+	}
+
+	err := downloadAndSwap(context.Background(), deps, filepath.Join(meta.ModsFolderPath(cfg), "old.jar"), filepath.Join(meta.ModsFolderPath(cfg), "new.jar"), meta.ModsFolderPath(cfg), "https://example.invalid/new.jar", sha1Hex("data"))
+	assert.Error(t, err)
+	assert.Contains(t, err.Error(), "failed to remove temp file")
+}
+
+func TestDownloadAndSwapReturnsJoinedErrorOnHashReadCleanupFailure(t *testing.T) {
+	t.Setenv("MMM_TEST", "true")
+
+	baseFs := afero.NewMemMapFs()
+	fs := removeMatchErrorFs{
+		Fs:        baseFs,
+		failMatch: []string{".mmm."},
+	}
+	readFailFs := failingReadFs{Fs: fs, failContains: ".mmm."}
+
+	cfg := models.ModsJson{
+		Loader:                     models.FABRIC,
+		GameVersion:                "1.21.1",
+		DefaultAllowedReleaseTypes: []models.ReleaseType{models.Release},
+		ModsFolder:                 "mods",
+		Mods:                       []models.Mod{},
+	}
+	meta := config.NewMetadata(filepath.FromSlash("/cfg/modlist.json"))
+	assert.NoError(t, readFailFs.MkdirAll(meta.Dir(), 0755))
+	assert.NoError(t, readFailFs.MkdirAll(meta.ModsFolderPath(cfg), 0755))
+
+	deps := updateDeps{
+		fs:      readFailFs,
+		clients: platform.Clients{Modrinth: noopDoer{}},
+		downloader: func(_ context.Context, _ string, destination string, _ httpClient.Doer, _ httpClient.Sender, filesystems ...afero.Fs) error {
+			return afero.WriteFile(filesystems[0], destination, []byte("data"), 0644)
+		},
+	}
+
+	err := downloadAndSwap(context.Background(), deps, filepath.Join(meta.ModsFolderPath(cfg), "old.jar"), filepath.Join(meta.ModsFolderPath(cfg), "new.jar"), meta.ModsFolderPath(cfg), "https://example.invalid/new.jar", sha1Hex("data"))
+	assert.Error(t, err)
+	assert.Contains(t, err.Error(), "failed to remove temp file")
+}
+
+func TestDownloadAndSwapReturnsJoinedErrorOnHashMismatchCleanupFailure(t *testing.T) {
+	t.Setenv("MMM_TEST", "true")
+
+	baseFs := afero.NewMemMapFs()
+	fs := removeMatchErrorFs{
+		Fs:        baseFs,
+		failMatch: []string{".mmm."},
+	}
+
+	cfg := models.ModsJson{
+		Loader:                     models.FABRIC,
+		GameVersion:                "1.21.1",
+		DefaultAllowedReleaseTypes: []models.ReleaseType{models.Release},
+		ModsFolder:                 "mods",
+		Mods:                       []models.Mod{},
+	}
+	meta := config.NewMetadata(filepath.FromSlash("/cfg/modlist.json"))
+	assert.NoError(t, fs.MkdirAll(meta.Dir(), 0755))
+	assert.NoError(t, fs.MkdirAll(meta.ModsFolderPath(cfg), 0755))
+
+	deps := updateDeps{
+		fs:      fs,
+		clients: platform.Clients{Modrinth: noopDoer{}},
+		downloader: func(_ context.Context, _ string, destination string, _ httpClient.Doer, _ httpClient.Sender, filesystems ...afero.Fs) error {
+			return afero.WriteFile(filesystems[0], destination, []byte("actual"), 0644)
+		},
+	}
+
+	err := downloadAndSwap(context.Background(), deps, filepath.Join(meta.ModsFolderPath(cfg), "old.jar"), filepath.Join(meta.ModsFolderPath(cfg), "new.jar"), meta.ModsFolderPath(cfg), "https://example.invalid/new.jar", sha1Hex("expected"))
+	assert.Error(t, err)
+	assert.Contains(t, err.Error(), "failed to remove temp file")
+}
+
+func TestDownloadAndSwapReturnsJoinedErrorOnReplaceCleanupFailure(t *testing.T) {
+	t.Setenv("MMM_TEST", "true")
+
+	baseFs := afero.NewMemMapFs()
+	newPath := filepath.FromSlash("/cfg/mods/new.jar")
+	renameFs := renameOnNewErrorFs{Fs: baseFs, failNew: newPath, err: errors.New("rename failed")}
+	fs := removeMatchErrorFs{
+		Fs:        renameFs,
+		failMatch: []string{".mmm."},
+	}
+
+	cfg := models.ModsJson{
+		Loader:                     models.FABRIC,
+		GameVersion:                "1.21.1",
+		DefaultAllowedReleaseTypes: []models.ReleaseType{models.Release},
+		ModsFolder:                 "mods",
+		Mods:                       []models.Mod{},
+	}
+	meta := config.NewMetadata(filepath.FromSlash("/cfg/modlist.json"))
+	assert.NoError(t, fs.MkdirAll(meta.Dir(), 0755))
+	assert.NoError(t, fs.MkdirAll(meta.ModsFolderPath(cfg), 0755))
+
+	deps := updateDeps{
+		fs:      fs,
+		clients: platform.Clients{Modrinth: noopDoer{}},
+		downloader: func(_ context.Context, _ string, destination string, _ httpClient.Doer, _ httpClient.Sender, filesystems ...afero.Fs) error {
+			return afero.WriteFile(filesystems[0], destination, []byte("data"), 0644)
+		},
+	}
+
+	err := downloadAndSwap(context.Background(), deps, filepath.FromSlash("/cfg/mods/old.jar"), newPath, meta.ModsFolderPath(cfg), "https://example.invalid/new.jar", sha1Hex("data"))
+	assert.Error(t, err)
+	assert.Contains(t, err.Error(), "failed to remove temp file")
+}
+
+func TestDownloadAndSwapReturnsJoinedErrorOnOldFileCleanupFailure(t *testing.T) {
+	t.Setenv("MMM_TEST", "true")
+
+	baseFs := afero.NewMemMapFs()
+	oldPath := filepath.FromSlash("/cfg/mods/old.jar")
+	newPath := filepath.FromSlash("/cfg/mods/new.jar")
+	fs := removeMatchErrorFs{
+		Fs: baseFs,
+		failPaths: map[string]error{
+			filepath.Clean(oldPath): errors.New("remove old failed"),
+			filepath.Clean(newPath): errors.New("remove new failed"),
+		},
+	}
+
+	cfg := models.ModsJson{
+		Loader:                     models.FABRIC,
+		GameVersion:                "1.21.1",
+		DefaultAllowedReleaseTypes: []models.ReleaseType{models.Release},
+		ModsFolder:                 "mods",
+		Mods:                       []models.Mod{},
+	}
+	meta := config.NewMetadata(filepath.FromSlash("/cfg/modlist.json"))
+	assert.NoError(t, fs.MkdirAll(meta.Dir(), 0755))
+	assert.NoError(t, fs.MkdirAll(meta.ModsFolderPath(cfg), 0755))
+	assert.NoError(t, afero.WriteFile(fs, oldPath, []byte("old"), 0644))
+
+	deps := updateDeps{
+		fs:      fs,
+		clients: platform.Clients{Modrinth: noopDoer{}},
+		downloader: func(_ context.Context, _ string, destination string, _ httpClient.Doer, _ httpClient.Sender, filesystems ...afero.Fs) error {
+			return afero.WriteFile(filesystems[0], destination, []byte("new"), 0644)
+		},
+		logger: logger.New(io.Discard, io.Discard, false, false),
+	}
+
+	err := downloadAndSwap(context.Background(), deps, oldPath, newPath, meta.ModsFolderPath(cfg), "https://example.invalid/new.jar", sha1Hex("new"))
+	assert.Error(t, err)
+	assert.Contains(t, err.Error(), "failed to remove new file")
+}
+
+func TestSha1ForFileReturnsReadError(t *testing.T) {
+	base := afero.NewMemMapFs()
+	path := filepath.FromSlash("/mods/file.jar")
+	assert.NoError(t, afero.WriteFile(base, path, []byte("content"), 0644))
+
+	fs := failingReadFs{Fs: base, failPath: path}
+	_, err := sha1ForFile(fs, path)
+	assert.ErrorContains(t, err, "read failed")
+}
+
+func TestSha1ForFileReturnsCloseError(t *testing.T) {
+	base := afero.NewMemMapFs()
+	path := filepath.FromSlash("/mods/file.jar")
+	assert.NoError(t, afero.WriteFile(base, path, []byte("content"), 0644))
+
+	fs := closeErrorFs{Fs: base, closeErr: errors.New("close failed")}
+	_, err := sha1ForFile(fs, path)
+	assert.ErrorContains(t, err, "close failed")
 }
 
 func TestRunUpdateLogsNoUpdatesWhenNothingChanges(t *testing.T) {

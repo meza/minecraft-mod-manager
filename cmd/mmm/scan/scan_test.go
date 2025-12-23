@@ -6,6 +6,7 @@ import (
 	"crypto/sha1"
 	"encoding/hex"
 	"errors"
+	"hash"
 	"path/filepath"
 	"testing"
 	"time"
@@ -1073,4 +1074,105 @@ func (r renameErrorFs) Rename(oldname, newname string) error {
 		return r.err
 	}
 	return r.Fs.Rename(oldname, newname)
+}
+
+type failingHasher struct{}
+
+func (f *failingHasher) Write(_ []byte) (int, error) {
+	return 0, errors.New("hash write failed")
+}
+
+func (f *failingHasher) Sum(data []byte) []byte {
+	return data
+}
+
+func (f *failingHasher) Reset() {}
+
+func (f *failingHasher) Size() int {
+	return sha1.Size
+}
+
+func (f *failingHasher) BlockSize() int {
+	return sha1.BlockSize
+}
+
+type closeErrorFile struct {
+	afero.File
+	closeErr error
+}
+
+func (f closeErrorFile) Close() error {
+	_ = f.File.Close()
+	if f.closeErr != nil {
+		return f.closeErr
+	}
+	return nil
+}
+
+type closeErrorFs struct {
+	afero.Fs
+	closeErr error
+}
+
+func (c closeErrorFs) Open(name string) (afero.File, error) {
+	file, err := c.Fs.Open(name)
+	if err != nil {
+		return nil, err
+	}
+	return closeErrorFile{File: file, closeErr: c.closeErr}, nil
+}
+
+func TestSha1ForFileReturnsHasherWriteError(t *testing.T) {
+	fs := afero.NewMemMapFs()
+	path := filepath.FromSlash("/mods/example.jar")
+	assert.NoError(t, fs.MkdirAll(filepath.Dir(path), 0755))
+	assert.NoError(t, afero.WriteFile(fs, path, []byte("content"), 0644))
+
+	originalHasher := newSha1Hasher
+	newSha1Hasher = func() hash.Hash {
+		return &failingHasher{}
+	}
+	t.Cleanup(func() {
+		newSha1Hasher = originalHasher
+	})
+
+	_, err := sha1ForFile(context.Background(), fs, path)
+	assert.ErrorContains(t, err, "hash write failed")
+}
+
+func TestSha1ForFileReturnsCloseError(t *testing.T) {
+	base := afero.NewMemMapFs()
+	path := filepath.FromSlash("/mods/example.jar")
+	assert.NoError(t, base.MkdirAll(filepath.Dir(path), 0755))
+	assert.NoError(t, afero.WriteFile(base, path, []byte("content"), 0644))
+
+	fs := closeErrorFs{Fs: base, closeErr: errors.New("close failed")}
+	_, err := sha1ForFile(context.Background(), fs, path)
+	assert.ErrorContains(t, err, "close failed")
+}
+
+func TestLookupModrinthReturnsUnsureOnContextCancel(t *testing.T) {
+	ctx, cancel := context.WithCancel(context.Background())
+	cancel()
+
+	candidates := []scanCandidate{
+		{Path: filepath.FromSlash("/mods/example.jar"), FileName: "example.jar", Sha1: "abc"},
+	}
+
+	matches, misses, unsure := lookupModrinth(ctx, candidates, scanDeps{
+		modrinthVersionForSha: func(context.Context, string, httpClient.Doer) (*modrinth.Version, error) {
+			t.Fatalf("unexpected lookup call after context cancellation")
+			return nil, nil
+		},
+		modrinthProjectTitle: func(context.Context, string, httpClient.Doer) (string, error) {
+			t.Fatalf("unexpected title lookup after context cancellation")
+			return "", nil
+		},
+		clients: platform.Clients{},
+	})
+
+	assert.Empty(t, matches)
+	assert.Equal(t, candidates, misses)
+	assert.Len(t, unsure, 1)
+	assert.ErrorIs(t, unsure[candidates[0].Path], context.Canceled)
 }

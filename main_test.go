@@ -372,6 +372,34 @@ func TestRunWithDepsUsesProvidedGetwd(t *testing.T) {
 	assert.True(t, called)
 }
 
+func TestRunWithDepsHandlesGetwdError(t *testing.T) {
+	perf.Reset()
+	t.Cleanup(perf.Reset)
+
+	var perfConfig perfExportConfig
+	var perfCalled bool
+	deps := runDeps{
+		execute:           func(context.Context) error { return nil },
+		telemetryInit:     func() {},
+		telemetryShutdown: func(context.Context) {},
+		register:          func(lifecycle.Handler) lifecycle.HandlerID { return 1 },
+		unregister:        func(lifecycle.HandlerID) {},
+		args:              []string{"--perf"},
+		getwd: func() (string, error) {
+			return "", errors.New("getwd failed")
+		},
+		perfExport: func(cfg perfExportConfig) error {
+			perfConfig = cfg
+			perfCalled = true
+			return nil
+		},
+	}
+
+	assert.Equal(t, 0, runWithDeps(deps))
+	assert.True(t, perfCalled)
+	assert.NotEmpty(t, perfConfig.baseDir)
+}
+
 func TestRunWritesPerfExportWhenEnabled(t *testing.T) {
 	perf.Reset()
 	t.Cleanup(perf.Reset)

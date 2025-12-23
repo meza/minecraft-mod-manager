@@ -31,7 +31,9 @@ func TestAddTUIStateSnapshots(t *testing.T) {
 		model := newAddTUIModel(ctx, span, addTUIStateUnknownPlatformSelect, models.Platform("invalid"), "abc", cfg, nil)
 		tm := teatest.NewTestModel(t, model, teatest.WithInitialTermSize(60, 20))
 		waitForOutput(t, tm, "cmd.add.tui.unknown_platform")
-		_ = tm.Quit()
+		if !assert.NoError(t, tm.Quit()) {
+			return
+		}
 		final := ensureAddTUIModel(t, tm.FinalModel(t))
 		matchSnapshot(t, final.View())
 		spans := finalizeAddTUIPerf(t, &final)
@@ -43,7 +45,9 @@ func TestAddTUIStateSnapshots(t *testing.T) {
 		model := newAddTUIModel(ctx, span, addTUIStateModNotFoundConfirm, models.MODRINTH, "abc", cfg, nil)
 		tm := teatest.NewTestModel(t, model, teatest.WithInitialTermSize(60, 20))
 		waitForOutput(t, tm, "cmd.add.tui.mod_not_found")
-		_ = tm.Quit()
+		if !assert.NoError(t, tm.Quit()) {
+			return
+		}
 		final := ensureAddTUIModel(t, tm.FinalModel(t))
 		matchSnapshot(t, final.View())
 		spans := finalizeAddTUIPerf(t, &final)
@@ -56,7 +60,9 @@ func TestAddTUIStateSnapshots(t *testing.T) {
 		tm := teatest.NewTestModel(t, model, teatest.WithInitialTermSize(60, 20))
 		tm.Send(tea.KeyMsg{Type: tea.KeyEnter})
 		waitForOutput(t, tm, "cmd.add.tui.choose_platform")
-		_ = tm.Quit()
+		if !assert.NoError(t, tm.Quit()) {
+			return
+		}
 		final := ensureAddTUIModel(t, tm.FinalModel(t))
 		matchSnapshot(t, final.View())
 		spans := finalizeAddTUIPerf(t, &final)
@@ -72,7 +78,9 @@ func TestAddTUIStateSnapshots(t *testing.T) {
 		waitForOutput(t, tm, "cmd.add.tui.choose_platform")
 		tm.Send(tea.KeyMsg{Type: tea.KeyEnter})
 		waitForOutput(t, tm, "cmd.add.tui.enter_project_id")
-		_ = tm.Quit()
+		if !assert.NoError(t, tm.Quit()) {
+			return
+		}
 		final := ensureAddTUIModel(t, tm.FinalModel(t))
 		matchSnapshot(t, final.View())
 		spans := finalizeAddTUIPerf(t, &final)
@@ -85,7 +93,9 @@ func TestAddTUIStateSnapshots(t *testing.T) {
 		model := newAddTUIModel(ctx, span, addTUIStateNoFileConfirm, models.MODRINTH, "abc", cfg, nil)
 		tm := teatest.NewTestModel(t, model, teatest.WithInitialTermSize(60, 20))
 		waitForOutput(t, tm, "cmd.add.tui.no_file_found")
-		_ = tm.Quit()
+		if !assert.NoError(t, tm.Quit()) {
+			return
+		}
 		final := ensureAddTUIModel(t, tm.FinalModel(t))
 		matchSnapshot(t, final.View())
 		spans := finalizeAddTUIPerf(t, &final)
@@ -98,7 +108,9 @@ func TestAddTUIStateSnapshots(t *testing.T) {
 		tm := teatest.NewTestModel(t, model, teatest.WithInitialTermSize(60, 20))
 		tm.Send(tea.KeyMsg{Type: tea.KeyEnter})
 		waitForOutput(t, tm, "cmd.add.tui.enter_project_id_on")
-		_ = tm.Quit()
+		if !assert.NoError(t, tm.Quit()) {
+			return
+		}
 		final := ensureAddTUIModel(t, tm.FinalModel(t))
 		matchSnapshot(t, final.View())
 		spans := finalizeAddTUIPerf(t, &final)

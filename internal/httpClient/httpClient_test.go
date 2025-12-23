@@ -2,7 +2,9 @@ package httpClient
 
 import (
 	"context"
+	"errors"
 	"fmt"
+	"io"
 	"net/http"
 	"net/http/httptest"
 	"strings"
@@ -62,7 +64,9 @@ func TestRLHTTPClient_Fetch(t *testing.T) {
 	// Create a mock server
 	mockServer := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(http.StatusOK)
-		w.Write([]byte("OK"))
+		if _, err := w.Write([]byte("OK")); err != nil {
+			t.Fatalf("failed to write response: %v", err)
+		}
 	}))
 	defer mockServer.Close()
 
@@ -120,7 +124,9 @@ func TestRLHTTPClient_Fetch(t *testing.T) {
 		// Create a mock server
 		mockServer := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 			w.WriteHeader(http.StatusOK)
-			w.Write([]byte("OK"))
+			if _, err := w.Write([]byte("OK")); err != nil {
+				t.Fatalf("failed to write response: %v", err)
+			}
 		}))
 		defer mockServer.Close()
 
@@ -149,7 +155,9 @@ func TestRLHTTPClient_Fetch(t *testing.T) {
 		// Create a mock server
 		mockServer := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 			w.WriteHeader(http.StatusOK)
-			w.Write([]byte("OK"))
+			if _, err := w.Write([]byte("OK")); err != nil {
+				t.Fatalf("failed to write response: %v", err)
+			}
 		}))
 		defer mockServer.Close()
 
@@ -180,7 +188,9 @@ func TestRLHTTPClient_Fetch(t *testing.T) {
 				w.WriteHeader(http.StatusInternalServerError)
 			} else {
 				w.WriteHeader(http.StatusOK)
-				w.Write([]byte("OK"))
+				if _, err := w.Write([]byte("OK")); err != nil {
+					t.Fatalf("failed to write response: %v", err)
+				}
 			}
 		}))
 		defer mockServer.Close()
@@ -239,7 +249,9 @@ func TestRLHTTPClient_Fetch(t *testing.T) {
 		// Create a mock server
 		mockServer := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 			w.WriteHeader(http.StatusOK)
-			w.Write([]byte("OK"))
+			if _, err := w.Write([]byte("OK")); err != nil {
+				t.Fatalf("failed to write response: %v", err)
+			}
 		}))
 		defer mockServer.Close()
 
@@ -340,8 +352,99 @@ func TestRLHTTPClient_ClosesResponseBodiesBeforeRetry(t *testing.T) {
 
 func TestDrainAndCloseHandlesNilBody(t *testing.T) {
 	assert.NotPanics(t, func() {
-		drainAndClose(nil)
+		assert.NoError(t, drainAndClose(nil))
 	})
+}
+
+type errorBody struct {
+	readErr  error
+	closeErr error
+	closed   bool
+}
+
+func (e *errorBody) Read(_ []byte) (int, error) {
+	if e.readErr != nil {
+		return 0, e.readErr
+	}
+	return 0, io.EOF
+}
+
+func (e *errorBody) Close() error {
+	e.closed = true
+	if e.closeErr != nil {
+		return e.closeErr
+	}
+	return nil
+}
+
+func TestDrainAndCloseReturnsReadError(t *testing.T) {
+	body := &errorBody{readErr: errors.New("read failed")}
+	assert.ErrorContains(t, drainAndClose(body), "read failed")
+	assert.True(t, body.closed)
+}
+
+func TestDrainAndCloseReturnsCloseError(t *testing.T) {
+	body := &errorBody{closeErr: errors.New("close failed")}
+	assert.ErrorContains(t, drainAndClose(body), "close failed")
+	assert.True(t, body.closed)
+}
+
+func TestDrainAndCloseJoinsReadAndCloseErrors(t *testing.T) {
+	readErr := errors.New("read failed")
+	closeErr := errors.New("close failed")
+	body := &errorBody{readErr: readErr, closeErr: closeErr}
+
+	err := drainAndClose(body)
+	assert.ErrorContains(t, err, "read failed")
+	assert.ErrorContains(t, err, "close failed")
+	assert.ErrorIs(t, err, readErr)
+	assert.ErrorIs(t, err, closeErr)
+	assert.True(t, body.closed)
+}
+
+type retryReadErrorBody struct {
+	readErr error
+	closed  bool
+}
+
+func (r *retryReadErrorBody) Read(_ []byte) (int, error) {
+	return 0, r.readErr
+}
+
+func (r *retryReadErrorBody) Close() error {
+	r.closed = true
+	return nil
+}
+
+func TestRLHTTPClient_RetriesWhenDrainFails(t *testing.T) {
+	firstBody := &retryReadErrorBody{readErr: errors.New("read failed")}
+	successBody := newTrackingBody("ok")
+
+	transport := &sequenceTransport{
+		responses: []*http.Response{
+			{
+				StatusCode: http.StatusInternalServerError,
+				Body:       firstBody,
+				Header:     make(http.Header),
+			},
+			{
+				StatusCode: http.StatusOK,
+				Body:       successBody,
+				Header:     make(http.Header),
+			},
+		},
+	}
+
+	client := NewRLClient(rate.NewLimiter(rate.Inf, 0))
+	client.RetryConfig = &RetryConfig{MaxRetries: 1, Interval: 0}
+	client.client = &http.Client{Transport: transport}
+
+	req, err := http.NewRequest("GET", "https://example.com/retry", nil)
+	assert.NoError(t, err)
+
+	resp, err := client.Do(req)
+	assert.NoError(t, err)
+	assert.Equal(t, http.StatusOK, resp.StatusCode)
 }
 
 func TestRLHTTPClient_ReturnsTimeoutErrorFromRateLimiter(t *testing.T) {

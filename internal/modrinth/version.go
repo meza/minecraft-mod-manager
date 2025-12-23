@@ -94,14 +94,23 @@ func NewVersionHashLookup(hash string, algorithm VersionAlgorithm) *VersionHashL
 	}
 }
 
-func GetVersionsForProject(ctx context.Context, lookup *VersionLookup, client httpClient.Doer) (Versions, error) {
+func GetVersionsForProject(ctx context.Context, lookup *VersionLookup, client httpClient.Doer) (versions Versions, returnErr error) {
 	ctx, span := perf.StartSpan(ctx, "api.modrinth.version.list", perf.WithAttributes(attribute.String("project_id", lookup.ProjectId)))
 	defer span.End()
 
-	gameVersionsJSON, _ := json.Marshal(lookup.GameVersions)
-	loadersJSON, _ := json.Marshal(lookup.Loaders)
+	gameVersionsJSON, err := marshalJSON(lookup.GameVersions)
+	if err != nil {
+		return nil, err
+	}
+	loadersJSON, err := marshalJSON(lookup.Loaders)
+	if err != nil {
+		return nil, err
+	}
 
-	baseURL, _ := url.Parse(fmt.Sprintf("%s/v2/project/%s/version", GetBaseUrl(), lookup.ProjectId))
+	baseURL, err := parseURL(fmt.Sprintf("%s/v2/project/%s/version", GetBaseUrl(), lookup.ProjectId))
+	if err != nil {
+		return nil, err
+	}
 	query := url.Values{}
 	query.Set("game_versions", string(gameVersionsJSON))
 	query.Set("loaders", string(loadersJSON))
@@ -109,7 +118,10 @@ func GetVersionsForProject(ctx context.Context, lookup *VersionLookup, client ht
 
 	timeoutCtx, cancel := httpClient.WithMetadataTimeout(ctx)
 	defer cancel()
-	request, _ := http.NewRequestWithContext(timeoutCtx, "GET", baseURL.String(), nil)
+	request, err := newRequestWithContext(timeoutCtx, "GET", baseURL.String(), nil)
+	if err != nil {
+		return nil, err
+	}
 	response, err := client.Do(request)
 	if err != nil {
 		if httpClient.IsTimeoutError(err) {
@@ -117,7 +129,11 @@ func GetVersionsForProject(ctx context.Context, lookup *VersionLookup, client ht
 		}
 		return nil, globalErrors.ProjectApiErrorWrap(err, lookup.ProjectId, models.MODRINTH)
 	}
-	defer response.Body.Close()
+	defer func() {
+		if closeErr := response.Body.Close(); closeErr != nil && returnErr == nil {
+			returnErr = closeErr
+		}
+	}()
 
 	if response.StatusCode == http.StatusNotFound {
 		return nil, &globalErrors.ProjectNotFoundError{
@@ -130,12 +146,13 @@ func GetVersionsForProject(ctx context.Context, lookup *VersionLookup, client ht
 		return nil, globalErrors.ProjectApiErrorWrap(errors.Errorf("unexpected status code: %d", response.StatusCode), lookup.ProjectId, models.MODRINTH)
 	}
 
-	result := &Versions{}
-	_ = json.NewDecoder(response.Body).Decode(result)
-	return *result, nil
+	if err := json.NewDecoder(response.Body).Decode(&versions); err != nil {
+		return nil, globalErrors.ProjectApiErrorWrap(errors.Wrap(err, "failed to decode response body"), lookup.ProjectId, models.MODRINTH)
+	}
+	return versions, nil
 }
 
-func GetVersionForHash(ctx context.Context, lookup *VersionHashLookup, client httpClient.Doer) (*Version, error) {
+func GetVersionForHash(ctx context.Context, lookup *VersionHashLookup, client httpClient.Doer) (version *Version, returnErr error) {
 	ctx, span := perf.StartSpan(ctx, "api.modrinth.version_file.get", perf.WithAttributes(attribute.String("hash", lookup.hash)))
 	defer span.End()
 
@@ -143,7 +160,10 @@ func GetVersionForHash(ctx context.Context, lookup *VersionHashLookup, client ht
 
 	timeoutCtx, cancel := httpClient.WithMetadataTimeout(ctx)
 	defer cancel()
-	request, _ := http.NewRequestWithContext(timeoutCtx, "GET", url, nil)
+	request, err := newRequestWithContext(timeoutCtx, "GET", url, nil)
+	if err != nil {
+		return nil, err
+	}
 	response, err := client.Do(request)
 	if err != nil {
 		if httpClient.IsTimeoutError(err) {
@@ -151,7 +171,11 @@ func GetVersionForHash(ctx context.Context, lookup *VersionHashLookup, client ht
 		}
 		return nil, VersionApiErrorWrap(err, *lookup)
 	}
-	defer response.Body.Close()
+	defer func() {
+		if closeErr := response.Body.Close(); closeErr != nil && returnErr == nil {
+			returnErr = closeErr
+		}
+	}()
 
 	if response.StatusCode == http.StatusNotFound {
 		return nil, &VersionNotFoundError{
@@ -163,7 +187,9 @@ func GetVersionForHash(ctx context.Context, lookup *VersionHashLookup, client ht
 		return nil, VersionApiErrorWrap(errors.Errorf("unexpected status code: %d", response.StatusCode), *lookup)
 	}
 
-	result := &Version{}
-	_ = json.NewDecoder(response.Body).Decode(result)
-	return result, nil
+	version = &Version{}
+	if err := json.NewDecoder(response.Body).Decode(version); err != nil {
+		return nil, VersionApiErrorWrap(errors.Wrap(err, "failed to decode response body"), *lookup)
+	}
+	return version, nil
 }

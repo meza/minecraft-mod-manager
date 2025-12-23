@@ -785,7 +785,10 @@ func TestRunAdd_ModNotFoundCancelled(t *testing.T) {
 
 	assert.Error(t, err)
 	assert.True(t, errors.Is(err, errAborted))
-	configAfter, _ := config.ReadConfig(context.Background(), fs, meta)
+	configAfter, readErr := config.ReadConfig(context.Background(), fs, meta)
+	if !assert.NoError(t, readErr) {
+		return
+	}
 	assert.Len(t, configAfter.Mods, 0)
 }
 
@@ -842,7 +845,10 @@ func TestRunAdd_ModNotFoundRetry(t *testing.T) {
 	})
 
 	assert.NoError(t, err)
-	configAfter, _ := config.ReadConfig(context.Background(), fs, meta)
+	configAfter, readErr := config.ReadConfig(context.Background(), fs, meta)
+	if !assert.NoError(t, readErr) {
+		return
+	}
 	assert.Len(t, configAfter.Mods, 1)
 	assert.Equal(t, "def", configAfter.Mods[0].ID)
 	assert.Equal(t, models.CURSEFORGE, configAfter.Mods[0].Type)
@@ -906,7 +912,10 @@ func TestRunAdd_NoFileRetryAlternate(t *testing.T) {
 	})
 
 	assert.NoError(t, err)
-	configAfter, _ := config.ReadConfig(context.Background(), fs, meta)
+	configAfter, readErr := config.ReadConfig(context.Background(), fs, meta)
+	if !assert.NoError(t, readErr) {
+		return
+	}
 	assert.Len(t, configAfter.Mods, 1)
 	assert.Equal(t, models.MODRINTH, configAfter.Mods[0].Type)
 	assert.Equal(t, "zzz", configAfter.Mods[0].ID)
@@ -958,7 +967,10 @@ func TestRunAdd_DownloadFailure(t *testing.T) {
 	})
 
 	assert.Error(t, err)
-	configAfter, _ := config.ReadConfig(context.Background(), fs, meta)
+	configAfter, readErr := config.ReadConfig(context.Background(), fs, meta)
+	if !assert.NoError(t, readErr) {
+		return
+	}
 	assert.Len(t, configAfter.Mods, 0)
 }
 
@@ -1283,7 +1295,10 @@ func TestRunAdd_UnknownPlatformInteractiveRetry(t *testing.T) {
 	})
 
 	assert.NoError(t, err)
-	configAfter, _ := config.ReadConfig(context.Background(), fs, meta)
+	configAfter, readErr := config.ReadConfig(context.Background(), fs, meta)
+	if !assert.NoError(t, readErr) {
+		return
+	}
 	assert.Len(t, configAfter.Mods, 1)
 	assert.Equal(t, models.CURSEFORGE, configAfter.Mods[0].Type)
 

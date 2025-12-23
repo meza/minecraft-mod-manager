@@ -155,7 +155,8 @@ func (tool *buildTool) buildTarget(target buildTarget, envMap map[string]string,
 	environment["GOARCH"] = target.goarch
 	environment["CGO_ENABLED"] = "0"
 
-	command := exec.Command(tool.goBinary, "build", "-ldflags", ldflags, "-o", outputPath, "main.go")
+	// #nosec G204 -- go binary and args are controlled by this tool.
+	command := exec.Command(tool.goBinary, "build", "-ldflags", ldflags, "-o", outputPath, "main.go") // #nosec G204 -- go binary and args are controlled by this tool.
 	command.Env = envMapToSlice(environment)
 
 	tool.logger.Printf("output %s", outputPath)
@@ -167,7 +168,8 @@ func (tool *buildTool) buildTarget(target buildTarget, envMap map[string]string,
 }
 
 func readEnvFile(path string) (map[string]string, error) {
-	data, err := os.ReadFile(path)
+	// #nosec G304 -- .env path is fixed to repo root.
+	data, err := os.ReadFile(path) // #nosec G304 -- .env path is fixed to repo root.
 	if err != nil {
 		if errors.Is(err, os.ErrNotExist) {
 			return map[string]string{}, nil

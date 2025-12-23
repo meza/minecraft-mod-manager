@@ -13,11 +13,16 @@ import (
 	"go.opentelemetry.io/otel/attribute"
 )
 
+var marshalIndent = json.MarshalIndent
+
 func ReadConfig(ctx context.Context, fs afero.Fs, meta Metadata) (models.ModsJson, error) {
 	_, span := perf.StartSpan(ctx, "io.config.read", perf.WithAttributes(attribute.String("config_path", meta.ConfigPath)))
 	defer span.End()
 
-	exists, _ := afero.Exists(fs, meta.ConfigPath)
+	exists, err := afero.Exists(fs, meta.ConfigPath)
+	if err != nil {
+		return models.ModsJson{}, fmt.Errorf("failed to check configuration file: %w", err)
+	}
 	if !exists {
 		return models.ModsJson{}, &ConfigFileNotFoundException{Path: meta.ConfigPath}
 	}
@@ -39,7 +44,10 @@ func WriteConfig(ctx context.Context, fs afero.Fs, meta Metadata, config models.
 	_, span := perf.StartSpan(ctx, "io.config.write", perf.WithAttributes(attribute.String("config_path", meta.ConfigPath)))
 	defer span.End()
 
-	data, _ := json.MarshalIndent(config, "", "  ")
+	data, err := marshalIndent(config, "", "  ")
+	if err != nil {
+		return fmt.Errorf("failed to serialize configuration: %w", err)
+	}
 	return writeFileAtomic(fs, meta.ConfigPath, data, 0644)
 }
 

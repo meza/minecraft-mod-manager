@@ -2,16 +2,21 @@ package modrinth
 
 import (
 	"context"
+	"io"
 	"net/http"
 	"net/http/httptest"
+	"net/url"
+	"strings"
 	"testing"
 	"time"
+
+	stdErrors "errors"
 
 	"github.com/meza/minecraft-mod-manager/internal/globalErrors"
 	"github.com/meza/minecraft-mod-manager/internal/httpClient"
 	"github.com/meza/minecraft-mod-manager/internal/models"
 	"github.com/meza/minecraft-mod-manager/testutil"
-	"github.com/pkg/errors"
+	pkgErrors "github.com/pkg/errors"
 	"github.com/stretchr/testify/assert"
 )
 
@@ -72,7 +77,7 @@ func TestGetVersionsForProject_SingleVersion(t *testing.T) {
 		}
 		w.Header().Set("Content-Type", "application/json")
 		w.WriteHeader(http.StatusOK)
-		w.Write([]byte(mockResponse))
+		writeStringResponse(t, w, mockResponse)
 	}))
 	defer mockServer.Close()
 
@@ -184,7 +189,7 @@ func TestGetVersionsForProject_MultipleVersions(t *testing.T) {
 	mockServer := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "application/json")
 		w.WriteHeader(http.StatusOK)
-		w.Write([]byte(mockResponse))
+		writeStringResponse(t, w, mockResponse)
 	}))
 	defer mockServer.Close()
 
@@ -217,12 +222,12 @@ func TestGetVersionsForProject_MultipleVersions(t *testing.T) {
 }
 
 func TestGetVersionsForProject_NoVersions(t *testing.T) {
-	mockResponse := `{"versions": []}`
+	mockResponse := `[]`
 
 	mockServer := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "application/json")
 		w.WriteHeader(http.StatusOK)
-		w.Write([]byte(mockResponse))
+		writeStringResponse(t, w, mockResponse)
 	}))
 	defer mockServer.Close()
 
@@ -249,7 +254,7 @@ func TestGetVersionsForProjectWhenProjectNotFound(t *testing.T) {
 	mockServer := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "application/json")
 		w.WriteHeader(http.StatusNotFound)
-		w.Write([]byte(mockResponse))
+		writeStringResponse(t, w, mockResponse)
 	}))
 	defer mockServer.Close()
 
@@ -289,7 +294,7 @@ func TestGetVersionsForProjectWhenProjectApiUnknownStatus(t *testing.T) {
 
 	// Assertions
 	assert.Error(t, err)
-	assert.Equal(t, "unexpected status code: 418", errors.Unwrap(err).Error())
+	assert.Equal(t, "unexpected status code: 418", pkgErrors.Unwrap(err).Error())
 	assert.Nil(t, project)
 }
 
@@ -304,7 +309,7 @@ func TestGetVersionsForProjectWhenApiCallFails(t *testing.T) {
 		Loaders:      []models.Loader{models.QUILT},
 		GameVersions: []string{"1.21.1"},
 	}
-	project, err := GetVersionsForProject(context.Background(), lookup, NewClient(errorDoer{err: errors.New("request failed")}))
+	project, err := GetVersionsForProject(context.Background(), lookup, NewClient(errorDoer{err: pkgErrors.New("request failed")}))
 
 	// Assertions
 	//assert.Error(t, err)
@@ -312,7 +317,7 @@ func TestGetVersionsForProjectWhenApiCallFails(t *testing.T) {
 		ProjectID: "AABBCCD3",
 		Platform:  models.MODRINTH,
 	})
-	assert.Equal(t, "request failed", errors.Unwrap(err).Error())
+	assert.Equal(t, "request failed", pkgErrors.Unwrap(err).Error())
 	assert.Nil(t, project)
 }
 
@@ -378,7 +383,7 @@ func TestGetVersionForHash_SingleVersion(t *testing.T) {
 		}
 		w.Header().Set("Content-Type", "application/json")
 		w.WriteHeader(http.StatusOK)
-		w.Write([]byte(mockResponse))
+		writeStringResponse(t, w, mockResponse)
 	}))
 	defer mockServer.Close()
 
@@ -427,7 +432,7 @@ func TestGetVersionForHashWhenProjectNotFound(t *testing.T) {
 	mockServer := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "application/json")
 		w.WriteHeader(http.StatusNotFound)
-		w.Write([]byte(mockResponse))
+		writeStringResponse(t, w, mockResponse)
 	}))
 	defer mockServer.Close()
 
@@ -464,7 +469,7 @@ func TestGetVersionForHashWhenProjectApiUnknownStatus(t *testing.T) {
 
 	// Assertions
 	assert.Error(t, err)
-	assert.Equal(t, "unexpected status code: 418", errors.Unwrap(err).Error())
+	assert.Equal(t, "unexpected status code: 418", pkgErrors.Unwrap(err).Error())
 	assert.Nil(t, project)
 }
 
@@ -478,14 +483,14 @@ func TestGetVersionForHashWhenApiCallFails(t *testing.T) {
 		algorithm: Sha1,
 		hash:      "c84dd4b3580c02b79958a0590afd5783d80ef504",
 	}
-	project, err := GetVersionForHash(context.Background(), lookup, NewClient(errorDoer{err: errors.New("request failed")}))
+	project, err := GetVersionForHash(context.Background(), lookup, NewClient(errorDoer{err: pkgErrors.New("request failed")}))
 
 	// Assertions
 	//assert.Error(t, err)
 	assert.ErrorIs(t, err, &VersionApiError{
 		Lookup: *lookup,
 	})
-	assert.Equal(t, "request failed", errors.Unwrap(err).Error())
+	assert.Equal(t, "request failed", pkgErrors.Unwrap(err).Error())
 	assert.Nil(t, project)
 }
 
@@ -500,4 +505,178 @@ func TestGetVersionForHashWhenApiCallTimesOut(t *testing.T) {
 	var timeoutErr *httpClient.TimeoutError
 	assert.ErrorAs(t, err, &timeoutErr)
 	assert.Nil(t, project)
+}
+
+func TestGetVersionsForProjectReturnsErrorOnMarshalFailure(t *testing.T) {
+	originalMarshal := marshalJSON
+	marshalJSON = func(any) ([]byte, error) {
+		return nil, stdErrors.New("marshal failed")
+	}
+	t.Cleanup(func() {
+		marshalJSON = originalMarshal
+	})
+
+	lookup := &VersionLookup{
+		ProjectId:    "AABBCCDD",
+		Loaders:      []models.Loader{models.FABRIC},
+		GameVersions: []string{"1.16.5"},
+	}
+
+	versions, err := GetVersionsForProject(context.Background(), lookup, NewClient(errorDoer{}))
+	assert.Error(t, err)
+	assert.Nil(t, versions)
+}
+
+func TestGetVersionsForProjectReturnsErrorOnLoaderMarshalFailure(t *testing.T) {
+	originalMarshal := marshalJSON
+	callCount := 0
+	marshalJSON = func(any) ([]byte, error) {
+		callCount++
+		if callCount == 2 {
+			return nil, stdErrors.New("marshal failed")
+		}
+		return []byte(`["1.16.5"]`), nil
+	}
+	t.Cleanup(func() {
+		marshalJSON = originalMarshal
+	})
+
+	lookup := &VersionLookup{
+		ProjectId:    "AABBCCDD",
+		Loaders:      []models.Loader{models.FABRIC},
+		GameVersions: []string{"1.16.5"},
+	}
+
+	versions, err := GetVersionsForProject(context.Background(), lookup, NewClient(errorDoer{}))
+	assert.Error(t, err)
+	assert.Nil(t, versions)
+}
+
+func TestGetVersionsForProjectReturnsErrorOnURLParseFailure(t *testing.T) {
+	originalParse := parseURL
+	parseURL = func(string) (*url.URL, error) {
+		return nil, stdErrors.New("parse failed")
+	}
+	t.Cleanup(func() {
+		parseURL = originalParse
+	})
+
+	lookup := &VersionLookup{
+		ProjectId:    "AABBCCDD",
+		Loaders:      []models.Loader{models.FABRIC},
+		GameVersions: []string{"1.16.5"},
+	}
+
+	versions, err := GetVersionsForProject(context.Background(), lookup, NewClient(errorDoer{}))
+	assert.Error(t, err)
+	assert.Nil(t, versions)
+}
+
+func TestGetVersionsForProjectReturnsErrorOnRequestBuildFailure(t *testing.T) {
+	originalRequest := newRequestWithContext
+	newRequestWithContext = func(context.Context, string, string, io.Reader) (*http.Request, error) {
+		return nil, stdErrors.New("request failed")
+	}
+	t.Cleanup(func() {
+		newRequestWithContext = originalRequest
+	})
+
+	lookup := &VersionLookup{
+		ProjectId:    "AABBCCDD",
+		Loaders:      []models.Loader{models.FABRIC},
+		GameVersions: []string{"1.16.5"},
+	}
+
+	versions, err := GetVersionsForProject(context.Background(), lookup, NewClient(errorDoer{}))
+	assert.Error(t, err)
+	assert.Nil(t, versions)
+}
+
+func TestGetVersionsForProjectReturnsErrorOnResponseCloseFailure(t *testing.T) {
+	closeErr := stdErrors.New("close failed")
+	body := newCloseErrorBody("[]", closeErr)
+	client := NewClient(responseDoer{
+		response: &http.Response{
+			StatusCode: http.StatusOK,
+			Body:       body,
+			Header:     make(http.Header),
+		},
+	})
+
+	lookup := &VersionLookup{
+		ProjectId:    "AABBCCDD",
+		Loaders:      []models.Loader{models.FABRIC},
+		GameVersions: []string{"1.16.5"},
+	}
+
+	versions, err := GetVersionsForProject(context.Background(), lookup, client)
+	assert.ErrorIs(t, err, closeErr)
+	assert.NotNil(t, versions)
+}
+
+func TestGetVersionsForProjectReturnsErrorOnDecodeFailure(t *testing.T) {
+	client := NewClient(responseDoer{
+		response: &http.Response{
+			StatusCode: http.StatusOK,
+			Body:       io.NopCloser(strings.NewReader("{")),
+			Header:     make(http.Header),
+		},
+	})
+
+	lookup := &VersionLookup{
+		ProjectId:    "AABBCCDD",
+		Loaders:      []models.Loader{models.FABRIC},
+		GameVersions: []string{"1.16.5"},
+	}
+
+	versions, err := GetVersionsForProject(context.Background(), lookup, client)
+	assert.Error(t, err)
+	assert.Nil(t, versions)
+}
+
+func TestGetVersionForHashReturnsErrorOnRequestBuildFailure(t *testing.T) {
+	originalRequest := newRequestWithContext
+	newRequestWithContext = func(context.Context, string, string, io.Reader) (*http.Request, error) {
+		return nil, stdErrors.New("request failed")
+	}
+	t.Cleanup(func() {
+		newRequestWithContext = originalRequest
+	})
+
+	lookup := NewVersionHashLookup("abc", Sha1)
+	version, err := GetVersionForHash(context.Background(), lookup, NewClient(errorDoer{}))
+	assert.Error(t, err)
+	assert.Nil(t, version)
+}
+
+func TestGetVersionForHashReturnsErrorOnResponseCloseFailure(t *testing.T) {
+	closeErr := stdErrors.New("close failed")
+	body := newCloseErrorBody(`{"id":"version","project_id":"proj","date_published":"2024-08-01T00:00:00Z"}`, closeErr)
+	client := NewClient(responseDoer{
+		response: &http.Response{
+			StatusCode: http.StatusOK,
+			Body:       body,
+			Header:     make(http.Header),
+		},
+	})
+
+	lookup := NewVersionHashLookup("abc", Sha1)
+	version, err := GetVersionForHash(context.Background(), lookup, client)
+	assert.ErrorIs(t, err, closeErr)
+	assert.NotNil(t, version)
+}
+
+func TestGetVersionForHashReturnsErrorOnDecodeFailure(t *testing.T) {
+	client := NewClient(responseDoer{
+		response: &http.Response{
+			StatusCode: http.StatusOK,
+			Body:       io.NopCloser(strings.NewReader("{")),
+			Header:     make(http.Header),
+		},
+	})
+
+	lookup := NewVersionHashLookup("abc", Sha1)
+	version, err := GetVersionForHash(context.Background(), lookup, client)
+	assert.Error(t, err)
+	assert.Nil(t, version)
 }

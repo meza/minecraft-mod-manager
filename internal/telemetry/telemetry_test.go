@@ -859,5 +859,5 @@ func TestDefaultClientFactory(t *testing.T) {
 	client, err := defaultClientFactory("key", defaultPosthogHost)
 	assert.NoError(t, err)
 	assert.NotNil(t, client)
-	_ = client.Close()
+	assert.NoError(t, client.Close())
 }

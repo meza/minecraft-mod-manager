@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
+	"io"
 	"net/http"
 	"net/http/httptest"
 	"strings"
@@ -19,6 +20,43 @@ import (
 	"golang.org/x/time/rate"
 )
 
+func writeJSONResponse(t *testing.T, writer http.ResponseWriter, payload any) {
+	t.Helper()
+	if err := json.NewEncoder(writer).Encode(payload); err != nil {
+		t.Fatalf("write json response: %v", err)
+	}
+}
+
+func writeStringResponse(t *testing.T, writer http.ResponseWriter, payload string) {
+	t.Helper()
+	if _, err := writer.Write([]byte(payload)); err != nil {
+		t.Fatalf("write string response: %v", err)
+	}
+}
+
+type closeErrorBody struct {
+	reader   *strings.Reader
+	closeErr error
+}
+
+func newCloseErrorBody(payload string, closeErr error) *closeErrorBody {
+	return &closeErrorBody{
+		reader:   strings.NewReader(payload),
+		closeErr: closeErr,
+	}
+}
+
+func (c *closeErrorBody) Read(p []byte) (int, error) {
+	return c.reader.Read(p)
+}
+
+func (c *closeErrorBody) Close() error {
+	if c.closeErr != nil {
+		return c.closeErr
+	}
+	return nil
+}
+
 func TestFetchModrinth_Succeeds(t *testing.T) {
 	perf.Reset()
 	t.Cleanup(perf.Reset)
@@ -26,7 +64,7 @@ func TestFetchModrinth_Succeeds(t *testing.T) {
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		switch {
 		case r.URL.Path == "/v2/project/test-mod":
-			_, _ = w.Write([]byte(`{"title":"Test Mod","id":"test-mod"}`))
+			writeStringResponse(t, w, `{"title":"Test Mod","id":"test-mod"}`)
 		case r.URL.Path == "/v2/project/test-mod/version":
 			response := []map[string]interface{}{
 				{
@@ -64,7 +102,7 @@ func TestFetchModrinth_Succeeds(t *testing.T) {
 					},
 				},
 			}
-			_ = json.NewEncoder(w).Encode(response)
+			writeJSONResponse(t, w, response)
 		default:
 			w.WriteHeader(http.StatusNotFound)
 		}
@@ -141,17 +179,17 @@ func assertPerfAttrContains(t *testing.T, spanName string, key string, needle st
 func TestFetchModrinth_Fallback(t *testing.T) {
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		if r.URL.Path == "/v2/project/test-mod" {
-			_, _ = w.Write([]byte(`{"title":"Test Mod","id":"test-mod"}`))
+			writeStringResponse(t, w, `{"title":"Test Mod","id":"test-mod"}`)
 			return
 		}
 
 		if r.URL.Path == "/v2/project/test-mod/version" {
 			gameVersions := r.URL.Query().Get("game_versions")
 			if gameVersions == `["1.20.2"]` {
-				_ = json.NewEncoder(w).Encode([]map[string]interface{}{})
+				writeJSONResponse(t, w, []map[string]interface{}{})
 				return
 			}
-			_ = json.NewEncoder(w).Encode([]map[string]interface{}{
+			writeJSONResponse(t, w, []map[string]interface{}{
 				{
 					"project_id":     "test-mod",
 					"version_number": "1.0.0",
@@ -187,15 +225,47 @@ func TestFetchModrinth_Fallback(t *testing.T) {
 	assert.Equal(t, "file.jar", mod.FileName)
 }
 
+func TestParseIntReturnsZeroOnInvalidValue(t *testing.T) {
+	assert.Equal(t, 0, parseInt("not-a-number"))
+}
+
+func TestFetchCurseforgeFilesReturnsErrorOnRequestBuildFailure(t *testing.T) {
+	originalRequest := newRequestWithContext
+	newRequestWithContext = func(context.Context, string, string, io.Reader) (*http.Request, error) {
+		return nil, errors.New("request failed")
+	}
+	t.Cleanup(func() {
+		newRequestWithContext = originalRequest
+	})
+
+	files, err := fetchCurseforgeFiles(context.Background(), "12345", "1.20.1", curseforge.Fabric, errorDoer{})
+	assert.Error(t, err)
+	assert.Nil(t, files)
+}
+
+func TestFetchCurseforgeFilesReturnsErrorOnResponseCloseFailure(t *testing.T) {
+	closeErr := errors.New("close failed")
+	body := newCloseErrorBody(`{"data":[]}`, closeErr)
+	files, err := fetchCurseforgeFiles(context.Background(), "12345", "1.20.1", curseforge.Fabric, responseDoer{
+		response: &http.Response{
+			StatusCode: http.StatusOK,
+			Body:       body,
+			Header:     make(http.Header),
+		},
+	})
+	assert.ErrorIs(t, err, closeErr)
+	assert.NotNil(t, files)
+}
+
 func TestFetchModrinth_FixedVersion(t *testing.T) {
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		if r.URL.Path == "/v2/project/test-mod" {
-			_, _ = w.Write([]byte(`{"title":"Test Mod","id":"test-mod"}`))
+			writeStringResponse(t, w, `{"title":"Test Mod","id":"test-mod"}`)
 			return
 		}
 
 		if r.URL.Path == "/v2/project/test-mod/version" {
-			_ = json.NewEncoder(w).Encode([]map[string]interface{}{
+			writeJSONResponse(t, w, []map[string]interface{}{
 				{
 					"project_id":     "test-mod",
 					"version_number": "1.0.0",
@@ -272,11 +342,11 @@ func TestFetchModrinth_NotFound(t *testing.T) {
 func TestFetchModrinth_NoFile(t *testing.T) {
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		if r.URL.Path == "/v2/project/test-mod" {
-			_, _ = w.Write([]byte(`{"title":"Test Mod","id":"test-mod"}`))
+			writeStringResponse(t, w, `{"title":"Test Mod","id":"test-mod"}`)
 			return
 		}
 
-		_ = json.NewEncoder(w).Encode([]map[string]interface{}{})
+		writeJSONResponse(t, w, []map[string]interface{}{})
 	}))
 	defer server.Close()
 
@@ -298,14 +368,14 @@ func TestFetchCurseforge_Succeeds(t *testing.T) {
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		switch {
 		case r.URL.Path == "/v1/mods/1234":
-			_ = json.NewEncoder(w).Encode(map[string]interface{}{
+			writeJSONResponse(t, w, map[string]interface{}{
 				"data": map[string]interface{}{
 					"id":   1234,
 					"name": "CF Mod",
 				},
 			})
 		case strings.HasPrefix(r.URL.Path, "/v1/mods/1234/files"):
-			_ = json.NewEncoder(w).Encode(map[string]interface{}{
+			writeJSONResponse(t, w, map[string]interface{}{
 				"data": []map[string]interface{}{
 					{
 						"fileName":    "cf.jar",
@@ -362,7 +432,7 @@ func TestFetchCurseforge_Fallback(t *testing.T) {
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		switch {
 		case r.URL.Path == "/v1/mods/1234":
-			_ = json.NewEncoder(w).Encode(map[string]interface{}{
+			writeJSONResponse(t, w, map[string]interface{}{
 				"data": map[string]interface{}{
 					"id":   1234,
 					"name": "CF Mod",
@@ -371,10 +441,10 @@ func TestFetchCurseforge_Fallback(t *testing.T) {
 		case strings.HasPrefix(r.URL.Path, "/v1/mods/1234/files"):
 			gameVersion := r.URL.Query().Get("gameVersion")
 			if gameVersion == "1.20.2" {
-				_ = json.NewEncoder(w).Encode(map[string]interface{}{"data": []interface{}{}})
+				writeJSONResponse(t, w, map[string]interface{}{"data": []interface{}{}})
 				return
 			}
-			_ = json.NewEncoder(w).Encode(map[string]interface{}{
+			writeJSONResponse(t, w, map[string]interface{}{
 				"data": []map[string]interface{}{
 					{
 						"fileName":    "cf.jar",
@@ -433,7 +503,7 @@ func TestFetchCurseforge_NotFound(t *testing.T) {
 func TestFetchCurseforge_NoFile(t *testing.T) {
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		if r.URL.Path == "/v1/mods/1234" {
-			_ = json.NewEncoder(w).Encode(map[string]interface{}{
+			writeJSONResponse(t, w, map[string]interface{}{
 				"data": map[string]interface{}{
 					"id":   1234,
 					"name": "CF Mod",
@@ -442,7 +512,7 @@ func TestFetchCurseforge_NoFile(t *testing.T) {
 			return
 		}
 		if r.URL.Path == "/v1/mods/1234/files" {
-			_ = json.NewEncoder(w).Encode(map[string]interface{}{"data": []interface{}{}})
+			writeJSONResponse(t, w, map[string]interface{}{"data": []interface{}{}})
 		}
 	}))
 	defer server.Close()
@@ -465,14 +535,14 @@ func TestFetchCurseforge_MissingDownloadURL(t *testing.T) {
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		switch r.URL.Path {
 		case "/v1/mods/1234":
-			_ = json.NewEncoder(w).Encode(map[string]interface{}{
+			writeJSONResponse(t, w, map[string]interface{}{
 				"data": map[string]interface{}{
 					"id":   1234,
 					"name": "CF Mod",
 				},
 			})
 		case "/v1/mods/1234/files":
-			_ = json.NewEncoder(w).Encode(map[string]interface{}{
+			writeJSONResponse(t, w, map[string]interface{}{
 				"data": []map[string]interface{}{
 					{
 						"fileName":    "cf.jar",
@@ -509,14 +579,14 @@ func TestFetchCurseforge_MissingHash(t *testing.T) {
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		switch r.URL.Path {
 		case "/v1/mods/1234":
-			_ = json.NewEncoder(w).Encode(map[string]interface{}{
+			writeJSONResponse(t, w, map[string]interface{}{
 				"data": map[string]interface{}{
 					"id":   1234,
 					"name": "CF Mod",
 				},
 			})
 		case "/v1/mods/1234/files":
-			_ = json.NewEncoder(w).Encode(map[string]interface{}{
+			writeJSONResponse(t, w, map[string]interface{}{
 				"data": []map[string]interface{}{
 					{
 						"fileName":    "cf.jar",
@@ -551,7 +621,7 @@ func TestFetchCurseforge_MissingHash(t *testing.T) {
 
 func TestFetchCurseforge_UnsupportedLoader(t *testing.T) {
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		_ = json.NewEncoder(w).Encode(map[string]interface{}{
+		writeJSONResponse(t, w, map[string]interface{}{
 			"data": map[string]interface{}{
 				"id":   1234,
 				"name": "CF Mod",
@@ -582,7 +652,7 @@ func TestFetchCurseforgeFilesErrors(t *testing.T) {
 	assert.Error(t, err)
 
 	badJSONServer := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		_, _ = w.Write([]byte("{"))
+		writeStringResponse(t, w, "{")
 	}))
 	defer badJSONServer.Close()
 
@@ -683,10 +753,10 @@ func TestContainsHelpers(t *testing.T) {
 func TestFetchModrinth_MissingFields(t *testing.T) {
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		if r.URL.Path == "/v2/project/test-mod" {
-			_, _ = w.Write([]byte(`{"title":"Test Mod","id":"test-mod"}`))
+			writeStringResponse(t, w, `{"title":"Test Mod","id":"test-mod"}`)
 			return
 		}
-		_ = json.NewEncoder(w).Encode([]map[string]interface{}{
+		writeJSONResponse(t, w, []map[string]interface{}{
 			{
 				"project_id":     "test-mod",
 				"version_number": "1.0.0",
@@ -722,10 +792,10 @@ func TestFetchModrinth_MissingFields(t *testing.T) {
 func TestFetchModrinth_FixedVersionNotFound(t *testing.T) {
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		if r.URL.Path == "/v2/project/test-mod" {
-			_, _ = w.Write([]byte(`{"title":"Test Mod","id":"test-mod"}`))
+			writeStringResponse(t, w, `{"title":"Test Mod","id":"test-mod"}`)
 			return
 		}
-		_ = json.NewEncoder(w).Encode([]map[string]interface{}{
+		writeJSONResponse(t, w, []map[string]interface{}{
 			{
 				"project_id":     "test-mod",
 				"version_number": "1.0.0",
@@ -762,10 +832,10 @@ func TestFetchModrinth_FixedVersionNotFound(t *testing.T) {
 func TestFetchModrinth_NoFiles(t *testing.T) {
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		if r.URL.Path == "/v2/project/test-mod" {
-			_, _ = w.Write([]byte(`{"title":"Test Mod","id":"test-mod"}`))
+			writeStringResponse(t, w, `{"title":"Test Mod","id":"test-mod"}`)
 			return
 		}
-		_ = json.NewEncoder(w).Encode([]map[string]interface{}{
+		writeJSONResponse(t, w, []map[string]interface{}{
 			{
 				"project_id":     "test-mod",
 				"version_number": "1.0.0",
@@ -793,7 +863,7 @@ func TestFetchModrinth_NoFiles(t *testing.T) {
 func TestFetchModrinth_VersionApiError(t *testing.T) {
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		if r.URL.Path == "/v2/project/test-mod" {
-			_, _ = w.Write([]byte(`{"title":"Test Mod","id":"test-mod"}`))
+			writeStringResponse(t, w, `{"title":"Test Mod","id":"test-mod"}`)
 			return
 		}
 		w.WriteHeader(http.StatusInternalServerError)
@@ -952,10 +1022,10 @@ func TestFetchCurseforgeFilesUnexpectedStatus(t *testing.T) {
 func TestFetchModrinth_FallbackCannotGoDown(t *testing.T) {
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		if r.URL.Path == "/v2/project/test-mod" {
-			_, _ = w.Write([]byte(`{"title":"Test Mod","id":"test-mod"}`))
+			writeStringResponse(t, w, `{"title":"Test Mod","id":"test-mod"}`)
 			return
 		}
-		_ = json.NewEncoder(w).Encode([]map[string]interface{}{})
+		writeJSONResponse(t, w, []map[string]interface{}{})
 	}))
 	defer server.Close()
 
@@ -974,7 +1044,7 @@ func TestFetchModrinth_FallbackCannotGoDown(t *testing.T) {
 func TestFetchCurseforge_ProjectNotFoundFromFiles(t *testing.T) {
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		if r.URL.Path == "/v1/mods/1234" {
-			_ = json.NewEncoder(w).Encode(map[string]interface{}{
+			writeJSONResponse(t, w, map[string]interface{}{
 				"data": map[string]interface{}{
 					"id":   1234,
 					"name": "CF Mod",
@@ -1000,7 +1070,7 @@ func TestFetchCurseforge_ProjectNotFoundFromFiles(t *testing.T) {
 func TestFetchModrinth_VersionsNotFound(t *testing.T) {
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		if r.URL.Path == "/v2/project/test-mod" {
-			_, _ = w.Write([]byte(`{"title":"Test Mod","id":"test-mod"}`))
+			writeStringResponse(t, w, `{"title":"Test Mod","id":"test-mod"}`)
 			return
 		}
 		w.WriteHeader(http.StatusNotFound)
@@ -1057,6 +1127,15 @@ type errorDoer struct{}
 
 func (errorDoer) Do(_ *http.Request) (*http.Response, error) {
 	return nil, errors.New("doer error")
+}
+
+type responseDoer struct {
+	response *http.Response
+	err      error
+}
+
+func (r responseDoer) Do(_ *http.Request) (*http.Response, error) {
+	return r.response, r.err
 }
 
 type timeoutDoer struct{}

@@ -227,8 +227,8 @@ func TestGetUserLocalesNoLang(t *testing.T) {
 	localeProvider = MockLocaleProvider{}
 
 	oldLang := os.Getenv("LANG")
-	os.Unsetenv("LANG")
-	t.Cleanup(func() { os.Setenv("LANG", oldLang) })
+	assert.NoError(t, os.Unsetenv("LANG"))
+	t.Cleanup(func() { assert.NoError(t, os.Setenv("LANG", oldLang)) })
 
 	locales := getUserLocales()
 	assert.Equal(t, []string{language.English.String()}, locales)
@@ -240,8 +240,8 @@ func TestGetUserLocalesProviderSuccess(t *testing.T) {
 	localeProvider = FakeLocaleProvider{}
 
 	oldLang := os.Getenv("LANG")
-	os.Unsetenv("LANG")
-	t.Cleanup(func() { os.Setenv("LANG", oldLang) })
+	assert.NoError(t, os.Unsetenv("LANG"))
+	t.Cleanup(func() { assert.NoError(t, os.Setenv("LANG", oldLang)) })
 
 	locales := getUserLocales()
 	assert.Equal(t, []string{"fr_FR", "de_DE"}, locales)
@@ -269,8 +269,8 @@ func TestGetUserLocalesSkipsEmptyEntries(t *testing.T) {
 	localeProvider = EmptyLocaleProvider{}
 
 	oldLang := os.Getenv("LANG")
-	os.Unsetenv("LANG")
-	t.Cleanup(func() { os.Setenv("LANG", oldLang) })
+	assert.NoError(t, os.Unsetenv("LANG"))
+	t.Cleanup(func() { assert.NoError(t, os.Setenv("LANG", oldLang)) })
 
 	locales := getUserLocales()
 	assert.Equal(t, []string{"es_ES"}, locales)

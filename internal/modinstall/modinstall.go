@@ -7,6 +7,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"os"
 	"path/filepath"
 	"strings"
 
@@ -147,44 +148,66 @@ func (s *Installer) downloadAndVerify(ctx context.Context, url string, destinati
 		return err
 	}
 	tempPath := tempFile.Name()
-	_ = tempFile.Close()
+	if err := tempFile.Close(); err != nil {
+		if removeErr := s.fs.Remove(tempPath); removeErr != nil && !errors.Is(removeErr, os.ErrNotExist) {
+			return errors.Join(err, fmt.Errorf("failed to remove temp file %s: %w", tempPath, removeErr))
+		}
+		return err
+	}
 
 	if err := s.downloader(ctx, url, tempPath, downloadClient, sender, s.fs); err != nil {
-		_ = s.fs.Remove(tempPath)
+		removeErr := s.fs.Remove(tempPath)
+		if removeErr != nil && !errors.Is(removeErr, os.ErrNotExist) {
+			return errors.Join(err, fmt.Errorf("failed to remove temp file %s: %w", tempPath, removeErr))
+		}
 		return err
 	}
 
 	actualHash, err := sha1ForFile(s.fs, tempPath)
 	if err != nil {
-		_ = s.fs.Remove(tempPath)
+		removeErr := s.fs.Remove(tempPath)
+		if removeErr != nil && !errors.Is(removeErr, os.ErrNotExist) {
+			return errors.Join(err, fmt.Errorf("failed to remove temp file %s: %w", tempPath, removeErr))
+		}
 		return err
 	}
 
 	if !strings.EqualFold(strings.TrimSpace(expectedHash), actualHash) {
-		_ = s.fs.Remove(tempPath)
-		return HashMismatchError{FileName: displayName, Expected: expectedHash, Actual: actualHash}
+		removeErr := s.fs.Remove(tempPath)
+		hashErr := HashMismatchError{FileName: displayName, Expected: expectedHash, Actual: actualHash}
+		if removeErr != nil && !errors.Is(removeErr, os.ErrNotExist) {
+			return errors.Join(hashErr, fmt.Errorf("failed to remove temp file %s: %w", tempPath, removeErr))
+		}
+		return hashErr
 	}
 
 	if err := replaceExistingFile(s.fs, tempPath, destination); err != nil {
-		_ = s.fs.Remove(tempPath)
+		removeErr := s.fs.Remove(tempPath)
+		if removeErr != nil && !errors.Is(removeErr, os.ErrNotExist) {
+			return errors.Join(err, fmt.Errorf("failed to remove temp file %s: %w", tempPath, removeErr))
+		}
 		return err
 	}
 
 	return nil
 }
 
-func sha1ForFile(fs afero.Fs, path string) (string, error) {
+func sha1ForFile(fs afero.Fs, path string) (hash string, returnErr error) {
 	file, err := fs.Open(path)
 	if err != nil {
 		return "", err
 	}
-	defer func() { _ = file.Close() }()
+	defer func() {
+		if closeErr := file.Close(); closeErr != nil && returnErr == nil {
+			returnErr = closeErr
+		}
+	}()
 
-	hash := sha1.New()
-	if _, err := io.Copy(hash, file); err != nil {
+	hasher := sha1.New()
+	if _, err := io.Copy(hasher, file); err != nil {
 		return "", err
 	}
-	return hex.EncodeToString(hash.Sum(nil)), nil
+	return hex.EncodeToString(hasher.Sum(nil)), nil
 }
 
 func replaceExistingFile(fs afero.Fs, sourcePath string, destinationPath string) error {
@@ -207,11 +230,16 @@ func replaceExistingFile(fs afero.Fs, sourcePath string, destinationPath string)
 	}
 
 	if err := fs.Rename(sourcePath, destinationPath); err != nil {
-		_ = fs.Rename(backupPath, destinationPath)
+		rollbackErr := fs.Rename(backupPath, destinationPath)
+		if rollbackErr != nil {
+			return errors.Join(err, fmt.Errorf("failed to restore backup %s: %w", backupPath, rollbackErr))
+		}
 		return err
 	}
 
-	_ = fs.Remove(backupPath)
+	if err := fs.Remove(backupPath); err != nil && !errors.Is(err, os.ErrNotExist) {
+		return fmt.Errorf("failed to remove backup %s: %w", backupPath, err)
+	}
 
 	return nil
 }

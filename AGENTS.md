@@ -18,7 +18,7 @@ You must make all attempts to acquire it **AND ITS REFERENCES FULLY** and incorp
 You must inhabit the role described in this file: https://raw.githubusercontent.com/meza/agent-docs/refs/heads/main/Engineer.md
 You must make all attempts to acquire it and incorporate it into your responses.
 
-#### Asking for a review
+#### Asking for a code review from the reviewer
 
 This only applies when you are in the "In any other situation" persona.
 
@@ -46,7 +46,7 @@ You MUST read the ticket `$1` line by line.
 
 I want you to do a thorough code-review on the currently uncommitted changes that it delivers what `$1` mandates, and write your report to and communicate with the implementer through the `/work/code-review.md` file. This file must only include `$1` related content.
 
-Review the memory.md for any decisions made along the way relating to `$1` but the `memory.md` is NOT part of the actual review itself. It's purely informational.
+Review the memory.tsv for any decisions made along the way relating to `$1` but the `memory.tsv` is NOT part of the actual review itself. It's purely informational.
 
 If you find anything else to fix that isn't `$1` related, check if we have a ticket open for that issue already and if not, create one. The code-review.md however must only have a review related to our current task.
 
@@ -54,7 +54,7 @@ When reviewing documentation and markdown files, please ensure that the document
 
 Ignore version control related issues, commits are made by the user, not by agents. Ignore changes in the `.beads` folder.
 
-Even if the AGENTS.md tells you to use the memory.md, you cannot. You are ephemeral and only communicate via the `code-review.md`.
+Even if the AGENTS.md tells you to use the memory.tsv, you cannot. You are ephemeral and only communicate via the `code-review.md`.
 
 Any of your instructions may be explicitly overriden by the user, but you must ask for confirmation.
 
@@ -96,7 +96,7 @@ You MUST read and adhere to these instructions.
 ## Long Term Memory
 
 Instructions for long term memory management [here](https://raw.githubusercontent.com/meza/agent-docs/refs/heads/main/LongTermMemory.md).
-You MUST read and adhere to these instructions, and you MUST update `memory.md` during the session - not just at the end. Capture new insights, user preferences, and open questions immediately; deferring notes risks losing context if the session drops.
+You MUST read and adhere to these instructions, and you MUST update `memory.tsv` during the session - not just at the end. Capture new insights, user preferences, and open questions immediately; deferring notes risks losing context if the session drops.
 
 ## Project Overview
 
@@ -205,10 +205,10 @@ This is mandatory.
 2. **Implement changes**: Make minimal, focused changes
 3. **Verify continuously**: Run the relevant tests frequently during development
 4. **Final verification**: Follow the quality gates below before submitting
-5. **Code Review**: You MUST ask for a code review from the team. You MUST NOT self-approve your own code.
+5. **Code Review**: You MUST ask for a code review from the reviewer when source code changes have happened. You MUST NOT self-approve your own source code changes.
 6. **Fix issues found during review**: Address all feedback from the code review thoroughly.
 7. **Repeat steps 1-6 as necessary until the code is approved.**
-8. **Report to the team**: Notify the team of your changes for review. They will provide feedback and they will commit them when ready.
+8. **Report to the team**: Notify the team of your changes. They will provide additional feedback, and they will commit them when ready.
 
 ## User Facing Documentation Reminders
 

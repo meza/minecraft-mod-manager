@@ -2,7 +2,10 @@ package minecraft
 
 import (
 	"context"
+	"errors"
+	"io"
 	"net/http"
+	"strings"
 	"testing"
 
 	"github.com/meza/minecraft-mod-manager/internal/httpClient"
@@ -16,33 +19,65 @@ func (f doerFunc) Do(req *http.Request) (*http.Response, error) {
 	return f(req)
 }
 
+type closeErrorBody struct {
+	reader   *strings.Reader
+	closeErr error
+}
+
+func newCloseErrorBody(payload string, closeErr error) *closeErrorBody {
+	return &closeErrorBody{
+		reader:   strings.NewReader(payload),
+		closeErr: closeErr,
+	}
+}
+
+func (c *closeErrorBody) Read(p []byte) (int, error) {
+	return c.reader.Read(p)
+}
+
+func (c *closeErrorBody) Close() error {
+	if c.closeErr != nil {
+		return c.closeErr
+	}
+	return nil
+}
+
+func writeResponse(t *testing.T, writer http.ResponseWriter, payload string) {
+	t.Helper()
+	if _, err := writer.Write([]byte(payload)); err != nil {
+		t.Fatalf("failed to write response: %v", err)
+	}
+}
+
 func TestMinecraft(t *testing.T) {
 	t.Run("GetLatestVersion_1", func(t *testing.T) {
 		ClearManifestCache()
-		mockServer, _ := httpstest.NewServer([]string{
+		mockServer, err := httpstest.NewServer([]string{
 			"launchermeta.mojang.com",
 		}, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 			if r.URL.Path != "/mc/game/version_manifest.json" {
 				t.Fatalf("unexpected path: %s", r.URL.Path)
 			}
-			w.Write([]byte(`{"latest":{"release":"1.21.2"}}`))
+			writeResponse(t, w, `{"latest":{"release":"1.21.2"}}`)
 		}))
+		assert.NoError(t, err)
 		defer mockServer.Close()
 
-		ver, _ := GetLatestVersion(context.Background(), mockServer.Client())
+		ver, err := GetLatestVersion(context.Background(), mockServer.Client())
+		assert.NoError(t, err)
 
 		assert.Equal(t, "1.21.2", ver)
 	})
 
 	t.Run("IsValidVersion", func(t *testing.T) {
 		ClearManifestCache()
-		mockServer, _ := httpstest.NewServer([]string{
+		mockServer, err := httpstest.NewServer([]string{
 			"launchermeta.mojang.com",
 		}, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 			if r.URL.Path != "/mc/game/version_manifest.json" {
 				t.Fatalf("unexpected path: %s", r.URL.Path)
 			}
-			w.Write([]byte(`{"versions": [{
+			writeResponse(t, w, `{"versions": [{
       "id": "24w34a",
       "type": "snapshot",
       "url": "https://piston-meta.mojang.com/v1/packages/17e3b903641353554e4b1728df2b62b97562d0ab/24w34a.json",
@@ -62,8 +97,9 @@ func TestMinecraft(t *testing.T) {
       "url": "https://piston-meta.mojang.com/v1/packages/d1937ef3108629ae7b60e468b3846e6e02ddeebb/1.21.1.json",
       "time": "2024-08-21T13:00:55+00:00",
       "releaseTime": "2024-08-08T12:24:45+00:00"
-    }]}`))
+    }]}`)
 		}))
+		assert.NoError(t, err)
 		defer mockServer.Close()
 
 		assert.True(t, IsValidVersion(context.Background(), "1.21.1", mockServer.Client()))
@@ -76,13 +112,13 @@ func TestMinecraft(t *testing.T) {
 
 	t.Run("GetAllMineCraftVersions", func(t *testing.T) {
 		ClearManifestCache()
-		mockServer, _ := httpstest.NewServer([]string{
+		mockServer, err := httpstest.NewServer([]string{
 			"launchermeta.mojang.com",
 		}, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 			if r.URL.Path != "/mc/game/version_manifest.json" {
 				t.Fatalf("unexpected path: %s", r.URL.Path)
 			}
-			w.Write([]byte(`{"versions": [{
+			writeResponse(t, w, `{"versions": [{
       "id": "24w34a",
       "type": "snapshot",
       "url": "https://piston-meta.mojang.com/v1/packages/17e3b903641353554e4b1728df2b62b97562d0ab/24w34a.json",
@@ -102,8 +138,9 @@ func TestMinecraft(t *testing.T) {
       "url": "https://piston-meta.mojang.com/v1/packages/d1937ef3108629ae7b60e468b3846e6e02ddeebb/1.21.1.json",
       "time": "2024-08-21T13:00:55+00:00",
       "releaseTime": "2024-08-08T12:24:45+00:00"
-    }]}`))
+    }]}`)
 		}))
+		assert.NoError(t, err)
 		defer mockServer.Close()
 
 		assert.Equal(t, []string{"24w34a", "24w33a", "1.21.1"}, GetAllMineCraftVersions(context.Background(), mockServer.Client()))
@@ -111,7 +148,7 @@ func TestMinecraft(t *testing.T) {
 
 	t.Run("GetLatestVersion_Error", func(t *testing.T) {
 		ClearManifestCache()
-		mockServer, _ := httpstest.NewServer([]string{
+		mockServer, err := httpstest.NewServer([]string{
 			"launchermeta.mojang.com",
 		}, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 			if r.URL.Path != "/mc/game/version_manifest.json" {
@@ -119,6 +156,7 @@ func TestMinecraft(t *testing.T) {
 			}
 			http.Error(w, "not found", http.StatusNotFound)
 		}))
+		assert.NoError(t, err)
 		defer mockServer.Close()
 
 		ver, err := GetLatestVersion(context.Background(), mockServer.Client())
@@ -140,7 +178,7 @@ func TestMinecraft(t *testing.T) {
 
 	t.Run("IsValidVersion_Error", func(t *testing.T) {
 		ClearManifestCache()
-		mockServer, _ := httpstest.NewServer([]string{
+		mockServer, err := httpstest.NewServer([]string{
 			"launchermeta.mojang.com",
 		}, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 			if r.URL.Path != "/mc/game/version_manifest.json" {
@@ -148,6 +186,7 @@ func TestMinecraft(t *testing.T) {
 			}
 			http.Error(w, "not found", http.StatusNotFound)
 		}))
+		assert.NoError(t, err)
 		defer mockServer.Close()
 
 		assert.True(t, IsValidVersion(context.Background(), "1.21.1", mockServer.Client()))
@@ -157,7 +196,8 @@ func TestMinecraft(t *testing.T) {
 		ClearManifestCache()
 		oldUrl := versionManifestUrl
 		versionManifestUrl = "xxx"
-		mockServer, _ := httpstest.NewServer([]string{}, nil)
+		mockServer, err := httpstest.NewServer([]string{}, nil)
+		assert.NoError(t, err)
 		defer mockServer.Close()
 		defer func() { versionManifestUrl = oldUrl }()
 
@@ -167,18 +207,19 @@ func TestMinecraft(t *testing.T) {
 	t.Run("Caching", func(t *testing.T) {
 		ClearManifestCache()
 		callCount := 0
-		mockServer, _ := httpstest.NewServer([]string{
+		mockServer, err := httpstest.NewServer([]string{
 			"launchermeta.mojang.com",
 		}, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 			callCount++
-			w.Write([]byte(`{"latest":{"release":"1.21.2"}}`))
+			writeResponse(t, w, `{"latest":{"release":"1.21.2"}}`)
 		}))
+		assert.NoError(t, err)
 		defer mockServer.Close()
 
 		client := mockServer.Client()
 
 		// First call to populate the cache
-		_, err := getMinecraftVersionManifest(context.Background(), client)
+		_, err = getMinecraftVersionManifest(context.Background(), client)
 		assert.NoError(t, err)
 
 		// Second call should use the cached manifest
@@ -192,5 +233,37 @@ func TestMinecraft(t *testing.T) {
 		assert.NoError(t, err)
 
 		assert.Equal(t, 2, callCount, "server should be called twice (cache cleared once)")
+	})
+
+	t.Run("GetManifestReturnsErrorOnRequestBuildFailure", func(t *testing.T) {
+		ClearManifestCache()
+		originalRequest := newRequestWithContext
+		newRequestWithContext = func(context.Context, string, string, io.Reader) (*http.Request, error) {
+			return nil, errors.New("request failed")
+		}
+		defer func() {
+			newRequestWithContext = originalRequest
+		}()
+
+		manifest, err := getMinecraftVersionManifest(context.Background(), doerFunc(func(_ *http.Request) (*http.Response, error) {
+			return nil, nil
+		}))
+		assert.Error(t, err)
+		assert.Nil(t, manifest)
+	})
+
+	t.Run("GetManifestReturnsErrorOnCloseFailure", func(t *testing.T) {
+		ClearManifestCache()
+		closeErr := errors.New("close failed")
+		body := newCloseErrorBody(`{"latest":{"release":"1.21.2"}}`, closeErr)
+		manifest, err := getMinecraftVersionManifest(context.Background(), doerFunc(func(_ *http.Request) (*http.Response, error) {
+			return &http.Response{
+				StatusCode: http.StatusOK,
+				Body:       body,
+			}, nil
+		}))
+		assert.ErrorIs(t, err, closeErr)
+		assert.Nil(t, manifest)
+		assert.Nil(t, latestManifest)
 	})
 }

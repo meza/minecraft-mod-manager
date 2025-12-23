@@ -2,6 +2,7 @@ package config
 
 import (
 	"context"
+	"errors"
 	"path/filepath"
 	"testing"
 
@@ -17,6 +18,15 @@ func TestEnsureLockCreatesEmptyWhenMissing(t *testing.T) {
 	lock, err := EnsureLock(context.Background(), fs, meta)
 	assert.NoError(t, err)
 	assert.Empty(t, lock)
+}
+
+func TestEnsureLockReturnsErrorWhenExistsCheckFails(t *testing.T) {
+	base := afero.NewMemMapFs()
+	meta := NewMetadata(filepath.FromSlash("/modlist.json"))
+	fs := statErrorFs{Fs: base, failPath: meta.LockPath(), err: errors.New("stat failed")}
+
+	_, err := EnsureLock(context.Background(), fs, meta)
+	assert.Error(t, err)
 }
 
 func TestEnsureLockReturnsErrorWhenCannotCreateLock(t *testing.T) {
@@ -38,6 +48,22 @@ func TestWriteLockAndReadLockRoundTrip(t *testing.T) {
 	actual, err := ReadLock(context.Background(), fs, meta)
 	assert.NoError(t, err)
 	assert.Equal(t, expected, actual)
+}
+
+func TestWriteLockReturnsErrorOnMarshalFailure(t *testing.T) {
+	fs := afero.NewMemMapFs()
+	meta := NewMetadata(filepath.FromSlash("/modlist.json"))
+
+	originalMarshal := marshalIndent
+	marshalIndent = func(any, string, string) ([]byte, error) {
+		return nil, errors.New("marshal failed")
+	}
+	t.Cleanup(func() {
+		marshalIndent = originalMarshal
+	})
+
+	err := WriteLock(context.Background(), fs, meta, []models.ModInstall{{Id: "1", Name: "Example", Type: models.MODRINTH}})
+	assert.Error(t, err)
 }
 
 func TestEnsureLockReadsExisting(t *testing.T) {

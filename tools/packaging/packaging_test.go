@@ -10,6 +10,7 @@ import (
 	"os"
 	"path/filepath"
 	"runtime"
+	"strings"
 	"testing"
 )
 
@@ -22,6 +23,16 @@ func TestNormalizeVersionDefaultsToDev(t *testing.T) {
 	}
 	if normalizeVersion("1.2.3") != "1.2.3" {
 		t.Fatalf("expected version to remain unchanged")
+	}
+}
+
+func TestNormalizeVersionStripsPathSeparators(t *testing.T) {
+	version := normalizeVersion(" ../1.2.3/../../evil ")
+	if strings.ContainsAny(version, `/\:`) {
+		t.Fatalf("expected sanitized version, got %q", version)
+	}
+	if version == "dev" {
+		t.Fatalf("expected non-dev version after sanitizing")
 	}
 }
 
@@ -171,7 +182,9 @@ func TestResetDistDirError(t *testing.T) {
 		t.Fatalf("failed to chmod parent dir: %v", err)
 	}
 	t.Cleanup(func() {
-		_ = os.Chmod(parentDir, 0o700)
+		if err := os.Chmod(parentDir, 0o700); err != nil {
+			t.Fatalf("failed to restore parent dir perms: %v", err)
+		}
 	})
 
 	distDir := filepath.Join(parentDir, "dist")
@@ -535,9 +548,11 @@ func TestDistToolRunCreatesZipsAndCleansDist(t *testing.T) {
 	if err != nil {
 		t.Fatalf("failed to open zip: %v", err)
 	}
-	defer func() {
-		_ = zipReader.Close()
-	}()
+	t.Cleanup(func() {
+		if err := zipReader.Close(); err != nil {
+			t.Fatalf("failed to close zip reader: %v", err)
+		}
+	})
 
 	if len(zipReader.File) != 1 {
 		t.Fatalf("expected one file in zip, got %d", len(zipReader.File))

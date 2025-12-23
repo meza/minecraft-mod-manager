@@ -2,15 +2,19 @@ package modrinth
 
 import (
 	"context"
+	"io"
 	"net/http"
 	"net/http/httptest"
+	"strings"
 	"testing"
+
+	stdErrors "errors"
 
 	"github.com/meza/minecraft-mod-manager/internal/globalErrors"
 	"github.com/meza/minecraft-mod-manager/internal/httpClient"
 	"github.com/meza/minecraft-mod-manager/internal/models"
 	"github.com/meza/minecraft-mod-manager/testutil"
-	"github.com/pkg/errors"
+	pkgErrors "github.com/pkg/errors"
 	"github.com/stretchr/testify/assert"
 )
 
@@ -75,7 +79,7 @@ func TestGetProject(t *testing.T) {
 
 		w.Header().Set("Content-Type", "application/json")
 		w.WriteHeader(http.StatusOK)
-		w.Write([]byte(mockResponse))
+		writeStringResponse(t, w, mockResponse)
 	}))
 	defer mockServer.Close()
 
@@ -109,7 +113,7 @@ func TestGetProjectWhenProjectNotFound(t *testing.T) {
 	mockServer := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "application/json")
 		w.WriteHeader(http.StatusNotFound)
-		w.Write([]byte(mockResponse))
+		writeStringResponse(t, w, mockResponse)
 	}))
 	defer mockServer.Close()
 
@@ -139,13 +143,13 @@ func TestGetProjectWhenProjectApiUnknownStatus(t *testing.T) {
 
 	// Assertions
 	assert.Error(t, err)
-	assert.Equal(t, "unexpected status code: 418", errors.Unwrap(err).Error())
+	assert.Equal(t, "unexpected status code: 418", pkgErrors.Unwrap(err).Error())
 	assert.Nil(t, project)
 }
 
 func TestGetProjectWhenApiCallFails(t *testing.T) {
 	// Call the function
-	project, err := GetProject(context.Background(), "AABBCCDDEE", NewClient(errorDoer{err: errors.New("request failed")}))
+	project, err := GetProject(context.Background(), "AABBCCDDEE", NewClient(errorDoer{err: pkgErrors.New("request failed")}))
 
 	// Assertions
 	//assert.Error(t, err)
@@ -153,7 +157,7 @@ func TestGetProjectWhenApiCallFails(t *testing.T) {
 		ProjectID: "AABBCCDDEE",
 		Platform:  models.MODRINTH,
 	})
-	assert.Equal(t, "request failed", errors.Unwrap(err).Error())
+	assert.Equal(t, "request failed", pkgErrors.Unwrap(err).Error())
 	assert.Nil(t, project)
 }
 
@@ -164,4 +168,48 @@ func TestGetProjectWhenApiCallTimesOut(t *testing.T) {
 	var timeoutErr *httpClient.TimeoutError
 	assert.ErrorAs(t, err, &timeoutErr)
 	assert.Nil(t, project)
+}
+
+func TestGetProjectReturnsErrorOnDecodeFailure(t *testing.T) {
+	client := NewClient(responseDoer{
+		response: &http.Response{
+			StatusCode: http.StatusOK,
+			Body:       io.NopCloser(strings.NewReader("{")),
+			Header:     make(http.Header),
+		},
+	})
+
+	project, err := GetProject(context.Background(), "AABBCCDD", client)
+	assert.Error(t, err)
+	assert.Nil(t, project)
+}
+
+func TestGetProjectReturnsErrorWhenRequestBuildFails(t *testing.T) {
+	originalRequest := newRequestWithContext
+	newRequestWithContext = func(context.Context, string, string, io.Reader) (*http.Request, error) {
+		return nil, stdErrors.New("request failed")
+	}
+	t.Cleanup(func() {
+		newRequestWithContext = originalRequest
+	})
+
+	project, err := GetProject(context.Background(), "AABBCCDD", NewClient(errorDoer{err: nil}))
+	assert.Error(t, err)
+	assert.Nil(t, project)
+}
+
+func TestGetProjectReturnsErrorWhenResponseCloseFails(t *testing.T) {
+	closeErr := stdErrors.New("close failed")
+	body := newCloseErrorBody(`{"id":"AABBCCDD","title":"Example","status":"approved","project_type":"mod"}`, closeErr)
+	client := NewClient(responseDoer{
+		response: &http.Response{
+			StatusCode: http.StatusOK,
+			Body:       body,
+			Header:     make(http.Header),
+		},
+	})
+
+	project, err := GetProject(context.Background(), "AABBCCDD", client)
+	assert.ErrorIs(t, err, closeErr)
+	assert.NotNil(t, project)
 }

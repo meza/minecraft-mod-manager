@@ -2,9 +2,11 @@ package httpClient
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"io"
 	"net/http"
+	"os"
 
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/meza/minecraft-mod-manager/internal/fileutils"
@@ -37,7 +39,7 @@ type Sender interface {
 	Send(msg tea.Msg)
 }
 
-func DownloadFile(ctx context.Context, url string, filepath string, client Doer, program Sender, filesystem ...afero.Fs) error {
+func DownloadFile(ctx context.Context, url string, filepath string, client Doer, program Sender, filesystem ...afero.Fs) (returnErr error) {
 	_, span := perf.StartSpan(ctx, "io.download.file",
 		perf.WithAttributes(
 			attribute.String("url", url),
@@ -58,7 +60,11 @@ func DownloadFile(ctx context.Context, url string, filepath string, client Doer,
 		return WrapTimeoutError(fmt.Errorf("failed to download file: %w", err))
 	}
 
-	defer response.Body.Close()
+	defer func() {
+		if closeErr := response.Body.Close(); closeErr != nil && returnErr == nil {
+			returnErr = closeErr
+		}
+	}()
 
 	if response.StatusCode < http.StatusOK || response.StatusCode >= http.StatusMultipleChoices {
 		return fmt.Errorf("download request failed with status %d", response.StatusCode)
@@ -68,7 +74,11 @@ func DownloadFile(ctx context.Context, url string, filepath string, client Doer,
 	if err != nil {
 		return fmt.Errorf("failed to create file: %w", err)
 	}
-	defer file.Close()
+	defer func() {
+		if closeErr := file.Close(); closeErr != nil && returnErr == nil {
+			returnErr = closeErr
+		}
+	}()
 
 	pw := &progressWriter{
 		total:  int(response.ContentLength),
@@ -86,7 +96,9 @@ func DownloadFile(ctx context.Context, url string, filepath string, client Doer,
 	if err != nil {
 		err2 := WrapTimeoutError(fmt.Errorf("failed to write file: %w", err))
 		program.Send(progressErrMsg{err2})
-		_ = fs.Remove(filepath)
+		if removeErr := fs.Remove(filepath); removeErr != nil && !errors.Is(removeErr, os.ErrNotExist) {
+			return errors.Join(err2, fmt.Errorf("failed to remove partial file: %w", removeErr))
+		}
 		return err2
 	}
 

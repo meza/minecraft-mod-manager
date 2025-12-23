@@ -125,8 +125,8 @@ func commandWithRunner(runner initRunner) *cobra.Command {
 		Data: &i18n.TData{"cwd": getCurrentWorkingDirectory()},
 	}))
 
-	_ = cmd.RegisterFlagCompletionFunc("loader", completeLoaders)
-	_ = cmd.RegisterFlagCompletionFunc("release-types", completeReleaseTypes)
+	_ = cmd.RegisterFlagCompletionFunc("loader", completeLoaders)             // #nosec G104 -- best-effort shell completion.
+	_ = cmd.RegisterFlagCompletionFunc("release-types", completeReleaseTypes) // #nosec G104 -- best-effort shell completion.
 
 	return cmd
 }
@@ -378,7 +378,10 @@ func initWithDeps(ctx context.Context, options initOptions, deps initDeps) (conf
 
 	meta := config.NewMetadata(options.ConfigPath)
 
-	exists, _ := afero.Exists(deps.fs, meta.ConfigPath)
+	exists, err := afero.Exists(deps.fs, meta.ConfigPath)
+	if err != nil {
+		return config.Metadata{}, fmt.Errorf("failed to check configuration file: %w", err)
+	}
 	if exists {
 		if options.Quiet {
 			return config.Metadata{}, fmt.Errorf("configuration file already exists: %s", meta.ConfigPath)

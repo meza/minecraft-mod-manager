@@ -125,7 +125,10 @@ func runWithDeps(deps runDeps) int {
 	if getwd == nil {
 		getwd = os.Getwd
 	}
-	cwd, _ := getwd()
+	cwd, err := getwd()
+	if err != nil {
+		cwd = ""
+	}
 	perfCfg := perfExportConfigFromArgs(deps.args, cwd)
 	telemetry.SetPerfBaseDir(perfCfg.baseDir)
 	telemetry.SetSessionNameHint(sessionNameHintFromArgs(deps.args))
@@ -200,7 +203,7 @@ func runWithDeps(deps runDeps) int {
 	startupSpan.End()
 
 	executeCtx, executeSpan = perf.StartSpan(rootCtx, perfLifecycleExecute)
-	err := deps.execute(executeCtx)
+	err = deps.execute(executeCtx)
 	endExecute(err == nil)
 
 	if err != nil {

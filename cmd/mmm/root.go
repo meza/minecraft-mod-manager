@@ -90,7 +90,10 @@ func translateDefaultHelpFacilities(rootCmd *cobra.Command) {
 }
 
 func fixFlagUsageAlignment(rootCmd *cobra.Command) {
-	width, _, _ := term.GetSize(int(os.Stdout.Fd()))
+	width, _, err := term.GetSize(int(os.Stdout.Fd()))
+	if err != nil {
+		width = 0
+	}
 	usageTemplate := rootCmd.UsageTemplate()
 	usageTemplate = strings.ReplaceAll(usageTemplate, ".FlagUsages", fmt.Sprintf(".FlagUsagesWrapped %d", width))
 	rootCmd.SetUsageTemplate(usageTemplate)

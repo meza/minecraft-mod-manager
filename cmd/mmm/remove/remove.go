@@ -209,7 +209,6 @@ func resolveModsToRemove(lookups []string, cfg models.ModsJson) ([]models.Mod, e
 			continue
 		}
 
-		// Fail fast on malformed glob patterns (e.g., unclosed character class).
 		if _, err := filepath.Match(pattern, ""); err != nil {
 			return nil, fmt.Errorf("invalid pattern %q: %w", lookup, err)
 		}
@@ -220,13 +219,15 @@ func resolveModsToRemove(lookups []string, cfg models.ModsJson) ([]models.Mod, e
 				continue
 			}
 
-			if ok, _ := globMatches(pattern, strings.ToLower(mod.ID)); ok {
+			ok := globMatches(pattern, strings.ToLower(mod.ID))
+			if ok {
 				seen[key] = true
 				matches = append(matches, mod)
 				continue
 			}
 
-			if ok, _ := globMatches(pattern, strings.ToLower(mod.Name)); ok {
+			ok = globMatches(pattern, strings.ToLower(mod.Name))
+			if ok {
 				seen[key] = true
 				matches = append(matches, mod)
 				continue
@@ -237,8 +238,9 @@ func resolveModsToRemove(lookups []string, cfg models.ModsJson) ([]models.Mod, e
 	return matches, nil
 }
 
-func globMatches(pattern string, value string) (bool, error) {
-	return filepath.Match(pattern, value)
+func globMatches(pattern string, value string) bool {
+	ok, _ := filepath.Match(pattern, value)
+	return ok
 }
 
 func lockIndexFor(mod models.Mod, lock []models.ModInstall) int {

@@ -105,7 +105,9 @@ func (tool *coverageTool) run() error {
 	htmlPath := filepath.Join(tool.repoRoot, coverageHTMLName)
 	funcOutputPath := filepath.Join(tool.repoRoot, coverageFuncOutputName)
 
-	defer func() { _ = os.Remove(coveragePath) }()
+	defer func() {
+		_ = os.Remove(coveragePath) // #nosec G104 -- best-effort cleanup of temporary coverage profile.
+	}()
 
 	if err := tool.runCoverageTests(coveragePath); err != nil {
 		return err
@@ -118,11 +120,13 @@ func (tool *coverageTool) run() error {
 			return fmt.Errorf("error: create filtered coverage file: %w", err)
 		}
 		if err := closeFile(filteredFile); err != nil {
-			_ = filteredFile.Close()
+			_ = filteredFile.Close() // best-effort release for Windows temp cleanup.
 			return fmt.Errorf("error: finalize filtered coverage file: %w", err)
 		}
 		filteredCoveragePath = filteredFile.Name()
-		defer func() { _ = os.Remove(filteredCoveragePath) }()
+		defer func() {
+			_ = os.Remove(filteredCoveragePath) // #nosec G104 -- best-effort cleanup of filtered coverage output.
+		}()
 		if err := filterCoverageFile(coveragePath, filteredCoveragePath, excludedPathFragments); err != nil {
 			return err
 		}
@@ -164,7 +168,8 @@ func (err coverageNotFullError) Error() string {
 }
 
 func (tool *coverageTool) runCoverageTests(coveragePath string) error {
-	command := exec.Command(tool.goBinary, "test", "./...", "-coverprofile", coveragePath)
+	// #nosec G204 -- go binary and args are controlled by this tool.
+	command := exec.Command(tool.goBinary, "test", "./...", "-coverprofile", coveragePath) // #nosec G204 -- go binary and args are controlled by this tool.
 	command.Dir = tool.repoRoot
 	outputBuffer := &bytes.Buffer{}
 	command.Stdout = outputBuffer
@@ -179,7 +184,8 @@ func (tool *coverageTool) runCoverageTests(coveragePath string) error {
 }
 
 func (tool *coverageTool) generateCoverageHTML(coveragePath, htmlPath string) error {
-	command := exec.Command(tool.goBinary, "tool", "cover", "-html", coveragePath, "-o", htmlPath)
+	// #nosec G204 -- go binary and args are controlled by this tool.
+	command := exec.Command(tool.goBinary, "tool", "cover", "-html", coveragePath, "-o", htmlPath) // #nosec G204 -- go binary and args are controlled by this tool.
 	command.Dir = tool.repoRoot
 	if err := tool.commandRunner.Run(command); err != nil {
 		return fmt.Errorf("error: coverage html generation failed: %w", err)
@@ -188,7 +194,8 @@ func (tool *coverageTool) generateCoverageHTML(coveragePath, htmlPath string) er
 }
 
 func (tool *coverageTool) coverageFuncOutput(coveragePath string) ([]byte, string, string, []string, error) {
-	command := exec.Command(tool.goBinary, "tool", "cover", "-func", coveragePath)
+	// #nosec G204 -- go binary and args are controlled by this tool.
+	command := exec.Command(tool.goBinary, "tool", "cover", "-func", coveragePath) // #nosec G204 -- go binary and args are controlled by this tool.
 	command.Dir = tool.repoRoot
 	output, err := tool.commandOutput.Output(command)
 	if err != nil {
@@ -227,17 +234,21 @@ func parseTotalCoverage(reader io.Reader) (string, string, error) {
 }
 
 func filterCoverageFile(sourcePath, filteredPath string, exclusions []string) error {
-	inputFile, err := os.Open(sourcePath)
+	inputFile, err := os.Open(sourcePath) // #nosec G304 -- paths are derived from repo-root coverage output.
 	if err != nil {
 		return fmt.Errorf("error: open coverage profile: %w", err)
 	}
-	defer func() { _ = inputFile.Close() }()
+	defer func() {
+		_ = inputFile.Close() // #nosec G104 -- best-effort cleanup for read-only coverage input.
+	}()
 
-	outputFile, err := os.Create(filteredPath)
+	outputFile, err := os.Create(filteredPath) // #nosec G304 -- filtered output path is created by this tool in repo root.
 	if err != nil {
 		return fmt.Errorf("error: create filtered coverage file: %w", err)
 	}
-	defer func() { _ = outputFile.Close() }()
+	defer func() {
+		_ = outputFile.Close() // #nosec G104 -- best-effort cleanup for filtered coverage output.
+	}()
 
 	if err := filterCoverageContent(inputFile, outputFile, exclusions); err != nil {
 		return err
@@ -249,7 +260,6 @@ func filterCoverageFile(sourcePath, filteredPath string, exclusions []string) er
 func filterCoverageContent(reader io.Reader, writer io.Writer, exclusions []string) error {
 	scanner := bufio.NewScanner(reader)
 	writerBuffer := bufio.NewWriter(writer)
-	defer func() { _ = writerBuffer.Flush() }()
 
 	lineNumber := 0
 	for scanner.Scan() {

@@ -93,7 +93,10 @@ type loaderType string
 func (i loaderType) FilterValue() string { return "" }
 
 func NewLoaderModel(loader string) LoaderModel {
-	width, _, _ := term.GetSize(os.Stdout.Fd())
+	width, _, err := term.GetSize(os.Stdout.Fd())
+	if err != nil {
+		width = 0
+	}
 
 	loaderOptions := models.AllLoaders()
 	items := make([]list.Item, 0)

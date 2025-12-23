@@ -2,11 +2,13 @@ package perf
 
 import (
 	"context"
+	"errors"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
 	"go.opentelemetry.io/otel/attribute"
 	"go.opentelemetry.io/otel/codes"
+	"go.opentelemetry.io/otel/sdk/trace"
 )
 
 func TestInit_ReinitializingReplacesExporter(t *testing.T) {
@@ -31,6 +33,40 @@ func TestInit_ReinitializingReplacesExporter(t *testing.T) {
 
 	_, ok = FindSpanByName(spans, "second")
 	assert.True(t, ok)
+}
+
+func TestInitReturnsErrorWhenShutdownFails(t *testing.T) {
+	Reset()
+	t.Cleanup(Reset)
+
+	originalShutdown := shutdownTracerProvider
+	shutdownTracerProvider = func(_ *trace.TracerProvider) error {
+		return errors.New("shutdown failed")
+	}
+	t.Cleanup(func() {
+		shutdownTracerProvider = originalShutdown
+	})
+
+	globalTP = trace.NewTracerProvider()
+	err := Init(Config{Enabled: false})
+	assert.Error(t, err)
+}
+
+func TestResetContinuesWhenShutdownFails(t *testing.T) {
+	Reset()
+	t.Cleanup(Reset)
+
+	originalShutdown := shutdownTracerProvider
+	shutdownTracerProvider = func(_ *trace.TracerProvider) error {
+		return errors.New("shutdown failed")
+	}
+	t.Cleanup(func() {
+		shutdownTracerProvider = originalShutdown
+	})
+
+	globalTP = trace.NewTracerProvider()
+	Reset()
+	assert.Nil(t, globalTP)
 }
 
 func TestStartSpan_NilContextAndNilOption(t *testing.T) {

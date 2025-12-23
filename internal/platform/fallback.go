@@ -45,6 +45,9 @@ func splitVersion(version string) versionParts {
 }
 
 func parseInt(value string) int {
-	n, _ := strconv.Atoi(value)
+	n, err := strconv.Atoi(value)
+	if err != nil {
+		return 0
+	}
 	return n
 }

@@ -7,6 +7,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"os"
 	"path/filepath"
 	"strings"
 	"sync"
@@ -475,26 +476,45 @@ func downloadAndSwap(ctx context.Context, deps updateDeps, oldPath string, newPa
 		return err
 	}
 	tempPath := tempFile.Name()
-	_ = tempFile.Close()
+	if err := tempFile.Close(); err != nil {
+		removeErr := deps.fs.Remove(tempPath)
+		if removeErr != nil && !errors.Is(removeErr, os.ErrNotExist) {
+			return errors.Join(err, fmt.Errorf("failed to remove temp file %s: %w", tempPath, removeErr))
+		}
+		return err
+	}
 
 	if err := deps.downloader(ctx, downloadURL, tempPath, downloadClient(deps.clients), &noopSender{}, deps.fs); err != nil {
-		_ = deps.fs.Remove(tempPath)
+		removeErr := deps.fs.Remove(tempPath)
+		if removeErr != nil && !errors.Is(removeErr, os.ErrNotExist) {
+			return errors.Join(err, fmt.Errorf("failed to remove temp file %s: %w", tempPath, removeErr))
+		}
 		return err
 	}
 
 	actualHash, err := sha1ForFile(deps.fs, tempPath)
 	if err != nil {
-		_ = deps.fs.Remove(tempPath)
+		removeErr := deps.fs.Remove(tempPath)
+		if removeErr != nil && !errors.Is(removeErr, os.ErrNotExist) {
+			return errors.Join(err, fmt.Errorf("failed to remove temp file %s: %w", tempPath, removeErr))
+		}
 		return err
 	}
 
 	if !strings.EqualFold(strings.TrimSpace(expectedHash), actualHash) {
-		_ = deps.fs.Remove(tempPath)
-		return modinstall.HashMismatchError{FileName: filepath.Base(newPath), Expected: expectedHash, Actual: actualHash}
+		removeErr := deps.fs.Remove(tempPath)
+		hashErr := modinstall.HashMismatchError{FileName: filepath.Base(newPath), Expected: expectedHash, Actual: actualHash}
+		if removeErr != nil && !errors.Is(removeErr, os.ErrNotExist) {
+			return errors.Join(hashErr, fmt.Errorf("failed to remove temp file %s: %w", tempPath, removeErr))
+		}
+		return hashErr
 	}
 
 	if err := replaceExistingFile(deps.fs, deps.logger, tempPath, resolvedNewPath); err != nil {
-		_ = deps.fs.Remove(tempPath)
+		removeErr := deps.fs.Remove(tempPath)
+		if removeErr != nil && !errors.Is(removeErr, os.ErrNotExist) {
+			return errors.Join(err, fmt.Errorf("failed to remove temp file %s: %w", tempPath, removeErr))
+		}
 		return err
 	}
 
@@ -503,7 +523,10 @@ func downloadAndSwap(ctx context.Context, deps updateDeps, oldPath string, newPa
 	}
 
 	if err := deps.fs.Remove(oldPath); err != nil {
-		_ = deps.fs.Remove(resolvedNewPath)
+		removeErr := deps.fs.Remove(resolvedNewPath)
+		if removeErr != nil && !errors.Is(removeErr, os.ErrNotExist) {
+			return errors.Join(err, fmt.Errorf("failed to remove new file %s: %w", resolvedNewPath, removeErr))
+		}
 		return err
 	}
 
@@ -530,7 +553,10 @@ func replaceExistingFile(fs afero.Fs, log *logger.Logger, sourcePath string, des
 	}
 
 	if err := fs.Rename(sourcePath, destinationPath); err != nil {
-		_ = fs.Rename(backupPath, destinationPath)
+		rollbackErr := fs.Rename(backupPath, destinationPath)
+		if rollbackErr != nil {
+			return errors.Join(err, fmt.Errorf("failed to restore backup %s: %w", backupPath, rollbackErr))
+		}
 		return err
 	}
 
@@ -562,19 +588,23 @@ func nextBackupPath(fs afero.Fs, destinationPath string) (string, error) {
 	return "", errors.New("cannot allocate backup path")
 }
 
-func sha1ForFile(fs afero.Fs, path string) (string, error) {
+func sha1ForFile(fs afero.Fs, path string) (hash string, returnErr error) {
 	file, err := fs.Open(path)
 	if err != nil {
 		return "", err
 	}
-	defer func() { _ = file.Close() }()
+	defer func() {
+		if closeErr := file.Close(); closeErr != nil && returnErr == nil {
+			returnErr = closeErr
+		}
+	}()
 
-	hash := sha1.New()
-	if _, err := io.Copy(hash, file); err != nil {
+	hasher := sha1.New()
+	if _, err := io.Copy(hasher, file); err != nil {
 		return "", err
 	}
 
-	return hex.EncodeToString(hash.Sum(nil)), nil
+	return hex.EncodeToString(hasher.Sum(nil)), nil
 }
 
 func integrityErrorMessage(err error, modName string) (string, bool) {

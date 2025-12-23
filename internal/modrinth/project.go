@@ -53,7 +53,7 @@ type Project struct {
 	Loaders      []models.Loader    `json:"loaders"`
 }
 
-func GetProject(ctx context.Context, projectId string, client httpClient.Doer) (*Project, error) {
+func GetProject(ctx context.Context, projectId string, client httpClient.Doer) (project *Project, returnErr error) {
 	ctx, span := perf.StartSpan(ctx, "api.modrinth.project.get", perf.WithAttributes(attribute.String("project_id", projectId)))
 	defer span.End()
 
@@ -61,7 +61,10 @@ func GetProject(ctx context.Context, projectId string, client httpClient.Doer) (
 
 	timeoutCtx, cancel := httpClient.WithMetadataTimeout(ctx)
 	defer cancel()
-	request, _ := http.NewRequestWithContext(timeoutCtx, http.MethodGet, url, nil)
+	request, err := newRequestWithContext(timeoutCtx, http.MethodGet, url, nil)
+	if err != nil {
+		return nil, err
+	}
 
 	response, err := client.Do(request)
 	if err != nil {
@@ -70,7 +73,11 @@ func GetProject(ctx context.Context, projectId string, client httpClient.Doer) (
 		}
 		return nil, globalErrors.ProjectApiErrorWrap(err, projectId, models.MODRINTH)
 	}
-	defer response.Body.Close()
+	defer func() {
+		if closeErr := response.Body.Close(); closeErr != nil && returnErr == nil {
+			returnErr = closeErr
+		}
+	}()
 
 	if response.StatusCode == http.StatusNotFound {
 		return nil, &globalErrors.ProjectNotFoundError{
@@ -83,8 +90,10 @@ func GetProject(ctx context.Context, projectId string, client httpClient.Doer) (
 		return nil, globalErrors.ProjectApiErrorWrap(errors.Errorf("unexpected status code: %d", response.StatusCode), projectId, models.MODRINTH)
 	}
 
-	result := &Project{}
-	_ = json.NewDecoder(response.Body).Decode(result)
-	return result, nil
+	project = &Project{}
+	if err := json.NewDecoder(response.Body).Decode(project); err != nil {
+		return nil, globalErrors.ProjectApiErrorWrap(errors.Wrap(err, "failed to decode response body"), projectId, models.MODRINTH)
+	}
+	return project, nil
 
 }

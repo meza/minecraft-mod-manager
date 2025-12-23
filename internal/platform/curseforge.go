@@ -22,6 +22,8 @@ type curseforgeFilesResponse struct {
 	Data []curseforge.File `json:"data"`
 }
 
+var newRequestWithContext = http.NewRequestWithContext
+
 func fetchCurseforge(ctx context.Context, projectID string, opts FetchOptions, client curseforgeDoer) (RemoteMod, error) {
 	curseforgeClient := curseforge.NewClient(client)
 
@@ -77,11 +79,14 @@ func fetchCurseforge(ctx context.Context, projectID string, opts FetchOptions, c
 	}
 }
 
-func fetchCurseforgeFiles(ctx context.Context, projectID string, gameVersion string, loader curseforge.ModLoaderType, client curseforgeDoer) ([]curseforge.File, error) {
+func fetchCurseforgeFiles(ctx context.Context, projectID string, gameVersion string, loader curseforge.ModLoaderType, client curseforgeDoer) (files []curseforge.File, returnErr error) {
 	url := fmt.Sprintf("%s/mods/%s/files?gameVersion=%s&modLoaderType=%d", curseforge.GetBaseUrl(), projectID, gameVersion, loader)
 	timeoutCtx, cancel := httpClient.WithMetadataTimeout(ctx)
 	defer cancel()
-	request, _ := http.NewRequestWithContext(timeoutCtx, http.MethodGet, url, nil)
+	request, err := newRequestWithContext(timeoutCtx, http.MethodGet, url, nil)
+	if err != nil {
+		return nil, err
+	}
 
 	response, err := client.Do(request)
 	if err != nil {
@@ -90,7 +95,11 @@ func fetchCurseforgeFiles(ctx context.Context, projectID string, gameVersion str
 		}
 		return nil, err
 	}
-	defer response.Body.Close()
+	defer func() {
+		if closeErr := response.Body.Close(); closeErr != nil && returnErr == nil {
+			returnErr = closeErr
+		}
+	}()
 
 	if response.StatusCode == http.StatusNotFound {
 		return nil, &globalErrors.ProjectNotFoundError{ProjectID: projectID, Platform: models.CURSEFORGE}

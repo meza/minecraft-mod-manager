@@ -30,6 +30,7 @@ type versionManifest struct {
 
 var versionManifestUrl = "https://launchermeta.mojang.com/mc/game/version_manifest.json"
 var latestManifest *versionManifest
+var newRequestWithContext = http.NewRequestWithContext
 
 func ClearManifestCache() {
 	latestManifest = nil
@@ -44,7 +45,10 @@ func getMinecraftVersionManifest(ctx context.Context, client httpClient.Doer) (*
 
 	timeoutCtx, cancel := httpClient.WithMetadataTimeout(ctx)
 	defer cancel()
-	request, _ := http.NewRequestWithContext(timeoutCtx, "GET", versionManifestUrl, nil)
+	request, err := newRequestWithContext(timeoutCtx, "GET", versionManifestUrl, nil)
+	if err != nil {
+		return nil, err
+	}
 
 	response, err := client.Do(request)
 	if err != nil {
@@ -54,14 +58,16 @@ func getMinecraftVersionManifest(ctx context.Context, client httpClient.Doer) (*
 		return nil, ManifestNotFound
 	}
 
-	defer response.Body.Close()
-
-	var manifest versionManifest
-	err = json.NewDecoder(response.Body).Decode(&manifest)
-	if err != nil {
+	var decodedManifest versionManifest
+	decodeErr := json.NewDecoder(response.Body).Decode(&decodedManifest)
+	closeErr := response.Body.Close()
+	if decodeErr != nil {
 		return nil, ManifestNotFound
 	}
-	latestManifest = &manifest
+	if closeErr != nil {
+		return nil, closeErr
+	}
+	latestManifest = &decodedManifest
 	return latestManifest, nil
 }
 

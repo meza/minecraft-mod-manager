@@ -177,7 +177,7 @@ func TestEnsureLockedFile_ResolvesSymlinkTargetInsideRoot(t *testing.T) {
 	assert.True(t, result.Downloaded)
 	assert.Equal(t, EnsureReasonHashMismatch, result.Reason)
 
-	content, readErr := os.ReadFile(target)
+	content, readErr := os.ReadFile(target) // #nosec G304 -- test reads temp path.
 	assert.NoError(t, readErr)
 	assert.Equal(t, []byte("data"), content)
 
@@ -528,6 +528,115 @@ func TestDownloadAndVerifyReturnsErrorOnReplaceFailure(t *testing.T) {
 	assert.Error(t, err)
 }
 
+func TestDownloadAndVerifyReturnsJoinedErrorOnHashReadCleanupFailure(t *testing.T) {
+	base := afero.NewMemMapFs()
+	fs := removeErrorFs{
+		Fs:         failingOpenFs{Fs: base, failContains: ".mmm."},
+		failOnPart: ".mmm.",
+		removeErr:  errors.New("remove failed"),
+	}
+	assert.NoError(t, fs.MkdirAll(filepath.FromSlash("/mods"), 0755))
+
+	installer := NewInstaller(fs, func(_ context.Context, _ string, dst string, _ httpClient.Doer, _ httpClient.Sender, filesystem ...afero.Fs) error {
+		return afero.WriteFile(filesystem[0], dst, []byte("data"), 0644)
+	})
+
+	err := installer.DownloadAndVerify(context.Background(), "https://example.com/x.jar", filepath.FromSlash("/mods/x.jar"), sha1Hex("data"), nil, noopSender{})
+	assert.Error(t, err)
+	assert.Contains(t, err.Error(), "failed to remove temp file")
+}
+
+func TestDownloadAndVerifyReturnsJoinedErrorOnReplaceCleanupFailure(t *testing.T) {
+	base := afero.NewMemMapFs()
+	destination := filepath.FromSlash("/mods/x.jar")
+	renameFs := renameErrorFs{Fs: base, failOldContains: ".mmm.", failNew: destination, err: errors.New("rename failed")}
+	fs := removeErrorFs{
+		Fs:         renameFs,
+		failOnPart: ".mmm.",
+		removeErr:  errors.New("remove failed"),
+	}
+	assert.NoError(t, fs.MkdirAll(filepath.FromSlash("/mods"), 0755))
+
+	installer := NewInstaller(fs, func(_ context.Context, _ string, dst string, _ httpClient.Doer, _ httpClient.Sender, filesystem ...afero.Fs) error {
+		return afero.WriteFile(filesystem[0], dst, []byte("data"), 0644)
+	})
+
+	err := installer.DownloadAndVerify(context.Background(), "https://example.com/x.jar", destination, sha1Hex("data"), nil, noopSender{})
+	assert.Error(t, err)
+	assert.Contains(t, err.Error(), "failed to remove temp file")
+}
+
+func TestDownloadAndVerifyReturnsJoinedErrorOnTempCloseCleanupFailure(t *testing.T) {
+	base := afero.NewMemMapFs()
+	fs := tempCloseRemoveErrorFs{
+		Fs:         base,
+		closeErr:   errors.New("close failed"),
+		removeErr:  errors.New("remove failed"),
+		failOnPart: ".mmm.",
+	}
+	assert.NoError(t, fs.MkdirAll(filepath.FromSlash("/mods"), 0755))
+
+	installer := NewInstaller(fs, func(context.Context, string, string, httpClient.Doer, httpClient.Sender, ...afero.Fs) error {
+		return nil
+	})
+
+	err := installer.DownloadAndVerify(context.Background(), "https://example.com/x.jar", filepath.FromSlash("/mods/x.jar"), sha1Hex("data"), nil, noopSender{})
+	assert.Error(t, err)
+	assert.Contains(t, err.Error(), "failed to remove temp file")
+}
+
+func TestDownloadAndVerifyReturnsCloseErrorWhenTempCloseFails(t *testing.T) {
+	base := afero.NewMemMapFs()
+	fs := tempCloseRemoveErrorFs{
+		Fs:       base,
+		closeErr: errors.New("close failed"),
+	}
+	assert.NoError(t, fs.MkdirAll(filepath.FromSlash("/mods"), 0755))
+
+	installer := NewInstaller(fs, func(context.Context, string, string, httpClient.Doer, httpClient.Sender, ...afero.Fs) error {
+		return nil
+	})
+
+	err := installer.DownloadAndVerify(context.Background(), "https://example.com/x.jar", filepath.FromSlash("/mods/x.jar"), sha1Hex("data"), nil, noopSender{})
+	assert.ErrorContains(t, err, "close failed")
+}
+
+func TestDownloadAndVerifyReturnsJoinedErrorOnDownloadCleanupFailure(t *testing.T) {
+	base := afero.NewMemMapFs()
+	fs := removeErrorFs{
+		Fs:         base,
+		failOnPart: ".mmm.",
+		removeErr:  errors.New("remove failed"),
+	}
+	assert.NoError(t, fs.MkdirAll(filepath.FromSlash("/mods"), 0755))
+
+	installer := NewInstaller(fs, func(context.Context, string, string, httpClient.Doer, httpClient.Sender, ...afero.Fs) error {
+		return errors.New("download failed")
+	})
+
+	err := installer.DownloadAndVerify(context.Background(), "https://example.com/x.jar", filepath.FromSlash("/mods/x.jar"), sha1Hex("data"), nil, noopSender{})
+	assert.Error(t, err)
+	assert.Contains(t, err.Error(), "failed to remove temp file")
+}
+
+func TestDownloadAndVerifyReturnsJoinedErrorOnHashMismatchCleanupFailure(t *testing.T) {
+	base := afero.NewMemMapFs()
+	fs := removeErrorFs{
+		Fs:         base,
+		failOnPart: ".mmm.",
+		removeErr:  errors.New("remove failed"),
+	}
+	assert.NoError(t, fs.MkdirAll(filepath.FromSlash("/mods"), 0755))
+
+	installer := NewInstaller(fs, func(_ context.Context, _ string, dst string, _ httpClient.Doer, _ httpClient.Sender, filesystem ...afero.Fs) error {
+		return afero.WriteFile(filesystem[0], dst, []byte("actual"), 0644)
+	})
+
+	err := installer.DownloadAndVerify(context.Background(), "https://example.com/x.jar", filepath.FromSlash("/mods/x.jar"), sha1Hex("expected"), nil, noopSender{})
+	assert.Error(t, err)
+	assert.Contains(t, err.Error(), "failed to remove temp file")
+}
+
 func TestReplaceExistingFileRenamesWhenDestinationMissing(t *testing.T) {
 	fs := afero.NewMemMapFs()
 	source := filepath.FromSlash("/mods/source.jar")
@@ -536,9 +645,11 @@ func TestReplaceExistingFileRenamesWhenDestinationMissing(t *testing.T) {
 	assert.NoError(t, afero.WriteFile(fs, source, []byte("source"), 0644))
 	assert.NoError(t, replaceExistingFile(fs, source, destination))
 
-	exists, _ := afero.Exists(fs, destination)
+	exists, err := afero.Exists(fs, destination)
+	assert.NoError(t, err)
 	assert.True(t, exists)
-	exists, _ = afero.Exists(fs, source)
+	exists, err = afero.Exists(fs, source)
+	assert.NoError(t, err)
 	assert.False(t, exists)
 }
 
@@ -595,6 +706,50 @@ func TestReplaceExistingFileRestoresBackupOnRenameFailure(t *testing.T) {
 	content, readErr := afero.ReadFile(fs, destination)
 	assert.NoError(t, readErr)
 	assert.Equal(t, []byte("old"), content)
+}
+
+func TestReplaceExistingFileReturnsErrorWhenRollbackFails(t *testing.T) {
+	base := afero.NewMemMapFs()
+	destination := filepath.FromSlash("/mods/dest.jar")
+	source := filepath.FromSlash("/mods/source.mmm.tmp")
+
+	assert.NoError(t, afero.WriteFile(base, destination, []byte("old"), 0644))
+	assert.NoError(t, afero.WriteFile(base, source, []byte("new"), 0644))
+
+	fs := renameErrorFs{Fs: base, failOldContains: ".mmm.", failNew: destination, err: errors.New("rename failed")}
+	err := replaceExistingFile(fs, source, destination)
+	assert.Error(t, err)
+	assert.Contains(t, err.Error(), "failed to restore backup")
+}
+
+func TestReplaceExistingFileReturnsErrorWhenBackupRemovalFails(t *testing.T) {
+	base := afero.NewMemMapFs()
+	destination := filepath.FromSlash("/mods/dest.jar")
+	source := filepath.FromSlash("/mods/source.jar")
+	backup := destination + ".mmm.bak"
+
+	assert.NoError(t, afero.WriteFile(base, destination, []byte("old"), 0644))
+	assert.NoError(t, afero.WriteFile(base, source, []byte("new"), 0644))
+
+	fs := removeErrorFs{
+		Fs:         base,
+		failOnPart: backup,
+		removeErr:  errors.New("remove failed"),
+	}
+
+	err := replaceExistingFile(fs, source, destination)
+	assert.Error(t, err)
+	assert.Contains(t, err.Error(), "failed to remove backup")
+}
+
+func TestSha1ForFileReturnsCloseError(t *testing.T) {
+	base := afero.NewMemMapFs()
+	path := filepath.FromSlash("/mods/file.jar")
+	assert.NoError(t, afero.WriteFile(base, path, []byte("content"), 0644))
+
+	fs := closeErrorFs{Fs: base, closeErr: errors.New("close failed")}
+	_, err := sha1ForFile(fs, path)
+	assert.ErrorContains(t, err, "close failed")
 }
 
 func TestNextBackupPathSkipsExisting(t *testing.T) {
@@ -720,6 +875,81 @@ func (r renameErrorFs) Rename(oldname, newname string) error {
 		return r.err
 	}
 	return r.Fs.Rename(oldname, newname)
+}
+
+type removeErrorFs struct {
+	afero.Fs
+	failOnPart string
+	removeErr  error
+}
+
+func (r removeErrorFs) Remove(name string) error {
+	if r.failOnPart != "" && strings.Contains(filepath.Clean(name), filepath.Clean(r.failOnPart)) {
+		if r.removeErr != nil {
+			return r.removeErr
+		}
+		return errors.New("remove failed")
+	}
+	return r.Fs.Remove(name)
+}
+
+type closeErrorFile struct {
+	afero.File
+	closeErr error
+}
+
+func (c closeErrorFile) Close() error {
+	_ = c.File.Close()
+	if c.closeErr != nil {
+		return c.closeErr
+	}
+	return nil
+}
+
+type closeErrorFs struct {
+	afero.Fs
+	closeErr error
+}
+
+func (c closeErrorFs) Open(name string) (afero.File, error) {
+	file, err := c.Fs.Open(name)
+	if err != nil {
+		return nil, err
+	}
+	return closeErrorFile{File: file, closeErr: c.closeErr}, nil
+}
+
+type tempCloseRemoveErrorFs struct {
+	afero.Fs
+	closeErr   error
+	removeErr  error
+	failOnPart string
+}
+
+func (t tempCloseRemoveErrorFs) Create(name string) (afero.File, error) {
+	file, err := t.Fs.Create(name)
+	if err != nil {
+		return nil, err
+	}
+	return closeErrorFile{File: file, closeErr: t.closeErr}, nil
+}
+
+func (t tempCloseRemoveErrorFs) OpenFile(name string, flag int, perm os.FileMode) (afero.File, error) {
+	file, err := t.Fs.OpenFile(name, flag, perm)
+	if err != nil {
+		return nil, err
+	}
+	return closeErrorFile{File: file, closeErr: t.closeErr}, nil
+}
+
+func (t tempCloseRemoveErrorFs) Remove(name string) error {
+	if t.failOnPart != "" && strings.Contains(filepath.Clean(name), t.failOnPart) {
+		if t.removeErr != nil {
+			return t.removeErr
+		}
+		return errors.New("remove failed")
+	}
+	return t.Fs.Remove(name)
 }
 
 type openFileErrorFs struct {

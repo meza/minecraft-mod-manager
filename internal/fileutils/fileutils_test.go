@@ -1,15 +1,30 @@
 package fileutils
 
 import (
+	"errors"
+	"os"
+	"path/filepath"
+	"testing"
+
 	"github.com/spf13/afero"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
-	"path/filepath"
-	"testing"
 )
 
 type MockFileIO struct {
 	mock.Mock
+}
+
+type statErrorFs struct {
+	afero.Fs
+	err error
+}
+
+func (s statErrorFs) Stat(name string) (os.FileInfo, error) {
+	if s.err != nil {
+		return nil, s.err
+	}
+	return nil, errors.New("stat failed")
 }
 
 func TestFileExists(t *testing.T) {
@@ -23,6 +38,11 @@ func TestFileExists(t *testing.T) {
 
 	t.Run("file does not exist", func(t *testing.T) {
 		assert.False(t, FileExists("/somepath2", mockIO))
+	})
+
+	t.Run("stat error returns false", func(t *testing.T) {
+		fs := statErrorFs{Fs: mockIO, err: errors.New("stat failed")}
+		assert.False(t, FileExists("/somepath3", fs))
 	})
 }
 
@@ -44,10 +64,10 @@ func TestListFilesInDir(t *testing.T) {
 		dirPath := filepath.FromSlash("/testdir")
 		file1 := filepath.Join(dirPath, "file1.txt")
 		file2 := filepath.Join(dirPath, "file2.txt")
-		fs.MkdirAll(dirPath, 0755)
+		assert.NoError(t, fs.MkdirAll(dirPath, 0755))
 
-		afero.WriteFile(fs, file1, []byte("content1"), 0644)
-		afero.WriteFile(fs, file2, []byte("content2"), 0644)
+		assert.NoError(t, afero.WriteFile(fs, file1, []byte("content1"), 0644))
+		assert.NoError(t, afero.WriteFile(fs, file2, []byte("content2"), 0644))
 
 		files, err := ListFilesInDir(dirPath, fs)
 		assert.NoError(t, err)
@@ -67,10 +87,10 @@ func TestListFilesInDir(t *testing.T) {
 		fs := afero.NewMemMapFs()
 		dirPath := filepath.FromSlash("/testdir")
 		file1 := filepath.Join(dirPath, "file1.txt")
-		fs.MkdirAll(dirPath, 0755)
-		fs.MkdirAll(filepath.Join(dirPath, "subdir"), 0755)
+		assert.NoError(t, fs.MkdirAll(dirPath, 0755))
+		assert.NoError(t, fs.MkdirAll(filepath.Join(dirPath, "subdir"), 0755))
 
-		afero.WriteFile(fs, file1, []byte("content1"), 0644)
+		assert.NoError(t, afero.WriteFile(fs, file1, []byte("content1"), 0644))
 
 		files, err := ListFilesInDir(dirPath, fs)
 		assert.NoError(t, err)

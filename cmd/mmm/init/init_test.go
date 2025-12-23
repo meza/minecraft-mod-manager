@@ -106,6 +106,21 @@ func TestInitWithDeps(t *testing.T) {
 		assert.ErrorContains(t, err, "init requires flag")
 	})
 
+	t.Run("config existence check error returns error", func(t *testing.T) {
+		minecraft.ClearManifestCache()
+		fs := statErrorFs{Fs: afero.NewMemMapFs(), err: errors.New("stat failed")}
+
+		_, err := initWithDeps(context.Background(), initOptions{
+			ConfigPath:   filepath.FromSlash("/cfg/modlist.json"),
+			Loader:       models.FABRIC,
+			GameVersion:  "1.21.1",
+			ReleaseTypes: []models.ReleaseType{models.Release},
+			ModsFolder:   "mods",
+		}, initDeps{fs: fs, minecraftClient: manifestDoer([]string{"1.21.1"})})
+		assert.ErrorContains(t, err, "failed to check configuration file")
+		assert.ErrorContains(t, err, "stat failed")
+	})
+
 	t.Run("empty game version uses latest", func(t *testing.T) {
 		minecraft.ClearManifestCache()
 		fs := afero.NewMemMapFs()

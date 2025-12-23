@@ -97,9 +97,11 @@ func TestReplaceExistingFileRenamesWhenDestinationMissing(t *testing.T) {
 	assert.NoError(t, afero.WriteFile(fs, source, []byte("source"), 0644))
 	assert.NoError(t, replaceExistingFile(fs, logger.New(io.Discard, io.Discard, false, false), source, destination))
 
-	exists, _ := afero.Exists(fs, destination)
+	exists, err := afero.Exists(fs, destination)
+	assert.NoError(t, err)
 	assert.True(t, exists)
-	exists, _ = afero.Exists(fs, source)
+	exists, err = afero.Exists(fs, source)
+	assert.NoError(t, err)
 	assert.False(t, exists)
 }
 
@@ -195,7 +197,8 @@ func TestDownloadAndSwapRemovesNewFileWhenOldRemovalFails(t *testing.T) {
 
 	assert.Error(t, downloadAndSwap(context.Background(), deps, oldPath, newPath, filepath.FromSlash("/mods"), "https://example.invalid/new.jar", sha1Hex("new")))
 
-	exists, _ := afero.Exists(fs, newPath)
+	exists, err := afero.Exists(fs, newPath)
+	assert.NoError(t, err)
 	assert.False(t, exists)
 }
 

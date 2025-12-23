@@ -3,16 +3,19 @@ package curseforge
 import (
 	"context"
 	"encoding/json"
+	"io"
 	"net/http"
 	"net/http/httptest"
 	"testing"
 	"time"
 
+	stdErrors "errors"
+
 	"github.com/meza/minecraft-mod-manager/internal/globalErrors"
 	"github.com/meza/minecraft-mod-manager/internal/httpClient"
 	"github.com/meza/minecraft-mod-manager/internal/models"
 	"github.com/meza/minecraft-mod-manager/testutil"
-	"github.com/pkg/errors"
+	pkgErrors "github.com/pkg/errors"
 	"github.com/stretchr/testify/assert"
 )
 
@@ -119,7 +122,7 @@ func TestGetFilesForProject(t *testing.T) {
 
 		w.Header().Set("Content-Type", "application/json")
 		w.WriteHeader(http.StatusOK)
-		w.Write([]byte(mockResponse))
+		writeStringResponse(t, w, mockResponse)
 	}))
 	defer mockServer.Close()
 
@@ -313,11 +316,11 @@ func TestGetFilesForProjectWithPagination(t *testing.T) {
 		if r.URL.Path == "/v1/mods/12345/files" && r.URL.Query().Get("index") == "0" {
 			w.Header().Set("Content-Type", "application/json")
 			w.WriteHeader(http.StatusOK)
-			w.Write([]byte(mockResponsePage1))
+			writeStringResponse(t, w, mockResponsePage1)
 		} else if r.URL.Path == "/v1/mods/12345/files" && r.URL.Query().Get("index") == "1" {
 			w.Header().Set("Content-Type", "application/json")
 			w.WriteHeader(http.StatusOK)
-			w.Write([]byte(mockResponsePage2))
+			writeStringResponse(t, w, mockResponsePage2)
 		} else {
 			t.Errorf("Unexpected path or query: %s", r.URL.Path)
 		}
@@ -442,7 +445,7 @@ func TestGetFilesForProjectWhenProjectApiUnknownStatus(t *testing.T) {
 
 	// Assertions
 	assert.Error(t, err)
-	assert.Equal(t, "unexpected status code: 418", errors.Unwrap(err).Error())
+	assert.Equal(t, "unexpected status code: 418", pkgErrors.Unwrap(err).Error())
 	assert.Nil(t, project)
 }
 
@@ -452,7 +455,7 @@ func TestGetFilesForProjectWhenProjectApiCorruptBody(t *testing.T) {
 	mockServer := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "application/json")
 		w.WriteHeader(http.StatusOK)
-		w.Write([]byte(`{`))
+		writeStringResponse(t, w, `{`)
 	}))
 	defer mockServer.Close()
 
@@ -461,13 +464,13 @@ func TestGetFilesForProjectWhenProjectApiCorruptBody(t *testing.T) {
 
 	// Assertions
 	assert.Error(t, err)
-	assert.Equal(t, "failed to decode response body: unexpected EOF", errors.Unwrap(err).Error())
+	assert.Equal(t, "failed to decode response body: unexpected EOF", pkgErrors.Unwrap(err).Error())
 	assert.Nil(t, project)
 }
 
 func TestGetFilesForProjectWhenApiCallFails(t *testing.T) {
 	// Call the function
-	project, err := GetFilesForProject(context.Background(), 123456, NewClient(errorDoer{err: errors.New("request failed")}))
+	project, err := GetFilesForProject(context.Background(), 123456, NewClient(errorDoer{err: pkgErrors.New("request failed")}))
 
 	// Assertions
 	//assert.Error(t, err)
@@ -475,7 +478,7 @@ func TestGetFilesForProjectWhenApiCallFails(t *testing.T) {
 		ProjectID: "123456",
 		Platform:  models.CURSEFORGE,
 	})
-	assert.Equal(t, "request failed", errors.Unwrap(err).Error())
+	assert.Equal(t, "request failed", pkgErrors.Unwrap(err).Error())
 	assert.Nil(t, project)
 }
 
@@ -518,7 +521,7 @@ func TestGetFingerprintsMatchesWithOneExactMatch(t *testing.T) {
 		}
 		w.Header().Set("Content-Type", "application/json")
 		w.WriteHeader(http.StatusOK)
-		w.Write([]byte(mockResponse))
+		writeStringResponse(t, w, mockResponse)
 	}))
 	defer mockServer.Close()
 
@@ -570,7 +573,7 @@ func TestGetFingerprintsMatchesWithMultipleExactMatches(t *testing.T) {
 	mockServer := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "application/json")
 		w.WriteHeader(http.StatusOK)
-		w.Write([]byte(mockResponse))
+		writeStringResponse(t, w, mockResponse)
 	}))
 	defer mockServer.Close()
 
@@ -598,7 +601,7 @@ func TestGetFingerprintsMatchesWithNoExactMatches(t *testing.T) {
 	mockServer := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "application/json")
 		w.WriteHeader(http.StatusOK)
-		w.Write([]byte(mockResponse))
+		writeStringResponse(t, w, mockResponse)
 	}))
 	defer mockServer.Close()
 
@@ -640,7 +643,7 @@ func TestGetFingerprintsMatches_AllowsObjectFingerprintFields(t *testing.T) {
 	mockServer := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "application/json")
 		w.WriteHeader(http.StatusOK)
-		w.Write([]byte(mockResponse))
+		writeStringResponse(t, w, mockResponse)
 	}))
 	defer mockServer.Close()
 
@@ -705,7 +708,7 @@ func TestGetFingerprintsMatches_UnmatchedFingerprintsMapIsTolerated(t *testing.T
 	mockServer := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "application/json")
 		w.WriteHeader(http.StatusOK)
-		w.Write([]byte(mockResponse))
+		writeStringResponse(t, w, mockResponse)
 	}))
 	defer mockServer.Close()
 
@@ -722,7 +725,7 @@ func TestGetFingerprintsMatches_UnmatchedFingerprintsMapIsTolerated(t *testing.T
 func TestGetFingerprintsMatchesWithApiFailure(t *testing.T) {
 	fingerprints := []int{0, 1}
 
-	client := NewClient(errorDoer{err: errors.New("request failed")})
+	client := NewClient(errorDoer{err: pkgErrors.New("request failed")})
 	result, err := GetFingerprintsMatches(context.Background(), fingerprints, client)
 	assert.ErrorContains(t, err, "request failed")
 	assert.Nil(t, result)
@@ -759,7 +762,7 @@ func TestGetFingerprintsMatchesWithUnexpectedStatusReturnsApiError(t *testing.T)
 	mockServer := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "application/json")
 		w.WriteHeader(http.StatusForbidden)
-		w.Write([]byte(`{"error":"forbidden"}`))
+		writeStringResponse(t, w, `{"error":"forbidden"}`)
 	}))
 	defer mockServer.Close()
 	fingerprints := []int{0, 1}
@@ -782,7 +785,7 @@ func TestGetFingerprintsMatches_UnmatchedFingerprintsUnsupportedTypeErrors(t *te
 	mockServer := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "application/json")
 		w.WriteHeader(http.StatusOK)
-		w.Write([]byte(mockResponse))
+		writeStringResponse(t, w, mockResponse)
 	}))
 	defer mockServer.Close()
 	fingerprints := []int{0, 1}
@@ -799,7 +802,7 @@ func TestGetFingerprintsMatchesWithCorruptedBody(t *testing.T) {
 	mockServer := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "application/json")
 		w.WriteHeader(http.StatusOK)
-		w.Write([]byte(`{`))
+		writeStringResponse(t, w, `{`)
 	}))
 	defer mockServer.Close()
 	fingerprints := []int{0, 1}
@@ -808,4 +811,78 @@ func TestGetFingerprintsMatchesWithCorruptedBody(t *testing.T) {
 	result, err := GetFingerprintsMatches(context.Background(), fingerprints, client)
 	assert.ErrorContains(t, err, "unexpected EOF")
 	assert.Nil(t, result)
+}
+
+func TestGetFingerprintsMatchesReturnsErrorOnMarshalFailure(t *testing.T) {
+	originalMarshal := marshalJSON
+	marshalJSON = func(any) ([]byte, error) {
+		return nil, stdErrors.New("marshal failed")
+	}
+	t.Cleanup(func() {
+		marshalJSON = originalMarshal
+	})
+
+	result, err := GetFingerprintsMatches(context.Background(), []int{1}, NewClient(errorDoer{}))
+	assert.Error(t, err)
+	assert.Nil(t, result)
+}
+
+func TestGetFingerprintsMatchesReturnsErrorOnRequestBuildFailure(t *testing.T) {
+	originalRequest := newRequestWithContext
+	newRequestWithContext = func(context.Context, string, string, io.Reader) (*http.Request, error) {
+		return nil, stdErrors.New("request failed")
+	}
+	t.Cleanup(func() {
+		newRequestWithContext = originalRequest
+	})
+
+	result, err := GetFingerprintsMatches(context.Background(), []int{1}, NewClient(errorDoer{}))
+	assert.Error(t, err)
+	assert.Nil(t, result)
+}
+
+func TestGetFingerprintsMatchesReturnsErrorOnResponseCloseFailure(t *testing.T) {
+	closeErr := stdErrors.New("close failed")
+	body := newCloseErrorBody(`{"data":{"exactMatches":[],"partialMatches":[],"unmatchedFingerprints":[]}}`, closeErr)
+	client := NewClient(responseDoer{
+		response: &http.Response{
+			StatusCode: http.StatusOK,
+			Body:       body,
+			Header:     make(http.Header),
+		},
+	})
+
+	result, err := GetFingerprintsMatches(context.Background(), []int{1}, client)
+	assert.ErrorIs(t, err, closeErr)
+	assert.NotNil(t, result)
+}
+
+func TestGetPaginatedFilesForProjectReturnsErrorOnRequestBuildFailure(t *testing.T) {
+	originalRequest := newRequestWithContext
+	newRequestWithContext = func(context.Context, string, string, io.Reader) (*http.Request, error) {
+		return nil, stdErrors.New("request failed")
+	}
+	t.Cleanup(func() {
+		newRequestWithContext = originalRequest
+	})
+
+	files, err := getPaginatedFilesForProject(context.Background(), 12345, errorDoer{}, 0)
+	assert.Error(t, err)
+	assert.Nil(t, files)
+}
+
+func TestGetPaginatedFilesForProjectReturnsErrorOnResponseCloseFailure(t *testing.T) {
+	closeErr := stdErrors.New("close failed")
+	body := newCloseErrorBody(`{"data":[],"pagination":{"index":0,"pageSize":50,"resultCount":0,"totalCount":0}}`, closeErr)
+	client := responseDoer{
+		response: &http.Response{
+			StatusCode: http.StatusOK,
+			Body:       body,
+			Header:     make(http.Header),
+		},
+	}
+
+	files, err := getPaginatedFilesForProject(context.Background(), 12345, client, 0)
+	assert.ErrorIs(t, err, closeErr)
+	assert.NotNil(t, files)
 }

@@ -16,7 +16,10 @@ func EnsureLock(ctx context.Context, fs afero.Fs, meta Metadata) ([]models.ModIn
 	defer span.End()
 
 	lockPath := meta.LockPath()
-	exists, _ := afero.Exists(fs, lockPath)
+	exists, err := afero.Exists(fs, lockPath)
+	if err != nil {
+		return nil, fmt.Errorf("failed to check lock file: %w", err)
+	}
 	if !exists {
 		empty := make([]models.ModInstall, 0)
 		if err := WriteLock(ctx, fs, meta, empty); err != nil {
@@ -49,6 +52,9 @@ func WriteLock(ctx context.Context, fs afero.Fs, meta Metadata, lock []models.Mo
 	_, span := perf.StartSpan(ctx, "io.config.lock.write", perf.WithAttributes(attribute.String("lock_path", meta.LockPath())))
 	defer span.End()
 
-	data, _ := json.MarshalIndent(lock, "", "  ")
+	data, err := marshalIndent(lock, "", "  ")
+	if err != nil {
+		return fmt.Errorf("failed to serialize lock file: %w", err)
+	}
 	return writeFileAtomic(fs, meta.LockPath(), data, 0644)
 }

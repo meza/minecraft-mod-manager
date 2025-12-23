@@ -112,7 +112,8 @@ func normalizeVersion(version string) string {
 	if trimmed == "" {
 		return "dev"
 	}
-	return trimmed
+	sanitized := strings.NewReplacer("/", "-", "\\", "-", ":", "-").Replace(trimmed)
+	return sanitized
 }
 
 func resetDistDir(distDir string) error {
@@ -198,14 +199,19 @@ func writeZip(outputPath, inputPath string) error {
 		return fmt.Errorf("error: build output is not a file: %s", inputPath)
 	}
 
-	outputFile, err := os.Create(outputPath)
+	// #nosec G304 -- output path is rooted in dist dir with a sanitized version string.
+	outputFile, err := os.Create(outputPath) // #nosec G304 -- output path is rooted in dist dir with a sanitized version string.
 	if err != nil {
 		return fmt.Errorf("error: create zip %s: %w", outputPath, err)
 	}
-	defer func() { _ = outputFile.Close() }()
+	defer func() {
+		_ = outputFile.Close() // #nosec G104 -- best-effort cleanup for zip output.
+	}()
 
 	zipWriter := zip.NewWriter(outputFile)
-	defer func() { _ = zipWriter.Close() }()
+	defer func() {
+		_ = zipWriter.Close() // #nosec G104 -- best-effort cleanup for zip writer.
+	}()
 
 	header, err := zipFileInfoHeader(inputInfo)
 	if err != nil {
@@ -225,7 +231,7 @@ func writeZip(outputPath, inputPath string) error {
 		return fmt.Errorf("error: open build output %s: %w", inputPath, err)
 	}
 	defer func() {
-		_ = inputFile.Close()
+		_ = inputFile.Close() // #nosec G104 -- best-effort cleanup for zip input file.
 	}()
 
 	if _, err := copyFile(zipEntryWriter, inputFile); err != nil {

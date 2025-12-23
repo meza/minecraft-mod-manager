@@ -1,6 +1,7 @@
 package httpClient
 
 import (
+	"errors"
 	"fmt"
 	"io"
 	"net/http"
@@ -101,7 +102,9 @@ func (client *RLHTTPClient) Do(request *http.Request) (*http.Response, error) {
 					attribute.Bool("success", false),
 					attribute.Int("status", response.StatusCode),
 				)
-				drainAndClose(response.Body)
+				if drainErr := drainAndClose(response.Body); drainErr != nil {
+					attemptSpan.SetAttributes(attribute.String("cleanup_error", drainErr.Error()))
+				}
 				time.Sleep(retryConfig.Interval)
 				attemptSpan.End()
 				continue
@@ -141,11 +144,26 @@ func NoRetries() *RetryConfig {
 	}
 }
 
-func drainAndClose(body io.ReadCloser) {
+func drainAndClose(body io.ReadCloser) error {
 	if body == nil {
-		return
+		return nil
 	}
 
-	_, _ = io.Copy(io.Discard, body)
-	_ = body.Close()
+	readErr := drainBody(body)
+	closeErr := body.Close()
+	if readErr != nil && closeErr != nil {
+		return errors.Join(readErr, closeErr)
+	}
+	if readErr != nil {
+		return readErr
+	}
+	if closeErr != nil {
+		return closeErr
+	}
+	return nil
+}
+
+func drainBody(body io.Reader) error {
+	_, err := io.Copy(io.Discard, body)
+	return err
 }

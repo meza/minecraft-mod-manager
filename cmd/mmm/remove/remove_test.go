@@ -41,11 +41,6 @@ func TestResolveModsToRemoveErrorsOnInvalidPattern(t *testing.T) {
 	assert.Error(t, err)
 }
 
-func TestGlobMatchesReturnsError(t *testing.T) {
-	_, err := globMatches("[", "value")
-	assert.Error(t, err)
-}
-
 func TestResolveModsToRemoveSkipsBlanksAndDedupes(t *testing.T) {
 	cfg := models.ModsJson{
 		Mods: []models.Mod{

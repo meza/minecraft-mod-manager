@@ -42,7 +42,7 @@ func TestExportToFile_WritesJSONAndNormalizesPaths(t *testing.T) {
 	assert.NoError(t, err)
 	assert.Equal(t, filepath.Join(outDir, defaultExportFilename), written)
 
-	raw, err := os.ReadFile(written)
+	raw, err := os.ReadFile(written) // #nosec G304 -- test reads temp file path.
 	assert.NoError(t, err)
 
 	var decoded []*ExportSpan
@@ -83,7 +83,7 @@ func TestExportToFile_DefaultOutDirWritesToWorkingDirectory(t *testing.T) {
 	oldWD, err := os.Getwd()
 	assert.NoError(t, err)
 	assert.NoError(t, os.Chdir(tempDir))
-	t.Cleanup(func() { _ = os.Chdir(oldWD) })
+	t.Cleanup(func() { assert.NoError(t, os.Chdir(oldWD)) })
 
 	_, span := StartSpan(context.Background(), "wd-span")
 	span.End()
@@ -184,7 +184,7 @@ func TestExportToFile_ExportsEventsLinksStatusAndAttributeTypes(t *testing.T) {
 	written, err := ExportToFile(outDir, baseDir)
 	assert.NoError(t, err)
 
-	raw, err := os.ReadFile(written)
+	raw, err := os.ReadFile(written) // #nosec G304 -- test reads temp file path.
 	assert.NoError(t, err)
 
 	var decoded []*ExportSpan
@@ -220,7 +220,7 @@ func TestExportToFile_ExportsEventWithNoAttributes(t *testing.T) {
 	written, err := ExportToFile(t.TempDir(), t.TempDir())
 	assert.NoError(t, err)
 
-	raw, err := os.ReadFile(written)
+	raw, err := os.ReadFile(written) // #nosec G304 -- test reads temp file path.
 	assert.NoError(t, err)
 
 	var decoded []*ExportSpan
@@ -250,7 +250,7 @@ func TestExportToFile_SkipsInvalidLinks(t *testing.T) {
 	written, err := ExportToFile(t.TempDir(), t.TempDir())
 	assert.NoError(t, err)
 
-	raw, err := os.ReadFile(written)
+	raw, err := os.ReadFile(written) // #nosec G304 -- test reads temp file path.
 	assert.NoError(t, err)
 
 	var decoded []*ExportSpan

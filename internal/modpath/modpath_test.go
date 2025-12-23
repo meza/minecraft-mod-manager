@@ -271,7 +271,7 @@ func TestResolveWritablePath_ResolvesRelativeRootAgainstCwd(t *testing.T) {
 	previousWorkingDir, err := os.Getwd()
 	assert.NoError(t, err)
 	assert.NoError(t, os.Chdir(workingDir))
-	t.Cleanup(func() { _ = os.Chdir(previousWorkingDir) })
+	t.Cleanup(func() { assert.NoError(t, os.Chdir(previousWorkingDir)) })
 
 	resolved, err := ResolveWritablePath(fs, "mods", filepath.Join("mods", "example.jar"))
 	assert.NoError(t, err)

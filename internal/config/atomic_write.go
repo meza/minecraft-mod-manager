@@ -18,20 +18,28 @@ func writeFileAtomic(fs afero.Fs, targetPath string, data []byte, mode os.FileMo
 		return err
 	}
 
-	_ = fs.Remove(tempPath)
+	if err := fs.Remove(tempPath); err != nil && !errors.Is(err, os.ErrNotExist) {
+		return fmt.Errorf("failed to remove temp file %s: %w", tempPath, err)
+	}
 	if err := afero.WriteFile(fs, tempPath, data, mode); err != nil {
 		return err
 	}
 
 	exists, err := afero.Exists(fs, targetPath)
 	if err != nil {
-		_ = fs.Remove(tempPath)
+		cleanupErr := fs.Remove(tempPath)
+		if cleanupErr != nil && !errors.Is(cleanupErr, os.ErrNotExist) {
+			return errors.Join(err, fmt.Errorf("failed to remove temp file %s: %w", tempPath, cleanupErr))
+		}
 		return err
 	}
 
 	if !exists {
 		if err := fs.Rename(tempPath, targetPath); err != nil {
-			_ = fs.Remove(tempPath)
+			cleanupErr := fs.Remove(tempPath)
+			if cleanupErr != nil && !errors.Is(cleanupErr, os.ErrNotExist) {
+				return errors.Join(err, fmt.Errorf("failed to remove temp file %s: %w", tempPath, cleanupErr))
+			}
 			return err
 		}
 		return nil
@@ -44,17 +52,28 @@ func writeFileAtomic(fs afero.Fs, targetPath string, data []byte, mode os.FileMo
 	}
 
 	if err := fs.Rename(targetPath, backupPath); err != nil {
-		_ = fs.Remove(tempPath)
+		cleanupErr := fs.Remove(tempPath)
+		if cleanupErr != nil && !errors.Is(cleanupErr, os.ErrNotExist) {
+			return errors.Join(err, fmt.Errorf("failed to remove temp file %s: %w", tempPath, cleanupErr))
+		}
 		return err
 	}
 
 	if err := fs.Rename(tempPath, targetPath); err != nil {
-		_ = fs.Remove(tempPath)
-		_ = fs.Rename(backupPath, targetPath)
+		cleanupErr := fs.Remove(tempPath)
+		rollbackErr := fs.Rename(backupPath, targetPath)
+		if cleanupErr != nil && !errors.Is(cleanupErr, os.ErrNotExist) {
+			err = errors.Join(err, fmt.Errorf("failed to remove temp file %s: %w", tempPath, cleanupErr))
+		}
+		if rollbackErr != nil {
+			err = errors.Join(err, fmt.Errorf("failed to restore backup %s: %w", backupPath, rollbackErr))
+		}
 		return err
 	}
 
-	_ = fs.Remove(backupPath)
+	if err := fs.Remove(backupPath); err != nil && !errors.Is(err, os.ErrNotExist) {
+		return fmt.Errorf("failed to remove backup file %s: %w", backupPath, err)
+	}
 
 	return nil
 }

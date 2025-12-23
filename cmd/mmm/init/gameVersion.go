@@ -107,7 +107,10 @@ func (m GameVersionModel) gameVersionSelected() tea.Cmd {
 }
 
 func NewGameVersionModel(ctx context.Context, minecraftClient httpClient.Doer, gameVersion string) GameVersionModel {
-	latestVersion, _ := minecraft.GetLatestVersion(ctx, minecraftClient)
+	latestVersion, err := minecraft.GetLatestVersion(ctx, minecraftClient)
+	if err != nil {
+		latestVersion = ""
+	}
 	allVersions := minecraft.GetAllMineCraftVersions(ctx, minecraftClient)
 
 	m := textinput.New()

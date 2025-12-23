@@ -310,7 +310,8 @@ func TestFilterCoverageFileWritesFilteredOutput(t *testing.T) {
 		t.Fatalf("expected no error, got %v", err)
 	}
 
-	output, err := os.ReadFile(filteredPath)
+	// #nosec G304 -- test reads temp file path.
+	output, err := os.ReadFile(filteredPath) // #nosec G304 -- test reads temp file path.
 	if err != nil {
 		t.Fatalf("failed to read filtered profile: %v", err)
 	}
@@ -649,7 +650,9 @@ func TestCoverageToolRunOutputFailure(t *testing.T) {
 	}
 
 	output := captureStdout(t, func() {
-		_ = tool.run()
+		if err := tool.run(); err == nil {
+			t.Fatal("expected error, got nil")
+		}
 	})
 
 	if !strings.Contains(output, "tools/build/build.go") {
@@ -930,7 +933,9 @@ func TestRunCoverageTestsErrorWriteFailure(t *testing.T) {
 	os.Stderr = writer
 	t.Cleanup(func() {
 		os.Stderr = originalStderr
-		_ = reader.Close()
+		if err := reader.Close(); err != nil {
+			t.Fatalf("failed to close reader: %v", err)
+		}
 	})
 
 	if err := tool.runCoverageTests(filepath.Join(tempDir, "coverage.profile")); err == nil {
@@ -992,7 +997,8 @@ func TestExecRunnerRun(t *testing.T) {
 		os.Exit(0)
 	}
 
-	cmd := exec.Command(os.Args[0], "-test.run=TestExecRunnerRun", "--")
+	// #nosec G204 -- test helper executes the current test binary.
+	cmd := exec.Command(os.Args[0], "-test.run=TestExecRunnerRun", "--") // #nosec G204 -- test helper executes the current test binary.
 	cmd.Env = append(os.Environ(), "GO_WANT_HELPER_PROCESS_RUN=1")
 	if err := (execRunner{}).Run(cmd); err != nil {
 		t.Fatalf("expected no error, got %v", err)
@@ -1004,7 +1010,8 @@ func TestExecOutputRunner(t *testing.T) {
 		os.Exit(0)
 	}
 
-	cmd := exec.Command(os.Args[0], "-test.run=TestExecOutputRunner", "--")
+	// #nosec G204 -- test helper executes the current test binary.
+	cmd := exec.Command(os.Args[0], "-test.run=TestExecOutputRunner", "--") // #nosec G204 -- test helper executes the current test binary.
 	cmd.Env = append(os.Environ(), "GO_WANT_HELPER_PROCESS_OUTPUT=1")
 	if _, err := (execOutputRunner{}).Output(cmd); err != nil {
 		t.Fatalf("expected no error, got %v", err)

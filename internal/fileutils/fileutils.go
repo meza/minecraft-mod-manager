@@ -9,7 +9,10 @@ import (
 func FileExists(path string, filesystem ...afero.Fs) bool {
 	fs := InitFilesystem(filesystem...)
 
-	exists, _ := afero.Exists(fs, path)
+	exists, err := afero.Exists(fs, path)
+	if err != nil {
+		return false
+	}
 	return exists
 }
 
