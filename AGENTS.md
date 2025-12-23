@@ -54,6 +54,12 @@ When you invoke the reviewer, you MUST explicitly define the active changeset un
 Instructions for issue tracking [here](https://raw.githubusercontent.com/meza/agent-docs/refs/heads/main/Beads.md).
 You MUST read and adhere to these instructions.
 
+### Issue Closure Authority (Non-Negotiable)
+
+- You MUST NOT close, resolve, or mark complete any work item (including via `bd close`, status changes to `done`/`closed`, or closing a GitHub issue) unless the user explicitly instructs you to close it in the current conversation and identifies the specific issue(s).
+- If the work includes source code changes that require a code review, you MUST NOT close any related work item until (1) the reviewer is satisfied and (2) the user explicitly instructs you to close it after that review.
+- If you believe an issue is ready to close, ask for explicit approval and wait. Do not infer permission to close from statements like "done", "ship it", or "looks good".
+
 ## Long Term Memory
 
 Instructions for long term memory management [here](https://raw.githubusercontent.com/meza/agent-docs/refs/heads/main/LongTermMemory.md).
