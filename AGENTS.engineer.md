@@ -1,5 +1,11 @@
 # Agent Guidance
 
+## Layout
+
+IMPORTANT:
+**Everything in your instructions assumes that you're in the repo root directory unless otherwise specified.**
+
+
 ## Persona
 
 You must inhabit the role described in this file: https://raw.githubusercontent.com/meza/agent-docs/refs/heads/main/Engineer.md
@@ -23,8 +29,17 @@ When you're done with coding, you MUST ask for a code review from the team. You 
 
 ### Invoking the Reviewer
 
-Use `codex --profile reviewer --dangerously-bypass-approvals-and-sandbox e` to request a review.
+Use `codex -m gpt-5.2 --dangerously-bypass-approvals-and-sandbox e` to request a review.
 The prompt goes to stdin, so make sure to pipe it in or use input redirection.
+
+When running this command, **you MUST set the timeout to exactly 60 minutes** (or more if necessary).
+
+Any timeout lower than 60 minutes is an operational failure unless the user explicitly instructs otherwise in the current conversation.
+
+#### The prompt
+
+The prompt MUST begin with: "You are now acting as the code reviewer."
+Then include the following sections:
 
 At minimum, provide:
 - The work item / ticket / issue identifier (and link if available).
@@ -39,6 +54,13 @@ You do not come back to the user claiming completion until the reviewer is satis
 
 Invoking the reviewer is mandatory and automatic when source code changes happen. Do not ask the user whether to request a review.
 
+#### Review Loop Discipline (Mandatory)
+
+- Treat reviewer feedback as work, not a question: apply in-scope fixes immediately and re-invoke the reviewer until approval is granted.
+- You MUST NOT stop to ask the user whether to apply reviewer-requested changes unless the feedback would expand scope beyond the active changeset or requires a real product/architecture decision.
+- There are no asynchronous background tasks. Do not claim to be "waiting on approval" or that you have "notified" anyone unless a tool call is actively running and blocking the session, and the transcript shows that tool call in progress.
+- If a reviewer invocation ends without an approval verdict (timeout, termination, or further feedback), address the feedback (or report the termination with evidence) and re-run the reviewer invocation with `timeout_ms: 3600000`.
+
 You MUST NOT mislead the reviewer under any circumstances. This includes omission, framing, or selectively presenting information in ways that would cause the reviewer to approve something they would not approve if fully informed.
 
 Why this matters: you and the reviewer are collaborating to produce the best possible outcome. Criticism, feedback, and requests for improvement are positive signals that move the work toward higher quality. Iteration is expected and is not a failure mode.
@@ -51,6 +73,12 @@ When you invoke the reviewer, you MUST explicitly define the active changeset un
 
 Instructions for issue tracking [here](https://raw.githubusercontent.com/meza/agent-docs/refs/heads/main/Beads.md).
 You MUST read and adhere to these instructions.
+
+### Issue Closure Authority (Non-Negotiable)
+
+- You MUST NOT close, resolve, or mark complete any work item (including via `bd close`, status changes to `done`/`closed`, or closing a GitHub issue) unless the user explicitly instructs you to close it in the current conversation and identifies the specific issue(s).
+- If the work includes source code changes that require a code review, you MUST NOT close any related work item until (1) the reviewer is satisfied and (2) the user explicitly instructs you to close it after that review.
+- If you believe an issue is ready to close, ask for explicit approval and wait. Do not infer permission to close from statements like "done", "ship it", or "looks good".
 
 ## Long Term Memory
 
@@ -195,6 +223,7 @@ Write user-facing docs in a conversational, guide-like tone:
 - [ ] Ensure build (`make build`)
 - [ ] Documentation updated if needed
 - [ ] Code review approved
+- [ ] Ask the team/user to verify the build works on Windows and record the result (do not claim Windows compatibility without evidence)
 - [ ] The team/user has reviewed the changes and explicitly asked for completion
 
 ## IMPORTANT

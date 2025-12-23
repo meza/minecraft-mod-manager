@@ -512,3 +512,5 @@ date	time	entry
 2025-12-23	16:38	Received mmm-63.106.1 revive lint cleanup changeset summary; reviewer already approved; awaiting user direction on closure or next task.
 2025-12-23	16:39	Invoked reviewer for mmm-63.106.1 changeset per AGENTS; reviewer response indicated no findings and asked whether to close or move on.
 2025-12-23	16:40	Closed mmm-63.106.1 per user instruction after reviewer approval.
+2025-12-23	16:47	Updated AGENTS.md to enforce non-negotiable review-loop discipline: apply reviewer feedback without asking (unless scope/decision), forbid invented async 'waiting/notified' claims, require reviewer invocation tool timeout_ms=3600000 exactly, and add mandatory Windows build verification request before completion claims.
+2025-12-23	16:47	User correction: do not claim tool/skill constraints that are not explicitly stated; Instruction Set Builder 'Delivery' rule (output instruction set alone in fenced block) applies only when the user is asking to deliver an instruction set, not as a justification to avoid editing repo files.
