@@ -22,6 +22,11 @@ import (
 	"go.opentelemetry.io/otel/attribute"
 )
 
+var listWriteString = func(builder *strings.Builder, value string) error {
+	_, err := builder.WriteString(value)
+	return err
+}
+
 func Command() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:     "list",
@@ -224,11 +229,17 @@ func renderListView(entries []listEntry, colorize bool) string {
 	if colorize {
 		header = tui.TitleStyle.Render(header)
 	}
-	builder.WriteString(header)
+	if err := listWriteString(&builder, header); err != nil {
+		return ""
+	}
 
 	for _, entry := range entries {
-		builder.WriteString("\n")
-		builder.WriteString(renderEntry(entry, colorize))
+		if err := listWriteString(&builder, "\n"); err != nil {
+			return ""
+		}
+		if err := listWriteString(&builder, renderEntry(entry, colorize)); err != nil {
+			return ""
+		}
 	}
 
 	return builder.String()

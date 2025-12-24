@@ -22,6 +22,12 @@ type execCmdSnapshot struct {
 	env  []string
 }
 
+type errorWriter struct{}
+
+func (errorWriter) Write([]byte) (int, error) {
+	return 0, errors.New("write failed")
+}
+
 func (runner *recordingRunner) Run(command *exec.Cmd) error {
 	runner.commands = append(runner.commands, &execCmdSnapshot{
 		args: append([]string{}, command.Args...),
@@ -55,6 +61,24 @@ func TestRunMainGetwdFailure(t *testing.T) {
 	newBuildToolFunc = func() (*buildTool, error) {
 		return nil, errors.New("boom")
 	}
+
+	if exitCode := runMain(); exitCode != 1 {
+		t.Fatalf("expected exit code 1, got %d", exitCode)
+	}
+}
+
+func TestRunMainGetwdFailureWriteError(t *testing.T) {
+	originalNewBuildToolFunc := newBuildToolFunc
+	originalStderrWriter := stderrWriter
+	t.Cleanup(func() {
+		newBuildToolFunc = originalNewBuildToolFunc
+		stderrWriter = originalStderrWriter
+	})
+
+	newBuildToolFunc = func() (*buildTool, error) {
+		return nil, errors.New("boom")
+	}
+	stderrWriter = errorWriter{}
 
 	if exitCode := runMain(); exitCode != 1 {
 		t.Fatalf("expected exit code 1, got %d", exitCode)
@@ -117,6 +141,38 @@ func TestRunMainToolRunError(t *testing.T) {
 			logger: log.New(&bytes.Buffer{}, "build: ", 0),
 		}, nil
 	}
+
+	if exitCode := runMain(); exitCode != 1 {
+		t.Fatalf("expected exit code 1, got %d", exitCode)
+	}
+}
+
+func TestRunMainToolRunErrorWriteError(t *testing.T) {
+	originalNewBuildToolFunc := newBuildToolFunc
+	originalStderrWriter := stderrWriter
+	t.Cleanup(func() {
+		newBuildToolFunc = originalNewBuildToolFunc
+		stderrWriter = originalStderrWriter
+	})
+
+	tempDir := t.TempDir()
+	newBuildToolFunc = func() (*buildTool, error) {
+		return &buildTool{
+			repoRoot: tempDir,
+			baseEnv: []string{
+				modrinthEnvVar + "=token",
+				curseforgeEnvVar + "=token",
+				posthogEnvVar + "=token",
+			},
+			goBinary:      "go",
+			commandRunner: &recordingRunner{runError: errors.New("run failed")},
+			envFileReader: func(string) (map[string]string, error) {
+				return map[string]string{}, nil
+			},
+			logger: log.New(&bytes.Buffer{}, "build: ", 0),
+		}, nil
+	}
+	stderrWriter = errorWriter{}
 
 	if exitCode := runMain(); exitCode != 1 {
 		t.Fatalf("expected exit code 1, got %d", exitCode)

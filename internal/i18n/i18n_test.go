@@ -4,6 +4,7 @@ import (
 	"embed"
 	"errors"
 	"os"
+	"strings"
 	"sync"
 	"testing"
 
@@ -37,6 +38,35 @@ func (value customString) String() string { return string(value) }
 
 //go:embed __fixtures__/*.json
 var testData embed.FS
+
+func TestFormatKeyAndArgsReturnsEmptyOnWriteError(t *testing.T) {
+	originalWriteString := i18nWriteString
+	t.Cleanup(func() {
+		i18nWriteString = originalWriteString
+	})
+	i18nWriteString = func(*strings.Builder, string) error {
+		return errors.New("write failed")
+	}
+
+	assert.Equal(t, "", formatKeyAndArgs("key", Tvars{Count: 1}))
+}
+
+func TestFormatKeyAndArgsReturnsEmptyOnArgWriteError(t *testing.T) {
+	originalWriteString := i18nWriteString
+	t.Cleanup(func() {
+		i18nWriteString = originalWriteString
+	})
+	callCount := 0
+	i18nWriteString = func(*strings.Builder, string) error {
+		callCount++
+		if callCount == 2 {
+			return errors.New("write failed")
+		}
+		return nil
+	}
+
+	assert.Equal(t, "", formatKeyAndArgs("key", Tvars{Count: 1}))
+}
 
 //go:embed __fixtures_invalid__/*.json
 var invalidLocales embed.FS

@@ -5,6 +5,7 @@ import (
 	"bytes"
 	"errors"
 	"fmt"
+	"io"
 	"log"
 	"os"
 	"os/exec"
@@ -71,6 +72,7 @@ type buildTool struct {
 var getWorkingDirectory = os.Getwd
 var newBuildToolFunc = newBuildTool
 var exit = os.Exit
+var stderrWriter io.Writer = os.Stderr
 
 func newBuildTool() (*buildTool, error) {
 	workingDirectory, err := getWorkingDirectory()
@@ -100,12 +102,16 @@ func main() {
 func runMain() int {
 	tool, err := newBuildToolFunc()
 	if err != nil {
-		fmt.Fprintln(os.Stderr, err)
+		if _, writeErr := fmt.Fprintln(stderrWriter, err); writeErr != nil {
+			return 1
+		}
 		return 1
 	}
 
 	if err := tool.run(); err != nil {
-		fmt.Fprintln(os.Stderr, err)
+		if _, writeErr := fmt.Fprintln(stderrWriter, err); writeErr != nil {
+			return 1
+		}
 		return 1
 	}
 	return 0

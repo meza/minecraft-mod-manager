@@ -23,6 +23,11 @@ const (
 	done
 )
 
+var writeString = func(builder *strings.Builder, value string) error {
+	_, err := builder.WriteString(value)
+	return err
+}
+
 type CommandModel struct {
 	state                state
 	entered              bool
@@ -65,17 +70,26 @@ func (model CommandModel) View() string {
 		modsFolderView = model.modsFolderQuestion.View()
 	}
 
+	var appendErr error
 	appendSection := func(section string) {
-		if section == "" {
+		if appendErr != nil || section == "" {
 			return
 		}
 		if stringBuilder.Len() > 0 {
-			stringBuilder.WriteString("\n")
+			if err := writeString(&stringBuilder, "\n"); err != nil {
+				appendErr = err
+				return
+			}
 		}
-		stringBuilder.WriteString(section)
+		if err := writeString(&stringBuilder, section); err != nil {
+			appendErr = err
+		}
 	}
 
 	appendSection(loaderView)
+	if appendErr != nil {
+		return ""
+	}
 
 	switch model.state {
 	case stateLoader:
@@ -93,6 +107,10 @@ func (model CommandModel) View() string {
 		appendSection(gameVersionView)
 		appendSection(releaseTypesView)
 		appendSection(modsFolderView)
+	}
+
+	if appendErr != nil {
+		return ""
 	}
 
 	return stringBuilder.String()

@@ -14,6 +14,12 @@ import (
 	"testing"
 )
 
+type errorWriter struct{}
+
+func (errorWriter) Write([]byte) (int, error) {
+	return 0, errors.New("write failed")
+}
+
 func TestNormalizeVersionDefaultsToDev(t *testing.T) {
 	if normalizeVersion("") != "dev" {
 		t.Fatal("expected dev for empty version")
@@ -38,8 +44,10 @@ func TestNormalizeVersionStripsPathSeparators(t *testing.T) {
 
 func TestRunMainGetwdFailure(t *testing.T) {
 	originalNewDistToolFunc := newDistToolFunc
+	originalStderrWriter := stderrWriter
 	t.Cleanup(func() {
 		newDistToolFunc = originalNewDistToolFunc
+		stderrWriter = originalStderrWriter
 	})
 
 	flag.CommandLine = flag.NewFlagSet(os.Args[0], flag.ContinueOnError)
@@ -47,6 +55,26 @@ func TestRunMainGetwdFailure(t *testing.T) {
 	newDistToolFunc = func() (*distTool, error) {
 		return nil, errors.New("boom")
 	}
+
+	if exitCode := runMain(); exitCode != 1 {
+		t.Fatalf("expected exit code 1, got %d", exitCode)
+	}
+}
+
+func TestRunMainGetwdFailureWriteError(t *testing.T) {
+	originalNewDistToolFunc := newDistToolFunc
+	originalStderrWriter := stderrWriter
+	t.Cleanup(func() {
+		newDistToolFunc = originalNewDistToolFunc
+		stderrWriter = originalStderrWriter
+	})
+
+	flag.CommandLine = flag.NewFlagSet(os.Args[0], flag.ContinueOnError)
+
+	newDistToolFunc = func() (*distTool, error) {
+		return nil, errors.New("boom")
+	}
+	stderrWriter = errorWriter{}
 
 	if exitCode := runMain(); exitCode != 1 {
 		t.Fatalf("expected exit code 1, got %d", exitCode)
@@ -106,6 +134,29 @@ func TestRunMainToolRunError(t *testing.T) {
 			logger:   log.New(&bytes.Buffer{}, "dist: ", 0),
 		}, nil
 	}
+
+	if exitCode := runMain(); exitCode != 1 {
+		t.Fatalf("expected exit code 1, got %d", exitCode)
+	}
+}
+
+func TestRunMainToolRunErrorWriteError(t *testing.T) {
+	originalNewDistToolFunc := newDistToolFunc
+	originalStderrWriter := stderrWriter
+	t.Cleanup(func() {
+		newDistToolFunc = originalNewDistToolFunc
+		stderrWriter = originalStderrWriter
+	})
+
+	flag.CommandLine = flag.NewFlagSet(os.Args[0], flag.ContinueOnError)
+
+	newDistToolFunc = func() (*distTool, error) {
+		return &distTool{
+			repoRoot: t.TempDir(),
+			logger:   log.New(&bytes.Buffer{}, "dist: ", 0),
+		}, nil
+	}
+	stderrWriter = errorWriter{}
 
 	if exitCode := runMain(); exitCode != 1 {
 		t.Fatalf("expected exit code 1, got %d", exitCode)

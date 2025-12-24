@@ -6,6 +6,7 @@ import (
 	"errors"
 	"io"
 	"net/http"
+	"path/filepath"
 	"strings"
 	"testing"
 
@@ -119,6 +120,189 @@ func TestGameVersionModelUpdateEnterInvalidSetsError(t *testing.T) {
 	model.input.SetValue("nope")
 	updated, _ := model.Update(tea.KeyMsg{Type: tea.KeyEnter})
 	assert.NotNil(t, updated.error)
+}
+
+func TestCommandModelViewReturnsEmptyOnWriteError(t *testing.T) {
+	originalWriteString := writeString
+	t.Cleanup(func() {
+		writeString = originalWriteString
+	})
+	writeString = func(builder *strings.Builder, value string) error {
+		return errors.New("write failed")
+	}
+
+	fs := afero.NewMemMapFs()
+	meta := config.NewMetadata(filepath.FromSlash("/cfg/modlist.json"))
+	assert.NoError(t, fs.MkdirAll(filepath.Dir(meta.ConfigPath), 0755))
+	assert.NoError(t, fs.MkdirAll(meta.ModsFolderPath(models.ModsJSON{ModsFolder: "mods"}), 0755))
+
+	model := NewModel(context.Background(), nil, initOptions{
+		ConfigPath:   meta.ConfigPath,
+		Loader:       models.FABRIC,
+		ModsFolder:   "mods",
+		ReleaseTypes: []models.ReleaseType{models.Release},
+	}, initDeps{
+		fs:              fs,
+		minecraftClient: manifestDoer([]string{"1.21.1"}),
+	}, meta)
+	model.state = stateGameVersion
+
+	assert.Equal(t, "", model.View())
+}
+
+func TestCommandModelViewReturnsEmptyOnSecondaryWriteError(t *testing.T) {
+	originalWriteString := writeString
+	t.Cleanup(func() {
+		writeString = originalWriteString
+	})
+	writeString = func(builder *strings.Builder, value string) error {
+		if value == "\n" {
+			return errors.New("write failed")
+		}
+		_, err := builder.WriteString(value)
+		return err
+	}
+
+	fs := afero.NewMemMapFs()
+	meta := config.NewMetadata(filepath.FromSlash("/cfg/modlist.json"))
+	assert.NoError(t, fs.MkdirAll(filepath.Dir(meta.ConfigPath), 0755))
+	assert.NoError(t, fs.MkdirAll(meta.ModsFolderPath(models.ModsJSON{ModsFolder: "mods"}), 0755))
+
+	model := NewModel(context.Background(), nil, initOptions{
+		ConfigPath:   meta.ConfigPath,
+		ModsFolder:   "mods",
+		ReleaseTypes: []models.ReleaseType{models.Release},
+	}, initDeps{
+		fs:              fs,
+		minecraftClient: manifestDoer([]string{"1.21.1"}),
+	}, meta)
+	model.initialProvided.Loader = true
+	model.gameVersionQuestion.Value = "1.21.1"
+	model.modsFolderQuestion.Value = "mods"
+	model.state = stateModsFolder
+
+	assert.Equal(t, "", model.View())
+}
+
+func TestCommandModelViewReturnsEmptyOnReleaseTypesWriteError(t *testing.T) {
+	originalWriteString := writeString
+	t.Cleanup(func() {
+		writeString = originalWriteString
+	})
+	callCount := 0
+	writeString = func(builder *strings.Builder, value string) error {
+		callCount++
+		if callCount == 3 {
+			return errors.New("write failed")
+		}
+		return nil
+	}
+
+	fs := afero.NewMemMapFs()
+	meta := config.NewMetadata(filepath.FromSlash("/cfg/modlist.json"))
+	assert.NoError(t, fs.MkdirAll(filepath.Dir(meta.ConfigPath), 0755))
+	assert.NoError(t, fs.MkdirAll(meta.ModsFolderPath(models.ModsJSON{ModsFolder: "mods"}), 0755))
+
+	model := NewModel(context.Background(), nil, initOptions{
+		ConfigPath:   meta.ConfigPath,
+		ModsFolder:   "mods",
+		ReleaseTypes: []models.ReleaseType{models.Release},
+	}, initDeps{
+		fs:              fs,
+		minecraftClient: manifestDoer([]string{"1.21.1"}),
+	}, meta)
+	model.state = stateReleaseTypes
+
+	assert.Equal(t, "", model.View())
+}
+
+func TestCommandModelViewReturnsEmptyOnModsFolderWriteError(t *testing.T) {
+	originalWriteString := writeString
+	t.Cleanup(func() {
+		writeString = originalWriteString
+	})
+	callCount := 0
+	writeString = func(builder *strings.Builder, value string) error {
+		callCount++
+		if callCount == 4 {
+			return errors.New("write failed")
+		}
+		return nil
+	}
+
+	fs := afero.NewMemMapFs()
+	meta := config.NewMetadata(filepath.FromSlash("/cfg/modlist.json"))
+	assert.NoError(t, fs.MkdirAll(filepath.Dir(meta.ConfigPath), 0755))
+	assert.NoError(t, fs.MkdirAll(meta.ModsFolderPath(models.ModsJSON{ModsFolder: "mods"}), 0755))
+
+	model := NewModel(context.Background(), nil, initOptions{
+		ConfigPath:   meta.ConfigPath,
+		ModsFolder:   "mods",
+		ReleaseTypes: []models.ReleaseType{models.Release},
+	}, initDeps{
+		fs:              fs,
+		minecraftClient: manifestDoer([]string{"1.21.1"}),
+	}, meta)
+	model.state = stateModsFolder
+
+	assert.Equal(t, "", model.View())
+}
+
+func TestCommandModelViewSkipsProvidedLoader(t *testing.T) {
+	fs := afero.NewMemMapFs()
+	meta := config.NewMetadata(filepath.FromSlash("/cfg/modlist.json"))
+	assert.NoError(t, fs.MkdirAll(filepath.Dir(meta.ConfigPath), 0755))
+	assert.NoError(t, fs.MkdirAll(meta.ModsFolderPath(models.ModsJSON{ModsFolder: "mods"}), 0755))
+
+	model := NewModel(context.Background(), nil, initOptions{
+		ConfigPath: meta.ConfigPath,
+		Loader:     models.FABRIC,
+		Provided:   providedFlags{Loader: true},
+	}, initDeps{
+		fs:              fs,
+		minecraftClient: manifestDoer([]string{"1.21.1"}),
+	}, meta)
+	model.state = stateLoader
+
+	assert.Equal(t, "", model.View())
+}
+
+func TestCommandModelViewDoneStateRendersSummary(t *testing.T) {
+	fs := afero.NewMemMapFs()
+	meta := config.NewMetadata(filepath.FromSlash("/cfg/modlist.json"))
+	assert.NoError(t, fs.MkdirAll(filepath.Dir(meta.ConfigPath), 0755))
+	assert.NoError(t, fs.MkdirAll(meta.ModsFolderPath(models.ModsJSON{ModsFolder: "mods"}), 0755))
+
+	model := NewModel(context.Background(), nil, initOptions{
+		ConfigPath:   meta.ConfigPath,
+		ModsFolder:   "mods",
+		ReleaseTypes: []models.ReleaseType{models.Release},
+	}, initDeps{
+		fs:              fs,
+		minecraftClient: manifestDoer([]string{"1.21.1"}),
+	}, meta)
+	model.state = done
+
+	assert.NotEmpty(t, model.View())
+}
+
+func TestCommandModelViewSkipsProvidedGameVersion(t *testing.T) {
+	fs := afero.NewMemMapFs()
+	meta := config.NewMetadata(filepath.FromSlash("/cfg/modlist.json"))
+	assert.NoError(t, fs.MkdirAll(filepath.Dir(meta.ConfigPath), 0755))
+	assert.NoError(t, fs.MkdirAll(meta.ModsFolderPath(models.ModsJSON{ModsFolder: "mods"}), 0755))
+
+	model := NewModel(context.Background(), nil, initOptions{
+		ConfigPath:  meta.ConfigPath,
+		GameVersion: "1.21.1",
+		Provided:    providedFlags{GameVersion: true},
+	}, initDeps{
+		fs:              fs,
+		minecraftClient: manifestDoer([]string{"1.21.1"}),
+	}, meta)
+	model.state = stateGameVersion
+
+	assert.NotEmpty(t, model.View())
 }
 
 func TestGameVersionModelUpdateEnterValidSetsValue(t *testing.T) {

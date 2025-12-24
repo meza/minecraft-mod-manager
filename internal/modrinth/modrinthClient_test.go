@@ -28,7 +28,9 @@ func TestClient_Do(t *testing.T) {
 		t.Fatalf("Failed to set environment variable: %v", err1)
 		return
 	}
-	defer func() { os.Unsetenv("MODRINTH_API_KEY") }()
+	t.Cleanup(func() {
+		assert.NoError(t, os.Unsetenv("MODRINTH_API_KEY"))
+	})
 
 	// Create a mock Doer
 	mockDoer := new(MockDoer)

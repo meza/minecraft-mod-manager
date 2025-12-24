@@ -53,6 +53,11 @@ type Tvars struct {
 	Data  *TData
 }
 
+var i18nWriteString = func(builder *strings.Builder, value string) error {
+	_, err := builder.WriteString(value)
+	return err
+}
+
 func ensureInitialized() {
 	setupOnce.Do(setup)
 }
@@ -160,10 +165,14 @@ func getUserLocales() []string {
 
 func formatKeyAndArgs(key string, args ...Tvars) string {
 	var sb strings.Builder
-	sb.WriteString(key)
+	if err := i18nWriteString(&sb, key); err != nil {
+		return ""
+	}
 
 	for i, arg := range args {
-		sb.WriteString(fmt.Sprintf(", Arg %d: {Count: %d, Data: %v}", i+1, arg.Count, arg.Data))
+		if err := i18nWriteString(&sb, fmt.Sprintf(", Arg %d: {Count: %d, Data: %v}", i+1, arg.Count, arg.Data)); err != nil {
+			return ""
+		}
 	}
 
 	return sb.String()

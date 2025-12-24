@@ -63,6 +63,8 @@ var closeOutputFile = func(file *os.File) error { return file.Close() }
 var createTempFile = os.CreateTemp
 var removeFile = os.Remove
 var writeFile = os.WriteFile
+var stdoutWriter io.Writer = os.Stdout
+var stderrWriter io.Writer = os.Stderr
 
 func main() {
 	exit(runMain())
@@ -71,14 +73,18 @@ func main() {
 func runMain() int {
 	tool, err := newCoverageToolFunc()
 	if err != nil {
-		fmt.Fprintln(os.Stderr, err)
+		if _, writeErr := fmt.Fprintln(stderrWriter, err); writeErr != nil {
+			return 1
+		}
 		return 1
 	}
 
 	if err := tool.run(); err != nil {
 		var coverageError coverageNotFullError
 		if !errors.As(err, &coverageError) {
-			fmt.Fprintln(os.Stderr, err)
+			if _, writeErr := fmt.Fprintln(stderrWriter, err); writeErr != nil {
+				return 1
+			}
 		}
 		return 1
 	}
@@ -146,15 +152,25 @@ func (tool *coverageTool) run() error {
 
 	if len(offendingLines) > 0 {
 		for _, line := range offendingLines {
-			fmt.Println(line)
+			if _, err := fmt.Fprintln(stdoutWriter, line); err != nil {
+				return fmt.Errorf("error: write coverage output: %w", err)
+			}
 		}
-		fmt.Println(totalLine)
-		printCoverageHints(funcOutputPath, htmlPath)
+		if _, err := fmt.Fprintln(stdoutWriter, totalLine); err != nil {
+			return fmt.Errorf("error: write coverage output: %w", err)
+		}
+		if err := printCoverageHints(funcOutputPath, htmlPath); err != nil {
+			return err
+		}
 		return coverageNotFullError{coverage: totalCoverage}
 	}
 
-	fmt.Println("coverage is 100%")
-	printCoverageHints(funcOutputPath, htmlPath)
+	if _, err := fmt.Fprintln(stdoutWriter, "coverage is 100%"); err != nil {
+		return fmt.Errorf("error: write coverage output: %w", err)
+	}
+	if err := printCoverageHints(funcOutputPath, htmlPath); err != nil {
+		return err
+	}
 	return nil
 }
 
@@ -370,8 +386,11 @@ func filterOffendingCoverageLines(reader io.Reader) ([]string, error) {
 	return offending, nil
 }
 
-func printCoverageHints(outPath, htmlPath string) {
-	fmt.Printf("details: %s and %s were generated\n", outPath, htmlPath)
+func printCoverageHints(outPath, htmlPath string) error {
+	if _, err := fmt.Fprintf(stdoutWriter, "details: %s and %s were generated\n", outPath, htmlPath); err != nil {
+		return fmt.Errorf("error: write coverage output: %w", err)
+	}
+	return nil
 }
 
 func findRepoRoot(startDir string) (string, error) {

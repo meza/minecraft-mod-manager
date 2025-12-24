@@ -6,6 +6,7 @@ import (
 	"errors"
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 
 	tea "github.com/charmbracelet/bubbletea"
@@ -108,6 +109,64 @@ func TestRunListLogsInvalidLockFileName(t *testing.T) {
 
 	assert.NoError(t, err)
 	assert.Contains(t, errOut.String(), "cmd.list.error.invalid_filename_lock")
+}
+
+func TestRenderListViewReturnsEmptyOnWriteError(t *testing.T) {
+	originalWriteString := listWriteString
+	t.Cleanup(func() {
+		listWriteString = originalWriteString
+	})
+	listWriteString = func(*strings.Builder, string) error {
+		return errors.New("write failed")
+	}
+
+	output := renderListView([]listEntry{
+		{ID: "mod-a", DisplayName: "Mod A"},
+	}, false)
+
+	assert.Equal(t, "", output)
+}
+
+func TestRenderListViewReturnsEmptyOnNewlineWriteError(t *testing.T) {
+	originalWriteString := listWriteString
+	t.Cleanup(func() {
+		listWriteString = originalWriteString
+	})
+	callCount := 0
+	listWriteString = func(*strings.Builder, string) error {
+		callCount++
+		if callCount == 2 {
+			return errors.New("write failed")
+		}
+		return nil
+	}
+
+	output := renderListView([]listEntry{
+		{ID: "mod-a", DisplayName: "Mod A"},
+	}, false)
+
+	assert.Equal(t, "", output)
+}
+
+func TestRenderListViewReturnsEmptyOnEntryWriteError(t *testing.T) {
+	originalWriteString := listWriteString
+	t.Cleanup(func() {
+		listWriteString = originalWriteString
+	})
+	callCount := 0
+	listWriteString = func(*strings.Builder, string) error {
+		callCount++
+		if callCount == 3 {
+			return errors.New("write failed")
+		}
+		return nil
+	}
+
+	output := renderListView([]listEntry{
+		{ID: "mod-a", DisplayName: "Mod A"},
+	}, false)
+
+	assert.Equal(t, "", output)
 }
 
 func TestRunListMissingLockTreatsAllAsNotInstalled(t *testing.T) {

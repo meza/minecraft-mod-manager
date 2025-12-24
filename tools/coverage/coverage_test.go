@@ -49,8 +49,10 @@ func TestParseTotalCoverageReadError(t *testing.T) {
 
 func TestRunMainGetwdFailure(t *testing.T) {
 	originalNewCoverageToolFunc := newCoverageToolFunc
+	originalStderrWriter := stderrWriter
 	t.Cleanup(func() {
 		newCoverageToolFunc = originalNewCoverageToolFunc
+		stderrWriter = originalStderrWriter
 	})
 
 	newCoverageToolFunc = func() (*coverageTool, error) {
@@ -64,6 +66,24 @@ func TestRunMainGetwdFailure(t *testing.T) {
 	})
 	if !strings.Contains(output, "file does not exist") {
 		t.Fatalf("expected stderr to include error, got %q", output)
+	}
+}
+
+func TestRunMainGetwdFailureWriteError(t *testing.T) {
+	originalNewCoverageToolFunc := newCoverageToolFunc
+	originalStderrWriter := stderrWriter
+	t.Cleanup(func() {
+		newCoverageToolFunc = originalNewCoverageToolFunc
+		stderrWriter = originalStderrWriter
+	})
+
+	newCoverageToolFunc = func() (*coverageTool, error) {
+		return nil, os.ErrNotExist
+	}
+	stderrWriter = errorWriter{}
+
+	if exitCode := runMain(); exitCode != 1 {
+		t.Fatalf("expected exit code 1, got %d", exitCode)
 	}
 }
 
@@ -131,6 +151,41 @@ func TestRunMainToolRunUnexpectedErrorWritesStderr(t *testing.T) {
 	})
 	if !strings.Contains(output, "coverage html generation failed") {
 		t.Fatalf("expected stderr to include html error, got %q", output)
+	}
+}
+
+func TestRunMainToolRunUnexpectedErrorWriteError(t *testing.T) {
+	originalNewCoverageToolFunc := newCoverageToolFunc
+	originalStderrWriter := stderrWriter
+	t.Cleanup(func() {
+		newCoverageToolFunc = originalNewCoverageToolFunc
+		stderrWriter = originalStderrWriter
+	})
+
+	tempDir := t.TempDir()
+	coverageProfilePath := filepath.Join(tempDir, coverageProfileName)
+	if err := os.WriteFile(coverageProfilePath, []byte("mode: set\n"), 0o644); err != nil {
+		t.Fatalf("failed to write coverage profile: %v", err)
+	}
+
+	newCoverageToolFunc = func() (*coverageTool, error) {
+		return &coverageTool{
+			repoRoot: tempDir,
+			goBinary: "go",
+			commandRunner: selectiveRunner{
+				failArgs: []string{"tool", "cover", "-html"},
+				err:      errors.New("html fail"),
+			},
+			commandOutput: outputRunner{
+				output: []byte("total:\t(statements)\t100.0%\n"),
+			},
+			logger: log.New(&bytes.Buffer{}, "coverage: ", 0),
+		}, nil
+	}
+	stderrWriter = errorWriter{}
+
+	if exitCode := runMain(); exitCode != 1 {
+		t.Fatalf("expected exit code 1, got %d", exitCode)
 	}
 }
 
@@ -717,6 +772,93 @@ func TestCoverageToolRunOutputFailure(t *testing.T) {
 	}
 }
 
+func TestCoverageToolRunOutputFailureWriteError(t *testing.T) {
+	originalStdout := stdoutWriter
+	t.Cleanup(func() {
+		stdoutWriter = originalStdout
+	})
+	stdoutWriter = errorWriter{}
+
+	tempDir := t.TempDir()
+	coverageProfilePath := filepath.Join(tempDir, coverageProfileName)
+	if err := os.WriteFile(coverageProfilePath, []byte("mode: set\n"), 0o644); err != nil {
+		t.Fatalf("failed to write coverage profile: %v", err)
+	}
+
+	tool := &coverageTool{
+		repoRoot:      tempDir,
+		goBinary:      "go",
+		commandRunner: &recordingRunner{},
+		commandOutput: outputRunner{
+			output: []byte("github.com/meza/minecraft-mod-manager/tools/build/build.go:1.2 3.4 1 90.0%\n" +
+				"total:\t(statements)\t99.0%\n"),
+		},
+		logger: log.New(&bytes.Buffer{}, "coverage: ", 0),
+	}
+
+	if err := tool.run(); err == nil {
+		t.Fatal("expected error, got nil")
+	}
+}
+
+func TestCoverageToolRunOutputFailureTotalLineWriteError(t *testing.T) {
+	originalStdout := stdoutWriter
+	t.Cleanup(func() {
+		stdoutWriter = originalStdout
+	})
+	stdoutWriter = &countingWriter{failAt: 2}
+
+	tempDir := t.TempDir()
+	coverageProfilePath := filepath.Join(tempDir, coverageProfileName)
+	if err := os.WriteFile(coverageProfilePath, []byte("mode: set\n"), 0o644); err != nil {
+		t.Fatalf("failed to write coverage profile: %v", err)
+	}
+
+	tool := &coverageTool{
+		repoRoot:      tempDir,
+		goBinary:      "go",
+		commandRunner: &recordingRunner{},
+		commandOutput: outputRunner{
+			output: []byte("github.com/meza/minecraft-mod-manager/tools/build/build.go:1.2 3.4 1 90.0%\n" +
+				"total:\t(statements)\t99.0%\n"),
+		},
+		logger: log.New(&bytes.Buffer{}, "coverage: ", 0),
+	}
+
+	if err := tool.run(); err == nil {
+		t.Fatal("expected error, got nil")
+	}
+}
+
+func TestCoverageToolRunOutputFailurePrintHintsError(t *testing.T) {
+	originalStdout := stdoutWriter
+	t.Cleanup(func() {
+		stdoutWriter = originalStdout
+	})
+	stdoutWriter = &countingWriter{failAt: 3}
+
+	tempDir := t.TempDir()
+	coverageProfilePath := filepath.Join(tempDir, coverageProfileName)
+	if err := os.WriteFile(coverageProfilePath, []byte("mode: set\n"), 0o644); err != nil {
+		t.Fatalf("failed to write coverage profile: %v", err)
+	}
+
+	tool := &coverageTool{
+		repoRoot:      tempDir,
+		goBinary:      "go",
+		commandRunner: &recordingRunner{},
+		commandOutput: outputRunner{
+			output: []byte("github.com/meza/minecraft-mod-manager/tools/build/build.go:1.2 3.4 1 90.0%\n" +
+				"total:\t(statements)\t99.0%\n"),
+		},
+		logger: log.New(&bytes.Buffer{}, "coverage: ", 0),
+	}
+
+	if err := tool.run(); err == nil {
+		t.Fatal("expected error, got nil")
+	}
+}
+
 func TestCoverageToolRunOutputSuccess(t *testing.T) {
 	tempDir := t.TempDir()
 	coverageProfilePath := filepath.Join(tempDir, coverageProfileName)
@@ -745,6 +887,62 @@ func TestCoverageToolRunOutputSuccess(t *testing.T) {
 	}
 	if !strings.Contains(output, "coverage.out") {
 		t.Fatalf("expected details line, got %q", output)
+	}
+}
+
+func TestCoverageToolRunOutputSuccessWriteError(t *testing.T) {
+	originalStdout := stdoutWriter
+	t.Cleanup(func() {
+		stdoutWriter = originalStdout
+	})
+	stdoutWriter = errorWriter{}
+
+	tempDir := t.TempDir()
+	coverageProfilePath := filepath.Join(tempDir, coverageProfileName)
+	if err := os.WriteFile(coverageProfilePath, []byte("mode: set\n"), 0o644); err != nil {
+		t.Fatalf("failed to write coverage profile: %v", err)
+	}
+
+	tool := &coverageTool{
+		repoRoot:      tempDir,
+		goBinary:      "go",
+		commandRunner: &recordingRunner{},
+		commandOutput: outputRunner{
+			output: []byte("total:\t(statements)\t100.0%\n"),
+		},
+		logger: log.New(&bytes.Buffer{}, "coverage: ", 0),
+	}
+
+	if err := tool.run(); err == nil {
+		t.Fatal("expected error, got nil")
+	}
+}
+
+func TestCoverageToolRunOutputSuccessPrintHintsError(t *testing.T) {
+	originalStdout := stdoutWriter
+	t.Cleanup(func() {
+		stdoutWriter = originalStdout
+	})
+	stdoutWriter = &countingWriter{failAt: 2}
+
+	tempDir := t.TempDir()
+	coverageProfilePath := filepath.Join(tempDir, coverageProfileName)
+	if err := os.WriteFile(coverageProfilePath, []byte("mode: set\n"), 0o644); err != nil {
+		t.Fatalf("failed to write coverage profile: %v", err)
+	}
+
+	tool := &coverageTool{
+		repoRoot:      tempDir,
+		goBinary:      "go",
+		commandRunner: &recordingRunner{},
+		commandOutput: outputRunner{
+			output: []byte("total:\t(statements)\t100.0%\n"),
+		},
+		logger: log.New(&bytes.Buffer{}, "coverage: ", 0),
+	}
+
+	if err := tool.run(); err == nil {
+		t.Fatal("expected error, got nil")
 	}
 }
 
@@ -1132,24 +1330,38 @@ func TestGenerateCoverageHTMLError(t *testing.T) {
 
 func TestPrintCoverageHints(t *testing.T) {
 	var output bytes.Buffer
-	originalStdout := os.Stdout
+	originalStdout := stdoutWriter
 	r, w, err := os.Pipe()
 	if err != nil {
 		t.Fatalf("failed to create pipe: %v", err)
 	}
-	os.Stdout = w
+	stdoutWriter = w
 
-	printCoverageHints("coverage.out", "coverage.html")
+	if err := printCoverageHints("coverage.out", "coverage.html"); err != nil {
+		t.Fatalf("failed to print coverage hints: %v", err)
+	}
 
 	if err := w.Close(); err != nil {
 		t.Fatalf("failed to close writer: %v", err)
 	}
-	os.Stdout = originalStdout
+	stdoutWriter = originalStdout
 	if _, err := output.ReadFrom(r); err != nil {
 		t.Fatalf("failed to read output: %v", err)
 	}
 	if !strings.Contains(output.String(), "coverage.out") {
 		t.Fatalf("expected output to mention coverage.out, got %q", output.String())
+	}
+}
+
+func TestPrintCoverageHintsWriteError(t *testing.T) {
+	originalStdout := stdoutWriter
+	t.Cleanup(func() {
+		stdoutWriter = originalStdout
+	})
+	stdoutWriter = errorWriter{}
+
+	if err := printCoverageHints("coverage.out", "coverage.html"); err == nil {
+		t.Fatal("expected error, got nil")
 	}
 }
 
@@ -1232,6 +1444,19 @@ func (errorWriter) Write(data []byte) (int, error) {
 	return 0, errors.New("write failed")
 }
 
+type countingWriter struct {
+	failAt int
+	count  int
+}
+
+func (writer *countingWriter) Write(data []byte) (int, error) {
+	writer.count++
+	if writer.count == writer.failAt {
+		return 0, errors.New("write failed")
+	}
+	return len(data), nil
+}
+
 type errorReader struct{}
 
 func (errorReader) Read(data []byte) (int, error) {
@@ -1261,19 +1486,19 @@ func TestFindRepoRoot(t *testing.T) {
 func captureStdout(t *testing.T, run func()) string {
 	t.Helper()
 
-	originalStdout := os.Stdout
+	originalStdout := stdoutWriter
 	reader, writer, err := os.Pipe()
 	if err != nil {
 		t.Fatalf("failed to create pipe: %v", err)
 	}
-	os.Stdout = writer
+	stdoutWriter = writer
 
 	run()
 
 	if err := writer.Close(); err != nil {
 		t.Fatalf("failed to close writer: %v", err)
 	}
-	os.Stdout = originalStdout
+	stdoutWriter = originalStdout
 
 	var output bytes.Buffer
 	if _, err := output.ReadFrom(reader); err != nil {
@@ -1285,19 +1510,19 @@ func captureStdout(t *testing.T, run func()) string {
 func captureStderr(t *testing.T, run func()) string {
 	t.Helper()
 
-	originalStderr := os.Stderr
+	originalStderr := stderrWriter
 	reader, writer, err := os.Pipe()
 	if err != nil {
 		t.Fatalf("failed to create pipe: %v", err)
 	}
-	os.Stderr = writer
+	stderrWriter = writer
 
 	run()
 
 	if err := writer.Close(); err != nil {
 		t.Fatalf("failed to close writer: %v", err)
 	}
-	os.Stderr = originalStderr
+	stderrWriter = originalStderr
 
 	var output bytes.Buffer
 	if _, err := output.ReadFrom(reader); err != nil {

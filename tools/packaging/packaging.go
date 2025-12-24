@@ -47,6 +47,7 @@ var closeOutputFile = func(file *os.File) error { return file.Close() }
 var closeZipWriter = func(writer *zip.Writer) error { return writer.Close() }
 var glob = filepath.Glob
 var statFile = os.Stat
+var stderrWriter io.Writer = os.Stderr
 
 func main() {
 	exit(runMain())
@@ -58,12 +59,16 @@ func runMain() int {
 
 	tool, err := newDistToolFunc()
 	if err != nil {
-		fmt.Fprintln(os.Stderr, err)
+		if _, writeErr := fmt.Fprintln(stderrWriter, err); writeErr != nil {
+			return 1
+		}
 		return 1
 	}
 
 	if err := tool.run(*versionFlag); err != nil {
-		fmt.Fprintln(os.Stderr, err)
+		if _, writeErr := fmt.Fprintln(stderrWriter, err); writeErr != nil {
+			return 1
+		}
 		return 1
 	}
 	return 0
