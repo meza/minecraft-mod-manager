@@ -68,6 +68,7 @@ func TestMainSuccessUsesExit(t *testing.T) {
 	if err := os.MkdirAll(buildDir, 0o755); err != nil {
 		t.Fatalf("failed to create build dir: %v", err)
 	}
+	//nolint:gosec // test fixture requires executable perms for binary.
 	if err := os.WriteFile(filepath.Join(buildDir, executableName), []byte("linux-binary"), 0o755); err != nil {
 		t.Fatalf("failed to write binary: %v", err)
 	}
@@ -178,10 +179,12 @@ func TestResetDistDirError(t *testing.T) {
 		t.Skip("chmod-based permission test is not reliable on Windows")
 	}
 	parentDir := t.TempDir()
+	//nolint:gosec // test requires restrictive perms to simulate failure.
 	if err := os.Chmod(parentDir, 0o500); err != nil {
 		t.Fatalf("failed to chmod parent dir: %v", err)
 	}
 	t.Cleanup(func() {
+		//nolint:gosec // test cleanup restores writable perms.
 		if err := os.Chmod(parentDir, 0o700); err != nil {
 			t.Fatalf("failed to restore parent dir perms: %v", err)
 		}
@@ -244,9 +247,11 @@ func TestFindBuildArtifacts(t *testing.T) {
 
 	linuxBinary := filepath.Join(linuxDir, executableName)
 	windowsBinary := filepath.Join(windowsDir, executableName+".exe")
+	//nolint:gosec // test fixture requires executable perms for binary.
 	if err := os.WriteFile(linuxBinary, []byte("linux-binary"), 0o755); err != nil {
 		t.Fatalf("failed to write linux binary: %v", err)
 	}
+	//nolint:gosec // test fixture requires executable perms for binary.
 	if err := os.WriteFile(windowsBinary, []byte("windows-binary"), 0o755); err != nil {
 		t.Fatalf("failed to write windows binary: %v", err)
 	}
@@ -273,9 +278,11 @@ func TestFindBuildArtifactsSortsByArchWhenOSMatches(t *testing.T) {
 
 	amdBinary := filepath.Join(amdDir, executableName)
 	armBinary := filepath.Join(armDir, executableName)
+	//nolint:gosec // test fixture requires executable perms for binary.
 	if err := os.WriteFile(amdBinary, []byte("amd-binary"), 0o755); err != nil {
 		t.Fatalf("failed to write amd binary: %v", err)
 	}
+	//nolint:gosec // test fixture requires executable perms for binary.
 	if err := os.WriteFile(armBinary, []byte("arm-binary"), 0o755); err != nil {
 		t.Fatalf("failed to write arm binary: %v", err)
 	}
@@ -588,6 +595,7 @@ func TestDistToolRunCreatesZipsAndCleansDist(t *testing.T) {
 		t.Fatalf("failed to create build dir: %v", err)
 	}
 	linuxBinary := filepath.Join(buildDir, executableName)
+	//nolint:gosec // test fixture requires executable perms for binary.
 	if err := os.WriteFile(linuxBinary, []byte("linux-binary"), 0o755); err != nil {
 		t.Fatalf("failed to write linux binary: %v", err)
 	}
@@ -681,6 +689,7 @@ func TestDistToolRunResetDistDirError(t *testing.T) {
 	if err := os.MkdirAll(buildDir, 0o755); err != nil {
 		t.Fatalf("failed to create build dir: %v", err)
 	}
+	//nolint:gosec // test fixture requires executable perms for binary.
 	if err := os.WriteFile(filepath.Join(buildDir, executableName), []byte("linux-binary"), 0o755); err != nil {
 		t.Fatalf("failed to write binary: %v", err)
 	}
@@ -710,6 +719,7 @@ func TestDistToolRunWriteZipError(t *testing.T) {
 	if err := os.MkdirAll(buildDir, 0o755); err != nil {
 		t.Fatalf("failed to create build dir: %v", err)
 	}
+	//nolint:gosec // test fixture requires executable perms for binary.
 	if err := os.WriteFile(filepath.Join(buildDir, executableName), []byte("linux-binary"), 0o755); err != nil {
 		t.Fatalf("failed to write binary: %v", err)
 	}
