@@ -101,66 +101,7 @@ func Command() *cobra.Command {
 		Use:   "scan",
 		Short: i18n.T("cmd.scan.short"),
 		RunE: func(cmd *cobra.Command, _ []string) error {
-			ctx, span := perf.StartSpan(cmd.Context(), "app.command.scan")
-			defer span.End()
-
-			configPath, err := cmd.Flags().GetString("config")
-			if err != nil {
-				span.SetAttributes(attribute.Bool("success", false))
-				return err
-			}
-			quiet, err := cmd.Flags().GetBool("quiet")
-			if err != nil {
-				span.SetAttributes(attribute.Bool("success", false))
-				return err
-			}
-			debug, err := cmd.Flags().GetBool("debug")
-			if err != nil {
-				span.SetAttributes(attribute.Bool("success", false))
-				return err
-			}
-			prefer, err := cmd.Flags().GetString("prefer")
-			if err != nil {
-				span.SetAttributes(attribute.Bool("success", false))
-				return err
-			}
-			add, err := cmd.Flags().GetBool("add")
-			if err != nil {
-				span.SetAttributes(attribute.Bool("success", false))
-				return err
-			}
-
-			log := logger.New(cmd.OutOrStdout(), cmd.ErrOrStderr(), quiet, debug)
-			limiter := rate.NewLimiter(rate.Inf, 0)
-
-			deps := scanDeps{
-				fs:              afero.NewOsFs(),
-				clients:         platform.DefaultClients(limiter),
-				minecraftClient: httpclient.NewRLClient(limiter),
-				logger:          log,
-				prompter:        terminalPrompter{in: cmd.InOrStdin(), out: cmd.OutOrStdout()},
-				telemetry:       telemetry.RecordCommand,
-
-				curseforgeFingerprint:      curseforgeFingerprint.GetFingerprintFor,
-				modrinthVersionForSha:      defaultModrinthVersionForSha,
-				modrinthProjectTitle:       defaultModrinthProjectTitle,
-				curseforgeFingerprintMatch: defaultCurseforgeFingerprintMatch,
-				curseforgeProjectName:      defaultCurseforgeProjectName,
-			}
-
-			payload, err := runScan(ctx, cmd, scanOptions{
-				ConfigPath: configPath,
-				Quiet:      quiet,
-				Debug:      debug,
-				Prefer:     prefer,
-				Add:        add,
-			}, deps)
-			span.SetAttributes(attribute.Bool("success", err == nil))
-
-			if deps.telemetry != nil {
-				deps.telemetry(payload)
-			}
-			return err
+			return runScanCommand(cmd)
 		},
 	}
 
@@ -168,6 +109,77 @@ func Command() *cobra.Command {
 	cmd.Flags().BoolP("add", "a", false, i18n.T("cmd.scan.flag.add"))
 
 	return cmd
+}
+
+func runScanCommand(cmd *cobra.Command) error {
+	ctx, span := perf.StartSpan(cmd.Context(), "app.command.scan")
+	defer span.End()
+
+	opts, err := scanOptionsFromFlags(cmd)
+	if err != nil {
+		span.SetAttributes(attribute.Bool("success", false))
+		return err
+	}
+
+	deps := defaultScanDeps(cmd, opts)
+	payload, err := runScan(ctx, cmd, opts, deps)
+	span.SetAttributes(attribute.Bool("success", err == nil))
+
+	if deps.telemetry != nil {
+		deps.telemetry(payload)
+	}
+	return err
+}
+
+func scanOptionsFromFlags(cmd *cobra.Command) (scanOptions, error) {
+	configPath, err := cmd.Flags().GetString("config")
+	if err != nil {
+		return scanOptions{}, err
+	}
+	quiet, err := cmd.Flags().GetBool("quiet")
+	if err != nil {
+		return scanOptions{}, err
+	}
+	debug, err := cmd.Flags().GetBool("debug")
+	if err != nil {
+		return scanOptions{}, err
+	}
+	prefer, err := cmd.Flags().GetString("prefer")
+	if err != nil {
+		return scanOptions{}, err
+	}
+	add, err := cmd.Flags().GetBool("add")
+	if err != nil {
+		return scanOptions{}, err
+	}
+
+	return scanOptions{
+		ConfigPath: configPath,
+		Quiet:      quiet,
+		Debug:      debug,
+		Prefer:     prefer,
+		Add:        add,
+	}, nil
+}
+
+func defaultScanDeps(cmd *cobra.Command, opts scanOptions) scanDeps {
+	log := logger.New(cmd.OutOrStdout(), cmd.ErrOrStderr(), opts.Quiet, opts.Debug)
+	limiter := rate.NewLimiter(rate.Inf, 0)
+
+	return scanDeps{
+		fs:              afero.NewOsFs(),
+		clients:         platform.DefaultClients(limiter),
+		minecraftClient: httpclient.NewRLClient(limiter),
+		logger:          log,
+		prompter:        terminalPrompter{in: cmd.InOrStdin(), out: cmd.OutOrStdout()},
+		telemetry:       telemetry.RecordCommand,
+
+		curseforgeFingerprint:      curseforgeFingerprint.GetFingerprintFor,
+		modrinthVersionForSha:      defaultModrinthVersionForSha,
+		modrinthProjectTitle:       defaultModrinthProjectTitle,
+		curseforgeFingerprintMatch: defaultCurseforgeFingerprintMatch,
+		curseforgeProjectName:      defaultCurseforgeProjectName,
+	}
 }
 
 type scanCandidate struct {
@@ -199,21 +211,92 @@ func runScan(ctx context.Context, cmd *cobra.Command, opts scanOptions, deps sca
 
 	cfg, lock, err := setupCoordinator.EnsureConfigAndLock(ctx, meta, opts.Quiet)
 	if err != nil {
-		return telemetry.CommandTelemetry{Command: "scan", Success: false, ExitCode: 1, Error: err}, err
+		return scanFailureTelemetry(err), err
 	}
 
-	preferPlatform := normalizePlatform(opts.Prefer)
-	if preferPlatform != models.MODRINTH && preferPlatform != models.CURSEFORGE {
-		platformErr := fmt.Errorf("unknown platform: %s", opts.Prefer)
-		deps.logger.Error(platformErr.Error())
-		return telemetry.CommandTelemetry{Command: "scan", Success: false, ExitCode: 1, Error: platformErr}, platformErr
+	preferPlatform, err := resolvePreferredPlatform(opts.Prefer, deps.logger)
+	if err != nil {
+		return scanFailureTelemetry(err), err
 	}
 
 	files, err := listJarFiles(deps.fs, meta, cfg)
 	if err != nil {
-		return telemetry.CommandTelemetry{Command: "scan", Success: false, ExitCode: 1, Error: err}, err
+		return scanFailureTelemetry(err), err
 	}
 
+	unmanaged := unmanagedFiles(files, lock)
+
+	if len(unmanaged) == 0 {
+		deps.logger.Log(i18n.T("cmd.scan.all_managed"), false)
+		return scanSuccessTelemetryWithoutArgs(), nil
+	}
+
+	candidates, err := sha1Candidates(ctx, deps.fs, unmanaged)
+	if err != nil {
+		return scanFailureTelemetry(err), err
+	}
+
+	matches, unknown, unsure := identifyCandidates(ctx, candidates, preferPlatform, deps)
+	printResults(deps.logger, cmd.OutOrStdout(), preferPlatform, matches, unknown, unsure)
+
+	shouldPersist, err := confirmPersist(opts, deps)
+	if err != nil {
+		return scanFailureTelemetry(err), err
+	}
+
+	if shouldPersist {
+		if len(unsure) > 0 {
+			deps.logger.Log(i18n.T("cmd.scan.persist_skipped_unsure"), false)
+			return scanSuccessTelemetry(preferPlatform, opts.Add), nil
+		}
+
+		persisted, err := persistScanMatches(ctx, cmd, meta, setupCoordinator, deps, matches, cfg, lock)
+		if err != nil {
+			return scanFailureTelemetry(err), err
+		}
+		if persisted {
+			deps.logger.Log(i18n.T("cmd.scan.persisted"), false)
+		}
+	}
+
+	return scanSuccessTelemetry(preferPlatform, opts.Add), nil
+}
+
+func scanFailureTelemetry(err error) telemetry.CommandTelemetry {
+	return telemetry.CommandTelemetry{Command: "scan", Success: false, ExitCode: 1, Error: err}
+}
+
+func scanSuccessTelemetry(preferPlatform models.Platform, add bool) telemetry.CommandTelemetry {
+	return telemetry.CommandTelemetry{
+		Command:  "scan",
+		Success:  true,
+		ExitCode: 0,
+		Arguments: map[string]interface{}{
+			"prefer": preferPlatform,
+			"add":    add,
+		},
+	}
+}
+
+func scanSuccessTelemetryWithoutArgs() telemetry.CommandTelemetry {
+	return telemetry.CommandTelemetry{
+		Command:  "scan",
+		Success:  true,
+		ExitCode: 0,
+	}
+}
+
+func resolvePreferredPlatform(value string, log *logger.Logger) (models.Platform, error) {
+	preferPlatform := normalizePlatform(value)
+	if preferPlatform != models.MODRINTH && preferPlatform != models.CURSEFORGE {
+		platformErr := fmt.Errorf("unknown platform: %s", value)
+		log.Error(platformErr.Error())
+		return "", platformErr
+	}
+	return preferPlatform, nil
+}
+
+func unmanagedFiles(files []string, lock []models.ModInstall) []string {
 	unmanaged := make([]string, 0, len(files))
 	for _, file := range files {
 		if fileIsManaged(file, lock) {
@@ -221,97 +304,63 @@ func runScan(ctx context.Context, cmd *cobra.Command, opts scanOptions, deps sca
 		}
 		unmanaged = append(unmanaged, file)
 	}
+	return unmanaged
+}
 
-	if len(unmanaged) == 0 {
-		deps.logger.Log(i18n.T("cmd.scan.all_managed"), false)
-		return telemetry.CommandTelemetry{Command: "scan", Success: true, ExitCode: 0}, nil
-	}
-
-	candidates, err := sha1Candidates(ctx, deps.fs, unmanaged)
-	if err != nil {
-		return telemetry.CommandTelemetry{Command: "scan", Success: false, ExitCode: 1, Error: err}, err
-	}
-
-	matches, unknown, unsure := identifyCandidates(ctx, candidates, preferPlatform, deps)
-	printResults(deps.logger, cmd.OutOrStdout(), preferPlatform, matches, unknown, unsure)
-
+func confirmPersist(opts scanOptions, deps scanDeps) (bool, error) {
 	shouldPersist := opts.Add
 	if !shouldPersist && !opts.Quiet && deps.prompter != nil {
 		confirm, err := deps.prompter.ConfirmAdd()
 		if err != nil {
-			return telemetry.CommandTelemetry{Command: "scan", Success: false, ExitCode: 1, Error: err}, err
+			return false, err
 		}
 		shouldPersist = confirm
 	}
+	return shouldPersist, nil
+}
 
-	if shouldPersist {
-		if len(unsure) > 0 {
-			deps.logger.Log(i18n.T("cmd.scan.persist_skipped_unsure"), false)
-			return telemetry.CommandTelemetry{
-				Command:  "scan",
-				Success:  true,
-				ExitCode: 0,
-				Arguments: map[string]interface{}{
-					"prefer": preferPlatform,
-					"add":    opts.Add,
-				},
-			}, nil
+func persistScanMatches(ctx context.Context, cmd *cobra.Command, meta config.Metadata, setupCoordinator *modsetup.SetupCoordinator, deps scanDeps, matches []scanMatch, cfg models.ModsJSON, lock []models.ModInstall) (bool, error) {
+	changedConfig := false
+	changedLock := false
+
+	for _, match := range matches {
+		updatedCfg, updatedLock, result, err := setupCoordinator.UpsertConfigAndLock(cfg, lock, match.Platform, match.ProjectID, platform.RemoteMod{
+			Name:        match.Name,
+			FileName:    match.FileName,
+			Hash:        match.Hash,
+			ReleaseDate: match.ReleaseDate,
+			DownloadURL: match.DownloadURL,
+		}, modsetup.EnsurePersistOptions{})
+		if err != nil {
+			deps.logger.Log(tui.ErrorIcon(tui.IsTerminalWriter(cmd.OutOrStdout()))+i18n.T("cmd.scan.persist_failed", i18n.Tvars{
+				Data: &i18n.TData{"file": match.FileName},
+			}), false)
+			continue
 		}
 
-		changedConfig := false
-		changedLock := false
-
-		for _, match := range matches {
-			updatedCfg, updatedLock, result, err := setupCoordinator.UpsertConfigAndLock(cfg, lock, match.Platform, match.ProjectID, platform.RemoteMod{
-				Name:        match.Name,
-				FileName:    match.FileName,
-				Hash:        match.Hash,
-				ReleaseDate: match.ReleaseDate,
-				DownloadURL: match.DownloadURL,
-			}, modsetup.EnsurePersistOptions{})
-			if err != nil {
-				deps.logger.Log(tui.ErrorIcon(tui.IsTerminalWriter(cmd.OutOrStdout()))+i18n.T("cmd.scan.persist_failed", i18n.Tvars{
-					Data: &i18n.TData{"file": match.FileName},
-				}), false)
-				continue
-			}
-
-			if result.ConfigAdded || result.ConfigUpdated {
-				changedConfig = true
-			}
-			if result.LockAdded || result.LockUpdated {
-				changedLock = true
-			}
-
-			cfg = updatedCfg
-			lock = updatedLock
+		if result.ConfigAdded || result.ConfigUpdated {
+			changedConfig = true
+		}
+		if result.LockAdded || result.LockUpdated {
+			changedLock = true
 		}
 
-		if changedConfig {
-			if err := config.WriteConfig(ctx, deps.fs, meta, cfg); err != nil {
-				return telemetry.CommandTelemetry{Command: "scan", Success: false, ExitCode: 1, Error: err}, err
-			}
-		}
-		if changedLock {
-			if err := config.WriteLock(ctx, deps.fs, meta, lock); err != nil {
-				return telemetry.CommandTelemetry{Command: "scan", Success: false, ExitCode: 1, Error: err}, err
-			}
-		}
+		cfg = updatedCfg
+		lock = updatedLock
+	}
 
-		if changedConfig || changedLock {
-			deps.logger.Log(i18n.T("cmd.scan.persisted"), false)
+	if changedConfig {
+		if err := config.WriteConfig(ctx, deps.fs, meta, cfg); err != nil {
+			return false, err
+		}
+	}
+	if changedLock {
+		if err := config.WriteLock(ctx, deps.fs, meta, lock); err != nil {
+			return false, err
 		}
 	}
 
-	return telemetry.CommandTelemetry{
-		Command:  "scan",
-		Success:  true,
-		ExitCode: 0,
-		Arguments: map[string]interface{}{
-			"prefer": preferPlatform,
-			"add":    opts.Add,
-		},
-	}, nil
+	return changedConfig || changedLock, nil
 }
 
 func listJarFiles(fs afero.Fs, meta config.Metadata, cfg models.ModsJSON) ([]string, error) {
@@ -476,19 +525,8 @@ func lookupOnPlatform(ctx context.Context, candidates []scanCandidate, platformV
 	}
 }
 
-//nolint:gocognit,funlen // Keeps lookup flow readable with minimal branching changes.
 func lookupModrinth(ctx context.Context, candidates []scanCandidate, deps scanDeps) ([]scanMatch, []scanCandidate, map[string]error) {
-	type lookupResult struct {
-		match *scanMatch
-		err   error
-		miss  bool
-	}
-
-	results := make([]lookupResult, len(candidates))
-	recordLookupError := func(resultIndex int, lookupError error) {
-		results[resultIndex] = lookupResult{err: lookupError}
-	}
-
+	results := make([]modrinthLookupResult, len(candidates))
 	titleCache := make(map[string]string)
 	var titleMu sync.Mutex
 
@@ -501,62 +539,84 @@ func lookupModrinth(ctx context.Context, candidates []scanCandidate, deps scanDe
 			if err := groupCtx.Err(); err != nil {
 				return err
 			}
-			candidate := candidates[i]
-
-			version, err := deps.modrinthVersionForSha(groupCtx, candidate.Sha1, deps.clients.Modrinth)
-			if err != nil {
-				var notFound *modrinth.VersionNotFoundError
-				if errors.As(err, &notFound) {
-					results[i] = lookupResult{miss: true}
-					return nil
-				}
-				recordLookupError(i, err)
-				return nil
-			}
-
-			projectID := version.ProjectID
-
-			titleMu.Lock()
-			title, ok := titleCache[projectID]
-			titleMu.Unlock()
-			if !ok {
-				title, err = deps.modrinthProjectTitle(groupCtx, projectID, deps.clients.Modrinth)
-				if err != nil {
-					recordLookupError(i, err)
-					return nil
-				}
-				titleMu.Lock()
-				titleCache[projectID] = title
-				titleMu.Unlock()
-			}
-
-			url, published, err := modrinthDownloadDetails(version)
-			if err != nil {
-				recordLookupError(i, err)
-				return nil
-			}
-
-			results[i] = lookupResult{match: &scanMatch{
-				Path:        candidate.Path,
-				Platform:    models.MODRINTH,
-				ProjectID:   projectID,
-				Name:        title,
-				FileName:    candidate.FileName,
-				Hash:        candidate.Sha1,
-				ReleaseDate: published,
-				DownloadURL: url,
-			}}
+			results[i] = lookupModrinthCandidate(groupCtx, candidates[i], deps, titleCache, &titleMu)
 			return nil
 		})
 	}
 	if err := group.Wait(); err != nil {
-		unsure := make(map[string]error, len(candidates))
-		for _, candidate := range candidates {
-			unsure[candidate.Path] = err
-		}
-		return nil, candidates, unsure
+		return nil, candidates, matchErrorsForCandidates(candidates, err)
 	}
 
+	return splitModrinthResults(candidates, results)
+}
+
+type modrinthLookupResult struct {
+	match *scanMatch
+	err   error
+	miss  bool
+}
+
+func lookupModrinthCandidate(ctx context.Context, candidate scanCandidate, deps scanDeps, titleCache map[string]string, titleMu *sync.Mutex) modrinthLookupResult {
+	version, err := deps.modrinthVersionForSha(ctx, candidate.Sha1, deps.clients.Modrinth)
+	if err != nil {
+		var notFound *modrinth.VersionNotFoundError
+		if errors.As(err, &notFound) {
+			return modrinthLookupResult{miss: true}
+		}
+		return modrinthLookupResult{err: err}
+	}
+
+	projectID := version.ProjectID
+	title, err := cachedModrinthTitle(ctx, projectID, deps, titleCache, titleMu)
+	if err != nil {
+		return modrinthLookupResult{err: err}
+	}
+
+	url, published, err := modrinthDownloadDetails(version)
+	if err != nil {
+		return modrinthLookupResult{err: err}
+	}
+
+	return modrinthLookupResult{match: &scanMatch{
+		Path:        candidate.Path,
+		Platform:    models.MODRINTH,
+		ProjectID:   projectID,
+		Name:        title,
+		FileName:    candidate.FileName,
+		Hash:        candidate.Sha1,
+		ReleaseDate: published,
+		DownloadURL: url,
+	}}
+}
+
+func cachedModrinthTitle(ctx context.Context, projectID string, deps scanDeps, titleCache map[string]string, titleMu *sync.Mutex) (string, error) {
+	titleMu.Lock()
+	title, ok := titleCache[projectID]
+	titleMu.Unlock()
+	if ok {
+		return title, nil
+	}
+
+	title, err := deps.modrinthProjectTitle(ctx, projectID, deps.clients.Modrinth)
+	if err != nil {
+		return "", err
+	}
+
+	titleMu.Lock()
+	titleCache[projectID] = title
+	titleMu.Unlock()
+	return title, nil
+}
+
+func matchErrorsForCandidates(candidates []scanCandidate, err error) map[string]error {
+	unsure := make(map[string]error, len(candidates))
+	for _, candidate := range candidates {
+		unsure[candidate.Path] = err
+	}
+	return unsure
+}
+
+func splitModrinthResults(candidates []scanCandidate, results []modrinthLookupResult) ([]scanMatch, []scanCandidate, map[string]error) {
 	matches := make([]scanMatch, 0, len(candidates))
 	misses := make([]scanCandidate, 0, len(candidates))
 	unsure := make(map[string]error)
@@ -579,12 +639,32 @@ func lookupModrinth(ctx context.Context, candidates []scanCandidate, deps scanDe
 	return matches, misses, unsure
 }
 
-//nolint:gocognit,gocyclo,funlen // Keeps lookup flow readable with minimal branching changes.
 func lookupCurseforge(ctx context.Context, candidates []scanCandidate, deps scanDeps) ([]scanMatch, []scanCandidate, map[string]error) {
 	matches := make([]scanMatch, 0)
-	misses := make([]scanCandidate, 0, len(candidates))
 	unsure := make(map[string]error)
 
+	fingerprints, fingerprintByIndex, fingerprintToIndices := buildCurseforgeFingerprintIndex(candidates, deps)
+
+	sort.Ints(fingerprints)
+	unique := uniqueInts(fingerprints)
+	if len(unique) == 0 {
+		return nil, candidates, unsure
+	}
+
+	result, err := deps.curseforgeFingerprintMatch(ctx, unique, deps.clients.Curseforge)
+	if err != nil {
+		return nil, nil, buildCurseforgeErrors(candidates, fingerprintByIndex, err)
+	}
+
+	nameCache := make(map[string]string)
+	var nameMu sync.Mutex
+
+	addCurseforgeMatches(ctx, candidates, fingerprintToIndices, result.Matches, deps, nameCache, &nameMu, &matches, unsure)
+	misses := curseforgeMisses(candidates, matches, unsure)
+	return matches, misses, unsure
+}
+
+func buildCurseforgeFingerprintIndex(candidates []scanCandidate, deps scanDeps) ([]int, []int, map[int][]int) {
 	fingerprints := make([]int, 0, len(candidates))
 	fingerprintByIndex := make([]int, len(candidates))
 	fingerprintToIndices := make(map[int][]int, len(candidates))
@@ -596,46 +676,32 @@ func lookupCurseforge(ctx context.Context, candidates []scanCandidate, deps scan
 		fingerprintToIndices[fingerprint] = append(fingerprintToIndices[fingerprint], i)
 	}
 
-	sort.Ints(fingerprints)
-	unique := uniqueInts(fingerprints)
-	if len(unique) == 0 {
-		return nil, candidates, unsure
+	return fingerprints, fingerprintByIndex, fingerprintToIndices
+}
+
+func buildCurseforgeErrors(candidates []scanCandidate, fingerprintByIndex []int, err error) map[string]error {
+	reason := curseforgeFingerprintFailureReason(err)
+	unsure := make(map[string]error, len(candidates))
+	for i, candidate := range candidates {
+		unsure[candidate.Path] = fmt.Errorf("curseforge fingerprint %d: %s", fingerprintByIndex[i], reason)
 	}
+	return unsure
+}
 
-	result, err := deps.curseforgeFingerprintMatch(ctx, unique, deps.clients.Curseforge)
-	if err != nil {
-		reason := curseforgeFingerprintFailureReason(err)
-		for i, candidate := range candidates {
-			unsure[candidate.Path] = fmt.Errorf("curseforge fingerprint %d: %s", fingerprintByIndex[i], reason)
-		}
-		return nil, nil, unsure
-	}
-
-	nameCache := make(map[string]string)
-	var nameMu sync.Mutex
-
-	for _, file := range result.Matches {
+func addCurseforgeMatches(ctx context.Context, candidates []scanCandidate, fingerprintToIndices map[int][]int, matches []curseforge.File, deps scanDeps, nameCache map[string]string, nameMu *sync.Mutex, scanMatches *[]scanMatch, unsure map[string]error) {
+	for _, file := range matches {
 		indices := fingerprintToIndices[file.Fingerprint]
 		if len(indices) == 0 {
 			continue
 		}
 
 		projectID := fmt.Sprintf("%d", file.ProjectID)
-
-		nameMu.Lock()
-		name, ok := nameCache[projectID]
-		nameMu.Unlock()
-		if !ok {
-			name, err = deps.curseforgeProjectName(ctx, projectID, deps.clients.Curseforge)
-			if err != nil {
-				for _, index := range indices {
-					unsure[candidates[index].Path] = err
-				}
-				continue
+		name, err := cachedCurseforgeProjectName(ctx, projectID, deps, nameCache, nameMu)
+		if err != nil {
+			for _, index := range indices {
+				unsure[candidates[index].Path] = err
 			}
-			nameMu.Lock()
-			nameCache[projectID] = name
-			nameMu.Unlock()
+			continue
 		}
 
 		if strings.TrimSpace(file.DownloadURL) == "" {
@@ -647,7 +713,7 @@ func lookupCurseforge(ctx context.Context, candidates []scanCandidate, deps scan
 
 		published := file.FileDate.Format(time.RFC3339)
 		for _, index := range indices {
-			matches = append(matches, scanMatch{
+			*scanMatches = append(*scanMatches, scanMatch{
 				Path:        candidates[index].Path,
 				Platform:    models.CURSEFORGE,
 				ProjectID:   projectID,
@@ -659,12 +725,34 @@ func lookupCurseforge(ctx context.Context, candidates []scanCandidate, deps scan
 			})
 		}
 	}
+}
 
+func cachedCurseforgeProjectName(ctx context.Context, projectID string, deps scanDeps, nameCache map[string]string, nameMu *sync.Mutex) (string, error) {
+	nameMu.Lock()
+	name, ok := nameCache[projectID]
+	nameMu.Unlock()
+	if ok {
+		return name, nil
+	}
+
+	name, err := deps.curseforgeProjectName(ctx, projectID, deps.clients.Curseforge)
+	if err != nil {
+		return "", err
+	}
+
+	nameMu.Lock()
+	nameCache[projectID] = name
+	nameMu.Unlock()
+	return name, nil
+}
+
+func curseforgeMisses(candidates []scanCandidate, matches []scanMatch, unsure map[string]error) []scanCandidate {
 	matched := make(map[string]struct{}, len(matches))
 	for _, match := range matches {
 		matched[match.Path] = struct{}{}
 	}
 
+	misses := make([]scanCandidate, 0, len(candidates))
 	for _, candidate := range candidates {
 		if _, ok := matched[candidate.Path]; ok {
 			continue
@@ -674,8 +762,7 @@ func lookupCurseforge(ctx context.Context, candidates []scanCandidate, deps scan
 		}
 		misses = append(misses, candidate)
 	}
-
-	return matches, misses, unsure
+	return misses
 }
 
 func curseforgeFingerprintFailureReason(err error) string {

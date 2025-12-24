@@ -76,72 +76,8 @@ func commandWithRunner(runner installRunner) *cobra.Command {
 		Use:     "install",
 		Aliases: []string{"i"},
 		Short:   i18n.T("cmd.install.short"),
-		RunE: func(cmd *cobra.Command, _ []string) (err error) {
-			ctx, span := perf.StartSpan(cmd.Context(), "app.command.install")
-
-			configPath, err := cmd.Flags().GetString("config")
-			if err != nil {
-				span.SetAttributes(attribute.Bool("success", false))
-				span.End()
-				return err
-			}
-			quiet, err := cmd.Flags().GetBool("quiet")
-			if err != nil {
-				span.SetAttributes(attribute.Bool("success", false))
-				span.End()
-				return err
-			}
-			debug, err := cmd.Flags().GetBool("debug")
-			if err != nil {
-				span.SetAttributes(attribute.Bool("success", false))
-				span.End()
-				return err
-			}
-
-			log := logger.New(cmd.OutOrStdout(), cmd.ErrOrStderr(), quiet, debug)
-			limiter := rate.NewLimiter(rate.Inf, 0)
-
-			deps := installDeps{
-				fs:         afero.NewOsFs(),
-				logger:     log,
-				clients:    platform.DefaultClients(limiter),
-				downloader: httpclient.DownloadFile,
-				fetchMod:   platform.FetchMod,
-				telemetry:  telemetry.RecordCommand,
-
-				curseforgeFingerprint:      curseforgeFingerprint.GetFingerprintFor,
-				modrinthVersionForSha:      defaultModrinthVersionForSha,
-				modrinthProjectTitle:       defaultModrinthProjectTitle,
-				curseforgeFingerprintMatch: defaultCurseforgeFingerprintMatch,
-				curseforgeProjectName:      defaultCurseforgeProjectName,
-			}
-
-			opts := installOptions{
-				ConfigPath: configPath,
-				Quiet:      quiet,
-				Debug:      debug,
-			}
-
-			result, err := runner(ctx, cmd, opts, deps)
-			span.SetAttributes(attribute.Bool("success", err == nil))
-			span.End()
-
-			payload := telemetry.CommandTelemetry{
-				Command:     "install",
-				Success:     err == nil,
-				Error:       err,
-				ExitCode:    0,
-				Interactive: false,
-				Extra: map[string]interface{}{
-					"numberOfMods": result.InstalledCount,
-				},
-			}
-			if err != nil {
-				payload.ExitCode = 1
-			}
-			deps.telemetry(payload)
-
-			return err
+		RunE: func(cmd *cobra.Command, _ []string) error {
+			return runInstallCommand(cmd, runner)
 		},
 	}
 
@@ -155,13 +91,66 @@ func Run(ctx context.Context, cmd *cobra.Command, configPath string, quiet bool,
 	log := logger.New(cmd.OutOrStdout(), cmd.ErrOrStderr(), quiet, debug)
 	limiter := rate.NewLimiter(rate.Inf, 0)
 
-	deps := installDeps{
+	opts := installOptions{
+		ConfigPath: configPath,
+		Quiet:      quiet,
+		Debug:      debug,
+	}
+
+	return runInstall(ctx, cmd, opts, defaultInstallDeps(log, limiter, func(telemetry.CommandTelemetry) {}))
+}
+
+func runInstallCommand(cmd *cobra.Command, runner installRunner) error {
+	ctx, span := perf.StartSpan(cmd.Context(), "app.command.install")
+
+	opts, err := installOptionsFromFlags(cmd)
+	if err != nil {
+		span.SetAttributes(attribute.Bool("success", false))
+		span.End()
+		return err
+	}
+
+	log := logger.New(cmd.OutOrStdout(), cmd.ErrOrStderr(), opts.Quiet, opts.Debug)
+	limiter := rate.NewLimiter(rate.Inf, 0)
+	deps := defaultInstallDeps(log, limiter, telemetry.RecordCommand)
+
+	result, err := runner(ctx, cmd, opts, deps)
+	span.SetAttributes(attribute.Bool("success", err == nil))
+	span.End()
+
+	recordInstallTelemetry(deps.telemetry, result, err)
+	return err
+}
+
+func installOptionsFromFlags(cmd *cobra.Command) (installOptions, error) {
+	configPath, err := cmd.Flags().GetString("config")
+	if err != nil {
+		return installOptions{}, err
+	}
+	quiet, err := cmd.Flags().GetBool("quiet")
+	if err != nil {
+		return installOptions{}, err
+	}
+	debug, err := cmd.Flags().GetBool("debug")
+	if err != nil {
+		return installOptions{}, err
+	}
+
+	return installOptions{
+		ConfigPath: configPath,
+		Quiet:      quiet,
+		Debug:      debug,
+	}, nil
+}
+
+func defaultInstallDeps(log *logger.Logger, limiter *rate.Limiter, telemetryRecorder func(telemetry.CommandTelemetry)) installDeps {
+	return installDeps{
 		fs:         afero.NewOsFs(),
 		logger:     log,
 		clients:    platform.DefaultClients(limiter),
 		downloader: httpclient.DownloadFile,
 		fetchMod:   platform.FetchMod,
-		telemetry:  func(telemetry.CommandTelemetry) {},
+		telemetry:  telemetryRecorder,
 
 		curseforgeFingerprint:      curseforgeFingerprint.GetFingerprintFor,
 		modrinthVersionForSha:      defaultModrinthVersionForSha,
@@ -169,14 +158,23 @@ func Run(ctx context.Context, cmd *cobra.Command, configPath string, quiet bool,
 		curseforgeFingerprintMatch: defaultCurseforgeFingerprintMatch,
 		curseforgeProjectName:      defaultCurseforgeProjectName,
 	}
+}
 
-	opts := installOptions{
-		ConfigPath: configPath,
-		Quiet:      quiet,
-		Debug:      debug,
+func recordInstallTelemetry(telemetryRecorder func(telemetry.CommandTelemetry), result Result, err error) {
+	payload := telemetry.CommandTelemetry{
+		Command:     "install",
+		Success:     err == nil,
+		Error:       err,
+		ExitCode:    0,
+		Interactive: false,
+		Extra: map[string]interface{}{
+			"numberOfMods": result.InstalledCount,
+		},
 	}
-
-	return runInstall(ctx, cmd, opts, deps)
+	if err != nil {
+		payload.ExitCode = 1
+	}
+	telemetryRecorder(payload)
 }
 
 type scanHit struct {
@@ -222,6 +220,27 @@ func runInstall(ctx context.Context, cmd *cobra.Command, opts installOptions, de
 		return Result{}, err
 	}
 
+	cfg, lock, failedCount, err := installConfiguredMods(ctx, meta, cfg, lock, deps, colorize)
+	if err != nil {
+		return Result{}, err
+	}
+
+	if err := config.WriteLock(ctx, deps.fs, meta, lock); err != nil {
+		return Result{}, err
+	}
+	if err := config.WriteConfig(ctx, deps.fs, meta, cfg); err != nil {
+		return Result{}, err
+	}
+
+	if failedCount > 0 {
+		return Result{InstalledCount: len(cfg.Mods), UnmanagedFound: unmanagedFound}, errInstallFailures
+	}
+
+	deps.logger.Log(messageWithIcon(tui.SuccessIcon(colorize), i18n.T("cmd.install.success")), true)
+	return Result{InstalledCount: len(cfg.Mods), UnmanagedFound: unmanagedFound}, nil
+}
+
+func installConfiguredMods(ctx context.Context, meta config.Metadata, cfg models.ModsJSON, lock []models.ModInstall, deps installDeps, colorize bool) (models.ModsJSON, []models.ModInstall, int, error) {
 	failedCount := 0
 
 	for i := range cfg.Mods {
@@ -238,7 +257,7 @@ func runInstall(ctx context.Context, cmd *cobra.Command, opts installOptions, de
 
 		outcome, err := installMod(ctx, meta, cfg, lock, mod, deps, colorize)
 		if err != nil {
-			return Result{}, err
+			return models.ModsJSON{}, nil, 0, err
 		}
 		if outcome.failed {
 			failedCount++
@@ -252,19 +271,7 @@ func runInstall(ctx context.Context, cmd *cobra.Command, opts installOptions, de
 		}
 	}
 
-	if err := config.WriteLock(ctx, deps.fs, meta, lock); err != nil {
-		return Result{}, err
-	}
-	if err := config.WriteConfig(ctx, deps.fs, meta, cfg); err != nil {
-		return Result{}, err
-	}
-
-	if failedCount > 0 {
-		return Result{InstalledCount: len(cfg.Mods), UnmanagedFound: unmanagedFound}, errInstallFailures
-	}
-
-	deps.logger.Log(messageWithIcon(tui.SuccessIcon(colorize), i18n.T("cmd.install.success")), true)
-	return Result{InstalledCount: len(cfg.Mods), UnmanagedFound: unmanagedFound}, nil
+	return cfg, lock, failedCount, nil
 }
 
 type modInstallOutcome struct {
@@ -334,13 +341,7 @@ func installFromLock(ctx context.Context, meta config.Metadata, cfg models.ModsJ
 }
 
 func installFromRemote(ctx context.Context, meta config.Metadata, cfg models.ModsJSON, mod models.Mod, deps installDeps, colorize bool) (modInstallOutcome, error) {
-	remote, fetchErr := deps.fetchMod(ctx, mod.Type, mod.ID, platform.FetchOptions{
-		AllowedReleaseTypes: effectiveAllowedReleaseTypes(mod, cfg),
-		GameVersion:         cfg.GameVersion,
-		Loader:              cfg.Loader,
-		AllowFallback:       mod.AllowVersionFallback != nil && *mod.AllowVersionFallback,
-		FixedVersion:        optionalStringValue(mod.Version),
-	}, deps.clients)
+	remote, fetchErr := fetchRemoteModForInstall(ctx, mod, cfg, deps)
 	if fetchErr != nil {
 		if handleExpectedFetchError(fetchErr, mod, deps, colorize) {
 			return modInstallOutcome{}, nil
@@ -365,25 +366,48 @@ func installFromRemote(ctx context.Context, meta config.Metadata, cfg models.Mod
 		return outcome, err
 	}
 
-	installer := modinstall.NewInstaller(deps.fs, modinstall.Downloader(deps.downloader))
-	if err := installer.DownloadAndVerify(ctx, normalizedRemote.DownloadURL, resolvedDestination, normalizedRemote.Hash, downloadClient(deps.clients), &noopSender{}); err != nil {
-		if message, handled := integrityErrorMessage(err, mod.Name); handled {
-			deps.logger.Error(message)
-			return modInstallOutcome{failed: true}, nil
-		}
+	if handled, err := downloadRemoteMod(ctx, normalizedRemote, resolvedDestination, mod, deps); err != nil {
 		return modInstallOutcome{}, err
+	} else if handled {
+		return modInstallOutcome{failed: true}, nil
 	}
 
-	lockEntry := models.ModInstall{
+	lockEntry := buildLockEntry(mod, normalizedRemote)
+	return modInstallOutcome{newName: normalizedRemote.Name, lockEntry: &lockEntry}, nil
+}
+
+func fetchRemoteModForInstall(ctx context.Context, mod models.Mod, cfg models.ModsJSON, deps installDeps) (platform.RemoteMod, error) {
+	return deps.fetchMod(ctx, mod.Type, mod.ID, platform.FetchOptions{
+		AllowedReleaseTypes: effectiveAllowedReleaseTypes(mod, cfg),
+		GameVersion:         cfg.GameVersion,
+		Loader:              cfg.Loader,
+		AllowFallback:       mod.AllowVersionFallback != nil && *mod.AllowVersionFallback,
+		FixedVersion:        optionalStringValue(mod.Version),
+	}, deps.clients)
+}
+
+func downloadRemoteMod(ctx context.Context, remote platform.RemoteMod, resolvedDestination string, mod models.Mod, deps installDeps) (bool, error) {
+	installer := modinstall.NewInstaller(deps.fs, modinstall.Downloader(deps.downloader))
+	if err := installer.DownloadAndVerify(ctx, remote.DownloadURL, resolvedDestination, remote.Hash, downloadClient(deps.clients), &noopSender{}); err != nil {
+		if message, handled := integrityErrorMessage(err, mod.Name); handled {
+			deps.logger.Error(message)
+			return true, nil
+		}
+		return false, err
+	}
+	return false, nil
+}
+
+func buildLockEntry(mod models.Mod, remote platform.RemoteMod) models.ModInstall {
+	return models.ModInstall{
 		Type:        mod.Type,
 		ID:          mod.ID,
-		Name:        normalizedRemote.Name,
-		FileName:    normalizedRemote.FileName,
-		ReleasedOn:  normalizedRemote.ReleaseDate,
-		Hash:        normalizedRemote.Hash,
-		DownloadURL: normalizedRemote.DownloadURL,
+		Name:        remote.Name,
+		FileName:    remote.FileName,
+		ReleasedOn:  remote.ReleaseDate,
+		Hash:        remote.Hash,
+		DownloadURL: remote.DownloadURL,
 	}
-	return modInstallOutcome{newName: normalizedRemote.Name, lockEntry: &lockEntry}, nil
 }
 
 func normalizeRemoteForInstall(remote platform.RemoteMod, mod models.Mod, deps installDeps) (platform.RemoteMod, modInstallOutcome) {

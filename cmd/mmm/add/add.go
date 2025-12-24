@@ -68,45 +68,8 @@ func commandWithRunner(runner addRunner) *cobra.Command {
 		Use:   "add <platform> <id>",
 		Short: i18n.T("cmd.add.short"),
 		Args:  cobra.ExactArgs(2),
-		RunE: func(cmd *cobra.Command, args []string) (err error) {
-			ctx, span := perf.StartSpan(cmd.Context(), "app.command.add",
-				perf.WithAttributes(
-					attribute.String("platform", args[0]),
-					attribute.String("id", args[1]),
-				),
-			)
-
-			options, err := readAddOptions(cmd, args)
-			if err != nil {
-				span.SetAttributes(attribute.Bool("success", false))
-				span.End()
-				return err
-			}
-
-			log := logger.New(cmd.OutOrStdout(), cmd.ErrOrStderr(), options.Quiet, options.Debug)
-			limiter := rate.NewLimiter(rate.Inf, 0)
-			deps := defaultAddDeps(log, limiter)
-
-			telemetryPayload, err := runner(ctx, span, cmd, options, deps)
-
-			errToReturn := err
-			if errors.Is(err, errAborted) {
-				errToReturn = nil
-			}
-
-			span.SetAttributes(attribute.Bool("success", errToReturn == nil))
-			span.End()
-
-			telemetryPayload.Success = errToReturn == nil
-			if telemetryPayload.Success {
-				telemetryPayload.Error = nil
-				telemetryPayload.ExitCode = 0
-			} else {
-				telemetryPayload.ExitCode = 1
-			}
-			telemetry.RecordCommand(telemetryPayload)
-
-			return errToReturn
+		RunE: func(cmd *cobra.Command, args []string) error {
+			return runAddCommand(cmd, args, runner)
 		},
 		Aliases:       []string{"a"},
 		SilenceUsage:  false,
@@ -126,24 +89,66 @@ func commandWithRunner(runner addRunner) *cobra.Command {
 	return cmd
 }
 
-//nolint:funlen // Command flow mirrors add spec stages; splitting would obscure behavior.
+func runAddCommand(cmd *cobra.Command, args []string, runner addRunner) error {
+	ctx, span := startAddSpan(cmd.Context(), args)
+
+	options, err := readAddOptions(cmd, args)
+	if err != nil {
+		span.SetAttributes(attribute.Bool("success", false))
+		span.End()
+		return err
+	}
+
+	log := logger.New(cmd.OutOrStdout(), cmd.ErrOrStderr(), options.Quiet, options.Debug)
+	deps := defaultAddDeps(log, rate.NewLimiter(rate.Inf, 0))
+
+	telemetryPayload, err := runner(ctx, span, cmd, options, deps)
+	errToReturn := normalizeAddError(err)
+	endAddSpan(span, errToReturn)
+	recordAddTelemetry(telemetryPayload, errToReturn)
+	return errToReturn
+}
+
+func startAddSpan(ctx context.Context, args []string) (context.Context, *perf.Span) {
+	return perf.StartSpan(ctx, "app.command.add",
+		perf.WithAttributes(
+			attribute.String("platform", args[0]),
+			attribute.String("id", args[1]),
+		),
+	)
+}
+
+func normalizeAddError(err error) error {
+	if errors.Is(err, errAborted) {
+		return nil
+	}
+	return err
+}
+
+func endAddSpan(span *perf.Span, err error) {
+	span.SetAttributes(attribute.Bool("success", err == nil))
+	span.End()
+}
+
+func recordAddTelemetry(telemetryPayload telemetry.CommandTelemetry, err error) {
+	telemetryPayload.Success = err == nil
+	if telemetryPayload.Success {
+		telemetryPayload.Error = nil
+		telemetryPayload.ExitCode = 0
+	} else {
+		telemetryPayload.ExitCode = 1
+	}
+	telemetry.RecordCommand(telemetryPayload)
+}
+
 func runAdd(ctx context.Context, commandSpan *perf.Span, cmd *cobra.Command, opts addOptions, deps addDeps) (telemetry.CommandTelemetry, error) {
 	meta := config.NewMetadata(opts.ConfigPath)
 	useTUI := tui.ShouldUseTUI(opts.Quiet, cmd.InOrStdin(), cmd.OutOrStdout())
 	setupCoordinator := modsetup.NewSetupCoordinator(deps.fs, deps.minecraftClient, modsetup.Downloader(deps.downloader))
 
-	prepareCtx, prepareSpan := perf.StartSpan(ctx, "app.command.add.stage.prepare", perf.WithAttributes(attribute.String("config_path", opts.ConfigPath)))
-	cfg, lock, err := setupCoordinator.EnsureConfigAndLock(prepareCtx, meta, opts.Quiet)
-	prepareSpan.SetAttributes(attribute.Bool("success", err == nil))
-	prepareSpan.End()
+	cfg, lock, err := prepareAddConfig(ctx, opts, meta, setupCoordinator)
 	if err != nil {
-		return telemetry.CommandTelemetry{
-			Command:     "add",
-			Success:     false,
-			Error:       err,
-			ExitCode:    1,
-			Interactive: useTUI,
-		}, err
+		return addFailureTelemetryWithoutArgs(useTUI, err), err
 	}
 
 	platformValue := normalizePlatform(opts.Platform)
@@ -154,6 +159,38 @@ func runAdd(ctx context.Context, commandSpan *perf.Span, cmd *cobra.Command, opt
 		return handleExistingInstall(ctx, commandSpan, meta, cfg, install, platformValue, projectID, opts, deps, useTUI)
 	}
 
+	remoteMod, resolvedPlatform, resolvedID, fetchErr := resolveRemoteModWithSpan(ctx, commandSpan, cfg, opts, platformValue, projectID, deps, useTUI, cmd.InOrStdin(), cmd.OutOrStdout())
+	if fetchErr != nil {
+		return addFailureTelemetry(platformValue, projectID, opts, useTUI, fetchErr), fetchErr
+	}
+
+	remoteMod, err = normalizeRemoteModFileName(remoteMod)
+	if err != nil {
+		return addFailureTelemetry(resolvedPlatform, resolvedID, opts, useTUI, err), err
+	}
+
+	_, err = ensureRemoteMod(ctx, meta, cfg, remoteMod, resolvedPlatform, resolvedID, deps)
+	if err != nil {
+		return addFailureTelemetry(resolvedPlatform, resolvedID, opts, useTUI, err), err
+	}
+
+	if err := persistAdd(ctx, meta, cfg, lock, remoteMod, resolvedPlatform, resolvedID, opts, setupCoordinator); err != nil {
+		return addFailureTelemetry(resolvedPlatform, resolvedID, opts, useTUI, err), err
+	}
+
+	logAddSuccess(deps.logger, remoteMod.Name, resolvedID, resolvedPlatform)
+	return addSuccessTelemetry(resolvedPlatform, resolvedID, opts, useTUI), nil
+}
+
+func prepareAddConfig(ctx context.Context, opts addOptions, meta config.Metadata, setupCoordinator *modsetup.SetupCoordinator) (models.ModsJSON, []models.ModInstall, error) {
+	prepareCtx, prepareSpan := perf.StartSpan(ctx, "app.command.add.stage.prepare", perf.WithAttributes(attribute.String("config_path", opts.ConfigPath)))
+	cfg, lock, err := setupCoordinator.EnsureConfigAndLock(prepareCtx, meta, opts.Quiet)
+	prepareSpan.SetAttributes(attribute.Bool("success", err == nil))
+	prepareSpan.End()
+	return cfg, lock, err
+}
+
+func resolveRemoteModWithSpan(ctx context.Context, commandSpan *perf.Span, cfg models.ModsJSON, opts addOptions, platformValue models.Platform, projectID string, deps addDeps, useTUI bool, in io.Reader, out io.Writer) (platform.RemoteMod, models.Platform, string, error) {
 	resolveCtx, resolveSpan := perf.StartSpan(ctx, "app.command.add.stage.resolve",
 		perf.WithAttributes(
 			attribute.String("platform", string(platformValue)),
@@ -162,30 +199,17 @@ func runAdd(ctx context.Context, commandSpan *perf.Span, cmd *cobra.Command, opt
 			attribute.Bool("quiet", opts.Quiet),
 		),
 	)
-	remoteMod, resolvedPlatform, resolvedID, fetchErr := resolveRemoteMod(resolveCtx, commandSpan, cfg, opts, platformValue, projectID, deps, useTUI, cmd.InOrStdin(), cmd.OutOrStdout())
+	remoteMod, resolvedPlatform, resolvedID, fetchErr := resolveRemoteMod(resolveCtx, commandSpan, cfg, opts, platformValue, projectID, deps, useTUI, in, out)
 	resolveSpan.SetAttributes(
 		attribute.Bool("success", fetchErr == nil),
 		attribute.String("resolved_platform", string(resolvedPlatform)),
 		attribute.String("resolved_project_id", resolvedID),
 	)
 	resolveSpan.End()
-	if fetchErr != nil {
-		payload := telemetry.CommandTelemetry{
-			Command:     "add",
-			Success:     false,
-			Error:       fetchErr,
-			ExitCode:    1,
-			Interactive: useTUI,
-			Arguments: map[string]interface{}{
-				"platform": platformValue,
-				"id":       projectID,
-				"version":  opts.Version,
-				"fallback": opts.AllowVersionFallback,
-			},
-		}
-		return payload, fetchErr
-	}
+	return remoteMod, resolvedPlatform, resolvedID, fetchErr
+}
 
+func normalizeRemoteModFileName(remoteMod platform.RemoteMod) (platform.RemoteMod, error) {
 	normalizedFileName, err := modfilename.Normalize(remoteMod.FileName)
 	if err != nil {
 		message := i18n.T("cmd.add.error.invalid_filename_remote", i18n.Tvars{
@@ -194,23 +218,13 @@ func runAdd(ctx context.Context, commandSpan *perf.Span, cmd *cobra.Command, opt
 				"file": modfilename.Display(remoteMod.FileName),
 			},
 		})
-		err = errors.New(message)
-		return telemetry.CommandTelemetry{
-			Command:     "add",
-			Success:     false,
-			Error:       err,
-			ExitCode:    1,
-			Interactive: useTUI,
-			Arguments: map[string]interface{}{
-				"platform": resolvedPlatform,
-				"id":       resolvedID,
-				"version":  opts.Version,
-				"fallback": opts.AllowVersionFallback,
-			},
-		}, err
+		return platform.RemoteMod{}, errors.New(message)
 	}
 	remoteMod.FileName = normalizedFileName
+	return remoteMod, nil
+}
 
+func ensureRemoteMod(ctx context.Context, meta config.Metadata, cfg models.ModsJSON, remoteMod platform.RemoteMod, resolvedPlatform models.Platform, resolvedID string, deps addDeps) (modinstall.EnsureResult, error) {
 	downloadCtx, downloadSpan := perf.StartSpan(ctx, "app.command.add.stage.download",
 		perf.WithAttributes(
 			attribute.String("url", remoteMod.DownloadURL),
@@ -234,19 +248,7 @@ func runAdd(ctx context.Context, commandSpan *perf.Span, cmd *cobra.Command, opt
 		}
 		downloadSpan.SetAttributes(attribute.Bool("success", false))
 		downloadSpan.End()
-		return telemetry.CommandTelemetry{
-			Command:     "add",
-			Success:     false,
-			Error:       err,
-			ExitCode:    1,
-			Interactive: useTUI,
-			Arguments: map[string]interface{}{
-				"platform": resolvedPlatform,
-				"id":       resolvedID,
-				"version":  opts.Version,
-				"fallback": opts.AllowVersionFallback,
-			},
-		}, err
+		return modinstall.EnsureResult{}, err
 	}
 	downloadSpan.SetAttributes(
 		attribute.Bool("success", true),
@@ -254,7 +256,10 @@ func runAdd(ctx context.Context, commandSpan *perf.Span, cmd *cobra.Command, opt
 		attribute.String("reason", string(ensureResult.Reason)),
 	)
 	downloadSpan.End()
+	return ensureResult, nil
+}
 
+func persistAdd(ctx context.Context, meta config.Metadata, cfg models.ModsJSON, lock []models.ModInstall, remoteMod platform.RemoteMod, resolvedPlatform models.Platform, resolvedID string, opts addOptions, setupCoordinator *modsetup.SetupCoordinator) error {
 	_, persistSpan := perf.StartSpan(ctx, "app.command.add.stage.persist",
 		perf.WithAttributes(
 			attribute.String("config_path", opts.ConfigPath),
@@ -262,50 +267,38 @@ func runAdd(ctx context.Context, commandSpan *perf.Span, cmd *cobra.Command, opt
 			attribute.String("project_id", resolvedID),
 		),
 	)
-	_, _, _, err = setupCoordinator.EnsurePersisted(ctx, meta, cfg, lock, resolvedPlatform, resolvedID, remoteMod, modsetup.EnsurePersistOptions{
+	_, _, _, err := setupCoordinator.EnsurePersisted(ctx, meta, cfg, lock, resolvedPlatform, resolvedID, remoteMod, modsetup.EnsurePersistOptions{
 		Version:              opts.Version,
 		AllowVersionFallback: opts.AllowVersionFallback,
 	})
 	if err != nil {
 		persistSpan.SetAttributes(attribute.Bool("success", false))
 		persistSpan.End()
-		return telemetry.CommandTelemetry{
-			Command:     "add",
-			Success:     false,
-			Error:       err,
-			ExitCode:    1,
-			Interactive: useTUI,
-			Arguments: map[string]interface{}{
-				"platform": resolvedPlatform,
-				"id":       resolvedID,
-				"version":  opts.Version,
-				"fallback": opts.AllowVersionFallback,
-			},
-		}, err
+		return err
 	}
 	persistSpan.SetAttributes(attribute.Bool("success", true))
 	persistSpan.End()
+	return nil
+}
 
-	deps.logger.Log(i18n.T("cmd.add.success", i18n.Tvars{
+func logAddSuccess(log *logger.Logger, modName string, resolvedID string, resolvedPlatform models.Platform) {
+	log.Log(i18n.T("cmd.add.success", i18n.Tvars{
 		Data: &i18n.TData{
-			"name":     remoteMod.Name,
+			"name":     modName,
 			"id":       resolvedID,
 			"platform": resolvedPlatform,
 		},
 	}), true)
+}
 
+func addSuccessTelemetry(platformValue models.Platform, projectID string, opts addOptions, useTUI bool) telemetry.CommandTelemetry {
 	return telemetry.CommandTelemetry{
 		Command:     "add",
 		Success:     true,
 		ExitCode:    0,
 		Interactive: useTUI,
-		Arguments: map[string]interface{}{
-			"platform": resolvedPlatform,
-			"id":       resolvedID,
-			"version":  opts.Version,
-			"fallback": opts.AllowVersionFallback,
-		},
-	}, nil
+		Arguments:   addTelemetryArgs(platformValue, projectID, opts),
+	}
 }
 
 func integrityErrorMessage(err error, modName string) (string, bool) {
@@ -340,6 +333,16 @@ func integrityErrorMessage(err error, modName string) (string, bool) {
 func resolveRemoteMod(ctx context.Context, commandSpan *perf.Span, cfg models.ModsJSON, opts addOptions, platformValue models.Platform, projectID string, deps addDeps, useTUI bool, in io.Reader, out io.Writer) (platform.RemoteMod, models.Platform, string, error) {
 	deps.logger.Debug(fmt.Sprintf("fetching %s/%s (loader=%s, gameVersion=%s, fallback=%t, fixedVersion=%s)", platformValue, projectID, cfg.Loader, cfg.GameVersion, opts.AllowVersionFallback, opts.Version))
 
+	remote, err := fetchRemoteModOnce(ctx, cfg, opts, platformValue, projectID, deps, useTUI)
+	if err == nil {
+		return remote, platformValue, projectID, nil
+	}
+
+	logFetchFailure(deps.logger, platformValue, projectID, err)
+	return resolveRemoteModFromError(ctx, commandSpan, cfg, opts, platformValue, projectID, deps, useTUI, in, out, err)
+}
+
+func fetchRemoteModOnce(ctx context.Context, cfg models.ModsJSON, opts addOptions, platformValue models.Platform, projectID string, deps addDeps, useTUI bool) (platform.RemoteMod, error) {
 	attemptCtx, attemptSpan := perf.StartSpan(ctx, "app.command.add.resolve.attempt",
 		perf.WithAttributes(
 			attribute.Int("attempt", 0),
@@ -362,43 +365,58 @@ func resolveRemoteMod(ctx context.Context, commandSpan *perf.Span, cfg models.Mo
 		attemptSpan.SetAttributes(attribute.String("error_type", fmt.Sprintf("%T", err)))
 	}
 	attemptSpan.End()
-	if err == nil {
-		return remote, platformValue, projectID, nil
-	}
+	return remote, err
+}
 
-	deps.logger.Debug(fmt.Sprintf("fetch failed for %s/%s: %v", platformValue, projectID, err))
+func logFetchFailure(log *logger.Logger, platformValue models.Platform, projectID string, err error) {
+	log.Debug(fmt.Sprintf("fetch failed for %s/%s: %v", platformValue, projectID, err))
 	if inner := errors.Unwrap(err); inner != nil {
-		deps.logger.Debug(fmt.Sprintf("fetch failure detail: %v", inner))
+		log.Debug(fmt.Sprintf("fetch failure detail: %v", inner))
 	}
+}
 
+func resolveRemoteModFromError(ctx context.Context, commandSpan *perf.Span, cfg models.ModsJSON, opts addOptions, platformValue models.Platform, projectID string, deps addDeps, useTUI bool, in io.Reader, out io.Writer, err error) (platform.RemoteMod, models.Platform, string, error) {
 	var unknownPlatformError *platform.UnknownPlatformError
 	if errors.As(err, &unknownPlatformError) {
-		if opts.Quiet || !useTUI {
-			deps.logger.Error(errorMessageForUnknownPlatform(unknownPlatformError.Platform))
-			return platform.RemoteMod{}, platformValue, projectID, errors.New(errorMessageForUnknownPlatform(unknownPlatformError.Platform))
-		}
-		return resolveRemoteModWithTUI(ctx, commandSpan, addTUIStateUnknownPlatformSelect, cfg, opts, platformValue, projectID, deps, in, out)
+		return resolveUnknownPlatform(ctx, commandSpan, cfg, opts, platformValue, projectID, deps, useTUI, in, out, unknownPlatformError)
 	}
 
 	var modNotFoundError *platform.ModNotFoundError
 	if errors.As(err, &modNotFoundError) {
-		if opts.Quiet || !useTUI {
-			deps.logger.Error(errorMessageForModNotFound(projectID, platformValue))
-			return platform.RemoteMod{}, platformValue, projectID, err
-		}
-		return resolveRemoteModWithTUI(ctx, commandSpan, addTUIStateModNotFoundConfirm, cfg, opts, platformValue, projectID, deps, in, out)
+		return resolveModNotFound(ctx, commandSpan, cfg, opts, platformValue, projectID, deps, useTUI, in, out, err)
 	}
 
 	var noCompatibleFileError *platform.NoCompatibleFileError
 	if errors.As(err, &noCompatibleFileError) {
-		if opts.Quiet || !useTUI {
-			deps.logger.Error(errorMessageForNoFile(projectID, platformValue))
-			return platform.RemoteMod{}, platformValue, projectID, err
-		}
-		return resolveRemoteModWithTUI(ctx, commandSpan, addTUIStateNoFileConfirm, cfg, opts, platformValue, projectID, deps, in, out)
+		return resolveNoCompatibleFile(ctx, commandSpan, cfg, opts, platformValue, projectID, deps, useTUI, in, out, err)
 	}
 
 	return platform.RemoteMod{}, platformValue, projectID, err
+}
+
+func resolveUnknownPlatform(ctx context.Context, commandSpan *perf.Span, cfg models.ModsJSON, opts addOptions, platformValue models.Platform, projectID string, deps addDeps, useTUI bool, in io.Reader, out io.Writer, unknownPlatformError *platform.UnknownPlatformError) (platform.RemoteMod, models.Platform, string, error) {
+	if opts.Quiet || !useTUI {
+		message := errorMessageForUnknownPlatform(unknownPlatformError.Platform)
+		deps.logger.Error(message)
+		return platform.RemoteMod{}, platformValue, projectID, errors.New(message)
+	}
+	return resolveRemoteModWithTUI(ctx, commandSpan, addTUIStateUnknownPlatformSelect, cfg, opts, platformValue, projectID, deps, in, out)
+}
+
+func resolveModNotFound(ctx context.Context, commandSpan *perf.Span, cfg models.ModsJSON, opts addOptions, platformValue models.Platform, projectID string, deps addDeps, useTUI bool, in io.Reader, out io.Writer, err error) (platform.RemoteMod, models.Platform, string, error) {
+	if opts.Quiet || !useTUI {
+		deps.logger.Error(errorMessageForModNotFound(projectID, platformValue))
+		return platform.RemoteMod{}, platformValue, projectID, err
+	}
+	return resolveRemoteModWithTUI(ctx, commandSpan, addTUIStateModNotFoundConfirm, cfg, opts, platformValue, projectID, deps, in, out)
+}
+
+func resolveNoCompatibleFile(ctx context.Context, commandSpan *perf.Span, cfg models.ModsJSON, opts addOptions, platformValue models.Platform, projectID string, deps addDeps, useTUI bool, in io.Reader, out io.Writer, err error) (platform.RemoteMod, models.Platform, string, error) {
+	if opts.Quiet || !useTUI {
+		deps.logger.Error(errorMessageForNoFile(projectID, platformValue))
+		return platform.RemoteMod{}, platformValue, projectID, err
+	}
+	return resolveRemoteModWithTUI(ctx, commandSpan, addTUIStateNoFileConfirm, cfg, opts, platformValue, projectID, deps, in, out)
 }
 
 func findLockInstall(lock []models.ModInstall, platformValue models.Platform, projectID string) (models.ModInstall, bool) {
@@ -453,7 +471,6 @@ func resolveRemoteModWithTUI(ctx context.Context, commandSpan *perf.Span, initia
 		))
 	}
 
-	var attempt int
 	tuiCtx, tuiSpan := perf.StartSpan(ctx, "tui.add.session",
 		perf.WithAttributes(
 			attribute.String("platform", string(platformValue)),
@@ -461,12 +478,34 @@ func resolveRemoteModWithTUI(ctx context.Context, commandSpan *perf.Span, initia
 			attribute.Int("initial_state", int(initialState)),
 		),
 	)
-	model := newAddTUIModel(tuiCtx, tuiSpan, initialState, platformValue, projectID, cfg, func(platformValue models.Platform, projectID string) tea.Cmd {
+	attempt := 0
+	model := newAddTUIModel(tuiCtx, tuiSpan, initialState, platformValue, projectID, cfg, buildAddTUIFetchCmd(tuiCtx, cfg, opts, platformValue, projectID, deps, &attempt))
+
+	if deps.runTea == nil {
+		return platform.RemoteMod{}, platformValue, projectID, errors.New("missing add dependencies: runTea")
+	}
+
+	result, err := runAddTUIProgram(deps.runTea, model, tuiSpan, in, out)
+	if err != nil {
+		return platform.RemoteMod{}, platformValue, projectID, err
+	}
+
+	typed, ok := result.(addTUIModel)
+	if !ok {
+		return platform.RemoteMod{}, platformValue, projectID, errors.New("unexpected add TUI result model")
+	}
+
+	return typed.result()
+}
+
+func buildAddTUIFetchCmd(tuiCtx context.Context, cfg models.ModsJSON, opts addOptions, platformValue models.Platform, projectID string, deps addDeps, attempt *int) func(models.Platform, string) tea.Cmd {
+	return func(platformValue models.Platform, projectID string) tea.Cmd {
 		return func() tea.Msg {
-			attempt++
+			*attempt += 1
+			attemptNumber := *attempt
 			attemptCtx, attemptSpan := perf.StartSpan(tuiCtx, "app.command.add.resolve.attempt",
 				perf.WithAttributes(
-					attribute.Int("attempt", attempt),
+					attribute.Int("attempt", attemptNumber),
 					attribute.String("source", "tui"),
 					attribute.String("platform", string(platformValue)),
 					attribute.String("project_id", projectID),
@@ -492,27 +531,19 @@ func resolveRemoteModWithTUI(ctx context.Context, commandSpan *perf.Span, initia
 				err:       err,
 			}
 		}
-	})
-
-	if deps.runTea == nil {
-		return platform.RemoteMod{}, platformValue, projectID, errors.New("missing add dependencies: runTea")
 	}
+}
 
-	result, err := deps.runTea(model, tui.ProgramOptions(in, out)...)
+func runAddTUIProgram(runTea func(model tea.Model, options ...tea.ProgramOption) (tea.Model, error), model tea.Model, tuiSpan *perf.Span, in io.Reader, out io.Writer) (tea.Model, error) {
+	result, err := runTea(model, tui.ProgramOptions(in, out)...)
 	if err != nil {
 		tuiSpan.SetAttributes(attribute.Bool("success", false))
 		tuiSpan.End()
-		return platform.RemoteMod{}, platformValue, projectID, err
+		return nil, err
 	}
 	tuiSpan.SetAttributes(attribute.Bool("success", true))
 	tuiSpan.End()
-
-	typed, ok := result.(addTUIModel)
-	if !ok {
-		return platform.RemoteMod{}, platformValue, projectID, errors.New("unexpected add TUI result model")
-	}
-
-	return typed.result()
+	return result, nil
 }
 
 func readAddOptions(cmd *cobra.Command, args []string) (addOptions, error) {
@@ -584,53 +615,17 @@ func handleExistingInstall(
 			},
 		})
 		err := errors.New(message)
-		return telemetry.CommandTelemetry{
-			Command:     "add",
-			Success:     false,
-			Error:       err,
-			ExitCode:    1,
-			Interactive: useTUI,
-			Arguments: map[string]interface{}{
-				"platform": platformValue,
-				"id":       projectID,
-				"version":  opts.Version,
-				"fallback": opts.AllowVersionFallback,
-			},
-		}, err
+		return addFailureTelemetry(platformValue, projectID, opts, useTUI, err), err
 	}
 	install.FileName = normalizedFileName
 
 	installer := modinstall.NewInstaller(deps.fs, modinstall.Downloader(deps.downloader))
 	ensureResult, ensureErr := installer.EnsureLockedFile(ctx, meta, cfg, install, downloadClient(deps.clients), nil)
 	if ensureErr != nil {
-		return telemetry.CommandTelemetry{
-			Command:     "add",
-			Success:     false,
-			Error:       ensureErr,
-			ExitCode:    1,
-			Interactive: useTUI,
-			Arguments: map[string]interface{}{
-				"platform": platformValue,
-				"id":       projectID,
-				"version":  opts.Version,
-				"fallback": opts.AllowVersionFallback,
-			},
-		}, ensureErr
+		return addFailureTelemetry(platformValue, projectID, opts, useTUI, ensureErr), ensureErr
 	}
 
-	switch ensureResult.Reason {
-	case modinstall.EnsureReasonMissing:
-		deps.logger.Log(i18n.T("cmd.install.download.missing", i18n.Tvars{
-			Data: &i18n.TData{
-				"name":     modNameForConfig(cfg, platformValue, projectID),
-				"platform": platformValue,
-			},
-		}), true)
-	case modinstall.EnsureReasonHashMismatch:
-		deps.logger.Log(i18n.T("cmd.install.download.hash_mismatch", i18n.Tvars{
-			Data: &i18n.TData{"name": modNameForConfig(cfg, platformValue, projectID)},
-		}), true)
-	}
+	logEnsureResult(deps.logger, ensureResult.Reason, cfg, platformValue, projectID)
 
 	if commandSpan != nil {
 		commandSpan.AddEvent("app.command.add.outcome.already_exists", perf.WithEventAttributes(
@@ -644,20 +639,65 @@ func handleExistingInstall(
 			"platform": platformValue,
 		},
 	}))
+	return addExistingInstallTelemetry(platformValue, projectID, opts, useTUI, ensureResult.Reason), nil
+}
+
+func logEnsureResult(log *logger.Logger, reason modinstall.EnsureReason, cfg models.ModsJSON, platformValue models.Platform, projectID string) {
+	switch reason {
+	case modinstall.EnsureReasonMissing:
+		log.Log(i18n.T("cmd.install.download.missing", i18n.Tvars{
+			Data: &i18n.TData{
+				"name":     modNameForConfig(cfg, platformValue, projectID),
+				"platform": platformValue,
+			},
+		}), true)
+	case modinstall.EnsureReasonHashMismatch:
+		log.Log(i18n.T("cmd.install.download.hash_mismatch", i18n.Tvars{
+			Data: &i18n.TData{"name": modNameForConfig(cfg, platformValue, projectID)},
+		}), true)
+	}
+}
+
+func addFailureTelemetry(platformValue models.Platform, projectID string, opts addOptions, useTUI bool, err error) telemetry.CommandTelemetry {
+	return telemetry.CommandTelemetry{
+		Command:     "add",
+		Success:     false,
+		Error:       err,
+		ExitCode:    1,
+		Interactive: useTUI,
+		Arguments:   addTelemetryArgs(platformValue, projectID, opts),
+	}
+}
+
+func addFailureTelemetryWithoutArgs(useTUI bool, err error) telemetry.CommandTelemetry {
+	return telemetry.CommandTelemetry{
+		Command:     "add",
+		Success:     false,
+		Error:       err,
+		ExitCode:    1,
+		Interactive: useTUI,
+	}
+}
+
+func addExistingInstallTelemetry(platformValue models.Platform, projectID string, opts addOptions, useTUI bool, reason modinstall.EnsureReason) telemetry.CommandTelemetry {
 	return telemetry.CommandTelemetry{
 		Command:     "add",
 		Success:     true,
 		ExitCode:    0,
 		Interactive: useTUI,
-		Arguments: map[string]interface{}{
-			"platform": platformValue,
-			"id":       projectID,
-			"version":  opts.Version,
-			"fallback": opts.AllowVersionFallback,
-		},
+		Arguments:   addTelemetryArgs(platformValue, projectID, opts),
 		Extra: map[string]interface{}{
 			"flag":               "already-exists",
-			"ensure_file_reason": string(ensureResult.Reason),
+			"ensure_file_reason": string(reason),
 		},
-	}, nil
+	}
+}
+
+func addTelemetryArgs(platformValue models.Platform, projectID string, opts addOptions) map[string]interface{} {
+	return map[string]interface{}{
+		"platform": platformValue,
+		"id":       projectID,
+		"version":  opts.Version,
+		"fallback": opts.AllowVersionFallback,
+	}
 }

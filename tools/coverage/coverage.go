@@ -112,22 +112,14 @@ func newCoverageTool() (*coverageTool, error) {
 }
 
 func (tool *coverageTool) run() error {
-	coveragePath := filepath.Join(tool.repoRoot, coverageProfileName)
-	htmlPath := filepath.Join(tool.repoRoot, coverageHTMLName)
-	funcOutputPath := filepath.Join(tool.repoRoot, coverageFuncOutputName)
+	paths := coveragePaths(tool.repoRoot)
+	defer tool.cleanupCoverageProfile(paths.coveragePath)
 
-	defer func() {
-		cleanupErr := removeFile(coveragePath)
-		if cleanupErr != nil && !errors.Is(cleanupErr, os.ErrNotExist) {
-			tool.logger.Printf("warning: failed to remove coverage profile %s: %v", coveragePath, cleanupErr)
-		}
-	}()
-
-	if err := tool.runCoverageTests(coveragePath); err != nil {
+	if err := tool.runCoverageTests(paths.coveragePath); err != nil {
 		return err
 	}
 
-	filteredCoveragePath, cleanupFiltered, err := tool.prepareFilteredCoverage(coveragePath)
+	filteredCoveragePath, cleanupFiltered, err := tool.prepareFilteredCoverage(paths.coveragePath)
 	if err != nil {
 		return err
 	}
@@ -135,9 +127,8 @@ func (tool *coverageTool) run() error {
 		defer cleanupFiltered()
 	}
 
-	generateErr := tool.generateCoverageHTML(filteredCoveragePath, htmlPath)
-	if generateErr != nil {
-		return generateErr
+	if err := tool.generateCoverageHTML(filteredCoveragePath, paths.htmlPath); err != nil {
+		return err
 	}
 
 	funcOutput, totalLine, totalCoverage, offendingLines, err := tool.coverageFuncOutput(filteredCoveragePath)
@@ -145,19 +136,45 @@ func (tool *coverageTool) run() error {
 		return err
 	}
 
-	writeErr := writeFile(funcOutputPath, funcOutput, 0o644)
-	if writeErr != nil {
-		return fmt.Errorf("error: write coverage output: %w", writeErr)
+	if err := writeCoverageOutput(paths.funcOutputPath, funcOutput); err != nil {
+		return err
 	}
 
+	return reportCoverage(paths.funcOutputPath, paths.htmlPath, totalLine, totalCoverage, offendingLines)
+}
+
+type coverageOutputPaths struct {
+	coveragePath   string
+	htmlPath       string
+	funcOutputPath string
+}
+
+func coveragePaths(repoRoot string) coverageOutputPaths {
+	return coverageOutputPaths{
+		coveragePath:   filepath.Join(repoRoot, coverageProfileName),
+		htmlPath:       filepath.Join(repoRoot, coverageHTMLName),
+		funcOutputPath: filepath.Join(repoRoot, coverageFuncOutputName),
+	}
+}
+
+func (tool *coverageTool) cleanupCoverageProfile(coveragePath string) {
+	cleanupErr := removeFile(coveragePath)
+	if cleanupErr != nil && !errors.Is(cleanupErr, os.ErrNotExist) {
+		tool.logger.Printf("warning: failed to remove coverage profile %s: %v", coveragePath, cleanupErr)
+	}
+}
+
+func writeCoverageOutput(funcOutputPath string, funcOutput []byte) error {
+	if err := writeFile(funcOutputPath, funcOutput, 0o644); err != nil {
+		return fmt.Errorf("error: write coverage output: %w", err)
+	}
+	return nil
+}
+
+func reportCoverage(funcOutputPath string, htmlPath string, totalLine string, totalCoverage string, offendingLines []string) error {
 	if len(offendingLines) > 0 {
-		for _, line := range offendingLines {
-			if _, err := fmt.Fprintln(stdoutWriter, line); err != nil {
-				return fmt.Errorf("error: write coverage output: %w", err)
-			}
-		}
-		if _, err := fmt.Fprintln(stdoutWriter, totalLine); err != nil {
-			return fmt.Errorf("error: write coverage output: %w", err)
+		if err := writeCoverageLines(offendingLines, totalLine); err != nil {
+			return err
 		}
 		if err := printCoverageHints(funcOutputPath, htmlPath); err != nil {
 			return err
@@ -170,6 +187,18 @@ func (tool *coverageTool) run() error {
 	}
 	if err := printCoverageHints(funcOutputPath, htmlPath); err != nil {
 		return err
+	}
+	return nil
+}
+
+func writeCoverageLines(offendingLines []string, totalLine string) error {
+	for _, line := range offendingLines {
+		if _, err := fmt.Fprintln(stdoutWriter, line); err != nil {
+			return fmt.Errorf("error: write coverage output: %w", err)
+		}
+	}
+	if _, err := fmt.Fprintln(stdoutWriter, totalLine); err != nil {
+		return fmt.Errorf("error: write coverage output: %w", err)
 	}
 	return nil
 }

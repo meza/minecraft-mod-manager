@@ -11,6 +11,7 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
+	"sync"
 	"testing"
 	"time"
 
@@ -789,6 +790,28 @@ func TestLookupCurseforgeProjectNameErrorAddsUnsure(t *testing.T) {
 
 func TestCurseforgeFingerprintFailureReasonNon403(t *testing.T) {
 	assert.Equal(t, "unexpected status code: 500", curseforgeFingerprintFailureReason(errors.New("unexpected status code: 500")))
+}
+
+func TestCachedCurseforgeProjectNameCaches(t *testing.T) {
+	cache := make(map[string]string)
+	var mu sync.Mutex
+	callCount := 0
+
+	deps := scanDeps{
+		curseforgeProjectName: func(context.Context, string, httpclient.Doer) (string, error) {
+			callCount++
+			return "project-name", nil
+		},
+	}
+
+	name, err := cachedCurseforgeProjectName(context.Background(), "123", deps, cache, &mu)
+	assert.NoError(t, err)
+	assert.Equal(t, "project-name", name)
+
+	name, err = cachedCurseforgeProjectName(context.Background(), "123", deps, cache, &mu)
+	assert.NoError(t, err)
+	assert.Equal(t, "project-name", name)
+	assert.Equal(t, 1, callCount)
 }
 
 type statErrorFs struct {

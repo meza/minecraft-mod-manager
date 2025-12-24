@@ -61,75 +61,89 @@ func Command() *cobra.Command {
 		Aliases: []string{"u"},
 		Short:   i18n.T("cmd.update.short"),
 		Args:    cobra.NoArgs,
-		RunE: func(cmd *cobra.Command, _ []string) (err error) {
-			ctx, span := perf.StartSpan(cmd.Context(), "app.command.update")
-
-			configPath, err := cmd.Flags().GetString("config")
-			if err != nil {
-				span.SetAttributes(attribute.Bool("success", false))
-				span.End()
-				return err
-			}
-			quiet, err := cmd.Flags().GetBool("quiet")
-			if err != nil {
-				span.SetAttributes(attribute.Bool("success", false))
-				span.End()
-				return err
-			}
-			debug, err := cmd.Flags().GetBool("debug")
-			if err != nil {
-				span.SetAttributes(attribute.Bool("success", false))
-				span.End()
-				return err
-			}
-
-			log := logger.New(cmd.OutOrStdout(), cmd.ErrOrStderr(), quiet, debug)
-			limiter := rate.NewLimiter(rate.Inf, 0)
-
-			deps := updateDeps{
-				fs:         afero.NewOsFs(),
-				logger:     log,
-				clients:    platform.DefaultClients(limiter),
-				fetchMod:   platform.FetchMod,
-				downloader: httpclient.DownloadFile,
-				install:    install.Run,
-				telemetry:  telemetry.RecordCommand,
-			}
-
-			updated, failed, err := runUpdate(ctx, cmd, updateOptions{
-				ConfigPath: configPath,
-				Quiet:      quiet,
-				Debug:      debug,
-			}, deps)
-
-			span.SetAttributes(attribute.Bool("success", err == nil))
-			span.End()
-
-			if err != nil {
-				cmd.SilenceUsage = true
-			}
-
-			payload := telemetry.CommandTelemetry{
-				Command:     "update",
-				Success:     err == nil,
-				Error:       err,
-				ExitCode:    0,
-				Interactive: false,
-				Extra: map[string]interface{}{
-					"updatedMods": updated,
-					"failedMods":  failed,
-				},
-			}
-			if err != nil {
-				payload.ExitCode = 1
-			}
-			deps.telemetry(payload)
-
-			return err
+		RunE: func(cmd *cobra.Command, _ []string) error {
+			return runUpdateCommand(cmd)
 		},
 	}
 
 	return cmd
+}
+
+func runUpdateCommand(cmd *cobra.Command) error {
+	ctx, span := perf.StartSpan(cmd.Context(), "app.command.update")
+
+	opts, err := updateOptionsFromFlags(cmd)
+	if err != nil {
+		span.SetAttributes(attribute.Bool("success", false))
+		span.End()
+		return err
+	}
+
+	deps := defaultUpdateDeps(cmd, opts)
+	updated, failed, err := runUpdate(ctx, cmd, opts, deps)
+	span.SetAttributes(attribute.Bool("success", err == nil))
+	span.End()
+
+	if err != nil {
+		cmd.SilenceUsage = true
+	}
+
+	recordUpdateTelemetry(deps.telemetry, updated, failed, err)
+	return err
+}
+
+func updateOptionsFromFlags(cmd *cobra.Command) (updateOptions, error) {
+	configPath, err := cmd.Flags().GetString("config")
+	if err != nil {
+		return updateOptions{}, err
+	}
+	quiet, err := cmd.Flags().GetBool("quiet")
+	if err != nil {
+		return updateOptions{}, err
+	}
+	debug, err := cmd.Flags().GetBool("debug")
+	if err != nil {
+		return updateOptions{}, err
+	}
+
+	return updateOptions{
+		ConfigPath: configPath,
+		Quiet:      quiet,
+		Debug:      debug,
+	}, nil
+}
+
+func defaultUpdateDeps(cmd *cobra.Command, opts updateOptions) updateDeps {
+	log := logger.New(cmd.OutOrStdout(), cmd.ErrOrStderr(), opts.Quiet, opts.Debug)
+	limiter := rate.NewLimiter(rate.Inf, 0)
+
+	return updateDeps{
+		fs:         afero.NewOsFs(),
+		logger:     log,
+		clients:    platform.DefaultClients(limiter),
+		fetchMod:   platform.FetchMod,
+		downloader: httpclient.DownloadFile,
+		install:    install.Run,
+		telemetry:  telemetry.RecordCommand,
+	}
+}
+
+func recordUpdateTelemetry(telemetryRecorder func(telemetry.CommandTelemetry), updated int, failed int, err error) {
+	payload := telemetry.CommandTelemetry{
+		Command:     "update",
+		Success:     err == nil,
+		Error:       err,
+		ExitCode:    0,
+		Interactive: false,
+		Extra: map[string]interface{}{
+			"updatedMods": updated,
+			"failedMods":  failed,
+		},
+	}
+	if err != nil {
+		payload.ExitCode = 1
+	}
+	telemetryRecorder(payload)
 }
 
 type modUpdateCandidate struct {
@@ -186,6 +200,29 @@ func runUpdate(ctx context.Context, cmd *cobra.Command, opts updateOptions, deps
 
 	colorize := tui.IsTerminalWriter(cmd.OutOrStdout())
 
+	candidates := updateCandidates(cfg)
+	outcomes := processCandidates(ctx, meta, cfg, lock, candidates, deps, colorize)
+	updatedCount, failedCount := applyUpdateOutcomes(deps.logger, outcomes, &cfg, lock)
+
+	if updatedCount == 0 && failedCount == 0 {
+		deps.logger.Log(messageWithIcon(tui.SuccessIcon(colorize), i18n.T("cmd.update.no_updates")), true)
+	}
+
+	if err := config.WriteLock(ctx, deps.fs, meta, lock); err != nil {
+		return updatedCount, failedCount, err
+	}
+	if err := config.WriteConfig(ctx, deps.fs, meta, cfg); err != nil {
+		return updatedCount, failedCount, err
+	}
+
+	if failedCount > 0 {
+		return updatedCount, failedCount, errUpdateFailures
+	}
+
+	return updatedCount, failedCount, nil
+}
+
+func updateCandidates(cfg models.ModsJSON) []modUpdateCandidate {
 	candidates := make([]modUpdateCandidate, 0, len(cfg.Mods))
 	for i := range cfg.Mods {
 		candidates = append(candidates, modUpdateCandidate{
@@ -193,10 +230,10 @@ func runUpdate(ctx context.Context, cmd *cobra.Command, opts updateOptions, deps
 			Mod:         cfg.Mods[i],
 		})
 	}
+	return candidates
+}
 
-	updatedCount := 0
-	failedCount := 0
-
+func processCandidates(ctx context.Context, meta config.Metadata, cfg models.ModsJSON, lock []models.ModInstall, candidates []modUpdateCandidate, deps updateDeps, colorize bool) []modUpdateOutcome {
 	results := make(chan modUpdateOutcome, len(candidates))
 	var waitGroup sync.WaitGroup
 
@@ -216,16 +253,22 @@ func runUpdate(ctx context.Context, cmd *cobra.Command, opts updateOptions, deps
 	for outcome := range results {
 		outcomes[outcome.ConfigIndex] = outcome
 	}
+	return outcomes
+}
+
+func applyUpdateOutcomes(log *logger.Logger, outcomes []modUpdateOutcome, cfg *models.ModsJSON, lock []models.ModInstall) (int, int) {
+	updatedCount := 0
+	failedCount := 0
 
 	for _, outcome := range outcomes {
 		for _, event := range outcome.LogEvents {
 			switch event.Kind {
 			case logEventKindLog:
-				deps.logger.Log(event.Message, event.ForceShow)
+				log.Log(event.Message, event.ForceShow)
 			case logEventKindError:
-				deps.logger.Error(event.Message)
+				log.Error(event.Message)
 			case logEventKindDebug:
-				deps.logger.Debug(event.Message)
+				log.Debug(event.Message)
 			}
 		}
 
@@ -244,22 +287,7 @@ func runUpdate(ctx context.Context, cmd *cobra.Command, opts updateOptions, deps
 		}
 	}
 
-	if updatedCount == 0 && failedCount == 0 {
-		deps.logger.Log(messageWithIcon(tui.SuccessIcon(colorize), i18n.T("cmd.update.no_updates")), true)
-	}
-
-	if err := config.WriteLock(ctx, deps.fs, meta, lock); err != nil {
-		return updatedCount, failedCount, err
-	}
-	if err := config.WriteConfig(ctx, deps.fs, meta, cfg); err != nil {
-		return updatedCount, failedCount, err
-	}
-
-	if failedCount > 0 {
-		return updatedCount, failedCount, errUpdateFailures
-	}
-
-	return updatedCount, failedCount, nil
+	return updatedCount, failedCount
 }
 
 var errUpdateFailures = errors.New("one or more mods failed to update")
@@ -474,53 +502,22 @@ func downloadAndSwap(ctx context.Context, deps updateDeps, oldPath string, newPa
 		return err
 	}
 
-	tempFile, err := afero.TempFile(deps.fs, filepath.Dir(resolvedNewPath), filepath.Base(resolvedNewPath)+".mmm.*.tmp")
+	tempPath, err := createTempDownloadPath(deps.fs, resolvedNewPath)
 	if err != nil {
 		return err
-	}
-	tempPath := tempFile.Name()
-	closeErr := tempFile.Close()
-	if closeErr != nil {
-		removeErr := deps.fs.Remove(tempPath)
-		if removeErr != nil && !errors.Is(removeErr, os.ErrNotExist) {
-			return errors.Join(closeErr, fmt.Errorf("failed to remove temp file %s: %w", tempPath, removeErr))
-		}
-		return closeErr
 	}
 
 	downloadErr := deps.downloader(ctx, downloadURL, tempPath, downloadClient(deps.clients), &noopSender{}, deps.fs)
 	if downloadErr != nil {
-		removeErr := deps.fs.Remove(tempPath)
-		if removeErr != nil && !errors.Is(removeErr, os.ErrNotExist) {
-			return errors.Join(downloadErr, fmt.Errorf("failed to remove temp file %s: %w", tempPath, removeErr))
-		}
-		return downloadErr
+		return removeTempFile(deps.fs, tempPath, downloadErr)
 	}
 
-	actualHash, err := sha1ForFile(deps.fs, tempPath)
-	if err != nil {
-		removeErr := deps.fs.Remove(tempPath)
-		if removeErr != nil && !errors.Is(removeErr, os.ErrNotExist) {
-			return errors.Join(err, fmt.Errorf("failed to remove temp file %s: %w", tempPath, removeErr))
-		}
-		return err
-	}
-
-	if !strings.EqualFold(strings.TrimSpace(expectedHash), actualHash) {
-		removeErr := deps.fs.Remove(tempPath)
-		hashErr := modinstall.HashMismatchError{FileName: filepath.Base(newPath), Expected: expectedHash, Actual: actualHash}
-		if removeErr != nil && !errors.Is(removeErr, os.ErrNotExist) {
-			return errors.Join(hashErr, fmt.Errorf("failed to remove temp file %s: %w", tempPath, removeErr))
-		}
-		return hashErr
+	if err := verifyDownloadedHash(deps.fs, tempPath, expectedHash, newPath); err != nil {
+		return removeTempFile(deps.fs, tempPath, err)
 	}
 
 	if err := replaceExistingFile(deps.fs, deps.logger, tempPath, resolvedNewPath); err != nil {
-		removeErr := deps.fs.Remove(tempPath)
-		if removeErr != nil && !errors.Is(removeErr, os.ErrNotExist) {
-			return errors.Join(err, fmt.Errorf("failed to remove temp file %s: %w", tempPath, removeErr))
-		}
-		return err
+		return removeTempFile(deps.fs, tempPath, err)
 	}
 
 	if filepath.Clean(oldPath) == filepath.Clean(newPath) {
@@ -535,6 +532,37 @@ func downloadAndSwap(ctx context.Context, deps updateDeps, oldPath string, newPa
 		return err
 	}
 
+	return nil
+}
+
+func createTempDownloadPath(fs afero.Fs, resolvedNewPath string) (string, error) {
+	tempFile, err := afero.TempFile(fs, filepath.Dir(resolvedNewPath), filepath.Base(resolvedNewPath)+".mmm.*.tmp")
+	if err != nil {
+		return "", err
+	}
+	tempPath := tempFile.Name()
+	if err := tempFile.Close(); err != nil {
+		return "", removeTempFile(fs, tempPath, err)
+	}
+	return tempPath, nil
+}
+
+func removeTempFile(fs afero.Fs, tempPath string, err error) error {
+	removeErr := fs.Remove(tempPath)
+	if removeErr != nil && !errors.Is(removeErr, os.ErrNotExist) {
+		return errors.Join(err, fmt.Errorf("failed to remove temp file %s: %w", tempPath, removeErr))
+	}
+	return err
+}
+
+func verifyDownloadedHash(fs afero.Fs, tempPath string, expectedHash string, newPath string) error {
+	actualHash, err := sha1ForFile(fs, tempPath)
+	if err != nil {
+		return err
+	}
+	if !strings.EqualFold(strings.TrimSpace(expectedHash), actualHash) {
+		return modinstall.HashMismatchError{FileName: filepath.Base(newPath), Expected: expectedHash, Actual: actualHash}
+	}
 	return nil
 }
 

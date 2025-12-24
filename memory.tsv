@@ -560,3 +560,13 @@ date	time	entry
 2025-12-24	20:44	mmm-97 in progress: refactored small production funcs to reduce revive length/complexity (packaging writeZip helpers, platform buildCurseforgeRemoteMod, httpclient doWithRetries, modinstall ensureDownload, modrinth buildVersionListURL, list appendListEntry, init viewSections, main parsePerfExportArgs). Ran go test per package before/after each change.
 2025-12-24	20:51	mmm-97: added TestViewSectionsForState to cover init forState branches after Windows coverage failure; go test ./cmd/mmm/init before/after; pending Windows re-run of make coverage.
 2025-12-24	20:55	mmm-97: recorded Windows make build+coverage pass after forState test; local make fmt/test/coverage/build pass.
+2025-12-24	21:21	mmm-97: refactored cmd/mmm/add/add.go into smaller helpers (runAddCommand, resolveRemoteMod helpers, TUI fetch/run helpers, runAdd stage helpers, telemetry args), ran go test ./cmd/mmm/add before/after each change.
+2025-12-24	21:23	mmm-97: refactored cmd/mmm/install/install.go into smaller helpers (runInstallCommand/options/deps/telemetry, installConfiguredMods, installFromRemote helpers). Ran go test ./cmd/mmm/install before/after each change.
+2025-12-24	21:26	mmm-97: refactored cmd/mmm/scan/scan.go (runScanCommand/options/deps + runScan helpers for telemetry, prefer platform, unmanaged files, confirmPersist, persistScanMatches). Ran go test ./cmd/mmm/scan before/after.
+2025-12-24	21:29	mmm-97: refactored cmd/mmm/scan/scan.go lookupModrinth/lookupCurseforge into smaller helpers (cached titles, result splitting, fingerprint indexing). Ran go test ./cmd/mmm/scan before/after.
+2025-12-24	21:32	mmm-97: refactored cmd/mmm/update/update.go (runUpdateCommand/options/deps/telemetry, updateCandidates/processCandidates/applyUpdateOutcomes, downloadAndSwap helpers). Ran go test ./cmd/mmm/update before/after.
+2025-12-24	21:33	mmm-97: refactored tools/coverage/coverage.go run() into helpers (coveragePaths/cleanupCoverageProfile/writeCoverageOutput/reportCoverage/writeCoverageLines). Ran go test ./tools/coverage before/after.
+2025-12-24	21:36	mmm-97: added TestCachedCurseforgeProjectNameCaches to cover scan cache helper; make fmt and make coverage now pass.
+2025-12-24	21:37	mmm-97 batch: make fmt/test/coverage/build pass locally; Windows coverage/build still pending for this batch.
+2025-12-24	21:42	mmm-97: restored add/scan telemetry behavior for prepare/all-managed paths; ran go test ./cmd/mmm/add and ./cmd/mmm/scan before/after.
+2025-12-24	21:44	mmm-97: fixed telemetry behavior per review; make fmt/test/coverage/build pass locally.
