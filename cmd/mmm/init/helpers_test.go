@@ -4,7 +4,6 @@ import (
 	"bytes"
 	"context"
 	"errors"
-	"fmt"
 	"io"
 	"net/http"
 	"os"
@@ -200,7 +199,7 @@ func TestInitWithDepsLatestVersionError(t *testing.T) {
 	}, initDeps{
 		fs: fs,
 		minecraftClient: doerFunc(func(_ *http.Request) (*http.Response, error) {
-			return nil, fmt.Errorf("offline")
+			return nil, errors.New("offline")
 		}),
 	})
 	assert.ErrorContains(t, err, "could not determine latest minecraft version")

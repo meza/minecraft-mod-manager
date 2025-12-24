@@ -194,7 +194,7 @@ func findRepoRoot(startDir string) (string, error) {
 		}
 		parent := filepath.Dir(current)
 		if parent == current {
-			return "", fmt.Errorf("error: failed to locate repo root (missing go.mod); run from repo root")
+			return "", errors.New("error: failed to locate repo root (missing go.mod); run from repo root")
 		}
 		current = parent
 	}

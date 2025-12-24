@@ -4,7 +4,6 @@ import (
 	"bytes"
 	"context"
 	"errors"
-	"fmt"
 	"io"
 	"net/http"
 	"path/filepath"
@@ -622,7 +621,7 @@ func TestGameVersionModelAllowsOfflineEntry(t *testing.T) {
 	minecraft.ClearManifestCache()
 
 	offlineDoer := doerFunc(func(_ *http.Request) (*http.Response, error) {
-		return nil, fmt.Errorf("offline")
+		return nil, errors.New("offline")
 	})
 
 	model := NewGameVersionModel(context.Background(), offlineDoer, "")
@@ -777,7 +776,7 @@ func TestNormalizeGameVersion(t *testing.T) {
 			GameVersion: "latest",
 			Provided:    providedFlags{GameVersion: false},
 		}, initDeps{minecraftClient: doerFunc(func(_ *http.Request) (*http.Response, error) {
-			return nil, fmt.Errorf("offline")
+			return nil, errors.New("offline")
 		})}, true)
 		assert.NoError(t, err)
 		assert.Equal(t, "", opts.GameVersion)
@@ -789,7 +788,7 @@ func TestNormalizeGameVersion(t *testing.T) {
 			GameVersion: "latest",
 			Provided:    providedFlags{GameVersion: true},
 		}, initDeps{minecraftClient: doerFunc(func(_ *http.Request) (*http.Response, error) {
-			return nil, fmt.Errorf("offline")
+			return nil, errors.New("offline")
 		})}, true)
 		assert.Error(t, err)
 	})

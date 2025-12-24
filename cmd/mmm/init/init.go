@@ -3,6 +3,7 @@ package init
 import (
 	"bufio"
 	"context"
+	"errors"
 	"fmt"
 	"io"
 	"net/http"
@@ -153,7 +154,7 @@ func (prompter terminalPrompter) RequestNewConfigPath(configPath string) (string
 
 	answer = strings.TrimSpace(answer)
 	if answer == "" {
-		return "", fmt.Errorf("config path cannot be empty")
+		return "", errors.New("config path cannot be empty")
 	}
 	return answer, nil
 }
@@ -266,7 +267,7 @@ func finalizeInteractiveResult(result tea.Model) (initOptions, error) {
 	case CommandModel:
 		finalModel = typed
 	default:
-		return initOptions{}, fmt.Errorf("interactive init failed")
+		return initOptions{}, errors.New("interactive init failed")
 	}
 
 	if finalModel.err != nil {
@@ -274,7 +275,7 @@ func finalizeInteractiveResult(result tea.Model) (initOptions, error) {
 	}
 
 	if finalModel.state != done {
-		return initOptions{}, fmt.Errorf("init canceled")
+		return initOptions{}, errors.New("init canceled")
 	}
 
 	return finalModel.result, nil
@@ -304,7 +305,7 @@ func normalizeGameVersion(ctx context.Context, options initOptions, deps initDep
 func validateModsFolder(fs afero.Fs, meta config.Metadata, modsFolder string) error {
 	modsFolder = strings.TrimSpace(modsFolder)
 	if modsFolder == "" {
-		return fmt.Errorf("mods folder cannot be empty")
+		return errors.New("mods folder cannot be empty")
 	}
 
 	modsFolderConfig := models.ModsJSON{ModsFolder: modsFolder}
@@ -482,7 +483,7 @@ func defaultInitDeps(cmd *cobra.Command, log *logger.Logger) initDeps {
 
 func requireLoader(options initOptions) error {
 	if options.Loader == "" {
-		return fmt.Errorf("init requires flag: -l/--loader")
+		return errors.New("init requires flag: -l/--loader")
 	}
 	return nil
 }
@@ -494,7 +495,7 @@ func resolveLatestGameVersion(ctx context.Context, options initOptions, deps ini
 
 	latest, err := minecraft.GetLatestVersion(ctx, deps.minecraftClient)
 	if err != nil {
-		return options, fmt.Errorf("could not determine latest minecraft version; provide -g/--game-version")
+		return options, errors.New("could not determine latest minecraft version; provide -g/--game-version")
 	}
 	options.GameVersion = latest
 	return options, nil
@@ -576,7 +577,7 @@ func parseReleaseTypes(raw []string) ([]models.ReleaseType, error) {
 	}
 
 	if len(releaseTypes) == 0 {
-		return nil, fmt.Errorf("release types cannot be empty")
+		return nil, errors.New("release types cannot be empty")
 	}
 
 	return releaseTypes, nil

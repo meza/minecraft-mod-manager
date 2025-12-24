@@ -2,6 +2,7 @@
 package testutil
 
 import (
+	"errors"
 	"fmt"
 	"net/http"
 	"net/url"
@@ -16,7 +17,7 @@ type HostRewriteDoer struct {
 
 func NewHostRewriteDoer(serverURL string, next httpclient.Doer) (*HostRewriteDoer, error) {
 	if next == nil {
-		return nil, fmt.Errorf("next doer is nil")
+		return nil, errors.New("next doer is nil")
 	}
 
 	base, err := url.Parse(serverURL)
@@ -24,7 +25,7 @@ func NewHostRewriteDoer(serverURL string, next httpclient.Doer) (*HostRewriteDoe
 		return nil, fmt.Errorf("parse server url: %w", err)
 	}
 	if base.Scheme == "" || base.Host == "" {
-		return nil, fmt.Errorf("server url must include scheme and host")
+		return nil, errors.New("server url must include scheme and host")
 	}
 
 	return &HostRewriteDoer{

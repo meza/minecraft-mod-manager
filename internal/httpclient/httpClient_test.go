@@ -285,7 +285,7 @@ func TestRLHTTPClient_DoWithHTTPClientError(t *testing.T) {
 	}
 	client.client = &http.Client{
 		Transport: roundTripFunc(func(req *http.Request) (*http.Response, error) {
-			return nil, fmt.Errorf("round trip error")
+			return nil, errors.New("round trip error")
 		}),
 	}
 

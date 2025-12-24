@@ -5,7 +5,7 @@ import "testing"
 func TestNewVersionHashLookup(t *testing.T) {
 	lookup := NewVersionHashLookup("abc", SHA1)
 	if lookup == nil {
-		t.Fatalf("expected lookup")
+		t.Fatal("expected lookup")
 	}
 	if lookup.hash != "abc" {
 		t.Fatalf("expected hash abc, got %q", lookup.hash)

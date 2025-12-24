@@ -4,6 +4,7 @@ package platform
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"net/http"
 	"sort"
@@ -188,10 +189,10 @@ func getCurseforgeHash(hashes []curseforge.FileHash, algorithm curseforge.FileHa
 	for _, hash := range hashes {
 		if hash.Algorithm == algorithm {
 			if hash.Hash == "" {
-				return "", fmt.Errorf("empty hash")
+				return "", errors.New("empty hash")
 			}
 			return hash.Hash, nil
 		}
 	}
-	return "", fmt.Errorf("hash not found")
+	return "", errors.New("hash not found")
 }

@@ -16,13 +16,13 @@ import (
 
 func TestNormalizeVersionDefaultsToDev(t *testing.T) {
 	if normalizeVersion("") != "dev" {
-		t.Fatalf("expected dev for empty version")
+		t.Fatal("expected dev for empty version")
 	}
 	if normalizeVersion("   ") != "dev" {
-		t.Fatalf("expected dev for whitespace version")
+		t.Fatal("expected dev for whitespace version")
 	}
 	if normalizeVersion("1.2.3") != "1.2.3" {
-		t.Fatalf("expected version to remain unchanged")
+		t.Fatal("expected version to remain unchanged")
 	}
 }
 
@@ -32,7 +32,7 @@ func TestNormalizeVersionStripsPathSeparators(t *testing.T) {
 		t.Fatalf("expected sanitized version, got %q", version)
 	}
 	if version == "dev" {
-		t.Fatalf("expected non-dev version after sanitizing")
+		t.Fatal("expected non-dev version after sanitizing")
 	}
 }
 

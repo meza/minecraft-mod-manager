@@ -1,6 +1,7 @@
 package init
 
 import (
+	"errors"
 	"fmt"
 	"path/filepath"
 	"strings"
@@ -131,7 +132,7 @@ func (model ModsFolderModel) handleEnterKey() (ModsFolderModel, tea.Cmd, bool) {
 		value = strings.TrimSpace(model.input.Placeholder)
 	}
 	if value == "" {
-		model.error = fmt.Errorf("mods folder cannot be empty")
+		model.error = errors.New("mods folder cannot be empty")
 		return model, nil, true
 	}
 
