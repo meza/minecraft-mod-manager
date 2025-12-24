@@ -570,3 +570,8 @@ date	time	entry
 2025-12-24	21:37	mmm-97 batch: make fmt/test/coverage/build pass locally; Windows coverage/build still pending for this batch.
 2025-12-24	21:42	mmm-97: restored add/scan telemetry behavior for prepare/all-managed paths; ran go test ./cmd/mmm/add and ./cmd/mmm/scan before/after.
 2025-12-24	21:44	mmm-97: fixed telemetry behavior per review; make fmt/test/coverage/build pass locally.
+2025-12-24	22:00	mmm-97: refactored internal/curseforge/files.go with buildPaginatedFilesRequest + decodeFilesResponse helpers; go test ./internal/curseforge before/after.
+2025-12-24	22:01	mmm-97: refactored internal/httpclient/downloader.go into helper functions; ran go test ./internal/httpclient before/after.
+2025-12-24	22:02	mmm-97: refactored cmd/mmm/remove/remove.go into command/options/deps/telemetry helpers and removeMatchedMods; go test ./cmd/mmm/remove before/after.
+2025-12-24	22:04	mmm-97: refactored cmd/mmm/test/test.go into command/options/deps/telemetry helpers; go test ./cmd/mmm/test before/after.
+2025-12-24	22:17	mmm-97: reviewer approved batch (curseforge/httpclient/remove/test refactors); ran make test/coverage/build with outputs saved to /tmp; Windows build/coverage still pending for this batch.

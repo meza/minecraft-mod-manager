@@ -39,79 +39,92 @@ func Command() *cobra.Command {
 		Use:   "remove <mods...>",
 		Short: i18n.T("cmd.remove.short"),
 		Args:  cobra.MinimumNArgs(1),
-		RunE: func(cmd *cobra.Command, args []string) (err error) {
-			ctx, span := perf.StartSpan(cmd.Context(), "app.command.remove")
-
-			configPath, err := cmd.Flags().GetString("config")
-			if err != nil {
-				span.SetAttributes(attribute.Bool("success", false))
-				span.End()
-				return err
-			}
-			quiet, err := cmd.Flags().GetBool("quiet")
-			if err != nil {
-				span.SetAttributes(attribute.Bool("success", false))
-				span.End()
-				return err
-			}
-			debug, err := cmd.Flags().GetBool("debug")
-			if err != nil {
-				span.SetAttributes(attribute.Bool("success", false))
-				span.End()
-				return err
-			}
-			dryRun, err := cmd.Flags().GetBool("dry-run")
-			if err != nil {
-				span.SetAttributes(attribute.Bool("success", false))
-				span.End()
-				return err
-			}
-
-			log := logger.New(cmd.OutOrStdout(), cmd.ErrOrStderr(), quiet, debug)
-
-			deps := removeDeps{
-				fs:        afero.NewOsFs(),
-				logger:    log,
-				telemetry: telemetry.RecordCommand,
-			}
-
-			removedCount, err := runRemove(ctx, removeOptions{
-				ConfigPath: configPath,
-				Quiet:      quiet,
-				Debug:      debug,
-				DryRun:     dryRun,
-				Lookups:    args,
-			}, deps)
-			span.SetAttributes(attribute.Bool("success", err == nil))
-			span.End()
-
-			payload := telemetry.CommandTelemetry{
-				Command:     "remove",
-				Success:     err == nil,
-				Error:       err,
-				ExitCode:    0,
-				Interactive: false,
-				Arguments: map[string]interface{}{
-					"dryRun": dryRun,
-					"mods":   args,
-				},
-			}
-			if err != nil {
-				payload.ExitCode = 1
-			} else {
-				payload.Extra = map[string]interface{}{
-					"numberOfMods": removedCount,
-				}
-			}
-			deps.telemetry(payload)
-
-			return err
+		RunE: func(cmd *cobra.Command, args []string) error {
+			return runRemoveCommand(cmd, args)
 		},
 	}
 
 	cmd.Flags().BoolP("dry-run", "n", false, i18n.T("cmd.remove.flag.dry_run"))
 
 	return cmd
+}
+
+func runRemoveCommand(cmd *cobra.Command, args []string) error {
+	ctx, span := perf.StartSpan(cmd.Context(), "app.command.remove")
+
+	opts, err := removeOptionsFromFlags(cmd, args)
+	if err != nil {
+		span.SetAttributes(attribute.Bool("success", false))
+		span.End()
+		return err
+	}
+
+	log := logger.New(cmd.OutOrStdout(), cmd.ErrOrStderr(), opts.Quiet, opts.Debug)
+	deps := defaultRemoveDeps(log)
+
+	removedCount, err := runRemove(ctx, opts, deps)
+	span.SetAttributes(attribute.Bool("success", err == nil))
+	span.End()
+
+	recordRemoveTelemetry(deps.telemetry, opts, removedCount, err)
+	return err
+}
+
+func removeOptionsFromFlags(cmd *cobra.Command, args []string) (removeOptions, error) {
+	configPath, err := cmd.Flags().GetString("config")
+	if err != nil {
+		return removeOptions{}, err
+	}
+	quiet, err := cmd.Flags().GetBool("quiet")
+	if err != nil {
+		return removeOptions{}, err
+	}
+	debug, err := cmd.Flags().GetBool("debug")
+	if err != nil {
+		return removeOptions{}, err
+	}
+	dryRun, err := cmd.Flags().GetBool("dry-run")
+	if err != nil {
+		return removeOptions{}, err
+	}
+
+	return removeOptions{
+		ConfigPath: configPath,
+		Quiet:      quiet,
+		Debug:      debug,
+		DryRun:     dryRun,
+		Lookups:    args,
+	}, nil
+}
+
+func defaultRemoveDeps(log *logger.Logger) removeDeps {
+	return removeDeps{
+		fs:        afero.NewOsFs(),
+		logger:    log,
+		telemetry: telemetry.RecordCommand,
+	}
+}
+
+func recordRemoveTelemetry(telemetryRecorder func(telemetry.CommandTelemetry), opts removeOptions, removedCount int, err error) {
+	payload := telemetry.CommandTelemetry{
+		Command:     "remove",
+		Success:     err == nil,
+		Error:       err,
+		ExitCode:    0,
+		Interactive: false,
+		Arguments: map[string]interface{}{
+			"dryRun": opts.DryRun,
+			"mods":   opts.Lookups,
+		},
+	}
+	if err != nil {
+		payload.ExitCode = 1
+	} else {
+		payload.Extra = map[string]interface{}{
+			"numberOfMods": removedCount,
+		}
+	}
+	telemetryRecorder(payload)
 }
 
 func runRemove(ctx context.Context, opts removeOptions, deps removeDeps) (int, error) {
@@ -136,9 +149,13 @@ func runRemove(ctx context.Context, opts removeOptions, deps removeDeps) (int, e
 		deps.logger.Log("Running in dry-run mode. Nothing will actually be removed.", false)
 	}
 
+	return removeMatchedMods(ctx, meta, &cfg, &lock, matches, opts, deps)
+}
+
+func removeMatchedMods(ctx context.Context, meta config.Metadata, cfg *models.ModsJSON, lock *[]models.ModInstall, matches []models.Mod, opts removeOptions, deps removeDeps) (int, error) {
 	removedCount := 0
 	for _, mod := range matches {
-		removed, err := removeMod(ctx, meta, &cfg, &lock, mod, opts, deps)
+		removed, err := removeMod(ctx, meta, cfg, lock, mod, opts, deps)
 		if err != nil {
 			return removedCount, err
 		}

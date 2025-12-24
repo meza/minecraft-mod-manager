@@ -82,88 +82,108 @@ func commandWithRunner(runner testRunner) *cobra.Command {
 		Aliases: []string{"t"},
 		Short:   i18n.T("cmd.test.short"),
 		Args:    cobra.MaximumNArgs(1),
-		RunE: func(cmd *cobra.Command, args []string) (err error) {
-			ctx, span := perf.StartSpan(cmd.Context(), "app.command.test")
-
-			configPath, err := cmd.Flags().GetString("config")
-			if err != nil {
-				span.SetAttributes(attribute.Bool("success", false))
-				span.End()
-				return err
-			}
-			quiet, err := cmd.Flags().GetBool("quiet")
-			if err != nil {
-				span.SetAttributes(attribute.Bool("success", false))
-				span.End()
-				return err
-			}
-			debug, err := cmd.Flags().GetBool("debug")
-			if err != nil {
-				span.SetAttributes(attribute.Bool("success", false))
-				span.End()
-				return err
-			}
-
-			gameVersion := "latest"
-			if len(args) > 0 {
-				gameVersion = args[0]
-			}
-
-			log := logger.New(cmd.OutOrStdout(), cmd.ErrOrStderr(), quiet, debug)
-			limiter := rate.NewLimiter(rate.Inf, 0)
-
-			deps := testDeps{
-				fs:             afero.NewOsFs(),
-				logger:         log,
-				clients:        platform.DefaultClients(limiter),
-				fetchMod:       platform.FetchMod,
-				latestVersion:  minecraft.GetLatestVersion,
-				isValidVersion: minecraft.IsValidVersion,
-				telemetry:      telemetry.RecordCommand,
-			}
-
-			exitCode, err := runner(ctx, cmd, testOptions{
-				ConfigPath:  configPath,
-				GameVersion: gameVersion,
-				Quiet:       quiet,
-				Debug:       debug,
-			}, deps)
-
-			span.SetAttributes(attribute.Bool("success", err == nil))
-			span.End()
-
-			if err != nil {
-				cmd.SilenceUsage = true
-				// Suppress cobra's error printing for errors that we have already
-				// logged or that should not produce additional output.
-				var exitErr *exitCodeError
-				if errors.As(err, &exitErr) {
-					// Exit code errors (like same-version) are already logged; suppress cobra output
-					cmd.SilenceErrors = true
-				} else if errors.Is(err, errLatestVersionRequired) || errors.Is(err, errInvalidVersion) {
-					// These errors are already logged via deps.logger.Error(); suppress cobra output
-					cmd.SilenceErrors = true
-				}
-			}
-
-			payload := telemetry.CommandTelemetry{
-				Command:     "test",
-				Success:     err == nil && exitCode == 0,
-				Error:       err,
-				ExitCode:    exitCode,
-				Interactive: false,
-				Extra: map[string]interface{}{
-					"targetVersion": gameVersion,
-					"exitCode":      exitCode,
-				},
-			}
-			deps.telemetry(payload)
-
-			return err
+		RunE: func(cmd *cobra.Command, args []string) error {
+			return runTestCommand(cmd, args, runner)
 		},
 	}
 
 	return cmd
+}
+
+func runTestCommand(cmd *cobra.Command, args []string, runner testRunner) error {
+	ctx, span := perf.StartSpan(cmd.Context(), "app.command.test")
+
+	opts, err := testOptionsFromFlags(cmd, args)
+	if err != nil {
+		span.SetAttributes(attribute.Bool("success", false))
+		span.End()
+		return err
+	}
+
+	log := logger.New(cmd.OutOrStdout(), cmd.ErrOrStderr(), opts.Quiet, opts.Debug)
+	deps := defaultTestDeps(log)
+
+	exitCode, err := runner(ctx, cmd, opts, deps)
+	span.SetAttributes(attribute.Bool("success", err == nil))
+	span.End()
+
+	handleTestCommandError(cmd, err)
+	recordTestTelemetry(deps.telemetry, opts.GameVersion, exitCode, err)
+	return err
+}
+
+func testOptionsFromFlags(cmd *cobra.Command, args []string) (testOptions, error) {
+	configPath, err := cmd.Flags().GetString("config")
+	if err != nil {
+		return testOptions{}, err
+	}
+	quiet, err := cmd.Flags().GetBool("quiet")
+	if err != nil {
+		return testOptions{}, err
+	}
+	debug, err := cmd.Flags().GetBool("debug")
+	if err != nil {
+		return testOptions{}, err
+	}
+
+	return testOptions{
+		ConfigPath:  configPath,
+		GameVersion: resolveGameVersion(args),
+		Quiet:       quiet,
+		Debug:       debug,
+	}, nil
+}
+
+func resolveGameVersion(args []string) string {
+	if len(args) > 0 {
+		return args[0]
+	}
+	return "latest"
+}
+
+func defaultTestDeps(log *logger.Logger) testDeps {
+	limiter := rate.NewLimiter(rate.Inf, 0)
+	return testDeps{
+		fs:             afero.NewOsFs(),
+		logger:         log,
+		clients:        platform.DefaultClients(limiter),
+		fetchMod:       platform.FetchMod,
+		latestVersion:  minecraft.GetLatestVersion,
+		isValidVersion: minecraft.IsValidVersion,
+		telemetry:      telemetry.RecordCommand,
+	}
+}
+
+func handleTestCommandError(cmd *cobra.Command, err error) {
+	if err == nil {
+		return
+	}
+	cmd.SilenceUsage = true
+	// Suppress cobra's error printing for errors that we have already
+	// logged or that should not produce additional output.
+	var exitErr *exitCodeError
+	if errors.As(err, &exitErr) {
+		// Exit code errors (like same-version) are already logged; suppress cobra output
+		cmd.SilenceErrors = true
+	} else if errors.Is(err, errLatestVersionRequired) || errors.Is(err, errInvalidVersion) {
+		// These errors are already logged via deps.logger.Error(); suppress cobra output
+		cmd.SilenceErrors = true
+	}
+}
+
+func recordTestTelemetry(telemetryRecorder func(telemetry.CommandTelemetry), gameVersion string, exitCode int, err error) {
+	payload := telemetry.CommandTelemetry{
+		Command:     "test",
+		Success:     err == nil && exitCode == 0,
+		Error:       err,
+		ExitCode:    exitCode,
+		Interactive: false,
+		Extra: map[string]interface{}{
+			"targetVersion": gameVersion,
+			"exitCode":      exitCode,
+		},
+	}
+	telemetryRecorder(payload)
 }
 
 type modCheckCandidate struct {

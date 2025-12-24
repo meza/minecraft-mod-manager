@@ -54,13 +54,11 @@ func getPaginatedFilesForProject(ctx context.Context, projectID int, client http
 	)
 	defer span.End()
 
-	url := fmt.Sprintf("%s/mods/%d/files?index=%d", GetBaseURL(), projectID, cursor)
-	timeoutCtx, cancel := httpclient.WithMetadataTimeout(ctx)
-	defer cancel()
-	request, err := newRequestWithContext(timeoutCtx, http.MethodGet, url, nil)
+	request, cancel, err := buildPaginatedFilesRequest(ctx, projectID, cursor)
 	if err != nil {
 		return nil, err
 	}
+	defer cancel()
 
 	response, err := client.Do(request)
 	if err != nil {
@@ -86,12 +84,30 @@ func getPaginatedFilesForProject(ctx context.Context, projectID int, client http
 		return nil, globalerrors.ProjectAPIErrorWrap(errors.Errorf("unexpected status code: %d", response.StatusCode), strconv.Itoa(projectID), models.CURSEFORGE)
 	}
 
-	var decodedFilesResponse getFilesResponse
-	err = json.NewDecoder(response.Body).Decode(&decodedFilesResponse)
+	decodedFilesResponse, err := decodeFilesResponse(response)
 	if err != nil {
 		return nil, globalerrors.ProjectAPIErrorWrap(errors.Wrap(err, "failed to decode response body"), strconv.Itoa(projectID), models.CURSEFORGE)
 	}
 
+	return decodedFilesResponse, nil
+}
+
+func buildPaginatedFilesRequest(ctx context.Context, projectID int, cursor int) (*http.Request, func(), error) {
+	url := fmt.Sprintf("%s/mods/%d/files?index=%d", GetBaseURL(), projectID, cursor)
+	timeoutCtx, cancel := httpclient.WithMetadataTimeout(ctx)
+	request, err := newRequestWithContext(timeoutCtx, http.MethodGet, url, nil)
+	if err != nil {
+		cancel()
+		return nil, func() {}, err
+	}
+	return request, cancel, nil
+}
+
+func decodeFilesResponse(response *http.Response) (*getFilesResponse, error) {
+	var decodedFilesResponse getFilesResponse
+	if err := json.NewDecoder(response.Body).Decode(&decodedFilesResponse); err != nil {
+		return nil, err
+	}
 	return &decodedFilesResponse, nil
 }
 
