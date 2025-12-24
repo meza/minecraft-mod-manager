@@ -135,18 +135,18 @@ type Span struct {
 	span oteltrace.Span
 }
 
-func (s *Span) End() {
-	if s == nil || s.span == nil {
+func (perfSpan *Span) End() {
+	if perfSpan == nil || perfSpan.span == nil {
 		return
 	}
-	s.span.End()
+	perfSpan.span.End()
 }
 
-func (s *Span) SetAttributes(attrs ...attribute.KeyValue) {
-	if s == nil || s.span == nil {
+func (perfSpan *Span) SetAttributes(attrs ...attribute.KeyValue) {
+	if perfSpan == nil || perfSpan.span == nil {
 		return
 	}
-	s.span.SetAttributes(attrs...)
+	perfSpan.span.SetAttributes(attrs...)
 }
 
 type EventOption func(*eventOptions)
@@ -161,8 +161,8 @@ func WithEventAttributes(attrs ...attribute.KeyValue) EventOption {
 	}
 }
 
-func (s *Span) AddEvent(name string, opts ...EventOption) {
-	if s == nil || s.span == nil {
+func (perfSpan *Span) AddEvent(name string, opts ...EventOption) {
+	if perfSpan == nil || perfSpan.span == nil {
 		return
 	}
 
@@ -178,7 +178,7 @@ func (s *Span) AddEvent(name string, opts ...EventOption) {
 		eventOpts = append(eventOpts, oteltrace.WithAttributes(o.attributes...))
 	}
 
-	s.span.AddEvent(name, eventOpts...)
+	perfSpan.span.AddEvent(name, eventOpts...)
 }
 
 func SpanFromContext(ctx context.Context) *Span {

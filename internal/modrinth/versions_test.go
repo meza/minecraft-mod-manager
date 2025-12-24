@@ -24,8 +24,8 @@ type errorDoer struct {
 	err error
 }
 
-func (d errorDoer) Do(_ *http.Request) (*http.Response, error) {
-	return nil, d.err
+func (doer errorDoer) Do(_ *http.Request) (*http.Response, error) {
+	return nil, doer.err
 }
 
 func TestGetVersionsForProject_SingleVersion(t *testing.T) {

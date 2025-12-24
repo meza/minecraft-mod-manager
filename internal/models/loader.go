@@ -24,8 +24,8 @@ const (
 	WATERFALL  Loader = "waterfall"
 )
 
-func (l Loader) String() string {
-	return string(l)
+func (loader Loader) String() string {
+	return string(loader)
 }
 
 func AllLoaders() []Loader {

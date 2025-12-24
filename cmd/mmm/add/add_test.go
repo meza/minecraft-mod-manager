@@ -1233,10 +1233,10 @@ type manifestDoer struct {
 	body string
 }
 
-func (m manifestDoer) Do(_ *http.Request) (*http.Response, error) {
+func (doer manifestDoer) Do(_ *http.Request) (*http.Response, error) {
 	return &http.Response{
 		StatusCode: http.StatusOK,
-		Body:       io.NopCloser(strings.NewReader(m.body)),
+		Body:       io.NopCloser(strings.NewReader(doer.body)),
 		Header:     make(http.Header),
 	}, nil
 }
@@ -1329,11 +1329,11 @@ type renameFailFs struct {
 	failTargets map[string]struct{}
 }
 
-func (r renameFailFs) Rename(oldname, newname string) error {
-	if _, ok := r.failTargets[filepath.Clean(newname)]; ok {
+func (filesystem renameFailFs) Rename(oldname, newname string) error {
+	if _, ok := filesystem.failTargets[filepath.Clean(newname)]; ok {
 		return errors.New("rename failed")
 	}
-	return r.Fs.Rename(oldname, newname)
+	return filesystem.Fs.Rename(oldname, newname)
 }
 
 func TestRunAdd_ModNotFoundQuiet(t *testing.T) {

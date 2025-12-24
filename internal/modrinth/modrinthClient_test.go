@@ -16,8 +16,8 @@ type MockDoer struct {
 	mock.Mock
 }
 
-func (m *MockDoer) Do(req *http.Request) (*http.Response, error) {
-	args := m.Called(req)
+func (doer *MockDoer) Do(req *http.Request) (*http.Response, error) {
+	args := doer.Called(req)
 	return args.Get(0).(*http.Response), args.Error(1)
 }
 

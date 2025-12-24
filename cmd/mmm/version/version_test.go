@@ -11,8 +11,8 @@ type mockCommand struct {
 	mockPrintln func(args ...interface{})
 }
 
-func (m *mockCommand) Println(args ...interface{}) {
-	m.mockPrintln(args)
+func (command *mockCommand) Println(args ...interface{}) {
+	command.mockPrintln(args)
 }
 
 func TestVersion(t *testing.T) {

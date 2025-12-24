@@ -69,11 +69,11 @@ type terminalPrompter struct {
 	out io.Writer
 }
 
-func (p terminalPrompter) ConfirmAdd() (bool, error) {
-	if _, err := fmt.Fprintf(p.out, "%s (y/N): ", i18n.T("cmd.scan.confirm_add")); err != nil {
+func (prompter terminalPrompter) ConfirmAdd() (bool, error) {
+	if _, err := fmt.Fprintf(prompter.out, "%s (y/N): ", i18n.T("cmd.scan.confirm_add")); err != nil {
 		return false, err
 	}
-	answer, err := readLine(p.in)
+	answer, err := readLine(prompter.in)
 	if err != nil {
 		return false, err
 	}

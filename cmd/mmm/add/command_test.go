@@ -182,15 +182,15 @@ type runTeaModel struct {
 	ran *bool
 }
 
-func (m runTeaModel) Init() tea.Cmd {
+func (model runTeaModel) Init() tea.Cmd {
 	return func() tea.Msg { return "start" }
 }
 
-func (m runTeaModel) Update(tea.Msg) (tea.Model, tea.Cmd) {
-	if m.ran != nil {
-		*m.ran = true
+func (model runTeaModel) Update(tea.Msg) (tea.Model, tea.Cmd) {
+	if model.ran != nil {
+		*model.ran = true
 	}
-	return m, tea.Quit
+	return model, tea.Quit
 }
 
-func (m runTeaModel) View() string { return "" }
+func (model runTeaModel) View() string { return "" }

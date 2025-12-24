@@ -20,9 +20,9 @@ type statErrorFs struct {
 	err error
 }
 
-func (s statErrorFs) Stat(name string) (os.FileInfo, error) {
-	if s.err != nil {
-		return nil, s.err
+func (filesystem statErrorFs) Stat(name string) (os.FileInfo, error) {
+	if filesystem.err != nil {
+		return nil, filesystem.err
 	}
 	return nil, errors.New("stat failed")
 }

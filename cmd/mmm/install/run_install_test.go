@@ -586,11 +586,11 @@ type renameErrorFs struct {
 	err     error
 }
 
-func (r renameErrorFs) Rename(oldname, newname string) error {
-	if filepath.Clean(newname) == filepath.Clean(r.failNew) {
-		return r.err
+func (filesystem renameErrorFs) Rename(oldname, newname string) error {
+	if filepath.Clean(newname) == filepath.Clean(filesystem.failNew) {
+		return filesystem.err
 	}
-	return r.Fs.Rename(oldname, newname)
+	return filesystem.Fs.Rename(oldname, newname)
 }
 
 type mkdirErrorFs struct {
@@ -599,9 +599,9 @@ type mkdirErrorFs struct {
 	err      error
 }
 
-func (m mkdirErrorFs) MkdirAll(path string, perm os.FileMode) error {
-	if filepath.Clean(path) == filepath.Clean(m.failPath) {
-		return m.err
+func (filesystem mkdirErrorFs) MkdirAll(path string, perm os.FileMode) error {
+	if filepath.Clean(path) == filepath.Clean(filesystem.failPath) {
+		return filesystem.err
 	}
-	return m.Fs.MkdirAll(path, perm)
+	return filesystem.Fs.MkdirAll(path, perm)
 }

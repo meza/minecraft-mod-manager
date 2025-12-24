@@ -12,8 +12,8 @@ type recordingDoer struct {
 	lastRequest *http.Request
 }
 
-func (d *recordingDoer) Do(req *http.Request) (*http.Response, error) {
-	d.lastRequest = req
+func (doer *recordingDoer) Do(req *http.Request) (*http.Response, error) {
+	doer.lastRequest = req
 	return &http.Response{StatusCode: http.StatusOK, Body: http.NoBody}, nil
 }
 
@@ -21,8 +21,8 @@ type errorDoer struct {
 	err error
 }
 
-func (d errorDoer) Do(*http.Request) (*http.Response, error) {
-	return nil, d.err
+func (doer errorDoer) Do(*http.Request) (*http.Response, error) {
+	return nil, doer.err
 }
 
 func TestNewHostRewriteDoer(t *testing.T) {

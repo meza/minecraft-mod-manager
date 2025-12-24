@@ -26,8 +26,8 @@ type responseDoer struct {
 	err      error
 }
 
-func (d responseDoer) Do(_ *http.Request) (*http.Response, error) {
-	return d.response, d.err
+func (doer responseDoer) Do(_ *http.Request) (*http.Response, error) {
+	return doer.response, doer.err
 }
 
 type closeErrorBody struct {
@@ -42,13 +42,13 @@ func newCloseErrorBody(payload string, closeErr error) *closeErrorBody {
 	}
 }
 
-func (c *closeErrorBody) Read(p []byte) (int, error) {
-	return c.reader.Read(p)
+func (body *closeErrorBody) Read(p []byte) (int, error) {
+	return body.reader.Read(p)
 }
 
-func (c *closeErrorBody) Close() error {
-	if c.closeErr != nil {
-		return c.closeErr
+func (body *closeErrorBody) Close() error {
+	if body.closeErr != nil {
+		return body.closeErr
 	}
 	return nil
 }

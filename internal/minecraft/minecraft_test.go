@@ -15,8 +15,8 @@ import (
 
 type doerFunc func(*http.Request) (*http.Response, error)
 
-func (f doerFunc) Do(req *http.Request) (*http.Response, error) {
-	return f(req)
+func (doer doerFunc) Do(req *http.Request) (*http.Response, error) {
+	return doer(req)
 }
 
 type closeErrorBody struct {
@@ -31,13 +31,13 @@ func newCloseErrorBody(payload string, closeErr error) *closeErrorBody {
 	}
 }
 
-func (c *closeErrorBody) Read(p []byte) (int, error) {
-	return c.reader.Read(p)
+func (body *closeErrorBody) Read(p []byte) (int, error) {
+	return body.reader.Read(p)
 }
 
-func (c *closeErrorBody) Close() error {
-	if c.closeErr != nil {
-		return c.closeErr
+func (body *closeErrorBody) Close() error {
+	if body.closeErr != nil {
+		return body.closeErr
 	}
 	return nil
 }

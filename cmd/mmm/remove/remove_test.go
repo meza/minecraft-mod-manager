@@ -648,11 +648,11 @@ type statErrorFs struct {
 	err      error
 }
 
-func (s statErrorFs) Stat(name string) (os.FileInfo, error) {
-	if filepath.Clean(name) == filepath.Clean(s.failPath) {
-		return nil, s.err
+func (filesystem statErrorFs) Stat(name string) (os.FileInfo, error) {
+	if filepath.Clean(name) == filepath.Clean(filesystem.failPath) {
+		return nil, filesystem.err
 	}
-	return s.Fs.Stat(name)
+	return filesystem.Fs.Stat(name)
 }
 
 type removeErrorFs struct {
@@ -661,11 +661,11 @@ type removeErrorFs struct {
 	err      error
 }
 
-func (r removeErrorFs) Remove(name string) error {
-	if filepath.Clean(name) == filepath.Clean(r.failPath) {
-		return r.err
+func (filesystem removeErrorFs) Remove(name string) error {
+	if filepath.Clean(name) == filepath.Clean(filesystem.failPath) {
+		return filesystem.err
 	}
-	return r.Fs.Remove(name)
+	return filesystem.Fs.Remove(name)
 }
 
 type renameErrorFs struct {
@@ -674,9 +674,9 @@ type renameErrorFs struct {
 	err     error
 }
 
-func (r renameErrorFs) Rename(oldname, newname string) error {
-	if filepath.Clean(newname) == filepath.Clean(r.failNew) {
-		return r.err
+func (filesystem renameErrorFs) Rename(oldname, newname string) error {
+	if filepath.Clean(newname) == filepath.Clean(filesystem.failNew) {
+		return filesystem.err
 	}
-	return r.Fs.Rename(oldname, newname)
+	return filesystem.Fs.Rename(oldname, newname)
 }

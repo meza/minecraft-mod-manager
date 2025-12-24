@@ -834,28 +834,28 @@ type failingRenameFs struct {
 	failTarget string
 }
 
-func (f failingRenameFs) Rename(oldname, newname string) error {
-	if filepath.Clean(newname) == filepath.Clean(f.failTarget) {
+func (filesystem failingRenameFs) Rename(oldname, newname string) error {
+	if filepath.Clean(newname) == filepath.Clean(filesystem.failTarget) {
 		return errors.New("rename blocked")
 	}
-	return f.Fs.Rename(oldname, newname)
+	return filesystem.Fs.Rename(oldname, newname)
 }
 
 type manifestDoer struct {
 	body string
 }
 
-func (m manifestDoer) Do(_ *http.Request) (*http.Response, error) {
+func (doer manifestDoer) Do(_ *http.Request) (*http.Response, error) {
 	return &http.Response{
 		StatusCode: http.StatusOK,
-		Body:       io.NopCloser(strings.NewReader(m.body)),
+		Body:       io.NopCloser(strings.NewReader(doer.body)),
 		Header:     make(http.Header),
 	}, nil
 }
 
 type failingDoer struct{}
 
-func (f failingDoer) Do(*http.Request) (*http.Response, error) {
+func (doer failingDoer) Do(*http.Request) (*http.Response, error) {
 	return nil, errors.New("do failed")
 }
 

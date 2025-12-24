@@ -17,8 +17,8 @@ import (
 
 type doerFunc func(request *http.Request) (*http.Response, error)
 
-func (d doerFunc) Do(request *http.Request) (*http.Response, error) {
-	return d(request)
+func (doer doerFunc) Do(request *http.Request) (*http.Response, error) {
+	return doer(request)
 }
 
 func latestMinecraftVersionClient(version string) doerFunc {

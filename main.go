@@ -56,15 +56,15 @@ type exitCodeError struct {
 	message string
 }
 
-func (e *exitCodeError) Error() string {
-	if e.message != "" {
-		return e.message
+func (exitError *exitCodeError) Error() string {
+	if exitError.message != "" {
+		return exitError.message
 	}
-	return fmt.Sprintf("exit code %d", e.code)
+	return fmt.Sprintf("exit code %d", exitError.code)
 }
 
-func (e *exitCodeError) ExitCode() int {
-	return e.code
+func (exitError *exitCodeError) ExitCode() int {
+	return exitError.code
 }
 
 // exitCoder is an interface for errors that carry a specific exit code.

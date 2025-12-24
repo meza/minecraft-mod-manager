@@ -22,7 +22,7 @@ import (
 
 type noopDoer struct{}
 
-func (n noopDoer) Do(*http.Request) (*http.Response, error) {
+func (doer noopDoer) Do(*http.Request) (*http.Response, error) {
 	return &http.Response{
 		StatusCode: http.StatusOK,
 		Body:       http.NoBody,

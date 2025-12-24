@@ -11,16 +11,16 @@ type ProjectNotFoundError struct {
 	Platform  models.Platform
 }
 
-func (e *ProjectNotFoundError) Error() string {
-	return fmt.Sprintf("Project not found on %s: %s", e.Platform, e.ProjectID)
+func (projectError *ProjectNotFoundError) Error() string {
+	return fmt.Sprintf("Project not found on %s: %s", projectError.Platform, projectError.ProjectID)
 }
 
-func (e *ProjectNotFoundError) Is(target error) bool {
+func (projectError *ProjectNotFoundError) Is(target error) bool {
 	t, ok := target.(*ProjectNotFoundError)
 	if !ok {
 		return false
 	}
-	return e.ProjectID == t.ProjectID && e.Platform == t.Platform
+	return projectError.ProjectID == t.ProjectID && projectError.Platform == t.Platform
 }
 
 //
@@ -31,20 +31,20 @@ type ProjectAPIError struct {
 	Err       error
 }
 
-func (e *ProjectAPIError) Error() string {
-	return fmt.Sprintf("Project cannot be fetched due to an api error on %s: %s", e.Platform, e.ProjectID)
+func (apiError *ProjectAPIError) Error() string {
+	return fmt.Sprintf("Project cannot be fetched due to an api error on %s: %s", apiError.Platform, apiError.ProjectID)
 }
 
-func (e *ProjectAPIError) Is(target error) bool {
+func (apiError *ProjectAPIError) Is(target error) bool {
 	t, ok := target.(*ProjectAPIError)
 	if !ok {
 		return false
 	}
-	return e.ProjectID == t.ProjectID && e.Platform == t.Platform
+	return apiError.ProjectID == t.ProjectID && apiError.Platform == t.Platform
 }
 
-func (e *ProjectAPIError) Unwrap() error {
-	return e.Err
+func (apiError *ProjectAPIError) Unwrap() error {
+	return apiError.Err
 }
 
 func ProjectAPIErrorWrap(err error, projectID string, platform models.Platform) error {

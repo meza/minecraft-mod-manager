@@ -15,8 +15,8 @@ func (fakeFD) Fd() uintptr { return 1 }
 type fakeReader struct{ io.Reader }
 type fakeWriter struct{ io.Writer }
 
-func (f fakeReader) Fd() uintptr { return 1 }
-func (f fakeWriter) Fd() uintptr { return 1 }
+func (reader fakeReader) Fd() uintptr { return 1 }
+func (writer fakeWriter) Fd() uintptr { return 1 }
 
 func TestShouldUseTUIHonorsQuiet(t *testing.T) {
 	restore := mockTerminalDetection(t, true)

@@ -26,25 +26,25 @@ type stubClient struct {
 	closeCount int
 }
 
-func (s *stubClient) Enqueue(msg posthog.Message) error {
-	s.enqueued = append(s.enqueued, msg)
-	return s.enqueueErr
+func (client *stubClient) Enqueue(msg posthog.Message) error {
+	client.enqueued = append(client.enqueued, msg)
+	return client.enqueueErr
 }
 
-func (s *stubClient) Close() error {
-	s.closeCount++
-	if s.closeDelay > 0 {
-		time.Sleep(s.closeDelay)
+func (client *stubClient) Close() error {
+	client.closeCount++
+	if client.closeDelay > 0 {
+		time.Sleep(client.closeDelay)
 	}
-	return s.closeErr
+	return client.closeErr
 }
 
 type recordingLogger struct {
 	messages []string
 }
 
-func (l *recordingLogger) Debugf(format string, args ...interface{}) {
-	l.messages = append(l.messages, fmt.Sprintf(format, args...))
+func (logger *recordingLogger) Debugf(format string, args ...interface{}) {
+	logger.messages = append(logger.messages, fmt.Sprintf(format, args...))
 }
 
 func resetTelemetryState(tb testing.TB) {

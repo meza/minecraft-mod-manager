@@ -26,8 +26,8 @@ type renameFailure struct {
 	err                error
 }
 
-func (r renameFailFs) Rename(oldname, newname string) error {
-	for _, failure := range r.failures {
+func (filesystem renameFailFs) Rename(oldname, newname string) error {
+	for _, failure := range filesystem.failures {
 		if failure.old != "" && oldname != failure.old {
 			continue
 		}
@@ -35,7 +35,7 @@ func (r renameFailFs) Rename(oldname, newname string) error {
 			continue
 		}
 		if failure.onlyWhenDestExists {
-			exists, err := afero.Exists(r.Fs, newname)
+			exists, err := afero.Exists(filesystem.Fs, newname)
 			if err != nil || !exists {
 				continue
 			}
@@ -45,7 +45,7 @@ func (r renameFailFs) Rename(oldname, newname string) error {
 		}
 		return errors.New("rename failed")
 	}
-	return r.Fs.Rename(oldname, newname)
+	return filesystem.Fs.Rename(oldname, newname)
 }
 
 type removeErrorFs struct {
@@ -53,14 +53,14 @@ type removeErrorFs struct {
 	failPaths map[string]error
 }
 
-func (r removeErrorFs) Remove(name string) error {
-	if err, ok := r.failPaths[filepath.Clean(name)]; ok {
+func (filesystem removeErrorFs) Remove(name string) error {
+	if err, ok := filesystem.failPaths[filepath.Clean(name)]; ok {
 		if err != nil {
 			return err
 		}
 		return errors.New("remove failed")
 	}
-	return r.Fs.Remove(name)
+	return filesystem.Fs.Remove(name)
 }
 
 type removeAfterFirstFs struct {
@@ -70,18 +70,18 @@ type removeAfterFirstFs struct {
 	callCount int
 }
 
-func (r *removeAfterFirstFs) Remove(name string) error {
-	if filepath.Clean(name) == filepath.Clean(r.failPath) {
-		r.callCount++
-		if r.callCount == 1 {
+func (filesystem *removeAfterFirstFs) Remove(name string) error {
+	if filepath.Clean(name) == filepath.Clean(filesystem.failPath) {
+		filesystem.callCount++
+		if filesystem.callCount == 1 {
 			return nil
 		}
-		if r.failErr != nil {
-			return r.failErr
+		if filesystem.failErr != nil {
+			return filesystem.failErr
 		}
 		return errors.New("remove failed")
 	}
-	return r.Fs.Remove(name)
+	return filesystem.Fs.Remove(name)
 }
 
 type openFileErrorFs struct {
@@ -89,11 +89,11 @@ type openFileErrorFs struct {
 	failOn string
 }
 
-func (o openFileErrorFs) OpenFile(name string, flag int, perm os.FileMode) (afero.File, error) {
-	if strings.Contains(filepath.Clean(name), o.failOn) {
+func (filesystem openFileErrorFs) OpenFile(name string, flag int, perm os.FileMode) (afero.File, error) {
+	if strings.Contains(filepath.Clean(name), filesystem.failOn) {
 		return nil, errors.New("open failed")
 	}
-	return o.Fs.OpenFile(name, flag, perm)
+	return filesystem.Fs.OpenFile(name, flag, perm)
 }
 
 func TestWriteFileAtomicCreatesWhenMissing(t *testing.T) {

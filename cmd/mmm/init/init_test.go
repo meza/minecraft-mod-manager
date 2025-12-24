@@ -25,8 +25,8 @@ import (
 
 type doerFunc func(request *http.Request) (*http.Response, error)
 
-func (d doerFunc) Do(request *http.Request) (*http.Response, error) {
-	return d(request)
+func (doer doerFunc) Do(request *http.Request) (*http.Response, error) {
+	return doer(request)
 }
 
 func manifestDoer(versions []string) doerFunc {
@@ -60,20 +60,20 @@ type fakePrompter struct {
 	newPathErr error
 }
 
-func (p fakePrompter) ConfirmOverwrite(configPath string) (bool, error) {
-	return p.overwrite, p.confirmErr
+func (prompter fakePrompter) ConfirmOverwrite(configPath string) (bool, error) {
+	return prompter.overwrite, prompter.confirmErr
 }
 
-func (p fakePrompter) RequestNewConfigPath(configPath string) (string, error) {
-	return p.newPath, p.newPathErr
+func (prompter fakePrompter) RequestNewConfigPath(configPath string) (string, error) {
+	return prompter.newPath, prompter.newPathErr
 }
 
 type errorWriter struct {
 	err error
 }
 
-func (w errorWriter) Write([]byte) (int, error) {
-	return 0, w.err
+func (writer errorWriter) Write([]byte) (int, error) {
+	return 0, writer.err
 }
 
 func TestInitWithDeps(t *testing.T) {

@@ -41,10 +41,10 @@ func MustNewHostRewriteDoer(serverURL string, next httpclient.Doer) *HostRewrite
 	return doer
 }
 
-func (d *HostRewriteDoer) Do(req *http.Request) (*http.Response, error) {
+func (doer *HostRewriteDoer) Do(req *http.Request) (*http.Response, error) {
 	cloned := req.Clone(req.Context())
-	cloned.URL.Scheme = d.base.Scheme
-	cloned.URL.Host = d.base.Host
-	cloned.Host = d.base.Host
-	return d.next.Do(cloned)
+	cloned.URL.Scheme = doer.base.Scheme
+	cloned.URL.Host = doer.base.Host
+	cloned.Host = doer.base.Host
+	return doer.next.Do(cloned)
 }

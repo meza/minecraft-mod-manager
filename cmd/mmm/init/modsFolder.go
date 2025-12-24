@@ -31,24 +31,24 @@ type ModsFolderModel struct {
 }
 
 func NewModsFolderModel(modsFolder string, meta config.Metadata, fs afero.Fs, prefill bool) ModsFolderModel {
-	m := textinput.New()
-	m.Prompt = tui.QuestionStyle.Render("? ") + tui.TitleStyle.Render(i18n.T("cmd.init.tui.mods-folder.question")) + " "
+	inputModel := textinput.New()
+	inputModel.Prompt = tui.QuestionStyle.Render("? ") + tui.TitleStyle.Render(i18n.T("cmd.init.tui.mods-folder.question")) + " "
 	resolvedModsFolder := meta.ModsFolderPath(models.ModsJSON{ModsFolder: modsFolder})
-	m.Placeholder = modsFolder
+	inputModel.Placeholder = modsFolder
 	// Ensure the placeholder fits so the full path is visible to the user.
 	minWidth := len(resolvedModsFolder) + 2
 	if minWidth < 10 {
 		minWidth = 10
 	}
-	m.Width = minWidth
-	m.PlaceholderStyle = tui.PlaceholderStyle
-	m.Focus()
+	inputModel.Width = minWidth
+	inputModel.PlaceholderStyle = tui.PlaceholderStyle
+	inputModel.Focus()
 	if prefill {
-		m.SetValue(modsFolder)
+		inputModel.SetValue(modsFolder)
 	}
 
 	model := ModsFolderModel{
-		input:  m,
+		input:  inputModel,
 		help:   help.New(),
 		keymap: tui.TranslatedInputKeyMap{},
 		validate: func(value string) error {
@@ -63,69 +63,69 @@ func NewModsFolderModel(modsFolder string, meta config.Metadata, fs afero.Fs, pr
 	return model
 }
 
-func (m ModsFolderModel) Init() tea.Cmd {
+func (model ModsFolderModel) Init() tea.Cmd {
 	return nil
 }
 
-func (m ModsFolderModel) Update(msg tea.Msg) (ModsFolderModel, tea.Cmd) {
+func (model ModsFolderModel) Update(msg tea.Msg) (ModsFolderModel, tea.Cmd) {
 	switch msg := msg.(type) {
 	case tea.KeyMsg:
 		switch msg.String() {
 		case "q":
-			if !m.input.Focused() {
-				return m, tea.Quit
+			if !model.input.Focused() {
+				return model, tea.Quit
 			}
 		case "esc":
-			return m, tea.Quit
+			return model, tea.Quit
 		case "tab":
-			if m.input.Focused() && m.input.Value() == "" {
-				m.input.SetValue(m.input.Placeholder)
+			if model.input.Focused() && model.input.Value() == "" {
+				model.input.SetValue(model.input.Placeholder)
 			}
 		case "enter":
-			value := strings.TrimSpace(m.input.Value())
+			value := strings.TrimSpace(model.input.Value())
 			if value == "" {
-				value = strings.TrimSpace(m.input.Placeholder)
+				value = strings.TrimSpace(model.input.Placeholder)
 			}
 			if value == "" {
-				m.error = fmt.Errorf("mods folder cannot be empty")
-				return m, nil
+				model.error = fmt.Errorf("mods folder cannot be empty")
+				return model, nil
 			}
 
-			if err := m.validate(value); err != nil {
-				m.error = err
-				return m, nil
+			if err := model.validate(value); err != nil {
+				model.error = err
+				return model, nil
 			}
 
-			m.Value = value
-			return m, m.modsFolderSelected()
+			model.Value = value
+			return model, model.modsFolderSelected()
 		default:
-			if m.input.Focused() {
-				m.error = nil
+			if model.input.Focused() {
+				model.error = nil
 			}
 		}
 	}
 
 	var cmd tea.Cmd
-	m.input, cmd = m.input.Update(msg)
-	return m, cmd
+	model.input, cmd = model.input.Update(msg)
+	return model, cmd
 }
 
-func (m ModsFolderModel) View() string {
-	if m.Value != "" {
-		return fmt.Sprintf("%s%s", m.input.Prompt, tui.SelectedItemStyle.Render(m.Value))
+func (model ModsFolderModel) View() string {
+	if model.Value != "" {
+		return fmt.Sprintf("%s%s", model.input.Prompt, tui.SelectedItemStyle.Render(model.Value))
 	}
 
 	errorString := ""
-	if m.error != nil {
-		errorString = tui.ErrorStyle.Render(" <- " + m.error.Error())
+	if model.error != nil {
+		errorString = tui.ErrorStyle.Render(" <- " + model.error.Error())
 	}
 
-	return fmt.Sprintf("%s%s\n\n%s", m.input.View(), errorString, m.help.View(m.keymap))
+	return fmt.Sprintf("%s%s\n\n%s", model.input.View(), errorString, model.help.View(model.keymap))
 }
 
-func (m ModsFolderModel) modsFolderSelected() tea.Cmd {
-	m.input.Blur()
+func (model ModsFolderModel) modsFolderSelected() tea.Cmd {
+	model.input.Blur()
 	return func() tea.Msg {
-		return ModsFolderSelectedMessage{ModsFolder: filepath.Clean(m.Value)}
+		return ModsFolderSelectedMessage{ModsFolder: filepath.Clean(model.Value)}
 	}
 }

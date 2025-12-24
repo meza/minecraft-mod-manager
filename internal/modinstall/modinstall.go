@@ -67,7 +67,7 @@ func NewInstaller(fs afero.Fs, downloader Downloader) *Installer {
 	}
 }
 
-func (s *Installer) EnsureLockedFile(ctx context.Context, meta config.Metadata, cfg models.ModsJSON, install models.ModInstall, downloadClient httpclient.Doer, sender httpclient.Sender) (EnsureResult, error) {
+func (installer *Installer) EnsureLockedFile(ctx context.Context, meta config.Metadata, cfg models.ModsJSON, install models.ModInstall, downloadClient httpclient.Doer, sender httpclient.Sender) (EnsureResult, error) {
 	if strings.TrimSpace(install.FileName) == "" {
 		return EnsureResult{}, errors.New("missing lock fileName")
 	}
@@ -87,43 +87,43 @@ func (s *Installer) EnsureLockedFile(ctx context.Context, meta config.Metadata, 
 	}
 
 	modsRoot := meta.ModsFolderPath(cfg)
-	mkdirErr := s.fs.MkdirAll(modsRoot, 0755)
+	mkdirErr := installer.fs.MkdirAll(modsRoot, 0755)
 	if mkdirErr != nil {
 		return EnsureResult{}, mkdirErr
 	}
 
 	destination := filepath.Join(modsRoot, normalizedFileName)
-	resolvedDestination, err := modpath.ResolveWritablePath(s.fs, modsRoot, destination)
+	resolvedDestination, err := modpath.ResolveWritablePath(installer.fs, modsRoot, destination)
 	if err != nil {
 		return EnsureResult{}, err
 	}
 
-	exists, err := afero.Exists(s.fs, resolvedDestination)
+	exists, err := afero.Exists(installer.fs, resolvedDestination)
 	if err != nil {
 		return EnsureResult{}, err
 	}
 
 	if !exists {
-		if s.downloader == nil {
+		if installer.downloader == nil {
 			return EnsureResult{}, errors.New("missing modinstall dependencies: downloader")
 		}
-		downloadErr := s.downloadAndVerify(ctx, install.DownloadURL, resolvedDestination, expectedHash, downloadClient, sender, normalizedFileName)
+		downloadErr := installer.downloadAndVerify(ctx, install.DownloadURL, resolvedDestination, expectedHash, downloadClient, sender, normalizedFileName)
 		if downloadErr != nil {
 			return EnsureResult{}, downloadErr
 		}
 		return EnsureResult{Downloaded: true, Reason: EnsureReasonMissing}, nil
 	}
 
-	localSha, err := sha1ForFile(s.fs, resolvedDestination)
+	localSha, err := sha1ForFile(installer.fs, resolvedDestination)
 	if err != nil {
 		return EnsureResult{}, err
 	}
 
 	if !strings.EqualFold(expectedHash, localSha) {
-		if s.downloader == nil {
+		if installer.downloader == nil {
 			return EnsureResult{}, errors.New("missing modinstall dependencies: downloader")
 		}
-		downloadErr := s.downloadAndVerify(ctx, install.DownloadURL, resolvedDestination, expectedHash, downloadClient, sender, normalizedFileName)
+		downloadErr := installer.downloadAndVerify(ctx, install.DownloadURL, resolvedDestination, expectedHash, downloadClient, sender, normalizedFileName)
 		if downloadErr != nil {
 			return EnsureResult{}, downloadErr
 		}
@@ -133,46 +133,46 @@ func (s *Installer) EnsureLockedFile(ctx context.Context, meta config.Metadata, 
 	return EnsureResult{Downloaded: false, Reason: EnsureReasonAlreadyPresent}, nil
 }
 
-func (s *Installer) DownloadAndVerify(ctx context.Context, url string, destination string, expectedHash string, downloadClient httpclient.Doer, sender httpclient.Sender) error {
+func (installer *Installer) DownloadAndVerify(ctx context.Context, url string, destination string, expectedHash string, downloadClient httpclient.Doer, sender httpclient.Sender) error {
 	if strings.TrimSpace(expectedHash) == "" {
 		return MissingHashError{FileName: filepath.Base(destination)}
 	}
 	if sender == nil {
 		sender = noopSender{}
 	}
-	if s.downloader == nil {
+	if installer.downloader == nil {
 		return errors.New("missing modinstall dependencies: downloader")
 	}
-	return s.downloadAndVerify(ctx, url, destination, expectedHash, downloadClient, sender, filepath.Base(destination))
+	return installer.downloadAndVerify(ctx, url, destination, expectedHash, downloadClient, sender, filepath.Base(destination))
 }
 
-func (s *Installer) downloadAndVerify(ctx context.Context, url string, destination string, expectedHash string, downloadClient httpclient.Doer, sender httpclient.Sender, displayName string) error {
-	tempFile, err := afero.TempFile(s.fs, filepath.Dir(destination), filepath.Base(destination)+".mmm.*.tmp")
+func (installer *Installer) downloadAndVerify(ctx context.Context, url string, destination string, expectedHash string, downloadClient httpclient.Doer, sender httpclient.Sender, displayName string) error {
+	tempFile, err := afero.TempFile(installer.fs, filepath.Dir(destination), filepath.Base(destination)+".mmm.*.tmp")
 	if err != nil {
 		return err
 	}
 	tempPath := tempFile.Name()
 	closeErr := tempFile.Close()
 	if closeErr != nil {
-		removeErr := s.fs.Remove(tempPath)
+		removeErr := installer.fs.Remove(tempPath)
 		if removeErr != nil && !errors.Is(removeErr, os.ErrNotExist) {
 			return errors.Join(closeErr, fmt.Errorf("failed to remove temp file %s: %w", tempPath, removeErr))
 		}
 		return closeErr
 	}
 
-	downloadErr := s.downloader(ctx, url, tempPath, downloadClient, sender, s.fs)
+	downloadErr := installer.downloader(ctx, url, tempPath, downloadClient, sender, installer.fs)
 	if downloadErr != nil {
-		removeErr := s.fs.Remove(tempPath)
+		removeErr := installer.fs.Remove(tempPath)
 		if removeErr != nil && !errors.Is(removeErr, os.ErrNotExist) {
 			return errors.Join(downloadErr, fmt.Errorf("failed to remove temp file %s: %w", tempPath, removeErr))
 		}
 		return downloadErr
 	}
 
-	actualHash, err := sha1ForFile(s.fs, tempPath)
+	actualHash, err := sha1ForFile(installer.fs, tempPath)
 	if err != nil {
-		removeErr := s.fs.Remove(tempPath)
+		removeErr := installer.fs.Remove(tempPath)
 		if removeErr != nil && !errors.Is(removeErr, os.ErrNotExist) {
 			return errors.Join(err, fmt.Errorf("failed to remove temp file %s: %w", tempPath, removeErr))
 		}
@@ -180,7 +180,7 @@ func (s *Installer) downloadAndVerify(ctx context.Context, url string, destinati
 	}
 
 	if !strings.EqualFold(strings.TrimSpace(expectedHash), actualHash) {
-		removeErr := s.fs.Remove(tempPath)
+		removeErr := installer.fs.Remove(tempPath)
 		hashErr := HashMismatchError{FileName: displayName, Expected: expectedHash, Actual: actualHash}
 		if removeErr != nil && !errors.Is(removeErr, os.ErrNotExist) {
 			return errors.Join(hashErr, fmt.Errorf("failed to remove temp file %s: %w", tempPath, removeErr))
@@ -188,8 +188,8 @@ func (s *Installer) downloadAndVerify(ctx context.Context, url string, destinati
 		return hashErr
 	}
 
-	if err := replaceExistingFile(s.fs, tempPath, destination); err != nil {
-		removeErr := s.fs.Remove(tempPath)
+	if err := replaceExistingFile(installer.fs, tempPath, destination); err != nil {
+		removeErr := installer.fs.Remove(tempPath)
 		if removeErr != nil && !errors.Is(removeErr, os.ErrNotExist) {
 			return errors.Join(err, fmt.Errorf("failed to remove temp file %s: %w", tempPath, removeErr))
 		}

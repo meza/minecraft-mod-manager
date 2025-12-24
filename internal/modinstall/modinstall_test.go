@@ -797,11 +797,11 @@ type failingStatFs struct {
 	failPath string
 }
 
-func (f failingStatFs) Stat(name string) (os.FileInfo, error) {
-	if filepath.Clean(name) == filepath.Clean(f.failPath) {
+func (filesystem failingStatFs) Stat(name string) (os.FileInfo, error) {
+	if filepath.Clean(name) == filepath.Clean(filesystem.failPath) {
 		return nil, errors.New("stat failed")
 	}
-	return f.Fs.Stat(name)
+	return filesystem.Fs.Stat(name)
 }
 
 type failingOpenFs struct {
@@ -810,14 +810,14 @@ type failingOpenFs struct {
 	failContains string
 }
 
-func (f failingOpenFs) Open(name string) (afero.File, error) {
-	if f.failPath != "" && filepath.Clean(name) == filepath.Clean(f.failPath) {
+func (filesystem failingOpenFs) Open(name string) (afero.File, error) {
+	if filesystem.failPath != "" && filepath.Clean(name) == filepath.Clean(filesystem.failPath) {
 		return nil, errors.New("open failed")
 	}
-	if f.failContains != "" && strings.Contains(filepath.Clean(name), f.failContains) {
+	if filesystem.failContains != "" && strings.Contains(filepath.Clean(name), filesystem.failContains) {
 		return nil, errors.New("open failed")
 	}
-	return f.Fs.Open(name)
+	return filesystem.Fs.Open(name)
 }
 
 type failingReadFs struct {
@@ -825,12 +825,12 @@ type failingReadFs struct {
 	failPath string
 }
 
-func (f failingReadFs) Open(name string) (afero.File, error) {
-	file, err := f.Fs.Open(name)
+func (filesystem failingReadFs) Open(name string) (afero.File, error) {
+	file, err := filesystem.Fs.Open(name)
 	if err != nil {
 		return nil, err
 	}
-	if filepath.Clean(name) == filepath.Clean(f.failPath) {
+	if filepath.Clean(name) == filepath.Clean(filesystem.failPath) {
 		return failingReaderFile{File: file}, nil
 	}
 	return file, nil
@@ -840,7 +840,7 @@ type failingReaderFile struct {
 	afero.File
 }
 
-func (f failingReaderFile) Read([]byte) (int, error) {
+func (file failingReaderFile) Read([]byte) (int, error) {
 	return 0, errors.New("read failed")
 }
 
@@ -850,7 +850,7 @@ type failingMkdirFs struct {
 	afero.Fs
 }
 
-func (f failingMkdirFs) MkdirAll(string, os.FileMode) error {
+func (filesystem failingMkdirFs) MkdirAll(string, os.FileMode) error {
 	return errors.New("mkdir failed")
 }
 
@@ -867,14 +867,14 @@ type renameErrorFs struct {
 	err             error
 }
 
-func (r renameErrorFs) Rename(oldname, newname string) error {
-	if r.failOldContains != "" && strings.Contains(filepath.Clean(oldname), r.failOldContains) && filepath.Clean(newname) == filepath.Clean(r.failNew) {
-		return r.err
+func (filesystem renameErrorFs) Rename(oldname, newname string) error {
+	if filesystem.failOldContains != "" && strings.Contains(filepath.Clean(oldname), filesystem.failOldContains) && filepath.Clean(newname) == filepath.Clean(filesystem.failNew) {
+		return filesystem.err
 	}
-	if r.failOld != "" && filepath.Clean(oldname) == filepath.Clean(r.failOld) && filepath.Clean(newname) == filepath.Clean(r.failNew) {
-		return r.err
+	if filesystem.failOld != "" && filepath.Clean(oldname) == filepath.Clean(filesystem.failOld) && filepath.Clean(newname) == filepath.Clean(filesystem.failNew) {
+		return filesystem.err
 	}
-	return r.Fs.Rename(oldname, newname)
+	return filesystem.Fs.Rename(oldname, newname)
 }
 
 type removeErrorFs struct {
@@ -883,14 +883,14 @@ type removeErrorFs struct {
 	removeErr  error
 }
 
-func (r removeErrorFs) Remove(name string) error {
-	if r.failOnPart != "" && strings.Contains(filepath.Clean(name), filepath.Clean(r.failOnPart)) {
-		if r.removeErr != nil {
-			return r.removeErr
+func (filesystem removeErrorFs) Remove(name string) error {
+	if filesystem.failOnPart != "" && strings.Contains(filepath.Clean(name), filepath.Clean(filesystem.failOnPart)) {
+		if filesystem.removeErr != nil {
+			return filesystem.removeErr
 		}
 		return errors.New("remove failed")
 	}
-	return r.Fs.Remove(name)
+	return filesystem.Fs.Remove(name)
 }
 
 type closeErrorFile struct {
@@ -898,10 +898,10 @@ type closeErrorFile struct {
 	closeErr error
 }
 
-func (c closeErrorFile) Close() error {
-	_ = c.File.Close()
-	if c.closeErr != nil {
-		return c.closeErr
+func (file closeErrorFile) Close() error {
+	_ = file.File.Close()
+	if file.closeErr != nil {
+		return file.closeErr
 	}
 	return nil
 }
@@ -911,12 +911,12 @@ type closeErrorFs struct {
 	closeErr error
 }
 
-func (c closeErrorFs) Open(name string) (afero.File, error) {
-	file, err := c.Fs.Open(name)
+func (filesystem closeErrorFs) Open(name string) (afero.File, error) {
+	file, err := filesystem.Fs.Open(name)
 	if err != nil {
 		return nil, err
 	}
-	return closeErrorFile{File: file, closeErr: c.closeErr}, nil
+	return closeErrorFile{File: file, closeErr: filesystem.closeErr}, nil
 }
 
 type tempCloseRemoveErrorFs struct {
@@ -926,30 +926,30 @@ type tempCloseRemoveErrorFs struct {
 	failOnPart string
 }
 
-func (t tempCloseRemoveErrorFs) Create(name string) (afero.File, error) {
-	file, err := t.Fs.Create(name)
+func (filesystem tempCloseRemoveErrorFs) Create(name string) (afero.File, error) {
+	file, err := filesystem.Fs.Create(name)
 	if err != nil {
 		return nil, err
 	}
-	return closeErrorFile{File: file, closeErr: t.closeErr}, nil
+	return closeErrorFile{File: file, closeErr: filesystem.closeErr}, nil
 }
 
-func (t tempCloseRemoveErrorFs) OpenFile(name string, flag int, perm os.FileMode) (afero.File, error) {
-	file, err := t.Fs.OpenFile(name, flag, perm)
+func (filesystem tempCloseRemoveErrorFs) OpenFile(name string, flag int, perm os.FileMode) (afero.File, error) {
+	file, err := filesystem.Fs.OpenFile(name, flag, perm)
 	if err != nil {
 		return nil, err
 	}
-	return closeErrorFile{File: file, closeErr: t.closeErr}, nil
+	return closeErrorFile{File: file, closeErr: filesystem.closeErr}, nil
 }
 
-func (t tempCloseRemoveErrorFs) Remove(name string) error {
-	if t.failOnPart != "" && strings.Contains(filepath.Clean(name), t.failOnPart) {
-		if t.removeErr != nil {
-			return t.removeErr
+func (filesystem tempCloseRemoveErrorFs) Remove(name string) error {
+	if filesystem.failOnPart != "" && strings.Contains(filepath.Clean(name), filesystem.failOnPart) {
+		if filesystem.removeErr != nil {
+			return filesystem.removeErr
 		}
 		return errors.New("remove failed")
 	}
-	return t.Fs.Remove(name)
+	return filesystem.Fs.Remove(name)
 }
 
 type openFileErrorFs struct {
@@ -957,6 +957,6 @@ type openFileErrorFs struct {
 	err error
 }
 
-func (o openFileErrorFs) OpenFile(string, int, os.FileMode) (afero.File, error) {
-	return nil, o.err
+func (filesystem openFileErrorFs) OpenFile(string, int, os.FileMode) (afero.File, error) {
+	return nil, filesystem.err
 }

@@ -20,7 +20,7 @@ type LocaleProvider interface {
 
 type DefaultLocaleProvider struct{}
 
-func (d DefaultLocaleProvider) GetLocales() ([]string, error) {
+func (provider DefaultLocaleProvider) GetLocales() ([]string, error) {
 	return goLocale.GetLocales()
 }
 

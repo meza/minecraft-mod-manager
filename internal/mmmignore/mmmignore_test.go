@@ -123,18 +123,18 @@ type statErrorFs struct {
 	err error
 }
 
-func (s statErrorFs) Stat(name string) (os.FileInfo, error) { return nil, s.err }
+func (filesystem statErrorFs) Stat(name string) (os.FileInfo, error) { return nil, filesystem.err }
 
 type openErrorFs struct {
 	afero.Fs
 	failPath string
 }
 
-func (o openErrorFs) Open(name string) (afero.File, error) {
-	if filepath.Clean(name) == filepath.Clean(o.failPath) {
+func (filesystem openErrorFs) Open(name string) (afero.File, error) {
+	if filepath.Clean(name) == filepath.Clean(filesystem.failPath) {
 		return nil, errors.New("open failed")
 	}
-	return o.Fs.Open(name)
+	return filesystem.Fs.Open(name)
 }
 
 type walkStatErrorFs struct {
@@ -142,9 +142,9 @@ type walkStatErrorFs struct {
 	failPath string
 }
 
-func (w walkStatErrorFs) Stat(name string) (os.FileInfo, error) {
-	if filepath.Clean(name) == filepath.Clean(w.failPath) {
+func (filesystem walkStatErrorFs) Stat(name string) (os.FileInfo, error) {
+	if filepath.Clean(name) == filepath.Clean(filesystem.failPath) {
 		return nil, errors.New("stat failed")
 	}
-	return w.Fs.Stat(name)
+	return filesystem.Fs.Stat(name)
 }

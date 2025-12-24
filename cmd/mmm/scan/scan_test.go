@@ -30,7 +30,7 @@ type fakePrompter struct {
 	err     error
 }
 
-func (p fakePrompter) ConfirmAdd() (bool, error) { return p.confirm, p.err }
+func (prompter fakePrompter) ConfirmAdd() (bool, error) { return prompter.confirm, prompter.err }
 
 func TestRunScan_PreferModrinthDoesNotCallCurseforgeWhenHit(t *testing.T) {
 	t.Setenv("MMM_TEST", "true")
@@ -1069,30 +1069,30 @@ type renameErrorFs struct {
 	err     error
 }
 
-func (r renameErrorFs) Rename(oldname, newname string) error {
-	if filepath.Clean(newname) == filepath.Clean(r.failNew) {
-		return r.err
+func (filesystem renameErrorFs) Rename(oldname, newname string) error {
+	if filepath.Clean(newname) == filepath.Clean(filesystem.failNew) {
+		return filesystem.err
 	}
-	return r.Fs.Rename(oldname, newname)
+	return filesystem.Fs.Rename(oldname, newname)
 }
 
 type failingHasher struct{}
 
-func (f *failingHasher) Write(_ []byte) (int, error) {
+func (hasher *failingHasher) Write(_ []byte) (int, error) {
 	return 0, errors.New("hash write failed")
 }
 
-func (f *failingHasher) Sum(data []byte) []byte {
+func (hasher *failingHasher) Sum(data []byte) []byte {
 	return data
 }
 
-func (f *failingHasher) Reset() {}
+func (hasher *failingHasher) Reset() {}
 
-func (f *failingHasher) Size() int {
+func (hasher *failingHasher) Size() int {
 	return sha1.Size
 }
 
-func (f *failingHasher) BlockSize() int {
+func (hasher *failingHasher) BlockSize() int {
 	return sha1.BlockSize
 }
 
@@ -1101,10 +1101,10 @@ type closeErrorFile struct {
 	closeErr error
 }
 
-func (f closeErrorFile) Close() error {
-	_ = f.File.Close()
-	if f.closeErr != nil {
-		return f.closeErr
+func (file closeErrorFile) Close() error {
+	_ = file.File.Close()
+	if file.closeErr != nil {
+		return file.closeErr
 	}
 	return nil
 }
@@ -1114,12 +1114,12 @@ type closeErrorFs struct {
 	closeErr error
 }
 
-func (c closeErrorFs) Open(name string) (afero.File, error) {
-	file, err := c.Fs.Open(name)
+func (filesystem closeErrorFs) Open(name string) (afero.File, error) {
+	file, err := filesystem.Fs.Open(name)
 	if err != nil {
 		return nil, err
 	}
-	return closeErrorFile{File: file, closeErr: c.closeErr}, nil
+	return closeErrorFile{File: file, closeErr: filesystem.closeErr}, nil
 }
 
 func TestSha1ForFileReturnsHasherWriteError(t *testing.T) {

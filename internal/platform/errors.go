@@ -10,8 +10,8 @@ type UnknownPlatformError struct {
 	Platform string
 }
 
-func (e *UnknownPlatformError) Error() string {
-	return fmt.Sprintf("unknown platform: %s", e.Platform)
+func (platformError *UnknownPlatformError) Error() string {
+	return fmt.Sprintf("unknown platform: %s", platformError.Platform)
 }
 
 type ModNotFoundError struct {
@@ -19,8 +19,8 @@ type ModNotFoundError struct {
 	ProjectID string
 }
 
-func (e *ModNotFoundError) Error() string {
-	return fmt.Sprintf("mod not found on %s: %s", e.Platform, e.ProjectID)
+func (platformError *ModNotFoundError) Error() string {
+	return fmt.Sprintf("mod not found on %s: %s", platformError.Platform, platformError.ProjectID)
 }
 
 type NoCompatibleFileError struct {
@@ -28,6 +28,6 @@ type NoCompatibleFileError struct {
 	ProjectID string
 }
 
-func (e *NoCompatibleFileError) Error() string {
-	return fmt.Sprintf("no compatible file found on %s for %s", e.Platform, e.ProjectID)
+func (platformError *NoCompatibleFileError) Error() string {
+	return fmt.Sprintf("no compatible file found on %s for %s", platformError.Platform, platformError.ProjectID)
 }

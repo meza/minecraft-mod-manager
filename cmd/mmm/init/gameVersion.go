@@ -33,12 +33,12 @@ type GameVersionModel struct {
 }
 
 // Init implements tea.Model.
-func (m GameVersionModel) Init() tea.Cmd {
+func (model GameVersionModel) Init() tea.Cmd {
 	return nil
 }
 
 // Update implements tea.Model.
-func (m GameVersionModel) Update(msg tea.Msg) (GameVersionModel, tea.Cmd) {
+func (model GameVersionModel) Update(msg tea.Msg) (GameVersionModel, tea.Cmd) {
 	var cmd tea.Cmd
 	var cmds []tea.Cmd
 
@@ -46,68 +46,68 @@ func (m GameVersionModel) Update(msg tea.Msg) (GameVersionModel, tea.Cmd) {
 	case tea.KeyMsg:
 		switch msg.String() {
 		case "q":
-			if !m.input.Focused() {
-				return m, tea.Quit
+			if !model.input.Focused() {
+				return model, tea.Quit
 			}
 
 		case "esc":
-			return m, tea.Quit
+			return model, tea.Quit
 		case "enter":
-			value := strings.TrimSpace(m.input.Value())
+			value := strings.TrimSpace(model.input.Value())
 			if value == "" {
-				value = strings.TrimSpace(m.input.Placeholder)
+				value = strings.TrimSpace(model.input.Placeholder)
 			}
 
 			if value == "" {
-				m.error = fmt.Errorf("%s", i18n.T("cmd.init.tui.game-version.error"))
-				return m, nil
+				model.error = fmt.Errorf("%s", i18n.T("cmd.init.tui.game-version.error"))
+				return model, nil
 			}
 
-			err := m.validate(value)
+			err := model.validate(value)
 			if err != nil {
-				m.error = err
+				model.error = err
 			} else {
-				m.Value = value
-				m.input.SetValue(value)
-				return m, m.gameVersionSelected()
+				model.Value = value
+				model.input.SetValue(value)
+				return model, model.gameVersionSelected()
 			}
 		case "tab":
-			if m.input.Focused() {
-				if m.input.Value() == "" {
-					m.input.SetValue(m.input.Placeholder)
+			if model.input.Focused() {
+				if model.input.Value() == "" {
+					model.input.SetValue(model.input.Placeholder)
 				}
 			}
 		default:
-			if m.input.Focused() {
-				m.error = nil
+			if model.input.Focused() {
+				model.error = nil
 			}
 		}
 	}
 
-	m.input, cmd = m.input.Update(msg)
+	model.input, cmd = model.input.Update(msg)
 	cmds = append(cmds, cmd)
-	return m, tea.Batch(cmds...)
+	return model, tea.Batch(cmds...)
 }
 
 // View renders the game version prompt.
-func (m GameVersionModel) View() string {
-	if m.Value != "" {
-		return fmt.Sprintf("%s%s", m.input.Prompt, tui.SelectedItemStyle.Render(m.Value))
+func (model GameVersionModel) View() string {
+	if model.Value != "" {
+		return fmt.Sprintf("%s%s", model.input.Prompt, tui.SelectedItemStyle.Render(model.Value))
 	}
 
 	errorString := ""
 
-	if m.error != nil {
-		errorString = tui.ErrorStyle.Render(" <- " + m.error.Error())
+	if model.error != nil {
+		errorString = tui.ErrorStyle.Render(" <- " + model.error.Error())
 	}
 
-	return fmt.Sprintf("%s%s\n\n%s", m.input.View(), errorString, m.help.View(m.keymap))
+	return fmt.Sprintf("%s%s\n\n%s", model.input.View(), errorString, model.help.View(model.keymap))
 }
 
-func (m GameVersionModel) gameVersionSelected() tea.Cmd {
-	m.input.Blur()
+func (model GameVersionModel) gameVersionSelected() tea.Cmd {
+	model.input.Blur()
 	return func() tea.Msg {
-		return GameVersionSelectedMessage{GameVersion: m.Value}
+		return GameVersionSelectedMessage{GameVersion: model.Value}
 	}
 }
 
@@ -119,11 +119,11 @@ func NewGameVersionModel(ctx context.Context, minecraftClient httpclient.Doer, g
 	}
 	allVersions := minecraft.GetAllMineCraftVersions(ctx, minecraftClient)
 
-	m := textinput.New()
-	m.Prompt = tui.QuestionStyle.Render("? ") + tui.TitleStyle.Render(i18n.T("cmd.init.tui.game-version.question")) + " "
-	m.Placeholder = latestVersion
-	m.PlaceholderStyle = tui.PlaceholderStyle
-	width := len(m.Placeholder)
+	inputModel := textinput.New()
+	inputModel.Prompt = tui.QuestionStyle.Render("? ") + tui.TitleStyle.Render(i18n.T("cmd.init.tui.game-version.question")) + " "
+	inputModel.Placeholder = latestVersion
+	inputModel.PlaceholderStyle = tui.PlaceholderStyle
+	width := len(inputModel.Placeholder)
 	if len(gameVersion) > width {
 		width = len(gameVersion)
 	}
@@ -131,15 +131,15 @@ func NewGameVersionModel(ctx context.Context, minecraftClient httpclient.Doer, g
 	if width < minWidth {
 		width = minWidth
 	}
-	m.Width = width
+	inputModel.Width = width
 	if len(allVersions) > 0 {
-		m.ShowSuggestions = true
+		inputModel.ShowSuggestions = true
 	}
-	m.SetSuggestions(allVersions)
-	m.Focus()
+	inputModel.SetSuggestions(allVersions)
+	inputModel.Focus()
 
 	model := GameVersionModel{
-		input:  m,
+		input:  inputModel,
 		help:   help.New(),
 		keymap: tui.TranslatedInputKeyMap{},
 		validate: func(value string) error {

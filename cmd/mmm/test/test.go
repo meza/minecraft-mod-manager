@@ -56,12 +56,12 @@ type exitCodeError struct {
 	code int
 }
 
-func (e *exitCodeError) Error() string {
-	return fmt.Sprintf("exit code %d", e.code)
+func (exitError *exitCodeError) Error() string {
+	return fmt.Sprintf("exit code %d", exitError.code)
 }
 
-func (e *exitCodeError) ExitCode() int {
-	return e.code
+func (exitError *exitCodeError) ExitCode() int {
+	return exitError.code
 }
 
 // errSameVersion signals that the target version matches the current config version.

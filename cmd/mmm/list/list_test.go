@@ -461,15 +461,15 @@ type statErrorFs struct {
 	err      error
 }
 
-func (s statErrorFs) Stat(name string) (os.FileInfo, error) {
-	if filepath.Clean(name) == filepath.Clean(s.failPath) {
-		return nil, s.err
+func (filesystem statErrorFs) Stat(name string) (os.FileInfo, error) {
+	if filepath.Clean(name) == filepath.Clean(filesystem.failPath) {
+		return nil, filesystem.err
 	}
-	return s.Fs.Stat(name)
+	return filesystem.Fs.Stat(name)
 }
 
 type fakeTTY struct {
 	*bytes.Buffer
 }
 
-func (f fakeTTY) Fd() uintptr { return 0 }
+func (tty fakeTTY) Fd() uintptr { return 0 }

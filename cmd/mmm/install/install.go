@@ -732,7 +732,7 @@ func sha1ForFile(fs afero.Fs, path string) (string, error) {
 
 type noopSender struct{}
 
-func (n *noopSender) Send(msg tea.Msg) { _ = msg }
+func (sender *noopSender) Send(msg tea.Msg) { _ = msg }
 
 func downloadClient(clients platform.Clients) httpclient.Doer {
 	if clients.Curseforge != nil {

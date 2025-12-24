@@ -7,12 +7,12 @@ import (
 
 type TranslatedInputKeyMap struct{}
 
-func (k TranslatedInputKeyMap) ShortHelp() []key.Binding {
+func (keyMap TranslatedInputKeyMap) ShortHelp() []key.Binding {
 	return TranslatedInputKeyBindings()
 }
 
-func (k TranslatedInputKeyMap) FullHelp() [][]key.Binding {
-	return [][]key.Binding{k.ShortHelp()}
+func (keyMap TranslatedInputKeyMap) FullHelp() [][]key.Binding {
+	return [][]key.Binding{keyMap.ShortHelp()}
 }
 
 func TranslatedListKeyMap() list.KeyMap {

@@ -38,31 +38,31 @@ type CommandModel struct {
 	err                  error
 }
 
-func (m CommandModel) Init() tea.Cmd {
-	if m.state == done {
+func (model CommandModel) Init() tea.Cmd {
+	if model.state == done {
 		return tea.Quit
 	}
 	return nil
 }
 
-func (m CommandModel) View() string {
+func (model CommandModel) View() string {
 	stringBuilder := strings.Builder{}
 
 	loaderView := ""
-	if !m.initialProvided.Loader {
-		loaderView = m.loaderQuestion.View()
+	if !model.initialProvided.Loader {
+		loaderView = model.loaderQuestion.View()
 	}
 	gameVersionView := ""
-	if !m.initialProvided.GameVersion {
-		gameVersionView = m.gameVersionQuestion.View()
+	if !model.initialProvided.GameVersion {
+		gameVersionView = model.gameVersionQuestion.View()
 	}
 	releaseTypesView := ""
-	if !m.initialProvided.ReleaseTypes {
-		releaseTypesView = m.releaseTypesQuestion.View()
+	if !model.initialProvided.ReleaseTypes {
+		releaseTypesView = model.releaseTypesQuestion.View()
 	}
 	modsFolderView := ""
-	if !m.initialProvided.ModsFolder {
-		modsFolderView = m.modsFolderQuestion.View()
+	if !model.initialProvided.ModsFolder {
+		modsFolderView = model.modsFolderQuestion.View()
 	}
 
 	appendSection := func(section string) {
@@ -77,7 +77,7 @@ func (m CommandModel) View() string {
 
 	appendSection(loaderView)
 
-	switch m.state {
+	switch model.state {
 	case stateLoader:
 		return stringBuilder.String()
 	case stateGameVersion:
@@ -98,77 +98,77 @@ func (m CommandModel) View() string {
 	return stringBuilder.String()
 }
 
-func (m CommandModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
+func (model CommandModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	var cmds []tea.Cmd
 
 	var cmd tea.Cmd
 
 	switch msg := msg.(type) {
 	case LoaderSelectedMessage:
-		m.endWait("select_loader")
-		if m.sessionSpan != nil {
-			m.sessionSpan.AddEvent("tui.init.action.select_loader", perf.WithEventAttributes(attribute.String("loader", msg.Loader.String())))
+		model.endWait("select_loader")
+		if model.sessionSpan != nil {
+			model.sessionSpan.AddEvent("tui.init.action.select_loader", perf.WithEventAttributes(attribute.String("loader", msg.Loader.String())))
 		}
-		m.result.Loader = msg.Loader
-		m.result.Provided.Loader = true
-		m.setState(nextMissingState(m.result))
+		model.result.Loader = msg.Loader
+		model.result.Provided.Loader = true
+		model.setState(nextMissingState(model.result))
 	case GameVersionSelectedMessage:
-		m.endWait("select_game_version")
-		if m.sessionSpan != nil {
-			m.sessionSpan.AddEvent("tui.init.action.select_game_version", perf.WithEventAttributes(attribute.String("game_version", msg.GameVersion)))
+		model.endWait("select_game_version")
+		if model.sessionSpan != nil {
+			model.sessionSpan.AddEvent("tui.init.action.select_game_version", perf.WithEventAttributes(attribute.String("game_version", msg.GameVersion)))
 		}
-		m.result.GameVersion = msg.GameVersion
-		m.result.Provided.GameVersion = true
-		m.setState(nextMissingState(m.result))
+		model.result.GameVersion = msg.GameVersion
+		model.result.Provided.GameVersion = true
+		model.setState(nextMissingState(model.result))
 	case ReleaseTypesSelectedMessage:
-		m.endWait("select_release_types")
-		if m.sessionSpan != nil {
-			m.sessionSpan.AddEvent("tui.init.action.select_release_types", perf.WithEventAttributes(attribute.Int("count", len(msg.ReleaseTypes))))
+		model.endWait("select_release_types")
+		if model.sessionSpan != nil {
+			model.sessionSpan.AddEvent("tui.init.action.select_release_types", perf.WithEventAttributes(attribute.Int("count", len(msg.ReleaseTypes))))
 		}
-		m.result.ReleaseTypes = msg.ReleaseTypes
-		m.result.Provided.ReleaseTypes = true
-		m.setState(nextMissingState(m.result))
+		model.result.ReleaseTypes = msg.ReleaseTypes
+		model.result.Provided.ReleaseTypes = true
+		model.setState(nextMissingState(model.result))
 	case ModsFolderSelectedMessage:
-		m.endWait("select_mods_folder")
-		if m.sessionSpan != nil {
-			m.sessionSpan.AddEvent("tui.init.action.select_mods_folder", perf.WithEventAttributes(attribute.String("mods_folder", msg.ModsFolder)))
+		model.endWait("select_mods_folder")
+		if model.sessionSpan != nil {
+			model.sessionSpan.AddEvent("tui.init.action.select_mods_folder", perf.WithEventAttributes(attribute.String("mods_folder", msg.ModsFolder)))
 		}
-		m.result.ModsFolder = msg.ModsFolder
-		m.result.Provided.ModsFolder = true
-		m.setState(nextMissingState(m.result))
-		if m.state == done {
-			if m.sessionSpan != nil {
-				m.sessionSpan.AddEvent("tui.init.outcome.completed")
+		model.result.ModsFolder = msg.ModsFolder
+		model.result.Provided.ModsFolder = true
+		model.setState(nextMissingState(model.result))
+		if model.state == done {
+			if model.sessionSpan != nil {
+				model.sessionSpan.AddEvent("tui.init.outcome.completed")
 			}
-			return m, tea.Quit
+			return model, tea.Quit
 		}
 	case tea.KeyMsg:
 		switch msg.String() {
 		case "ctrl+c":
-			m.endWait("abort")
-			if m.sessionSpan != nil {
-				m.sessionSpan.AddEvent("tui.init.action.abort", perf.WithEventAttributes(attribute.String("state", m.stateName())))
+			model.endWait("abort")
+			if model.sessionSpan != nil {
+				model.sessionSpan.AddEvent("tui.init.action.abort", perf.WithEventAttributes(attribute.String("state", model.stateName())))
 			}
-			m.err = fmt.Errorf("init canceled")
+			model.err = fmt.Errorf("init canceled")
 			cmds = append(cmds, tea.Quit)
 		}
 	}
 
-	switch m.state {
+	switch model.state {
 	case stateLoader:
-		m.loaderQuestion, cmd = m.loaderQuestion.Update(msg)
+		model.loaderQuestion, cmd = model.loaderQuestion.Update(msg)
 	case stateGameVersion:
-		m.gameVersionQuestion, cmd = m.gameVersionQuestion.Update(msg)
+		model.gameVersionQuestion, cmd = model.gameVersionQuestion.Update(msg)
 	case stateReleaseTypes:
-		m.releaseTypesQuestion, cmd = m.releaseTypesQuestion.Update(msg)
+		model.releaseTypesQuestion, cmd = model.releaseTypesQuestion.Update(msg)
 	case stateModsFolder:
-		m.modsFolderQuestion, cmd = m.modsFolderQuestion.Update(msg)
+		model.modsFolderQuestion, cmd = model.modsFolderQuestion.Update(msg)
 	default:
-		return m, tea.Quit
+		return model, tea.Quit
 	}
 	cmds = append(cmds, cmd)
 
-	return m, tea.Batch(cmds...)
+	return model, tea.Batch(cmds...)
 }
 
 func NewModel(ctx context.Context, sessionSpan *perf.Span, options initOptions, deps initDeps, meta config.Metadata) *CommandModel {
@@ -208,21 +208,21 @@ func NewModel(ctx context.Context, sessionSpan *perf.Span, options initOptions, 
 	return model
 }
 
-func (m *CommandModel) setState(next state) {
-	if m.state == next && m.entered {
+func (model *CommandModel) setState(next state) {
+	if model.state == next && model.entered {
 		return
 	}
-	m.state = next
-	m.entered = true
-	if m.sessionSpan != nil {
-		m.sessionSpan.AddEvent("tui.init.state.enter", perf.WithEventAttributes(attribute.String("state", m.stateName())))
+	model.state = next
+	model.entered = true
+	if model.sessionSpan != nil {
+		model.sessionSpan.AddEvent("tui.init.state.enter", perf.WithEventAttributes(attribute.String("state", model.stateName())))
 	}
 
-	m.startWait()
+	model.startWait()
 }
 
-func (m CommandModel) stateName() string {
-	switch m.state {
+func (model CommandModel) stateName() string {
+	switch model.state {
 	case stateLoader:
 		return "loader"
 	case stateGameVersion:
@@ -238,27 +238,27 @@ func (m CommandModel) stateName() string {
 	}
 }
 
-func (m *CommandModel) startWait() {
-	if m.state == done {
-		m.waitSpan = nil
+func (model *CommandModel) startWait() {
+	if model.state == done {
+		model.waitSpan = nil
 		return
 	}
 
-	m.endWait("state_change")
-	stateName := m.stateName()
-	_, m.waitSpan = perf.StartSpan(m.ctx, "tui.init.wait."+stateName, perf.WithAttributes(attribute.String("state", stateName)))
+	model.endWait("state_change")
+	stateName := model.stateName()
+	_, model.waitSpan = perf.StartSpan(model.ctx, "tui.init.wait."+stateName, perf.WithAttributes(attribute.String("state", stateName)))
 }
 
-func (m *CommandModel) endWait(action string) {
-	if m.waitSpan == nil {
+func (model *CommandModel) endWait(action string) {
+	if model.waitSpan == nil {
 		return
 	}
-	m.waitSpan.SetAttributes(
-		attribute.String("state", m.stateName()),
+	model.waitSpan.SetAttributes(
+		attribute.String("state", model.stateName()),
 		attribute.String("action", action),
 	)
-	m.waitSpan.End()
-	m.waitSpan = nil
+	model.waitSpan.End()
+	model.waitSpan = nil
 }
 
 func nextMissingState(result initOptions) state {

@@ -369,11 +369,11 @@ type statErrorFs struct {
 	err      error
 }
 
-func (s statErrorFs) Stat(name string) (os.FileInfo, error) {
-	if filepath.Clean(name) == filepath.Clean(s.failPath) {
-		return nil, s.err
+func (filesystem statErrorFs) Stat(name string) (os.FileInfo, error) {
+	if filepath.Clean(name) == filepath.Clean(filesystem.failPath) {
+		return nil, filesystem.err
 	}
-	return s.Fs.Stat(name)
+	return filesystem.Fs.Stat(name)
 }
 
 type renameErrorFs struct {
@@ -384,14 +384,14 @@ type renameErrorFs struct {
 	err             error
 }
 
-func (r renameErrorFs) Rename(oldname, newname string) error {
-	if r.failOldContains != "" && strings.Contains(filepath.Clean(oldname), r.failOldContains) && filepath.Clean(newname) == filepath.Clean(r.failNew) {
-		return r.err
+func (filesystem renameErrorFs) Rename(oldname, newname string) error {
+	if filesystem.failOldContains != "" && strings.Contains(filepath.Clean(oldname), filesystem.failOldContains) && filepath.Clean(newname) == filepath.Clean(filesystem.failNew) {
+		return filesystem.err
 	}
-	if r.failOld != "" && filepath.Clean(oldname) == filepath.Clean(r.failOld) && filepath.Clean(newname) == filepath.Clean(r.failNew) {
-		return r.err
+	if filesystem.failOld != "" && filepath.Clean(oldname) == filepath.Clean(filesystem.failOld) && filepath.Clean(newname) == filepath.Clean(filesystem.failNew) {
+		return filesystem.err
 	}
-	return r.Fs.Rename(oldname, newname)
+	return filesystem.Fs.Rename(oldname, newname)
 }
 
 type removeErrorFs struct {
@@ -400,11 +400,11 @@ type removeErrorFs struct {
 	err      error
 }
 
-func (r removeErrorFs) Remove(name string) error {
-	if filepath.Clean(name) == filepath.Clean(r.failPath) {
-		return r.err
+func (filesystem removeErrorFs) Remove(name string) error {
+	if filepath.Clean(name) == filepath.Clean(filesystem.failPath) {
+		return filesystem.err
 	}
-	return r.Fs.Remove(name)
+	return filesystem.Fs.Remove(name)
 }
 
 func sha1Hex(data string) string {
@@ -418,13 +418,13 @@ type readErrorFs struct {
 	err      error
 }
 
-func (r readErrorFs) Open(name string) (afero.File, error) {
-	file, err := r.Fs.Open(name)
+func (filesystem readErrorFs) Open(name string) (afero.File, error) {
+	file, err := filesystem.Fs.Open(name)
 	if err != nil {
 		return nil, err
 	}
-	if filepath.Clean(name) == filepath.Clean(r.failPath) {
-		return readErrorFile{File: file, err: r.err}, nil
+	if filepath.Clean(name) == filepath.Clean(filesystem.failPath) {
+		return readErrorFile{File: file, err: filesystem.err}, nil
 	}
 	return file, nil
 }
@@ -434,8 +434,8 @@ type readErrorFile struct {
 	err error
 }
 
-func (r readErrorFile) Read([]byte) (int, error) {
-	return 0, r.err
+func (file readErrorFile) Read([]byte) (int, error) {
+	return 0, file.err
 }
 
 type openErrorFs struct {
@@ -445,14 +445,14 @@ type openErrorFs struct {
 	err          error
 }
 
-func (o openErrorFs) Open(name string) (afero.File, error) {
-	if o.failPath != "" && filepath.Clean(name) == filepath.Clean(o.failPath) {
-		return nil, o.err
+func (filesystem openErrorFs) Open(name string) (afero.File, error) {
+	if filesystem.failPath != "" && filepath.Clean(name) == filepath.Clean(filesystem.failPath) {
+		return nil, filesystem.err
 	}
-	if o.failContains != "" && strings.Contains(filepath.Clean(name), o.failContains) {
-		return nil, o.err
+	if filesystem.failContains != "" && strings.Contains(filepath.Clean(name), filesystem.failContains) {
+		return nil, filesystem.err
 	}
-	return o.Fs.Open(name)
+	return filesystem.Fs.Open(name)
 }
 
 type openFileErrorFs struct {
@@ -460,6 +460,6 @@ type openFileErrorFs struct {
 	err error
 }
 
-func (o openFileErrorFs) OpenFile(string, int, os.FileMode) (afero.File, error) {
-	return nil, o.err
+func (filesystem openFileErrorFs) OpenFile(string, int, os.FileMode) (afero.File, error) {
+	return nil, filesystem.err
 }

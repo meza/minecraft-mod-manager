@@ -17,8 +17,8 @@ import (
 
 type roundTripFunc func(*http.Request) (*http.Response, error)
 
-func (f roundTripFunc) RoundTrip(req *http.Request) (*http.Response, error) {
-	return f(req)
+func (roundTripper roundTripFunc) RoundTrip(req *http.Request) (*http.Response, error) {
+	return roundTripper(req)
 }
 
 type sequenceTransport struct {
@@ -26,12 +26,12 @@ type sequenceTransport struct {
 	callCount int
 }
 
-func (t *sequenceTransport) RoundTrip(req *http.Request) (*http.Response, error) {
-	if t.callCount >= len(t.responses) {
-		return nil, fmt.Errorf("no response configured for call %d", t.callCount)
+func (transport *sequenceTransport) RoundTrip(req *http.Request) (*http.Response, error) {
+	if transport.callCount >= len(transport.responses) {
+		return nil, fmt.Errorf("no response configured for call %d", transport.callCount)
 	}
-	resp := t.responses[t.callCount]
-	t.callCount++
+	resp := transport.responses[transport.callCount]
+	transport.callCount++
 	return resp, nil
 }
 
@@ -47,16 +47,16 @@ func newTrackingBody(payload string) *trackingBody {
 	}
 }
 
-func (b *trackingBody) Read(p []byte) (int, error) {
-	n, err := b.reader.Read(p)
+func (body *trackingBody) Read(p []byte) (int, error) {
+	n, err := body.reader.Read(p)
 	if n > 0 {
-		b.read = true
+		body.read = true
 	}
 	return n, err
 }
 
-func (b *trackingBody) Close() error {
-	b.closed = true
+func (body *trackingBody) Close() error {
+	body.closed = true
 	return nil
 }
 
@@ -378,17 +378,17 @@ type errorBody struct {
 	closed   bool
 }
 
-func (e *errorBody) Read(_ []byte) (int, error) {
-	if e.readErr != nil {
-		return 0, e.readErr
+func (body *errorBody) Read(_ []byte) (int, error) {
+	if body.readErr != nil {
+		return 0, body.readErr
 	}
 	return 0, io.EOF
 }
 
-func (e *errorBody) Close() error {
-	e.closed = true
-	if e.closeErr != nil {
-		return e.closeErr
+func (body *errorBody) Close() error {
+	body.closed = true
+	if body.closeErr != nil {
+		return body.closeErr
 	}
 	return nil
 }
@@ -423,12 +423,12 @@ type retryReadErrorBody struct {
 	closed  bool
 }
 
-func (r *retryReadErrorBody) Read(_ []byte) (int, error) {
-	return 0, r.readErr
+func (body *retryReadErrorBody) Read(_ []byte) (int, error) {
+	return 0, body.readErr
 }
 
-func (r *retryReadErrorBody) Close() error {
-	r.closed = true
+func (body *retryReadErrorBody) Close() error {
+	body.closed = true
 	return nil
 }
 

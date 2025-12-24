@@ -7,6 +7,6 @@ const (
 	MODRINTH   Platform = "modrinth"
 )
 
-func (p Platform) String() string {
-	return string(p)
+func (platform Platform) String() string {
+	return string(platform)
 }

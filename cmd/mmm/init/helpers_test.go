@@ -24,8 +24,8 @@ type errorReader struct {
 	err error
 }
 
-func (r errorReader) Read([]byte) (int, error) {
-	return 0, r.err
+func (reader errorReader) Read([]byte) (int, error) {
+	return 0, reader.err
 }
 
 func TestTerminalPrompterConfirmOverwrite(t *testing.T) {

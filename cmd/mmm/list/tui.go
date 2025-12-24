@@ -18,25 +18,25 @@ func newModel(view string, span *perf.Span) model {
 	return model{view: view, span: span}
 }
 
-func (m model) Init() tea.Cmd {
+func (listModel model) Init() tea.Cmd {
 	return tea.Quit
 }
 
-func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
+func (listModel model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	switch msg.(type) {
 	case tea.KeyMsg:
-		if m.span != nil {
-			m.span.AddEvent("tui.list.action.exit")
+		if listModel.span != nil {
+			listModel.span.AddEvent("tui.list.action.exit")
 		}
-		return m, tea.Quit
+		return listModel, tea.Quit
 	default:
-		if m.span != nil {
-			m.span.AddEvent("tui.list.action.exit")
+		if listModel.span != nil {
+			listModel.span.AddEvent("tui.list.action.exit")
 		}
-		return m, tea.Quit
+		return listModel, tea.Quit
 	}
 }
 
-func (m model) View() string {
-	return m.view
+func (listModel model) View() string {
+	return listModel.view
 }

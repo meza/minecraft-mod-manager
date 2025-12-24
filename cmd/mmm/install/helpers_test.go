@@ -415,11 +415,11 @@ type openErrorFs struct {
 	err      error
 }
 
-func (o openErrorFs) Open(name string) (afero.File, error) {
-	if filepath.Clean(name) == filepath.Clean(o.failPath) {
-		return nil, o.err
+func (filesystem openErrorFs) Open(name string) (afero.File, error) {
+	if filepath.Clean(name) == filepath.Clean(filesystem.failPath) {
+		return nil, filesystem.err
 	}
-	return o.Fs.Open(name)
+	return filesystem.Fs.Open(name)
 }
 
 type readErrorFs struct {
@@ -428,13 +428,13 @@ type readErrorFs struct {
 	err      error
 }
 
-func (r readErrorFs) Open(name string) (afero.File, error) {
-	file, err := r.Fs.Open(name)
+func (filesystem readErrorFs) Open(name string) (afero.File, error) {
+	file, err := filesystem.Fs.Open(name)
 	if err != nil {
 		return nil, err
 	}
-	if filepath.Clean(name) == filepath.Clean(r.failPath) {
-		return readErrorFile{File: file, err: r.err}, nil
+	if filepath.Clean(name) == filepath.Clean(filesystem.failPath) {
+		return readErrorFile{File: file, err: filesystem.err}, nil
 	}
 	return file, nil
 }
@@ -444,8 +444,8 @@ type readErrorFile struct {
 	err error
 }
 
-func (r readErrorFile) Read([]byte) (int, error) {
-	return 0, r.err
+func (file readErrorFile) Read([]byte) (int, error) {
+	return 0, file.err
 }
 
 type closeErrorFs struct {
@@ -454,13 +454,13 @@ type closeErrorFs struct {
 	err      error
 }
 
-func (c closeErrorFs) Open(name string) (afero.File, error) {
-	file, err := c.Fs.Open(name)
+func (filesystem closeErrorFs) Open(name string) (afero.File, error) {
+	file, err := filesystem.Fs.Open(name)
 	if err != nil {
 		return nil, err
 	}
-	if filepath.Clean(name) == filepath.Clean(c.failPath) {
-		return closeErrorFile{File: file, err: c.err}, nil
+	if filepath.Clean(name) == filepath.Clean(filesystem.failPath) {
+		return closeErrorFile{File: file, err: filesystem.err}, nil
 	}
 	return file, nil
 }
@@ -470,8 +470,8 @@ type closeErrorFile struct {
 	err error
 }
 
-func (c closeErrorFile) Close() error {
-	return c.err
+func (file closeErrorFile) Close() error {
+	return file.err
 }
 
 type readCloseErrorFs struct {
@@ -481,13 +481,13 @@ type readCloseErrorFs struct {
 	closeErr error
 }
 
-func (r readCloseErrorFs) Open(name string) (afero.File, error) {
-	file, err := r.Fs.Open(name)
+func (filesystem readCloseErrorFs) Open(name string) (afero.File, error) {
+	file, err := filesystem.Fs.Open(name)
 	if err != nil {
 		return nil, err
 	}
-	if filepath.Clean(name) == filepath.Clean(r.failPath) {
-		return readCloseErrorFile{File: file, readErr: r.readErr, closeErr: r.closeErr}, nil
+	if filepath.Clean(name) == filepath.Clean(filesystem.failPath) {
+		return readCloseErrorFile{File: file, readErr: filesystem.readErr, closeErr: filesystem.closeErr}, nil
 	}
 	return file, nil
 }
@@ -498,12 +498,12 @@ type readCloseErrorFile struct {
 	closeErr error
 }
 
-func (r readCloseErrorFile) Read([]byte) (int, error) {
-	return 0, r.readErr
+func (file readCloseErrorFile) Read([]byte) (int, error) {
+	return 0, file.readErr
 }
 
-func (r readCloseErrorFile) Close() error {
-	return r.closeErr
+func (file readCloseErrorFile) Close() error {
+	return file.closeErr
 }
 
 type statErrorFs struct {
@@ -512,28 +512,28 @@ type statErrorFs struct {
 	err      error
 }
 
-func (s statErrorFs) Stat(name string) (os.FileInfo, error) {
-	if filepath.Clean(name) == filepath.Clean(s.failPath) {
-		return nil, s.err
+func (filesystem statErrorFs) Stat(name string) (os.FileInfo, error) {
+	if filepath.Clean(name) == filepath.Clean(filesystem.failPath) {
+		return nil, filesystem.err
 	}
-	return s.Fs.Stat(name)
+	return filesystem.Fs.Stat(name)
 }
 
 type errorDoer struct {
 	err error
 }
 
-func (e errorDoer) Do(*http.Request) (*http.Response, error) { return nil, e.err }
+func (doer errorDoer) Do(*http.Request) (*http.Response, error) { return nil, doer.err }
 
 type responseDoer struct {
 	status int
 	body   string
 }
 
-func (r responseDoer) Do(*http.Request) (*http.Response, error) {
+func (doer responseDoer) Do(*http.Request) (*http.Response, error) {
 	return &http.Response{
-		StatusCode: r.status,
-		Body:       io.NopCloser(strings.NewReader(r.body)),
+		StatusCode: doer.status,
+		Body:       io.NopCloser(strings.NewReader(doer.body)),
 		Header:     http.Header{},
 	}, nil
 }

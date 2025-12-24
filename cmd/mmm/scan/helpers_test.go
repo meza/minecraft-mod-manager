@@ -28,7 +28,7 @@ import (
 
 type noopDoer struct{}
 
-func (n noopDoer) Do(*http.Request) (*http.Response, error) {
+func (doer noopDoer) Do(*http.Request) (*http.Response, error) {
 	return &http.Response{
 		StatusCode: http.StatusOK,
 		Body:       io.NopCloser(strings.NewReader("")),
@@ -44,25 +44,25 @@ type errorWriter struct {
 	err error
 }
 
-func (w errorWriter) Write([]byte) (int, error) {
-	return 0, w.err
+func (writer errorWriter) Write([]byte) (int, error) {
+	return 0, writer.err
 }
 
 type errorDoer struct {
 	err error
 }
 
-func (e errorDoer) Do(*http.Request) (*http.Response, error) { return nil, e.err }
+func (doer errorDoer) Do(*http.Request) (*http.Response, error) { return nil, doer.err }
 
 type responseDoer struct {
 	status int
 	body   string
 }
 
-func (r responseDoer) Do(*http.Request) (*http.Response, error) {
+func (doer responseDoer) Do(*http.Request) (*http.Response, error) {
 	return &http.Response{
-		StatusCode: r.status,
-		Body:       io.NopCloser(strings.NewReader(r.body)),
+		StatusCode: doer.status,
+		Body:       io.NopCloser(strings.NewReader(doer.body)),
 		Header:     http.Header{},
 	}, nil
 }
@@ -797,11 +797,11 @@ type statErrorFs struct {
 	err      error
 }
 
-func (s statErrorFs) Stat(name string) (os.FileInfo, error) {
-	if filepath.Clean(name) == filepath.Clean(s.failPath) {
-		return nil, s.err
+func (filesystem statErrorFs) Stat(name string) (os.FileInfo, error) {
+	if filepath.Clean(name) == filepath.Clean(filesystem.failPath) {
+		return nil, filesystem.err
 	}
-	return s.Fs.Stat(name)
+	return filesystem.Fs.Stat(name)
 }
 
 type readErrorFs struct {
@@ -810,13 +810,13 @@ type readErrorFs struct {
 	err      error
 }
 
-func (r readErrorFs) Open(name string) (afero.File, error) {
-	file, err := r.Fs.Open(name)
+func (filesystem readErrorFs) Open(name string) (afero.File, error) {
+	file, err := filesystem.Fs.Open(name)
 	if err != nil {
 		return nil, err
 	}
-	if filepath.Clean(name) == filepath.Clean(r.failPath) {
-		return readErrorFile{File: file, err: r.err}, nil
+	if filepath.Clean(name) == filepath.Clean(filesystem.failPath) {
+		return readErrorFile{File: file, err: filesystem.err}, nil
 	}
 	return file, nil
 }
@@ -826,12 +826,12 @@ type readErrorFile struct {
 	err error
 }
 
-func (r readErrorFile) Read([]byte) (int, error) {
-	return 0, r.err
+func (file readErrorFile) Read([]byte) (int, error) {
+	return 0, file.err
 }
 
 type fakeTTY struct {
 	*bytes.Buffer
 }
 
-func (f fakeTTY) Fd() uintptr { return 0 }
+func (tty fakeTTY) Fd() uintptr { return 0 }

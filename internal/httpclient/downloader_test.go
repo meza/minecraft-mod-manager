@@ -22,16 +22,16 @@ type MockProgram struct {
 
 type doerFunc func(*http.Request) (*http.Response, error)
 
-func (f doerFunc) Do(req *http.Request) (*http.Response, error) {
-	return f(req)
+func (doer doerFunc) Do(req *http.Request) (*http.Response, error) {
+	return doer(req)
 }
 
-func (m *MockProgram) Send(msg tea.Msg) {
-	m.sentMessages = append(m.sentMessages, msg)
+func (program *MockProgram) Send(msg tea.Msg) {
+	program.sentMessages = append(program.sentMessages, msg)
 }
 
-func (m *MockProgram) SentMessages() []tea.Msg {
-	return m.sentMessages
+func (program *MockProgram) SentMessages() []tea.Msg {
+	return program.sentMessages
 }
 
 type closeErrorBody struct {
@@ -46,13 +46,13 @@ func newCloseErrorBody(payload string, closeErr error) *closeErrorBody {
 	}
 }
 
-func (b *closeErrorBody) Read(p []byte) (int, error) {
-	return b.reader.Read(p)
+func (body *closeErrorBody) Read(p []byte) (int, error) {
+	return body.reader.Read(p)
 }
 
-func (b *closeErrorBody) Close() error {
-	if b.closeErr != nil {
-		return b.closeErr
+func (body *closeErrorBody) Close() error {
+	if body.closeErr != nil {
+		return body.closeErr
 	}
 	return nil
 }
@@ -62,10 +62,10 @@ type closeErrorFile struct {
 	closeErr error
 }
 
-func (f closeErrorFile) Close() error {
-	_ = f.File.Close()
-	if f.closeErr != nil {
-		return f.closeErr
+func (file closeErrorFile) Close() error {
+	_ = file.File.Close()
+	if file.closeErr != nil {
+		return file.closeErr
 	}
 	return nil
 }
@@ -75,12 +75,12 @@ type closeErrorFs struct {
 	closeErr error
 }
 
-func (c closeErrorFs) Create(name string) (afero.File, error) {
-	file, err := c.Fs.Create(name)
+func (filesystem closeErrorFs) Create(name string) (afero.File, error) {
+	file, err := filesystem.Fs.Create(name)
 	if err != nil {
 		return nil, err
 	}
-	return closeErrorFile{File: file, closeErr: c.closeErr}, nil
+	return closeErrorFile{File: file, closeErr: filesystem.closeErr}, nil
 }
 
 type removeErrorFs struct {
@@ -88,22 +88,22 @@ type removeErrorFs struct {
 	failPath string
 }
 
-func (r removeErrorFs) Remove(name string) error {
-	if name == r.failPath {
+func (filesystem removeErrorFs) Remove(name string) error {
+	if name == filesystem.failPath {
 		return errors.New("remove failed")
 	}
-	return r.Fs.Remove(name)
+	return filesystem.Fs.Remove(name)
 }
 
 type readErrorBody struct {
 	err error
 }
 
-func (r *readErrorBody) Read(_ []byte) (int, error) {
-	return 0, r.err
+func (body *readErrorBody) Read(_ []byte) (int, error) {
+	return 0, body.err
 }
 
-func (r *readErrorBody) Close() error {
+func (body *readErrorBody) Close() error {
 	return nil
 }
 

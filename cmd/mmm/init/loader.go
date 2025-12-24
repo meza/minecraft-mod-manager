@@ -22,56 +22,56 @@ type LoaderModel struct {
 	Value models.Loader
 }
 
-func (m LoaderModel) Init() tea.Cmd {
+func (model LoaderModel) Init() tea.Cmd {
 	return nil
 }
 
-func (m LoaderModel) Update(msg tea.Msg) (LoaderModel, tea.Cmd) {
+func (model LoaderModel) Update(msg tea.Msg) (LoaderModel, tea.Cmd) {
 	var cmds []tea.Cmd
 	switch msg := msg.(type) {
 	case tea.WindowSizeMsg:
-		m.list.SetWidth(msg.Width)
-		return m, nil
+		model.list.SetWidth(msg.Width)
+		return model, nil
 	case tea.KeyMsg:
 		switch keypress := msg.String(); keypress {
 		case "enter":
-			i, ok := m.list.SelectedItem().(loaderType)
+			item, ok := model.list.SelectedItem().(loaderType)
 			if ok {
-				m.Value = models.Loader(i)
-				cmds = append(cmds, m.loaderSelected())
+				model.Value = models.Loader(item)
+				cmds = append(cmds, model.loaderSelected())
 			}
 		}
 	}
 
 	var cmd tea.Cmd
-	m.list, cmd = m.list.Update(msg)
+	model.list, cmd = model.list.Update(msg)
 	cmds = append(cmds, cmd)
-	return m, tea.Batch(cmds...)
+	return model, tea.Batch(cmds...)
 }
 
-func (m LoaderModel) View() string {
-	if m.Value != "" {
-		return fmt.Sprintf("%s %s", m.Title(), tui.SelectedItemStyle.Render(string(m.Value)))
+func (model LoaderModel) View() string {
+	if model.Value != "" {
+		return fmt.Sprintf("%s %s", model.Title(), tui.SelectedItemStyle.Render(string(model.Value)))
 	}
-	return m.list.View()
+	return model.list.View()
 }
 
-func (m LoaderModel) Title() string {
-	return m.list.Title
+func (model LoaderModel) Title() string {
+	return model.list.Title
 }
 
-func (m LoaderModel) loaderSelected() tea.Cmd {
+func (model LoaderModel) loaderSelected() tea.Cmd {
 	return func() tea.Msg {
-		return LoaderSelectedMessage{Loader: m.Value}
+		return LoaderSelectedMessage{Loader: model.Value}
 	}
 }
 
 type itemDelegate struct{}
 
-func (d itemDelegate) Height() int                             { return 1 }
-func (d itemDelegate) Spacing() int                            { return 0 }
-func (d itemDelegate) Update(_ tea.Msg, _ *list.Model) tea.Cmd { return nil }
-func (d itemDelegate) Render(w io.Writer, m list.Model, itemIndex int, listItem list.Item) {
+func (delegate itemDelegate) Height() int                             { return 1 }
+func (delegate itemDelegate) Spacing() int                            { return 0 }
+func (delegate itemDelegate) Update(_ tea.Msg, _ *list.Model) tea.Cmd { return nil }
+func (delegate itemDelegate) Render(w io.Writer, listModel list.Model, itemIndex int, listItem list.Item) {
 	item, ok := listItem.(loaderType)
 	if !ok {
 		return
@@ -79,7 +79,7 @@ func (d itemDelegate) Render(w io.Writer, m list.Model, itemIndex int, listItem 
 
 	itemLine := fmt.Sprintf("%s", item)
 
-	if itemIndex == m.Index() {
+	if itemIndex == listModel.Index() {
 		if _, err := fmt.Fprint(w, tui.SelectedItemStyle.Render("❯ "+itemLine)); err != nil {
 			return
 		}
@@ -93,7 +93,7 @@ func (d itemDelegate) Render(w io.Writer, m list.Model, itemIndex int, listItem 
 
 type loaderType string
 
-func (i loaderType) FilterValue() string { return "" }
+func (item loaderType) FilterValue() string { return "" }
 
 func NewLoaderModel(loader string) LoaderModel {
 	width, _, err := term.GetSize(os.Stdout.Fd())

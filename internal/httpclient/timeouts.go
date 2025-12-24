@@ -18,12 +18,12 @@ type TimeoutError struct {
 	Err error
 }
 
-func (e *TimeoutError) Error() string {
+func (timeoutError *TimeoutError) Error() string {
 	return i18n.T("error.network_timeout")
 }
 
-func (e *TimeoutError) Unwrap() error {
-	return e.Err
+func (timeoutError *TimeoutError) Unwrap() error {
+	return timeoutError.Err
 }
 
 func IsTimeoutError(err error) bool {

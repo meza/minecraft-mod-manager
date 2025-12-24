@@ -1124,6 +1124,6 @@ type lstatErrorFs struct {
 	err error
 }
 
-func (l lstatErrorFs) LstatIfPossible(string) (os.FileInfo, bool, error) {
-	return nil, true, l.err
+func (filesystem lstatErrorFs) LstatIfPossible(string) (os.FileInfo, bool, error) {
+	return nil, true, filesystem.err
 }

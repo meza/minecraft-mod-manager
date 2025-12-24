@@ -517,41 +517,41 @@ func errorCategory(err error) string {
 	return "unknown"
 }
 
-func (s *telemetryState) disable(logger Logger, timeout time.Duration) {
-	s.mu.Lock()
-	defer s.mu.Unlock()
-	s.logger = logger
-	s.flushTimeout = timeout
-	s.enabled = false
-	s.client = nil
+func (state *telemetryState) disable(logger Logger, timeout time.Duration) {
+	state.mu.Lock()
+	defer state.mu.Unlock()
+	state.logger = logger
+	state.flushTimeout = timeout
+	state.enabled = false
+	state.client = nil
 }
 
-func (s *telemetryState) snapshot() telemetrySnapshot {
-	s.mu.RLock()
-	defer s.mu.RUnlock()
+func (state *telemetryState) snapshot() telemetrySnapshot {
+	state.mu.RLock()
+	defer state.mu.RUnlock()
 	return telemetrySnapshot{
-		client:       s.client,
-		machineID:    s.machineID,
-		logger:       s.logger,
-		flushTimeout: s.flushTimeout,
-		enabled:      s.enabled,
+		client:       state.client,
+		machineID:    state.machineID,
+		logger:       state.logger,
+		flushTimeout: state.flushTimeout,
+		enabled:      state.enabled,
 	}
 }
 
-func (s *telemetryState) shutdownSnapshot() telemetrySnapshot {
-	s.mu.Lock()
-	defer s.mu.Unlock()
+func (state *telemetryState) shutdownSnapshot() telemetrySnapshot {
+	state.mu.Lock()
+	defer state.mu.Unlock()
 
 	snap := telemetrySnapshot{
-		client:       s.client,
-		machineID:    s.machineID,
-		logger:       s.logger,
-		flushTimeout: s.flushTimeout,
-		enabled:      s.enabled,
+		client:       state.client,
+		machineID:    state.machineID,
+		logger:       state.logger,
+		flushTimeout: state.flushTimeout,
+		enabled:      state.enabled,
 	}
 
-	s.client = nil
-	s.enabled = false
+	state.client = nil
+	state.enabled = false
 
 	return snap
 }

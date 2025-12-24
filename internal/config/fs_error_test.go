@@ -14,12 +14,12 @@ type statErrorFs struct {
 	err      error
 }
 
-func (s statErrorFs) Stat(name string) (os.FileInfo, error) {
-	if filepath.Clean(name) == filepath.Clean(s.failPath) {
-		if s.err != nil {
-			return nil, s.err
+func (filesystem statErrorFs) Stat(name string) (os.FileInfo, error) {
+	if filepath.Clean(name) == filepath.Clean(filesystem.failPath) {
+		if filesystem.err != nil {
+			return nil, filesystem.err
 		}
 		return nil, errors.New("stat failed")
 	}
-	return s.Fs.Stat(name)
+	return filesystem.Fs.Stat(name)
 }

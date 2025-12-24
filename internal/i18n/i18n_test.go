@@ -15,25 +15,25 @@ type MockLocaleProvider struct {
 	LocaleProvider
 }
 
-func (m MockLocaleProvider) GetLocales() ([]string, error) {
+func (provider MockLocaleProvider) GetLocales() ([]string, error) {
 	return nil, errors.New("mock error")
 }
 
 type FakeLocaleProvider struct{}
 
-func (f FakeLocaleProvider) GetLocales() ([]string, error) {
+func (provider FakeLocaleProvider) GetLocales() ([]string, error) {
 	return []string{"fr_FR", "de_DE"}, nil
 }
 
 type EmptyLocaleProvider struct{}
 
-func (f EmptyLocaleProvider) GetLocales() ([]string, error) {
+func (provider EmptyLocaleProvider) GetLocales() ([]string, error) {
 	return []string{"", "es_ES"}, nil
 }
 
 type customString string
 
-func (c customString) String() string { return string(c) }
+func (value customString) String() string { return string(value) }
 
 //go:embed __fixtures__/*.json
 var testData embed.FS

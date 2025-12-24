@@ -11,10 +11,10 @@ type ConfigFileNotFoundException struct {
 	Err  error
 }
 
-func (e *FileInvalidError) Error() string {
-	return fmt.Sprintf("Configuration file is invalid: %s", e.Err)
+func (fileError *FileInvalidError) Error() string {
+	return fmt.Sprintf("Configuration file is invalid: %s", fileError.Err)
 }
 
-func (e *ConfigFileNotFoundException) Error() string {
-	return fmt.Sprintf("Configuration file not found: %s", e.Path)
+func (configError *ConfigFileNotFoundException) Error() string {
+	return fmt.Sprintf("Configuration file not found: %s", configError.Path)
 }

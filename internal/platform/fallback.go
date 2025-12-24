@@ -20,11 +20,11 @@ type versionParts struct {
 	patch int
 }
 
-func (v versionParts) format(patch int) string {
+func (parts versionParts) format(patch int) string {
 	if patch == 0 {
-		return strconv.Itoa(v.major) + "." + strconv.Itoa(v.minor)
+		return strconv.Itoa(parts.major) + "." + strconv.Itoa(parts.minor)
 	}
-	return strconv.Itoa(v.major) + "." + strconv.Itoa(v.minor) + "." + strconv.Itoa(patch)
+	return strconv.Itoa(parts.major) + "." + strconv.Itoa(parts.minor) + "." + strconv.Itoa(patch)
 }
 
 func splitVersion(version string) versionParts {

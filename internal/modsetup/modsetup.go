@@ -35,18 +35,18 @@ func NewSetupCoordinator(fs afero.Fs, minecraftClient httpclient.Doer, downloade
 	}
 }
 
-func (s *SetupCoordinator) EnsureConfigAndLock(ctx context.Context, meta config.Metadata, quiet bool) (models.ModsJSON, []models.ModInstall, error) {
-	cfg, err := config.ReadConfig(ctx, s.fs, meta)
+func (coordinator *SetupCoordinator) EnsureConfigAndLock(ctx context.Context, meta config.Metadata, quiet bool) (models.ModsJSON, []models.ModInstall, error) {
+	cfg, err := config.ReadConfig(ctx, coordinator.fs, meta)
 	if err != nil {
 		var notFound *config.ConfigFileNotFoundException
 		if errors.As(err, &notFound) {
 			if quiet {
 				return models.ModsJSON{}, nil, err
 			}
-			if s.minecraftClient == nil {
+			if coordinator.minecraftClient == nil {
 				return models.ModsJSON{}, nil, errors.New("missing modsetup dependencies: minecraftClient")
 			}
-			cfg, err = config.InitConfig(ctx, s.fs, meta, s.minecraftClient)
+			cfg, err = config.InitConfig(ctx, coordinator.fs, meta, coordinator.minecraftClient)
 			if err != nil {
 				return models.ModsJSON{}, nil, err
 			}
@@ -55,7 +55,7 @@ func (s *SetupCoordinator) EnsureConfigAndLock(ctx context.Context, meta config.
 		}
 	}
 
-	lock, err := config.EnsureLock(ctx, s.fs, meta)
+	lock, err := config.EnsureLock(ctx, coordinator.fs, meta)
 	if err != nil {
 		return models.ModsJSON{}, nil, err
 	}
@@ -63,7 +63,7 @@ func (s *SetupCoordinator) EnsureConfigAndLock(ctx context.Context, meta config.
 	return cfg, lock, nil
 }
 
-func (s *SetupCoordinator) EnsureDownloaded(ctx context.Context, meta config.Metadata, cfg models.ModsJSON, remote platform.RemoteMod, downloadClient httpclient.Doer) (string, error) {
+func (coordinator *SetupCoordinator) EnsureDownloaded(ctx context.Context, meta config.Metadata, cfg models.ModsJSON, remote platform.RemoteMod, downloadClient httpclient.Doer) (string, error) {
 	normalizedFileName, err := modfilename.Normalize(remote.FileName)
 	if err != nil {
 		return "", err
@@ -76,20 +76,20 @@ func (s *SetupCoordinator) EnsureDownloaded(ctx context.Context, meta config.Met
 	}
 	remote.FileName = normalizedFileName
 
-	mkdirErr := s.fs.MkdirAll(meta.ModsFolderPath(cfg), 0755)
+	mkdirErr := coordinator.fs.MkdirAll(meta.ModsFolderPath(cfg), 0755)
 	if mkdirErr != nil {
 		return "", mkdirErr
 	}
 
 	destination := filepath.Join(meta.ModsFolderPath(cfg), remote.FileName)
-	resolvedDestination, err := modpath.ResolveWritablePath(s.fs, meta.ModsFolderPath(cfg), destination)
+	resolvedDestination, err := modpath.ResolveWritablePath(coordinator.fs, meta.ModsFolderPath(cfg), destination)
 	if err != nil {
 		return "", err
 	}
-	if s.downloader == nil {
+	if coordinator.downloader == nil {
 		return "", errors.New("missing modsetup dependencies: downloader")
 	}
-	installer := modinstall.NewInstaller(s.fs, modinstall.Downloader(s.downloader))
+	installer := modinstall.NewInstaller(coordinator.fs, modinstall.Downloader(coordinator.downloader))
 	downloadErr := installer.DownloadAndVerify(ctx, remote.DownloadURL, resolvedDestination, remote.Hash, downloadClient, &noopSender{})
 	if downloadErr != nil {
 		return "", downloadErr
@@ -108,7 +108,7 @@ type EnsureResult struct {
 	LockAdded   bool
 }
 
-func (s *SetupCoordinator) EnsurePersisted(ctx context.Context, meta config.Metadata, cfg models.ModsJSON, lock []models.ModInstall, resolvedPlatform models.Platform, resolvedID string, remote platform.RemoteMod, options EnsurePersistOptions) (models.ModsJSON, []models.ModInstall, EnsureResult, error) {
+func (coordinator *SetupCoordinator) EnsurePersisted(ctx context.Context, meta config.Metadata, cfg models.ModsJSON, lock []models.ModInstall, resolvedPlatform models.Platform, resolvedID string, remote platform.RemoteMod, options EnsurePersistOptions) (models.ModsJSON, []models.ModInstall, EnsureResult, error) {
 	if strings.TrimSpace(string(resolvedPlatform)) == "" {
 		return models.ModsJSON{}, nil, EnsureResult{}, errors.New("missing resolved platform")
 	}
@@ -152,12 +152,12 @@ func (s *SetupCoordinator) EnsurePersisted(ctx context.Context, meta config.Meta
 	}
 
 	if result.ConfigAdded {
-		if err := config.WriteConfig(ctx, s.fs, meta, cfg); err != nil {
+		if err := config.WriteConfig(ctx, coordinator.fs, meta, cfg); err != nil {
 			return models.ModsJSON{}, nil, EnsureResult{}, err
 		}
 	}
 	if result.LockAdded {
-		if err := config.WriteLock(ctx, s.fs, meta, lock); err != nil {
+		if err := config.WriteLock(ctx, coordinator.fs, meta, lock); err != nil {
 			return models.ModsJSON{}, nil, EnsureResult{}, err
 		}
 	}
@@ -172,7 +172,7 @@ type UpsertResult struct {
 	LockUpdated   bool
 }
 
-func (s *SetupCoordinator) UpsertConfigAndLock(cfg models.ModsJSON, lock []models.ModInstall, resolvedPlatform models.Platform, resolvedID string, remote platform.RemoteMod, options EnsurePersistOptions) (models.ModsJSON, []models.ModInstall, UpsertResult, error) {
+func (coordinator *SetupCoordinator) UpsertConfigAndLock(cfg models.ModsJSON, lock []models.ModInstall, resolvedPlatform models.Platform, resolvedID string, remote platform.RemoteMod, options EnsurePersistOptions) (models.ModsJSON, []models.ModInstall, UpsertResult, error) {
 	if strings.TrimSpace(string(resolvedPlatform)) == "" {
 		return models.ModsJSON{}, nil, UpsertResult{}, errors.New("missing resolved platform")
 	}
@@ -308,4 +308,4 @@ func validateRemoteForLock(remote platform.RemoteMod) (string, error) {
 
 type noopSender struct{}
 
-func (n *noopSender) Send(msg tea.Msg) { _ = msg }
+func (sender *noopSender) Send(msg tea.Msg) { _ = msg }

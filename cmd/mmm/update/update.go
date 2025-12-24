@@ -674,7 +674,7 @@ func parseRFC3339(value string) (time.Time, error) {
 
 type noopSender struct{}
 
-func (n *noopSender) Send(msg tea.Msg) { _ = msg }
+func (sender *noopSender) Send(msg tea.Msg) { _ = msg }
 
 func downloadClient(clients platform.Clients) httpclient.Doer {
 	if clients.Curseforge != nil {

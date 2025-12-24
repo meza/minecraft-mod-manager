@@ -181,11 +181,11 @@ type terminalPrompter struct {
 	out io.Writer
 }
 
-func (p terminalPrompter) ConfirmOverwrite(configPath string) (bool, error) {
-	if _, err := fmt.Fprintf(p.out, "Configuration file already exists at %s. Overwrite? (y/N): ", configPath); err != nil {
+func (prompter terminalPrompter) ConfirmOverwrite(configPath string) (bool, error) {
+	if _, err := fmt.Fprintf(prompter.out, "Configuration file already exists at %s. Overwrite? (y/N): ", configPath); err != nil {
 		return false, err
 	}
-	answer, err := readLine(p.in)
+	answer, err := readLine(prompter.in)
 	if err != nil {
 		return false, err
 	}
@@ -194,11 +194,11 @@ func (p terminalPrompter) ConfirmOverwrite(configPath string) (bool, error) {
 	return answer == "y" || answer == "yes", nil
 }
 
-func (p terminalPrompter) RequestNewConfigPath(configPath string) (string, error) {
-	if _, err := fmt.Fprintf(p.out, "Enter a new config file path (current: %s): ", configPath); err != nil {
+func (prompter terminalPrompter) RequestNewConfigPath(configPath string) (string, error) {
+	if _, err := fmt.Fprintf(prompter.out, "Enter a new config file path (current: %s): ", configPath); err != nil {
 		return "", err
 	}
-	answer, err := readLine(p.in)
+	answer, err := readLine(prompter.in)
 	if err != nil {
 		return "", err
 	}
@@ -495,22 +495,22 @@ type loaderFlag struct {
 	value models.Loader
 }
 
-func (f *loaderFlag) String() string {
-	return f.value.String()
+func (flag *loaderFlag) String() string {
+	return flag.value.String()
 }
 
-func (f *loaderFlag) Set(value string) error {
+func (flag *loaderFlag) Set(value string) error {
 	candidate := models.Loader(strings.TrimSpace(strings.ToLower(value)))
 	for _, loader := range models.AllLoaders() {
 		if loader == candidate {
-			f.value = candidate
+			flag.value = candidate
 			return nil
 		}
 	}
 	return fmt.Errorf("invalid loader: %s", value)
 }
 
-func (f *loaderFlag) Type() string {
+func (flag *loaderFlag) Type() string {
 	return "loader"
 }
 

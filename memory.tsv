@@ -526,3 +526,11 @@ date	time	entry
 2025-12-23	20:25	mmm-63.106.4: added test coverage for new error branches (init/scan prompts, sha1 close errors, logger writer errors, list delegates, coverage tool close/remove errors, packaging close errors, globMatches invalid patterns); make coverage and make build now pass.
 2025-12-23	20:42	Windows coverage failed due to TempDir cleanup in coverage/packaging close-error tests; updated overrides to close files before returning errors; asked user to re-run make coverage on Windows.
 2025-12-23	21:36	Closed mmm-63.106.4 per user after Windows build+coverage confirmation.
+2025-12-23	21:41	Created Beads issue mmm-73 for Windows test -d 1.21.11: Carpet CurseForge check reports unsupported despite compatible version; output lacks actionable error detail.
+2025-12-23	21:43	Renamed Beads issue mmm-73 to remove 'test:' prefix.
+2025-12-23	21:44	Created Beads issue mmm-74 for update command: fingerprint 403 error lacks provider/mod context; needs actionable output.
+2025-12-23	21:47	Linked Beads issues mmm-74 and mmm-73 as related.
+2025-12-23	23:04	Checked mmm-63.107 dependencies; open lint leaf tasks include mmm-63.106.2 (gocritic) and mmm-63.106.3 (complexity), plus mmm-63.104 and mmm-63.76.
+2025-12-23	23:59	mmm-63.106.2: cleared gocritic findings by renaming single-letter receivers, fixed http.NoBody usage, and verified make coverage/build pass.
+2025-12-24	00:10	Final pass: removed remaining gocritic receiver name warnings in cmd/mmm/list and cmd/mmm/scan; make lint no longer reports gocritic.
+2025-12-24	00:59	User confirmed Windows build+tests; closed mmm-63.106.2 after reviewer approval.

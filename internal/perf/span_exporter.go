@@ -18,28 +18,28 @@ func newSpanExporter() *spanExporter {
 	}
 }
 
-func (e *spanExporter) ExportSpans(_ context.Context, spans []trace.ReadOnlySpan) error {
-	e.mu.Lock()
-	defer e.mu.Unlock()
-	e.spans = append(e.spans, spans...)
+func (exporter *spanExporter) ExportSpans(_ context.Context, spans []trace.ReadOnlySpan) error {
+	exporter.mu.Lock()
+	defer exporter.mu.Unlock()
+	exporter.spans = append(exporter.spans, spans...)
 	return nil
 }
 
-func (e *spanExporter) Shutdown(context.Context) error {
+func (exporter *spanExporter) Shutdown(context.Context) error {
 	return nil
 }
 
-func (e *spanExporter) Reset() {
-	e.mu.Lock()
-	defer e.mu.Unlock()
-	e.spans = e.spans[:0]
+func (exporter *spanExporter) Reset() {
+	exporter.mu.Lock()
+	defer exporter.mu.Unlock()
+	exporter.spans = exporter.spans[:0]
 }
 
-func (e *spanExporter) Snapshot() []trace.ReadOnlySpan {
-	e.mu.Lock()
-	defer e.mu.Unlock()
+func (exporter *spanExporter) Snapshot() []trace.ReadOnlySpan {
+	exporter.mu.Lock()
+	defer exporter.mu.Unlock()
 
-	out := make([]trace.ReadOnlySpan, len(e.spans))
-	copy(out, e.spans)
+	out := make([]trace.ReadOnlySpan, len(exporter.spans))
+	copy(out, exporter.spans)
 	return out
 }

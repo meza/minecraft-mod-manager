@@ -343,8 +343,8 @@ type readlinkErrorFs struct {
 	err error
 }
 
-func (r readlinkErrorFs) ReadlinkIfPossible(string) (string, error) {
-	return "", r.err
+func (filesystem readlinkErrorFs) ReadlinkIfPossible(string) (string, error) {
+	return "", filesystem.err
 }
 
 type lstatErrorFs struct {
@@ -352,8 +352,8 @@ type lstatErrorFs struct {
 	err error
 }
 
-func (l lstatErrorFs) LstatIfPossible(string) (os.FileInfo, bool, error) {
-	return nil, true, l.err
+func (filesystem lstatErrorFs) LstatIfPossible(string) (os.FileInfo, bool, error) {
+	return nil, true, filesystem.err
 }
 
 type linkReaderOnlyFs struct {

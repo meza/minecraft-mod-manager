@@ -70,63 +70,63 @@ func NewReleaseTypesModel(defaults []models.ReleaseType) ReleaseTypesModel {
 	}
 }
 
-func (m ReleaseTypesModel) Init() tea.Cmd {
+func (model ReleaseTypesModel) Init() tea.Cmd {
 	return nil
 }
 
-func (m ReleaseTypesModel) Update(msg tea.Msg) (ReleaseTypesModel, tea.Cmd) {
+func (model ReleaseTypesModel) Update(msg tea.Msg) (ReleaseTypesModel, tea.Cmd) {
 	switch msg := msg.(type) {
 	case tea.WindowSizeMsg:
-		m.list.SetWidth(msg.Width)
-		return m, nil
+		model.list.SetWidth(msg.Width)
+		return model, nil
 	case tea.KeyMsg:
 		switch msg.String() {
 		case " ":
-			m.toggleSelected()
+			model.toggleSelected()
 		case "enter":
-			values := m.values()
+			values := model.values()
 			if len(values) == 0 {
-				m.error = errors.New("release types cannot be empty")
-				return m, nil
+				model.error = errors.New("release types cannot be empty")
+				return model, nil
 			}
-			m.Value = values
-			return m, m.releaseTypesSelected()
+			model.Value = values
+			return model, model.releaseTypesSelected()
 		}
 	}
 
 	var cmd tea.Cmd
-	m.list, cmd = m.list.Update(msg)
-	return m, cmd
+	model.list, cmd = model.list.Update(msg)
+	return model, cmd
 }
 
-func (m ReleaseTypesModel) View() string {
-	if m.error != nil {
-		return m.list.View() + "\n" + tui.ErrorStyle.Render(m.error.Error())
+func (model ReleaseTypesModel) View() string {
+	if model.error != nil {
+		return model.list.View() + "\n" + tui.ErrorStyle.Render(model.error.Error())
 	}
 
-	return m.list.View()
+	return model.list.View()
 }
 
-func (m ReleaseTypesModel) releaseTypesSelected() tea.Cmd {
+func (model ReleaseTypesModel) releaseTypesSelected() tea.Cmd {
 	return func() tea.Msg {
-		return ReleaseTypesSelectedMessage{ReleaseTypes: m.Value}
+		return ReleaseTypesSelectedMessage{ReleaseTypes: model.Value}
 	}
 }
 
-func (m ReleaseTypesModel) toggleSelected() {
-	item, ok := m.list.SelectedItem().(releaseTypeItem)
+func (model ReleaseTypesModel) toggleSelected() {
+	item, ok := model.list.SelectedItem().(releaseTypeItem)
 	if !ok {
 		return
 	}
 
-	current := m.selected[item.value]
-	m.selected[item.value] = !current
+	current := model.selected[item.value]
+	model.selected[item.value] = !current
 }
 
-func (m ReleaseTypesModel) values() []models.ReleaseType {
+func (model ReleaseTypesModel) values() []models.ReleaseType {
 	values := make([]models.ReleaseType, 0)
 	for _, releaseType := range models.AllReleaseTypes() {
-		if m.selected[releaseType] {
+		if model.selected[releaseType] {
 			values = append(values, releaseType)
 		}
 	}
@@ -143,11 +143,11 @@ func formatReleaseTypes(values []models.ReleaseType) string {
 
 type releaseTypeDelegate struct{}
 
-func (d releaseTypeDelegate) Height() int                             { return 1 }
-func (d releaseTypeDelegate) Spacing() int                            { return 0 }
-func (d releaseTypeDelegate) Update(_ tea.Msg, _ *list.Model) tea.Cmd { return nil }
+func (delegate releaseTypeDelegate) Height() int                             { return 1 }
+func (delegate releaseTypeDelegate) Spacing() int                            { return 0 }
+func (delegate releaseTypeDelegate) Update(_ tea.Msg, _ *list.Model) tea.Cmd { return nil }
 
-func (d releaseTypeDelegate) Render(w io.Writer, m list.Model, itemIndex int, listItem list.Item) {
+func (delegate releaseTypeDelegate) Render(w io.Writer, listModel list.Model, itemIndex int, listItem list.Item) {
 	item, ok := listItem.(releaseTypeItem)
 	if !ok {
 		return
@@ -160,7 +160,7 @@ func (d releaseTypeDelegate) Render(w io.Writer, m list.Model, itemIndex int, li
 
 	itemLine := fmt.Sprintf("%s %s", icon, item.value)
 
-	if itemIndex == m.Index() {
+	if itemIndex == listModel.Index() {
 		if _, err := fmt.Fprint(w, tui.SelectedItemStyle.Render("❯ "+itemLine)); err != nil {
 			return
 		}
@@ -177,7 +177,7 @@ type releaseTypeItem struct {
 	selected map[models.ReleaseType]bool
 }
 
-func (i releaseTypeItem) FilterValue() string { return string(i.value) }
+func (item releaseTypeItem) FilterValue() string { return string(item.value) }
 
 func toggleBinding() key.Binding {
 	return key.NewBinding(

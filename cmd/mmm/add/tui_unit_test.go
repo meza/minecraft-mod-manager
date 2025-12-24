@@ -22,8 +22,8 @@ type errorWriter struct {
 	err error
 }
 
-func (w errorWriter) Write([]byte) (int, error) {
-	return 0, w.err
+func (writer errorWriter) Write([]byte) (int, error) {
+	return 0, writer.err
 }
 
 func TestAddTUIListItemFilterValueEmpty(t *testing.T) {
