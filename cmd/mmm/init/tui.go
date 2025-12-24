@@ -101,72 +101,20 @@ func (model CommandModel) View() string {
 func (model CommandModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	var cmds []tea.Cmd
 
-	var cmd tea.Cmd
-
-	switch msg := msg.(type) {
-	case LoaderSelectedMessage:
-		model.endWait("select_loader")
-		if model.sessionSpan != nil {
-			model.sessionSpan.AddEvent("tui.init.action.select_loader", perf.WithEventAttributes(attribute.String("loader", msg.Loader.String())))
-		}
-		model.result.Loader = msg.Loader
-		model.result.Provided.Loader = true
-		model.setState(nextMissingState(model.result))
-	case GameVersionSelectedMessage:
-		model.endWait("select_game_version")
-		if model.sessionSpan != nil {
-			model.sessionSpan.AddEvent("tui.init.action.select_game_version", perf.WithEventAttributes(attribute.String("game_version", msg.GameVersion)))
-		}
-		model.result.GameVersion = msg.GameVersion
-		model.result.Provided.GameVersion = true
-		model.setState(nextMissingState(model.result))
-	case ReleaseTypesSelectedMessage:
-		model.endWait("select_release_types")
-		if model.sessionSpan != nil {
-			model.sessionSpan.AddEvent("tui.init.action.select_release_types", perf.WithEventAttributes(attribute.Int("count", len(msg.ReleaseTypes))))
-		}
-		model.result.ReleaseTypes = msg.ReleaseTypes
-		model.result.Provided.ReleaseTypes = true
-		model.setState(nextMissingState(model.result))
-	case ModsFolderSelectedMessage:
-		model.endWait("select_mods_folder")
-		if model.sessionSpan != nil {
-			model.sessionSpan.AddEvent("tui.init.action.select_mods_folder", perf.WithEventAttributes(attribute.String("mods_folder", msg.ModsFolder)))
-		}
-		model.result.ModsFolder = msg.ModsFolder
-		model.result.Provided.ModsFolder = true
-		model.setState(nextMissingState(model.result))
-		if model.state == done {
-			if model.sessionSpan != nil {
-				model.sessionSpan.AddEvent("tui.init.outcome.completed")
-			}
-			return model, tea.Quit
-		}
-	case tea.KeyMsg:
-		switch msg.String() {
-		case "ctrl+c":
-			model.endWait("abort")
-			if model.sessionSpan != nil {
-				model.sessionSpan.AddEvent("tui.init.action.abort", perf.WithEventAttributes(attribute.String("state", model.stateName())))
-			}
-			model.err = fmt.Errorf("init canceled")
-			cmds = append(cmds, tea.Quit)
-		}
+	updatedModel, cmd, shouldQuit := model.handleMessage(msg)
+	model = updatedModel
+	if cmd != nil {
+		cmds = append(cmds, cmd)
+	}
+	if shouldQuit {
+		return model, tea.Batch(cmds...)
 	}
 
-	switch model.state {
-	case stateLoader:
-		model.loaderQuestion, cmd = model.loaderQuestion.Update(msg)
-	case stateGameVersion:
-		model.gameVersionQuestion, cmd = model.gameVersionQuestion.Update(msg)
-	case stateReleaseTypes:
-		model.releaseTypesQuestion, cmd = model.releaseTypesQuestion.Update(msg)
-	case stateModsFolder:
-		model.modsFolderQuestion, cmd = model.modsFolderQuestion.Update(msg)
-	default:
-		return model, tea.Quit
+	updatedModel, cmd = model.updateCurrentState(msg)
+	model = updatedModel
+	if cmd != nil {
+		cmds = append(cmds, cmd)
 	}
-	cmds = append(cmds, cmd)
 
 	return model, tea.Batch(cmds...)
 }
@@ -205,6 +153,106 @@ func NewModel(ctx context.Context, sessionSpan *perf.Span, options initOptions, 
 
 	model.setState(nextMissingState(model.result))
 
+	return model
+}
+
+func (model CommandModel) handleMessage(msg tea.Msg) (CommandModel, tea.Cmd, bool) {
+	switch typed := msg.(type) {
+	case LoaderSelectedMessage:
+		return model.handleLoaderSelected(typed), nil, false
+	case GameVersionSelectedMessage:
+		return model.handleGameVersionSelected(typed), nil, false
+	case ReleaseTypesSelectedMessage:
+		return model.handleReleaseTypesSelected(typed), nil, false
+	case ModsFolderSelectedMessage:
+		return model.handleModsFolderSelected(typed)
+	case tea.KeyMsg:
+		if typed.String() == "ctrl+c" {
+			return model.handleAbort(), tea.Quit, false
+		}
+	}
+	return model, nil, false
+}
+
+func (model CommandModel) updateCurrentState(msg tea.Msg) (CommandModel, tea.Cmd) {
+	switch model.state {
+	case stateLoader:
+		updated, cmd := model.loaderQuestion.Update(msg)
+		model.loaderQuestion = updated
+		return model, cmd
+	case stateGameVersion:
+		updated, cmd := model.gameVersionQuestion.Update(msg)
+		model.gameVersionQuestion = updated
+		return model, cmd
+	case stateReleaseTypes:
+		updated, cmd := model.releaseTypesQuestion.Update(msg)
+		model.releaseTypesQuestion = updated
+		return model, cmd
+	case stateModsFolder:
+		updated, cmd := model.modsFolderQuestion.Update(msg)
+		model.modsFolderQuestion = updated
+		return model, cmd
+	default:
+		return model, tea.Quit
+	}
+}
+
+func (model CommandModel) handleLoaderSelected(msg LoaderSelectedMessage) CommandModel {
+	model.endWait("select_loader")
+	if model.sessionSpan != nil {
+		model.sessionSpan.AddEvent("tui.init.action.select_loader", perf.WithEventAttributes(attribute.String("loader", msg.Loader.String())))
+	}
+	model.result.Loader = msg.Loader
+	model.result.Provided.Loader = true
+	model.setState(nextMissingState(model.result))
+	return model
+}
+
+func (model CommandModel) handleGameVersionSelected(msg GameVersionSelectedMessage) CommandModel {
+	model.endWait("select_game_version")
+	if model.sessionSpan != nil {
+		model.sessionSpan.AddEvent("tui.init.action.select_game_version", perf.WithEventAttributes(attribute.String("game_version", msg.GameVersion)))
+	}
+	model.result.GameVersion = msg.GameVersion
+	model.result.Provided.GameVersion = true
+	model.setState(nextMissingState(model.result))
+	return model
+}
+
+func (model CommandModel) handleReleaseTypesSelected(msg ReleaseTypesSelectedMessage) CommandModel {
+	model.endWait("select_release_types")
+	if model.sessionSpan != nil {
+		model.sessionSpan.AddEvent("tui.init.action.select_release_types", perf.WithEventAttributes(attribute.Int("count", len(msg.ReleaseTypes))))
+	}
+	model.result.ReleaseTypes = msg.ReleaseTypes
+	model.result.Provided.ReleaseTypes = true
+	model.setState(nextMissingState(model.result))
+	return model
+}
+
+func (model CommandModel) handleModsFolderSelected(msg ModsFolderSelectedMessage) (CommandModel, tea.Cmd, bool) {
+	model.endWait("select_mods_folder")
+	if model.sessionSpan != nil {
+		model.sessionSpan.AddEvent("tui.init.action.select_mods_folder", perf.WithEventAttributes(attribute.String("mods_folder", msg.ModsFolder)))
+	}
+	model.result.ModsFolder = msg.ModsFolder
+	model.result.Provided.ModsFolder = true
+	model.setState(nextMissingState(model.result))
+	if model.state == done {
+		if model.sessionSpan != nil {
+			model.sessionSpan.AddEvent("tui.init.outcome.completed")
+		}
+		return model, tea.Quit, true
+	}
+	return model, nil, false
+}
+
+func (model CommandModel) handleAbort() CommandModel {
+	model.endWait("abort")
+	if model.sessionSpan != nil {
+		model.sessionSpan.AddEvent("tui.init.action.abort", perf.WithEventAttributes(attribute.String("state", model.stateName())))
+	}
+	model.err = fmt.Errorf("init canceled")
 	return model
 }
 

@@ -138,49 +138,68 @@ func runRemove(ctx context.Context, opts removeOptions, deps removeDeps) (int, e
 
 	removedCount := 0
 	for _, mod := range matches {
-		name := mod.Name
-
-		if opts.DryRun {
-			deps.logger.Log(fmt.Sprintf("Would have removed %s", name), false)
-			continue
+		removed, err := removeMod(ctx, meta, &cfg, &lock, mod, opts, deps)
+		if err != nil {
+			return removedCount, err
 		}
-
-		lockIndex := lockIndexFor(mod, lock)
-		if lockIndex >= 0 {
-			normalizedFileName, err := modfilename.Normalize(lock[lockIndex].FileName)
-			if err != nil {
-				deps.logger.Error(i18n.T("cmd.remove.error.invalid_filename_lock", i18n.Tvars{
-					Data: &i18n.TData{
-						"name": mod.Name,
-						"file": modfilename.Display(lock[lockIndex].FileName),
-					},
-				}))
-			} else {
-				installedPath := filepath.Join(meta.ModsFolderPath(cfg), normalizedFileName)
-				if err := removeFileForce(deps.fs, installedPath); err != nil {
-					return removedCount, err
-				}
-			}
-
-			lock = append(lock[:lockIndex], lock[lockIndex+1:]...)
-			if err := config.WriteLock(ctx, deps.fs, meta, lock); err != nil {
-				return removedCount, err
-			}
+		if removed {
+			removedCount++
 		}
-
-		cfgIndex := configIndexFor(mod, cfg.Mods)
-		if cfgIndex >= 0 {
-			cfg.Mods = append(cfg.Mods[:cfgIndex], cfg.Mods[cfgIndex+1:]...)
-			if err := config.WriteConfig(ctx, deps.fs, meta, cfg); err != nil {
-				return removedCount, err
-			}
-		}
-
-		deps.logger.Log(fmt.Sprintf("✅ Removed %s", name), false)
-		removedCount++
 	}
 
 	return removedCount, nil
+}
+
+func removeMod(ctx context.Context, meta config.Metadata, cfg *models.ModsJSON, lock *[]models.ModInstall, mod models.Mod, opts removeOptions, deps removeDeps) (bool, error) {
+	if opts.DryRun {
+		deps.logger.Log(fmt.Sprintf("Would have removed %s", mod.Name), false)
+		return false, nil
+	}
+
+	if err := removeLockEntry(ctx, meta, cfg, lock, mod, deps); err != nil {
+		return false, err
+	}
+	if err := removeConfigEntry(ctx, meta, cfg, mod, deps); err != nil {
+		return false, err
+	}
+
+	deps.logger.Log(fmt.Sprintf("✅ Removed %s", mod.Name), false)
+	return true, nil
+}
+
+func removeLockEntry(ctx context.Context, meta config.Metadata, cfg *models.ModsJSON, lock *[]models.ModInstall, mod models.Mod, deps removeDeps) error {
+	lockIndex := lockIndexFor(mod, *lock)
+	if lockIndex < 0 {
+		return nil
+	}
+
+	normalizedFileName, err := modfilename.Normalize((*lock)[lockIndex].FileName)
+	if err != nil {
+		deps.logger.Error(i18n.T("cmd.remove.error.invalid_filename_lock", i18n.Tvars{
+			Data: &i18n.TData{
+				"name": mod.Name,
+				"file": modfilename.Display((*lock)[lockIndex].FileName),
+			},
+		}))
+	} else {
+		installedPath := filepath.Join(meta.ModsFolderPath(*cfg), normalizedFileName)
+		if err := removeFileForce(deps.fs, installedPath); err != nil {
+			return err
+		}
+	}
+
+	*lock = append((*lock)[:lockIndex], (*lock)[lockIndex+1:]...)
+	return config.WriteLock(ctx, deps.fs, meta, *lock)
+}
+
+func removeConfigEntry(ctx context.Context, meta config.Metadata, cfg *models.ModsJSON, mod models.Mod, deps removeDeps) error {
+	cfgIndex := configIndexFor(mod, cfg.Mods)
+	if cfgIndex < 0 {
+		return nil
+	}
+
+	cfg.Mods = append(cfg.Mods[:cfgIndex], cfg.Mods[cfgIndex+1:]...)
+	return config.WriteConfig(ctx, deps.fs, meta, *cfg)
 }
 
 func readLockForRemove(ctx context.Context, fs afero.Fs, meta config.Metadata, dryRun bool) ([]models.ModInstall, error) {

@@ -120,27 +120,12 @@ func (tool *coverageTool) run() error {
 		return err
 	}
 
-	filteredCoveragePath := coveragePath
-	if len(excludedPathFragments) > 0 {
-		filteredFile, err := createTempFile(tool.repoRoot, "coverage-filtered-*.out")
-		if err != nil {
-			return fmt.Errorf("error: create filtered coverage file: %w", err)
-		}
-		if err := closeFile(filteredFile); err != nil {
-			if closeErr := filteredFile.Close(); closeErr != nil {
-				return fmt.Errorf("error: finalize filtered coverage file: %w", errors.Join(err, closeErr))
-			}
-			return fmt.Errorf("error: finalize filtered coverage file: %w", err)
-		}
-		filteredCoveragePath = filteredFile.Name()
-		defer func() {
-			if err := removeFile(filteredCoveragePath); err != nil && !errors.Is(err, os.ErrNotExist) {
-				tool.logger.Printf("warning: failed to remove filtered coverage output %s: %v", filteredCoveragePath, err)
-			}
-		}()
-		if err := filterCoverageFile(coveragePath, filteredCoveragePath, excludedPathFragments); err != nil {
-			return err
-		}
+	filteredCoveragePath, cleanupFiltered, err := tool.prepareFilteredCoverage(coveragePath)
+	if err != nil {
+		return err
+	}
+	if cleanupFiltered != nil {
+		defer cleanupFiltered()
 	}
 
 	if err := tool.generateCoverageHTML(filteredCoveragePath, htmlPath); err != nil {
@@ -176,6 +161,37 @@ type coverageNotFullError struct {
 
 func (err coverageNotFullError) Error() string {
 	return fmt.Sprintf("coverage is not 100%%: %s", err.coverage)
+}
+
+func (tool *coverageTool) prepareFilteredCoverage(coveragePath string) (string, func(), error) {
+	if len(excludedPathFragments) == 0 {
+		return coveragePath, nil, nil
+	}
+
+	filteredFile, err := createTempFile(tool.repoRoot, "coverage-filtered-*.out")
+	if err != nil {
+		return "", nil, fmt.Errorf("error: create filtered coverage file: %w", err)
+	}
+	if err := closeFile(filteredFile); err != nil {
+		if closeErr := filteredFile.Close(); closeErr != nil {
+			return "", nil, fmt.Errorf("error: finalize filtered coverage file: %w", errors.Join(err, closeErr))
+		}
+		return "", nil, fmt.Errorf("error: finalize filtered coverage file: %w", err)
+	}
+
+	filteredCoveragePath := filteredFile.Name()
+	cleanup := func() {
+		if err := removeFile(filteredCoveragePath); err != nil && !errors.Is(err, os.ErrNotExist) {
+			tool.logger.Printf("warning: failed to remove filtered coverage output %s: %v", filteredCoveragePath, err)
+		}
+	}
+
+	if err := filterCoverageFile(coveragePath, filteredCoveragePath, excludedPathFragments); err != nil {
+		cleanup()
+		return "", nil, err
+	}
+
+	return filteredCoveragePath, cleanup, nil
 }
 
 func (tool *coverageTool) runCoverageTests(coveragePath string) error {

@@ -245,6 +245,21 @@ func TestRunRemoveDeletesFilesUpdatesLockAndConfig(t *testing.T) {
 	assert.Equal(t, "✅ Removed Sodium\n✅ Removed Fabric API\n", out.String())
 }
 
+func TestRemoveConfigEntryNoMatchDoesNothing(t *testing.T) {
+	fs := afero.NewMemMapFs()
+	meta := config.NewMetadata("/tmp/modlist.json")
+	cfg := models.ModsJSON{
+		Mods: []models.Mod{
+			{Type: models.MODRINTH, ID: "one"},
+		},
+	}
+
+	err := removeConfigEntry(context.Background(), meta, &cfg, models.Mod{Type: models.CURSEFORGE, ID: "two"}, removeDeps{fs: fs})
+	assert.NoError(t, err)
+	assert.Len(t, cfg.Mods, 1)
+	assert.Equal(t, "one", cfg.Mods[0].ID)
+}
+
 func TestRunRemoveSkipsMissingFilesWithoutFailing(t *testing.T) {
 	fs := afero.NewMemMapFs()
 	var out bytes.Buffer

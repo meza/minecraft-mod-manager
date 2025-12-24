@@ -534,3 +534,7 @@ date	time	entry
 2025-12-23	23:59	mmm-63.106.2: cleared gocritic findings by renaming single-letter receivers, fixed http.NoBody usage, and verified make coverage/build pass.
 2025-12-24	00:10	Final pass: removed remaining gocritic receiver name warnings in cmd/mmm/list and cmd/mmm/scan; make lint no longer reports gocritic.
 2025-12-24	00:59	User confirmed Windows build+tests; closed mmm-63.106.2 after reviewer approval.
+2025-12-24	01:03	Started mmm-63.106.3 complexity lint cleanup; set issue in_progress and captured gocognit/gocyclo/funlen/nestif findings from make lint.
+2025-12-24	01:09	User requires running tests for the file/package before and after every atomic change; native go test allowed (except build via make), final verification must use make targets.
+2025-12-24	01:49	mmm-63.106.3: complexity lint cleanup complete; make coverage and make build pass; make lint still fails due to other tracked tickets.
+2025-12-24	08:56	User confirmed Windows build. Created follow-up nolint cleanup tickets mmm-75..mmm-85 and closed mmm-63.106.3 per user approval.

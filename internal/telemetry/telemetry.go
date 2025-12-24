@@ -347,63 +347,22 @@ func Shutdown(ctx context.Context) {
 			return
 		}
 
-		state.mu.RLock()
-		commands := append([]recordedCommand(nil), state.commands...)
-		sessionNameHint := state.sessionNameHint
-		perfBaseDir := state.perfBaseDir
-		state.mu.RUnlock()
-
-		performance := []*perf.ExportSpan{}
-		if spans, err := perf.GetExportTree(perfBaseDir); err == nil && spans != nil {
-			performance = spans
-		}
-
+		commands, sessionNameHint, perfBaseDir := snapshotState()
+		performance := loadPerformance(perfBaseDir)
 		canonicalCommand, _ := topCommandNameFromPerformance(performance)
-		if canonicalCommand != "" && len(commands) == 1 {
-			if strings.TrimSpace(commands[0].Name) == "" || commands[0].Name != canonicalCommand {
-				commands[0].Name = canonicalCommand
-			}
-		}
+		commands = applyCanonicalCommandName(commands, canonicalCommand)
 
-		properties := map[string]interface{}{
-			"type":        "session",
-			"performance": performance,
-			"commands":    buildCommandSummaries(commands, performance),
-		}
-
-		if d, err := perf.GetSessionDurations(); err == nil {
-			properties["total_time_ms"] = d.Total.Milliseconds()
-			properties["work_time_ms"] = d.Work.Milliseconds()
-		}
+		properties := buildSessionProperties(commands, performance)
+		addSessionDurations(properties)
 
 		sessionName := resolveSessionName(sessionNameHint, canonicalCommand, commands)
 		captureWithSnapshot(snapshot, sessionName, properties)
 
-		var cancel context.CancelFunc
-		if ctx == nil {
-			ctx = context.Background()
-		}
-		if _, hasDeadline := ctx.Deadline(); !hasDeadline {
-			ctx, cancel = context.WithTimeout(ctx, snapshot.flushTimeout)
-		}
+		ctx, cancel := ensureShutdownContext(ctx, snapshot.flushTimeout)
 		if cancel != nil {
 			defer cancel()
 		}
-
-		done := make(chan struct{})
-		go func() {
-			err := snapshot.client.Close()
-			if err != nil {
-				snapshot.logger.Debugf("telemetry: shutdown failed: %v", err)
-			}
-			close(done)
-		}()
-
-		select {
-		case <-done:
-		case <-ctx.Done():
-			snapshot.logger.Debugf("telemetry: shutdown timed out: %v", ctx.Err())
-		}
+		waitForClientClose(ctx, snapshot, snapshot.client)
 
 		_ = state.shutdownSnapshot()
 	})
@@ -424,6 +383,75 @@ func captureWithSnapshot(snapshot telemetrySnapshot, event string, properties ma
 	})
 	if err != nil {
 		snapshot.logger.Debugf("telemetry: failed to enqueue %q: %v", event, err)
+	}
+}
+
+func snapshotState() ([]recordedCommand, string, string) {
+	state.mu.RLock()
+	defer state.mu.RUnlock()
+
+	commands := append([]recordedCommand(nil), state.commands...)
+	return commands, state.sessionNameHint, state.perfBaseDir
+}
+
+func loadPerformance(perfBaseDir string) []*perf.ExportSpan {
+	performance := []*perf.ExportSpan{}
+	spans, err := perf.GetExportTree(perfBaseDir)
+	if err == nil && spans != nil {
+		performance = spans
+	}
+	return performance
+}
+
+func applyCanonicalCommandName(commands []recordedCommand, canonicalCommand string) []recordedCommand {
+	if canonicalCommand == "" || len(commands) != 1 {
+		return commands
+	}
+	if strings.TrimSpace(commands[0].Name) == "" || commands[0].Name != canonicalCommand {
+		commands[0].Name = canonicalCommand
+	}
+	return commands
+}
+
+func buildSessionProperties(commands []recordedCommand, performance []*perf.ExportSpan) map[string]interface{} {
+	return map[string]interface{}{
+		"type":        "session",
+		"performance": performance,
+		"commands":    buildCommandSummaries(commands, performance),
+	}
+}
+
+func addSessionDurations(properties map[string]interface{}) {
+	if d, err := perf.GetSessionDurations(); err == nil {
+		properties["total_time_ms"] = d.Total.Milliseconds()
+		properties["work_time_ms"] = d.Work.Milliseconds()
+	}
+}
+
+func ensureShutdownContext(ctx context.Context, timeout time.Duration) (context.Context, context.CancelFunc) {
+	if ctx == nil {
+		ctx = context.Background()
+	}
+	if _, hasDeadline := ctx.Deadline(); hasDeadline {
+		return ctx, nil
+	}
+	return context.WithTimeout(ctx, timeout)
+}
+
+func waitForClientClose(ctx context.Context, snapshot telemetrySnapshot, client Client) {
+	done := make(chan struct{})
+	go func() {
+		err := client.Close()
+		if err != nil {
+			snapshot.logger.Debugf("telemetry: shutdown failed: %v", err)
+		}
+		close(done)
+	}()
+
+	select {
+	case <-done:
+	case <-ctx.Done():
+		snapshot.logger.Debugf("telemetry: shutdown timed out: %v", ctx.Err())
 	}
 }
 

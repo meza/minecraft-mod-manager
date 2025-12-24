@@ -39,54 +39,17 @@ func (model GameVersionModel) Init() tea.Cmd {
 
 // Update implements tea.Model.
 func (model GameVersionModel) Update(msg tea.Msg) (GameVersionModel, tea.Cmd) {
-	var cmd tea.Cmd
-	var cmds []tea.Cmd
-
-	switch msg := msg.(type) {
-	case tea.KeyMsg:
-		switch msg.String() {
-		case "q":
-			if !model.input.Focused() {
-				return model, tea.Quit
-			}
-
-		case "esc":
-			return model, tea.Quit
-		case "enter":
-			value := strings.TrimSpace(model.input.Value())
-			if value == "" {
-				value = strings.TrimSpace(model.input.Placeholder)
-			}
-
-			if value == "" {
-				model.error = fmt.Errorf("%s", i18n.T("cmd.init.tui.game-version.error"))
-				return model, nil
-			}
-
-			err := model.validate(value)
-			if err != nil {
-				model.error = err
-			} else {
-				model.Value = value
-				model.input.SetValue(value)
-				return model, model.gameVersionSelected()
-			}
-		case "tab":
-			if model.input.Focused() {
-				if model.input.Value() == "" {
-					model.input.SetValue(model.input.Placeholder)
-				}
-			}
-		default:
-			if model.input.Focused() {
-				model.error = nil
-			}
+	if keyMsg, ok := msg.(tea.KeyMsg); ok {
+		updated, cmd, handled := model.handleKeyMsg(keyMsg)
+		model = updated
+		if handled {
+			return model, cmd
 		}
 	}
 
-	model.input, cmd = model.input.Update(msg)
-	cmds = append(cmds, cmd)
-	return model, tea.Batch(cmds...)
+	updatedInput, cmd := model.input.Update(msg)
+	model.input = updatedInput
+	return model, cmd
 }
 
 // View renders the game version prompt.
@@ -102,6 +65,52 @@ func (model GameVersionModel) View() string {
 	}
 
 	return fmt.Sprintf("%s%s\n\n%s", model.input.View(), errorString, model.help.View(model.keymap))
+}
+
+func (model GameVersionModel) handleKeyMsg(msg tea.KeyMsg) (GameVersionModel, tea.Cmd, bool) {
+	switch msg.String() {
+	case "q":
+		if !model.input.Focused() {
+			return model, tea.Quit, true
+		}
+		return model, nil, false
+	case "esc":
+		return model, tea.Quit, true
+	case "enter":
+		return model.handleEnterKey()
+	case "tab":
+		if model.input.Focused() && model.input.Value() == "" {
+			model.input.SetValue(model.input.Placeholder)
+		}
+		return model, nil, false
+	default:
+		if model.input.Focused() {
+			model.error = nil
+		}
+		return model, nil, false
+	}
+}
+
+func (model GameVersionModel) handleEnterKey() (GameVersionModel, tea.Cmd, bool) {
+	value := strings.TrimSpace(model.input.Value())
+	if value == "" {
+		value = strings.TrimSpace(model.input.Placeholder)
+	}
+
+	if value == "" {
+		model.error = fmt.Errorf("%s", i18n.T("cmd.init.tui.game-version.error"))
+		return model, nil, true
+	}
+
+	err := model.validate(value)
+	if err != nil {
+		model.error = err
+		return model, nil, true
+	}
+
+	model.Value = value
+	model.input.SetValue(value)
+	return model, model.gameVersionSelected(), true
 }
 
 func (model GameVersionModel) gameVersionSelected() tea.Cmd {

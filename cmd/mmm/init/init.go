@@ -53,66 +53,14 @@ func commandWithRunner(runner initRunner) *cobra.Command {
 				span.End()
 			}()
 
-			gameVersion, err := cmd.Flags().GetString("game-version")
-			if err != nil {
-				return err
-			}
-			modsFolder, err := cmd.Flags().GetString("mods-folder")
-			if err != nil {
-				return err
-			}
-			releaseTypesRaw, err := cmd.Flags().GetStringSlice("release-types")
-			if err != nil {
-				return err
-			}
-			configPath, err := cmd.Flags().GetString("config")
-			if err != nil {
-				return err
-			}
-			quiet, err := cmd.Flags().GetBool("quiet")
-			if err != nil {
-				return err
-			}
-			debug, err := cmd.Flags().GetBool("debug")
+			options, err := readInitOptions(cmd, loader.value)
 			if err != nil {
 				return err
 			}
 
-			log := logger.New(cmd.OutOrStdout(), cmd.ErrOrStderr(), quiet, debug)
-			deps := initDeps{
-				fs:              afero.NewOsFs(),
-				minecraftClient: http.DefaultClient,
-				prompter: terminalPrompter{
-					in:  cmd.InOrStdin(),
-					out: cmd.OutOrStdout(),
-				},
-				logger:    log,
-				telemetry: telemetry.RecordCommand,
-				runTea:    defaultRunTea,
-			}
-
-			releaseTypes, err := parseReleaseTypes(releaseTypesRaw)
-			if err != nil {
-				return err
-			}
-
-			options := initOptions{
-				ConfigPath:   configPath,
-				Quiet:        quiet,
-				Debug:        debug,
-				Loader:       loader.value,
-				GameVersion:  gameVersion,
-				ReleaseTypes: releaseTypes,
-				ModsFolder:   modsFolder,
-				Provided: providedFlags{
-					Loader:       cmd.Flags().Changed("loader"),
-					GameVersion:  cmd.Flags().Changed("game-version"),
-					ReleaseTypes: cmd.Flags().Changed("release-types"),
-					ModsFolder:   cmd.Flags().Changed("mods-folder"),
-				},
-			}
-
-			meta := config.NewMetadata(configPath)
+			log := logger.New(cmd.OutOrStdout(), cmd.ErrOrStderr(), options.Quiet, options.Debug)
+			deps := defaultInitDeps(cmd, log)
+			meta := config.NewMetadata(options.ConfigPath)
 
 			err = runner(ctx, cmd, options, deps, meta)
 			return err
@@ -381,40 +329,19 @@ func validateModsFolder(fs afero.Fs, meta config.Metadata, modsFolder string) er
 }
 
 func initWithDeps(ctx context.Context, options initOptions, deps initDeps) (config.Metadata, error) {
-	if options.Loader == "" {
-		return config.Metadata{}, fmt.Errorf("init requires flag: -l/--loader")
+	if err := requireLoader(options); err != nil {
+		return config.Metadata{}, err
 	}
 
-	if options.GameVersion == "" || strings.EqualFold(options.GameVersion, "latest") {
-		latest, err := minecraft.GetLatestVersion(ctx, deps.minecraftClient)
-		if err != nil {
-			return config.Metadata{}, fmt.Errorf("could not determine latest minecraft version; provide -g/--game-version")
-		}
-		options.GameVersion = latest
+	options, err := resolveLatestGameVersion(ctx, options, deps)
+	if err != nil {
+		return config.Metadata{}, err
 	}
 
 	meta := config.NewMetadata(options.ConfigPath)
-
-	exists, err := afero.Exists(deps.fs, meta.ConfigPath)
+	meta, err = resolveConfigPath(meta, options, deps)
 	if err != nil {
-		return config.Metadata{}, fmt.Errorf("failed to check configuration file: %w", err)
-	}
-	if exists {
-		if options.Quiet {
-			return config.Metadata{}, fmt.Errorf("configuration file already exists: %s", meta.ConfigPath)
-		}
-
-		overwrite, err := deps.prompter.ConfirmOverwrite(meta.ConfigPath)
-		if err != nil {
-			return config.Metadata{}, err
-		}
-		if !overwrite {
-			newPath, err := deps.prompter.RequestNewConfigPath(meta.ConfigPath)
-			if err != nil {
-				return config.Metadata{}, err
-			}
-			meta = config.NewMetadata(newPath)
-		}
+		return config.Metadata{}, err
 	}
 
 	if err := validateModsFolder(deps.fs, meta, options.ModsFolder); err != nil {
@@ -489,6 +416,115 @@ func getAllLoaders() string {
 	}
 
 	return loaderList
+}
+
+func readInitOptions(cmd *cobra.Command, loader models.Loader) (initOptions, error) {
+	gameVersion, err := cmd.Flags().GetString("game-version")
+	if err != nil {
+		return initOptions{}, err
+	}
+	modsFolder, err := cmd.Flags().GetString("mods-folder")
+	if err != nil {
+		return initOptions{}, err
+	}
+	releaseTypesRaw, err := cmd.Flags().GetStringSlice("release-types")
+	if err != nil {
+		return initOptions{}, err
+	}
+	configPath, err := cmd.Flags().GetString("config")
+	if err != nil {
+		return initOptions{}, err
+	}
+	quiet, err := cmd.Flags().GetBool("quiet")
+	if err != nil {
+		return initOptions{}, err
+	}
+	debug, err := cmd.Flags().GetBool("debug")
+	if err != nil {
+		return initOptions{}, err
+	}
+
+	releaseTypes, err := parseReleaseTypes(releaseTypesRaw)
+	if err != nil {
+		return initOptions{}, err
+	}
+
+	return initOptions{
+		ConfigPath:   configPath,
+		Quiet:        quiet,
+		Debug:        debug,
+		Loader:       loader,
+		GameVersion:  gameVersion,
+		ReleaseTypes: releaseTypes,
+		ModsFolder:   modsFolder,
+		Provided: providedFlags{
+			Loader:       cmd.Flags().Changed("loader"),
+			GameVersion:  cmd.Flags().Changed("game-version"),
+			ReleaseTypes: cmd.Flags().Changed("release-types"),
+			ModsFolder:   cmd.Flags().Changed("mods-folder"),
+		},
+	}, nil
+}
+
+func defaultInitDeps(cmd *cobra.Command, log *logger.Logger) initDeps {
+	return initDeps{
+		fs:              afero.NewOsFs(),
+		minecraftClient: http.DefaultClient,
+		prompter: terminalPrompter{
+			in:  cmd.InOrStdin(),
+			out: cmd.OutOrStdout(),
+		},
+		logger:    log,
+		telemetry: telemetry.RecordCommand,
+		runTea:    defaultRunTea,
+	}
+}
+
+func requireLoader(options initOptions) error {
+	if options.Loader == "" {
+		return fmt.Errorf("init requires flag: -l/--loader")
+	}
+	return nil
+}
+
+func resolveLatestGameVersion(ctx context.Context, options initOptions, deps initDeps) (initOptions, error) {
+	if options.GameVersion != "" && !strings.EqualFold(options.GameVersion, "latest") {
+		return options, nil
+	}
+
+	latest, err := minecraft.GetLatestVersion(ctx, deps.minecraftClient)
+	if err != nil {
+		return options, fmt.Errorf("could not determine latest minecraft version; provide -g/--game-version")
+	}
+	options.GameVersion = latest
+	return options, nil
+}
+
+func resolveConfigPath(meta config.Metadata, options initOptions, deps initDeps) (config.Metadata, error) {
+	exists, err := afero.Exists(deps.fs, meta.ConfigPath)
+	if err != nil {
+		return config.Metadata{}, fmt.Errorf("failed to check configuration file: %w", err)
+	}
+	if !exists {
+		return meta, nil
+	}
+	if options.Quiet {
+		return config.Metadata{}, fmt.Errorf("configuration file already exists: %s", meta.ConfigPath)
+	}
+
+	overwrite, err := deps.prompter.ConfirmOverwrite(meta.ConfigPath)
+	if err != nil {
+		return config.Metadata{}, err
+	}
+	if overwrite {
+		return meta, nil
+	}
+
+	newPath, err := deps.prompter.RequestNewConfigPath(meta.ConfigPath)
+	if err != nil {
+		return config.Metadata{}, err
+	}
+	return config.NewMetadata(newPath), nil
 }
 
 type loaderFlag struct {

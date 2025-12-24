@@ -36,18 +36,14 @@ func resolveWritablePathWithFuncs(
 		return destination, nil
 	}
 
-	resolvedRoot, err := evalSymlinksFunc(root)
-	if err != nil {
-		return "", err
-	}
-	resolvedRoot, err = absFunc(resolvedRoot)
-	if err != nil {
-		return "", err
-	}
-
 	lstater, ok := fs.(afero.Lstater)
 	if !ok {
 		return destination, nil
+	}
+
+	resolvedRoot, err := resolveRootPath(root, evalSymlinksFunc, absFunc)
+	if err != nil {
+		return "", err
 	}
 
 	info, _, err := lstater.LstatIfPossible(destination)
@@ -56,43 +52,19 @@ func resolveWritablePathWithFuncs(
 	}
 
 	if err == nil && info.Mode()&os.ModeSymlink != 0 {
-		target, readlinkErr := linkReader.ReadlinkIfPossible(destination)
-		if readlinkErr != nil {
-			return "", readlinkErr
-		}
-		if !filepath.IsAbs(target) {
-			target = filepath.Join(filepath.Dir(destination), target)
-		}
-
-		resolvedTargetDir, resolveDirErr := evalSymlinksFunc(filepath.Dir(target))
-		if resolveDirErr != nil {
-			return "", resolveDirErr
-		}
-		resolvedTarget := filepath.Join(resolvedTargetDir, filepath.Base(target))
-		resolvedTarget, resolveErr := absFunc(resolvedTarget)
+		resolvedTarget, resolveErr := resolveSymlinkTarget(destination, linkReader, evalSymlinksFunc, absFunc)
 		if resolveErr != nil {
 			return "", resolveErr
 		}
-		if !pathWithinRoot(resolvedRoot, resolvedTarget) {
-			return "", OutsideRootError{Path: destination, ResolvedPath: resolvedTarget, Root: resolvedRoot}
-		}
-		return resolvedTarget, nil
+		return ensureWithinRoot(resolvedRoot, destination, resolvedTarget)
 	}
 
-	resolvedDir, err := evalSymlinksFunc(filepath.Dir(destination))
+	resolvedDestination, err := resolveDestinationPath(destination, evalSymlinksFunc, absFunc)
 	if err != nil {
 		return "", err
 	}
-	resolvedDestination := filepath.Join(resolvedDir, filepath.Base(destination))
-	resolvedDestination, err = absFunc(resolvedDestination)
-	if err != nil {
-		return "", err
-	}
-	if !pathWithinRoot(resolvedRoot, resolvedDestination) {
-		return "", OutsideRootError{Path: destination, ResolvedPath: resolvedDestination, Root: resolvedRoot}
-	}
 
-	return resolvedDestination, nil
+	return ensureWithinRoot(resolvedRoot, destination, resolvedDestination)
 }
 
 func pathWithinRoot(root string, candidate string) bool {
@@ -110,4 +82,62 @@ func pathWithinRoot(root string, candidate string) bool {
 		return false
 	}
 	return !filepath.IsAbs(rel)
+}
+
+func resolveRootPath(root string, evalSymlinksFunc func(string) (string, error), absFunc func(string) (string, error)) (string, error) {
+	resolvedRoot, err := evalSymlinksFunc(root)
+	if err != nil {
+		return "", err
+	}
+	resolvedRoot, err = absFunc(resolvedRoot)
+	if err != nil {
+		return "", err
+	}
+	return resolvedRoot, nil
+}
+
+func resolveDestinationPath(destination string, evalSymlinksFunc func(string) (string, error), absFunc func(string) (string, error)) (string, error) {
+	resolvedDir, err := evalSymlinksFunc(filepath.Dir(destination))
+	if err != nil {
+		return "", err
+	}
+	resolvedDestination := filepath.Join(resolvedDir, filepath.Base(destination))
+	resolvedDestination, err = absFunc(resolvedDestination)
+	if err != nil {
+		return "", err
+	}
+	return resolvedDestination, nil
+}
+
+func resolveSymlinkTarget(
+	destination string,
+	linkReader afero.LinkReader,
+	evalSymlinksFunc func(string) (string, error),
+	absFunc func(string) (string, error),
+) (string, error) {
+	target, readlinkErr := linkReader.ReadlinkIfPossible(destination)
+	if readlinkErr != nil {
+		return "", readlinkErr
+	}
+	if !filepath.IsAbs(target) {
+		target = filepath.Join(filepath.Dir(destination), target)
+	}
+
+	resolvedTargetDir, resolveDirErr := evalSymlinksFunc(filepath.Dir(target))
+	if resolveDirErr != nil {
+		return "", resolveDirErr
+	}
+	resolvedTarget := filepath.Join(resolvedTargetDir, filepath.Base(target))
+	resolvedTarget, resolveErr := absFunc(resolvedTarget)
+	if resolveErr != nil {
+		return "", resolveErr
+	}
+	return resolvedTarget, nil
+}
+
+func ensureWithinRoot(root string, originalPath string, resolvedPath string) (string, error) {
+	if !pathWithinRoot(root, resolvedPath) {
+		return "", OutsideRootError{Path: originalPath, ResolvedPath: resolvedPath, Root: root}
+	}
+	return resolvedPath, nil
 }

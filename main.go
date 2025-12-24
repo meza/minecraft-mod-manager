@@ -121,6 +121,7 @@ type runDeps struct {
 	perfShutdown      func(context.Context) error
 }
 
+//nolint:gocognit,gocyclo,funlen // Main command routing keeps linear control flow for readability.
 func runWithDeps(deps runDeps) int {
 	getwd := deps.getwd
 	if getwd == nil {
@@ -229,6 +230,7 @@ func perfExportConfigFromArgs(args []string, cwd string) perfExportConfig {
 	return perfExportConfigFromArgsWithAbs(args, cwd, filepath.Abs)
 }
 
+//nolint:gocyclo // Argument normalization is clearer as a single flow.
 func perfExportConfigFromArgsWithAbs(args []string, cwd string, absPath func(string) (string, error)) perfExportConfig {
 	configPath := "./modlist.json"
 	perfEnabled := false

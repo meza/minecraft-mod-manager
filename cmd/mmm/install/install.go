@@ -227,10 +227,7 @@ func runInstall(ctx context.Context, cmd *cobra.Command, opts installOptions, de
 	for i := range cfg.Mods {
 		mod := cfg.Mods[i]
 
-		version := "latest"
-		if mod.Version != nil && strings.TrimSpace(*mod.Version) != "" {
-			version = strings.TrimSpace(*mod.Version)
-		}
+		version := modVersionLabel(mod)
 		deps.logger.Debug(i18n.T("cmd.install.debug.checking", i18n.Tvars{
 			Data: &i18n.TData{
 				"name":     mod.Name,
@@ -239,104 +236,20 @@ func runInstall(ctx context.Context, cmd *cobra.Command, opts installOptions, de
 			},
 		}))
 
-		lockIndex := lockIndexFor(mod, lock)
-		if lockIndex >= 0 {
-			normalizedFileName, err := modfilename.Normalize(lock[lockIndex].FileName)
-			if err != nil {
-				deps.logger.Error(i18n.T("cmd.install.error.invalid_filename_lock", i18n.Tvars{
-					Data: &i18n.TData{
-						"name": mod.Name,
-						"file": modfilename.Display(lock[lockIndex].FileName),
-					},
-				}))
-				failedCount++
-				continue
-			}
-			installEntry := lock[lockIndex]
-			installEntry.FileName = normalizedFileName
-			if err := ensureLockInstall(ctx, meta, cfg, mod, installEntry, deps); err != nil {
-				if message, handled := integrityErrorMessage(err, mod.Name); handled {
-					deps.logger.Error(message)
-					failedCount++
-					continue
-				}
-				return Result{}, err
-			}
-			continue
-		}
-
-		remote, fetchErr := deps.fetchMod(ctx, mod.Type, mod.ID, platform.FetchOptions{
-			AllowedReleaseTypes: effectiveAllowedReleaseTypes(mod, cfg),
-			GameVersion:         cfg.GameVersion,
-			Loader:              cfg.Loader,
-			AllowFallback:       mod.AllowVersionFallback != nil && *mod.AllowVersionFallback,
-			FixedVersion:        optionalStringValue(mod.Version),
-		}, deps.clients)
-		if fetchErr != nil {
-			if handleExpectedFetchError(fetchErr, mod, deps, colorize) {
-				continue
-			}
-			return Result{}, fetchErr
-		}
-
-		normalizedFileName, err := modfilename.Normalize(remote.FileName)
+		outcome, err := installMod(ctx, meta, cfg, lock, mod, deps, colorize)
 		if err != nil {
-			deps.logger.Error(i18n.T("cmd.install.error.invalid_filename_remote", i18n.Tvars{
-				Data: &i18n.TData{
-					"name": mod.Name,
-					"file": modfilename.Display(remote.FileName),
-				},
-			}))
+			return Result{}, err
+		}
+		if outcome.failed {
 			failedCount++
 			continue
 		}
-		remote.FileName = normalizedFileName
-
-		if strings.TrimSpace(remote.Hash) == "" {
-			deps.logger.Error(i18n.T("cmd.install.error.missing_hash_remote", i18n.Tvars{
-				Data: &i18n.TData{"name": mod.Name},
-			}))
-			failedCount++
-			continue
+		if outcome.newName != "" {
+			cfg.Mods[i].Name = outcome.newName
 		}
-
-		deps.logger.Log(i18n.T("cmd.install.download.missing", i18n.Tvars{
-			Data: &i18n.TData{
-				"name":     mod.Name,
-				"platform": mod.Type,
-			},
-		}), true)
-
-		destination := filepath.Join(meta.ModsFolderPath(cfg), remote.FileName)
-		resolvedDestination, err := modpath.ResolveWritablePath(deps.fs, meta.ModsFolderPath(cfg), destination)
-		if err != nil {
-			if message, handled := integrityErrorMessage(err, mod.Name); handled {
-				deps.logger.Error(message)
-				failedCount++
-				continue
-			}
-			return Result{}, err
+		if outcome.lockEntry != nil {
+			lock = append(lock, *outcome.lockEntry)
 		}
-		installer := modinstall.NewInstaller(deps.fs, modinstall.Downloader(deps.downloader))
-		if err := installer.DownloadAndVerify(ctx, remote.DownloadURL, resolvedDestination, remote.Hash, downloadClient(deps.clients), &noopSender{}); err != nil {
-			if message, handled := integrityErrorMessage(err, mod.Name); handled {
-				deps.logger.Error(message)
-				failedCount++
-				continue
-			}
-			return Result{}, err
-		}
-
-		cfg.Mods[i].Name = remote.Name
-		lock = append(lock, models.ModInstall{
-			Type:        mod.Type,
-			ID:          mod.ID,
-			Name:        remote.Name,
-			FileName:    remote.FileName,
-			ReleasedOn:  remote.ReleaseDate,
-			Hash:        remote.Hash,
-			DownloadURL: remote.DownloadURL,
-		})
 	}
 
 	if err := config.WriteLock(ctx, deps.fs, meta, lock); err != nil {
@@ -354,11 +267,24 @@ func runInstall(ctx context.Context, cmd *cobra.Command, opts installOptions, de
 	return Result{InstalledCount: len(cfg.Mods), UnmanagedFound: unmanagedFound}, nil
 }
 
+type modInstallOutcome struct {
+	failed    bool
+	newName   string
+	lockEntry *models.ModInstall
+}
+
 func optionalStringValue(value *string) string {
 	if value == nil {
 		return ""
 	}
 	return strings.TrimSpace(*value)
+}
+
+func modVersionLabel(mod models.Mod) string {
+	if mod.Version != nil && strings.TrimSpace(*mod.Version) != "" {
+		return strings.TrimSpace(*mod.Version)
+	}
+	return "latest"
 }
 
 func effectiveAllowedReleaseTypes(mod models.Mod, cfg models.ModsJSON) []models.ReleaseType {
@@ -375,6 +301,125 @@ func lockIndexFor(mod models.Mod, lock []models.ModInstall) int {
 		}
 	}
 	return -1
+}
+
+func installMod(ctx context.Context, meta config.Metadata, cfg models.ModsJSON, lock []models.ModInstall, mod models.Mod, deps installDeps, colorize bool) (modInstallOutcome, error) {
+	lockIndex := lockIndexFor(mod, lock)
+	if lockIndex >= 0 {
+		return installFromLock(ctx, meta, cfg, mod, lock[lockIndex], deps)
+	}
+	return installFromRemote(ctx, meta, cfg, mod, deps, colorize)
+}
+
+func installFromLock(ctx context.Context, meta config.Metadata, cfg models.ModsJSON, mod models.Mod, installEntry models.ModInstall, deps installDeps) (modInstallOutcome, error) {
+	normalizedFileName, err := modfilename.Normalize(installEntry.FileName)
+	if err != nil {
+		deps.logger.Error(i18n.T("cmd.install.error.invalid_filename_lock", i18n.Tvars{
+			Data: &i18n.TData{
+				"name": mod.Name,
+				"file": modfilename.Display(installEntry.FileName),
+			},
+		}))
+		return modInstallOutcome{failed: true}, nil
+	}
+	installEntry.FileName = normalizedFileName
+	if err := ensureLockInstall(ctx, meta, cfg, mod, installEntry, deps); err != nil {
+		if message, handled := integrityErrorMessage(err, mod.Name); handled {
+			deps.logger.Error(message)
+			return modInstallOutcome{failed: true}, nil
+		}
+		return modInstallOutcome{}, err
+	}
+	return modInstallOutcome{}, nil
+}
+
+func installFromRemote(ctx context.Context, meta config.Metadata, cfg models.ModsJSON, mod models.Mod, deps installDeps, colorize bool) (modInstallOutcome, error) {
+	remote, fetchErr := deps.fetchMod(ctx, mod.Type, mod.ID, platform.FetchOptions{
+		AllowedReleaseTypes: effectiveAllowedReleaseTypes(mod, cfg),
+		GameVersion:         cfg.GameVersion,
+		Loader:              cfg.Loader,
+		AllowFallback:       mod.AllowVersionFallback != nil && *mod.AllowVersionFallback,
+		FixedVersion:        optionalStringValue(mod.Version),
+	}, deps.clients)
+	if fetchErr != nil {
+		if handleExpectedFetchError(fetchErr, mod, deps, colorize) {
+			return modInstallOutcome{}, nil
+		}
+		return modInstallOutcome{}, fetchErr
+	}
+
+	normalizedRemote, outcome, err := normalizeRemoteForInstall(remote, mod, deps)
+	if err != nil || outcome.failed {
+		return outcome, err
+	}
+
+	deps.logger.Log(i18n.T("cmd.install.download.missing", i18n.Tvars{
+		Data: &i18n.TData{
+			"name":     mod.Name,
+			"platform": mod.Type,
+		},
+	}), true)
+
+	resolvedDestination, outcome, err := resolveRemoteDestination(meta, cfg, normalizedRemote, mod, deps)
+	if err != nil || outcome.failed {
+		return outcome, err
+	}
+
+	installer := modinstall.NewInstaller(deps.fs, modinstall.Downloader(deps.downloader))
+	if err := installer.DownloadAndVerify(ctx, normalizedRemote.DownloadURL, resolvedDestination, normalizedRemote.Hash, downloadClient(deps.clients), &noopSender{}); err != nil {
+		if message, handled := integrityErrorMessage(err, mod.Name); handled {
+			deps.logger.Error(message)
+			return modInstallOutcome{failed: true}, nil
+		}
+		return modInstallOutcome{}, err
+	}
+
+	lockEntry := models.ModInstall{
+		Type:        mod.Type,
+		ID:          mod.ID,
+		Name:        normalizedRemote.Name,
+		FileName:    normalizedRemote.FileName,
+		ReleasedOn:  normalizedRemote.ReleaseDate,
+		Hash:        normalizedRemote.Hash,
+		DownloadURL: normalizedRemote.DownloadURL,
+	}
+	return modInstallOutcome{newName: normalizedRemote.Name, lockEntry: &lockEntry}, nil
+}
+
+func normalizeRemoteForInstall(remote platform.RemoteMod, mod models.Mod, deps installDeps) (platform.RemoteMod, modInstallOutcome, error) {
+	normalizedFileName, err := modfilename.Normalize(remote.FileName)
+	if err != nil {
+		deps.logger.Error(i18n.T("cmd.install.error.invalid_filename_remote", i18n.Tvars{
+			Data: &i18n.TData{
+				"name": mod.Name,
+				"file": modfilename.Display(remote.FileName),
+			},
+		}))
+		return platform.RemoteMod{}, modInstallOutcome{failed: true}, nil
+	}
+	remote.FileName = normalizedFileName
+
+	if strings.TrimSpace(remote.Hash) == "" {
+		deps.logger.Error(i18n.T("cmd.install.error.missing_hash_remote", i18n.Tvars{
+			Data: &i18n.TData{"name": mod.Name},
+		}))
+		return platform.RemoteMod{}, modInstallOutcome{failed: true}, nil
+	}
+
+	return remote, modInstallOutcome{}, nil
+}
+
+func resolveRemoteDestination(meta config.Metadata, cfg models.ModsJSON, remote platform.RemoteMod, mod models.Mod, deps installDeps) (string, modInstallOutcome, error) {
+	destination := filepath.Join(meta.ModsFolderPath(cfg), remote.FileName)
+	resolvedDestination, err := modpath.ResolveWritablePath(deps.fs, meta.ModsFolderPath(cfg), destination)
+	if err != nil {
+		if message, handled := integrityErrorMessage(err, mod.Name); handled {
+			deps.logger.Error(message)
+			return "", modInstallOutcome{failed: true}, nil
+		}
+		return "", modInstallOutcome{}, err
+	}
+	return resolvedDestination, modInstallOutcome{}, nil
 }
 
 func ensureLockInstall(ctx context.Context, meta config.Metadata, cfg models.ModsJSON, mod models.Mod, install models.ModInstall, deps installDeps) error {

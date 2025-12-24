@@ -104,6 +104,31 @@ func TestAddTUIModelUpdateHandlesWindowSize(t *testing.T) {
 	assert.Equal(t, 120, typed.width)
 }
 
+func TestAddTUIModelHandleListEnterIgnoresUnknownItem(t *testing.T) {
+	model := addTUIModel{
+		state: addTUIStateUnknownPlatformSelect,
+		list:  list.New([]list.Item{fakeListItem{}}, addTUIListDelegate{}, 10, 5),
+	}
+	updated, cmd := model.handleListEnter()
+	typed := updated.(addTUIModel)
+	assert.Equal(t, addTUIStateUnknownPlatformSelect, typed.state)
+	assert.Nil(t, cmd)
+}
+
+func TestAddTUIModelHandleListEnterIgnoresUnhandledState(t *testing.T) {
+	listModel := list.New([]list.Item{addTUIListItem{value: "modrinth"}}, addTUIListDelegate{}, 10, 5)
+	listModel.Select(0)
+
+	model := addTUIModel{
+		state: addTUIStateFatalError,
+		list:  listModel,
+	}
+	updated, cmd := model.handleListEnter()
+	typed := updated.(addTUIModel)
+	assert.Equal(t, addTUIStateFatalError, typed.state)
+	assert.Nil(t, cmd)
+}
+
 func TestAddTUIModelUpdateCtrlCAborts(t *testing.T) {
 	model := addTUIModel{state: addTUIStateUnknownPlatformSelect}
 	updated, cmd := model.Update(tea.KeyMsg{Type: tea.KeyCtrlC})

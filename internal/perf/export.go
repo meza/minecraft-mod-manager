@@ -308,31 +308,14 @@ func normalizeValue(key string, value interface{}, baseDir string) interface{} {
 	}
 
 	if key == "config_path" {
-		if baseDir != "" && filepath.IsAbs(stringValue) {
-			rel, err := filepath.Rel(baseDir, stringValue)
-			if err == nil {
-				return exportPath(rel)
-			}
-		}
-		return exportPath(stringValue)
+		return normalizeConfigPath(stringValue, baseDir)
 	}
 
 	if !looksLikePathKey(key) {
 		return value
 	}
 
-	if baseDir == "" {
-		return exportPath(stringValue)
-	}
-
-	if filepath.IsAbs(stringValue) {
-		rel, err := filepath.Rel(baseDir, stringValue)
-		if err == nil {
-			return exportPath(rel)
-		}
-	}
-
-	return exportPath(stringValue)
+	return normalizePathValue(stringValue, baseDir)
 }
 
 func looksLikePathKey(key string) bool {
@@ -354,4 +337,27 @@ func exportPath(value string) string {
 		return cleaned
 	}
 	return filepath.ToSlash(cleaned)
+}
+
+func normalizeConfigPath(value string, baseDir string) string {
+	if baseDir != "" && filepath.IsAbs(value) {
+		rel, err := filepath.Rel(baseDir, value)
+		if err == nil {
+			return exportPath(rel)
+		}
+	}
+	return exportPath(value)
+}
+
+func normalizePathValue(value string, baseDir string) string {
+	if baseDir == "" {
+		return exportPath(value)
+	}
+	if filepath.IsAbs(value) {
+		rel, err := filepath.Rel(baseDir, value)
+		if err == nil {
+			return exportPath(rel)
+		}
+	}
+	return exportPath(value)
 }

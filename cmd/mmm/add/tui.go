@@ -314,56 +314,67 @@ func (model *addTUIModel) goBack() bool {
 }
 
 func (model addTUIModel) updateList(msg tea.Msg) (tea.Model, tea.Cmd) {
-	switch msg := msg.(type) {
-	case tea.KeyMsg:
-		switch msg.String() {
-		case "enter":
-			item, ok := model.list.SelectedItem().(addTUIListItem)
-			if !ok {
-				return model, nil
-			}
-
-			switch model.state {
-			case addTUIStateUnknownPlatformSelect:
-				if item.value == "cancel" {
-					model.endWait("cancel")
-					if model.sessionSpan != nil {
-						model.sessionSpan.AddEvent("tui.add.action.cancel", perf.WithEventAttributes(attribute.String("state", model.stateName())))
-					}
-					model.state = addTUIStateAborted
-					return model, tea.Quit
-				}
-				model.endWait("select_platform")
-				if model.sessionSpan != nil {
-					model.sessionSpan.AddEvent("tui.add.action.select_platform", perf.WithEventAttributes(
-						attribute.String("state", model.stateName()),
-						attribute.String("platform", item.value),
-					))
-				}
-				model.candidatePlatform = models.Platform(item.value)
-				model.candidateProject = model.failureProject
-				model.beginFetch("select_platform", model.candidatePlatform, model.candidateProject)
-				return model, model.fetchCmd(model.candidatePlatform, model.candidateProject)
-			case addTUIStateModNotFoundSelectPlatform:
-				model.endWait("select_platform")
-				if model.sessionSpan != nil {
-					model.sessionSpan.AddEvent("tui.add.action.select_platform", perf.WithEventAttributes(
-						attribute.String("state", model.stateName()),
-						attribute.String("platform", item.value),
-					))
-				}
-				model.candidatePlatform = models.Platform(item.value)
-				model.pushState(addTUIStateModNotFoundSelectPlatform)
-				model.state = addTUIStateModNotFoundEnterProjectID
-				model.enterState(model.state)
-				return model, nil
-			}
-		}
+	if keyMsg, ok := msg.(tea.KeyMsg); ok && keyMsg.String() == "enter" {
+		return model.handleListEnter()
 	}
 
 	var cmd tea.Cmd
 	model.list, cmd = model.list.Update(msg)
 	return model, cmd
+}
+
+func (model addTUIModel) handleListEnter() (tea.Model, tea.Cmd) {
+	item, ok := model.list.SelectedItem().(addTUIListItem)
+	if !ok {
+		return model, nil
+	}
+
+	switch model.state {
+	case addTUIStateUnknownPlatformSelect:
+		return model.handleUnknownPlatformSelection(item)
+	case addTUIStateModNotFoundSelectPlatform:
+		return model.handleModNotFoundPlatformSelection(item)
+	default:
+		return model, nil
+	}
+}
+
+func (model addTUIModel) handleUnknownPlatformSelection(item addTUIListItem) (tea.Model, tea.Cmd) {
+	if item.value == "cancel" {
+		model.endWait("cancel")
+		if model.sessionSpan != nil {
+			model.sessionSpan.AddEvent("tui.add.action.cancel", perf.WithEventAttributes(attribute.String("state", model.stateName())))
+		}
+		model.state = addTUIStateAborted
+		return model, tea.Quit
+	}
+
+	model.endWait("select_platform")
+	if model.sessionSpan != nil {
+		model.sessionSpan.AddEvent("tui.add.action.select_platform", perf.WithEventAttributes(
+			attribute.String("state", model.stateName()),
+			attribute.String("platform", item.value),
+		))
+	}
+	model.candidatePlatform = models.Platform(item.value)
+	model.candidateProject = model.failureProject
+	model.beginFetch("select_platform", model.candidatePlatform, model.candidateProject)
+	return model, model.fetchCmd(model.candidatePlatform, model.candidateProject)
+}
+
+func (model addTUIModel) handleModNotFoundPlatformSelection(item addTUIListItem) (tea.Model, tea.Cmd) {
+	model.endWait("select_platform")
+	if model.sessionSpan != nil {
+		model.sessionSpan.AddEvent("tui.add.action.select_platform", perf.WithEventAttributes(
+			attribute.String("state", model.stateName()),
+			attribute.String("platform", item.value),
+		))
+	}
+	model.candidatePlatform = models.Platform(item.value)
+	model.pushState(addTUIStateModNotFoundSelectPlatform)
+	model.state = addTUIStateModNotFoundEnterProjectID
+	model.enterState(model.state)
+	return model, nil
 }
 
 func (model addTUIModel) updateInput(msg tea.Msg) (tea.Model, tea.Cmd) {

@@ -123,21 +123,8 @@ func runList(ctx context.Context, cmd *cobra.Command, configPath string, quiet b
 	colorize := useTUI || tui.IsTerminalWriter(cmd.OutOrStdout())
 	view := renderListView(entries, colorize)
 
-	if useTUI {
-		_, tuiSpan := perf.StartSpan(ctx, "tui.list.session")
-		model := newModel(view, tuiSpan)
-		if err := deps.programRunner(model, tui.ProgramOptions(cmd.InOrStdin(), cmd.OutOrStdout())...); err != nil {
-			tuiSpan.SetAttributes(attribute.Bool("success", false))
-			tuiSpan.End()
-			return 0, true, err
-		}
-		tuiSpan.SetAttributes(attribute.Bool("success", true))
-		tuiSpan.End()
-		if len(entries) == 0 {
-			deps.logger.Log(view, true)
-		}
-	} else {
-		deps.logger.Log(view, true)
+	if err := renderList(ctx, cmd, entries, view, deps, useTUI); err != nil {
+		return 0, useTUI, err
 	}
 	return len(entries), useTUI, nil
 }
@@ -274,4 +261,25 @@ func renderEntry(entry listEntry, colorize bool) string {
 	})
 
 	return fmt.Sprintf("%s %s", icon, message)
+}
+
+func renderList(ctx context.Context, cmd *cobra.Command, entries []listEntry, view string, deps listDeps, useTUI bool) error {
+	if !useTUI {
+		deps.logger.Log(view, true)
+		return nil
+	}
+
+	_, tuiSpan := perf.StartSpan(ctx, "tui.list.session")
+	model := newModel(view, tuiSpan)
+	if err := deps.programRunner(model, tui.ProgramOptions(cmd.InOrStdin(), cmd.OutOrStdout())...); err != nil {
+		tuiSpan.SetAttributes(attribute.Bool("success", false))
+		tuiSpan.End()
+		return err
+	}
+	tuiSpan.SetAttributes(attribute.Bool("success", true))
+	tuiSpan.End()
+	if len(entries) == 0 {
+		deps.logger.Log(view, true)
+	}
+	return nil
 }

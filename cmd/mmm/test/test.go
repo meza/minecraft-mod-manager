@@ -75,6 +75,7 @@ func Command() *cobra.Command {
 	return commandWithRunner(runTest)
 }
 
+//nolint:funlen // Cobra wiring keeps flag handling localized for the test command.
 func commandWithRunner(runner testRunner) *cobra.Command {
 	cmd := &cobra.Command{
 		Use:     "test [game_version]",
@@ -198,34 +199,9 @@ func runTest(ctx context.Context, cmd *cobra.Command, opts testOptions, deps tes
 		return 0, err
 	}
 
-	targetVersion := opts.GameVersion
-
-	if strings.EqualFold(targetVersion, "latest") {
-		latest, err := deps.latestVersion(ctx, deps.clients.Modrinth)
-		if err != nil {
-			// Per ADR 0006: when manifest fails, we cannot determine "latest" in non-interactive mode.
-			// The user must provide an explicit version. Interactive prompting is for TUI only.
-			deps.logger.Error(i18n.T("cmd.test.error.latest_unavailable", i18n.Tvars{}))
-			return 0, errLatestVersionRequired
-		}
-		targetVersion = latest
-	}
-
-	// Per ADR 0006: if version validation fails (manifest unavailable), assume valid.
-	// The isValidVersion function should already handle this per ADR 0006.
-	if !deps.isValidVersion(ctx, targetVersion, deps.clients.Modrinth) {
-		deps.logger.Error(i18n.T("cmd.test.error.invalid_version", i18n.Tvars{
-			Data: &i18n.TData{"version": targetVersion},
-		}))
-		return 0, errInvalidVersion
-	}
-
-	if targetVersion == cfg.GameVersion {
-		deps.logger.Log(i18n.T("cmd.test.same_version", i18n.Tvars{
-			Data: &i18n.TData{"version": targetVersion},
-		}), true)
-		// Return exit code 2 via errSameVersion so it propagates through main.go
-		return 2, errSameVersion
+	targetVersion, exitCode, err := resolveTargetVersion(ctx, cfg, opts, deps)
+	if err != nil {
+		return exitCode, err
 	}
 
 	if len(cfg.Mods) == 0 {
@@ -237,51 +213,8 @@ func runTest(ctx context.Context, cmd *cobra.Command, opts testOptions, deps tes
 
 	colorize := tui.IsTerminalWriter(cmd.OutOrStdout())
 
-	candidates := make([]modCheckCandidate, 0, len(cfg.Mods))
-	for i := range cfg.Mods {
-		candidates = append(candidates, modCheckCandidate{
-			ConfigIndex: i,
-			Mod:         cfg.Mods[i],
-		})
-	}
-
-	results := make(chan modCheckOutcome, len(candidates))
-	var waitGroup sync.WaitGroup
-
-	for _, candidate := range candidates {
-		candidate := candidate
-		waitGroup.Add(1)
-		go func() {
-			defer waitGroup.Done()
-			results <- checkMod(ctx, cfg, candidate, targetVersion, deps)
-		}()
-	}
-
-	waitGroup.Wait()
-	close(results)
-
-	outcomes := make([]modCheckOutcome, len(candidates))
-	for outcome := range results {
-		if outcome.ConfigIndex >= 0 && outcome.ConfigIndex < len(outcomes) {
-			outcomes[outcome.ConfigIndex] = outcome
-		}
-	}
-
-	unsupportedMods := make([]modCheckOutcome, 0)
-	for _, outcome := range outcomes {
-		for _, event := range outcome.LogEvents {
-			switch event.Kind {
-			case logEventKindError:
-				deps.logger.Error(event.Message)
-			case logEventKindDebug:
-				deps.logger.Debug(event.Message)
-			}
-		}
-
-		if !outcome.Supported {
-			unsupportedMods = append(unsupportedMods, outcome)
-		}
-	}
+	outcomes := collectOutcomes(ctx, cfg, targetVersion, deps)
+	unsupportedMods := logOutcomes(outcomes, deps)
 
 	if len(unsupportedMods) > 0 {
 		deps.logger.Log(i18n.T("cmd.test.missing_support_header", i18n.Tvars{
@@ -381,4 +314,91 @@ func formatMissingModEntry(mod models.Mod, colorize bool) string {
 	}
 
 	return fmt.Sprintf("%s %s (%s)", icon, name, id)
+}
+
+func resolveTargetVersion(ctx context.Context, cfg models.ModsJSON, opts testOptions, deps testDeps) (string, int, error) {
+	targetVersion := opts.GameVersion
+
+	if strings.EqualFold(targetVersion, "latest") {
+		latest, err := deps.latestVersion(ctx, deps.clients.Modrinth)
+		if err != nil {
+			// Per ADR 0006: when manifest fails, we cannot determine "latest" in non-interactive mode.
+			// The user must provide an explicit version. Interactive prompting is for TUI only.
+			deps.logger.Error(i18n.T("cmd.test.error.latest_unavailable", i18n.Tvars{}))
+			return "", 0, errLatestVersionRequired
+		}
+		targetVersion = latest
+	}
+
+	// Per ADR 0006: if version validation fails (manifest unavailable), assume valid.
+	// The isValidVersion function should already handle this per ADR 0006.
+	if !deps.isValidVersion(ctx, targetVersion, deps.clients.Modrinth) {
+		deps.logger.Error(i18n.T("cmd.test.error.invalid_version", i18n.Tvars{
+			Data: &i18n.TData{"version": targetVersion},
+		}))
+		return "", 0, errInvalidVersion
+	}
+
+	if targetVersion == cfg.GameVersion {
+		deps.logger.Log(i18n.T("cmd.test.same_version", i18n.Tvars{
+			Data: &i18n.TData{"version": targetVersion},
+		}), true)
+		// Return exit code 2 via errSameVersion so it propagates through main.go
+		return targetVersion, 2, errSameVersion
+	}
+
+	return targetVersion, 0, nil
+}
+
+func collectOutcomes(ctx context.Context, cfg models.ModsJSON, targetVersion string, deps testDeps) []modCheckOutcome {
+	candidates := make([]modCheckCandidate, 0, len(cfg.Mods))
+	for i := range cfg.Mods {
+		candidates = append(candidates, modCheckCandidate{
+			ConfigIndex: i,
+			Mod:         cfg.Mods[i],
+		})
+	}
+
+	results := make(chan modCheckOutcome, len(candidates))
+	var waitGroup sync.WaitGroup
+
+	for _, candidate := range candidates {
+		candidate := candidate
+		waitGroup.Add(1)
+		go func() {
+			defer waitGroup.Done()
+			results <- checkMod(ctx, cfg, candidate, targetVersion, deps)
+		}()
+	}
+
+	waitGroup.Wait()
+	close(results)
+
+	outcomes := make([]modCheckOutcome, len(candidates))
+	for outcome := range results {
+		if outcome.ConfigIndex >= 0 && outcome.ConfigIndex < len(outcomes) {
+			outcomes[outcome.ConfigIndex] = outcome
+		}
+	}
+
+	return outcomes
+}
+
+func logOutcomes(outcomes []modCheckOutcome, deps testDeps) []modCheckOutcome {
+	unsupportedMods := make([]modCheckOutcome, 0)
+	for _, outcome := range outcomes {
+		for _, event := range outcome.LogEvents {
+			switch event.Kind {
+			case logEventKindError:
+				deps.logger.Error(event.Message)
+			case logEventKindDebug:
+				deps.logger.Debug(event.Message)
+			}
+		}
+
+		if !outcome.Supported {
+			unsupportedMods = append(unsupportedMods, outcome)
+		}
+	}
+	return unsupportedMods
 }

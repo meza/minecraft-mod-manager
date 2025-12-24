@@ -36,23 +36,9 @@ func NewSetupCoordinator(fs afero.Fs, minecraftClient httpclient.Doer, downloade
 }
 
 func (coordinator *SetupCoordinator) EnsureConfigAndLock(ctx context.Context, meta config.Metadata, quiet bool) (models.ModsJSON, []models.ModInstall, error) {
-	cfg, err := config.ReadConfig(ctx, coordinator.fs, meta)
+	cfg, err := coordinator.ensureConfig(ctx, meta, quiet)
 	if err != nil {
-		var notFound *config.ConfigFileNotFoundException
-		if errors.As(err, &notFound) {
-			if quiet {
-				return models.ModsJSON{}, nil, err
-			}
-			if coordinator.minecraftClient == nil {
-				return models.ModsJSON{}, nil, errors.New("missing modsetup dependencies: minecraftClient")
-			}
-			cfg, err = config.InitConfig(ctx, coordinator.fs, meta, coordinator.minecraftClient)
-			if err != nil {
-				return models.ModsJSON{}, nil, err
-			}
-		} else {
-			return models.ModsJSON{}, nil, err
-		}
+		return models.ModsJSON{}, nil, err
 	}
 
 	lock, err := config.EnsureLock(ctx, coordinator.fs, meta)
@@ -133,21 +119,12 @@ func (coordinator *SetupCoordinator) EnsurePersisted(ctx context.Context, meta c
 	}
 
 	if lockIndex < 0 {
-		normalizedFileName, err := validateRemoteForLock(remote)
+		installEntry, err := lockInstallFromRemote(remote, resolvedPlatform, resolvedID)
 		if err != nil {
 			return models.ModsJSON{}, nil, EnsureResult{}, err
 		}
-		remote.FileName = normalizedFileName
 
-		lock = append(lock, models.ModInstall{
-			Type:        resolvedPlatform,
-			ID:          resolvedID,
-			Name:        remote.Name,
-			FileName:    remote.FileName,
-			ReleasedOn:  remote.ReleaseDate,
-			Hash:        remote.Hash,
-			DownloadURL: remote.DownloadURL,
-		})
+		lock = append(lock, installEntry)
 		result.LockAdded = true
 	}
 
@@ -199,47 +176,21 @@ func (coordinator *SetupCoordinator) UpsertConfigAndLock(cfg models.ModsJSON, lo
 		result.ConfigUpdated = true
 	}
 
-	if lockIndex < 0 {
-		normalizedFileName, err := validateRemoteForLock(remote)
-		if err != nil {
-			return models.ModsJSON{}, nil, UpsertResult{}, err
-		}
-		remote.FileName = normalizedFileName
-		lock = append(lock, models.ModInstall{
-			Type:        resolvedPlatform,
-			ID:          resolvedID,
-			Name:        remote.Name,
-			FileName:    remote.FileName,
-			ReleasedOn:  remote.ReleaseDate,
-			Hash:        remote.Hash,
-			DownloadURL: remote.DownloadURL,
-		})
-		result.LockAdded = true
-	} else {
-		normalizedFileName, err := validateRemoteForLock(remote)
-		if err != nil {
-			return models.ModsJSON{}, nil, UpsertResult{}, err
-		}
-		remote.FileName = normalizedFileName
+	installEntry, err := lockInstallFromRemote(remote, resolvedPlatform, resolvedID)
+	if err != nil {
+		return models.ModsJSON{}, nil, UpsertResult{}, err
+	}
 
-		current := lock[lockIndex]
-		next := models.ModInstall{
-			Type:        resolvedPlatform,
-			ID:          resolvedID,
-			Name:        remote.Name,
-			FileName:    remote.FileName,
-			ReleasedOn:  remote.ReleaseDate,
-			Hash:        remote.Hash,
-			DownloadURL: remote.DownloadURL,
-		}
-		if current.Name != next.Name ||
-			current.FileName != next.FileName ||
-			current.ReleasedOn != next.ReleasedOn ||
-			!strings.EqualFold(current.Hash, next.Hash) ||
-			current.DownloadURL != next.DownloadURL {
-			lock[lockIndex] = next
-			result.LockUpdated = true
-		}
+	if lockIndex < 0 {
+		lock = append(lock, installEntry)
+		result.LockAdded = true
+		return cfg, lock, result, nil
+	}
+
+	current := lock[lockIndex]
+	if lockEntryChanged(current, installEntry) {
+		lock[lockIndex] = installEntry
+		result.LockUpdated = true
 	}
 
 	return cfg, lock, result, nil
@@ -259,6 +210,53 @@ func optionalBool(value bool) *bool {
 		return nil
 	}
 	return &value
+}
+
+func (coordinator *SetupCoordinator) ensureConfig(ctx context.Context, meta config.Metadata, quiet bool) (models.ModsJSON, error) {
+	cfg, err := config.ReadConfig(ctx, coordinator.fs, meta)
+	if err == nil {
+		return cfg, nil
+	}
+
+	var notFound *config.ConfigFileNotFoundException
+	if !errors.As(err, &notFound) {
+		return models.ModsJSON{}, err
+	}
+	if quiet {
+		return models.ModsJSON{}, err
+	}
+	if coordinator.minecraftClient == nil {
+		return models.ModsJSON{}, errors.New("missing modsetup dependencies: minecraftClient")
+	}
+	cfg, err = config.InitConfig(ctx, coordinator.fs, meta, coordinator.minecraftClient)
+	if err != nil {
+		return models.ModsJSON{}, err
+	}
+	return cfg, nil
+}
+
+func lockInstallFromRemote(remote platform.RemoteMod, resolvedPlatform models.Platform, resolvedID string) (models.ModInstall, error) {
+	normalizedFileName, err := validateRemoteForLock(remote)
+	if err != nil {
+		return models.ModInstall{}, err
+	}
+	return models.ModInstall{
+		Type:        resolvedPlatform,
+		ID:          resolvedID,
+		Name:        remote.Name,
+		FileName:    normalizedFileName,
+		ReleasedOn:  remote.ReleaseDate,
+		Hash:        remote.Hash,
+		DownloadURL: remote.DownloadURL,
+	}, nil
+}
+
+func lockEntryChanged(current models.ModInstall, next models.ModInstall) bool {
+	return current.Name != next.Name ||
+		current.FileName != next.FileName ||
+		current.ReleasedOn != next.ReleasedOn ||
+		!strings.EqualFold(current.Hash, next.Hash) ||
+		current.DownloadURL != next.DownloadURL
 }
 
 func optionalString(value string) *string {

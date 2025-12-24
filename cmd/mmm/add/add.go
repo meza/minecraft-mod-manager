@@ -76,60 +76,18 @@ func commandWithRunner(runner addRunner) *cobra.Command {
 				),
 			)
 
-			configPath, err := cmd.Flags().GetString("config")
-			if err != nil {
-				span.SetAttributes(attribute.Bool("success", false))
-				span.End()
-				return err
-			}
-			quiet, err := cmd.Flags().GetBool("quiet")
-			if err != nil {
-				span.SetAttributes(attribute.Bool("success", false))
-				span.End()
-				return err
-			}
-			debug, err := cmd.Flags().GetBool("debug")
-			if err != nil {
-				span.SetAttributes(attribute.Bool("success", false))
-				span.End()
-				return err
-			}
-			version, err := cmd.Flags().GetString("version")
-			if err != nil {
-				span.SetAttributes(attribute.Bool("success", false))
-				span.End()
-				return err
-			}
-			allowFallback, err := cmd.Flags().GetBool("allow-version-fallback")
+			options, err := readAddOptions(cmd, args)
 			if err != nil {
 				span.SetAttributes(attribute.Bool("success", false))
 				span.End()
 				return err
 			}
 
-			log := logger.New(cmd.OutOrStdout(), cmd.ErrOrStderr(), quiet, debug)
-
+			log := logger.New(cmd.OutOrStdout(), cmd.ErrOrStderr(), options.Quiet, options.Debug)
 			limiter := rate.NewLimiter(rate.Inf, 0)
+			deps := defaultAddDeps(log, limiter)
 
-			telemetryPayload, err := runner(ctx, span, cmd, addOptions{
-				Platform:             args[0],
-				ProjectID:            args[1],
-				ConfigPath:           configPath,
-				Quiet:                quiet,
-				Debug:                debug,
-				Version:              version,
-				AllowVersionFallback: allowFallback,
-			}, addDeps{
-				fs:              afero.NewOsFs(),
-				clients:         platform.DefaultClients(limiter),
-				minecraftClient: httpclient.NewRLClient(limiter),
-				logger:          log,
-				fetchMod:        platform.FetchMod,
-				downloader:      httpclient.DownloadFile,
-				runTea: func(model tea.Model, options ...tea.ProgramOption) (tea.Model, error) {
-					return tea.NewProgram(model, options...).Run()
-				},
-			})
+			telemetryPayload, err := runner(ctx, span, cmd, options, deps)
 
 			errToReturn := err
 			if errors.Is(err, errAborted) {
@@ -168,6 +126,7 @@ func commandWithRunner(runner addRunner) *cobra.Command {
 	return cmd
 }
 
+//nolint:funlen // Command flow mirrors add spec stages; splitting would obscure behavior.
 func runAdd(ctx context.Context, commandSpan *perf.Span, cmd *cobra.Command, opts addOptions, deps addDeps) (telemetry.CommandTelemetry, error) {
 	meta := config.NewMetadata(opts.ConfigPath)
 	useTUI := tui.ShouldUseTUI(opts.Quiet, cmd.InOrStdin(), cmd.OutOrStdout())
@@ -192,91 +151,7 @@ func runAdd(ctx context.Context, commandSpan *perf.Span, cmd *cobra.Command, opt
 
 	install, installFound := findLockInstall(lock, platformValue, projectID)
 	if modsetup.ModExists(cfg, platformValue, projectID) && installFound {
-		normalizedFileName, normalizeErr := modfilename.Normalize(install.FileName)
-		if normalizeErr != nil {
-			message := i18n.T("cmd.add.error.invalid_filename_lock", i18n.Tvars{
-				Data: &i18n.TData{
-					"name": modNameForConfig(cfg, platformValue, projectID),
-					"file": modfilename.Display(install.FileName),
-				},
-			})
-			err = errors.New(message)
-			return telemetry.CommandTelemetry{
-				Command:     "add",
-				Success:     false,
-				Error:       err,
-				ExitCode:    1,
-				Interactive: useTUI,
-				Arguments: map[string]interface{}{
-					"platform": platformValue,
-					"id":       projectID,
-					"version":  opts.Version,
-					"fallback": opts.AllowVersionFallback,
-				},
-			}, err
-		}
-		install.FileName = normalizedFileName
-
-		installer := modinstall.NewInstaller(deps.fs, modinstall.Downloader(deps.downloader))
-		ensureResult, ensureErr := installer.EnsureLockedFile(ctx, meta, cfg, install, downloadClient(deps.clients), nil)
-		if ensureErr != nil {
-			return telemetry.CommandTelemetry{
-				Command:     "add",
-				Success:     false,
-				Error:       ensureErr,
-				ExitCode:    1,
-				Interactive: useTUI,
-				Arguments: map[string]interface{}{
-					"platform": platformValue,
-					"id":       projectID,
-					"version":  opts.Version,
-					"fallback": opts.AllowVersionFallback,
-				},
-			}, ensureErr
-		}
-
-		switch ensureResult.Reason {
-		case modinstall.EnsureReasonMissing:
-			deps.logger.Log(i18n.T("cmd.install.download.missing", i18n.Tvars{
-				Data: &i18n.TData{
-					"name":     modNameForConfig(cfg, platformValue, projectID),
-					"platform": platformValue,
-				},
-			}), true)
-		case modinstall.EnsureReasonHashMismatch:
-			deps.logger.Log(i18n.T("cmd.install.download.hash_mismatch", i18n.Tvars{
-				Data: &i18n.TData{"name": modNameForConfig(cfg, platformValue, projectID)},
-			}), true)
-		}
-
-		if commandSpan != nil {
-			commandSpan.AddEvent("app.command.add.outcome.already_exists", perf.WithEventAttributes(
-				attribute.String("platform", string(platformValue)),
-				attribute.String("project_id", projectID),
-			))
-		}
-		deps.logger.Debug(i18n.T("cmd.add.debug.already_exists", i18n.Tvars{
-			Data: &i18n.TData{
-				"id":       projectID,
-				"platform": platformValue,
-			},
-		}))
-		return telemetry.CommandTelemetry{
-			Command:     "add",
-			Success:     true,
-			ExitCode:    0,
-			Interactive: useTUI,
-			Arguments: map[string]interface{}{
-				"platform": platformValue,
-				"id":       projectID,
-				"version":  opts.Version,
-				"fallback": opts.AllowVersionFallback,
-			},
-			Extra: map[string]interface{}{
-				"flag":               "already-exists",
-				"ensure_file_reason": string(ensureResult.Reason),
-			},
-		}, nil
+		return handleExistingInstall(ctx, commandSpan, meta, cfg, install, platformValue, projectID, opts, deps, useTUI)
 	}
 
 	resolveCtx, resolveSpan := perf.StartSpan(ctx, "app.command.add.stage.resolve",
@@ -638,4 +513,151 @@ func resolveRemoteModWithTUI(ctx context.Context, commandSpan *perf.Span, initia
 	}
 
 	return typed.result()
+}
+
+func readAddOptions(cmd *cobra.Command, args []string) (addOptions, error) {
+	configPath, err := cmd.Flags().GetString("config")
+	if err != nil {
+		return addOptions{}, err
+	}
+	quiet, err := cmd.Flags().GetBool("quiet")
+	if err != nil {
+		return addOptions{}, err
+	}
+	debug, err := cmd.Flags().GetBool("debug")
+	if err != nil {
+		return addOptions{}, err
+	}
+	version, err := cmd.Flags().GetString("version")
+	if err != nil {
+		return addOptions{}, err
+	}
+	allowFallback, err := cmd.Flags().GetBool("allow-version-fallback")
+	if err != nil {
+		return addOptions{}, err
+	}
+
+	return addOptions{
+		Platform:             args[0],
+		ProjectID:            args[1],
+		ConfigPath:           configPath,
+		Quiet:                quiet,
+		Debug:                debug,
+		Version:              version,
+		AllowVersionFallback: allowFallback,
+	}, nil
+}
+
+func defaultAddDeps(log *logger.Logger, limiter *rate.Limiter) addDeps {
+	return addDeps{
+		fs:              afero.NewOsFs(),
+		clients:         platform.DefaultClients(limiter),
+		minecraftClient: httpclient.NewRLClient(limiter),
+		logger:          log,
+		fetchMod:        platform.FetchMod,
+		downloader:      httpclient.DownloadFile,
+		runTea: func(model tea.Model, options ...tea.ProgramOption) (tea.Model, error) {
+			return tea.NewProgram(model, options...).Run()
+		},
+	}
+}
+
+//nolint:funlen // Keeps existing-install remediation readable without altering behavior.
+func handleExistingInstall(
+	ctx context.Context,
+	commandSpan *perf.Span,
+	meta config.Metadata,
+	cfg models.ModsJSON,
+	install models.ModInstall,
+	platformValue models.Platform,
+	projectID string,
+	opts addOptions,
+	deps addDeps,
+	useTUI bool,
+) (telemetry.CommandTelemetry, error) {
+	normalizedFileName, normalizeErr := modfilename.Normalize(install.FileName)
+	if normalizeErr != nil {
+		message := i18n.T("cmd.add.error.invalid_filename_lock", i18n.Tvars{
+			Data: &i18n.TData{
+				"name": modNameForConfig(cfg, platformValue, projectID),
+				"file": modfilename.Display(install.FileName),
+			},
+		})
+		err := errors.New(message)
+		return telemetry.CommandTelemetry{
+			Command:     "add",
+			Success:     false,
+			Error:       err,
+			ExitCode:    1,
+			Interactive: useTUI,
+			Arguments: map[string]interface{}{
+				"platform": platformValue,
+				"id":       projectID,
+				"version":  opts.Version,
+				"fallback": opts.AllowVersionFallback,
+			},
+		}, err
+	}
+	install.FileName = normalizedFileName
+
+	installer := modinstall.NewInstaller(deps.fs, modinstall.Downloader(deps.downloader))
+	ensureResult, ensureErr := installer.EnsureLockedFile(ctx, meta, cfg, install, downloadClient(deps.clients), nil)
+	if ensureErr != nil {
+		return telemetry.CommandTelemetry{
+			Command:     "add",
+			Success:     false,
+			Error:       ensureErr,
+			ExitCode:    1,
+			Interactive: useTUI,
+			Arguments: map[string]interface{}{
+				"platform": platformValue,
+				"id":       projectID,
+				"version":  opts.Version,
+				"fallback": opts.AllowVersionFallback,
+			},
+		}, ensureErr
+	}
+
+	switch ensureResult.Reason {
+	case modinstall.EnsureReasonMissing:
+		deps.logger.Log(i18n.T("cmd.install.download.missing", i18n.Tvars{
+			Data: &i18n.TData{
+				"name":     modNameForConfig(cfg, platformValue, projectID),
+				"platform": platformValue,
+			},
+		}), true)
+	case modinstall.EnsureReasonHashMismatch:
+		deps.logger.Log(i18n.T("cmd.install.download.hash_mismatch", i18n.Tvars{
+			Data: &i18n.TData{"name": modNameForConfig(cfg, platformValue, projectID)},
+		}), true)
+	}
+
+	if commandSpan != nil {
+		commandSpan.AddEvent("app.command.add.outcome.already_exists", perf.WithEventAttributes(
+			attribute.String("platform", string(platformValue)),
+			attribute.String("project_id", projectID),
+		))
+	}
+	deps.logger.Debug(i18n.T("cmd.add.debug.already_exists", i18n.Tvars{
+		Data: &i18n.TData{
+			"id":       projectID,
+			"platform": platformValue,
+		},
+	}))
+	return telemetry.CommandTelemetry{
+		Command:     "add",
+		Success:     true,
+		ExitCode:    0,
+		Interactive: useTUI,
+		Arguments: map[string]interface{}{
+			"platform": platformValue,
+			"id":       projectID,
+			"version":  opts.Version,
+			"fallback": opts.AllowVersionFallback,
+		},
+		Extra: map[string]interface{}{
+			"flag":               "already-exists",
+			"ensure_file_reason": string(ensureResult.Reason),
+		},
+	}, nil
 }

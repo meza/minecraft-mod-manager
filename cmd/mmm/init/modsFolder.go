@@ -68,40 +68,11 @@ func (model ModsFolderModel) Init() tea.Cmd {
 }
 
 func (model ModsFolderModel) Update(msg tea.Msg) (ModsFolderModel, tea.Cmd) {
-	switch msg := msg.(type) {
-	case tea.KeyMsg:
-		switch msg.String() {
-		case "q":
-			if !model.input.Focused() {
-				return model, tea.Quit
-			}
-		case "esc":
-			return model, tea.Quit
-		case "tab":
-			if model.input.Focused() && model.input.Value() == "" {
-				model.input.SetValue(model.input.Placeholder)
-			}
-		case "enter":
-			value := strings.TrimSpace(model.input.Value())
-			if value == "" {
-				value = strings.TrimSpace(model.input.Placeholder)
-			}
-			if value == "" {
-				model.error = fmt.Errorf("mods folder cannot be empty")
-				return model, nil
-			}
-
-			if err := model.validate(value); err != nil {
-				model.error = err
-				return model, nil
-			}
-
-			model.Value = value
-			return model, model.modsFolderSelected()
-		default:
-			if model.input.Focused() {
-				model.error = nil
-			}
+	if keyMsg, ok := msg.(tea.KeyMsg); ok {
+		updated, cmd, handled := model.handleKeyMsg(keyMsg)
+		model = updated
+		if handled {
+			return model, cmd
 		}
 	}
 
@@ -128,4 +99,47 @@ func (model ModsFolderModel) modsFolderSelected() tea.Cmd {
 	return func() tea.Msg {
 		return ModsFolderSelectedMessage{ModsFolder: filepath.Clean(model.Value)}
 	}
+}
+
+func (model ModsFolderModel) handleKeyMsg(msg tea.KeyMsg) (ModsFolderModel, tea.Cmd, bool) {
+	switch msg.String() {
+	case "q":
+		if !model.input.Focused() {
+			return model, tea.Quit, true
+		}
+		return model, nil, false
+	case "esc":
+		return model, tea.Quit, true
+	case "tab":
+		if model.input.Focused() && model.input.Value() == "" {
+			model.input.SetValue(model.input.Placeholder)
+		}
+		return model, nil, false
+	case "enter":
+		return model.handleEnterKey()
+	default:
+		if model.input.Focused() {
+			model.error = nil
+		}
+		return model, nil, false
+	}
+}
+
+func (model ModsFolderModel) handleEnterKey() (ModsFolderModel, tea.Cmd, bool) {
+	value := strings.TrimSpace(model.input.Value())
+	if value == "" {
+		value = strings.TrimSpace(model.input.Placeholder)
+	}
+	if value == "" {
+		model.error = fmt.Errorf("mods folder cannot be empty")
+		return model, nil, true
+	}
+
+	if err := model.validate(value); err != nil {
+		model.error = err
+		return model, nil, true
+	}
+
+	model.Value = value
+	return model, model.modsFolderSelected(), true
 }

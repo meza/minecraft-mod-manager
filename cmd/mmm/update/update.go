@@ -161,6 +161,7 @@ type logEvent struct {
 	ForceShow bool
 }
 
+//nolint:gocognit,gocyclo,funlen // Update flow mirrors spec stages; splitting obscures behavior.
 func runUpdate(ctx context.Context, cmd *cobra.Command, opts updateOptions, deps updateDeps) (int, int, error) {
 	installResult, err := deps.install(ctx, cmd, opts.ConfigPath, opts.Quiet, opts.Debug)
 	if err != nil {
@@ -264,6 +265,7 @@ func runUpdate(ctx context.Context, cmd *cobra.Command, opts updateOptions, deps
 var errUpdateFailures = errors.New("one or more mods failed to update")
 var errUnmanagedFiles = errors.New("unmanaged files in mods folder")
 
+//nolint:gocyclo,funlen // Keeps per-mod update flow readable.
 func processMod(
 	ctx context.Context,
 	meta config.Metadata,
@@ -461,6 +463,7 @@ func processMod(
 	return outcome
 }
 
+//nolint:gocognit,gocyclo // Sequential swap steps are clearer without extra indirection.
 func downloadAndSwap(ctx context.Context, deps updateDeps, oldPath string, newPath string, modsFolder string, downloadURL string, expectedHash string) error {
 	if strings.TrimSpace(expectedHash) == "" {
 		return modinstall.MissingHashError{FileName: filepath.Base(newPath)}

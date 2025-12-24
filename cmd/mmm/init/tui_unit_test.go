@@ -39,6 +39,19 @@ func TestGameVersionModelUpdateHandlesQuitKeys(t *testing.T) {
 	assert.NotNil(t, cmd)
 }
 
+func TestGameVersionModelUpdateQWhenFocusedDoesNotQuit(t *testing.T) {
+	input := textinput.New()
+	input.Focus()
+	model := GameVersionModel{input: input}
+
+	_, cmd := model.Update(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune{'q'}})
+	if cmd == nil {
+		return
+	}
+	_, isQuit := cmd().(tea.QuitMsg)
+	assert.False(t, isQuit)
+}
+
 func TestGameVersionModelUpdateEnterEmptySetsError(t *testing.T) {
 	model := GameVersionModel{
 		input: textinput.New(),
@@ -48,6 +61,52 @@ func TestGameVersionModelUpdateEnterEmptySetsError(t *testing.T) {
 	}
 	updated, _ := model.Update(tea.KeyMsg{Type: tea.KeyEnter})
 	assert.NotNil(t, updated.error)
+}
+
+func TestCommandModelHandleModsFolderSelectedReturnsQuitWhenDone(t *testing.T) {
+	model := CommandModel{
+		state: stateModsFolder,
+		result: initOptions{
+			Loader:       models.FABRIC,
+			GameVersion:  "1.20.1",
+			ReleaseTypes: []models.ReleaseType{models.Release},
+			Provided: providedFlags{
+				Loader:       true,
+				GameVersion:  true,
+				ReleaseTypes: true,
+			},
+		},
+	}
+
+	updated, cmd, shouldQuit := model.handleModsFolderSelected(ModsFolderSelectedMessage{ModsFolder: "mods"})
+
+	assert.Equal(t, done, updated.state)
+	assert.True(t, shouldQuit)
+	if assert.NotNil(t, cmd) {
+		_, isQuit := cmd().(tea.QuitMsg)
+		assert.True(t, isQuit)
+	}
+}
+
+func TestCommandModelHandleModsFolderSelectedContinuesWhenNotDone(t *testing.T) {
+	model := CommandModel{
+		state: stateModsFolder,
+		result: initOptions{
+			Loader:       models.FABRIC,
+			GameVersion:  "1.20.1",
+			ReleaseTypes: []models.ReleaseType{models.Release},
+			Provided: providedFlags{
+				Loader:      true,
+				GameVersion: true,
+			},
+		},
+	}
+
+	updated, cmd, shouldQuit := model.handleModsFolderSelected(ModsFolderSelectedMessage{ModsFolder: "mods"})
+
+	assert.Equal(t, stateReleaseTypes, updated.state)
+	assert.False(t, shouldQuit)
+	assert.Nil(t, cmd)
 }
 
 func TestGameVersionModelUpdateEnterInvalidSetsError(t *testing.T) {

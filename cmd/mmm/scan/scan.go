@@ -192,6 +192,7 @@ type scanUnsure struct {
 	Error error
 }
 
+//nolint:gocognit,gocyclo,funlen,nestif // Scan flow matches spec stages; splitting would obscure control flow.
 func runScan(ctx context.Context, cmd *cobra.Command, opts scanOptions, deps scanDeps) (telemetry.CommandTelemetry, error) {
 	meta := config.NewMetadata(opts.ConfigPath)
 	setupCoordinator := modsetup.NewSetupCoordinator(deps.fs, deps.minecraftClient, nil)
@@ -475,6 +476,7 @@ func lookupOnPlatform(ctx context.Context, candidates []scanCandidate, platformV
 	}
 }
 
+//nolint:gocognit,funlen // Keeps lookup flow readable with minimal branching changes.
 func lookupModrinth(ctx context.Context, candidates []scanCandidate, deps scanDeps) ([]scanMatch, []scanCandidate, map[string]error) {
 	type lookupResult struct {
 		match *scanMatch
@@ -575,6 +577,7 @@ func lookupModrinth(ctx context.Context, candidates []scanCandidate, deps scanDe
 	return matches, misses, unsure
 }
 
+//nolint:gocognit,gocyclo,funlen // Keeps lookup flow readable with minimal branching changes.
 func lookupCurseforge(ctx context.Context, candidates []scanCandidate, deps scanDeps) ([]scanMatch, []scanCandidate, map[string]error) {
 	matches := make([]scanMatch, 0)
 	misses := make([]scanCandidate, 0, len(candidates))
