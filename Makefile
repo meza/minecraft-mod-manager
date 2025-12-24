@@ -66,16 +66,16 @@ fmt:
 
 lint:
 ifeq ($(OSFAMILY), Windows)
-	@powershell -NoProfile -Command "$$env:GOTOOLCHAIN='$(GOLANGCI_LINT_TOOLCHAIN)'; go run github.com/golangci/golangci-lint/cmd/golangci-lint run"
+	@powershell -NoProfile -Command "$$env:GOTOOLCHAIN='$(GOLANGCI_LINT_TOOLCHAIN)'; go run github.com/golangci/golangci-lint/v2/cmd/golangci-lint run"
 else
-	@GOTOOLCHAIN=$(GOLANGCI_LINT_TOOLCHAIN) go run github.com/golangci/golangci-lint/cmd/golangci-lint run
+	@GOTOOLCHAIN=$(GOLANGCI_LINT_TOOLCHAIN) go run github.com/golangci/golangci-lint/v2/cmd/golangci-lint run
 endif
 
 lint-fix:
 ifeq ($(OSFAMILY), Windows)
-	@powershell -NoProfile -Command "$$env:GOTOOLCHAIN='$(GOLANGCI_LINT_TOOLCHAIN)'; go run github.com/golangci/golangci-lint/cmd/golangci-lint run --fix"
+	@powershell -NoProfile -Command "$$env:GOTOOLCHAIN='$(GOLANGCI_LINT_TOOLCHAIN)'; go run github.com/golangci/golangci-lint/v2/cmd/golangci-lint run --fix"
 else
-	@GOTOOLCHAIN=$(GOLANGCI_LINT_TOOLCHAIN) go run github.com/golangci/golangci-lint/cmd/golangci-lint run --fix
+	@GOTOOLCHAIN=$(GOLANGCI_LINT_TOOLCHAIN) go run github.com/golangci/golangci-lint/v2/cmd/golangci-lint run --fix
 endif
 
 # Clean build directory

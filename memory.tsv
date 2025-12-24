@@ -538,3 +538,6 @@ date	time	entry
 2025-12-24	01:09	User requires running tests for the file/package before and after every atomic change; native go test allowed (except build via make), final verification must use make targets.
 2025-12-24	01:49	mmm-63.106.3: complexity lint cleanup complete; make coverage and make build pass; make lint still fails due to other tracked tickets.
 2025-12-24	08:56	User confirmed Windows build. Created follow-up nolint cleanup tickets mmm-75..mmm-85 and closed mmm-63.106.3 per user approval.
+2025-12-24	10:36	Cross-checked /work/make-lint.txt after linter updates; created new lint drift tickets mmm-86..mmm-96 and linked them to block mmm-63.107.
+2025-12-24	10:48	Closed lint drift tickets mmm-86, mmm-88, mmm-89 after v2 config fix restored test exclusions; dupl/gocritic/complexity drift resolved.
+2025-12-24	10:54	Closed drift lint tickets mmm-87, mmm-90, mmm-91, mmm-92..mmm-96; reopened original lint tickets mmm-63.106.1/.4/.5 and mmm-63.101/102/103 + mmm-71 with notes about upgrade resurfacing.
