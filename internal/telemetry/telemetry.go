@@ -358,11 +358,11 @@ func Shutdown(ctx context.Context) {
 		sessionName := resolveSessionName(sessionNameHint, canonicalCommand, commands)
 		captureWithSnapshot(snapshot, sessionName, properties)
 
-		ctx, cancel := ensureShutdownContext(ctx, snapshot.flushTimeout)
+		shutdownCtx, cancel := ensureShutdownContext(ctx, snapshot.flushTimeout)
 		if cancel != nil {
 			defer cancel()
 		}
-		waitForClientClose(ctx, snapshot, snapshot.client)
+		waitForClientClose(shutdownCtx, snapshot, snapshot.client)
 
 		_ = state.shutdownSnapshot()
 	})

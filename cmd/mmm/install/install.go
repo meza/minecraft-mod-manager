@@ -348,9 +348,9 @@ func installFromRemote(ctx context.Context, meta config.Metadata, cfg models.Mod
 		return modInstallOutcome{}, fetchErr
 	}
 
-	normalizedRemote, outcome, err := normalizeRemoteForInstall(remote, mod, deps)
-	if err != nil || outcome.failed {
-		return outcome, err
+	normalizedRemote, outcome := normalizeRemoteForInstall(remote, mod, deps)
+	if outcome.failed {
+		return outcome, nil
 	}
 
 	deps.logger.Log(i18n.T("cmd.install.download.missing", i18n.Tvars{
@@ -386,7 +386,7 @@ func installFromRemote(ctx context.Context, meta config.Metadata, cfg models.Mod
 	return modInstallOutcome{newName: normalizedRemote.Name, lockEntry: &lockEntry}, nil
 }
 
-func normalizeRemoteForInstall(remote platform.RemoteMod, mod models.Mod, deps installDeps) (platform.RemoteMod, modInstallOutcome, error) {
+func normalizeRemoteForInstall(remote platform.RemoteMod, mod models.Mod, deps installDeps) (platform.RemoteMod, modInstallOutcome) {
 	normalizedFileName, err := modfilename.Normalize(remote.FileName)
 	if err != nil {
 		deps.logger.Error(i18n.T("cmd.install.error.invalid_filename_remote", i18n.Tvars{
@@ -395,7 +395,7 @@ func normalizeRemoteForInstall(remote platform.RemoteMod, mod models.Mod, deps i
 				"file": modfilename.Display(remote.FileName),
 			},
 		}))
-		return platform.RemoteMod{}, modInstallOutcome{failed: true}, nil
+		return platform.RemoteMod{}, modInstallOutcome{failed: true}
 	}
 	remote.FileName = normalizedFileName
 
@@ -403,10 +403,10 @@ func normalizeRemoteForInstall(remote platform.RemoteMod, mod models.Mod, deps i
 		deps.logger.Error(i18n.T("cmd.install.error.missing_hash_remote", i18n.Tvars{
 			Data: &i18n.TData{"name": mod.Name},
 		}))
-		return platform.RemoteMod{}, modInstallOutcome{failed: true}, nil
+		return platform.RemoteMod{}, modInstallOutcome{failed: true}
 	}
 
-	return remote, modInstallOutcome{}, nil
+	return remote, modInstallOutcome{}
 }
 
 func resolveRemoteDestination(meta config.Metadata, cfg models.ModsJSON, remote platform.RemoteMod, mod models.Mod, deps installDeps) (string, modInstallOutcome, error) {

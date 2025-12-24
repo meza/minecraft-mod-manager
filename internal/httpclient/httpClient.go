@@ -41,10 +41,10 @@ func (client *RLHTTPClient) Do(request *http.Request) (*http.Response, error) {
 	retryConfig := client.retryConfig()
 
 	var response *http.Response
+	var shouldRetry bool
 	var err error
 
 	for attempt := 0; attempt <= retryConfig.MaxRetries; attempt++ {
-		shouldRetry := false
 		response, shouldRetry, err = client.doAttempt(ctx, request, attempt, retryConfig, requestSpan)
 		if err != nil {
 			return nil, err

@@ -485,9 +485,8 @@ func lookupModrinth(ctx context.Context, candidates []scanCandidate, deps scanDe
 	}
 
 	results := make([]lookupResult, len(candidates))
-	recordLookupError := func(resultIndex int, lookupError error) error {
+	recordLookupError := func(resultIndex int, lookupError error) {
 		results[resultIndex] = lookupResult{err: lookupError}
-		return nil
 	}
 
 	titleCache := make(map[string]string)
@@ -511,7 +510,8 @@ func lookupModrinth(ctx context.Context, candidates []scanCandidate, deps scanDe
 					results[i] = lookupResult{miss: true}
 					return nil
 				}
-				return recordLookupError(i, err)
+				recordLookupError(i, err)
+				return nil
 			}
 
 			projectID := version.ProjectID
@@ -522,7 +522,8 @@ func lookupModrinth(ctx context.Context, candidates []scanCandidate, deps scanDe
 			if !ok {
 				title, err = deps.modrinthProjectTitle(groupCtx, projectID, deps.clients.Modrinth)
 				if err != nil {
-					return recordLookupError(i, err)
+					recordLookupError(i, err)
+					return nil
 				}
 				titleMu.Lock()
 				titleCache[projectID] = title
@@ -531,7 +532,8 @@ func lookupModrinth(ctx context.Context, candidates []scanCandidate, deps scanDe
 
 			url, published, err := modrinthDownloadDetails(version)
 			if err != nil {
-				return recordLookupError(i, err)
+				recordLookupError(i, err)
+				return nil
 			}
 
 			results[i] = lookupResult{match: &scanMatch{

@@ -92,8 +92,9 @@ func (installer *Installer) EnsureLockedFile(ctx context.Context, meta config.Me
 	}
 
 	if !exists {
-		if err := installer.ensureDownloader(); err != nil {
-			return EnsureResult{}, err
+		ensureErr := installer.ensureDownloader()
+		if ensureErr != nil {
+			return EnsureResult{}, ensureErr
 		}
 		downloadErr := installer.downloadAndVerify(ctx, install.DownloadURL, resolvedDestination, expectedHash, downloadClient, sender, normalizedFileName)
 		if downloadErr != nil {
@@ -108,8 +109,9 @@ func (installer *Installer) EnsureLockedFile(ctx context.Context, meta config.Me
 	}
 
 	if !strings.EqualFold(expectedHash, localSha) {
-		if err := installer.ensureDownloader(); err != nil {
-			return EnsureResult{}, err
+		ensureErr := installer.ensureDownloader()
+		if ensureErr != nil {
+			return EnsureResult{}, ensureErr
 		}
 		downloadErr := installer.downloadAndVerify(ctx, install.DownloadURL, resolvedDestination, expectedHash, downloadClient, sender, normalizedFileName)
 		if downloadErr != nil {

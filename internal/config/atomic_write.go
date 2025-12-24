@@ -20,11 +20,13 @@ func writeFileAtomic(fs afero.Fs, targetPath string, data []byte) error {
 		return err
 	}
 
-	if err := removePathIfExists(fs, tempPath); err != nil {
-		return removePathError("temp file", tempPath, err)
+	tempRemoveErr := removePathIfExists(fs, tempPath)
+	if tempRemoveErr != nil {
+		return removePathError("temp file", tempPath, tempRemoveErr)
 	}
-	if err := afero.WriteFile(fs, tempPath, data, defaultFileMode); err != nil {
-		return err
+	writeErr := afero.WriteFile(fs, tempPath, data, defaultFileMode)
+	if writeErr != nil {
+		return writeErr
 	}
 
 	exists, err := afero.Exists(fs, targetPath)

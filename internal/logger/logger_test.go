@@ -96,9 +96,9 @@ func TestLoggerErrorfAlwaysWritesToStderr(t *testing.T) {
 func TestLoggerHandlesWriterErrors(t *testing.T) {
 	writeErr := errors.New("write failed")
 	logWriter := errorWriter{err: writeErr}
-	errorWriter := errorWriter{err: writeErr}
+	errWriter := errorWriter{err: writeErr}
 
-	logger := New(logWriter, errorWriter, false, true)
+	logger := New(logWriter, errWriter, false, true)
 
 	assert.NotPanics(t, func() { logger.Log("hello world", true) })
 	assert.NotPanics(t, func() { logger.Debug("hello debug") })
