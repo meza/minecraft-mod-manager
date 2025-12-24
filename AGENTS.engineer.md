@@ -45,8 +45,10 @@ At minimum, provide:
 - The work item / ticket / issue identifier (and link if available).
 - The active changeset definition (what exact diff the reviewer should consider in-scope).
 - A 1-3 sentence intent statement (what you changed and why).
-- Any relevant commands you ran and their results (use the project's documented `make` targets where applicable).
 - Any known risks, edge cases, or follow-ups.
+
+Exclude:
+- Any make or build output. The reviewer must run the commands themselves if needed.
 
 ### Review Collaboration (Non-Negotiable)
 
