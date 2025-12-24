@@ -195,8 +195,8 @@ func (tool *coverageTool) prepareFilteredCoverage(coveragePath string) (string, 
 }
 
 func (tool *coverageTool) runCoverageTests(coveragePath string) error {
-	// #nosec G204 -- go binary and args are controlled by this tool.
-	command := exec.Command(tool.goBinary, "test", "./...", "-coverprofile", coveragePath) // #nosec G204 -- go binary and args are controlled by this tool.
+	//nolint:gosec // go binary and args are controlled by this tool.
+	command := exec.Command(tool.goBinary, "test", "./...", "-coverprofile", coveragePath)
 	command.Dir = tool.repoRoot
 	outputBuffer := &bytes.Buffer{}
 	command.Stdout = outputBuffer
@@ -211,8 +211,8 @@ func (tool *coverageTool) runCoverageTests(coveragePath string) error {
 }
 
 func (tool *coverageTool) generateCoverageHTML(coveragePath, htmlPath string) error {
-	// #nosec G204 -- go binary and args are controlled by this tool.
-	command := exec.Command(tool.goBinary, "tool", "cover", "-html", coveragePath, "-o", htmlPath) // #nosec G204 -- go binary and args are controlled by this tool.
+	//nolint:gosec // go binary and args are controlled by this tool.
+	command := exec.Command(tool.goBinary, "tool", "cover", "-html", coveragePath, "-o", htmlPath)
 	command.Dir = tool.repoRoot
 	if err := tool.commandRunner.Run(command); err != nil {
 		return fmt.Errorf("error: coverage html generation failed: %w", err)
@@ -221,8 +221,8 @@ func (tool *coverageTool) generateCoverageHTML(coveragePath, htmlPath string) er
 }
 
 func (tool *coverageTool) coverageFuncOutput(coveragePath string) ([]byte, string, string, []string, error) {
-	// #nosec G204 -- go binary and args are controlled by this tool.
-	command := exec.Command(tool.goBinary, "tool", "cover", "-func", coveragePath) // #nosec G204 -- go binary and args are controlled by this tool.
+	//nolint:gosec // go binary and args are controlled by this tool.
+	command := exec.Command(tool.goBinary, "tool", "cover", "-func", coveragePath)
 	command.Dir = tool.repoRoot
 	output, err := tool.commandOutput.Output(command)
 	if err != nil {

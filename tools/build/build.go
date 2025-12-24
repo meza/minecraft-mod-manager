@@ -156,8 +156,8 @@ func (tool *buildTool) buildTarget(target buildTarget, envMap map[string]string,
 	environment["GOARCH"] = target.goarch
 	environment["CGO_ENABLED"] = "0"
 
-	// #nosec G204 -- go binary and args are controlled by this tool.
-	command := exec.Command(tool.goBinary, "build", "-ldflags", ldflags, "-o", outputPath, "main.go") // #nosec G204 -- go binary and args are controlled by this tool.
+	//nolint:gosec // go binary and args are controlled by this tool.
+	command := exec.Command(tool.goBinary, "build", "-ldflags", ldflags, "-o", outputPath, "main.go")
 	command.Env = envMapToSlice(environment)
 
 	tool.logger.Printf("output %s", outputPath)

@@ -544,3 +544,5 @@ date	time	entry
 2025-12-24	10:57	Reviewed Beads tickets mmm-63.106.1/.4/.5, mmm-63.101/.102/.103, mmm-71 after lint upgrade; most have dozens+ findings, recommend handling each ticket separately; only mmm-71 looks small and could be bundled with a gosec pass if desired.
 2025-12-24	11:04	mmm-63.101: handled G104 in tests by checking Close/Parse errors in cmd/mmm/scan, cmd/mmm/update, internal/curseforge, internal/httpclient, internal/modinstall, tools/coverage, tools/packaging; ran go test per package before/after and make coverage before/after.
 2025-12-24	11:20	Closed mmm-63.101 after reviewer approval and user Windows sign-off; user asked to confirm whether remaining lint tickets are test-only after toolchain upgrade.
+2025-12-24	11:27	mmm-63.102: switched gosec G204 suppressions to nolint:gosec (with rationale) in tools/build and tools/coverage code/tests; ran go test per package before/after and make coverage before/after; make lint filtered G204 shows none.
+2025-12-24	11:55	Closed mmm-63.102 after reviewer approval and user Windows verification; G204 suppressions now use nolint:gosec with rationale in tools/build and tools/coverage code/tests.

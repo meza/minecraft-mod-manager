@@ -472,8 +472,8 @@ func TestExecRunnerRun(t *testing.T) {
 		os.Exit(0)
 	}
 
-	// #nosec G204 -- test helper executes the current test binary.
-	cmd := exec.Command(os.Args[0], "-test.run=TestExecRunnerRun", "--") // #nosec G204 -- test helper executes the current test binary.
+	//nolint:gosec // test helper executes the current test binary.
+	cmd := exec.Command(os.Args[0], "-test.run=TestExecRunnerRun", "--")
 	cmd.Env = append(os.Environ(), "GO_WANT_HELPER_PROCESS=1")
 	if err := (execRunner{}).Run(cmd); err != nil {
 		t.Fatalf("expected no error, got %v", err)
