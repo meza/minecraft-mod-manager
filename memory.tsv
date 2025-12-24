@@ -551,3 +551,4 @@ date	time	entry
 2025-12-24	13:34	Added golangci-lint path-based exclusion for gosec G304 in _test.go files; removed inline nolint:gosec comments from test reads in modinstall/perf/coverage tests; ran go test per package and make lint (no G304).
 2025-12-24	13:57	User approved path-based G304 exclusion for _test.go; added .golangci.yml rule, removed per-instance nolint in tests, ran make test/coverage/build; lint still failing elsewhere but no G304.
 2025-12-24	14:04	mmm-63.104: added per-instance nolint:gosec rationale for G302/G306 test fixtures in tools/packaging/packaging_test.go; ran go test ./tools/packaging before/after plus make fmt/lint/test/coverage/build; no G302/G306 in lint output.
+2025-12-24	15:12	mmm-71: refreshed G101 suppressions by switching to //nolint:gosec on placeholder defaults in internal/environment/environment.go; ran go test ./internal/environment before/after, make fmt, make lint (no G101), make test/coverage/build.

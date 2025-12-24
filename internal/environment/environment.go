@@ -6,9 +6,12 @@ import (
 )
 
 var (
-	modrinthAPIKeyDefault   = "REPL_MODRINTH_API_KEY"   // #nosec G101 -- build-time placeholder replaced in release builds.
-	curseforgeAPIKeyDefault = "REPL_CURSEFORGE_API_KEY" // #nosec G101 -- build-time placeholder replaced in release builds.
-	posthogAPIKeyDefault    = "REPL_POSTHOG_API_KEY"    // #nosec G101 -- build-time placeholder replaced in release builds.
+	//nolint:gosec // build-time placeholder replaced in release builds.
+	modrinthAPIKeyDefault = "REPL_MODRINTH_API_KEY"
+	//nolint:gosec // build-time placeholder replaced in release builds.
+	curseforgeAPIKeyDefault = "REPL_CURSEFORGE_API_KEY"
+	//nolint:gosec // build-time placeholder replaced in release builds.
+	posthogAPIKeyDefault = "REPL_POSTHOG_API_KEY"
 )
 
 func ModrinthAPIKey() string {
