@@ -153,7 +153,7 @@ require (
 	github.com/julz/importas v0.2.0 // indirect
 	github.com/kaptinlin/jsonpointer v0.4.6 // indirect
 	github.com/kaptinlin/jsonschema v0.6.1 // indirect
-	github.com/kaptinlin/messageformat-go v0.4.6 // indirect
+	github.com/kaptinlin/messageformat-go v0.4.7 // indirect
 	github.com/karamaru-alpha/copyloopvar v1.2.2 // indirect
 	github.com/kisielk/errcheck v1.9.0 // indirect
 	github.com/kkHAIKE/contextcheck v1.1.6 // indirect
