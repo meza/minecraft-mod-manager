@@ -151,7 +151,7 @@ require (
 	github.com/jingyugao/rowserrcheck v1.1.1 // indirect
 	github.com/jjti/go-spancheck v0.6.5 // indirect
 	github.com/julz/importas v0.2.0 // indirect
-	github.com/kaptinlin/jsonpointer v0.4.6 // indirect
+	github.com/kaptinlin/jsonpointer v0.4.8 // indirect
 	github.com/kaptinlin/jsonschema v0.6.1 // indirect
 	github.com/kaptinlin/messageformat-go v0.4.6 // indirect
 	github.com/karamaru-alpha/copyloopvar v1.2.2 // indirect
