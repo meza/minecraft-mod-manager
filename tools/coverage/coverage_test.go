@@ -366,7 +366,9 @@ func TestFilterCoverageFileInputCloseError(t *testing.T) {
 	})
 	closeErr := errors.New("close input failed")
 	closeInputFile = func(file *os.File) error {
-		_ = file.Close()
+		if err := file.Close(); err != nil {
+			return errors.Join(err, closeErr)
+		}
 		return closeErr
 	}
 
@@ -390,7 +392,9 @@ func TestFilterCoverageFileOutputCloseError(t *testing.T) {
 	})
 	closeErr := errors.New("close output failed")
 	closeOutputFile = func(file *os.File) error {
-		_ = file.Close()
+		if err := file.Close(); err != nil {
+			return errors.Join(err, closeErr)
+		}
 		return closeErr
 	}
 

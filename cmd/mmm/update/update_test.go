@@ -87,7 +87,13 @@ type closeErrorFile struct {
 }
 
 func (file closeErrorFile) Close() error {
-	_ = file.File.Close()
+	closeErr := file.File.Close()
+	if closeErr != nil && file.closeErr != nil {
+		return errors.Join(closeErr, file.closeErr)
+	}
+	if closeErr != nil {
+		return closeErr
+	}
 	if file.closeErr != nil {
 		return file.closeErr
 	}

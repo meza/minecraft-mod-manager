@@ -334,7 +334,7 @@ func TestRLHTTPClient_ClosesResponseBodiesBeforeRetry(t *testing.T) {
 	assert.Equal(t, http.StatusOK, resp.StatusCode)
 	t.Cleanup(func() {
 		if resp != nil && resp.Body != nil {
-			resp.Body.Close()
+			assert.NoError(t, resp.Body.Close())
 		}
 	})
 

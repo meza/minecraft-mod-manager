@@ -171,9 +171,12 @@ func TestGetProject(t *testing.T) {
 	assert.Equal(t, "1.0.0", project.LatestFiles[0].GameVersions[0])
 	assert.Equal(t, 1234567890, project.LatestFiles[0].Fingerprint)
 
-	dateCreated, _ := time.Parse(time.RFC3339, "2023-10-01T12:00:00Z")
-	dateModified, _ := time.Parse(time.RFC3339, "2023-10-01T12:00:00Z")
-	dateReleased, _ := time.Parse(time.RFC3339, "2023-10-01T12:00:00Z")
+	dateCreated, err := time.Parse(time.RFC3339, "2023-10-01T12:00:00Z")
+	assert.NoError(t, err)
+	dateModified, err := time.Parse(time.RFC3339, "2023-10-01T12:00:00Z")
+	assert.NoError(t, err)
+	dateReleased, err := time.Parse(time.RFC3339, "2023-10-01T12:00:00Z")
+	assert.NoError(t, err)
 
 	assert.Equal(t, dateCreated, project.DateCreated)
 	assert.Equal(t, dateModified, project.DateModified)

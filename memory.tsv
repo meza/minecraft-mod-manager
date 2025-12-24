@@ -541,3 +541,6 @@ date	time	entry
 2025-12-24	10:36	Cross-checked /work/make-lint.txt after linter updates; created new lint drift tickets mmm-86..mmm-96 and linked them to block mmm-63.107.
 2025-12-24	10:48	Closed lint drift tickets mmm-86, mmm-88, mmm-89 after v2 config fix restored test exclusions; dupl/gocritic/complexity drift resolved.
 2025-12-24	10:54	Closed drift lint tickets mmm-87, mmm-90, mmm-91, mmm-92..mmm-96; reopened original lint tickets mmm-63.106.1/.4/.5 and mmm-63.101/102/103 + mmm-71 with notes about upgrade resurfacing.
+2025-12-24	10:57	Reviewed Beads tickets mmm-63.106.1/.4/.5, mmm-63.101/.102/.103, mmm-71 after lint upgrade; most have dozens+ findings, recommend handling each ticket separately; only mmm-71 looks small and could be bundled with a gosec pass if desired.
+2025-12-24	11:04	mmm-63.101: handled G104 in tests by checking Close/Parse errors in cmd/mmm/scan, cmd/mmm/update, internal/curseforge, internal/httpclient, internal/modinstall, tools/coverage, tools/packaging; ran go test per package before/after and make coverage before/after.
+2025-12-24	11:20	Closed mmm-63.101 after reviewer approval and user Windows sign-off; user asked to confirm whether remaining lint tickets are test-only after toolchain upgrade.
