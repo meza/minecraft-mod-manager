@@ -284,6 +284,19 @@ linters:
         linters:
           - revive
         text: "package-comments"
+      # Tests can be verbose; relax complexity/length thresholds for _test.go only.
+      - path: _test\.go
+        linters:
+          - revive
+        text: "function-length"
+      - path: _test\.go
+        linters:
+          - revive
+        text: "cognitive-complexity"
+      - path: _test\.go
+        linters:
+          - revive
+        text: "cyclomatic"
       - path: _test\.go
         linters:
           - gocritic
