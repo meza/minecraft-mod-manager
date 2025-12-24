@@ -557,3 +557,6 @@ date	time	entry
 2025-12-24	19:11	mmm-99: replaced unnecessary-format usages (errors.New/t.Fatal) across cmd/mmm/init, cmd/mmm/scan tests, internal/httpclient, internal/modrinth, internal/platform, testutil, tools/build, tools/coverage, tools/packaging; ran go test per package before/after plus make fmt/lint/test/coverage/build.
 2025-12-24	20:25	mmm-100: covered init View newline write error branch with writeString test setup; go test ./cmd/mmm/init, make fmt/test/coverage/build pass; make lint still failing due to other tracked lint tickets.
 2025-12-24	20:35	Closed mmm-100 after Windows confirmation; unhandled write errors handled with tests, coverage/build verified.
+2025-12-24	20:44	mmm-97 in progress: refactored small production funcs to reduce revive length/complexity (packaging writeZip helpers, platform buildCurseforgeRemoteMod, httpclient doWithRetries, modinstall ensureDownload, modrinth buildVersionListURL, list appendListEntry, init viewSections, main parsePerfExportArgs). Ran go test per package before/after each change.
+2025-12-24	20:51	mmm-97: added TestViewSectionsForState to cover init forState branches after Windows coverage failure; go test ./cmd/mmm/init before/after; pending Windows re-run of make coverage.
+2025-12-24	20:55	mmm-97: recorded Windows make build+coverage pass after forState test; local make fmt/test/coverage/build pass.

@@ -200,6 +200,35 @@ func buildArtifactFromPath(path string) (buildArtifact, error) {
 	}, nil
 }
 
+func buildZipHeader(inputInfo os.FileInfo, inputPath string) (*zip.FileHeader, error) {
+	header, err := zipFileInfoHeader(inputInfo)
+	if err != nil {
+		return nil, fmt.Errorf("error: create zip header for %s: %w", inputPath, err)
+	}
+	header.Name = filepath.Base(inputPath)
+	header.Method = zip.Deflate
+	header.SetMode(inputInfo.Mode())
+	return header, nil
+}
+
+func writeZipContents(zipEntryWriter io.Writer, inputPath string) (returnErr error) {
+	inputFile, err := openFile(inputPath)
+	if err != nil {
+		return fmt.Errorf("error: open build output %s: %w", inputPath, err)
+	}
+	defer func() {
+		if closeErr := closeInputFile(inputFile); closeErr != nil {
+			returnErr = errors.Join(returnErr, fmt.Errorf("error: close build output %s: %w", inputPath, closeErr))
+		}
+	}()
+
+	if _, err := copyFile(zipEntryWriter, inputFile); err != nil {
+		return fmt.Errorf("error: write zip contents for %s: %w", inputPath, err)
+	}
+
+	return nil
+}
+
 func writeZip(outputPath, inputPath string) (returnErr error) {
 	inputInfo, err := os.Stat(inputPath)
 	if err != nil {
@@ -227,34 +256,17 @@ func writeZip(outputPath, inputPath string) (returnErr error) {
 		}
 	}()
 
-	header, err := zipFileInfoHeader(inputInfo)
+	header, err := buildZipHeader(inputInfo, inputPath)
 	if err != nil {
-		return fmt.Errorf("error: create zip header for %s: %w", inputPath, err)
+		return err
 	}
-	header.Name = filepath.Base(inputPath)
-	header.Method = zip.Deflate
-	header.SetMode(inputInfo.Mode())
 
 	zipEntryWriter, err := zipCreateHeader(zipWriter, header)
 	if err != nil {
 		return fmt.Errorf("error: write zip header for %s: %w", inputPath, err)
 	}
 
-	inputFile, err := openFile(inputPath)
-	if err != nil {
-		return fmt.Errorf("error: open build output %s: %w", inputPath, err)
-	}
-	defer func() {
-		if closeErr := closeInputFile(inputFile); closeErr != nil {
-			returnErr = errors.Join(returnErr, fmt.Errorf("error: close build output %s: %w", inputPath, closeErr))
-		}
-	}()
-
-	if _, err := copyFile(zipEntryWriter, inputFile); err != nil {
-		return fmt.Errorf("error: write zip contents for %s: %w", inputPath, err)
-	}
-
-	return nil
+	return writeZipContents(zipEntryWriter, inputPath)
 }
 
 func findRepoRoot(startDir string) (string, error) {

@@ -40,6 +40,16 @@ func (client *RLHTTPClient) Do(request *http.Request) (*http.Response, error) {
 	defer requestSpan.End()
 	retryConfig := client.retryConfig()
 
+	response, err := client.doWithRetries(ctx, request, retryConfig, requestSpan)
+
+	requestSpan.SetAttributes(attribute.Bool("success", err == nil))
+	if response != nil {
+		requestSpan.SetAttributes(attribute.Int("status", response.StatusCode))
+	}
+	return response, err
+}
+
+func (client *RLHTTPClient) doWithRetries(ctx context.Context, request *http.Request, retryConfig RetryConfig, requestSpan *perf.Span) (*http.Response, error) {
 	var response *http.Response
 	var shouldRetry bool
 	var err error
@@ -55,10 +65,6 @@ func (client *RLHTTPClient) Do(request *http.Request) (*http.Response, error) {
 		break
 	}
 
-	requestSpan.SetAttributes(attribute.Bool("success", err == nil))
-	if response != nil {
-		requestSpan.SetAttributes(attribute.Int("status", response.StatusCode))
-	}
 	return response, err
 }
 

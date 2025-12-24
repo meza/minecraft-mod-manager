@@ -53,22 +53,7 @@ func (model CommandModel) Init() tea.Cmd {
 func (model CommandModel) View() string {
 	stringBuilder := strings.Builder{}
 
-	loaderView := ""
-	if !model.initialProvided.Loader {
-		loaderView = model.loaderQuestion.View()
-	}
-	gameVersionView := ""
-	if !model.initialProvided.GameVersion {
-		gameVersionView = model.gameVersionQuestion.View()
-	}
-	releaseTypesView := ""
-	if !model.initialProvided.ReleaseTypes {
-		releaseTypesView = model.releaseTypesQuestion.View()
-	}
-	modsFolderView := ""
-	if !model.initialProvided.ModsFolder {
-		modsFolderView = model.modsFolderQuestion.View()
-	}
+	sections := buildViewSections(model)
 
 	var appendErr error
 	appendSection := func(section string) {
@@ -86,27 +71,17 @@ func (model CommandModel) View() string {
 		}
 	}
 
-	appendSection(loaderView)
+	appendSection(sections.loader)
 	if appendErr != nil {
 		return ""
 	}
 
-	switch model.state {
-	case stateLoader:
+	if model.state == stateLoader {
 		return stringBuilder.String()
-	case stateGameVersion:
-		appendSection(gameVersionView)
-	case stateReleaseTypes:
-		appendSection(gameVersionView)
-		appendSection(releaseTypesView)
-	case stateModsFolder:
-		appendSection(gameVersionView)
-		appendSection(releaseTypesView)
-		appendSection(modsFolderView)
-	case done:
-		appendSection(gameVersionView)
-		appendSection(releaseTypesView)
-		appendSection(modsFolderView)
+	}
+
+	for _, section := range sections.forState(model.state) {
+		appendSection(section)
 	}
 
 	if appendErr != nil {
@@ -114,6 +89,43 @@ func (model CommandModel) View() string {
 	}
 
 	return stringBuilder.String()
+}
+
+type viewSections struct {
+	loader       string
+	gameVersion  string
+	releaseTypes string
+	modsFolder   string
+}
+
+func buildViewSections(model CommandModel) viewSections {
+	sections := viewSections{}
+	if !model.initialProvided.Loader {
+		sections.loader = model.loaderQuestion.View()
+	}
+	if !model.initialProvided.GameVersion {
+		sections.gameVersion = model.gameVersionQuestion.View()
+	}
+	if !model.initialProvided.ReleaseTypes {
+		sections.releaseTypes = model.releaseTypesQuestion.View()
+	}
+	if !model.initialProvided.ModsFolder {
+		sections.modsFolder = model.modsFolderQuestion.View()
+	}
+	return sections
+}
+
+func (sections viewSections) forState(current state) []string {
+	switch current {
+	case stateGameVersion:
+		return []string{sections.gameVersion}
+	case stateReleaseTypes:
+		return []string{sections.gameVersion, sections.releaseTypes}
+	case stateModsFolder, done:
+		return []string{sections.gameVersion, sections.releaseTypes, sections.modsFolder}
+	default:
+		return nil
+	}
 }
 
 func (model CommandModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {

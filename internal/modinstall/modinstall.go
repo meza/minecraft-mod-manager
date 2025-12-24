@@ -92,13 +92,8 @@ func (installer *Installer) EnsureLockedFile(ctx context.Context, meta config.Me
 	}
 
 	if !exists {
-		ensureErr := installer.ensureDownloader()
-		if ensureErr != nil {
-			return EnsureResult{}, ensureErr
-		}
-		downloadErr := installer.downloadAndVerify(ctx, install.DownloadURL, resolvedDestination, expectedHash, downloadClient, sender, normalizedFileName)
-		if downloadErr != nil {
-			return EnsureResult{}, downloadErr
+		if err := installer.ensureDownload(ctx, install.DownloadURL, resolvedDestination, expectedHash, downloadClient, sender, normalizedFileName); err != nil {
+			return EnsureResult{}, err
 		}
 		return EnsureResult{Downloaded: true, Reason: EnsureReasonMissing}, nil
 	}
@@ -109,18 +104,20 @@ func (installer *Installer) EnsureLockedFile(ctx context.Context, meta config.Me
 	}
 
 	if !strings.EqualFold(expectedHash, localSha) {
-		ensureErr := installer.ensureDownloader()
-		if ensureErr != nil {
-			return EnsureResult{}, ensureErr
-		}
-		downloadErr := installer.downloadAndVerify(ctx, install.DownloadURL, resolvedDestination, expectedHash, downloadClient, sender, normalizedFileName)
-		if downloadErr != nil {
-			return EnsureResult{}, downloadErr
+		if err := installer.ensureDownload(ctx, install.DownloadURL, resolvedDestination, expectedHash, downloadClient, sender, normalizedFileName); err != nil {
+			return EnsureResult{}, err
 		}
 		return EnsureResult{Downloaded: true, Reason: EnsureReasonHashMismatch}, nil
 	}
 
 	return EnsureResult{Downloaded: false, Reason: EnsureReasonAlreadyPresent}, nil
+}
+
+func (installer *Installer) ensureDownload(ctx context.Context, url string, destination string, expectedHash string, downloadClient httpclient.Doer, sender httpclient.Sender, displayName string) error {
+	if err := installer.ensureDownloader(); err != nil {
+		return err
+	}
+	return installer.downloadAndVerify(ctx, url, destination, expectedHash, downloadClient, sender, displayName)
 }
 
 func (installer *Installer) DownloadAndVerify(ctx context.Context, url string, destination string, expectedHash string, downloadClient httpclient.Doer, sender httpclient.Sender) error {

@@ -62,23 +62,27 @@ func fetchCurseforge(ctx context.Context, projectID string, opts FetchOptions, c
 		})
 
 		selected := candidates[0]
-		if selected.DownloadURL == "" {
-			return RemoteMod{}, &NoCompatibleFileError{Platform: models.CURSEFORGE, ProjectID: projectID}
-		}
-
-		hash, hashErr := getCurseforgeHash(selected.Hashes, curseforge.SHA1)
-		if hashErr != nil {
-			return RemoteMod{}, &NoCompatibleFileError{Platform: models.CURSEFORGE, ProjectID: projectID}
-		}
-
-		return RemoteMod{
-			Name:        project.Name,
-			FileName:    selected.FileName,
-			ReleaseDate: formatTime(selected.FileDate),
-			Hash:        hash,
-			DownloadURL: selected.DownloadURL,
-		}, nil
+		return buildCurseforgeRemoteMod(project, selected, projectID)
 	}
+}
+
+func buildCurseforgeRemoteMod(project *curseforge.Project, selected curseforge.File, projectID string) (RemoteMod, error) {
+	if selected.DownloadURL == "" {
+		return RemoteMod{}, &NoCompatibleFileError{Platform: models.CURSEFORGE, ProjectID: projectID}
+	}
+
+	hash, hashErr := getCurseforgeHash(selected.Hashes, curseforge.SHA1)
+	if hashErr != nil {
+		return RemoteMod{}, &NoCompatibleFileError{Platform: models.CURSEFORGE, ProjectID: projectID}
+	}
+
+	return RemoteMod{
+		Name:        project.Name,
+		FileName:    selected.FileName,
+		ReleaseDate: formatTime(selected.FileDate),
+		Hash:        hash,
+		DownloadURL: selected.DownloadURL,
+	}, nil
 }
 
 func fetchCurseforgeFiles(ctx context.Context, projectID string, gameVersion string, loader curseforge.ModLoaderType, client curseforgeDoer) (files []curseforge.File, returnErr error) {

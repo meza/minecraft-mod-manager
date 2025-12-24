@@ -248,6 +248,21 @@ func TestCommandModelViewReturnsEmptyOnModsFolderWriteError(t *testing.T) {
 	assert.Equal(t, "", model.View())
 }
 
+func TestViewSectionsForState(t *testing.T) {
+	sections := viewSections{
+		loader:       "loader",
+		gameVersion:  "gameVersion",
+		releaseTypes: "releaseTypes",
+		modsFolder:   "modsFolder",
+	}
+
+	assert.Equal(t, []string{"gameVersion"}, sections.forState(stateGameVersion))
+	assert.Equal(t, []string{"gameVersion", "releaseTypes"}, sections.forState(stateReleaseTypes))
+	assert.Equal(t, []string{"gameVersion", "releaseTypes", "modsFolder"}, sections.forState(stateModsFolder))
+	assert.Equal(t, []string{"gameVersion", "releaseTypes", "modsFolder"}, sections.forState(done))
+	assert.Nil(t, sections.forState(stateLoader))
+}
+
 func TestCommandModelViewSkipsProvidedLoader(t *testing.T) {
 	fs := afero.NewMemMapFs()
 	meta := config.NewMetadata(filepath.FromSlash("/cfg/modlist.json"))

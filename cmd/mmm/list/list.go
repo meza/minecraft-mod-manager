@@ -234,15 +234,22 @@ func renderListView(entries []listEntry, colorize bool) string {
 	}
 
 	for _, entry := range entries {
-		if err := listWriteString(&builder, "\n"); err != nil {
-			return ""
-		}
-		if err := listWriteString(&builder, renderEntry(entry, colorize)); err != nil {
+		if err := appendListEntry(&builder, entry, colorize); err != nil {
 			return ""
 		}
 	}
 
 	return builder.String()
+}
+
+func appendListEntry(builder *strings.Builder, entry listEntry, colorize bool) error {
+	if err := listWriteString(builder, "\n"); err != nil {
+		return err
+	}
+	if err := listWriteString(builder, renderEntry(entry, colorize)); err != nil {
+		return err
+	}
+	return nil
 }
 
 func renderEntry(entry listEntry, colorize bool) string {

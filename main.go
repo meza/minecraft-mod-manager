@@ -232,6 +232,36 @@ func perfExportConfigFromArgs(args []string, cwd string) perfExportConfig {
 
 //nolint:gocyclo // Argument normalization is clearer as a single flow.
 func perfExportConfigFromArgsWithAbs(args []string, cwd string, absPath func(string) (string, error)) perfExportConfig {
+	configPath, perfEnabled, perfOutDir, debug := parsePerfExportArgs(args)
+
+	resolvedConfig := configPath
+	if cwd != "" && !filepath.IsAbs(resolvedConfig) {
+		resolvedConfig = filepath.Join(cwd, resolvedConfig)
+	}
+	resolvedConfig, err := absPath(resolvedConfig)
+	if err != nil {
+		resolvedConfig = configPath
+	}
+
+	baseDir := filepath.Dir(resolvedConfig)
+	outDir := baseDir
+	if strings.TrimSpace(perfOutDir) != "" {
+		if filepath.IsAbs(perfOutDir) {
+			outDir = perfOutDir
+		} else {
+			outDir = filepath.Join(baseDir, perfOutDir)
+		}
+	}
+
+	return perfExportConfig{
+		enabled: perfEnabled,
+		debug:   debug,
+		baseDir: baseDir,
+		outDir:  outDir,
+	}
+}
+
+func parsePerfExportArgs(args []string) (string, bool, string, bool) {
 	configPath := "./modlist.json"
 	perfEnabled := false
 	perfOutDir := ""
@@ -261,31 +291,7 @@ func perfExportConfigFromArgsWithAbs(args []string, cwd string, absPath func(str
 		}
 	}
 
-	resolvedConfig := configPath
-	if cwd != "" && !filepath.IsAbs(resolvedConfig) {
-		resolvedConfig = filepath.Join(cwd, resolvedConfig)
-	}
-	resolvedConfig, err := absPath(resolvedConfig)
-	if err != nil {
-		resolvedConfig = configPath
-	}
-
-	baseDir := filepath.Dir(resolvedConfig)
-	outDir := baseDir
-	if strings.TrimSpace(perfOutDir) != "" {
-		if filepath.IsAbs(perfOutDir) {
-			outDir = perfOutDir
-		} else {
-			outDir = filepath.Join(baseDir, perfOutDir)
-		}
-	}
-
-	return perfExportConfig{
-		enabled: perfEnabled,
-		debug:   debug,
-		baseDir: baseDir,
-		outDir:  outDir,
-	}
+	return configPath, perfEnabled, perfOutDir, debug
 }
 
 func sessionNameHintFromArgs(args []string) string {

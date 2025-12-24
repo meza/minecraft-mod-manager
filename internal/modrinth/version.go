@@ -98,23 +98,10 @@ func GetVersionsForProject(ctx context.Context, lookup *VersionLookup, client ht
 	ctx, span := perf.StartSpan(ctx, "api.modrinth.version.list", perf.WithAttributes(attribute.String("project_id", lookup.ProjectID)))
 	defer span.End()
 
-	gameVersionsJSON, err := marshalJSON(lookup.GameVersions)
+	baseURL, err := buildVersionListURL(lookup)
 	if err != nil {
 		return nil, err
 	}
-	loadersJSON, err := marshalJSON(lookup.Loaders)
-	if err != nil {
-		return nil, err
-	}
-
-	baseURL, err := parseURL(fmt.Sprintf("%s/v2/project/%s/version", GetBaseURL(), lookup.ProjectID))
-	if err != nil {
-		return nil, err
-	}
-	query := url.Values{}
-	query.Set("game_versions", string(gameVersionsJSON))
-	query.Set("loaders", string(loadersJSON))
-	baseURL.RawQuery = query.Encode()
 
 	timeoutCtx, cancel := httpclient.WithMetadataTimeout(ctx)
 	defer cancel()
@@ -150,6 +137,28 @@ func GetVersionsForProject(ctx context.Context, lookup *VersionLookup, client ht
 		return nil, globalerrors.ProjectAPIErrorWrap(errors.Wrap(err, "failed to decode response body"), lookup.ProjectID, models.MODRINTH)
 	}
 	return versions, nil
+}
+
+func buildVersionListURL(lookup *VersionLookup) (*url.URL, error) {
+	gameVersionsJSON, err := marshalJSON(lookup.GameVersions)
+	if err != nil {
+		return nil, err
+	}
+	loadersJSON, err := marshalJSON(lookup.Loaders)
+	if err != nil {
+		return nil, err
+	}
+
+	baseURL, err := parseURL(fmt.Sprintf("%s/v2/project/%s/version", GetBaseURL(), lookup.ProjectID))
+	if err != nil {
+		return nil, err
+	}
+	query := url.Values{}
+	query.Set("game_versions", string(gameVersionsJSON))
+	query.Set("loaders", string(loadersJSON))
+	baseURL.RawQuery = query.Encode()
+
+	return baseURL, nil
 }
 
 func GetVersionForHash(ctx context.Context, lookup *VersionHashLookup, client httpclient.Doer) (version *Version, returnErr error) {
