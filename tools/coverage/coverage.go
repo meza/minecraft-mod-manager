@@ -261,7 +261,8 @@ func parseTotalCoverage(reader io.Reader) (string, string, error) {
 }
 
 func filterCoverageFile(sourcePath, filteredPath string, exclusions []string) (returnErr error) {
-	inputFile, err := os.Open(sourcePath) // #nosec G304 -- paths are derived from repo-root coverage output.
+	//nolint:gosec // paths are derived from repo-root coverage output.
+	inputFile, err := os.Open(sourcePath)
 	if err != nil {
 		return fmt.Errorf("error: open coverage profile: %w", err)
 	}
@@ -271,7 +272,8 @@ func filterCoverageFile(sourcePath, filteredPath string, exclusions []string) (r
 		}
 	}()
 
-	outputFile, err := os.Create(filteredPath) // #nosec G304 -- filtered output path is created by this tool in repo root.
+	//nolint:gosec // filtered output path is created by this tool in repo root.
+	outputFile, err := os.Create(filteredPath)
 	if err != nil {
 		return fmt.Errorf("error: create filtered coverage file: %w", err)
 	}

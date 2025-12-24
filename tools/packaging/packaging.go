@@ -204,8 +204,8 @@ func writeZip(outputPath, inputPath string) (returnErr error) {
 		return fmt.Errorf("error: build output is not a file: %s", inputPath)
 	}
 
-	// #nosec G304 -- output path is rooted in dist dir with a sanitized version string.
-	outputFile, err := os.Create(outputPath) // #nosec G304 -- output path is rooted in dist dir with a sanitized version string.
+	//nolint:gosec // output path is rooted in dist dir with a sanitized version string.
+	outputFile, err := os.Create(outputPath)
 	if err != nil {
 		return fmt.Errorf("error: create zip %s: %w", outputPath, err)
 	}

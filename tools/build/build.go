@@ -169,8 +169,8 @@ func (tool *buildTool) buildTarget(target buildTarget, envMap map[string]string,
 }
 
 func readEnvFile(path string) (map[string]string, error) {
-	// #nosec G304 -- .env path is fixed to repo root.
-	data, err := os.ReadFile(path) // #nosec G304 -- .env path is fixed to repo root.
+	//nolint:gosec // .env path is fixed to repo root.
+	data, err := os.ReadFile(path)
 	if err != nil {
 		if errors.Is(err, os.ErrNotExist) {
 			return map[string]string{}, nil

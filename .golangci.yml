@@ -288,6 +288,10 @@ linters:
         linters:
           - gocritic
         text: "httpNoBody"
+      - path: _test\.go
+        linters:
+          - gosec
+        text: "G304"
 
 formatters:
   exclusions:

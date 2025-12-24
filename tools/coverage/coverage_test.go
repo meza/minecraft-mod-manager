@@ -310,8 +310,7 @@ func TestFilterCoverageFileWritesFilteredOutput(t *testing.T) {
 		t.Fatalf("expected no error, got %v", err)
 	}
 
-	// #nosec G304 -- test reads temp file path.
-	output, err := os.ReadFile(filteredPath) // #nosec G304 -- test reads temp file path.
+	output, err := os.ReadFile(filteredPath)
 	if err != nil {
 		t.Fatalf("failed to read filtered profile: %v", err)
 	}

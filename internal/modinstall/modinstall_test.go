@@ -177,7 +177,7 @@ func TestEnsureLockedFile_ResolvesSymlinkTargetInsideRoot(t *testing.T) {
 	assert.True(t, result.Downloaded)
 	assert.Equal(t, EnsureReasonHashMismatch, result.Reason)
 
-	content, readErr := os.ReadFile(target) // #nosec G304 -- test reads temp path.
+	content, readErr := os.ReadFile(target)
 	assert.NoError(t, readErr)
 	assert.Equal(t, []byte("data"), content)
 
