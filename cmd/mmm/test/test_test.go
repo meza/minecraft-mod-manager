@@ -149,6 +149,7 @@ func TestExitCode1WhenSomeModsUnsupported(t *testing.T) {
 	assert.Contains(t, out.String(), "cmd.test.missing_support_header")
 	assert.Contains(t, out.String(), "UnsupportedMod (proj-2)")
 	assert.Contains(t, out.String(), "cmd.test.cannot_upgrade")
+	assert.Contains(t, errOut.String(), "cmd.test.error.no_file")
 }
 
 func TestExitCode2WhenVersionMatchesCurrent(t *testing.T) {
@@ -596,6 +597,7 @@ func TestModNotFoundError(t *testing.T) {
 	assert.Equal(t, 1, exitErr.ExitCode())
 	assert.Equal(t, 1, exitCode)
 	assert.Contains(t, out.String(), "MissingMod (proj-1)")
+	assert.Contains(t, errOut.String(), "cmd.test.error.mod_not_found")
 }
 
 func TestConfigFileNotFound(t *testing.T) {
@@ -1028,7 +1030,8 @@ func TestGenericFetchErrorLogsToErrorOutput(t *testing.T) {
 	assert.ErrorAs(t, err, &exitErr)
 	assert.Equal(t, 1, exitErr.ExitCode())
 	assert.Equal(t, 1, exitCode)
-	assert.Contains(t, errOut.String(), "network timeout")
+	assert.Contains(t, errOut.String(), "cmd.test.error.platform")
+	assert.Contains(t, errOut.String(), "cmd.platform.error.reason.unknown")
 }
 
 func TestFormatMissingModEntryWithColorization(t *testing.T) {
@@ -1054,4 +1057,40 @@ func TestFormatMissingModEntryWithoutColorization(t *testing.T) {
 	result := formatMissingModEntry(mod, false)
 
 	assert.Equal(t, "❌ TestMod (test-mod-id)", result)
+}
+
+func TestFormatReleaseTypesEmptyReturnsNone(t *testing.T) {
+	assert.Equal(t, "none", formatReleaseTypes(nil))
+}
+
+func TestFormatReleaseTypesFormatsEntries(t *testing.T) {
+	assert.Equal(t, "release,beta", formatReleaseTypes([]models.ReleaseType{models.Release, models.Beta}))
+}
+
+func TestFetchFailureDebugEventUsesResponseErrorDetails(t *testing.T) {
+	t.Setenv("MMM_TEST", "true")
+
+	mod := models.Mod{ID: "proj-1", Name: "Example", Type: models.MODRINTH}
+	cfg := models.ModsJSON{
+		Loader:                     models.FABRIC,
+		GameVersion:                "1.20.1",
+		DefaultAllowedReleaseTypes: []models.ReleaseType{models.Release},
+	}
+	opts := platform.FetchOptions{
+		AllowedReleaseTypes: []models.ReleaseType{models.Release},
+		GameVersion:         "1.20.1",
+		Loader:              models.FABRIC,
+		AllowFallback:       false,
+	}
+
+	event, ok := fetchFailureDebugEvent(&httpclient.ResponseError{
+		Method:     http.MethodGet,
+		URL:        "https://example.invalid",
+		StatusCode: http.StatusForbidden,
+	}, mod, cfg, "1.20.1", opts)
+
+	assert.True(t, ok)
+	assert.Equal(t, logEventKindDebug, event.Kind)
+	assert.Contains(t, event.Message, "cmd.test.debug.platform_error")
+	assert.Contains(t, event.Message, "status=403")
 }

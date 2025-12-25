@@ -1639,7 +1639,8 @@ func TestRunUpdateReturnsErrorOnUnexpectedFetchError(t *testing.T) {
 	assert.ErrorIs(t, err, errUpdateFailures)
 	assert.Equal(t, 0, counts.updated)
 	assert.Equal(t, 1, counts.failed)
-	assert.Contains(t, errOut.String(), "boom")
+	assert.Contains(t, errOut.String(), "cmd.update.error.platform")
+	assert.Contains(t, errOut.String(), "cmd.platform.error.reason.unknown")
 }
 
 func TestRunUpdateReturnsErrorOnRemoteTimestampInvalid(t *testing.T) {

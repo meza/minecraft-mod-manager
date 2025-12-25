@@ -81,7 +81,7 @@ func getPaginatedFilesForProject(ctx context.Context, projectID int, client http
 	}
 
 	if response.StatusCode != http.StatusOK {
-		return nil, globalerrors.ProjectAPIErrorWrap(errors.Errorf("unexpected status code: %d", response.StatusCode), strconv.Itoa(projectID), models.CURSEFORGE)
+		return nil, globalerrors.ProjectAPIErrorWrap(httpclient.NewResponseError(response), strconv.Itoa(projectID), models.CURSEFORGE)
 	}
 
 	decodedFilesResponse, err := decodeFilesResponse(response)
@@ -170,7 +170,7 @@ func GetFingerprintsMatches(ctx context.Context, fingerprints []int, client http
 	if response.StatusCode != http.StatusOK {
 		return nil, &FingerprintAPIError{
 			Lookup: fingerprints,
-			Err:    errors.Errorf("unexpected status code: %d", response.StatusCode),
+			Err:    httpclient.NewResponseError(response),
 		}
 	}
 

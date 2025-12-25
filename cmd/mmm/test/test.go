@@ -7,6 +7,7 @@ import (
 	"strings"
 	"sync"
 
+	"github.com/meza/minecraft-mod-manager/internal/clierrors"
 	"github.com/meza/minecraft-mod-manager/internal/config"
 	"github.com/meza/minecraft-mod-manager/internal/httpclient"
 	"github.com/meza/minecraft-mod-manager/internal/i18n"
@@ -298,15 +299,10 @@ func checkMod(
 	_, fetchErr := deps.fetchMod(ctx, mod.Type, mod.ID, fetchOpts, deps.clients)
 	if fetchErr != nil {
 		outcome.Supported = false
+		outcome.LogEvents = append(outcome.LogEvents, fetchFailureUserEvent(fetchErr, mod))
 
-		var notFound *platform.ModNotFoundError
-		var noFile *platform.NoCompatibleFileError
-
-		if !errors.As(fetchErr, &notFound) && !errors.As(fetchErr, &noFile) {
-			outcome.LogEvents = append(outcome.LogEvents, logEvent{
-				Kind:    logEventKindError,
-				Message: fetchErr.Error(),
-			})
+		if debugEvent, ok := fetchFailureDebugEvent(fetchErr, mod, cfg, targetVersion, fetchOpts); ok {
+			outcome.LogEvents = append(outcome.LogEvents, debugEvent)
 		}
 	}
 
@@ -318,6 +314,98 @@ func effectiveAllowedReleaseTypes(mod models.Mod, cfg models.ModsJSON) []models.
 		return mod.AllowedReleaseTypes
 	}
 	return cfg.DefaultAllowedReleaseTypes
+}
+
+func fetchFailureDetails(mod models.Mod, cfg models.ModsJSON, targetVersion string, opts platform.FetchOptions) string {
+	fixedVersion := strings.TrimSpace(opts.FixedVersion)
+	if fixedVersion == "" {
+		fixedVersion = "none"
+	}
+	return fmt.Sprintf("id=%s version=%s loader=%s releases=%s fixedVersion=%s allowFallback=%t",
+		mod.ID,
+		targetVersion,
+		cfg.Loader,
+		formatReleaseTypes(opts.AllowedReleaseTypes),
+		fixedVersion,
+		opts.AllowFallback,
+	)
+}
+
+func formatReleaseTypes(releaseTypes []models.ReleaseType) string {
+	if len(releaseTypes) == 0 {
+		return "none"
+	}
+	entries := make([]string, 0, len(releaseTypes))
+	for _, releaseType := range releaseTypes {
+		entries = append(entries, string(releaseType))
+	}
+	return strings.Join(entries, ",")
+}
+
+func fetchFailureUserEvent(fetchErr error, mod models.Mod) logEvent {
+	var notFound *platform.ModNotFoundError
+	if errors.As(fetchErr, &notFound) {
+		return logEvent{
+			Kind: logEventKindError,
+			Message: i18n.T("cmd.test.error.mod_not_found", i18n.Tvars{
+				Data: &i18n.TData{
+					"name":     mod.Name,
+					"id":       mod.ID,
+					"platform": mod.Type,
+				},
+			}),
+		}
+	}
+
+	var noFile *platform.NoCompatibleFileError
+	if errors.As(fetchErr, &noFile) {
+		return logEvent{
+			Kind: logEventKindError,
+			Message: i18n.T("cmd.test.error.no_file", i18n.Tvars{
+				Data: &i18n.TData{
+					"name":     mod.Name,
+					"id":       mod.ID,
+					"platform": mod.Type,
+				},
+			}),
+		}
+	}
+
+	summary, ok := clierrors.SummarizePlatformError(fetchErr, mod.Type)
+	reason := i18n.T("cmd.platform.error.reason.unknown")
+	if ok && strings.TrimSpace(summary.Reason) != "" {
+		reason = summary.Reason
+	}
+
+	return logEvent{
+		Kind: logEventKindError,
+		Message: i18n.T("cmd.test.error.platform", i18n.Tvars{
+			Data: &i18n.TData{
+				"name":     mod.Name,
+				"platform": mod.Type,
+				"reason":   reason,
+			},
+		}),
+	}
+}
+
+func fetchFailureDebugEvent(fetchErr error, mod models.Mod, cfg models.ModsJSON, targetVersion string, opts platform.FetchOptions) (logEvent, bool) {
+	details := fetchFailureDetails(mod, cfg, targetVersion, opts)
+	debugError := fetchErr.Error()
+	if summary, ok := clierrors.SummarizePlatformError(fetchErr, mod.Type); ok && strings.TrimSpace(summary.DebugDetails) != "" {
+		debugError = summary.DebugDetails
+	}
+	return logEvent{
+		Kind: logEventKindDebug,
+		Message: i18n.T("cmd.test.debug.platform_error", i18n.Tvars{
+			Data: &i18n.TData{
+				"name":     mod.Name,
+				"platform": mod.Type,
+				"error":    debugError,
+				"details":  details,
+			},
+		}),
+	}, true
 }
 
 func formatMissingModEntry(mod models.Mod, colorize bool) string {

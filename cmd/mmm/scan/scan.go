@@ -22,6 +22,7 @@ import (
 	"golang.org/x/sync/errgroup"
 	"golang.org/x/time/rate"
 
+	"github.com/meza/minecraft-mod-manager/internal/clierrors"
 	"github.com/meza/minecraft-mod-manager/internal/config"
 	"github.com/meza/minecraft-mod-manager/internal/curseforge"
 	"github.com/meza/minecraft-mod-manager/internal/httpclient"
@@ -562,18 +563,24 @@ func lookupModrinthCandidate(ctx context.Context, candidate scanCandidate, deps 
 		if errors.As(err, &notFound) {
 			return modrinthLookupResult{miss: true}
 		}
-		return modrinthLookupResult{err: err}
+		summary := summarizePlatformFailure(err, models.MODRINTH)
+		logPlatformDebug(deps.logger, models.MODRINTH, summary.DebugDetails)
+		return modrinthLookupResult{err: errors.New(platformUnsureReason(models.MODRINTH, summary.Reason))}
 	}
 
 	projectID := version.ProjectID
 	title, err := cachedModrinthTitle(ctx, projectID, deps, titleCache)
 	if err != nil {
-		return modrinthLookupResult{err: err}
+		summary := summarizePlatformFailure(err, models.MODRINTH)
+		logPlatformDebug(deps.logger, models.MODRINTH, summary.DebugDetails)
+		return modrinthLookupResult{err: errors.New(platformUnsureReason(models.MODRINTH, summary.Reason))}
 	}
 
 	downloadInfo, err := modrinthDownloadDetails(version)
 	if err != nil {
-		return modrinthLookupResult{err: err}
+		summary := summarizePlatformFailure(err, models.MODRINTH)
+		logPlatformDebug(deps.logger, models.MODRINTH, summary.DebugDetails)
+		return modrinthLookupResult{err: errors.New(platformUnsureReason(models.MODRINTH, summary.Reason))}
 	}
 
 	return modrinthLookupResult{match: &scanMatch{
@@ -693,7 +700,9 @@ func lookupCurseforge(ctx context.Context, candidates []scanCandidate, deps scan
 
 	result, err := deps.curseforgeFingerprintMatch(ctx, unique, deps.clients.Curseforge)
 	if err != nil {
-		return nil, nil, buildCurseforgeErrors(candidates, fingerprintIndex.fingerprintByIndex, err)
+		summary := summarizePlatformFailure(err, models.CURSEFORGE)
+		logPlatformDebug(deps.logger, models.CURSEFORGE, summary.DebugDetails)
+		return nil, nil, buildCurseforgeErrors(candidates, platformUnsureReason(models.CURSEFORGE, summary.Reason))
 	}
 
 	nameCache := make(map[string]string)
@@ -715,34 +724,29 @@ func lookupCurseforge(ctx context.Context, candidates []scanCandidate, deps scan
 
 type curseforgeFingerprintIndex struct {
 	fingerprints         []int
-	fingerprintByIndex   []int
 	fingerprintToIndices map[int][]int
 }
 
 func buildCurseforgeFingerprintIndex(candidates []scanCandidate, deps scanDeps) curseforgeFingerprintIndex {
 	fingerprints := make([]int, 0, len(candidates))
-	fingerprintByIndex := make([]int, len(candidates))
 	fingerprintToIndices := make(map[int][]int, len(candidates))
 
 	for i, candidate := range candidates {
 		fingerprint := int(deps.curseforgeFingerprint(candidate.Path))
 		fingerprints = append(fingerprints, fingerprint)
-		fingerprintByIndex[i] = fingerprint
 		fingerprintToIndices[fingerprint] = append(fingerprintToIndices[fingerprint], i)
 	}
 
 	return curseforgeFingerprintIndex{
 		fingerprints:         fingerprints,
-		fingerprintByIndex:   fingerprintByIndex,
 		fingerprintToIndices: fingerprintToIndices,
 	}
 }
 
-func buildCurseforgeErrors(candidates []scanCandidate, fingerprintByIndex []int, err error) map[string]error {
-	reason := curseforgeFingerprintFailureReason(err)
+func buildCurseforgeErrors(candidates []scanCandidate, reason string) map[string]error {
 	unsure := make(map[string]error, len(candidates))
-	for i, candidate := range candidates {
-		unsure[candidate.Path] = fmt.Errorf("curseforge fingerprint %d: %s", fingerprintByIndex[i], reason)
+	for _, candidate := range candidates {
+		unsure[candidate.Path] = errors.New(reason)
 	}
 	return unsure
 }
@@ -768,15 +772,21 @@ func addCurseforgeMatches(ctx context.Context, matchContext curseforgeMatchConte
 		projectID := fmt.Sprintf("%d", file.ProjectID)
 		name, err := cachedCurseforgeProjectName(ctx, projectID, matchContext.deps, matchContext.nameCache, matchContext.nameMu)
 		if err != nil {
+			summary := summarizePlatformFailure(err, models.CURSEFORGE)
+			logPlatformDebug(matchContext.deps.logger, models.CURSEFORGE, summary.DebugDetails)
+			reason := platformUnsureReason(models.CURSEFORGE, summary.Reason)
 			for _, index := range indices {
-				matchContext.unsure[matchContext.candidates[index].Path] = err
+				matchContext.unsure[matchContext.candidates[index].Path] = errors.New(reason)
 			}
 			continue
 		}
 
 		if strings.TrimSpace(file.DownloadURL) == "" {
+			summary := summarizePlatformFailure(errors.New("curseforge match missing download url"), models.CURSEFORGE)
+			logPlatformDebug(matchContext.deps.logger, models.CURSEFORGE, summary.DebugDetails)
+			reason := platformUnsureReason(models.CURSEFORGE, summary.Reason)
 			for _, index := range indices {
-				matchContext.unsure[matchContext.candidates[index].Path] = errors.New("curseforge match missing download url")
+				matchContext.unsure[matchContext.candidates[index].Path] = errors.New(reason)
 			}
 			continue
 		}
@@ -835,17 +845,36 @@ func curseforgeMisses(candidates []scanCandidate, matches []scanMatch, unsure ma
 	return misses
 }
 
-func curseforgeFingerprintFailureReason(err error) string {
-	var apiError *curseforge.FingerprintAPIError
-	if errors.As(err, &apiError) {
-		err = apiError.Unwrap()
+func summarizePlatformFailure(err error, platform models.Platform) clierrors.PlatformErrorSummary {
+	if err == nil {
+		return clierrors.PlatformErrorSummary{
+			Reason: i18n.T("cmd.platform.error.reason.unknown"),
+		}
 	}
 
-	reason := err.Error()
-	if strings.Contains(reason, "unexpected status code: 403") {
-		return reason + " (check CURSEFORGE_API_KEY)"
+	summary, _ := clierrors.SummarizePlatformError(err, platform)
+	return summary
+}
+
+func platformUnsureReason(platform models.Platform, reason string) string {
+	return i18n.T("cmd.scan.unsure.platform_error", i18n.Tvars{
+		Data: &i18n.TData{
+			"platform": platform,
+			"reason":   reason,
+		},
+	})
+}
+
+func logPlatformDebug(log *logger.Logger, platform models.Platform, details string) {
+	if log == nil || strings.TrimSpace(details) == "" {
+		return
 	}
-	return reason
+	log.Debug(i18n.T("cmd.scan.debug.platform_error", i18n.Tvars{
+		Data: &i18n.TData{
+			"platform": platform,
+			"details":  details,
+		},
+	}))
 }
 
 type modrinthDownloadInfo struct {

@@ -387,6 +387,8 @@ func TestIdentifyCandidatesAddsUnknownWhenUnmatched(t *testing.T) {
 }
 
 func TestIdentifyCandidatesMergesFallbackUnsure(t *testing.T) {
+	t.Setenv("MMM_TEST", "true")
+
 	candidates := []scanCandidate{
 		{Path: "/mods/a.jar", FileName: "a.jar", Sha1: "a"},
 	}
@@ -410,7 +412,8 @@ func TestIdentifyCandidatesMergesFallbackUnsure(t *testing.T) {
 	assert.Empty(t, unknown)
 	if assert.Len(t, unsure, 1) {
 		assert.Equal(t, "/mods/a.jar", unsure[0].Path)
-		assert.Contains(t, unsure[0].Error.Error(), "fingerprint failed")
+		assert.Contains(t, unsure[0].Error.Error(), "cmd.scan.unsure.platform_error")
+		assert.Contains(t, unsure[0].Error.Error(), "cmd.platform.error.reason.unknown")
 	}
 }
 
@@ -760,6 +763,8 @@ func TestModrinthTitleCacheReturnsContextErrorWhileWaiting(t *testing.T) {
 }
 
 func TestLookupModrinthProjectTitleErrorAddsUnsure(t *testing.T) {
+	t.Setenv("MMM_TEST", "true")
+
 	candidates := []scanCandidate{{Path: "/mods/a.jar", FileName: "a.jar", Sha1: "a"}}
 
 	version := &modrinth.Version{
@@ -780,10 +785,13 @@ func TestLookupModrinthProjectTitleErrorAddsUnsure(t *testing.T) {
 	matches, misses, unsure := lookupModrinth(context.Background(), candidates, deps)
 	assert.Empty(t, matches)
 	assert.Empty(t, misses)
-	assert.Contains(t, unsure["/mods/a.jar"].Error(), "boom")
+	assert.Contains(t, unsure["/mods/a.jar"].Error(), "cmd.scan.unsure.platform_error")
+	assert.Contains(t, unsure["/mods/a.jar"].Error(), "cmd.platform.error.reason.unknown")
 }
 
 func TestLookupModrinthDownloadDetailsErrorAddsUnsure(t *testing.T) {
+	t.Setenv("MMM_TEST", "true")
+
 	candidates := []scanCandidate{{Path: "/mods/a.jar", FileName: "a.jar", Sha1: "a"}}
 
 	version := &modrinth.Version{
@@ -804,7 +812,8 @@ func TestLookupModrinthDownloadDetailsErrorAddsUnsure(t *testing.T) {
 	matches, misses, unsure := lookupModrinth(context.Background(), candidates, deps)
 	assert.Empty(t, matches)
 	assert.Empty(t, misses)
-	assert.Contains(t, unsure["/mods/a.jar"].Error(), "missing url")
+	assert.Contains(t, unsure["/mods/a.jar"].Error(), "cmd.scan.unsure.platform_error")
+	assert.Contains(t, unsure["/mods/a.jar"].Error(), "cmd.platform.error.reason.unknown")
 }
 
 func TestLookupCurseforgeEmptyCandidatesReturnsMisses(t *testing.T) {
@@ -815,6 +824,8 @@ func TestLookupCurseforgeEmptyCandidatesReturnsMisses(t *testing.T) {
 }
 
 func TestLookupCurseforgeMissingDownloadURLAddsUnsure(t *testing.T) {
+	t.Setenv("MMM_TEST", "true")
+
 	candidates := []scanCandidate{{Path: "/mods/a.jar", FileName: "a.jar", Sha1: "a"}}
 
 	deps := scanDeps{
@@ -834,7 +845,8 @@ func TestLookupCurseforgeMissingDownloadURLAddsUnsure(t *testing.T) {
 	matches, misses, unsure := lookupCurseforge(context.Background(), candidates, deps)
 	assert.Empty(t, matches)
 	assert.Empty(t, misses)
-	assert.Contains(t, unsure["/mods/a.jar"].Error(), "missing download url")
+	assert.Contains(t, unsure["/mods/a.jar"].Error(), "cmd.scan.unsure.platform_error")
+	assert.Contains(t, unsure["/mods/a.jar"].Error(), "cmd.platform.error.reason.unknown")
 }
 
 func TestLookupCurseforgeSkipsUnknownFingerprint(t *testing.T) {
@@ -870,6 +882,8 @@ func TestLookupCurseforgeSkipsUnknownFingerprint(t *testing.T) {
 }
 
 func TestLookupCurseforgeProjectNameErrorAddsUnsure(t *testing.T) {
+	t.Setenv("MMM_TEST", "true")
+
 	candidates := []scanCandidate{{Path: "/mods/a.jar", FileName: "a.jar", Sha1: "a"}}
 
 	deps := scanDeps{
@@ -889,11 +903,8 @@ func TestLookupCurseforgeProjectNameErrorAddsUnsure(t *testing.T) {
 	matches, misses, unsure := lookupCurseforge(context.Background(), candidates, deps)
 	assert.Empty(t, matches)
 	assert.Empty(t, misses)
-	assert.Contains(t, unsure["/mods/a.jar"].Error(), "boom")
-}
-
-func TestCurseforgeFingerprintFailureReasonNon403(t *testing.T) {
-	assert.Equal(t, "unexpected status code: 500", curseforgeFingerprintFailureReason(errors.New("unexpected status code: 500")))
+	assert.Contains(t, unsure["/mods/a.jar"].Error(), "cmd.scan.unsure.platform_error")
+	assert.Contains(t, unsure["/mods/a.jar"].Error(), "cmd.platform.error.reason.unknown")
 }
 
 func TestCachedCurseforgeProjectNameCaches(t *testing.T) {
@@ -916,6 +927,14 @@ func TestCachedCurseforgeProjectNameCaches(t *testing.T) {
 	assert.NoError(t, err)
 	assert.Equal(t, "project-name", name)
 	assert.Equal(t, 1, callCount)
+}
+
+func TestSummarizePlatformFailureWithNilError(t *testing.T) {
+	t.Setenv("MMM_TEST", "true")
+
+	summary := summarizePlatformFailure(nil, models.CURSEFORGE)
+	assert.Contains(t, summary.Reason, "cmd.platform.error.reason.unknown")
+	assert.Equal(t, "", summary.DebugDetails)
 }
 
 type statErrorFs struct {

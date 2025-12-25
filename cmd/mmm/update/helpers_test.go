@@ -6,6 +6,7 @@ import (
 	"encoding/hex"
 	"errors"
 	"io"
+	"net/http"
 	"os"
 	"path/filepath"
 	"strconv"
@@ -462,4 +463,49 @@ type openFileErrorFs struct {
 
 func (filesystem openFileErrorFs) OpenFile(string, int, os.FileMode) (afero.File, error) {
 	return nil, filesystem.err
+}
+
+func TestFetchErrorEventsForPlatformError(t *testing.T) {
+	t.Setenv("MMM_TEST", "true")
+
+	mod := models.Mod{Name: "Example", ID: "proj-1", Type: models.MODRINTH}
+	events := fetchErrorEvents(&httpclient.ResponseError{StatusCode: http.StatusForbidden}, mod, false)
+	if assert.Len(t, events, 2) {
+		assert.Equal(t, logEventKindError, events[0].Kind)
+		assert.Contains(t, events[0].Message, "cmd.update.error.platform")
+		assert.Contains(t, events[0].Message, "cmd.platform.error.reason.auth")
+		assert.Equal(t, logEventKindDebug, events[1].Kind)
+		assert.Contains(t, events[1].Message, "cmd.update.debug.platform_error")
+	}
+}
+
+func TestFetchErrorEventsForExpectedFetchError(t *testing.T) {
+	t.Setenv("MMM_TEST", "true")
+
+	mod := models.Mod{Name: "Example", ID: "proj-1", Type: models.MODRINTH}
+	events := fetchErrorEvents(&platform.ModNotFoundError{Platform: models.MODRINTH, ProjectID: "proj-1"}, mod, false)
+	if assert.Len(t, events, 1) {
+		assert.Equal(t, logEventKindLog, events[0].Kind)
+		assert.Contains(t, events[0].Message, "cmd.update.error.mod_not_found")
+	}
+}
+
+func TestFetchErrorEventsReturnsNilForNilError(t *testing.T) {
+	events := fetchErrorEvents(nil, models.Mod{Type: models.MODRINTH}, false)
+	assert.Empty(t, events)
+}
+
+func TestFetchErrorEventsSkipsDebugWhenDetailsEmpty(t *testing.T) {
+	t.Setenv("MMM_TEST", "true")
+
+	mod := models.Mod{Name: "Example", ID: "proj-1", Type: models.MODRINTH}
+	events := fetchErrorEvents(emptyError{}, mod, false)
+	assert.Len(t, events, 1)
+	assert.Equal(t, logEventKindError, events[0].Kind)
+}
+
+type emptyError struct{}
+
+func (emptyError) Error() string {
+	return ""
 }

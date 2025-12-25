@@ -142,7 +142,9 @@ func TestGetProjectWhenProjectApiUnknownStatus(t *testing.T) {
 
 	// Assertions
 	assert.Error(t, err)
-	assert.Equal(t, "unexpected status code: 418", pkgErrors.Unwrap(err).Error())
+	responseErr, ok := httpclient.ExtractResponseError(pkgErrors.Unwrap(err))
+	assert.True(t, ok)
+	assert.Equal(t, http.StatusTeapot, responseErr.StatusCode)
 	assert.Nil(t, project)
 }
 

@@ -1,6 +1,7 @@
 package install
 
 import (
+	"bytes"
 	"context"
 	"crypto/sha1"
 	"encoding/hex"
@@ -19,6 +20,7 @@ import (
 	"github.com/meza/minecraft-mod-manager/internal/config"
 	"github.com/meza/minecraft-mod-manager/internal/curseforge"
 	"github.com/meza/minecraft-mod-manager/internal/httpclient"
+	"github.com/meza/minecraft-mod-manager/internal/i18n"
 	"github.com/meza/minecraft-mod-manager/internal/logger"
 	"github.com/meza/minecraft-mod-manager/internal/models"
 	"github.com/meza/minecraft-mod-manager/internal/modrinth"
@@ -689,6 +691,8 @@ func TestPreflightUnknownFilesReturnsErrorOnScanFailure(t *testing.T) {
 }
 
 func TestScanFilesHandlesModrinthErrors(t *testing.T) {
+	t.Setenv("MMM_TEST", "true")
+
 	fs := afero.NewMemMapFs()
 	path := filepath.FromSlash("/mods/error.jar")
 	assert.NoError(t, fs.MkdirAll(filepath.Dir(path), 0755))
@@ -707,10 +711,16 @@ func TestScanFilesHandlesModrinthErrors(t *testing.T) {
 	}
 
 	_, err := scanFiles(context.Background(), []string{path}, deps)
-	assert.ErrorContains(t, err, "boom")
+	var lookupFailure *platformLookupFailure
+	assert.ErrorAs(t, err, &lookupFailure)
+	assert.Equal(t, models.MODRINTH, lookupFailure.Platform)
+	assert.Equal(t, []string{path}, lookupFailure.Files)
+	assert.Contains(t, lookupFailure.Reason, "cmd.platform.error.reason.unknown")
 }
 
 func TestScanFilesReturnsErrorOnCurseforgeFailure(t *testing.T) {
+	t.Setenv("MMM_TEST", "true")
+
 	fs := afero.NewMemMapFs()
 	path := filepath.FromSlash("/mods/error.jar")
 	assert.NoError(t, fs.MkdirAll(filepath.Dir(path), 0755))
@@ -726,7 +736,11 @@ func TestScanFilesReturnsErrorOnCurseforgeFailure(t *testing.T) {
 	}
 
 	_, err := scanFiles(context.Background(), []string{path}, deps)
-	assert.ErrorContains(t, err, "boom")
+	var lookupFailure *platformLookupFailure
+	assert.ErrorAs(t, err, &lookupFailure)
+	assert.Equal(t, models.CURSEFORGE, lookupFailure.Platform)
+	assert.Equal(t, []string{path}, lookupFailure.Files)
+	assert.Contains(t, lookupFailure.Reason, "cmd.platform.error.reason.unknown")
 }
 
 func TestScanFilesSkipsModrinthNotFound(t *testing.T) {
@@ -786,6 +800,8 @@ func TestScanFilesSuccessAddsHits(t *testing.T) {
 }
 
 func TestScanFilesReturnsErrorOnFingerprintMatchFailure(t *testing.T) {
+	t.Setenv("MMM_TEST", "true")
+
 	fs := afero.NewMemMapFs()
 	path := filepath.FromSlash("/mods/fingerprint.jar")
 	assert.NoError(t, fs.MkdirAll(filepath.Dir(path), 0755))
@@ -804,10 +820,16 @@ func TestScanFilesReturnsErrorOnFingerprintMatchFailure(t *testing.T) {
 	}
 
 	_, err := scanFiles(context.Background(), []string{path}, deps)
-	assert.ErrorContains(t, err, "fingerprint failed")
+	var lookupFailure *platformLookupFailure
+	assert.ErrorAs(t, err, &lookupFailure)
+	assert.Equal(t, models.CURSEFORGE, lookupFailure.Platform)
+	assert.Equal(t, []string{path}, lookupFailure.Files)
+	assert.Contains(t, lookupFailure.Reason, "cmd.platform.error.reason.unknown")
 }
 
 func TestScanFilesReturnsErrorOnModrinthProjectTitleFailure(t *testing.T) {
+	t.Setenv("MMM_TEST", "true")
+
 	fs := afero.NewMemMapFs()
 	path := filepath.FromSlash("/mods/modrinth.jar")
 	assert.NoError(t, fs.MkdirAll(filepath.Dir(path), 0755))
@@ -829,7 +851,11 @@ func TestScanFilesReturnsErrorOnModrinthProjectTitleFailure(t *testing.T) {
 	}
 
 	_, err := scanFiles(context.Background(), []string{path}, deps)
-	assert.ErrorContains(t, err, "project failed")
+	var lookupFailure *platformLookupFailure
+	assert.ErrorAs(t, err, &lookupFailure)
+	assert.Equal(t, models.MODRINTH, lookupFailure.Platform)
+	assert.Equal(t, []string{path}, lookupFailure.Files)
+	assert.Contains(t, lookupFailure.Reason, "cmd.platform.error.reason.unknown")
 }
 
 func TestSha1ForFileReturnsReadError(t *testing.T) {
@@ -872,4 +898,88 @@ func TestSha1ForFileReturnsReadAndCloseError(t *testing.T) {
 	_, err := sha1ForFile(fs, path)
 	assert.ErrorIs(t, err, readErr)
 	assert.ErrorIs(t, err, closeErr)
+}
+
+func TestNewPlatformLookupFailureWithNilError(t *testing.T) {
+	t.Setenv("MMM_TEST", "true")
+
+	failure := newPlatformLookupFailure(models.CURSEFORGE, []string{"/mods/a.jar"}, nil)
+	assert.Equal(t, models.CURSEFORGE, failure.Platform)
+	assert.Equal(t, []string{"/mods/a.jar"}, failure.Files)
+	assert.Contains(t, failure.Reason, "cmd.platform.error.reason.unknown")
+	assert.Equal(t, "", failure.DebugDetails)
+	assert.Equal(t, failure.Reason, failure.Error())
+}
+
+func TestLogPlatformLookupFailureOutputsMessages(t *testing.T) {
+	t.Setenv("MMM_TEST", "true")
+
+	out := &bytes.Buffer{}
+	errOut := &bytes.Buffer{}
+	log := logger.New(out, errOut, false, true)
+
+	failure := &platformLookupFailure{
+		Platform:     models.CURSEFORGE,
+		Files:        []string{"/mods/a.jar"},
+		Reason:       i18n.T("cmd.platform.error.reason.unknown"),
+		DebugDetails: "debug details",
+	}
+
+	logPlatformLookupFailure(log, failure, false)
+	assert.Contains(t, out.String(), "cmd.install.debug.platform_error")
+	assert.Contains(t, out.String(), "cmd.install.unsure.platform_error")
+	assert.Contains(t, out.String(), "a.jar")
+}
+
+func TestLogPlatformLookupFailureHandlesNil(t *testing.T) {
+	logPlatformLookupFailure(nil, nil, false)
+}
+
+func TestPreflightUnknownFilesLogsPlatformErrors(t *testing.T) {
+	t.Setenv("MMM_TEST", "true")
+
+	fs := afero.NewMemMapFs()
+	meta := config.NewMetadata(filepath.FromSlash("/cfg/modlist.json"))
+	cfg := models.ModsJSON{
+		ModsFolder:                 "mods",
+		Loader:                     models.FABRIC,
+		GameVersion:                "1.20.1",
+		DefaultAllowedReleaseTypes: []models.ReleaseType{models.Release},
+	}
+
+	assert.NoError(t, fs.MkdirAll(meta.ModsFolderPath(cfg), 0755))
+	badPath := filepath.Join(meta.ModsFolderPath(cfg), "bad.jar")
+	assert.NoError(t, afero.WriteFile(fs, badPath, []byte("data"), 0644))
+	assert.NoError(t, config.WriteConfig(context.Background(), fs, meta, cfg))
+
+	out := &bytes.Buffer{}
+	errOut := &bytes.Buffer{}
+	deps := installDeps{
+		fs:                    fs,
+		logger:                logger.New(out, errOut, false, true),
+		clients:               platform.DefaultClients(rate.NewLimiter(rate.Inf, 0)),
+		curseforgeFingerprint: func(string) uint32 { return 123 },
+		curseforgeFingerprintMatch: func(context.Context, []int, httpclient.Doer) (*curseforge.FingerprintResult, error) {
+			return nil, &httpclient.ResponseError{StatusCode: http.StatusForbidden}
+		},
+		modrinthVersionForSha: func(context.Context, string, httpclient.Doer) (*modrinth.Version, error) {
+			return nil, &modrinth.VersionNotFoundError{Lookup: *modrinth.NewVersionHashLookup("missing", modrinth.SHA1)}
+		},
+	}
+
+	outcome, err := preflightUnknownFiles(preflightInputs{
+		ctx:      context.Background(),
+		meta:     meta,
+		cfg:      cfg,
+		lock:     nil,
+		deps:     deps,
+		colorize: false,
+	})
+
+	assert.NoError(t, err)
+	assert.True(t, outcome.unresolved)
+	assert.Contains(t, out.String(), "cmd.install.unsure.platform_error")
+	assert.Contains(t, out.String(), "cmd.platform.error.reason.auth")
+	assert.Contains(t, out.String(), "cmd.install.debug.platform_error")
+	assert.Contains(t, out.String(), "bad.jar")
 }

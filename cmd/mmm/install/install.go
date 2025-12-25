@@ -18,6 +18,7 @@ import (
 	"go.opentelemetry.io/otel/attribute"
 	"golang.org/x/time/rate"
 
+	"github.com/meza/minecraft-mod-manager/internal/clierrors"
 	"github.com/meza/minecraft-mod-manager/internal/config"
 	"github.com/meza/minecraft-mod-manager/internal/curseforge"
 	"github.com/meza/minecraft-mod-manager/internal/httpclient"
@@ -648,6 +649,11 @@ func preflightUnknownFiles(input preflightInputs) (scanReportOutcome, error) {
 
 	scanned, err := scanFiles(input.ctx, nonManaged, input.deps)
 	if err != nil {
+		var lookupFailure *platformLookupFailure
+		if errors.As(err, &lookupFailure) {
+			logPlatformLookupFailure(input.deps.logger, lookupFailure, input.colorize)
+			return scanReportOutcome{unresolved: true}, nil
+		}
 		return scanReportOutcome{}, err
 	}
 
@@ -667,7 +673,7 @@ func scanFiles(ctx context.Context, files []string, deps installDeps) ([]scanned
 	}
 
 	if err := applyCurseforgeHits(ctx, candidates.results, candidates.fingerprintToIndices, candidates.fingerprints, deps); err != nil {
-		return nil, err
+		return nil, newPlatformLookupFailure(models.CURSEFORGE, files, err)
 	}
 
 	if err := applyModrinthHits(ctx, candidates.results, deps); err != nil {
@@ -685,6 +691,58 @@ type scanCandidates struct {
 	results              []scannedFile
 	fingerprints         []int
 	fingerprintToIndices map[int][]int
+}
+
+type platformLookupFailure struct {
+	Platform     models.Platform
+	Files        []string
+	Reason       string
+	DebugDetails string
+}
+
+func (failure *platformLookupFailure) Error() string {
+	return failure.Reason
+}
+
+func newPlatformLookupFailure(platform models.Platform, files []string, err error) *platformLookupFailure {
+	if err == nil {
+		return &platformLookupFailure{
+			Platform: platform,
+			Files:    files,
+			Reason:   i18n.T("cmd.platform.error.reason.unknown"),
+		}
+	}
+
+	summary, _ := clierrors.SummarizePlatformError(err, platform)
+	return &platformLookupFailure{
+		Platform:     platform,
+		Files:        files,
+		Reason:       summary.Reason,
+		DebugDetails: summary.DebugDetails,
+	}
+}
+
+func logPlatformLookupFailure(log *logger.Logger, failure *platformLookupFailure, colorize bool) {
+	if failure == nil || log == nil {
+		return
+	}
+	if strings.TrimSpace(failure.DebugDetails) != "" {
+		log.Debug(i18n.T("cmd.install.debug.platform_error", i18n.Tvars{
+			Data: &i18n.TData{
+				"platform": failure.Platform,
+				"details":  failure.DebugDetails,
+			},
+		}))
+	}
+	for _, filePath := range failure.Files {
+		log.Log(messageWithIcon(tui.ErrorIcon(colorize), i18n.T("cmd.install.unsure.platform_error", i18n.Tvars{
+			Data: &i18n.TData{
+				"file":     filepath.Base(filePath),
+				"platform": failure.Platform,
+				"reason":   failure.Reason,
+			},
+		})), true)
+	}
 }
 
 func buildScanCandidates(files []string, deps installDeps) (scanCandidates, error) {
@@ -744,12 +802,12 @@ func applyModrinthHits(ctx context.Context, results []scannedFile, deps installD
 			if errors.As(err, &notFound) {
 				continue
 			}
-			return err
+			return newPlatformLookupFailure(models.MODRINTH, []string{results[i].Path}, err)
 		}
 
 		name, err := deps.modrinthProjectTitle(ctx, version.ProjectID, deps.clients.Modrinth)
 		if err != nil {
-			return err
+			return newPlatformLookupFailure(models.MODRINTH, []string{results[i].Path}, err)
 		}
 
 		results[i].Hits = append(results[i].Hits, scanHit{

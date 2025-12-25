@@ -112,7 +112,7 @@ func fetchCurseforgeFiles(ctx context.Context, projectID string, gameVersion str
 	}
 
 	if response.StatusCode != http.StatusOK {
-		return nil, fmt.Errorf("unexpected status code: %d", response.StatusCode)
+		return nil, httpclient.NewResponseError(response)
 	}
 
 	var filesResponse curseforgeFilesResponse

@@ -15,6 +15,7 @@ import (
 
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/meza/minecraft-mod-manager/cmd/mmm/install"
+	"github.com/meza/minecraft-mod-manager/internal/clierrors"
 	"github.com/meza/minecraft-mod-manager/internal/config"
 	"github.com/meza/minecraft-mod-manager/internal/httpclient"
 	"github.com/meza/minecraft-mod-manager/internal/i18n"
@@ -352,12 +353,7 @@ func processMod(
 		FixedVersion:        "",
 	}, deps.clients)
 	if fetchErr != nil {
-		if event, handled := expectedFetchErrorEvent(fetchErr, mod, colorize); handled {
-			outcome.LogEvents = append(outcome.LogEvents, event)
-			outcome.Error = errUpdateFailures
-			return outcome
-		}
-		outcome.LogEvents = append(outcome.LogEvents, logEvent{Kind: logEventKindError, Message: fetchErr.Error()})
+		outcome.LogEvents = append(outcome.LogEvents, fetchErrorEvents(fetchErr, mod, colorize)...)
 		outcome.Error = errUpdateFailures
 		return outcome
 	}
@@ -750,6 +746,50 @@ func expectedFetchErrorEvent(err error, mod models.Mod, colorize bool) (logEvent
 	}
 
 	return logEvent{}, false
+}
+
+func fetchErrorEvents(fetchErr error, mod models.Mod, colorize bool) []logEvent {
+	if fetchErr == nil {
+		return nil
+	}
+
+	if event, handled := expectedFetchErrorEvent(fetchErr, mod, colorize); handled {
+		return []logEvent{event}
+	}
+
+	summary, _ := clierrors.SummarizePlatformError(fetchErr, mod.Type)
+	reason := summary.Reason
+	debugDetails := summary.DebugDetails
+	if strings.TrimSpace(debugDetails) == "" {
+		debugDetails = fetchErr.Error()
+	}
+
+	events := []logEvent{{
+		Kind: logEventKindError,
+		Message: i18n.T("cmd.update.error.platform", i18n.Tvars{
+			Data: &i18n.TData{
+				"name":     mod.Name,
+				"platform": mod.Type,
+				"reason":   reason,
+			},
+		}),
+	}}
+
+	if strings.TrimSpace(debugDetails) == "" {
+		return events
+	}
+
+	events = append(events, logEvent{
+		Kind: logEventKindDebug,
+		Message: i18n.T("cmd.update.debug.platform_error", i18n.Tvars{
+			Data: &i18n.TData{
+				"name":     mod.Name,
+				"platform": mod.Type,
+				"details":  debugDetails,
+			},
+		}),
+	})
+	return events
 }
 
 func messageWithIcon(icon string, message string) string {

@@ -7,6 +7,7 @@ import (
 	"encoding/hex"
 	"errors"
 	"hash"
+	"net/http"
 	"path/filepath"
 	"testing"
 	"time"
@@ -229,15 +230,16 @@ func TestRunScan_Curseforge403ErrorIncludesPerFileFingerprint(t *testing.T) {
 		curseforgeFingerprintMatch: func(context.Context, []int, httpclient.Doer) (*curseforge.FingerprintResult, error) {
 			return nil, &curseforge.FingerprintAPIError{
 				Lookup: []int{111, 222},
-				Err:    errors.New("unexpected status code: 403"),
+				Err:    &httpclient.ResponseError{StatusCode: http.StatusForbidden},
 			}
 		},
 	})
 
 	assert.NoError(t, err)
-	assert.Contains(t, out.String(), "curseforge fingerprint 111")
-	assert.Contains(t, out.String(), "curseforge fingerprint 222")
-	assert.NotContains(t, out.String(), "Fingerprints for")
+	assert.Contains(t, out.String(), "a.jar")
+	assert.Contains(t, out.String(), "b.jar")
+	assert.Contains(t, out.String(), "cmd.scan.unsure.platform_error")
+	assert.Contains(t, out.String(), "cmd.platform.error.reason.auth")
 }
 
 func TestRunScan_PreferredLookupErrorDoesNotFallbackAndIsUnsure(t *testing.T) {

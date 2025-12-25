@@ -52,7 +52,7 @@ func GetProject(ctx context.Context, projectID string, client httpclient.Doer) (
 	}
 
 	if response.StatusCode != http.StatusOK {
-		return nil, globalerrors.ProjectAPIErrorWrap(errors.Errorf("unexpected status code: %d", response.StatusCode), projectID, models.CURSEFORGE)
+		return nil, globalerrors.ProjectAPIErrorWrap(httpclient.NewResponseError(response), projectID, models.CURSEFORGE)
 	}
 
 	var projectResponse getProjectResponse

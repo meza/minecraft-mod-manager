@@ -444,7 +444,9 @@ func TestGetFilesForProjectWhenProjectApiUnknownStatus(t *testing.T) {
 
 	// Assertions
 	assert.Error(t, err)
-	assert.Equal(t, "unexpected status code: 418", pkgErrors.Unwrap(err).Error())
+	responseErr, ok := httpclient.ExtractResponseError(pkgErrors.Unwrap(err))
+	assert.True(t, ok)
+	assert.Equal(t, http.StatusTeapot, responseErr.StatusCode)
 	assert.Nil(t, project)
 }
 
@@ -750,7 +752,11 @@ func TestGetFingerprintsMatchesWithNotFound(t *testing.T) {
 
 	client := NewClient(testutil.MustNewHostRewriteDoer(mockServer.URL, mockServer.Client()))
 	result, err := GetFingerprintsMatches(context.Background(), fingerprints, client)
-	assert.ErrorContains(t, err, "unexpected status code: 404")
+	var fingerprintErr *FingerprintAPIError
+	assert.ErrorAs(t, err, &fingerprintErr)
+	responseErr, ok := httpclient.ExtractResponseError(fingerprintErr.Unwrap())
+	assert.True(t, ok)
+	assert.Equal(t, http.StatusNotFound, responseErr.StatusCode)
 	assert.Nil(t, result)
 }
 
@@ -765,7 +771,11 @@ func TestGetFingerprintsMatchesWithUnexpectedStatusReturnsApiError(t *testing.T)
 
 	client := NewClient(testutil.MustNewHostRewriteDoer(mockServer.URL, mockServer.Client()))
 	result, err := GetFingerprintsMatches(context.Background(), fingerprints, client)
-	assert.ErrorContains(t, err, "unexpected status code: 403")
+	var fingerprintErr *FingerprintAPIError
+	assert.ErrorAs(t, err, &fingerprintErr)
+	responseErr, ok := httpclient.ExtractResponseError(fingerprintErr.Unwrap())
+	assert.True(t, ok)
+	assert.Equal(t, http.StatusForbidden, responseErr.StatusCode)
 	assert.Nil(t, result)
 }
 

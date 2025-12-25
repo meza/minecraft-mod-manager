@@ -130,7 +130,7 @@ func GetVersionsForProject(ctx context.Context, lookup *VersionLookup, client ht
 	}
 
 	if response.StatusCode != http.StatusOK {
-		return nil, globalerrors.ProjectAPIErrorWrap(errors.Errorf("unexpected status code: %d", response.StatusCode), lookup.ProjectID, models.MODRINTH)
+		return nil, globalerrors.ProjectAPIErrorWrap(httpclient.NewResponseError(response), lookup.ProjectID, models.MODRINTH)
 	}
 
 	if err := json.NewDecoder(response.Body).Decode(&versions); err != nil {
@@ -193,7 +193,7 @@ func GetVersionForHash(ctx context.Context, lookup *VersionHashLookup, client ht
 	}
 
 	if response.StatusCode != http.StatusOK {
-		return nil, VersionAPIErrorWrap(errors.Errorf("unexpected status code: %d", response.StatusCode), *lookup)
+		return nil, VersionAPIErrorWrap(httpclient.NewResponseError(response), *lookup)
 	}
 
 	version = &Version{}
