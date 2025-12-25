@@ -625,8 +625,7 @@ func disabledByEnv() bool {
 	}
 
 	value := strings.TrimSpace(strings.ToLower(raw))
-	switch value {
-	case "1", "true", "yes", "on":
+	if value == "1" || value == "true" || value == "yes" || value == "on" {
 		return true
 	}
 
