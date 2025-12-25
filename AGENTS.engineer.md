@@ -29,6 +29,10 @@ When you're done with coding, you MUST ask for a code review from the team. You 
 
 ### Invoking the Reviewer
 
+Before you invoke the reviewer, make sure to verify with the user that all the build, test, and coverage steps pass on Windows.
+If they don't you need to fix that first.
+If they do, then you need to include the Windows verification confirmation in the prompt to the reviewer.
+
 Use `codex -m gpt-5.2 --dangerously-bypass-approvals-and-sandbox e` to request a review.
 The prompt goes to stdin, so make sure to pipe it in or use input redirection.
 
