@@ -205,7 +205,6 @@ type scanUnsure struct {
 	Error error
 }
 
-//nolint:gocognit,gocyclo,funlen,nestif // Scan flow matches spec stages; splitting would obscure control flow.
 func runScan(ctx context.Context, cmd *cobra.Command, opts scanOptions, deps scanDeps) (telemetry.CommandTelemetry, error) {
 	meta := config.NewMetadata(opts.ConfigPath)
 	setupCoordinator := modsetup.NewSetupCoordinator(deps.fs, deps.minecraftClient, nil)
@@ -240,6 +239,22 @@ func runScan(ctx context.Context, cmd *cobra.Command, opts scanOptions, deps sca
 	matches, unknown, unsure := identifyCandidates(ctx, candidates, preferPlatform, deps)
 	printResults(deps.logger, cmd.OutOrStdout(), preferPlatform, matches, unknown, unsure)
 
+	return persistScanMatchesIfRequested(ctx, cmd, opts, deps, meta, setupCoordinator, matches, unsure, cfg, lock, preferPlatform)
+}
+
+func persistScanMatchesIfRequested(
+	ctx context.Context,
+	cmd *cobra.Command,
+	opts scanOptions,
+	deps scanDeps,
+	meta config.Metadata,
+	setupCoordinator *modsetup.SetupCoordinator,
+	matches []scanMatch,
+	unsure []scanUnsure,
+	cfg models.ModsJSON,
+	lock []models.ModInstall,
+	preferPlatform models.Platform,
+) (telemetry.CommandTelemetry, error) {
 	shouldPersist, err := confirmPersist(opts, deps)
 	if err != nil {
 		return scanFailureTelemetry(err), err
@@ -531,6 +546,15 @@ func lookupOnPlatform(ctx context.Context, candidates []scanCandidate, platformV
 }
 
 func lookupModrinth(ctx context.Context, candidates []scanCandidate, deps scanDeps) ([]scanMatch, []scanCandidate, map[string]error) {
+	results, err := runModrinthLookups(ctx, candidates, deps)
+	if err != nil {
+		return nil, candidates, matchErrorsForCandidates(candidates, err)
+	}
+
+	return splitModrinthResults(candidates, results)
+}
+
+func runModrinthLookups(ctx context.Context, candidates []scanCandidate, deps scanDeps) ([]modrinthLookupResult, error) {
 	results := make([]modrinthLookupResult, len(candidates))
 	titleCache := newModrinthTitleCache()
 
@@ -548,10 +572,10 @@ func lookupModrinth(ctx context.Context, candidates []scanCandidate, deps scanDe
 		})
 	}
 	if err := group.Wait(); err != nil {
-		return nil, candidates, matchErrorsForCandidates(candidates, err)
+		return nil, err
 	}
 
-	return splitModrinthResults(candidates, results)
+	return results, nil
 }
 
 type modrinthLookupResult struct {
@@ -709,19 +733,7 @@ func lookupCurseforge(ctx context.Context, candidates []scanCandidate, deps scan
 		return nil, nil, buildCurseforgeErrors(candidates, platformUnsureReason(models.CURSEFORGE, summary.Reason))
 	}
 
-	nameCache := make(map[string]string)
-	var nameMu sync.Mutex
-
-	addCurseforgeMatches(ctx, curseforgeMatchContext{
-		candidates:           candidates,
-		fingerprintToIndices: fingerprintIndex.fingerprintToIndices,
-		matches:              result.Matches,
-		deps:                 deps,
-		nameCache:            nameCache,
-		nameMu:               &nameMu,
-		scanMatches:          &matches,
-		unsure:               unsure,
-	})
+	addCurseforgeMatchesWithCache(ctx, candidates, fingerprintIndex, result.Matches, deps, &matches, unsure)
 	misses := curseforgeMisses(candidates, matches, unsure)
 	return matches, misses, unsure
 }
@@ -753,6 +765,30 @@ func buildCurseforgeErrors(candidates []scanCandidate, reason string) map[string
 		unsure[candidate.Path] = errors.New(reason)
 	}
 	return unsure
+}
+
+func addCurseforgeMatchesWithCache(
+	ctx context.Context,
+	candidates []scanCandidate,
+	fingerprintIndex curseforgeFingerprintIndex,
+	matches []curseforge.File,
+	deps scanDeps,
+	scanMatches *[]scanMatch,
+	unsure map[string]error,
+) {
+	nameCache := make(map[string]string)
+	var nameMu sync.Mutex
+
+	addCurseforgeMatches(ctx, curseforgeMatchContext{
+		candidates:           candidates,
+		fingerprintToIndices: fingerprintIndex.fingerprintToIndices,
+		matches:              matches,
+		deps:                 deps,
+		nameCache:            nameCache,
+		nameMu:               &nameMu,
+		scanMatches:          scanMatches,
+		unsure:               unsure,
+	})
 }
 
 type curseforgeMatchContext struct {
