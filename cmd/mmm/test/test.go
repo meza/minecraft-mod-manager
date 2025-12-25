@@ -75,7 +75,6 @@ func Command() *cobra.Command {
 	return commandWithRunner(runTest)
 }
 
-//nolint:funlen // Cobra wiring keeps flag handling localized for the test command.
 func commandWithRunner(runner testRunner) *cobra.Command {
 	cmd := &cobra.Command{
 		Use:     "test [game_version]",

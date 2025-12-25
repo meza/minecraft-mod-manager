@@ -1,6 +1,7 @@
 package perf
 
 import (
+	"context"
 	"testing"
 	"time"
 
@@ -20,7 +21,7 @@ func TestGetSessionDurations_ReturnsDurationsWhenEnabled(t *testing.T) {
 	t.Cleanup(Reset)
 	assert.NoError(t, Init(Config{Enabled: true}))
 
-	_, span := StartSpan(nil, "app.lifecycle")
+	_, span := StartSpan(context.TODO(), "app.lifecycle")
 	span.End()
 
 	durations, err := GetSessionDurations()

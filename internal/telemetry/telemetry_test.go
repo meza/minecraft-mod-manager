@@ -766,6 +766,33 @@ func TestShutdownClosesClientOnce(t *testing.T) {
 	assert.Equal(t, 1, client.closeCount)
 }
 
+func TestEnsureShutdownContext_UsesBackgroundForNil(t *testing.T) {
+	//nolint:staticcheck // Validates nil context handling.
+	ctx, cancel := ensureShutdownContext(nil, time.Millisecond)
+	assert.NotNil(t, ctx)
+	assert.NotNil(t, cancel)
+	_, hasDeadline := ctx.Deadline()
+	assert.True(t, hasDeadline)
+	cancel()
+}
+
+func TestEnsureShutdownContext_ReturnsExistingDeadline(t *testing.T) {
+	ctxWithDeadline, cancel := context.WithTimeout(context.Background(), time.Minute)
+	defer cancel()
+
+	ctx, cancelFunc := ensureShutdownContext(ctxWithDeadline, time.Millisecond)
+	assert.Equal(t, ctxWithDeadline, ctx)
+	assert.Nil(t, cancelFunc)
+}
+
+func TestEnsureShutdownContext_AddsTimeoutWhenMissing(t *testing.T) {
+	ctx, cancel := ensureShutdownContext(context.Background(), time.Millisecond)
+	assert.NotNil(t, cancel)
+	_, hasDeadline := ctx.Deadline()
+	assert.True(t, hasDeadline)
+	cancel()
+}
+
 func TestShutdownTimeoutLogs(t *testing.T) {
 	resetTelemetryState(t)
 
@@ -779,7 +806,7 @@ func TestShutdownTimeoutLogs(t *testing.T) {
 	Init()
 
 	start := time.Now()
-	Shutdown(nil)
+	Shutdown(context.TODO())
 	duration := time.Since(start)
 
 	assert.Less(t, duration, 10*baseFlushTimeout)
@@ -828,7 +855,7 @@ func TestShutdownLogsCloseError(t *testing.T) {
 
 func TestShutdownWithoutInit(t *testing.T) {
 	resetTelemetryState(t)
-	Shutdown(nil)
+	Shutdown(context.TODO())
 }
 
 func TestResetAllowsReinit(t *testing.T) {
@@ -840,7 +867,7 @@ func TestResetAllowsReinit(t *testing.T) {
 	t.Setenv("POSTHOG_API_KEY", "key")
 	Init()
 	Capture("first", nil)
-	Shutdown(nil)
+	Shutdown(context.TODO())
 
 	Reset()
 

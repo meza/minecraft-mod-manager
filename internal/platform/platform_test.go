@@ -62,10 +62,10 @@ func TestFetchModrinth_Succeeds(t *testing.T) {
 	t.Cleanup(perf.Reset)
 	assert.NoError(t, perf.Init(perf.Config{Enabled: true}))
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		switch {
-		case r.URL.Path == "/v2/project/test-mod":
+		switch r.URL.Path {
+		case "/v2/project/test-mod":
 			writeStringResponse(t, w, `{"title":"Test Mod","id":"test-mod"}`)
-		case r.URL.Path == "/v2/project/test-mod/version":
+		case "/v2/project/test-mod/version":
 			response := []map[string]interface{}{
 				{
 					"project_id":     "test-mod",

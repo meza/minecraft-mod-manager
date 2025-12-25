@@ -230,7 +230,6 @@ func perfExportConfigFromArgs(args []string, cwd string) perfExportConfig {
 	return perfExportConfigFromArgsWithAbs(args, cwd, filepath.Abs)
 }
 
-//nolint:gocyclo // Argument normalization is clearer as a single flow.
 func perfExportConfigFromArgsWithAbs(args []string, cwd string, absPath func(string) (string, error)) perfExportConfig {
 	parsedArgs := parsePerfExportArgs(args)
 

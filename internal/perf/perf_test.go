@@ -74,6 +74,7 @@ func TestStartSpan_NilContextAndNilOption(t *testing.T) {
 	t.Cleanup(Reset)
 	assert.NoError(t, Init(Config{Enabled: true}))
 
+	//nolint:staticcheck // Validates nil context handling.
 	ctx, span := StartSpan(nil, "nil-context", nil)
 	assert.NotNil(t, ctx)
 	assert.NotNil(t, span)
@@ -220,6 +221,7 @@ func TestSpanMethods_SetAttributesPersistsOnSpan(t *testing.T) {
 }
 
 func TestSpanFromContext_NilContextReturnsNonNilSpan(t *testing.T) {
+	//nolint:staticcheck // Validates nil context handling.
 	span := SpanFromContext(nil)
 	assert.NotNil(t, span)
 }
@@ -237,6 +239,7 @@ func TestSpanFromContext_WithSpanContextReturnsValidSpan(t *testing.T) {
 }
 
 func TestLinkFromContext_ErrorsOnNilAndMissingSpan(t *testing.T) {
+	//nolint:staticcheck // Validates nil context handling.
 	_, err := LinkFromContext(nil)
 	assert.Error(t, err)
 
