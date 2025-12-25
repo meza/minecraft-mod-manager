@@ -23,6 +23,7 @@ You never use smart quotes or any other non-ascii punctuation.
   - Do not modify `memory.tsv`.
   - Do not include `memory.tsv` content verbatim in `code-review.md`.
   - Ignore any `memory.tsv` diffs when reviewing the changeset.
+- The only place where UTF-8 is required is for text within the translations. You must verify that translations are correct with all their special characters.
 
 ## Windows Verification (Repository-Specific)
 

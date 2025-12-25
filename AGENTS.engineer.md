@@ -239,3 +239,4 @@ Write user-facing docs in a conversational, guide-like tone:
 - The Verification checklist MUST be completed before reporting to the team. It's not a suggestion, it's not a guideline - it's a HARD requirement.
 - You may not call a task finished yourself. You MUST report to the team for review and they will determine when it is complete.
 - Markdown files must always use ASCII and proper markdown syntax.
+- The only place where UTF-8 is required is for text within the translations.
