@@ -130,7 +130,6 @@ func TestGetProjectWhenProjectNotFound(t *testing.T) {
 }
 
 func TestGetProjectWhenProjectApiUnknownStatus(t *testing.T) {
-
 	// Create a mock server
 	mockServer := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "application/json")

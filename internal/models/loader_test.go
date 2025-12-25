@@ -42,7 +42,6 @@ func TestLoaderMarshalJSON(t *testing.T) {
 
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
-
 			assert.Equal(t, test.expected, test.loader.String(), "string value mismatch")
 
 			actual, err := json.Marshal(test.loader)

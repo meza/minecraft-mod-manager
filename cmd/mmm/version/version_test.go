@@ -35,5 +35,4 @@ func TestVersionOutput(t *testing.T) {
 	assert.NoError(t, err)
 
 	assert.Equal(t, "REPL_VERSION\n", string(out))
-
 }

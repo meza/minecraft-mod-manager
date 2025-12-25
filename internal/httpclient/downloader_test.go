@@ -140,7 +140,6 @@ func TestDownloadFile(t *testing.T) {
 		// Verify the progress message
 		_, ok := program.SentMessages()[0].(progressMsg)
 		assert.True(t, ok)
-
 	})
 
 	t.Run("HTTP request error", func(t *testing.T) {
@@ -207,7 +206,6 @@ func TestDownloadFile(t *testing.T) {
 	})
 
 	t.Run("file write error", func(t *testing.T) {
-
 		// Create a mock server
 		mockServer := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 			w.Header().Set("Content-Length", "1")

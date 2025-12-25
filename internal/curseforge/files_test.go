@@ -432,7 +432,6 @@ func TestGetFilesForProjectWhenProjectNotFound(t *testing.T) {
 }
 
 func TestGetFilesForProjectWhenProjectApiUnknownStatus(t *testing.T) {
-
 	// Create a mock server
 	mockServer := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "application/json")
@@ -450,7 +449,6 @@ func TestGetFilesForProjectWhenProjectApiUnknownStatus(t *testing.T) {
 }
 
 func TestGetFilesForProjectWhenProjectApiCorruptBody(t *testing.T) {
-
 	// Create a mock server
 	mockServer := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "application/json")
@@ -743,7 +741,6 @@ func TestGetFingerprintsMatchesWithApiTimeout(t *testing.T) {
 }
 
 func TestGetFingerprintsMatchesWithNotFound(t *testing.T) {
-
 	mockServer := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "application/json")
 		w.WriteHeader(http.StatusNotFound)
@@ -758,7 +755,6 @@ func TestGetFingerprintsMatchesWithNotFound(t *testing.T) {
 }
 
 func TestGetFingerprintsMatchesWithUnexpectedStatusReturnsApiError(t *testing.T) {
-
 	mockServer := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "application/json")
 		w.WriteHeader(http.StatusForbidden)
@@ -798,7 +794,6 @@ func TestGetFingerprintsMatches_UnmatchedFingerprintsUnsupportedTypeErrors(t *te
 }
 
 func TestGetFingerprintsMatchesWithCorruptedBody(t *testing.T) {
-
 	mockServer := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "application/json")
 		w.WriteHeader(http.StatusOK)

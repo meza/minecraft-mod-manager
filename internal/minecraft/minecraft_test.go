@@ -107,7 +107,6 @@ func TestMinecraft(t *testing.T) {
 		assert.False(t, IsValidVersion(context.Background(), "", mockServer.Client()))
 		assert.False(t, IsValidVersion(context.Background(), "1.21.3", mockServer.Client()))
 		assert.True(t, IsValidVersion(context.Background(), "24w33a", mockServer.Client()))
-
 	})
 
 	t.Run("GetAllMineCraftVersions", func(t *testing.T) {

@@ -277,7 +277,6 @@ func TestGetVersionsForProjectWhenProjectNotFound(t *testing.T) {
 }
 
 func TestGetVersionsForProjectWhenProjectApiUnknownStatus(t *testing.T) {
-
 	// Create a mock server
 	mockServer := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "application/json")
@@ -299,7 +298,6 @@ func TestGetVersionsForProjectWhenProjectApiUnknownStatus(t *testing.T) {
 }
 
 func TestGetVersionsForProjectWhenApiCallFails(t *testing.T) {
-
 	// Create a mock server
 	mockServer := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {}))
 	defer mockServer.Close()
@@ -453,7 +451,6 @@ func TestGetVersionForHashWhenProjectNotFound(t *testing.T) {
 }
 
 func TestGetVersionForHashWhenProjectApiUnknownStatus(t *testing.T) {
-
 	// Create a mock server
 	mockServer := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "application/json")
@@ -474,7 +471,6 @@ func TestGetVersionForHashWhenProjectApiUnknownStatus(t *testing.T) {
 }
 
 func TestGetVersionForHashWhenApiCallFails(t *testing.T) {
-
 	// Create a mock server
 	mockServer := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {}))
 	defer mockServer.Close()

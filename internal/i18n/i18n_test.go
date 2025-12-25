@@ -106,19 +106,15 @@ func TestSimpleTranslations(t *testing.T) {
 
 	t.Run("custom type values are interpolated", func(t *testing.T) {
 		ResetForTesting()
-
 		actual := T("test.customType", Tvars{
 			Data: &TData{"val": customString("XYZ")},
 		})
-
 		assert.Equal(t, "Value is XYZ", actual)
 	})
 }
-
 func TestPluralsTranslations(t *testing.T) {
 	enFS = testData
 	langDir = "__fixtures__"
-
 	t.Run("plurals in English", func(t *testing.T) {
 		//Assuming that all systems running the tests have
 		//English as their default language
@@ -127,15 +123,12 @@ func TestPluralsTranslations(t *testing.T) {
 			Data: &TData{"injectedData": "in English"},
 		})
 		assert.Equal(t, "Other message in English", noPlural)
-
 		one := T("test.multiple", Tvars{
 			Count: 1,
 			Data:  &TData{"injectedData": "in English"},
 		})
 		assert.Equal(t, "One message: in English", one)
-
 	})
-
 	t.Run("plurals in German", func(t *testing.T) {
 		//Assuming that all systems running the tests have
 		//English as their default language
@@ -145,15 +138,12 @@ func TestPluralsTranslations(t *testing.T) {
 			Data: &TData{"injectedData": "in English"},
 		})
 		assert.Equal(t, "Other message in English but in German", noPlural)
-
 		one := T("test.multiple", Tvars{
 			Count: 1,
 			Data:  &TData{"injectedData": "in English"},
 		})
 		assert.Equal(t, "One message: in English but in German", one)
-
 	})
-
 	t.Run("plurals in test", func(t *testing.T) {
 		//Assuming that all systems running the tests have
 		//English as their default language
@@ -162,14 +152,12 @@ func TestPluralsTranslations(t *testing.T) {
 			Data: &TData{"injectedData": "in English"},
 		})
 		assert.Equal(t, "test.multiple, Arg 1: {Count: 0, Data: &map[injectedData:in English]}", noPlural)
-
 		one := T("test.multiple", Tvars{
 			Count: 1,
 			Data:  &TData{"injectedData": "in English1"},
 		})
 		assert.Equal(t, "test.multiple, Arg 1: {Count: 1, Data: &map[injectedData:in English1]}", one)
 	})
-
 }
 
 func TestMissingTranslation(t *testing.T) {
