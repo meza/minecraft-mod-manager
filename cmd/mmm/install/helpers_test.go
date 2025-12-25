@@ -25,6 +25,7 @@ import (
 	"github.com/meza/minecraft-mod-manager/internal/models"
 	"github.com/meza/minecraft-mod-manager/internal/modrinth"
 	"github.com/meza/minecraft-mod-manager/internal/platform"
+	"github.com/meza/minecraft-mod-manager/internal/tui"
 )
 
 func TestOptionalStringValue(t *testing.T) {
@@ -323,6 +324,17 @@ func TestHandleExpectedFetchError(t *testing.T) {
 	assert.True(t, handleExpectedFetchError(&platform.ModNotFoundError{Platform: models.MODRINTH, ProjectID: "abc"}, installModInputs{mod: mod, deps: deps, colorize: false}))
 	assert.True(t, handleExpectedFetchError(&platform.NoCompatibleFileError{Platform: models.MODRINTH, ProjectID: "abc"}, installModInputs{mod: mod, deps: deps, colorize: false}))
 	assert.False(t, handleExpectedFetchError(errors.New("boom"), installModInputs{mod: mod, deps: deps, colorize: false}))
+}
+
+func TestHandleExpectedFetchErrorColorizedLogs(t *testing.T) {
+	logBuffer := &strings.Builder{}
+	deps := installDeps{
+		logger: logger.New(logBuffer, io.Discard, false, false),
+	}
+
+	mod := models.Mod{Name: "Example", ID: "abc", Type: models.MODRINTH}
+	assert.True(t, handleExpectedFetchError(&platform.ModNotFoundError{Platform: models.MODRINTH, ProjectID: "abc"}, installModInputs{mod: mod, deps: deps, colorize: true}))
+	assert.Contains(t, logBuffer.String(), "modrinth")
 }
 
 func TestEnsureLockInstallLogsReasons(t *testing.T) {
@@ -638,7 +650,7 @@ func TestPreflightUnknownFilesScansUnknown(t *testing.T) {
 		cfg:      cfg,
 		lock:     nil,
 		deps:     deps,
-		colorize: false,
+		colorize: true,
 	})
 	assert.NoError(t, err)
 	assert.False(t, outcome.unresolved)
@@ -925,14 +937,14 @@ func TestLogPlatformLookupFailureOutputsMessages(t *testing.T) {
 		DebugDetails: "debug details",
 	}
 
-	logPlatformLookupFailure(log, failure, false)
+	logPlatformLookupFailure(log, failure, tui.ColorDisabled)
 	assert.Contains(t, out.String(), "cmd.install.debug.platform_error")
 	assert.Contains(t, out.String(), "cmd.install.unsure.platform_error")
 	assert.Contains(t, out.String(), "a.jar")
 }
 
 func TestLogPlatformLookupFailureHandlesNil(t *testing.T) {
-	logPlatformLookupFailure(nil, nil, false)
+	logPlatformLookupFailure(nil, nil, tui.ColorDisabled)
 }
 
 func TestPreflightUnknownFilesLogsPlatformErrors(t *testing.T) {
@@ -973,7 +985,7 @@ func TestPreflightUnknownFilesLogsPlatformErrors(t *testing.T) {
 		cfg:      cfg,
 		lock:     nil,
 		deps:     deps,
-		colorize: false,
+		colorize: true,
 	})
 
 	assert.NoError(t, err)

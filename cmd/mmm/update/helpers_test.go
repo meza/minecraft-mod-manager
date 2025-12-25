@@ -18,6 +18,7 @@ import (
 	"github.com/meza/minecraft-mod-manager/internal/models"
 	"github.com/meza/minecraft-mod-manager/internal/modinstall"
 	"github.com/meza/minecraft-mod-manager/internal/platform"
+	"github.com/meza/minecraft-mod-manager/internal/tui"
 	"github.com/spf13/afero"
 	"github.com/stretchr/testify/assert"
 )
@@ -469,7 +470,7 @@ func TestFetchErrorEventsForPlatformError(t *testing.T) {
 	t.Setenv("MMM_TEST", "true")
 
 	mod := models.Mod{Name: "Example", ID: "proj-1", Type: models.MODRINTH}
-	events := fetchErrorEvents(&httpclient.ResponseError{StatusCode: http.StatusForbidden}, mod, false)
+	events := fetchErrorEvents(&httpclient.ResponseError{StatusCode: http.StatusForbidden}, mod, tui.ColorDisabled)
 	if assert.Len(t, events, 2) {
 		assert.Equal(t, logEventKindError, events[0].Kind)
 		assert.Contains(t, events[0].Message, "cmd.update.error.platform")
@@ -483,7 +484,7 @@ func TestFetchErrorEventsForExpectedFetchError(t *testing.T) {
 	t.Setenv("MMM_TEST", "true")
 
 	mod := models.Mod{Name: "Example", ID: "proj-1", Type: models.MODRINTH}
-	events := fetchErrorEvents(&platform.ModNotFoundError{Platform: models.MODRINTH, ProjectID: "proj-1"}, mod, false)
+	events := fetchErrorEvents(&platform.ModNotFoundError{Platform: models.MODRINTH, ProjectID: "proj-1"}, mod, tui.ColorDisabled)
 	if assert.Len(t, events, 1) {
 		assert.Equal(t, logEventKindLog, events[0].Kind)
 		assert.Contains(t, events[0].Message, "cmd.update.error.mod_not_found")
@@ -491,7 +492,7 @@ func TestFetchErrorEventsForExpectedFetchError(t *testing.T) {
 }
 
 func TestFetchErrorEventsReturnsNilForNilError(t *testing.T) {
-	events := fetchErrorEvents(nil, models.Mod{Type: models.MODRINTH}, false)
+	events := fetchErrorEvents(nil, models.Mod{Type: models.MODRINTH}, tui.ColorDisabled)
 	assert.Empty(t, events)
 }
 
@@ -499,7 +500,7 @@ func TestFetchErrorEventsSkipsDebugWhenDetailsEmpty(t *testing.T) {
 	t.Setenv("MMM_TEST", "true")
 
 	mod := models.Mod{Name: "Example", ID: "proj-1", Type: models.MODRINTH}
-	events := fetchErrorEvents(emptyError{}, mod, false)
+	events := fetchErrorEvents(emptyError{}, mod, tui.ColorDisabled)
 	assert.Len(t, events, 1)
 	assert.Equal(t, logEventKindError, events[0].Kind)
 }

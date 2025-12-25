@@ -1,17 +1,17 @@
 // Package tui provides shared terminal UI helpers.
 package tui
 
-func SuccessIcon(colorize bool) string {
+func SuccessIcon(colorMode ColorMode) string {
 	icon := "✅"
-	if colorize {
+	if colorMode.Enabled() {
 		return QuestionStyle.Render(icon)
 	}
 	return icon
 }
 
-func ErrorIcon(colorize bool) string {
+func ErrorIcon(colorMode ColorMode) string {
 	icon := "❌"
-	if colorize {
+	if colorMode.Enabled() {
 		return ErrorStyle.Render(icon)
 	}
 	return icon

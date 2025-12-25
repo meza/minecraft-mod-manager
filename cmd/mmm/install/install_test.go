@@ -17,6 +17,7 @@ import (
 	"github.com/meza/minecraft-mod-manager/internal/modrinth"
 	"github.com/meza/minecraft-mod-manager/internal/platform"
 	"github.com/meza/minecraft-mod-manager/internal/telemetry"
+	"github.com/meza/minecraft-mod-manager/internal/tui"
 	"github.com/spf13/afero"
 	"github.com/spf13/cobra"
 	"github.com/stretchr/testify/assert"
@@ -91,6 +92,8 @@ func TestRunInstallHaltsWhenPreflightFindsUnsureHashMismatch(t *testing.T) {
 
 func TestRunInstallReportsUnmanagedButDoesNotHalt(t *testing.T) {
 	t.Setenv("MMM_TEST", "true")
+	restore := tui.SetIsTerminalFuncForTesting(func(_ int) bool { return true })
+	defer restore()
 
 	fs := afero.NewMemMapFs()
 	meta := config.NewMetadata(filepath.FromSlash("/cfg/modlist.json"))
@@ -116,7 +119,7 @@ func TestRunInstallReportsUnmanagedButDoesNotHalt(t *testing.T) {
 	errOut := &bytes.Buffer{}
 	cmd := &cobra.Command{}
 	cmd.SetIn(&bytes.Buffer{})
-	cmd.SetOut(out)
+	cmd.SetOut(fakeTTYWriter{Buffer: out})
 	cmd.SetErr(errOut)
 
 	deps := installDeps{
@@ -1118,6 +1121,12 @@ func TestIntegrityErrorMessage_SymlinkOutsideMods(t *testing.T) {
 	assert.Contains(t, message, outsidePath)
 	assert.Contains(t, message, rootPath)
 }
+
+type fakeTTYWriter struct {
+	*bytes.Buffer
+}
+
+func (writer fakeTTYWriter) Fd() uintptr { return 1 }
 
 type lstatErrorFs struct {
 	*afero.OsFs

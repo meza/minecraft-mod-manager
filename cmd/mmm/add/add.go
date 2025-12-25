@@ -273,16 +273,20 @@ func runAdd(ctx context.Context, commandSpan *perf.Span, cmd *cobra.Command, opt
 
 func prepareAddConfig(ctx context.Context, opts addOptions, meta config.Metadata, setupCoordinator *modsetup.SetupCoordinator) (models.ModsJSON, []models.ModInstall, error) {
 	prepareCtx, prepareSpan := perf.StartSpan(ctx, "app.command.add.stage.prepare", perf.WithAttributes(attribute.String("config_path", opts.ConfigPath)))
-	cfg, lock, err := setupCoordinator.EnsureConfigAndLock(prepareCtx, meta, opts.Quiet)
+	cfg, lock, err := setupCoordinator.EnsureConfigAndLock(prepareCtx, meta, modsetup.EnsureConfigOptions{Quiet: opts.Quiet})
 	prepareSpan.SetAttributes(attribute.Bool("success", err == nil))
 	prepareSpan.End()
 	return cfg, lock, err
 }
 
 func prepareAddRunState(ctx context.Context, cmd *cobra.Command, opts addOptions, deps addDeps) (addRunState, error) {
+	quietMode := tui.QuietDisabled
+	if opts.Quiet {
+		quietMode = tui.QuietEnabled
+	}
 	runState := addRunState{
 		meta:             config.NewMetadata(opts.ConfigPath),
-		useTUI:           tui.ShouldUseTUI(opts.Quiet, cmd.InOrStdin(), cmd.OutOrStdout()),
+		useTUI:           tui.ShouldUseTUI(quietMode, cmd.InOrStdin(), cmd.OutOrStdout()),
 		setupCoordinator: modsetup.NewSetupCoordinator(deps.fs, deps.minecraftClient, modsetup.Downloader(deps.downloader)),
 	}
 
@@ -458,7 +462,7 @@ func logAddSuccess(log *logger.Logger, modName string, resolvedID string, resolv
 			"id":       resolvedID,
 			"platform": resolvedPlatform,
 		},
-	}), true)
+	}), logger.LogForce)
 }
 
 func addSuccessTelemetry(platformValue models.Platform, projectID string, opts addOptions, useTUI bool) telemetry.CommandTelemetry {
@@ -864,11 +868,11 @@ func logEnsureResult(log *logger.Logger, reason modinstall.EnsureReason, cfg mod
 				"name":     modNameForConfig(cfg, platformValue, projectID),
 				"platform": platformValue,
 			},
-		}), true)
+		}), logger.LogForce)
 	case modinstall.EnsureReasonHashMismatch:
 		log.Log(i18n.T("cmd.install.download.hash_mismatch", i18n.Tvars{
 			Data: &i18n.TData{"name": modNameForConfig(cfg, platformValue, projectID)},
-		}), true)
+		}), logger.LogForce)
 	}
 }
 

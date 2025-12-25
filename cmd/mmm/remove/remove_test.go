@@ -612,7 +612,7 @@ func TestReadLockForRemoveErrorsOnEnsureLockFailure(t *testing.T) {
 	readOnlyFs := afero.NewReadOnlyFs(afero.NewMemMapFs())
 	meta := config.NewMetadata(filepath.FromSlash("/cfg/modlist.json"))
 
-	_, err := readLockForRemove(context.Background(), readOnlyFs, meta, false)
+	_, err := readLockForRemove(context.Background(), readOnlyFs, meta, removeLockOptions{dryRun: false})
 	assert.Error(t, err)
 }
 
@@ -624,7 +624,7 @@ func TestReadLockForRemoveReturnsErrorOnStatFailure(t *testing.T) {
 	}
 	meta := config.NewMetadata(filepath.FromSlash("/cfg/modlist.json"))
 
-	_, err := readLockForRemove(context.Background(), fs, meta, true)
+	_, err := readLockForRemove(context.Background(), fs, meta, removeLockOptions{dryRun: true})
 	assert.Error(t, err)
 }
 
@@ -635,7 +635,7 @@ func TestReadLockForRemoveReadsExistingLockOnDryRun(t *testing.T) {
 	lock := []models.ModInstall{{Type: models.MODRINTH, ID: "proj-1"}}
 	require.NoError(t, config.WriteLock(context.Background(), fs, meta, lock))
 
-	readLock, err := readLockForRemove(context.Background(), fs, meta, true)
+	readLock, err := readLockForRemove(context.Background(), fs, meta, removeLockOptions{dryRun: true})
 	require.NoError(t, err)
 	assert.Len(t, readLock, 1)
 	assert.Equal(t, "proj-1", readLock[0].ID)

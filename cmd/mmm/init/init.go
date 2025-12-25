@@ -181,7 +181,11 @@ func runInitCommand(ctx context.Context, cmd *cobra.Command, options initOptions
 }
 
 func runInit(ctx context.Context, cmd *cobra.Command, options initOptions, deps initDeps, meta config.Metadata) (initOptions, bool, error) {
-	shouldUseTUI := tui.ShouldUseTUI(options.Quiet, cmd.InOrStdin(), cmd.OutOrStdout())
+	quietMode := tui.QuietDisabled
+	if options.Quiet {
+		quietMode = tui.QuietEnabled
+	}
+	shouldUseTUI := tui.ShouldUseTUI(quietMode, cmd.InOrStdin(), cmd.OutOrStdout())
 	didUseTUI := false
 
 	gameVersionMode := gameVersionNonInteractive
@@ -384,7 +388,7 @@ func initWithDeps(ctx context.Context, options initOptions, deps initDeps) (conf
 	}
 
 	if deps.logger != nil {
-		deps.logger.Log("Initialized configuration at "+meta.ConfigPath, false)
+		deps.logger.Log("Initialized configuration at "+meta.ConfigPath, logger.LogQuiet)
 	}
 
 	return meta, nil

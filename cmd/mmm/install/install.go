@@ -249,6 +249,10 @@ func runInstall(ctx context.Context, cmd *cobra.Command, opts installOptions, de
 	}
 
 	colorize := tui.IsTerminalWriter(cmd.OutOrStdout())
+	colorMode := tui.ColorDisabled
+	if colorize {
+		colorMode = tui.ColorEnabled
+	}
 
 	preflight, err := preflightInstall(ctx, meta, cfg, lock, deps, colorize)
 	if err != nil {
@@ -279,7 +283,7 @@ func runInstall(ctx context.Context, cmd *cobra.Command, opts installOptions, de
 		return Result{InstalledCount: len(configured.cfg.Mods), UnmanagedFound: preflight.unmanagedFound}, errInstallFailures
 	}
 
-	deps.logger.Log(messageWithIcon(tui.SuccessIcon(colorize), i18n.T("cmd.install.success")), true)
+	deps.logger.Log(messageWithIcon(tui.SuccessIcon(colorMode), i18n.T("cmd.install.success")), logger.LogForce)
 	return Result{InstalledCount: len(configured.cfg.Mods), UnmanagedFound: preflight.unmanagedFound}, nil
 }
 
@@ -459,7 +463,7 @@ func installFromRemote(input installModInputs) (modInstallOutcome, error) {
 			"name":     input.mod.Name,
 			"platform": input.mod.Type,
 		},
-	}), true)
+	}), logger.LogForce)
 
 	resolvedDestination, outcome, err := resolveRemoteDestination(input.meta, input.cfg, normalizedRemote, input.mod, input.deps)
 	if err != nil || outcome.failed {
@@ -560,11 +564,11 @@ func ensureLockInstall(ctx context.Context, meta config.Metadata, cfg models.Mod
 				"name":     mod.Name,
 				"platform": install.Type,
 			},
-		}), true)
+		}), logger.LogForce)
 	case modinstall.EnsureReasonHashMismatch:
 		deps.logger.Log(i18n.T("cmd.install.download.hash_mismatch", i18n.Tvars{
 			Data: &i18n.TData{"name": mod.Name},
-		}), true)
+		}), logger.LogForce)
 	}
 	return nil
 }
@@ -599,27 +603,31 @@ func integrityErrorMessage(err error, modName string) (string, bool) {
 }
 
 func handleExpectedFetchError(err error, input installModInputs) bool {
+	colorMode := tui.ColorDisabled
+	if input.colorize {
+		colorMode = tui.ColorEnabled
+	}
 	var notFound *platform.ModNotFoundError
 	if errors.As(err, &notFound) {
-		input.deps.logger.Log(messageWithIcon(tui.ErrorIcon(input.colorize), i18n.T("cmd.install.error.mod_not_found", i18n.Tvars{
+		input.deps.logger.Log(messageWithIcon(tui.ErrorIcon(colorMode), i18n.T("cmd.install.error.mod_not_found", i18n.Tvars{
 			Data: &i18n.TData{
 				"name":     input.mod.Name,
 				"id":       input.mod.ID,
 				"platform": input.mod.Type,
 			},
-		})), true)
+		})), logger.LogForce)
 		return true
 	}
 
 	var noFile *platform.NoCompatibleFileError
 	if errors.As(err, &noFile) {
-		input.deps.logger.Log(messageWithIcon(tui.ErrorIcon(input.colorize), i18n.T("cmd.install.error.no_file", i18n.Tvars{
+		input.deps.logger.Log(messageWithIcon(tui.ErrorIcon(colorMode), i18n.T("cmd.install.error.no_file", i18n.Tvars{
 			Data: &i18n.TData{
 				"name":     input.mod.Name,
 				"id":       input.mod.ID,
 				"platform": input.mod.Type,
 			},
-		})), true)
+		})), logger.LogForce)
 		return true
 	}
 
@@ -651,7 +659,11 @@ func preflightUnknownFiles(input preflightInputs) (scanReportOutcome, error) {
 	if err != nil {
 		var lookupFailure *platformLookupFailure
 		if errors.As(err, &lookupFailure) {
-			logPlatformLookupFailure(input.deps.logger, lookupFailure, input.colorize)
+			colorMode := tui.ColorDisabled
+			if input.colorize {
+				colorMode = tui.ColorEnabled
+			}
+			logPlatformLookupFailure(input.deps.logger, lookupFailure, colorMode)
 			return scanReportOutcome{unresolved: true}, nil
 		}
 		return scanReportOutcome{}, err
@@ -722,7 +734,7 @@ func newPlatformLookupFailure(platform models.Platform, files []string, err erro
 	}
 }
 
-func logPlatformLookupFailure(log *logger.Logger, failure *platformLookupFailure, colorize bool) {
+func logPlatformLookupFailure(log *logger.Logger, failure *platformLookupFailure, colorMode tui.ColorMode) {
 	if failure == nil || log == nil {
 		return
 	}
@@ -735,13 +747,13 @@ func logPlatformLookupFailure(log *logger.Logger, failure *platformLookupFailure
 		}))
 	}
 	for _, filePath := range failure.Files {
-		log.Log(messageWithIcon(tui.ErrorIcon(colorize), i18n.T("cmd.install.unsure.platform_error", i18n.Tvars{
+		log.Log(messageWithIcon(tui.ErrorIcon(colorMode), i18n.T("cmd.install.unsure.platform_error", i18n.Tvars{
 			Data: &i18n.TData{
 				"file":     filepath.Base(filePath),
 				"platform": failure.Platform,
 				"reason":   failure.Reason,
 			},
-		})), true)
+		})), logger.LogForce)
 	}
 }
 
@@ -881,6 +893,10 @@ func uniqueInts(values []int) []int {
 
 func reportScanResults(input scanReportInputs) (scanReportOutcome, error) {
 	outcome := scanReportOutcome{}
+	colorMode := tui.ColorDisabled
+	if input.colorize {
+		colorMode = tui.ColorEnabled
+	}
 
 	for _, item := range input.scanned {
 		if len(item.Hits) == 0 {
@@ -894,26 +910,26 @@ func reportScanResults(input scanReportInputs) (scanReportOutcome, error) {
 			if input.colorize {
 				name = tui.TitleStyle.Copy().Bold(true).Render(name)
 			}
-			input.deps.logger.Log(tui.SuccessIcon(input.colorize)+i18n.T("cmd.install.unmanaged.found", i18n.Tvars{
+			input.deps.logger.Log(tui.SuccessIcon(colorMode)+i18n.T("cmd.install.unmanaged.found", i18n.Tvars{
 				Data: &i18n.TData{"name": name},
-			}), true)
+			}), logger.LogForce)
 			continue
 		}
 
 		mod := input.cfg.Mods[matchedModIndex]
 		lockIndex := lockIndexFor(mod, input.lock)
 		if lockIndex < 0 {
-			input.deps.logger.Log(messageWithIcon(tui.ErrorIcon(input.colorize), i18n.T("cmd.install.unsure.lock_missing", i18n.Tvars{
+			input.deps.logger.Log(messageWithIcon(tui.ErrorIcon(colorMode), i18n.T("cmd.install.unsure.lock_missing", i18n.Tvars{
 				Data: &i18n.TData{"name": item.Hits[0].Name},
-			})), true)
+			})), logger.LogForce)
 			outcome.unresolved = true
 			continue
 		}
 
 		if !strings.EqualFold(input.lock[lockIndex].Hash, item.Sha1) {
-			input.deps.logger.Log(messageWithIcon(tui.ErrorIcon(input.colorize), i18n.T("cmd.install.unsure.hash_mismatch", i18n.Tvars{
+			input.deps.logger.Log(messageWithIcon(tui.ErrorIcon(colorMode), i18n.T("cmd.install.unsure.hash_mismatch", i18n.Tvars{
 				Data: &i18n.TData{"name": item.Hits[0].Name},
-			})), true)
+			})), logger.LogForce)
 			outcome.unresolved = true
 		}
 	}

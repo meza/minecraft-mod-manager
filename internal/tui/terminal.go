@@ -28,8 +28,8 @@ func SetIsTerminalFuncForTesting(fn func(int) bool) func() {
 }
 
 // ShouldUseTUI decides if interactive TUI should be launched.
-func ShouldUseTUI(quiet bool, in io.Reader, out io.Writer) bool {
-	if quiet {
+func ShouldUseTUI(quietMode QuietMode, in io.Reader, out io.Writer) bool {
+	if quietMode.Enabled() {
 		return false
 	}
 	return IsTerminalReader(in) && IsTerminalWriter(out)

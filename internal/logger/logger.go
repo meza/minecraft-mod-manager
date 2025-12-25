@@ -13,6 +13,13 @@ type Logger struct {
 	debug bool
 }
 
+type LogVisibility int
+
+const (
+	LogQuiet LogVisibility = iota
+	LogForce
+)
+
 func New(out io.Writer, err io.Writer, quiet bool, debug bool) *Logger {
 	return &Logger{
 		out:   out,
@@ -22,8 +29,8 @@ func New(out io.Writer, err io.Writer, quiet bool, debug bool) *Logger {
 	}
 }
 
-func (logger *Logger) Log(message string, forceShow bool) {
-	if logger.quiet && !forceShow && !logger.debug {
+func (logger *Logger) Log(message string, visibility LogVisibility) {
+	if logger.quiet && visibility != LogForce && !logger.debug {
 		return
 	}
 	if _, err := fmt.Fprintln(logger.out, message); err != nil {

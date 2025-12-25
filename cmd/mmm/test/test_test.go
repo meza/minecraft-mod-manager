@@ -15,6 +15,7 @@ import (
 	"github.com/meza/minecraft-mod-manager/internal/models"
 	"github.com/meza/minecraft-mod-manager/internal/platform"
 	"github.com/meza/minecraft-mod-manager/internal/telemetry"
+	"github.com/meza/minecraft-mod-manager/internal/tui"
 	"github.com/spf13/afero"
 	"github.com/spf13/cobra"
 	"github.com/stretchr/testify/assert"
@@ -39,6 +40,8 @@ func TestCommandHasCorrectUsageAndAliases(t *testing.T) {
 
 func TestExitCode0WhenAllModsSupported(t *testing.T) {
 	t.Setenv("MMM_TEST", "true")
+	restore := tui.SetIsTerminalFuncForTesting(func(_ int) bool { return true })
+	defer restore()
 
 	fs := afero.NewMemMapFs()
 	meta := config.NewMetadata(filepath.FromSlash("/cfg/modlist.json"))
@@ -61,7 +64,7 @@ func TestExitCode0WhenAllModsSupported(t *testing.T) {
 	errOut := &bytes.Buffer{}
 	cmd := &cobra.Command{}
 	cmd.SetIn(&bytes.Buffer{})
-	cmd.SetOut(out)
+	cmd.SetOut(fakeTTYWriter{Buffer: out})
 	cmd.SetErr(errOut)
 
 	exitCode, err := runTest(context.Background(), cmd, testOptions{
@@ -1041,7 +1044,7 @@ func TestFormatMissingModEntryWithColorization(t *testing.T) {
 		Type: models.MODRINTH,
 	}
 
-	result := formatMissingModEntry(mod, true)
+	result := formatMissingModEntry(mod, tui.ColorEnabled)
 
 	assert.Contains(t, result, "TestMod")
 	assert.Contains(t, result, "test-mod-id")
@@ -1054,7 +1057,7 @@ func TestFormatMissingModEntryWithoutColorization(t *testing.T) {
 		Type: models.MODRINTH,
 	}
 
-	result := formatMissingModEntry(mod, false)
+	result := formatMissingModEntry(mod, tui.ColorDisabled)
 
 	assert.Equal(t, "❌ TestMod (test-mod-id)", result)
 }
@@ -1094,3 +1097,9 @@ func TestFetchFailureDebugEventUsesResponseErrorDetails(t *testing.T) {
 	assert.Contains(t, event.Message, "cmd.test.debug.platform_error")
 	assert.Contains(t, event.Message, "status=403")
 }
+
+type fakeTTYWriter struct {
+	*bytes.Buffer
+}
+
+func (writer fakeTTYWriter) Fd() uintptr { return 1 }

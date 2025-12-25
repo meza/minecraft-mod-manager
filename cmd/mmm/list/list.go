@@ -62,7 +62,7 @@ func Command() *cobra.Command {
 				programRunner: defaultProgramRunner,
 			}
 
-			entriesCount, usedTUI, err := runList(ctx, cmd, configPath, quiet, deps)
+			entriesCount, usedTUI, err := runList(ctx, cmd, configPath, runListOptions{quiet: quiet}, deps)
 			span.SetAttributes(attribute.Bool("success", err == nil))
 			span.End()
 
@@ -109,7 +109,22 @@ type listEntry struct {
 	Installed   bool
 }
 
-func runList(ctx context.Context, cmd *cobra.Command, configPath string, quiet bool, deps listDeps) (int, bool, error) {
+type listDisplayMode int
+
+const (
+	listDisplayCLI listDisplayMode = iota
+	listDisplayTUI
+)
+
+func (mode listDisplayMode) UseTUI() bool {
+	return mode == listDisplayTUI
+}
+
+type runListOptions struct {
+	quiet bool
+}
+
+func runList(ctx context.Context, cmd *cobra.Command, configPath string, options runListOptions, deps listDeps) (int, bool, error) {
 	meta := config.NewMetadata(configPath)
 
 	cfg, err := config.ReadConfig(ctx, deps.fs, meta)
@@ -124,11 +139,23 @@ func runList(ctx context.Context, cmd *cobra.Command, configPath string, quiet b
 	logInvalidLockEntries(lock, deps.logger)
 
 	entries := buildEntries(cfg, lock, meta, deps.fs)
-	useTUI := tui.ShouldUseTUI(quiet, cmd.InOrStdin(), cmd.OutOrStdout())
+	quietMode := tui.QuietDisabled
+	if options.quiet {
+		quietMode = tui.QuietEnabled
+	}
+	useTUI := tui.ShouldUseTUI(quietMode, cmd.InOrStdin(), cmd.OutOrStdout())
 	colorize := useTUI || tui.IsTerminalWriter(cmd.OutOrStdout())
-	view := renderListView(entries, colorize)
+	colorMode := tui.ColorDisabled
+	if colorize {
+		colorMode = tui.ColorEnabled
+	}
+	view := renderListView(entries, colorMode)
+	displayMode := listDisplayCLI
+	if useTUI {
+		displayMode = listDisplayTUI
+	}
 
-	if err := renderList(ctx, cmd, entries, view, deps, useTUI); err != nil {
+	if err := renderList(ctx, cmd, entries, view, deps, displayMode); err != nil {
 		return 0, useTUI, err
 	}
 	return len(entries), useTUI, nil
@@ -214,27 +241,23 @@ func logInvalidLockEntries(lock []models.ModInstall, log *logger.Logger) {
 	}
 }
 
-func renderListView(entries []listEntry, colorize bool) string {
+func renderListView(entries []listEntry, colorMode tui.ColorMode) string {
 	var builder strings.Builder
 
 	if len(entries) == 0 {
 		empty := i18n.T("cmd.list.empty")
-		if colorize {
-			empty = tui.PlaceholderStyle.Render(empty)
-		}
+		empty = tui.RenderIfColorEnabled(colorMode, tui.PlaceholderStyle, empty)
 		return empty
 	}
 
 	header := i18n.T("cmd.list.header")
-	if colorize {
-		header = tui.TitleStyle.Render(header)
-	}
+	header = tui.RenderIfColorEnabled(colorMode, tui.TitleStyle, header)
 	if err := listWriteString(&builder, header); err != nil {
 		return ""
 	}
 
 	for _, entry := range entries {
-		if err := appendListEntry(&builder, entry, colorize); err != nil {
+		if err := appendListEntry(&builder, entry, colorMode); err != nil {
 			return ""
 		}
 	}
@@ -242,17 +265,17 @@ func renderListView(entries []listEntry, colorize bool) string {
 	return builder.String()
 }
 
-func appendListEntry(builder *strings.Builder, entry listEntry, colorize bool) error {
+func appendListEntry(builder *strings.Builder, entry listEntry, colorMode tui.ColorMode) error {
 	if err := listWriteString(builder, "\n"); err != nil {
 		return err
 	}
-	if err := listWriteString(builder, renderEntry(entry, colorize)); err != nil {
+	if err := listWriteString(builder, renderEntry(entry, colorMode)); err != nil {
 		return err
 	}
 	return nil
 }
 
-func renderEntry(entry listEntry, colorize bool) string {
+func renderEntry(entry listEntry, colorMode tui.ColorMode) string {
 	icon := "✗"
 	key := "cmd.list.entry.missing"
 	name := entry.DisplayName
@@ -262,14 +285,12 @@ func renderEntry(entry listEntry, colorize bool) string {
 		key = "cmd.list.entry.installed"
 	}
 
-	if colorize {
-		if entry.Installed {
-			icon = tui.QuestionStyle.Render(icon)
-		} else {
-			icon = tui.ErrorStyle.Render(icon)
-		}
-		id = tui.PlaceholderStyle.Copy().PaddingLeft(0).Render(id)
+	if entry.Installed {
+		icon = tui.RenderIfColorEnabled(colorMode, tui.QuestionStyle, icon)
+	} else {
+		icon = tui.RenderIfColorEnabled(colorMode, tui.ErrorStyle, icon)
 	}
+	id = tui.RenderIfColorEnabled(colorMode, tui.PlaceholderStyle.Copy().PaddingLeft(0), id)
 
 	message := i18n.T(key, i18n.Tvars{
 		Data: &i18n.TData{
@@ -281,9 +302,9 @@ func renderEntry(entry listEntry, colorize bool) string {
 	return fmt.Sprintf("%s %s", icon, message)
 }
 
-func renderList(ctx context.Context, cmd *cobra.Command, entries []listEntry, view string, deps listDeps, useTUI bool) error {
-	if !useTUI {
-		deps.logger.Log(view, true)
+func renderList(ctx context.Context, cmd *cobra.Command, entries []listEntry, view string, deps listDeps, displayMode listDisplayMode) error {
+	if !displayMode.UseTUI() {
+		deps.logger.Log(view, logger.LogForce)
 		return nil
 	}
 
@@ -297,7 +318,7 @@ func renderList(ctx context.Context, cmd *cobra.Command, entries []listEntry, vi
 	tuiSpan.SetAttributes(attribute.Bool("success", true))
 	tuiSpan.End()
 	if len(entries) == 0 {
-		deps.logger.Log(view, true)
+		deps.logger.Log(view, logger.LogForce)
 	}
 	return nil
 }

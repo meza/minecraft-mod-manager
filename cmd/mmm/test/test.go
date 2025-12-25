@@ -227,11 +227,15 @@ func runTest(ctx context.Context, cmd *cobra.Command, opts testOptions, deps tes
 	if len(cfg.Mods) == 0 {
 		deps.logger.Log(i18n.T("cmd.test.success", i18n.Tvars{
 			Data: &i18n.TData{"version": targetVersion},
-		}), false)
+		}), logger.LogQuiet)
 		return 0, nil
 	}
 
 	colorize := tui.IsTerminalWriter(cmd.OutOrStdout())
+	colorMode := tui.ColorDisabled
+	if colorize {
+		colorMode = tui.ColorEnabled
+	}
 
 	outcomes := collectOutcomes(ctx, cfg, targetVersion, deps)
 	unsupportedMods := logOutcomes(outcomes, deps)
@@ -239,23 +243,23 @@ func runTest(ctx context.Context, cmd *cobra.Command, opts testOptions, deps tes
 	if len(unsupportedMods) > 0 {
 		deps.logger.Log(i18n.T("cmd.test.missing_support_header", i18n.Tvars{
 			Data: &i18n.TData{"version": targetVersion},
-		}), true)
+		}), logger.LogForce)
 
 		for _, unsupported := range unsupportedMods {
-			modEntry := formatMissingModEntry(unsupported.Mod, colorize)
-			deps.logger.Log(modEntry, true)
+			modEntry := formatMissingModEntry(unsupported.Mod, colorMode)
+			deps.logger.Log(modEntry, logger.LogForce)
 		}
 
 		deps.logger.Log(i18n.T("cmd.test.cannot_upgrade", i18n.Tvars{
 			Data: &i18n.TData{"version": targetVersion},
-		}), true)
+		}), logger.LogForce)
 
 		return 1, errUnsupportedMods
 	}
 
 	deps.logger.Log(i18n.T("cmd.test.success", i18n.Tvars{
 		Data: &i18n.TData{"version": targetVersion},
-	}), false)
+	}), logger.LogQuiet)
 	return 0, nil
 }
 
@@ -408,19 +412,15 @@ func fetchFailureDebugEvent(fetchErr error, mod models.Mod, cfg models.ModsJSON,
 	}, true
 }
 
-func formatMissingModEntry(mod models.Mod, colorize bool) string {
-	icon := tui.ErrorIcon(colorize)
+func formatMissingModEntry(mod models.Mod, colorMode tui.ColorMode) string {
+	icon := tui.ErrorIcon(colorMode)
 	name := mod.Name
 	id := mod.ID
 
-	if colorize {
-		// Use PlaceholderStyle color without padding to allow explicit spacing control
-		grayStyle := tui.PlaceholderStyle.UnsetPaddingLeft()
-		idPart := grayStyle.Render(fmt.Sprintf("(%s)", id))
-		return fmt.Sprintf("%s %s %s", icon, name, idPart)
-	}
-
-	return fmt.Sprintf("%s %s (%s)", icon, name, id)
+	// Use PlaceholderStyle color without padding to allow explicit spacing control
+	grayStyle := tui.PlaceholderStyle.UnsetPaddingLeft()
+	idPart := tui.RenderIfColorEnabled(colorMode, grayStyle, fmt.Sprintf("(%s)", id))
+	return fmt.Sprintf("%s %s %s", icon, name, idPart)
 }
 
 func resolveTargetVersion(ctx context.Context, cfg models.ModsJSON, opts testOptions, deps testDeps) (string, int, error) {
@@ -449,7 +449,7 @@ func resolveTargetVersion(ctx context.Context, cfg models.ModsJSON, opts testOpt
 	if targetVersion == cfg.GameVersion {
 		deps.logger.Log(i18n.T("cmd.test.same_version", i18n.Tvars{
 			Data: &i18n.TData{"version": targetVersion},
-		}), true)
+		}), logger.LogForce)
 		// Return exit code 2 via errSameVersion so it propagates through main.go
 		return targetVersion, 2, errSameVersion
 	}

@@ -37,7 +37,7 @@ func TestEnsureConfigAndLock_ReturnsExistingConfigAndLock(t *testing.T) {
 	assert.NoError(t, config.WriteLock(context.Background(), fs, meta, nil))
 
 	setupCoordinator := NewSetupCoordinator(fs, nil, nil)
-	gotCfg, gotLock, err := setupCoordinator.EnsureConfigAndLock(context.Background(), meta, false)
+	gotCfg, gotLock, err := setupCoordinator.EnsureConfigAndLock(context.Background(), meta, EnsureConfigOptions{Quiet: false})
 
 	assert.NoError(t, err)
 	assert.Equal(t, cfg.GameVersion, gotCfg.GameVersion)
@@ -52,7 +52,7 @@ func TestEnsureConfigAndLock_MissingConfigQuietReturnsError(t *testing.T) {
 	assert.NoError(t, fs.MkdirAll(filepath.Dir(meta.ConfigPath), 0755))
 
 	setupCoordinator := NewSetupCoordinator(fs, nil, nil)
-	_, _, err := setupCoordinator.EnsureConfigAndLock(context.Background(), meta, true)
+	_, _, err := setupCoordinator.EnsureConfigAndLock(context.Background(), meta, EnsureConfigOptions{Quiet: true})
 
 	assert.Error(t, err)
 	var notFound *config.ConfigFileNotFoundException
@@ -68,7 +68,7 @@ func TestEnsureConfigAndLock_MissingConfigInteractiveInitializes(t *testing.T) {
 	assert.NoError(t, fs.RemoveAll(meta.ConfigPath))
 
 	setupCoordinator := NewSetupCoordinator(fs, manifestDoer{body: `{"latest":{"release":"1.21.1","snapshot":""},"versions":[]}`}, nil)
-	cfg, lock, err := setupCoordinator.EnsureConfigAndLock(context.Background(), meta, false)
+	cfg, lock, err := setupCoordinator.EnsureConfigAndLock(context.Background(), meta, EnsureConfigOptions{Quiet: false})
 
 	assert.NoError(t, err)
 	assert.Equal(t, "1.21.1", cfg.GameVersion)
@@ -84,7 +84,7 @@ func TestEnsureConfigAndLock_InitConfigFailureReturnsError(t *testing.T) {
 	assert.NoError(t, fs.RemoveAll(meta.ConfigPath))
 
 	setupCoordinator := NewSetupCoordinator(fs, failingDoer{}, nil)
-	_, _, err := setupCoordinator.EnsureConfigAndLock(context.Background(), meta, false)
+	_, _, err := setupCoordinator.EnsureConfigAndLock(context.Background(), meta, EnsureConfigOptions{Quiet: false})
 
 	assert.Error(t, err)
 }
@@ -98,7 +98,7 @@ func TestEnsureConfigAndLock_MissingConfigInteractiveWithoutMinecraftClientRetur
 	assert.NoError(t, fs.RemoveAll(meta.ConfigPath))
 
 	setupCoordinator := NewSetupCoordinator(fs, nil, nil)
-	_, _, err := setupCoordinator.EnsureConfigAndLock(context.Background(), meta, false)
+	_, _, err := setupCoordinator.EnsureConfigAndLock(context.Background(), meta, EnsureConfigOptions{Quiet: false})
 
 	assert.Error(t, err)
 	assert.Contains(t, err.Error(), "minecraftClient")
@@ -111,7 +111,7 @@ func TestEnsureConfigAndLock_InvalidConfigReturnsError(t *testing.T) {
 	assert.NoError(t, afero.WriteFile(fs, meta.ConfigPath, []byte("{not-json"), 0644))
 
 	setupCoordinator := NewSetupCoordinator(fs, nil, nil)
-	_, _, err := setupCoordinator.EnsureConfigAndLock(context.Background(), meta, false)
+	_, _, err := setupCoordinator.EnsureConfigAndLock(context.Background(), meta, EnsureConfigOptions{Quiet: false})
 
 	assert.Error(t, err)
 }
@@ -130,7 +130,7 @@ func TestEnsureConfigAndLock_LockCreateFailureReturnsError(t *testing.T) {
 	assert.NoError(t, config.WriteConfig(context.Background(), fs, meta, cfg))
 
 	setupCoordinator := NewSetupCoordinator(failingRenameFs{Fs: fs, failTarget: meta.LockPath()}, nil, nil)
-	_, _, err := setupCoordinator.EnsureConfigAndLock(context.Background(), meta, false)
+	_, _, err := setupCoordinator.EnsureConfigAndLock(context.Background(), meta, EnsureConfigOptions{Quiet: false})
 
 	assert.Error(t, err)
 }
@@ -354,7 +354,7 @@ func TestEnsurePersisted_AppendsAndWrites(t *testing.T) {
 	assert.NoError(t, config.WriteLock(context.Background(), fs, meta, nil))
 
 	setupCoordinator := NewSetupCoordinator(fs, nil, nil)
-	cfgBefore, lockBefore, err := setupCoordinator.EnsureConfigAndLock(context.Background(), meta, false)
+	cfgBefore, lockBefore, err := setupCoordinator.EnsureConfigAndLock(context.Background(), meta, EnsureConfigOptions{Quiet: false})
 	assert.NoError(t, err)
 
 	remote := platform.RemoteMod{
@@ -468,7 +468,7 @@ func TestEnsurePersisted_ConfigPresentLockMissingAddsLockOnly(t *testing.T) {
 	assert.NoError(t, config.WriteLock(context.Background(), fs, meta, nil))
 
 	setupCoordinator := NewSetupCoordinator(fs, nil, nil)
-	cfgBefore, lockBefore, err := setupCoordinator.EnsureConfigAndLock(context.Background(), meta, false)
+	cfgBefore, lockBefore, err := setupCoordinator.EnsureConfigAndLock(context.Background(), meta, EnsureConfigOptions{Quiet: false})
 	assert.NoError(t, err)
 
 	outcome, err := setupCoordinator.EnsurePersisted(context.Background(), meta, cfgBefore, lockBefore, models.MODRINTH, "abc", platform.RemoteMod{
@@ -513,7 +513,7 @@ func TestEnsurePersisted_LockPresentConfigMissingAddsConfigOnly(t *testing.T) {
 	}))
 
 	setupCoordinator := NewSetupCoordinator(fs, nil, nil)
-	cfgBefore, lockBefore, err := setupCoordinator.EnsureConfigAndLock(context.Background(), meta, false)
+	cfgBefore, lockBefore, err := setupCoordinator.EnsureConfigAndLock(context.Background(), meta, EnsureConfigOptions{Quiet: false})
 	assert.NoError(t, err)
 
 	outcome, err := setupCoordinator.EnsurePersisted(context.Background(), meta, cfgBefore, lockBefore, models.MODRINTH, "abc", platform.RemoteMod{
@@ -815,8 +815,8 @@ func TestValidateRemoteForLock_MissingDownloadURL(t *testing.T) {
 	assert.Error(t, err)
 }
 
-func TestOptionalBool_FalseReturnsNil(t *testing.T) {
-	assert.Nil(t, optionalBool(false))
+func TestAllowVersionFallbackPointer_FalseReturnsNil(t *testing.T) {
+	assert.Nil(t, allowVersionFallbackPointer(EnsurePersistOptions{AllowVersionFallback: false}))
 }
 
 func TestOptionalString_EmptyReturnsNil(t *testing.T) {

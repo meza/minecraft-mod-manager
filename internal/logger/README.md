@@ -10,7 +10,7 @@ It is intentionally not a structured logger. The command layer owns what to log 
 ## Public API
 
 - `New(out io.Writer, err io.Writer, quiet bool, debug bool) *Logger`
-- `(*Logger).Log(message string, forceShow bool)` (suppressed by `quiet` unless `forceShow` or `debug`)
+- `(*Logger).Log(message string, visibility LogVisibility)` (suppressed by `quiet` unless `LogForce` or `debug`)
 - `(*Logger).Debug(message string)` (only prints when `debug` is true)
 - `(*Logger).Error(message string)` and `(*Logger).Errorf(format string, args ...any)` (always prints to stderr)
 

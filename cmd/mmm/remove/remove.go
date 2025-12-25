@@ -135,7 +135,7 @@ func runRemove(ctx context.Context, opts removeOptions, deps removeDeps) (int, e
 		return 0, err
 	}
 
-	lock, err := readLockForRemove(ctx, deps.fs, meta, opts.DryRun)
+	lock, err := readLockForRemove(ctx, deps.fs, meta, removeLockOptions{dryRun: opts.DryRun})
 	if err != nil {
 		return 0, err
 	}
@@ -146,7 +146,7 @@ func runRemove(ctx context.Context, opts removeOptions, deps removeDeps) (int, e
 	}
 
 	if opts.DryRun {
-		deps.logger.Log("Running in dry-run mode. Nothing will actually be removed.", false)
+		deps.logger.Log("Running in dry-run mode. Nothing will actually be removed.", logger.LogQuiet)
 	}
 
 	return removeMatchedMods(ctx, meta, &cfg, &lock, matches, opts, deps)
@@ -169,7 +169,7 @@ func removeMatchedMods(ctx context.Context, meta config.Metadata, cfg *models.Mo
 
 func removeMod(ctx context.Context, meta config.Metadata, cfg *models.ModsJSON, lock *[]models.ModInstall, mod models.Mod, opts removeOptions, deps removeDeps) (bool, error) {
 	if opts.DryRun {
-		deps.logger.Log(fmt.Sprintf("Would have removed %s", mod.Name), false)
+		deps.logger.Log(fmt.Sprintf("Would have removed %s", mod.Name), logger.LogQuiet)
 		return false, nil
 	}
 
@@ -180,7 +180,7 @@ func removeMod(ctx context.Context, meta config.Metadata, cfg *models.ModsJSON, 
 		return false, err
 	}
 
-	deps.logger.Log(fmt.Sprintf("✅ Removed %s", mod.Name), false)
+	deps.logger.Log(fmt.Sprintf("✅ Removed %s", mod.Name), logger.LogQuiet)
 	return true, nil
 }
 
@@ -219,8 +219,12 @@ func removeConfigEntry(ctx context.Context, meta config.Metadata, cfg *models.Mo
 	return config.WriteConfig(ctx, deps.fs, meta, *cfg)
 }
 
-func readLockForRemove(ctx context.Context, fs afero.Fs, meta config.Metadata, dryRun bool) ([]models.ModInstall, error) {
-	if !dryRun {
+type removeLockOptions struct {
+	dryRun bool
+}
+
+func readLockForRemove(ctx context.Context, fs afero.Fs, meta config.Metadata, options removeLockOptions) ([]models.ModInstall, error) {
+	if !options.dryRun {
 		return config.EnsureLock(ctx, fs, meta)
 	}
 

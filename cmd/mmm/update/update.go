@@ -205,13 +205,17 @@ func runUpdate(ctx context.Context, cmd *cobra.Command, opts updateOptions, deps
 	}
 
 	colorize := tui.IsTerminalWriter(cmd.OutOrStdout())
+	colorMode := tui.ColorDisabled
+	if colorize {
+		colorMode = tui.ColorEnabled
+	}
 
 	candidates := updateCandidates(cfg)
-	outcomes := processCandidates(ctx, meta, cfg, lock, candidates, deps, colorize)
+	outcomes := processCandidates(ctx, meta, cfg, lock, candidates, deps, colorMode)
 	counts := applyUpdateOutcomes(deps.logger, outcomes, &cfg, lock)
 
 	if counts.updated == 0 && counts.failed == 0 {
-		deps.logger.Log(messageWithIcon(tui.SuccessIcon(colorize), i18n.T("cmd.update.no_updates")), true)
+		deps.logger.Log(messageWithIcon(tui.SuccessIcon(colorMode), i18n.T("cmd.update.no_updates")), logger.LogForce)
 	}
 
 	if err := config.WriteLock(ctx, deps.fs, meta, lock); err != nil {
@@ -239,7 +243,7 @@ func updateCandidates(cfg models.ModsJSON) []modUpdateCandidate {
 	return candidates
 }
 
-func processCandidates(ctx context.Context, meta config.Metadata, cfg models.ModsJSON, lock []models.ModInstall, candidates []modUpdateCandidate, deps updateDeps, colorize bool) []modUpdateOutcome {
+func processCandidates(ctx context.Context, meta config.Metadata, cfg models.ModsJSON, lock []models.ModInstall, candidates []modUpdateCandidate, deps updateDeps, colorMode tui.ColorMode) []modUpdateOutcome {
 	results := make(chan modUpdateOutcome, len(candidates))
 	var waitGroup sync.WaitGroup
 
@@ -248,7 +252,7 @@ func processCandidates(ctx context.Context, meta config.Metadata, cfg models.Mod
 		waitGroup.Add(1)
 		go func() {
 			defer waitGroup.Done()
-			results <- processMod(ctx, meta, cfg, lock, candidate, deps, colorize)
+			results <- processMod(ctx, meta, cfg, lock, candidate, deps, colorMode)
 		}()
 	}
 
@@ -269,7 +273,11 @@ func applyUpdateOutcomes(log *logger.Logger, outcomes []modUpdateOutcome, cfg *m
 		for _, event := range outcome.LogEvents {
 			switch event.Kind {
 			case logEventKindLog:
-				log.Log(event.Message, event.ForceShow)
+				visibility := logger.LogQuiet
+				if event.ForceShow {
+					visibility = logger.LogForce
+				}
+				log.Log(event.Message, visibility)
 			case logEventKindError:
 				log.Error(event.Message)
 			case logEventKindDebug:
@@ -306,7 +314,7 @@ func processMod(
 	lock []models.ModInstall,
 	candidate modUpdateCandidate,
 	deps updateDeps,
-	colorize bool,
+	colorMode tui.ColorMode,
 ) modUpdateOutcome {
 	mod := candidate.Mod
 
@@ -353,7 +361,7 @@ func processMod(
 		FixedVersion:        "",
 	}, deps.clients)
 	if fetchErr != nil {
-		outcome.LogEvents = append(outcome.LogEvents, fetchErrorEvents(fetchErr, mod, colorize)...)
+		outcome.LogEvents = append(outcome.LogEvents, fetchErrorEvents(fetchErr, mod, colorMode)...)
 		outcome.Error = errUpdateFailures
 		return outcome
 	}
@@ -714,13 +722,13 @@ func downloadClient(clients platform.Clients) httpclient.Doer {
 	return clients.Modrinth
 }
 
-func expectedFetchErrorEvent(err error, mod models.Mod, colorize bool) (logEvent, bool) {
+func expectedFetchErrorEvent(err error, mod models.Mod, colorMode tui.ColorMode) (logEvent, bool) {
 	var notFound *platform.ModNotFoundError
 	if errors.As(err, &notFound) {
 		return logEvent{
 			Kind:      logEventKindLog,
 			ForceShow: true,
-			Message: messageWithIcon(tui.ErrorIcon(colorize), i18n.T("cmd.update.error.mod_not_found", i18n.Tvars{
+			Message: messageWithIcon(tui.ErrorIcon(colorMode), i18n.T("cmd.update.error.mod_not_found", i18n.Tvars{
 				Data: &i18n.TData{
 					"name":     mod.Name,
 					"id":       mod.ID,
@@ -735,7 +743,7 @@ func expectedFetchErrorEvent(err error, mod models.Mod, colorize bool) (logEvent
 		return logEvent{
 			Kind:      logEventKindLog,
 			ForceShow: true,
-			Message: messageWithIcon(tui.ErrorIcon(colorize), i18n.T("cmd.update.error.no_file", i18n.Tvars{
+			Message: messageWithIcon(tui.ErrorIcon(colorMode), i18n.T("cmd.update.error.no_file", i18n.Tvars{
 				Data: &i18n.TData{
 					"name":     mod.Name,
 					"id":       mod.ID,
@@ -748,12 +756,12 @@ func expectedFetchErrorEvent(err error, mod models.Mod, colorize bool) (logEvent
 	return logEvent{}, false
 }
 
-func fetchErrorEvents(fetchErr error, mod models.Mod, colorize bool) []logEvent {
+func fetchErrorEvents(fetchErr error, mod models.Mod, colorMode tui.ColorMode) []logEvent {
 	if fetchErr == nil {
 		return nil
 	}
 
-	if event, handled := expectedFetchErrorEvent(fetchErr, mod, colorize); handled {
+	if event, handled := expectedFetchErrorEvent(fetchErr, mod, colorMode); handled {
 		return []logEvent{event}
 	}
 

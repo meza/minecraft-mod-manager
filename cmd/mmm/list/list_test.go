@@ -58,7 +58,7 @@ func TestRunListPrintsInstalledAndMissing(t *testing.T) {
 	cmd.SetOut(out)
 	cmd.SetErr(errOut)
 
-	_, _, err := runList(context.Background(), cmd, meta.ConfigPath, false, listDeps{
+	_, _, err := runList(context.Background(), cmd, meta.ConfigPath, runListOptions{quiet: false}, listDeps{
 		fs:        fs,
 		logger:    logger.New(out, errOut, false, false),
 		telemetry: func(telemetry.CommandTelemetry) {},
@@ -101,7 +101,7 @@ func TestRunListLogsInvalidLockFileName(t *testing.T) {
 	cmd.SetOut(out)
 	cmd.SetErr(errOut)
 
-	_, _, err := runList(context.Background(), cmd, meta.ConfigPath, false, listDeps{
+	_, _, err := runList(context.Background(), cmd, meta.ConfigPath, runListOptions{quiet: false}, listDeps{
 		fs:        fs,
 		logger:    logger.New(out, errOut, false, false),
 		telemetry: func(telemetry.CommandTelemetry) {},
@@ -122,7 +122,7 @@ func TestRenderListViewReturnsEmptyOnWriteError(t *testing.T) {
 
 	output := renderListView([]listEntry{
 		{ID: "mod-a", DisplayName: "Mod A"},
-	}, false)
+	}, tui.ColorDisabled)
 
 	assert.Equal(t, "", output)
 }
@@ -143,7 +143,7 @@ func TestRenderListViewReturnsEmptyOnNewlineWriteError(t *testing.T) {
 
 	output := renderListView([]listEntry{
 		{ID: "mod-a", DisplayName: "Mod A"},
-	}, false)
+	}, tui.ColorDisabled)
 
 	assert.Equal(t, "", output)
 }
@@ -164,7 +164,7 @@ func TestRenderListViewReturnsEmptyOnEntryWriteError(t *testing.T) {
 
 	output := renderListView([]listEntry{
 		{ID: "mod-a", DisplayName: "Mod A"},
-	}, false)
+	}, tui.ColorDisabled)
 
 	assert.Equal(t, "", output)
 }
@@ -196,7 +196,7 @@ func TestRunListMissingLockTreatsAllAsNotInstalled(t *testing.T) {
 	cmd.SetOut(out)
 	cmd.SetErr(errOut)
 
-	_, _, err := runList(context.Background(), cmd, meta.ConfigPath, false, listDeps{
+	_, _, err := runList(context.Background(), cmd, meta.ConfigPath, runListOptions{quiet: false}, listDeps{
 		fs:        fs,
 		logger:    logger.New(out, errOut, false, false),
 		telemetry: func(telemetry.CommandTelemetry) {},
@@ -238,7 +238,7 @@ func TestRunListInvalidLockErrors(t *testing.T) {
 	cmd.SetOut(out)
 	cmd.SetErr(errOut)
 
-	_, _, err := runList(context.Background(), cmd, meta.ConfigPath, false, listDeps{
+	_, _, err := runList(context.Background(), cmd, meta.ConfigPath, runListOptions{quiet: false}, listDeps{
 		fs:        fs,
 		logger:    logger.New(out, errOut, false, false),
 		telemetry: func(telemetry.CommandTelemetry) {},
@@ -263,7 +263,7 @@ func TestRunListInvalidConfigErrors(t *testing.T) {
 	cmd.SetOut(out)
 	cmd.SetErr(errOut)
 
-	_, _, err := runList(context.Background(), cmd, meta.ConfigPath, false, listDeps{
+	_, _, err := runList(context.Background(), cmd, meta.ConfigPath, runListOptions{quiet: false}, listDeps{
 		fs:        fs,
 		logger:    logger.New(out, errOut, false, false),
 		telemetry: func(telemetry.CommandTelemetry) {},
@@ -296,7 +296,7 @@ func TestRunListShowsEmptyMessageWhenNoMods(t *testing.T) {
 	cmd.SetOut(out)
 	cmd.SetErr(errOut)
 
-	_, _, err := runList(context.Background(), cmd, meta.ConfigPath, false, listDeps{
+	_, _, err := runList(context.Background(), cmd, meta.ConfigPath, runListOptions{quiet: false}, listDeps{
 		fs:        fs,
 		logger:    logger.New(out, errOut, false, false),
 		telemetry: func(telemetry.CommandTelemetry) {},
@@ -334,7 +334,7 @@ func TestRunListQuietStillPrints(t *testing.T) {
 	cmd.SetOut(out)
 	cmd.SetErr(errOut)
 
-	_, _, err := runList(context.Background(), cmd, meta.ConfigPath, true, listDeps{
+	_, _, err := runList(context.Background(), cmd, meta.ConfigPath, runListOptions{quiet: true}, listDeps{
 		fs:        fs,
 		logger:    logger.New(out, errOut, true, false),
 		telemetry: func(telemetry.CommandTelemetry) {},
@@ -426,7 +426,7 @@ func TestRunListTuiProgramRunnerError(t *testing.T) {
 	cmd.SetOut(fakeTTY{Buffer: &bytes.Buffer{}})
 	cmd.SetErr(errOut)
 
-	_, usedTUI, err := runList(context.Background(), cmd, meta.ConfigPath, false, listDeps{
+	_, usedTUI, err := runList(context.Background(), cmd, meta.ConfigPath, runListOptions{quiet: false}, listDeps{
 		fs:        fs,
 		logger:    logger.New(out, errOut, false, false),
 		telemetry: func(telemetry.CommandTelemetry) {},
@@ -464,7 +464,7 @@ func TestRunListTuiLogsEmptyView(t *testing.T) {
 	cmd.SetOut(fakeTTY{Buffer: &bytes.Buffer{}})
 	cmd.SetErr(errOut)
 
-	entriesCount, usedTUI, err := runList(context.Background(), cmd, meta.ConfigPath, false, listDeps{
+	entriesCount, usedTUI, err := runList(context.Background(), cmd, meta.ConfigPath, runListOptions{quiet: false}, listDeps{
 		fs:            fs,
 		logger:        logger.New(out, errOut, false, false),
 		telemetry:     func(telemetry.CommandTelemetry) {},
@@ -502,7 +502,7 @@ func TestRunListUsesDefaultProgramRunner(t *testing.T) {
 
 	out := &bytes.Buffer{}
 
-	_, usedTUI, err := runList(context.Background(), cmd, meta.ConfigPath, false, listDeps{
+	_, usedTUI, err := runList(context.Background(), cmd, meta.ConfigPath, runListOptions{quiet: false}, listDeps{
 		fs:            fs,
 		logger:        logger.New(out, &bytes.Buffer{}, false, false),
 		telemetry:     func(telemetry.CommandTelemetry) {},

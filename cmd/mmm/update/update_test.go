@@ -19,6 +19,7 @@ import (
 	"github.com/meza/minecraft-mod-manager/internal/modpath"
 	"github.com/meza/minecraft-mod-manager/internal/platform"
 	"github.com/meza/minecraft-mod-manager/internal/telemetry"
+	"github.com/meza/minecraft-mod-manager/internal/tui"
 	"github.com/spf13/afero"
 	"github.com/spf13/cobra"
 	"github.com/stretchr/testify/assert"
@@ -298,6 +299,8 @@ func TestRunUpdateReturnsErrorWhenInstallFails(t *testing.T) {
 
 func TestRunUpdateSkipsPinnedModsWithoutNetwork(t *testing.T) {
 	t.Setenv("MMM_TEST", "true")
+	restore := tui.SetIsTerminalFuncForTesting(func(_ int) bool { return true })
+	defer restore()
 
 	fs := afero.NewMemMapFs()
 	meta := config.NewMetadata(filepath.FromSlash("/cfg/modlist.json"))
@@ -335,7 +338,7 @@ func TestRunUpdateSkipsPinnedModsWithoutNetwork(t *testing.T) {
 	errOut := &bytes.Buffer{}
 	cmd := &cobra.Command{}
 	cmd.SetIn(&bytes.Buffer{})
-	cmd.SetOut(out)
+	cmd.SetOut(fakeTTYWriter{Buffer: out})
 	cmd.SetErr(errOut)
 
 	counts, err := runUpdate(context.Background(), cmd, updateOptions{ConfigPath: meta.ConfigPath}, updateDeps{
@@ -1935,7 +1938,7 @@ func TestProcessModReturnsErrorOnExistsFailure(t *testing.T) {
 				DownloadURL: "https://example.invalid/mod.jar",
 			}, nil
 		},
-	}, false)
+	}, tui.ColorDisabled)
 
 	assert.Error(t, outcome.Error)
 }
@@ -1973,7 +1976,7 @@ func TestProcessModReturnsUnchangedWhenHashMatches(t *testing.T) {
 				DownloadURL: "https://example.invalid/mod.jar",
 			}, nil
 		},
-	}, false)
+	}, tui.ColorDisabled)
 
 	assert.False(t, outcome.Updated)
 	assert.Empty(t, outcome.NewInstall.FileName)
@@ -1991,6 +1994,12 @@ func TestIntegrityErrorMessage_SymlinkOutsideMods(t *testing.T) {
 	assert.Contains(t, message, outsidePath)
 	assert.Contains(t, message, rootPath)
 }
+
+type fakeTTYWriter struct {
+	*bytes.Buffer
+}
+
+func (writer fakeTTYWriter) Fd() uintptr { return 1 }
 
 type renameOnNewErrorFs struct {
 	afero.Fs

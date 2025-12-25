@@ -10,6 +10,7 @@ import (
 
 	"github.com/meza/minecraft-mod-manager/internal/models"
 	"github.com/meza/minecraft-mod-manager/internal/perf"
+	"github.com/meza/minecraft-mod-manager/internal/tui"
 )
 
 func TestListViewSnapshot(t *testing.T) {
@@ -20,7 +21,7 @@ func TestListViewSnapshot(t *testing.T) {
 		{DisplayName: "Beta Mod", ID: "mod-b", Platform: models.CURSEFORGE, Installed: false},
 	}
 
-	view := renderListView(entries, true)
+	view := renderListView(entries, tui.ColorEnabled)
 	snaps.MatchSnapshot(t, view)
 }
 

@@ -530,6 +530,44 @@ func TestRunInitInteractiveErrorPropagates(t *testing.T) {
 	assert.True(t, didUseTUI)
 }
 
+func TestRunInitQuietSkipsInteractiveFlow(t *testing.T) {
+	minecraft.ClearManifestCache()
+	restoreTTY := tui.SetIsTerminalFuncForTesting(func(int) bool { return true })
+	t.Cleanup(restoreTTY)
+
+	fs := afero.NewMemMapFs()
+	meta := config.NewMetadata(filepath.FromSlash("/cfg/modlist.json"))
+	assert.NoError(t, fs.MkdirAll(filepath.FromSlash("/cfg/mods"), 0755))
+
+	in := fakeTTYReader{Reader: bytes.NewReader(nil)}
+	out := &fakeTTYWriter{}
+
+	cmd := &cobra.Command{}
+	cmd.SetIn(in)
+	cmd.SetOut(out)
+	cmd.SetErr(out)
+
+	_, didUseTUI, err := runInit(context.Background(), cmd, initOptions{
+		ConfigPath:   meta.ConfigPath,
+		Loader:       models.FABRIC,
+		GameVersion:  "1.21.1",
+		ReleaseTypes: []models.ReleaseType{models.Release},
+		ModsFolder:   "mods",
+		Quiet:        true,
+		Provided: providedFlags{
+			Loader:       true,
+			GameVersion:  true,
+			ReleaseTypes: true,
+			ModsFolder:   true,
+		},
+	}, initDeps{
+		fs:              fs,
+		minecraftClient: manifestDoer([]string{"1.21.1"}),
+	}, meta)
+	assert.NoError(t, err)
+	assert.False(t, didUseTUI)
+}
+
 func TestRunInteractiveInitWithLaunchFlagUsesDefaultProgram(t *testing.T) {
 	minecraft.ClearManifestCache()
 

@@ -8,10 +8,11 @@ If you are implementing or changing an interactive command, this package is usua
 
 The CLI tries hard to avoid "half a TUI" when input/output are not terminals (CI, pipes, redirected output).
 
-- `ShouldUseTUI(quiet bool, in io.Reader, out io.Writer) bool`
+- `ShouldUseTUI(quietMode QuietMode, in io.Reader, out io.Writer) bool`
 - `ProgramOptions(in io.Reader, out io.Writer) []tea.ProgramOption`
 
 `ProgramOptions` disables Bubble Tea's renderer when no terminal is present.
+Use `QuietEnabled` to disable TUI selection when the command is running in quiet mode.
 
 For tests that need deterministic behavior across platforms:
 

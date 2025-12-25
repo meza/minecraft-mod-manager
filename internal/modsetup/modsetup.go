@@ -35,8 +35,12 @@ func NewSetupCoordinator(fs afero.Fs, minecraftClient httpclient.Doer, downloade
 	}
 }
 
-func (coordinator *SetupCoordinator) EnsureConfigAndLock(ctx context.Context, meta config.Metadata, quiet bool) (models.ModsJSON, []models.ModInstall, error) {
-	cfg, err := coordinator.ensureConfig(ctx, meta, quiet)
+type EnsureConfigOptions struct {
+	Quiet bool
+}
+
+func (coordinator *SetupCoordinator) EnsureConfigAndLock(ctx context.Context, meta config.Metadata, options EnsureConfigOptions) (models.ModsJSON, []models.ModInstall, error) {
+	cfg, err := coordinator.ensureConfig(ctx, meta, options)
 	if err != nil {
 		return models.ModsJSON{}, nil, err
 	}
@@ -118,7 +122,7 @@ func (coordinator *SetupCoordinator) EnsurePersisted(ctx context.Context, meta c
 			Type:                 resolvedPlatform,
 			ID:                   resolvedID,
 			Name:                 remote.Name,
-			AllowVersionFallback: optionalBool(options.AllowVersionFallback),
+			AllowVersionFallback: allowVersionFallbackPointer(options),
 			Version:              optionalString(options.Version),
 		})
 		result.ConfigAdded = true
@@ -179,7 +183,7 @@ func (coordinator *SetupCoordinator) UpsertConfigAndLock(cfg models.ModsJSON, lo
 			Type:                 resolvedPlatform,
 			ID:                   resolvedID,
 			Name:                 remote.Name,
-			AllowVersionFallback: optionalBool(options.AllowVersionFallback),
+			AllowVersionFallback: allowVersionFallbackPointer(options),
 			Version:              optionalString(options.Version),
 		})
 		result.ConfigAdded = true
@@ -217,14 +221,15 @@ func ModExists(cfg models.ModsJSON, platform models.Platform, projectID string) 
 	return false
 }
 
-func optionalBool(value bool) *bool {
-	if !value {
+func allowVersionFallbackPointer(options EnsurePersistOptions) *bool {
+	if !options.AllowVersionFallback {
 		return nil
 	}
+	value := options.AllowVersionFallback
 	return &value
 }
 
-func (coordinator *SetupCoordinator) ensureConfig(ctx context.Context, meta config.Metadata, quiet bool) (models.ModsJSON, error) {
+func (coordinator *SetupCoordinator) ensureConfig(ctx context.Context, meta config.Metadata, options EnsureConfigOptions) (models.ModsJSON, error) {
 	cfg, err := config.ReadConfig(ctx, coordinator.fs, meta)
 	if err == nil {
 		return cfg, nil
@@ -234,7 +239,7 @@ func (coordinator *SetupCoordinator) ensureConfig(ctx context.Context, meta conf
 	if !errors.As(err, &notFound) {
 		return models.ModsJSON{}, err
 	}
-	if quiet {
+	if options.Quiet {
 		return models.ModsJSON{}, err
 	}
 	if coordinator.minecraftClient == nil {

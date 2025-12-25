@@ -22,21 +22,21 @@ func TestShouldUseTUIHonorsQuiet(t *testing.T) {
 	restore := mockTerminalDetection(t, true)
 	defer restore()
 
-	assert.False(t, ShouldUseTUI(true, fakeReader{}, fakeWriter{}))
+	assert.False(t, ShouldUseTUI(QuietEnabled, fakeReader{}, fakeWriter{}))
 }
 
 func TestShouldUseTUIRequiresTerminal(t *testing.T) {
 	restore := mockTerminalDetection(t, false)
 	defer restore()
 
-	assert.False(t, ShouldUseTUI(false, fakeReader{}, fakeWriter{}))
+	assert.False(t, ShouldUseTUI(QuietDisabled, fakeReader{}, fakeWriter{}))
 }
 
 func TestShouldUseTUIWhenTerminal(t *testing.T) {
 	restore := mockTerminalDetection(t, true)
 	defer restore()
 
-	assert.True(t, ShouldUseTUI(false, fakeReader{}, fakeWriter{}))
+	assert.True(t, ShouldUseTUI(QuietDisabled, fakeReader{}, fakeWriter{}))
 }
 
 func TestProgramOptionsDisablesRendererWithoutTerminal(t *testing.T) {

@@ -21,7 +21,7 @@ func TestLoggerLogQuietSuppresses(t *testing.T) {
 	var stderr bytes.Buffer
 
 	logger := New(&stdout, &stderr, true, false)
-	logger.Log("hello world", false)
+	logger.Log("hello world", LogQuiet)
 
 	assert.Empty(t, stdout.String())
 	assert.Empty(t, stderr.String())
@@ -32,7 +32,7 @@ func TestLoggerLogForceShowBypassesQuiet(t *testing.T) {
 	var stderr bytes.Buffer
 
 	logger := New(&stdout, &stderr, true, false)
-	logger.Log("hello world", true)
+	logger.Log("hello world", LogForce)
 
 	assert.Equal(t, "hello world\n", stdout.String())
 	assert.Empty(t, stderr.String())
@@ -43,7 +43,7 @@ func TestLoggerLogBypassesQuietWhenDebugEnabled(t *testing.T) {
 	var stderr bytes.Buffer
 
 	logger := New(&stdout, &stderr, true, true)
-	logger.Log("hello world", false)
+	logger.Log("hello world", LogQuiet)
 
 	assert.Equal(t, "hello world\n", stdout.String())
 	assert.Empty(t, stderr.String())
@@ -100,7 +100,7 @@ func TestLoggerHandlesWriterErrors(t *testing.T) {
 
 	logger := New(logWriter, errWriter, false, true)
 
-	assert.NotPanics(t, func() { logger.Log("hello world", true) })
+	assert.NotPanics(t, func() { logger.Log("hello world", LogForce) })
 	assert.NotPanics(t, func() { logger.Debug("hello debug") })
 	assert.NotPanics(t, func() { logger.Error("bad thing") })
 	assert.NotPanics(t, func() { logger.Errorf("bad %s", "thing") })

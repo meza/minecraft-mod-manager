@@ -210,7 +210,7 @@ func runScan(ctx context.Context, cmd *cobra.Command, opts scanOptions, deps sca
 	meta := config.NewMetadata(opts.ConfigPath)
 	setupCoordinator := modsetup.NewSetupCoordinator(deps.fs, deps.minecraftClient, nil)
 
-	cfg, lock, err := setupCoordinator.EnsureConfigAndLock(ctx, meta, opts.Quiet)
+	cfg, lock, err := setupCoordinator.EnsureConfigAndLock(ctx, meta, modsetup.EnsureConfigOptions{Quiet: opts.Quiet})
 	if err != nil {
 		return scanFailureTelemetry(err), err
 	}
@@ -228,7 +228,7 @@ func runScan(ctx context.Context, cmd *cobra.Command, opts scanOptions, deps sca
 	unmanaged := unmanagedFiles(files, lock)
 
 	if len(unmanaged) == 0 {
-		deps.logger.Log(i18n.T("cmd.scan.all_managed"), false)
+		deps.logger.Log(i18n.T("cmd.scan.all_managed"), logger.LogQuiet)
 		return scanSuccessTelemetryWithoutArgs(), nil
 	}
 
@@ -247,7 +247,7 @@ func runScan(ctx context.Context, cmd *cobra.Command, opts scanOptions, deps sca
 
 	if shouldPersist {
 		if len(unsure) > 0 {
-			deps.logger.Log(i18n.T("cmd.scan.persist_skipped_unsure"), false)
+			deps.logger.Log(i18n.T("cmd.scan.persist_skipped_unsure"), logger.LogQuiet)
 			return scanSuccessTelemetry(preferPlatform, opts.Add), nil
 		}
 
@@ -256,7 +256,7 @@ func runScan(ctx context.Context, cmd *cobra.Command, opts scanOptions, deps sca
 			return scanFailureTelemetry(err), err
 		}
 		if persisted {
-			deps.logger.Log(i18n.T("cmd.scan.persisted"), false)
+			deps.logger.Log(i18n.T("cmd.scan.persisted"), logger.LogQuiet)
 		}
 	}
 
@@ -323,6 +323,10 @@ func confirmPersist(opts scanOptions, deps scanDeps) (bool, error) {
 func persistScanMatches(ctx context.Context, cmd *cobra.Command, meta config.Metadata, setupCoordinator *modsetup.SetupCoordinator, deps scanDeps, matches []scanMatch, cfg models.ModsJSON, lock []models.ModInstall) (bool, error) {
 	changedConfig := false
 	changedLock := false
+	colorMode := tui.ColorDisabled
+	if tui.IsTerminalWriter(cmd.OutOrStdout()) {
+		colorMode = tui.ColorEnabled
+	}
 
 	for _, match := range matches {
 		outcome, err := setupCoordinator.UpsertConfigAndLock(cfg, lock, match.Platform, match.ProjectID, platform.RemoteMod{
@@ -333,9 +337,9 @@ func persistScanMatches(ctx context.Context, cmd *cobra.Command, meta config.Met
 			DownloadURL: match.DownloadURL,
 		}, modsetup.EnsurePersistOptions{})
 		if err != nil {
-			deps.logger.Log(tui.ErrorIcon(tui.IsTerminalWriter(cmd.OutOrStdout()))+i18n.T("cmd.scan.persist_failed", i18n.Tvars{
+			deps.logger.Log(tui.ErrorIcon(colorMode)+i18n.T("cmd.scan.persist_failed", i18n.Tvars{
 				Data: &i18n.TData{"file": match.FileName},
-			}), false)
+			}), logger.LogQuiet)
 			continue
 		}
 
@@ -937,53 +941,53 @@ func alternatePlatform(platform models.Platform) models.Platform {
 }
 
 func printResults(log *logger.Logger, out io.Writer, _ models.Platform, matches []scanMatch, unknown []string, unsure []scanUnsure) {
-	colorize := tui.IsTerminalWriter(out)
+	colorMode := tui.ColorDisabled
+	if tui.IsTerminalWriter(out) {
+		colorMode = tui.ColorEnabled
+	}
 
 	if len(matches) > 0 {
-		log.Log(i18n.T("cmd.scan.recognized.header"), false)
+		log.Log(i18n.T("cmd.scan.recognized.header"), logger.LogQuiet)
 		for _, match := range matches {
-			name := match.Name
-			if colorize {
-				name = tui.TitleStyle.Copy().Bold(true).Render(name)
-			}
-			log.Log(messageWithIcon(tui.SuccessIcon(colorize), i18n.T("cmd.scan.recognized.entry", i18n.Tvars{
+			name := tui.RenderIfColorEnabled(colorMode, tui.TitleStyle.Copy().Bold(true), match.Name)
+			log.Log(messageWithIcon(tui.SuccessIcon(colorMode), i18n.T("cmd.scan.recognized.entry", i18n.Tvars{
 				Data: &i18n.TData{
 					"name":     name,
 					"platform": match.Platform,
 					"id":       match.ProjectID,
 					"file":     match.FileName,
 				},
-			})), false)
+			})), logger.LogQuiet)
 		}
 	}
 
 	if len(unknown) > 0 {
-		log.Log(i18n.T("cmd.scan.unknown.header"), false)
+		log.Log(i18n.T("cmd.scan.unknown.header"), logger.LogQuiet)
 		for _, file := range unknown {
-			log.Log(messageWithIcon(tui.ErrorIcon(colorize), i18n.T("cmd.scan.unknown.entry", i18n.Tvars{
+			log.Log(messageWithIcon(tui.ErrorIcon(colorMode), i18n.T("cmd.scan.unknown.entry", i18n.Tvars{
 				Data: &i18n.TData{"file": filepath.Base(file)},
-			})), false)
+			})), logger.LogQuiet)
 		}
 	}
 
 	if len(unsure) > 0 {
-		log.Log(i18n.T("cmd.scan.unsure.header"), false)
+		log.Log(i18n.T("cmd.scan.unsure.header"), logger.LogQuiet)
 		for _, item := range unsure {
 			reason := "unknown error"
 			if item.Error != nil {
 				reason = item.Error.Error()
 			}
-			log.Log(messageWithIcon(tui.ErrorIcon(colorize), i18n.T("cmd.scan.unsure.entry_with_reason", i18n.Tvars{
+			log.Log(messageWithIcon(tui.ErrorIcon(colorMode), i18n.T("cmd.scan.unsure.entry_with_reason", i18n.Tvars{
 				Data: &i18n.TData{
 					"file":   filepath.Base(item.Path),
 					"reason": reason,
 				},
-			})), false)
+			})), logger.LogQuiet)
 		}
 	}
 
 	if len(matches) == 0 && len(unknown) == 0 && len(unsure) == 0 {
-		log.Log(i18n.T("cmd.scan.no_results"), false)
+		log.Log(i18n.T("cmd.scan.no_results"), logger.LogQuiet)
 	}
 }
 

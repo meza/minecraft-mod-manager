@@ -22,9 +22,11 @@ import (
 	"github.com/meza/minecraft-mod-manager/internal/logger"
 	"github.com/meza/minecraft-mod-manager/internal/models"
 	"github.com/meza/minecraft-mod-manager/internal/modrinth"
+	"github.com/meza/minecraft-mod-manager/internal/modsetup"
 	"github.com/meza/minecraft-mod-manager/internal/platform"
 	"github.com/meza/minecraft-mod-manager/internal/tui"
 	"github.com/spf13/afero"
+	"github.com/spf13/cobra"
 	"github.com/stretchr/testify/assert"
 )
 
@@ -935,6 +937,34 @@ func TestSummarizePlatformFailureWithNilError(t *testing.T) {
 	summary := summarizePlatformFailure(nil, models.CURSEFORGE)
 	assert.Contains(t, summary.Reason, "cmd.platform.error.reason.unknown")
 	assert.Equal(t, "", summary.DebugDetails)
+}
+
+func TestPersistScanMatchesLogsColorizedErrors(t *testing.T) {
+	restore := tui.SetIsTerminalFuncForTesting(func(_ int) bool { return true })
+	defer restore()
+
+	fs := afero.NewMemMapFs()
+	meta := config.NewMetadata(filepath.FromSlash("/cfg/modlist.json"))
+	cfg := models.ModsJSON{ModsFolder: "mods"}
+	lock := []models.ModInstall{}
+	setupCoordinator := modsetup.NewSetupCoordinator(fs, nil, nil)
+
+	out := &bytes.Buffer{}
+	errOut := &bytes.Buffer{}
+	cmd := &cobra.Command{}
+	cmd.SetOut(fakeTTY{Buffer: out})
+
+	deps := scanDeps{
+		fs:     fs,
+		logger: logger.New(out, errOut, false, false),
+	}
+
+	persisted, err := persistScanMatches(context.Background(), cmd, meta, setupCoordinator, deps, []scanMatch{
+		{Platform: models.MODRINTH, ProjectID: "abc", FileName: "bad.jar"},
+	}, cfg, lock)
+	assert.NoError(t, err)
+	assert.False(t, persisted)
+	assert.Contains(t, out.String(), "bad.jar")
 }
 
 type statErrorFs struct {
