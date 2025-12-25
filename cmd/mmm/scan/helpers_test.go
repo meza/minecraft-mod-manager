@@ -12,6 +12,7 @@ import (
 	"path/filepath"
 	"strings"
 	"sync"
+	"sync/atomic"
 	"testing"
 	"time"
 
@@ -653,6 +654,109 @@ func TestLookupModrinthCachesProjectTitles(t *testing.T) {
 	assert.Empty(t, misses)
 	assert.Empty(t, unsure)
 	assert.Equal(t, 1, titleCalls)
+}
+
+func TestModrinthTitleCacheReusesCachedTitle(t *testing.T) {
+	cache := newModrinthTitleCache()
+	var titleCalls atomic.Int32
+
+	deps := scanDeps{
+		modrinthProjectTitle: func(context.Context, string, httpclient.Doer) (string, error) {
+			titleCalls.Add(1)
+			return "Example", nil
+		},
+	}
+
+	title, err := cachedModrinthTitle(context.Background(), "proj-1", deps, cache)
+	assert.NoError(t, err)
+	assert.Equal(t, "Example", title)
+
+	title, err = cachedModrinthTitle(context.Background(), "proj-1", deps, cache)
+	assert.NoError(t, err)
+	assert.Equal(t, "Example", title)
+	assert.Equal(t, int32(1), titleCalls.Load())
+}
+
+func TestModrinthTitleCacheWaitsForInflightFetch(t *testing.T) {
+	cache := newModrinthTitleCache()
+	started := make(chan struct{})
+	secondReady := make(chan struct{})
+	finish := make(chan struct{})
+	var titleCalls atomic.Int32
+
+	deps := scanDeps{
+		modrinthProjectTitle: func(context.Context, string, httpclient.Doer) (string, error) {
+			titleCalls.Add(1)
+			close(started)
+			<-finish
+			return "Example", nil
+		},
+	}
+
+	var wg sync.WaitGroup
+	wg.Add(2)
+
+	results := make([]string, 2)
+	errors := make([]error, 2)
+
+	go func() {
+		defer wg.Done()
+		results[0], errors[0] = cachedModrinthTitle(context.Background(), "proj-1", deps, cache)
+	}()
+
+	go func() {
+		defer wg.Done()
+		<-started
+		close(secondReady)
+		results[1], errors[1] = cachedModrinthTitle(context.Background(), "proj-1", deps, cache)
+	}()
+
+	<-secondReady
+	close(finish)
+	wg.Wait()
+
+	assert.Equal(t, int32(1), titleCalls.Load())
+	assert.Equal(t, "Example", results[0])
+	assert.Equal(t, "Example", results[1])
+	assert.NoError(t, errors[0])
+	assert.NoError(t, errors[1])
+}
+
+func TestModrinthTitleCacheReturnsContextErrorWhileWaiting(t *testing.T) {
+	cache := newModrinthTitleCache()
+	started := make(chan struct{})
+	finish := make(chan struct{})
+
+	deps := scanDeps{
+		modrinthProjectTitle: func(context.Context, string, httpclient.Doer) (string, error) {
+			close(started)
+			<-finish
+			return "Example", nil
+		},
+	}
+
+	var wg sync.WaitGroup
+	wg.Add(1)
+	firstErr := make(chan error, 1)
+
+	go func() {
+		defer wg.Done()
+		_, err := cachedModrinthTitle(context.Background(), "proj-1", deps, cache)
+		firstErr <- err
+	}()
+
+	<-started
+
+	ctx, cancel := context.WithCancel(context.Background())
+	cancel()
+
+	title, err := cachedModrinthTitle(ctx, "proj-1", deps, cache)
+	assert.Empty(t, title)
+	assert.ErrorIs(t, err, context.Canceled)
+
+	close(finish)
+	wg.Wait()
+	assert.NoError(t, <-firstErr)
 }
 
 func TestLookupModrinthProjectTitleErrorAddsUnsure(t *testing.T) {

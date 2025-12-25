@@ -527,8 +527,7 @@ func lookupOnPlatform(ctx context.Context, candidates []scanCandidate, platformV
 
 func lookupModrinth(ctx context.Context, candidates []scanCandidate, deps scanDeps) ([]scanMatch, []scanCandidate, map[string]error) {
 	results := make([]modrinthLookupResult, len(candidates))
-	titleCache := make(map[string]string)
-	var titleMu sync.Mutex
+	titleCache := newModrinthTitleCache()
 
 	group, groupCtx := errgroup.WithContext(ctx)
 	group.SetLimit(4)
@@ -539,7 +538,7 @@ func lookupModrinth(ctx context.Context, candidates []scanCandidate, deps scanDe
 			if err := groupCtx.Err(); err != nil {
 				return err
 			}
-			results[i] = lookupModrinthCandidate(groupCtx, candidates[i], deps, titleCache, &titleMu)
+			results[i] = lookupModrinthCandidate(groupCtx, candidates[i], deps, titleCache)
 			return nil
 		})
 	}
@@ -556,7 +555,7 @@ type modrinthLookupResult struct {
 	miss  bool
 }
 
-func lookupModrinthCandidate(ctx context.Context, candidate scanCandidate, deps scanDeps, titleCache map[string]string, titleMu *sync.Mutex) modrinthLookupResult {
+func lookupModrinthCandidate(ctx context.Context, candidate scanCandidate, deps scanDeps, titleCache *modrinthTitleCache) modrinthLookupResult {
 	version, err := deps.modrinthVersionForSha(ctx, candidate.Sha1, deps.clients.Modrinth)
 	if err != nil {
 		var notFound *modrinth.VersionNotFoundError
@@ -567,7 +566,7 @@ func lookupModrinthCandidate(ctx context.Context, candidate scanCandidate, deps 
 	}
 
 	projectID := version.ProjectID
-	title, err := cachedModrinthTitle(ctx, projectID, deps, titleCache, titleMu)
+	title, err := cachedModrinthTitle(ctx, projectID, deps, titleCache)
 	if err != nil {
 		return modrinthLookupResult{err: err}
 	}
@@ -589,23 +588,64 @@ func lookupModrinthCandidate(ctx context.Context, candidate scanCandidate, deps 
 	}}
 }
 
-func cachedModrinthTitle(ctx context.Context, projectID string, deps scanDeps, titleCache map[string]string, titleMu *sync.Mutex) (string, error) {
-	titleMu.Lock()
-	title, ok := titleCache[projectID]
-	titleMu.Unlock()
-	if ok {
+type modrinthTitleFetch struct {
+	ready chan struct{}
+	title string
+	err   error
+}
+
+type modrinthTitleCache struct {
+	mu       sync.Mutex
+	titles   map[string]string
+	inflight map[string]*modrinthTitleFetch
+}
+
+func newModrinthTitleCache() *modrinthTitleCache {
+	return &modrinthTitleCache{
+		titles:   make(map[string]string),
+		inflight: make(map[string]*modrinthTitleFetch),
+	}
+}
+
+func (cache *modrinthTitleCache) get(ctx context.Context, projectID string, deps scanDeps) (string, error) {
+	cache.mu.Lock()
+	if title, ok := cache.titles[projectID]; ok {
+		cache.mu.Unlock()
 		return title, nil
 	}
+	if pending, ok := cache.inflight[projectID]; ok {
+		cache.mu.Unlock()
+		select {
+		case <-pending.ready:
+			cache.mu.Lock()
+			title := pending.title
+			err := pending.err
+			cache.mu.Unlock()
+			return title, err
+		case <-ctx.Done():
+			return "", ctx.Err()
+		}
+	}
+	pending := &modrinthTitleFetch{ready: make(chan struct{})}
+	cache.inflight[projectID] = pending
+	cache.mu.Unlock()
 
 	title, err := deps.modrinthProjectTitle(ctx, projectID, deps.clients.Modrinth)
-	if err != nil {
-		return "", err
-	}
 
-	titleMu.Lock()
-	titleCache[projectID] = title
-	titleMu.Unlock()
-	return title, nil
+	cache.mu.Lock()
+	if err == nil {
+		cache.titles[projectID] = title
+	}
+	pending.title = title
+	pending.err = err
+	delete(cache.inflight, projectID)
+	close(pending.ready)
+	cache.mu.Unlock()
+	return title, err
+}
+
+func cachedModrinthTitle(ctx context.Context, projectID string, deps scanDeps, titleCache *modrinthTitleCache) (string, error) {
+	return titleCache.get(ctx, projectID, deps)
 }
 
 func matchErrorsForCandidates(candidates []scanCandidate, err error) map[string]error {
