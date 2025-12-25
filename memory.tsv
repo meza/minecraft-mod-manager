@@ -585,3 +585,7 @@ date	time	entry
 2025-12-25	17:03	mmm-72: added fetch failure detail logging + formatReleaseTypes tests to restore 100 overage; make coverage/build pass locally.
 2025-12-25	17:12	mmm-72: expanded test assertions to cover full fetch detail payload (version/loader/releases/fixedVersion/allowFallback); make coverage pass.
 2025-12-25	19:11	mmm-72: added ResponseError + clierrors summaries; user-facing platform errors now i18n with filenames (scan/install/update/test) and debug-only technical details; updated tests/i18n, added coverage for new branches; make fmt/coverage/build pass; make lint baseline unchanged.
+2025-12-25	19:55	Checked bd ready and mmm-63.107 dependencies to identify remaining open leaf lint tickets (revive length items mmm-98/104/105/106, mmm-63.106.4, mmm-63.76).
+2025-12-25	20:03	mmm-63.76: replaced deprecated oteltrace.NewNoopTracerProvider with noop.NewTracerProvider in internal/perf/perf.go; go test ./internal/perf before/after; make lint shows staticcheck cleared (other lint categories remain).
+2025-12-25	20:06	mmm-63.76: ran make fmt, make test, make coverage (1002025-12-25	20:06	mmm-63.76: ran make fmt, make test, make coverage (100%), make build after perf noop tracer change; make lint still failing on other ticketed categories.
+2025-12-25	21:15	Closed mmm-63.76 after reviewer approval and Windows verification; staticcheck SA1019 resolved by noop tracer provider change.

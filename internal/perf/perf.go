@@ -10,6 +10,7 @@ import (
 	"go.opentelemetry.io/otel/attribute"
 	"go.opentelemetry.io/otel/sdk/trace"
 	oteltrace "go.opentelemetry.io/otel/trace"
+	"go.opentelemetry.io/otel/trace/noop"
 )
 
 type Config struct {
@@ -41,7 +42,7 @@ func Init(cfg Config) error {
 	globalEnabled = cfg.Enabled
 	if !cfg.Enabled {
 		globalExp = nil
-		otel.SetTracerProvider(oteltrace.NewNoopTracerProvider())
+		otel.SetTracerProvider(noop.NewTracerProvider())
 		return nil
 	}
 
@@ -78,7 +79,7 @@ func Reset() {
 		}
 		globalTP = nil
 	}
-	otel.SetTracerProvider(oteltrace.NewNoopTracerProvider())
+	otel.SetTracerProvider(noop.NewTracerProvider())
 }
 
 func Enabled() bool {
