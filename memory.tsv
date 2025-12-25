@@ -589,3 +589,5 @@ date	time	entry
 2025-12-25	20:03	mmm-63.76: replaced deprecated oteltrace.NewNoopTracerProvider with noop.NewTracerProvider in internal/perf/perf.go; go test ./internal/perf before/after; make lint shows staticcheck cleared (other lint categories remain).
 2025-12-25	20:06	mmm-63.76: ran make fmt, make test, make coverage (1002025-12-25	20:06	mmm-63.76: ran make fmt, make test, make coverage (100%), make build after perf noop tracer change; make lint still failing on other ticketed categories.
 2025-12-25	21:15	Closed mmm-63.76 after reviewer approval and Windows verification; staticcheck SA1019 resolved by noop tracer provider change.
+2025-12-25	21:26	mmm-63.106.4: closed bodyclose warnings in internal/httpclient/httpClient_test.go by closing non-nil responses; suppressed errcheck type-assert on mainDepsValue.Load with rationale; go test ./internal/httpclient and go test . before/after; make fmt/coverage/build pass; make lint still failing on other tickets but no errcheck/bodyclose/nilerr/errorlint.
+2025-12-25	21:41	Closed mmm-63.106.4 after reviewer approval and Windows verification; errcheck/bodyclose cleaned.

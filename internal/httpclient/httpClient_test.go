@@ -273,6 +273,9 @@ func TestRLHTTPClient_DoWithRateLimitError(t *testing.T) {
 
 	response, err := client.Do(request)
 	assert.Error(t, err)
+	if response != nil {
+		assert.NoError(t, response.Body.Close())
+	}
 	assert.Nil(t, response)
 	assert.Contains(t, err.Error(), "rate limit burst exceeded")
 }
@@ -292,6 +295,9 @@ func TestRLHTTPClient_DoWithHTTPClientError(t *testing.T) {
 	request := newRequest(t, "https://example.com")
 	response, err := client.Do(request)
 	assert.Error(t, err)
+	if response != nil {
+		assert.NoError(t, response.Body.Close())
+	}
 	assert.Nil(t, response)
 }
 
@@ -469,6 +475,9 @@ func TestRLHTTPClient_ReturnsTimeoutErrorFromRateLimiter(t *testing.T) {
 	assert.NoError(t, err)
 
 	resp, err := client.Do(req)
+	if resp != nil {
+		assert.NoError(t, resp.Body.Close())
+	}
 	assert.Nil(t, resp)
 	var timeoutErr *TimeoutError
 	assert.ErrorAs(t, err, &timeoutErr)
@@ -488,6 +497,9 @@ func TestRLHTTPClient_WrapsTimeoutErrorFromTransport(t *testing.T) {
 	assert.NoError(t, err)
 
 	resp, err := client.Do(req)
+	if resp != nil {
+		assert.NoError(t, resp.Body.Close())
+	}
 	assert.Nil(t, resp)
 	var timeoutErr *TimeoutError
 	assert.ErrorAs(t, err, &timeoutErr)

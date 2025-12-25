@@ -31,7 +31,7 @@ func init() {
 }
 
 func main() {
-	deps := mainDepsValue.Load().(mainDeps)
+	deps := mainDepsValue.Load().(mainDeps) //nolint:errcheck // atomic.Value enforces consistent type after first Store.
 	mainWithDeps(deps.run, deps.exit)
 }
 
