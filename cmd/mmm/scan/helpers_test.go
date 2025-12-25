@@ -143,10 +143,10 @@ func TestAlternatePlatform(t *testing.T) {
 }
 
 func TestModrinthDownloadDetailsErrors(t *testing.T) {
-	_, _, err := modrinthDownloadDetails(nil)
+	_, err := modrinthDownloadDetails(nil)
 	assert.Error(t, err)
 
-	_, _, err = modrinthDownloadDetails(&modrinth.Version{})
+	_, err = modrinthDownloadDetails(&modrinth.Version{})
 	assert.Error(t, err)
 }
 
@@ -159,10 +159,10 @@ func TestModrinthDownloadDetailsSelectsPrimaryFile(t *testing.T) {
 		},
 	}
 
-	url, published, err := modrinthDownloadDetails(version)
+	downloadInfo, err := modrinthDownloadDetails(version)
 	assert.NoError(t, err)
-	assert.Equal(t, "https://example.invalid/primary.jar", url)
-	assert.Equal(t, "2024-01-02T03:04:05Z", published)
+	assert.Equal(t, "https://example.invalid/primary.jar", downloadInfo.downloadURL)
+	assert.Equal(t, "2024-01-02T03:04:05Z", downloadInfo.publishedAt)
 }
 
 func TestModrinthDownloadDetailsErrorsOnMissingURL(t *testing.T) {
@@ -171,7 +171,7 @@ func TestModrinthDownloadDetailsErrorsOnMissingURL(t *testing.T) {
 		Files:         []modrinth.VersionFile{{URL: ""}},
 	}
 
-	_, _, err := modrinthDownloadDetails(version)
+	_, err := modrinthDownloadDetails(version)
 	assert.Error(t, err)
 }
 

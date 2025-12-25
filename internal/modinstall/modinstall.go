@@ -68,10 +68,12 @@ func NewInstaller(fs afero.Fs, downloader Downloader) *Installer {
 }
 
 func (installer *Installer) EnsureLockedFile(ctx context.Context, meta config.Metadata, cfg models.ModsJSON, install models.ModInstall, downloadClient httpclient.Doer, sender httpclient.Sender) (EnsureResult, error) {
-	normalizedFileName, expectedHash, err := normalizeLockData(install)
+	lockData, err := normalizeLockData(install)
 	if err != nil {
 		return EnsureResult{}, err
 	}
+	normalizedFileName := lockData.normalizedFileName
+	expectedHash := lockData.expectedHash
 	sender = ensureSender(sender)
 
 	modsRoot := meta.ModsFolderPath(cfg)
@@ -117,7 +119,7 @@ func (installer *Installer) ensureDownload(ctx context.Context, url string, dest
 	if err := installer.ensureDownloader(); err != nil {
 		return err
 	}
-	return installer.downloadAndVerify(ctx, url, destination, expectedHash, downloadClient, sender, displayName)
+	return installer.downloadAndVerifyTempFile(ctx, url, destination, expectedHash, downloadClient, sender, displayName)
 }
 
 func (installer *Installer) DownloadAndVerify(ctx context.Context, url string, destination string, expectedHash string, downloadClient httpclient.Doer, sender httpclient.Sender) error {
@@ -128,10 +130,10 @@ func (installer *Installer) DownloadAndVerify(ctx context.Context, url string, d
 	if err := installer.ensureDownloader(); err != nil {
 		return err
 	}
-	return installer.downloadAndVerify(ctx, url, destination, expectedHash, downloadClient, sender, filepath.Base(destination))
+	return installer.downloadAndVerifyTempFile(ctx, url, destination, expectedHash, downloadClient, sender, filepath.Base(destination))
 }
 
-func (installer *Installer) downloadAndVerify(ctx context.Context, url string, destination string, expectedHash string, downloadClient httpclient.Doer, sender httpclient.Sender, displayName string) error {
+func (installer *Installer) downloadAndVerifyTempFile(ctx context.Context, url string, destination string, expectedHash string, downloadClient httpclient.Doer, sender httpclient.Sender, displayName string) error {
 	tempPath, err := installer.createTempFile(destination)
 	if err != nil {
 		return err
@@ -212,22 +214,27 @@ type noopSender struct{}
 
 func (noopSender) Send(msg tea.Msg) { _ = msg }
 
-func normalizeLockData(install models.ModInstall) (string, string, error) {
+type lockNormalization struct {
+	normalizedFileName string
+	expectedHash       string
+}
+
+func normalizeLockData(install models.ModInstall) (lockNormalization, error) {
 	if strings.TrimSpace(install.FileName) == "" {
-		return "", "", errors.New("missing lock fileName")
+		return lockNormalization{}, errors.New("missing lock fileName")
 	}
 	normalizedFileName, err := modfilename.Normalize(install.FileName)
 	if err != nil {
-		return "", "", err
+		return lockNormalization{}, err
 	}
 	if strings.TrimSpace(install.DownloadURL) == "" {
-		return "", "", errors.New("missing lock downloadUrl")
+		return lockNormalization{}, errors.New("missing lock downloadUrl")
 	}
 	expectedHash := strings.TrimSpace(install.Hash)
 	if expectedHash == "" {
-		return "", "", MissingHashError{FileName: install.FileName}
+		return lockNormalization{}, MissingHashError{FileName: install.FileName}
 	}
-	return normalizedFileName, expectedHash, nil
+	return lockNormalization{normalizedFileName: normalizedFileName, expectedHash: expectedHash}, nil
 }
 
 func ensureSender(sender httpclient.Sender) httpclient.Sender {

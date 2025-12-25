@@ -229,7 +229,7 @@ func TestRunUpdateAbortsWhenInstallReportsUnmanagedFiles(t *testing.T) {
 	cmd.SetOut(out)
 	cmd.SetErr(errOut)
 
-	_, _, err := runUpdate(context.Background(), cmd, updateOptions{ConfigPath: meta.ConfigPath}, updateDeps{
+	_, err := runUpdate(context.Background(), cmd, updateOptions{ConfigPath: meta.ConfigPath}, updateDeps{
 		fs:     fs,
 		logger: logger.New(out, errOut, false, false),
 		install: func(context.Context, *cobra.Command, string, bool, bool) (install.Result, error) {
@@ -277,7 +277,7 @@ func TestRunUpdateReturnsErrorWhenInstallFails(t *testing.T) {
 	cmd.SetOut(out)
 	cmd.SetErr(errOut)
 
-	_, _, err := runUpdate(context.Background(), cmd, updateOptions{ConfigPath: meta.ConfigPath}, updateDeps{
+	_, err := runUpdate(context.Background(), cmd, updateOptions{ConfigPath: meta.ConfigPath}, updateDeps{
 		fs:     fs,
 		logger: logger.New(out, errOut, false, false),
 		install: func(context.Context, *cobra.Command, string, bool, bool) (install.Result, error) {
@@ -338,7 +338,7 @@ func TestRunUpdateSkipsPinnedModsWithoutNetwork(t *testing.T) {
 	cmd.SetOut(out)
 	cmd.SetErr(errOut)
 
-	updated, failed, err := runUpdate(context.Background(), cmd, updateOptions{ConfigPath: meta.ConfigPath}, updateDeps{
+	counts, err := runUpdate(context.Background(), cmd, updateOptions{ConfigPath: meta.ConfigPath}, updateDeps{
 		fs:     fs,
 		logger: logger.New(out, errOut, false, false),
 		install: func(context.Context, *cobra.Command, string, bool, bool) (install.Result, error) {
@@ -357,8 +357,8 @@ func TestRunUpdateSkipsPinnedModsWithoutNetwork(t *testing.T) {
 	})
 
 	assert.NoError(t, err)
-	assert.Equal(t, 0, updated)
-	assert.Equal(t, 0, failed)
+	assert.Equal(t, 0, counts.updated)
+	assert.Equal(t, 0, counts.failed)
 
 	updatedCfg, readErr := config.ReadConfig(context.Background(), fs, meta)
 	assert.NoError(t, readErr)
@@ -394,7 +394,7 @@ func TestRunUpdateFailsWhenLockEntryIsMissing(t *testing.T) {
 	cmd.SetOut(out)
 	cmd.SetErr(errOut)
 
-	updated, failed, err := runUpdate(context.Background(), cmd, updateOptions{ConfigPath: meta.ConfigPath}, updateDeps{
+	counts, err := runUpdate(context.Background(), cmd, updateOptions{ConfigPath: meta.ConfigPath}, updateDeps{
 		fs:     fs,
 		logger: logger.New(out, errOut, false, false),
 		install: func(context.Context, *cobra.Command, string, bool, bool) (install.Result, error) {
@@ -412,8 +412,8 @@ func TestRunUpdateFailsWhenLockEntryIsMissing(t *testing.T) {
 	})
 
 	assert.ErrorIs(t, err, errUpdateFailures)
-	assert.Equal(t, 0, updated)
-	assert.Equal(t, 1, failed)
+	assert.Equal(t, 0, counts.updated)
+	assert.Equal(t, 1, counts.failed)
 	assert.Contains(t, errOut.String(), "cmd.update.error.missing_lock_entry")
 }
 
@@ -453,7 +453,7 @@ func TestRunUpdateReturnsNonZeroWhenFetchReturnsExpectedErrors(t *testing.T) {
 	cmd.SetOut(out)
 	cmd.SetErr(errOut)
 
-	updated, failed, err := runUpdate(context.Background(), cmd, updateOptions{ConfigPath: meta.ConfigPath}, updateDeps{
+	counts, err := runUpdate(context.Background(), cmd, updateOptions{ConfigPath: meta.ConfigPath}, updateDeps{
 		fs:     fs,
 		logger: logger.New(out, errOut, false, false),
 		install: func(context.Context, *cobra.Command, string, bool, bool) (install.Result, error) {
@@ -478,8 +478,8 @@ func TestRunUpdateReturnsNonZeroWhenFetchReturnsExpectedErrors(t *testing.T) {
 	})
 
 	assert.ErrorIs(t, err, errUpdateFailures)
-	assert.Equal(t, 0, updated)
-	assert.Equal(t, 2, failed)
+	assert.Equal(t, 0, counts.updated)
+	assert.Equal(t, 2, counts.failed)
 	assert.NotContains(t, out.String(), "cmd.update.no_updates")
 	assert.Contains(t, out.String(), "cmd.update.error.mod_not_found")
 	assert.Contains(t, out.String(), "cmd.update.error.no_file")
@@ -533,7 +533,7 @@ func TestRunUpdateFailsWhenLockedFileIsMissing(t *testing.T) {
 		DownloadURL: "https://example.invalid/new.jar",
 	}
 
-	updated, failed, err := runUpdate(context.Background(), cmd, updateOptions{ConfigPath: meta.ConfigPath}, updateDeps{
+	counts, err := runUpdate(context.Background(), cmd, updateOptions{ConfigPath: meta.ConfigPath}, updateDeps{
 		fs:     fs,
 		logger: logger.New(out, errOut, false, false),
 		install: func(context.Context, *cobra.Command, string, bool, bool) (install.Result, error) {
@@ -551,8 +551,8 @@ func TestRunUpdateFailsWhenLockedFileIsMissing(t *testing.T) {
 	})
 
 	assert.ErrorIs(t, err, errUpdateFailures)
-	assert.Equal(t, 0, updated)
-	assert.Equal(t, 1, failed)
+	assert.Equal(t, 0, counts.updated)
+	assert.Equal(t, 1, counts.failed)
 	assert.Contains(t, errOut.String(), "cmd.update.error.locked_file_missing")
 }
 
@@ -605,7 +605,7 @@ func TestRunUpdateFailsWhenInstalledTimestampIsInvalid(t *testing.T) {
 		DownloadURL: "https://example.invalid/new.jar",
 	}
 
-	updated, failed, err := runUpdate(context.Background(), cmd, updateOptions{ConfigPath: meta.ConfigPath}, updateDeps{
+	counts, err := runUpdate(context.Background(), cmd, updateOptions{ConfigPath: meta.ConfigPath}, updateDeps{
 		fs:     fs,
 		logger: logger.New(out, errOut, false, false),
 		install: func(context.Context, *cobra.Command, string, bool, bool) (install.Result, error) {
@@ -623,8 +623,8 @@ func TestRunUpdateFailsWhenInstalledTimestampIsInvalid(t *testing.T) {
 	})
 
 	assert.ErrorIs(t, err, errUpdateFailures)
-	assert.Equal(t, 0, updated)
-	assert.Equal(t, 1, failed)
+	assert.Equal(t, 0, counts.updated)
+	assert.Equal(t, 1, counts.failed)
 	assert.Contains(t, errOut.String(), "cmd.update.error.invalid_timestamp")
 }
 
@@ -678,7 +678,7 @@ func TestRunUpdateDownloadsAndSwapsWhenNewerReleaseExists(t *testing.T) {
 		DownloadURL: "https://example.invalid/new.jar",
 	}
 
-	updated, failed, err := runUpdate(context.Background(), cmd, updateOptions{ConfigPath: meta.ConfigPath}, updateDeps{
+	counts, err := runUpdate(context.Background(), cmd, updateOptions{ConfigPath: meta.ConfigPath}, updateDeps{
 		fs:     fs,
 		logger: logger.New(out, errOut, false, false),
 		install: func(context.Context, *cobra.Command, string, bool, bool) (install.Result, error) {
@@ -695,8 +695,8 @@ func TestRunUpdateDownloadsAndSwapsWhenNewerReleaseExists(t *testing.T) {
 	})
 
 	assert.NoError(t, err)
-	assert.Equal(t, 1, updated)
-	assert.Equal(t, 0, failed)
+	assert.Equal(t, 1, counts.updated)
+	assert.Equal(t, 0, counts.failed)
 
 	exists, err := afero.Exists(fs, oldPath)
 	assert.NoError(t, err)
@@ -773,7 +773,7 @@ func TestRunUpdateKeepsPreviousFileAndLockWhenDownloadFails(t *testing.T) {
 		DownloadURL: "https://example.invalid/new.jar",
 	}
 
-	updated, failed, err := runUpdate(context.Background(), cmd, updateOptions{ConfigPath: meta.ConfigPath}, updateDeps{
+	counts, err := runUpdate(context.Background(), cmd, updateOptions{ConfigPath: meta.ConfigPath}, updateDeps{
 		fs:     fs,
 		logger: logger.New(out, errOut, false, false),
 		install: func(context.Context, *cobra.Command, string, bool, bool) (install.Result, error) {
@@ -790,8 +790,8 @@ func TestRunUpdateKeepsPreviousFileAndLockWhenDownloadFails(t *testing.T) {
 	})
 
 	assert.ErrorIs(t, err, errUpdateFailures)
-	assert.Equal(t, 0, updated)
-	assert.Equal(t, 1, failed)
+	assert.Equal(t, 0, counts.updated)
+	assert.Equal(t, 1, counts.failed)
 
 	exists, err := afero.Exists(fs, oldPath)
 	assert.NoError(t, err)
@@ -857,7 +857,7 @@ func TestRunUpdateReportsMissingHash(t *testing.T) {
 		DownloadURL: "https://example.invalid/new.jar",
 	}
 
-	updated, failed, err := runUpdate(context.Background(), cmd, updateOptions{ConfigPath: meta.ConfigPath}, updateDeps{
+	counts, err := runUpdate(context.Background(), cmd, updateOptions{ConfigPath: meta.ConfigPath}, updateDeps{
 		fs:     fs,
 		logger: logger.New(out, errOut, false, false),
 		install: func(context.Context, *cobra.Command, string, bool, bool) (install.Result, error) {
@@ -875,8 +875,8 @@ func TestRunUpdateReportsMissingHash(t *testing.T) {
 	})
 
 	assert.ErrorIs(t, err, errUpdateFailures)
-	assert.Equal(t, 0, updated)
-	assert.Equal(t, 1, failed)
+	assert.Equal(t, 0, counts.updated)
+	assert.Equal(t, 1, counts.failed)
 	assert.Contains(t, errOut.String(), "cmd.update.error.missing_hash_remote")
 }
 
@@ -928,7 +928,7 @@ func TestRunUpdateReportsInvalidRemoteFileName(t *testing.T) {
 		DownloadURL: "https://example.invalid/new.jar",
 	}
 
-	updated, failed, err := runUpdate(context.Background(), cmd, updateOptions{ConfigPath: meta.ConfigPath}, updateDeps{
+	counts, err := runUpdate(context.Background(), cmd, updateOptions{ConfigPath: meta.ConfigPath}, updateDeps{
 		fs:     fs,
 		logger: logger.New(out, errOut, false, false),
 		install: func(context.Context, *cobra.Command, string, bool, bool) (install.Result, error) {
@@ -946,8 +946,8 @@ func TestRunUpdateReportsInvalidRemoteFileName(t *testing.T) {
 	})
 
 	assert.ErrorIs(t, err, errUpdateFailures)
-	assert.Equal(t, 0, updated)
-	assert.Equal(t, 1, failed)
+	assert.Equal(t, 0, counts.updated)
+	assert.Equal(t, 1, counts.failed)
 	assert.Contains(t, errOut.String(), "cmd.update.error.invalid_filename_remote")
 }
 
@@ -999,7 +999,7 @@ func TestRunUpdateReportsInvalidLockFileName(t *testing.T) {
 		DownloadURL: "https://example.invalid/new.jar",
 	}
 
-	updated, failed, err := runUpdate(context.Background(), cmd, updateOptions{ConfigPath: meta.ConfigPath}, updateDeps{
+	counts, err := runUpdate(context.Background(), cmd, updateOptions{ConfigPath: meta.ConfigPath}, updateDeps{
 		fs:     fs,
 		logger: logger.New(out, errOut, false, false),
 		install: func(context.Context, *cobra.Command, string, bool, bool) (install.Result, error) {
@@ -1017,8 +1017,8 @@ func TestRunUpdateReportsInvalidLockFileName(t *testing.T) {
 	})
 
 	assert.ErrorIs(t, err, errUpdateFailures)
-	assert.Equal(t, 0, updated)
-	assert.Equal(t, 1, failed)
+	assert.Equal(t, 0, counts.updated)
+	assert.Equal(t, 1, counts.failed)
 	assert.Contains(t, errOut.String(), "cmd.update.error.invalid_filename_lock")
 }
 
@@ -1071,7 +1071,7 @@ func TestRunUpdateReportsMissingInstalledHash(t *testing.T) {
 		DownloadURL: "https://example.invalid/new.jar",
 	}
 
-	updated, failed, err := runUpdate(context.Background(), cmd, updateOptions{ConfigPath: meta.ConfigPath}, updateDeps{
+	counts, err := runUpdate(context.Background(), cmd, updateOptions{ConfigPath: meta.ConfigPath}, updateDeps{
 		fs:     fs,
 		logger: logger.New(out, errOut, false, false),
 		install: func(context.Context, *cobra.Command, string, bool, bool) (install.Result, error) {
@@ -1089,8 +1089,8 @@ func TestRunUpdateReportsMissingInstalledHash(t *testing.T) {
 	})
 
 	assert.ErrorIs(t, err, errUpdateFailures)
-	assert.Equal(t, 0, updated)
-	assert.Equal(t, 1, failed)
+	assert.Equal(t, 0, counts.updated)
+	assert.Equal(t, 1, counts.failed)
 	assert.Contains(t, errOut.String(), "cmd.update.error.missing_hash_lock")
 }
 
@@ -1144,7 +1144,7 @@ func TestRunUpdateReportsHashMismatch(t *testing.T) {
 		DownloadURL: "https://example.invalid/new.jar",
 	}
 
-	updated, failed, err := runUpdate(context.Background(), cmd, updateOptions{ConfigPath: meta.ConfigPath}, updateDeps{
+	counts, err := runUpdate(context.Background(), cmd, updateOptions{ConfigPath: meta.ConfigPath}, updateDeps{
 		fs:     fs,
 		logger: logger.New(out, errOut, false, false),
 		install: func(context.Context, *cobra.Command, string, bool, bool) (install.Result, error) {
@@ -1161,8 +1161,8 @@ func TestRunUpdateReportsHashMismatch(t *testing.T) {
 	})
 
 	assert.ErrorIs(t, err, errUpdateFailures)
-	assert.Equal(t, 0, updated)
-	assert.Equal(t, 1, failed)
+	assert.Equal(t, 0, counts.updated)
+	assert.Equal(t, 1, counts.failed)
 	assert.Contains(t, errOut.String(), "cmd.update.error.hash_mismatch")
 
 	exists, err := afero.Exists(fs, oldPath)
@@ -1563,7 +1563,7 @@ func TestRunUpdateLogsNoUpdatesWhenNothingChanges(t *testing.T) {
 		DownloadURL: "https://example.invalid/same.jar",
 	}
 
-	updated, failed, err := runUpdate(context.Background(), cmd, updateOptions{ConfigPath: meta.ConfigPath}, updateDeps{
+	counts, err := runUpdate(context.Background(), cmd, updateOptions{ConfigPath: meta.ConfigPath}, updateDeps{
 		fs:     fs,
 		logger: logger.New(out, errOut, false, false),
 		install: func(context.Context, *cobra.Command, string, bool, bool) (install.Result, error) {
@@ -1577,8 +1577,8 @@ func TestRunUpdateLogsNoUpdatesWhenNothingChanges(t *testing.T) {
 	})
 
 	assert.NoError(t, err)
-	assert.Equal(t, 0, updated)
-	assert.Equal(t, 0, failed)
+	assert.Equal(t, 0, counts.updated)
+	assert.Equal(t, 0, counts.failed)
 	assert.Contains(t, out.String(), "cmd.update.no_updates")
 }
 
@@ -1623,7 +1623,7 @@ func TestRunUpdateReturnsErrorOnUnexpectedFetchError(t *testing.T) {
 	cmd.SetOut(out)
 	cmd.SetErr(errOut)
 
-	updated, failed, err := runUpdate(context.Background(), cmd, updateOptions{ConfigPath: meta.ConfigPath}, updateDeps{
+	counts, err := runUpdate(context.Background(), cmd, updateOptions{ConfigPath: meta.ConfigPath}, updateDeps{
 		fs:     fs,
 		logger: logger.New(out, errOut, false, false),
 		install: func(context.Context, *cobra.Command, string, bool, bool) (install.Result, error) {
@@ -1637,8 +1637,8 @@ func TestRunUpdateReturnsErrorOnUnexpectedFetchError(t *testing.T) {
 	})
 
 	assert.ErrorIs(t, err, errUpdateFailures)
-	assert.Equal(t, 0, updated)
-	assert.Equal(t, 1, failed)
+	assert.Equal(t, 0, counts.updated)
+	assert.Equal(t, 1, counts.failed)
 	assert.Contains(t, errOut.String(), "boom")
 }
 
@@ -1691,7 +1691,7 @@ func TestRunUpdateReturnsErrorOnRemoteTimestampInvalid(t *testing.T) {
 		DownloadURL: "https://example.invalid/same.jar",
 	}
 
-	updated, failed, err := runUpdate(context.Background(), cmd, updateOptions{ConfigPath: meta.ConfigPath}, updateDeps{
+	counts, err := runUpdate(context.Background(), cmd, updateOptions{ConfigPath: meta.ConfigPath}, updateDeps{
 		fs:     fs,
 		logger: logger.New(out, errOut, false, false),
 		install: func(context.Context, *cobra.Command, string, bool, bool) (install.Result, error) {
@@ -1705,8 +1705,8 @@ func TestRunUpdateReturnsErrorOnRemoteTimestampInvalid(t *testing.T) {
 	})
 
 	assert.ErrorIs(t, err, errUpdateFailures)
-	assert.Equal(t, 0, updated)
-	assert.Equal(t, 1, failed)
+	assert.Equal(t, 0, counts.updated)
+	assert.Equal(t, 1, counts.failed)
 	assert.Contains(t, errOut.String(), "cmd.update.error.invalid_timestamp")
 }
 
@@ -1761,7 +1761,7 @@ func TestRunUpdateReturnsErrorWhenLockWriteFails(t *testing.T) {
 		DownloadURL: "https://example.invalid/same.jar",
 	}
 
-	_, _, err := runUpdate(context.Background(), cmd, updateOptions{ConfigPath: meta.ConfigPath}, updateDeps{
+	_, err := runUpdate(context.Background(), cmd, updateOptions{ConfigPath: meta.ConfigPath}, updateDeps{
 		fs:     fs,
 		logger: logger.New(out, errOut, false, false),
 		install: func(context.Context, *cobra.Command, string, bool, bool) (install.Result, error) {
@@ -1831,7 +1831,7 @@ func TestRunUpdateReturnsErrorWhenConfigWriteFails(t *testing.T) {
 		DownloadURL: "https://example.invalid/same.jar",
 	}
 
-	_, _, err := runUpdate(context.Background(), cmd, updateOptions{ConfigPath: meta.ConfigPath}, updateDeps{
+	_, err := runUpdate(context.Background(), cmd, updateOptions{ConfigPath: meta.ConfigPath}, updateDeps{
 		fs:     fs,
 		logger: logger.New(out, errOut, false, false),
 		install: func(context.Context, *cobra.Command, string, bool, bool) (install.Result, error) {
@@ -1860,7 +1860,7 @@ func TestRunUpdateReturnsErrorWhenConfigMissing(t *testing.T) {
 	cmd.SetOut(out)
 	cmd.SetErr(errOut)
 
-	_, _, err := runUpdate(context.Background(), cmd, updateOptions{ConfigPath: "missing.json"}, updateDeps{
+	_, err := runUpdate(context.Background(), cmd, updateOptions{ConfigPath: "missing.json"}, updateDeps{
 		fs:     fs,
 		logger: logger.New(out, errOut, false, false),
 		install: func(context.Context, *cobra.Command, string, bool, bool) (install.Result, error) {
@@ -1892,7 +1892,7 @@ func TestRunUpdateReturnsErrorWhenLockMissing(t *testing.T) {
 	cmd.SetOut(out)
 	cmd.SetErr(errOut)
 
-	_, _, err := runUpdate(context.Background(), cmd, updateOptions{ConfigPath: meta.ConfigPath}, updateDeps{
+	_, err := runUpdate(context.Background(), cmd, updateOptions{ConfigPath: meta.ConfigPath}, updateDeps{
 		fs:     fs,
 		logger: logger.New(out, errOut, false, false),
 		install: func(context.Context, *cobra.Command, string, bool, bool) (install.Result, error) {

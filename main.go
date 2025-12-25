@@ -232,66 +232,72 @@ func perfExportConfigFromArgs(args []string, cwd string) perfExportConfig {
 
 //nolint:gocyclo // Argument normalization is clearer as a single flow.
 func perfExportConfigFromArgsWithAbs(args []string, cwd string, absPath func(string) (string, error)) perfExportConfig {
-	configPath, perfEnabled, perfOutDir, debug := parsePerfExportArgs(args)
+	parsedArgs := parsePerfExportArgs(args)
 
-	resolvedConfig := configPath
+	resolvedConfig := parsedArgs.configPath
 	if cwd != "" && !filepath.IsAbs(resolvedConfig) {
 		resolvedConfig = filepath.Join(cwd, resolvedConfig)
 	}
 	resolvedConfig, err := absPath(resolvedConfig)
 	if err != nil {
-		resolvedConfig = configPath
+		resolvedConfig = parsedArgs.configPath
 	}
 
 	baseDir := filepath.Dir(resolvedConfig)
 	outDir := baseDir
-	if strings.TrimSpace(perfOutDir) != "" {
-		if filepath.IsAbs(perfOutDir) {
-			outDir = perfOutDir
+	if strings.TrimSpace(parsedArgs.perfOutDir) != "" {
+		if filepath.IsAbs(parsedArgs.perfOutDir) {
+			outDir = parsedArgs.perfOutDir
 		} else {
-			outDir = filepath.Join(baseDir, perfOutDir)
+			outDir = filepath.Join(baseDir, parsedArgs.perfOutDir)
 		}
 	}
 
 	return perfExportConfig{
-		enabled: perfEnabled,
-		debug:   debug,
+		enabled: parsedArgs.perfEnabled,
+		debug:   parsedArgs.debug,
 		baseDir: baseDir,
 		outDir:  outDir,
 	}
 }
 
-func parsePerfExportArgs(args []string) (string, bool, string, bool) {
-	configPath := "./modlist.json"
-	perfEnabled := false
-	perfOutDir := ""
-	debug := false
+type perfExportArgs struct {
+	configPath  string
+	perfEnabled bool
+	perfOutDir  string
+	debug       bool
+}
+
+func parsePerfExportArgs(args []string) perfExportArgs {
+	parsedArgs := perfExportArgs{
+		configPath: "./modlist.json",
+	}
 
 	for i := 0; i < len(args); i++ {
 		arg := args[i]
 		switch {
 		case arg == "--perf":
-			perfEnabled = true
+			parsedArgs.perfEnabled = true
 		case arg == "--debug" || arg == "-d":
-			debug = true
+			parsedArgs.debug = true
 		case strings.HasPrefix(arg, "--config="):
-			configPath = strings.TrimPrefix(arg, "--config=")
+			parsedArgs.configPath = strings.TrimPrefix(arg, "--config=")
 		case strings.HasPrefix(arg, "--perf-out-dir="):
-			perfOutDir = strings.TrimPrefix(arg, "--perf-out-dir=")
+			parsedArgs.perfOutDir = strings.TrimPrefix(arg, "--perf-out-dir=")
 		case arg == "--config" || arg == "-c":
 			if i+1 < len(args) {
 				i++
-				configPath = args[i]
+				parsedArgs.configPath = args[i]
 			}
 		case arg == "--perf-out-dir":
 			if i+1 < len(args) {
 				i++
-				perfOutDir = args[i]
+				parsedArgs.perfOutDir = args[i]
 			}
 		}
 	}
 
-	return configPath, perfEnabled, perfOutDir, debug
+	return parsedArgs
 }
 
 func sessionNameHintFromArgs(args []string) string {

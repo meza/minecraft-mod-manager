@@ -131,16 +131,16 @@ func (tool *coverageTool) run() error {
 		return err
 	}
 
-	funcOutput, totalLine, totalCoverage, offendingLines, err := tool.coverageFuncOutput(filteredCoveragePath)
+	funcOutput, err := tool.coverageFuncOutput(filteredCoveragePath)
 	if err != nil {
 		return err
 	}
 
-	if err := writeCoverageOutput(paths.funcOutputPath, funcOutput); err != nil {
+	if err := writeCoverageOutput(paths.funcOutputPath, funcOutput.output); err != nil {
 		return err
 	}
 
-	return reportCoverage(paths.funcOutputPath, paths.htmlPath, totalLine, totalCoverage, offendingLines)
+	return reportCoverage(paths.funcOutputPath, paths.htmlPath, funcOutput.totalLine, funcOutput.coverage, funcOutput.offendingLines)
 }
 
 type coverageOutputPaths struct {
@@ -268,44 +268,61 @@ func (tool *coverageTool) generateCoverageHTML(coveragePath, htmlPath string) er
 	return nil
 }
 
-func (tool *coverageTool) coverageFuncOutput(coveragePath string) ([]byte, string, string, []string, error) {
+type coverageFuncSummary struct {
+	output         []byte
+	totalLine      string
+	coverage       string
+	offendingLines []string
+}
+
+func (tool *coverageTool) coverageFuncOutput(coveragePath string) (coverageFuncSummary, error) {
 	//nolint:gosec // go binary and args are controlled by this tool.
 	command := exec.Command(tool.goBinary, "tool", "cover", "-func", coveragePath)
 	command.Dir = tool.repoRoot
 	output, err := tool.commandOutput.Output(command)
 	if err != nil {
-		return nil, "", "", nil, fmt.Errorf("error: coverage summary failed: %w", err)
+		return coverageFuncSummary{}, fmt.Errorf("error: coverage summary failed: %w", err)
 	}
 
-	totalLine, coverage, err := parseTotalCoverage(bytes.NewReader(output))
+	totals, err := parseTotalCoverage(bytes.NewReader(output))
 	if err != nil {
-		return nil, "", "", nil, err
+		return coverageFuncSummary{}, err
 	}
 
 	offendingLines, err := filterOffendingCoverageLines(bytes.NewReader(output))
 	if err != nil {
-		return nil, "", "", nil, err
+		return coverageFuncSummary{}, err
 	}
 
-	return output, totalLine, coverage, offendingLines, nil
+	return coverageFuncSummary{
+		output:         output,
+		totalLine:      totals.line,
+		coverage:       totals.coverage,
+		offendingLines: offendingLines,
+	}, nil
 }
 
-func parseTotalCoverage(reader io.Reader) (string, string, error) {
+type coverageTotals struct {
+	line     string
+	coverage string
+}
+
+func parseTotalCoverage(reader io.Reader) (coverageTotals, error) {
 	scanner := bufio.NewScanner(reader)
 	for scanner.Scan() {
 		line := scanner.Text()
 		if strings.HasPrefix(line, "total:") {
 			fields := strings.Fields(line)
 			if len(fields) < 3 {
-				return "", "", errors.New("error: malformed total line in coverage output")
+				return coverageTotals{}, errors.New("error: malformed total line in coverage output")
 			}
-			return line, fields[2], nil
+			return coverageTotals{line: line, coverage: fields[2]}, nil
 		}
 	}
 	if err := scanner.Err(); err != nil {
-		return "", "", fmt.Errorf("error: reading coverage output: %w", err)
+		return coverageTotals{}, fmt.Errorf("error: reading coverage output: %w", err)
 	}
-	return "", "", errors.New("error: no total line found in coverage output")
+	return coverageTotals{}, errors.New("error: no total line found in coverage output")
 }
 
 func filterCoverageFile(sourcePath, filteredPath string, exclusions []string) (returnErr error) {

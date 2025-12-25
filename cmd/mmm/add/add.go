@@ -418,7 +418,7 @@ func persistAdd(input addPersistInput) error {
 			attribute.String("project_id", input.resolvedID),
 		),
 	)
-	_, _, _, err := input.setupCoordinator.EnsurePersisted(input.ctx, input.meta, input.cfg, input.lock, input.resolvedPlatform, input.resolvedID, input.remoteMod, modsetup.EnsurePersistOptions{
+	_, err := input.setupCoordinator.EnsurePersisted(input.ctx, input.meta, input.cfg, input.lock, input.resolvedPlatform, input.resolvedID, input.remoteMod, modsetup.EnsurePersistOptions{
 		Version:              input.opts.Version,
 		AllowVersionFallback: input.opts.AllowVersionFallback,
 	})

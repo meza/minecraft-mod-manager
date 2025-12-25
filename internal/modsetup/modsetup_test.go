@@ -365,20 +365,20 @@ func TestEnsurePersisted_AppendsAndWrites(t *testing.T) {
 		DownloadURL: "https://example.com/example.jar",
 	}
 
-	cfgAfter, lockAfter, result, err := setupCoordinator.EnsurePersisted(context.Background(), meta, cfgBefore, lockBefore, models.MODRINTH, "abc", remote, EnsurePersistOptions{
+	outcome, err := setupCoordinator.EnsurePersisted(context.Background(), meta, cfgBefore, lockBefore, models.MODRINTH, "abc", remote, EnsurePersistOptions{
 		Version:              "1.2.3",
 		AllowVersionFallback: true,
 	})
 
 	assert.NoError(t, err)
-	assert.True(t, result.ConfigAdded)
-	assert.True(t, result.LockAdded)
-	assert.Len(t, cfgAfter.Mods, 1)
-	assert.Equal(t, "abc", cfgAfter.Mods[0].ID)
-	assert.NotNil(t, cfgAfter.Mods[0].AllowVersionFallback)
-	assert.NotNil(t, cfgAfter.Mods[0].Version)
-	assert.Len(t, lockAfter, 1)
-	assert.Equal(t, "example.jar", lockAfter[0].FileName)
+	assert.True(t, outcome.Result.ConfigAdded)
+	assert.True(t, outcome.Result.LockAdded)
+	assert.Len(t, outcome.Config.Mods, 1)
+	assert.Equal(t, "abc", outcome.Config.Mods[0].ID)
+	assert.NotNil(t, outcome.Config.Mods[0].AllowVersionFallback)
+	assert.NotNil(t, outcome.Config.Mods[0].Version)
+	assert.Len(t, outcome.Lock, 1)
+	assert.Equal(t, "example.jar", outcome.Lock[0].FileName)
 
 	onDiskConfig, err := config.ReadConfig(context.Background(), fs, meta)
 	assert.NoError(t, err)
@@ -396,7 +396,7 @@ func TestEnsurePersisted_ConfigWriteFailureReturnsError(t *testing.T) {
 	setupCoordinator := NewSetupCoordinator(readOnly, nil, nil)
 	cfg := models.ModsJSON{ModsFolder: "mods"}
 
-	_, _, _, err := setupCoordinator.EnsurePersisted(context.Background(), config.NewMetadata(filepath.FromSlash("/cfg/modlist.json")), cfg, nil, models.MODRINTH, "abc", platform.RemoteMod{
+	_, err := setupCoordinator.EnsurePersisted(context.Background(), config.NewMetadata(filepath.FromSlash("/cfg/modlist.json")), cfg, nil, models.MODRINTH, "abc", platform.RemoteMod{
 		Name:        "Example",
 		FileName:    "example.jar",
 		Hash:        "abc",
@@ -421,7 +421,7 @@ func TestEnsurePersisted_LockWriteFailureReturnsError(t *testing.T) {
 	}
 
 	setupCoordinator := NewSetupCoordinator(failingRenameFs{Fs: fs, failTarget: meta.LockPath()}, nil, nil)
-	_, _, _, err := setupCoordinator.EnsurePersisted(context.Background(), meta, cfg, nil, models.MODRINTH, "abc", platform.RemoteMod{
+	_, err := setupCoordinator.EnsurePersisted(context.Background(), meta, cfg, nil, models.MODRINTH, "abc", platform.RemoteMod{
 		Name:        "Example",
 		FileName:    "example.jar",
 		Hash:        "abc",
@@ -441,13 +441,13 @@ func TestEnsurePersisted_DuplicateIsNoOp(t *testing.T) {
 	lock := []models.ModInstall{{Type: models.MODRINTH, ID: "abc"}}
 
 	setupCoordinator := NewSetupCoordinator(afero.NewMemMapFs(), nil, nil)
-	cfgAfter, lockAfter, result, err := setupCoordinator.EnsurePersisted(context.Background(), config.NewMetadata("modlist.json"), cfg, lock, models.MODRINTH, "abc", platform.RemoteMod{Name: "Example"}, EnsurePersistOptions{})
+	outcome, err := setupCoordinator.EnsurePersisted(context.Background(), config.NewMetadata("modlist.json"), cfg, lock, models.MODRINTH, "abc", platform.RemoteMod{Name: "Example"}, EnsurePersistOptions{})
 
 	assert.NoError(t, err)
-	assert.False(t, result.ConfigAdded)
-	assert.False(t, result.LockAdded)
-	assert.Equal(t, cfg, cfgAfter)
-	assert.Equal(t, lock, lockAfter)
+	assert.False(t, outcome.Result.ConfigAdded)
+	assert.False(t, outcome.Result.LockAdded)
+	assert.Equal(t, cfg, outcome.Config)
+	assert.Equal(t, lock, outcome.Lock)
 }
 
 func TestEnsurePersisted_ConfigPresentLockMissingAddsLockOnly(t *testing.T) {
@@ -471,7 +471,7 @@ func TestEnsurePersisted_ConfigPresentLockMissingAddsLockOnly(t *testing.T) {
 	cfgBefore, lockBefore, err := setupCoordinator.EnsureConfigAndLock(context.Background(), meta, false)
 	assert.NoError(t, err)
 
-	cfgAfter, lockAfter, result, err := setupCoordinator.EnsurePersisted(context.Background(), meta, cfgBefore, lockBefore, models.MODRINTH, "abc", platform.RemoteMod{
+	outcome, err := setupCoordinator.EnsurePersisted(context.Background(), meta, cfgBefore, lockBefore, models.MODRINTH, "abc", platform.RemoteMod{
 		Name:        "Example",
 		FileName:    "example.jar",
 		Hash:        "abc",
@@ -480,10 +480,10 @@ func TestEnsurePersisted_ConfigPresentLockMissingAddsLockOnly(t *testing.T) {
 	}, EnsurePersistOptions{})
 
 	assert.NoError(t, err)
-	assert.False(t, result.ConfigAdded)
-	assert.True(t, result.LockAdded)
-	assert.Len(t, cfgAfter.Mods, 1)
-	assert.Len(t, lockAfter, 1)
+	assert.False(t, outcome.Result.ConfigAdded)
+	assert.True(t, outcome.Result.LockAdded)
+	assert.Len(t, outcome.Config.Mods, 1)
+	assert.Len(t, outcome.Lock, 1)
 
 	onDiskConfig, err := config.ReadConfig(context.Background(), fs, meta)
 	assert.NoError(t, err)
@@ -516,7 +516,7 @@ func TestEnsurePersisted_LockPresentConfigMissingAddsConfigOnly(t *testing.T) {
 	cfgBefore, lockBefore, err := setupCoordinator.EnsureConfigAndLock(context.Background(), meta, false)
 	assert.NoError(t, err)
 
-	cfgAfter, lockAfter, result, err := setupCoordinator.EnsurePersisted(context.Background(), meta, cfgBefore, lockBefore, models.MODRINTH, "abc", platform.RemoteMod{
+	outcome, err := setupCoordinator.EnsurePersisted(context.Background(), meta, cfgBefore, lockBefore, models.MODRINTH, "abc", platform.RemoteMod{
 		Name:        "Example",
 		FileName:    "example.jar",
 		Hash:        "abc",
@@ -527,10 +527,10 @@ func TestEnsurePersisted_LockPresentConfigMissingAddsConfigOnly(t *testing.T) {
 	})
 
 	assert.NoError(t, err)
-	assert.True(t, result.ConfigAdded)
-	assert.False(t, result.LockAdded)
-	assert.Len(t, cfgAfter.Mods, 1)
-	assert.Len(t, lockAfter, 1)
+	assert.True(t, outcome.Result.ConfigAdded)
+	assert.False(t, outcome.Result.LockAdded)
+	assert.Len(t, outcome.Config.Mods, 1)
+	assert.Len(t, outcome.Lock, 1)
 
 	onDiskLock, err := config.ReadLock(context.Background(), fs, meta)
 	assert.NoError(t, err)
@@ -544,7 +544,7 @@ func TestEnsurePersisted_MissingRemoteFieldsReturnsError(t *testing.T) {
 	assert.NoError(t, fs.MkdirAll(filepath.Dir(meta.ConfigPath), 0755))
 
 	setupCoordinator := NewSetupCoordinator(fs, nil, nil)
-	_, _, _, err := setupCoordinator.EnsurePersisted(context.Background(), meta, models.ModsJSON{ModsFolder: "mods"}, nil, models.MODRINTH, "abc", platform.RemoteMod{
+	_, err := setupCoordinator.EnsurePersisted(context.Background(), meta, models.ModsJSON{ModsFolder: "mods"}, nil, models.MODRINTH, "abc", platform.RemoteMod{
 		Name: "Example",
 	}, EnsurePersistOptions{})
 
@@ -557,7 +557,7 @@ func TestEnsurePersisted_InvalidFileNameReturnsError(t *testing.T) {
 	assert.NoError(t, fs.MkdirAll(filepath.Dir(meta.ConfigPath), 0755))
 
 	setupCoordinator := NewSetupCoordinator(fs, nil, nil)
-	_, _, _, err := setupCoordinator.EnsurePersisted(context.Background(), meta, models.ModsJSON{ModsFolder: "mods"}, nil, models.MODRINTH, "abc", platform.RemoteMod{
+	_, err := setupCoordinator.EnsurePersisted(context.Background(), meta, models.ModsJSON{ModsFolder: "mods"}, nil, models.MODRINTH, "abc", platform.RemoteMod{
 		Name:        "Example",
 		FileName:    "mods/example.jar",
 		Hash:        "hash",
@@ -570,13 +570,13 @@ func TestEnsurePersisted_InvalidFileNameReturnsError(t *testing.T) {
 
 func TestEnsurePersisted_EmptyResolvedPlatformReturnsError(t *testing.T) {
 	setupCoordinator := NewSetupCoordinator(afero.NewMemMapFs(), nil, nil)
-	_, _, _, err := setupCoordinator.EnsurePersisted(context.Background(), config.NewMetadata("modlist.json"), models.ModsJSON{}, nil, "", "abc", platform.RemoteMod{}, EnsurePersistOptions{})
+	_, err := setupCoordinator.EnsurePersisted(context.Background(), config.NewMetadata("modlist.json"), models.ModsJSON{}, nil, "", "abc", platform.RemoteMod{}, EnsurePersistOptions{})
 	assert.Error(t, err)
 }
 
 func TestEnsurePersisted_EmptyResolvedIDReturnsError(t *testing.T) {
 	setupCoordinator := NewSetupCoordinator(afero.NewMemMapFs(), nil, nil)
-	_, _, _, err := setupCoordinator.EnsurePersisted(context.Background(), config.NewMetadata("modlist.json"), models.ModsJSON{}, nil, models.MODRINTH, "", platform.RemoteMod{}, EnsurePersistOptions{})
+	_, err := setupCoordinator.EnsurePersisted(context.Background(), config.NewMetadata("modlist.json"), models.ModsJSON{}, nil, models.MODRINTH, "", platform.RemoteMod{}, EnsurePersistOptions{})
 	assert.Error(t, err)
 }
 
@@ -586,7 +586,7 @@ func TestUpsertConfigAndLock_AddsMissingEntries(t *testing.T) {
 
 	setupCoordinator := NewSetupCoordinator(afero.NewMemMapFs(), nil, nil)
 
-	updatedCfg, updatedLock, result, err := setupCoordinator.UpsertConfigAndLock(cfg, lock, models.MODRINTH, "abc", platform.RemoteMod{
+	outcome, err := setupCoordinator.UpsertConfigAndLock(cfg, lock, models.MODRINTH, "abc", platform.RemoteMod{
 		Name:        "Example",
 		FileName:    "example.jar",
 		Hash:        "sha",
@@ -595,10 +595,10 @@ func TestUpsertConfigAndLock_AddsMissingEntries(t *testing.T) {
 	}, EnsurePersistOptions{})
 
 	assert.NoError(t, err)
-	assert.True(t, result.ConfigAdded)
-	assert.True(t, result.LockAdded)
-	assert.Len(t, updatedCfg.Mods, 1)
-	assert.Len(t, updatedLock, 1)
+	assert.True(t, outcome.Result.ConfigAdded)
+	assert.True(t, outcome.Result.LockAdded)
+	assert.Len(t, outcome.Config.Mods, 1)
+	assert.Len(t, outcome.Lock, 1)
 }
 
 func TestUpsertConfigAndLock_InvalidFileNameReturnsError(t *testing.T) {
@@ -607,7 +607,7 @@ func TestUpsertConfigAndLock_InvalidFileNameReturnsError(t *testing.T) {
 
 	setupCoordinator := NewSetupCoordinator(afero.NewMemMapFs(), nil, nil)
 
-	_, _, _, err := setupCoordinator.UpsertConfigAndLock(cfg, lock, models.MODRINTH, "abc", platform.RemoteMod{
+	_, err := setupCoordinator.UpsertConfigAndLock(cfg, lock, models.MODRINTH, "abc", platform.RemoteMod{
 		Name:        "Example",
 		FileName:    "mods/example.jar",
 		Hash:        "sha",
@@ -634,7 +634,7 @@ func TestUpsertConfigAndLock_UpdatesNameAndLockWhenDifferent(t *testing.T) {
 
 	setupCoordinator := NewSetupCoordinator(afero.NewMemMapFs(), nil, nil)
 
-	updatedCfg, updatedLock, result, err := setupCoordinator.UpsertConfigAndLock(cfg, lock, models.MODRINTH, "abc", platform.RemoteMod{
+	outcome, err := setupCoordinator.UpsertConfigAndLock(cfg, lock, models.MODRINTH, "abc", platform.RemoteMod{
 		Name:        "New",
 		FileName:    "new.jar",
 		Hash:        "NEW",
@@ -643,10 +643,10 @@ func TestUpsertConfigAndLock_UpdatesNameAndLockWhenDifferent(t *testing.T) {
 	}, EnsurePersistOptions{})
 
 	assert.NoError(t, err)
-	assert.True(t, result.ConfigUpdated)
-	assert.True(t, result.LockUpdated)
-	assert.Equal(t, "New", updatedCfg.Mods[0].Name)
-	assert.Equal(t, "new.jar", updatedLock[0].FileName)
+	assert.True(t, outcome.Result.ConfigUpdated)
+	assert.True(t, outcome.Result.LockUpdated)
+	assert.Equal(t, "New", outcome.Config.Mods[0].Name)
+	assert.Equal(t, "new.jar", outcome.Lock[0].FileName)
 }
 
 func TestUpsertConfigAndLock_NoChangesDoesNotWrite(t *testing.T) {
@@ -665,7 +665,7 @@ func TestUpsertConfigAndLock_NoChangesDoesNotWrite(t *testing.T) {
 		DownloadURL: "https://example.com/example.jar",
 	}}
 
-	updatedCfg, updatedLock, result, err := setupCoordinator.UpsertConfigAndLock(cfg, lock, models.MODRINTH, "abc", platform.RemoteMod{
+	outcome, err := setupCoordinator.UpsertConfigAndLock(cfg, lock, models.MODRINTH, "abc", platform.RemoteMod{
 		Name:        "Example",
 		FileName:    "example.jar",
 		Hash:        "abc",
@@ -674,12 +674,12 @@ func TestUpsertConfigAndLock_NoChangesDoesNotWrite(t *testing.T) {
 	}, EnsurePersistOptions{})
 
 	assert.NoError(t, err)
-	assert.False(t, result.ConfigAdded)
-	assert.False(t, result.ConfigUpdated)
-	assert.False(t, result.LockAdded)
-	assert.False(t, result.LockUpdated)
-	assert.Equal(t, cfg, updatedCfg)
-	assert.Equal(t, lock, updatedLock)
+	assert.False(t, outcome.Result.ConfigAdded)
+	assert.False(t, outcome.Result.ConfigUpdated)
+	assert.False(t, outcome.Result.LockAdded)
+	assert.False(t, outcome.Result.LockUpdated)
+	assert.Equal(t, cfg, outcome.Config)
+	assert.Equal(t, lock, outcome.Lock)
 }
 
 func TestUpsertConfigAndLock_HashCaseDifferenceIsNoOp(t *testing.T) {
@@ -698,7 +698,7 @@ func TestUpsertConfigAndLock_HashCaseDifferenceIsNoOp(t *testing.T) {
 		DownloadURL: "https://example.com/example.jar",
 	}}
 
-	_, _, result, err := setupCoordinator.UpsertConfigAndLock(cfg, lock, models.MODRINTH, "abc", platform.RemoteMod{
+	outcome, err := setupCoordinator.UpsertConfigAndLock(cfg, lock, models.MODRINTH, "abc", platform.RemoteMod{
 		Name:        "Example",
 		FileName:    "example.jar",
 		Hash:        "abc",
@@ -707,7 +707,7 @@ func TestUpsertConfigAndLock_HashCaseDifferenceIsNoOp(t *testing.T) {
 	}, EnsurePersistOptions{})
 
 	assert.NoError(t, err)
-	assert.False(t, result.LockUpdated)
+	assert.False(t, outcome.Result.LockUpdated)
 }
 
 func TestUpsertConfigAndLock_LockPresentMissingRemoteFieldsReturnsError(t *testing.T) {
@@ -726,7 +726,7 @@ func TestUpsertConfigAndLock_LockPresentMissingRemoteFieldsReturnsError(t *testi
 		DownloadURL: "https://example.com/example.jar",
 	}}
 
-	_, _, _, err := setupCoordinator.UpsertConfigAndLock(cfg, lock, models.MODRINTH, "abc", platform.RemoteMod{
+	_, err := setupCoordinator.UpsertConfigAndLock(cfg, lock, models.MODRINTH, "abc", platform.RemoteMod{
 		Name:        "Example",
 		FileName:    "example.jar",
 		Hash:        "abc",
@@ -740,7 +740,7 @@ func TestUpsertConfigAndLock_LockPresentMissingRemoteFieldsReturnsError(t *testi
 func TestUpsertConfigAndLock_LockMissingMissingRemoteFieldsReturnsError(t *testing.T) {
 	setupCoordinator := NewSetupCoordinator(afero.NewMemMapFs(), nil, nil)
 
-	_, _, _, err := setupCoordinator.UpsertConfigAndLock(models.ModsJSON{ModsFolder: "mods"}, nil, models.MODRINTH, "abc", platform.RemoteMod{
+	_, err := setupCoordinator.UpsertConfigAndLock(models.ModsJSON{ModsFolder: "mods"}, nil, models.MODRINTH, "abc", platform.RemoteMod{
 		Name:        "Example",
 		FileName:    "example.jar",
 		Hash:        "abc",
@@ -753,13 +753,13 @@ func TestUpsertConfigAndLock_LockMissingMissingRemoteFieldsReturnsError(t *testi
 
 func TestUpsertConfigAndLock_MissingResolvedPlatformReturnsError(t *testing.T) {
 	setupCoordinator := NewSetupCoordinator(afero.NewMemMapFs(), nil, nil)
-	_, _, _, err := setupCoordinator.UpsertConfigAndLock(models.ModsJSON{}, nil, "", "abc", platform.RemoteMod{}, EnsurePersistOptions{})
+	_, err := setupCoordinator.UpsertConfigAndLock(models.ModsJSON{}, nil, "", "abc", platform.RemoteMod{}, EnsurePersistOptions{})
 	assert.Error(t, err)
 }
 
 func TestUpsertConfigAndLock_MissingResolvedIDReturnsError(t *testing.T) {
 	setupCoordinator := NewSetupCoordinator(afero.NewMemMapFs(), nil, nil)
-	_, _, _, err := setupCoordinator.UpsertConfigAndLock(models.ModsJSON{}, nil, models.MODRINTH, "", platform.RemoteMod{}, EnsurePersistOptions{})
+	_, err := setupCoordinator.UpsertConfigAndLock(models.ModsJSON{}, nil, models.MODRINTH, "", platform.RemoteMod{}, EnsurePersistOptions{})
 	assert.Error(t, err)
 }
 

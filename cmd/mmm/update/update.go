@@ -80,7 +80,7 @@ func runUpdateCommand(cmd *cobra.Command) error {
 	}
 
 	deps := defaultUpdateDeps(cmd, opts)
-	updated, failed, err := runUpdate(ctx, cmd, opts, deps)
+	counts, err := runUpdate(ctx, cmd, opts, deps)
 	span.SetAttributes(attribute.Bool("success", err == nil))
 	span.End()
 
@@ -88,7 +88,7 @@ func runUpdateCommand(cmd *cobra.Command) error {
 		cmd.SilenceUsage = true
 	}
 
-	recordUpdateTelemetry(deps.telemetry, updated, failed, err)
+	recordUpdateTelemetry(deps.telemetry, counts.updated, counts.failed, err)
 	return err
 }
 
@@ -175,51 +175,56 @@ type logEvent struct {
 	ForceShow bool
 }
 
+type updateCounts struct {
+	updated int
+	failed  int
+}
+
 //nolint:gocognit,gocyclo,funlen // Update flow mirrors spec stages; splitting obscures behavior.
-func runUpdate(ctx context.Context, cmd *cobra.Command, opts updateOptions, deps updateDeps) (int, int, error) {
+func runUpdate(ctx context.Context, cmd *cobra.Command, opts updateOptions, deps updateDeps) (updateCounts, error) {
 	installResult, err := deps.install(ctx, cmd, opts.ConfigPath, opts.Quiet, opts.Debug)
 	if err != nil {
-		return 0, 0, err
+		return updateCounts{}, err
 	}
 	if installResult.UnmanagedFound {
 		deps.logger.Error(i18n.T("cmd.update.error.unmanaged_found"))
-		return 0, 0, errUnmanagedFiles
+		return updateCounts{}, errUnmanagedFiles
 	}
 
 	meta := config.NewMetadata(opts.ConfigPath)
 
 	cfg, err := config.ReadConfig(ctx, deps.fs, meta)
 	if err != nil {
-		return 0, 0, err
+		return updateCounts{}, err
 	}
 
 	lock, err := config.ReadLock(ctx, deps.fs, meta)
 	if err != nil {
-		return 0, 0, err
+		return updateCounts{}, err
 	}
 
 	colorize := tui.IsTerminalWriter(cmd.OutOrStdout())
 
 	candidates := updateCandidates(cfg)
 	outcomes := processCandidates(ctx, meta, cfg, lock, candidates, deps, colorize)
-	updatedCount, failedCount := applyUpdateOutcomes(deps.logger, outcomes, &cfg, lock)
+	counts := applyUpdateOutcomes(deps.logger, outcomes, &cfg, lock)
 
-	if updatedCount == 0 && failedCount == 0 {
+	if counts.updated == 0 && counts.failed == 0 {
 		deps.logger.Log(messageWithIcon(tui.SuccessIcon(colorize), i18n.T("cmd.update.no_updates")), true)
 	}
 
 	if err := config.WriteLock(ctx, deps.fs, meta, lock); err != nil {
-		return updatedCount, failedCount, err
+		return counts, err
 	}
 	if err := config.WriteConfig(ctx, deps.fs, meta, cfg); err != nil {
-		return updatedCount, failedCount, err
+		return counts, err
 	}
 
-	if failedCount > 0 {
-		return updatedCount, failedCount, errUpdateFailures
+	if counts.failed > 0 {
+		return counts, errUpdateFailures
 	}
 
-	return updatedCount, failedCount, nil
+	return counts, nil
 }
 
 func updateCandidates(cfg models.ModsJSON) []modUpdateCandidate {
@@ -256,9 +261,8 @@ func processCandidates(ctx context.Context, meta config.Metadata, cfg models.Mod
 	return outcomes
 }
 
-func applyUpdateOutcomes(log *logger.Logger, outcomes []modUpdateOutcome, cfg *models.ModsJSON, lock []models.ModInstall) (int, int) {
-	updatedCount := 0
-	failedCount := 0
+func applyUpdateOutcomes(log *logger.Logger, outcomes []modUpdateOutcome, cfg *models.ModsJSON, lock []models.ModInstall) updateCounts {
+	counts := updateCounts{}
 
 	for _, outcome := range outcomes {
 		for _, event := range outcome.LogEvents {
@@ -277,17 +281,17 @@ func applyUpdateOutcomes(log *logger.Logger, outcomes []modUpdateOutcome, cfg *m
 		}
 
 		if outcome.Error != nil {
-			failedCount++
+			counts.failed++
 			continue
 		}
 
 		if outcome.Updated {
 			lock[outcome.LockIndex] = outcome.NewInstall
-			updatedCount++
+			counts.updated++
 		}
 	}
 
-	return updatedCount, failedCount
+	return counts
 }
 
 var errUpdateFailures = errors.New("one or more mods failed to update")

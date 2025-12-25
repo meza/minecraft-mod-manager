@@ -324,7 +324,7 @@ func persistScanMatches(ctx context.Context, cmd *cobra.Command, meta config.Met
 	changedLock := false
 
 	for _, match := range matches {
-		updatedCfg, updatedLock, result, err := setupCoordinator.UpsertConfigAndLock(cfg, lock, match.Platform, match.ProjectID, platform.RemoteMod{
+		outcome, err := setupCoordinator.UpsertConfigAndLock(cfg, lock, match.Platform, match.ProjectID, platform.RemoteMod{
 			Name:        match.Name,
 			FileName:    match.FileName,
 			Hash:        match.Hash,
@@ -338,15 +338,15 @@ func persistScanMatches(ctx context.Context, cmd *cobra.Command, meta config.Met
 			continue
 		}
 
-		if result.ConfigAdded || result.ConfigUpdated {
+		if outcome.Result.ConfigAdded || outcome.Result.ConfigUpdated {
 			changedConfig = true
 		}
-		if result.LockAdded || result.LockUpdated {
+		if outcome.Result.LockAdded || outcome.Result.LockUpdated {
 			changedLock = true
 		}
 
-		cfg = updatedCfg
-		lock = updatedLock
+		cfg = outcome.Config
+		lock = outcome.Lock
 	}
 
 	if changedConfig {
@@ -571,7 +571,7 @@ func lookupModrinthCandidate(ctx context.Context, candidate scanCandidate, deps 
 		return modrinthLookupResult{err: err}
 	}
 
-	url, published, err := modrinthDownloadDetails(version)
+	downloadInfo, err := modrinthDownloadDetails(version)
 	if err != nil {
 		return modrinthLookupResult{err: err}
 	}
@@ -583,8 +583,8 @@ func lookupModrinthCandidate(ctx context.Context, candidate scanCandidate, deps 
 		Name:        title,
 		FileName:    candidate.FileName,
 		Hash:        candidate.Sha1,
-		ReleaseDate: published,
-		DownloadURL: url,
+		ReleaseDate: downloadInfo.publishedAt,
+		DownloadURL: downloadInfo.downloadURL,
 	}}
 }
 
@@ -683,28 +683,43 @@ func lookupCurseforge(ctx context.Context, candidates []scanCandidate, deps scan
 	matches := make([]scanMatch, 0)
 	unsure := make(map[string]error)
 
-	fingerprints, fingerprintByIndex, fingerprintToIndices := buildCurseforgeFingerprintIndex(candidates, deps)
+	fingerprintIndex := buildCurseforgeFingerprintIndex(candidates, deps)
 
-	sort.Ints(fingerprints)
-	unique := uniqueInts(fingerprints)
+	sort.Ints(fingerprintIndex.fingerprints)
+	unique := uniqueInts(fingerprintIndex.fingerprints)
 	if len(unique) == 0 {
 		return nil, candidates, unsure
 	}
 
 	result, err := deps.curseforgeFingerprintMatch(ctx, unique, deps.clients.Curseforge)
 	if err != nil {
-		return nil, nil, buildCurseforgeErrors(candidates, fingerprintByIndex, err)
+		return nil, nil, buildCurseforgeErrors(candidates, fingerprintIndex.fingerprintByIndex, err)
 	}
 
 	nameCache := make(map[string]string)
 	var nameMu sync.Mutex
 
-	addCurseforgeMatches(ctx, candidates, fingerprintToIndices, result.Matches, deps, nameCache, &nameMu, &matches, unsure)
+	addCurseforgeMatches(ctx, curseforgeMatchContext{
+		candidates:           candidates,
+		fingerprintToIndices: fingerprintIndex.fingerprintToIndices,
+		matches:              result.Matches,
+		deps:                 deps,
+		nameCache:            nameCache,
+		nameMu:               &nameMu,
+		scanMatches:          &matches,
+		unsure:               unsure,
+	})
 	misses := curseforgeMisses(candidates, matches, unsure)
 	return matches, misses, unsure
 }
 
-func buildCurseforgeFingerprintIndex(candidates []scanCandidate, deps scanDeps) ([]int, []int, map[int][]int) {
+type curseforgeFingerprintIndex struct {
+	fingerprints         []int
+	fingerprintByIndex   []int
+	fingerprintToIndices map[int][]int
+}
+
+func buildCurseforgeFingerprintIndex(candidates []scanCandidate, deps scanDeps) curseforgeFingerprintIndex {
 	fingerprints := make([]int, 0, len(candidates))
 	fingerprintByIndex := make([]int, len(candidates))
 	fingerprintToIndices := make(map[int][]int, len(candidates))
@@ -716,7 +731,11 @@ func buildCurseforgeFingerprintIndex(candidates []scanCandidate, deps scanDeps) 
 		fingerprintToIndices[fingerprint] = append(fingerprintToIndices[fingerprint], i)
 	}
 
-	return fingerprints, fingerprintByIndex, fingerprintToIndices
+	return curseforgeFingerprintIndex{
+		fingerprints:         fingerprints,
+		fingerprintByIndex:   fingerprintByIndex,
+		fingerprintToIndices: fingerprintToIndices,
+	}
 }
 
 func buildCurseforgeErrors(candidates []scanCandidate, fingerprintByIndex []int, err error) map[string]error {
@@ -728,38 +747,49 @@ func buildCurseforgeErrors(candidates []scanCandidate, fingerprintByIndex []int,
 	return unsure
 }
 
-func addCurseforgeMatches(ctx context.Context, candidates []scanCandidate, fingerprintToIndices map[int][]int, matches []curseforge.File, deps scanDeps, nameCache map[string]string, nameMu *sync.Mutex, scanMatches *[]scanMatch, unsure map[string]error) {
-	for _, file := range matches {
-		indices := fingerprintToIndices[file.Fingerprint]
+type curseforgeMatchContext struct {
+	candidates           []scanCandidate
+	fingerprintToIndices map[int][]int
+	matches              []curseforge.File
+	deps                 scanDeps
+	nameCache            map[string]string
+	nameMu               *sync.Mutex
+	scanMatches          *[]scanMatch
+	unsure               map[string]error
+}
+
+func addCurseforgeMatches(ctx context.Context, matchContext curseforgeMatchContext) {
+	for _, file := range matchContext.matches {
+		indices := matchContext.fingerprintToIndices[file.Fingerprint]
 		if len(indices) == 0 {
 			continue
 		}
 
 		projectID := fmt.Sprintf("%d", file.ProjectID)
-		name, err := cachedCurseforgeProjectName(ctx, projectID, deps, nameCache, nameMu)
+		name, err := cachedCurseforgeProjectName(ctx, projectID, matchContext.deps, matchContext.nameCache, matchContext.nameMu)
 		if err != nil {
 			for _, index := range indices {
-				unsure[candidates[index].Path] = err
+				matchContext.unsure[matchContext.candidates[index].Path] = err
 			}
 			continue
 		}
 
 		if strings.TrimSpace(file.DownloadURL) == "" {
 			for _, index := range indices {
-				unsure[candidates[index].Path] = errors.New("curseforge match missing download url")
+				matchContext.unsure[matchContext.candidates[index].Path] = errors.New("curseforge match missing download url")
 			}
 			continue
 		}
 
 		published := file.FileDate.Format(time.RFC3339)
 		for _, index := range indices {
-			*scanMatches = append(*scanMatches, scanMatch{
-				Path:        candidates[index].Path,
+			*matchContext.scanMatches = append(*matchContext.scanMatches, scanMatch{
+				Path:        matchContext.candidates[index].Path,
 				Platform:    models.CURSEFORGE,
 				ProjectID:   projectID,
 				Name:        name,
-				FileName:    candidates[index].FileName,
-				Hash:        candidates[index].Sha1,
+				FileName:    matchContext.candidates[index].FileName,
+				Hash:        matchContext.candidates[index].Sha1,
 				ReleaseDate: published,
 				DownloadURL: file.DownloadURL,
 			})
@@ -818,12 +848,17 @@ func curseforgeFingerprintFailureReason(err error) string {
 	return reason
 }
 
-func modrinthDownloadDetails(version *modrinth.Version) (string, string, error) {
+type modrinthDownloadInfo struct {
+	downloadURL string
+	publishedAt string
+}
+
+func modrinthDownloadDetails(version *modrinth.Version) (modrinthDownloadInfo, error) {
 	if version == nil {
-		return "", "", errors.New("modrinth version is nil")
+		return modrinthDownloadInfo{}, errors.New("modrinth version is nil")
 	}
 	if len(version.Files) == 0 {
-		return "", "", errors.New("modrinth version has no files")
+		return modrinthDownloadInfo{}, errors.New("modrinth version has no files")
 	}
 
 	chosen := version.Files[0]
@@ -835,10 +870,10 @@ func modrinthDownloadDetails(version *modrinth.Version) (string, string, error) 
 	}
 
 	if strings.TrimSpace(chosen.URL) == "" {
-		return "", "", errors.New("modrinth file missing url")
+		return modrinthDownloadInfo{}, errors.New("modrinth file missing url")
 	}
 
-	return chosen.URL, version.DatePublished.Format(time.RFC3339), nil
+	return modrinthDownloadInfo{downloadURL: chosen.URL, publishedAt: version.DatePublished.Format(time.RFC3339)}, nil
 }
 
 func uniqueInts(values []int) []int {

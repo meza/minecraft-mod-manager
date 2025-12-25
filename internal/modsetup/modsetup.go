@@ -94,12 +94,18 @@ type EnsureResult struct {
 	LockAdded   bool
 }
 
-func (coordinator *SetupCoordinator) EnsurePersisted(ctx context.Context, meta config.Metadata, cfg models.ModsJSON, lock []models.ModInstall, resolvedPlatform models.Platform, resolvedID string, remote platform.RemoteMod, options EnsurePersistOptions) (models.ModsJSON, []models.ModInstall, EnsureResult, error) {
+type EnsurePersistedOutcome struct {
+	Config models.ModsJSON
+	Lock   []models.ModInstall
+	Result EnsureResult
+}
+
+func (coordinator *SetupCoordinator) EnsurePersisted(ctx context.Context, meta config.Metadata, cfg models.ModsJSON, lock []models.ModInstall, resolvedPlatform models.Platform, resolvedID string, remote platform.RemoteMod, options EnsurePersistOptions) (EnsurePersistedOutcome, error) {
 	if strings.TrimSpace(string(resolvedPlatform)) == "" {
-		return models.ModsJSON{}, nil, EnsureResult{}, errors.New("missing resolved platform")
+		return EnsurePersistedOutcome{}, errors.New("missing resolved platform")
 	}
 	if strings.TrimSpace(resolvedID) == "" {
-		return models.ModsJSON{}, nil, EnsureResult{}, errors.New("missing resolved id")
+		return EnsurePersistedOutcome{}, errors.New("missing resolved id")
 	}
 
 	configIndex := findConfigIndex(cfg, resolvedPlatform, resolvedID)
@@ -121,7 +127,7 @@ func (coordinator *SetupCoordinator) EnsurePersisted(ctx context.Context, meta c
 	if lockIndex < 0 {
 		installEntry, err := lockInstallFromRemote(remote, resolvedPlatform, resolvedID)
 		if err != nil {
-			return models.ModsJSON{}, nil, EnsureResult{}, err
+			return EnsurePersistedOutcome{}, err
 		}
 
 		lock = append(lock, installEntry)
@@ -130,16 +136,16 @@ func (coordinator *SetupCoordinator) EnsurePersisted(ctx context.Context, meta c
 
 	if result.ConfigAdded {
 		if err := config.WriteConfig(ctx, coordinator.fs, meta, cfg); err != nil {
-			return models.ModsJSON{}, nil, EnsureResult{}, err
+			return EnsurePersistedOutcome{}, err
 		}
 	}
 	if result.LockAdded {
 		if err := config.WriteLock(ctx, coordinator.fs, meta, lock); err != nil {
-			return models.ModsJSON{}, nil, EnsureResult{}, err
+			return EnsurePersistedOutcome{}, err
 		}
 	}
 
-	return cfg, lock, result, nil
+	return EnsurePersistedOutcome{Config: cfg, Lock: lock, Result: result}, nil
 }
 
 type UpsertResult struct {
@@ -149,12 +155,18 @@ type UpsertResult struct {
 	LockUpdated   bool
 }
 
-func (coordinator *SetupCoordinator) UpsertConfigAndLock(cfg models.ModsJSON, lock []models.ModInstall, resolvedPlatform models.Platform, resolvedID string, remote platform.RemoteMod, options EnsurePersistOptions) (models.ModsJSON, []models.ModInstall, UpsertResult, error) {
+type UpsertOutcome struct {
+	Config models.ModsJSON
+	Lock   []models.ModInstall
+	Result UpsertResult
+}
+
+func (coordinator *SetupCoordinator) UpsertConfigAndLock(cfg models.ModsJSON, lock []models.ModInstall, resolvedPlatform models.Platform, resolvedID string, remote platform.RemoteMod, options EnsurePersistOptions) (UpsertOutcome, error) {
 	if strings.TrimSpace(string(resolvedPlatform)) == "" {
-		return models.ModsJSON{}, nil, UpsertResult{}, errors.New("missing resolved platform")
+		return UpsertOutcome{}, errors.New("missing resolved platform")
 	}
 	if strings.TrimSpace(resolvedID) == "" {
-		return models.ModsJSON{}, nil, UpsertResult{}, errors.New("missing resolved id")
+		return UpsertOutcome{}, errors.New("missing resolved id")
 	}
 
 	configIndex := findConfigIndex(cfg, resolvedPlatform, resolvedID)
@@ -178,13 +190,13 @@ func (coordinator *SetupCoordinator) UpsertConfigAndLock(cfg models.ModsJSON, lo
 
 	installEntry, err := lockInstallFromRemote(remote, resolvedPlatform, resolvedID)
 	if err != nil {
-		return models.ModsJSON{}, nil, UpsertResult{}, err
+		return UpsertOutcome{}, err
 	}
 
 	if lockIndex < 0 {
 		lock = append(lock, installEntry)
 		result.LockAdded = true
-		return cfg, lock, result, nil
+		return UpsertOutcome{Config: cfg, Lock: lock, Result: result}, nil
 	}
 
 	current := lock[lockIndex]
@@ -193,7 +205,7 @@ func (coordinator *SetupCoordinator) UpsertConfigAndLock(cfg models.ModsJSON, lo
 		result.LockUpdated = true
 	}
 
-	return cfg, lock, result, nil
+	return UpsertOutcome{Config: cfg, Lock: lock, Result: result}, nil
 }
 
 func ModExists(cfg models.ModsJSON, platform models.Platform, projectID string) bool {

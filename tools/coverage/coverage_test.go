@@ -14,35 +14,35 @@ import (
 func TestParseTotalCoverage(t *testing.T) {
 	input := "example\t0.0%\n" +
 		"total:\t(statements)\t100.0%\n"
-	totalLine, coverage, err := parseTotalCoverage(strings.NewReader(input))
+	totals, err := parseTotalCoverage(strings.NewReader(input))
 	if err != nil {
 		t.Fatalf("expected no error, got %v", err)
 	}
-	if coverage != "100.0%" {
-		t.Fatalf("expected 100.0%%, got %q", coverage)
+	if totals.coverage != "100.0%" {
+		t.Fatalf("expected 100.0%%, got %q", totals.coverage)
 	}
-	if totalLine == "" {
+	if totals.line == "" {
 		t.Fatal("expected total line")
 	}
 }
 
 func TestParseTotalCoverageMalformedLine(t *testing.T) {
 	input := "total:\t(statements)\n"
-	_, _, err := parseTotalCoverage(strings.NewReader(input))
+	_, err := parseTotalCoverage(strings.NewReader(input))
 	if err == nil {
 		t.Fatal("expected error, got nil")
 	}
 }
 
 func TestParseTotalCoverageMissingTotal(t *testing.T) {
-	_, _, err := parseTotalCoverage(strings.NewReader("example\t0.0%\n"))
+	_, err := parseTotalCoverage(strings.NewReader("example\t0.0%\n"))
 	if err == nil {
 		t.Fatal("expected error, got nil")
 	}
 }
 
 func TestParseTotalCoverageReadError(t *testing.T) {
-	if _, _, err := parseTotalCoverage(errorReader{}); err == nil {
+	if _, err := parseTotalCoverage(errorReader{}); err == nil {
 		t.Fatal("expected error, got nil")
 	}
 }
@@ -551,23 +551,23 @@ func TestCoverageFuncOutputParsesResults(t *testing.T) {
 		},
 	}
 
-	funcOutput, totalLine, total, offending, err := tool.coverageFuncOutput("coverage.profile")
+	funcOutput, err := tool.coverageFuncOutput("coverage.profile")
 	if err != nil {
 		t.Fatalf("expected no error, got %v", err)
 	}
-	if total != "97.3%" {
-		t.Fatalf("unexpected total %q", total)
+	if funcOutput.coverage != "97.3%" {
+		t.Fatalf("unexpected total %q", funcOutput.coverage)
 	}
-	if len(offending) != 1 {
-		t.Fatalf("expected 1 offending line, got %d", len(offending))
+	if len(funcOutput.offendingLines) != 1 {
+		t.Fatalf("expected 1 offending line, got %d", len(funcOutput.offendingLines))
 	}
-	if !strings.Contains(offending[0], "tools/build/build.go") {
-		t.Fatalf("unexpected offending line %q", offending[0])
+	if !strings.Contains(funcOutput.offendingLines[0], "tools/build/build.go") {
+		t.Fatalf("unexpected offending line %q", funcOutput.offendingLines[0])
 	}
-	if string(funcOutput) != output {
-		t.Fatalf("unexpected func output: %q", string(funcOutput))
+	if string(funcOutput.output) != output {
+		t.Fatalf("unexpected func output: %q", string(funcOutput.output))
 	}
-	if totalLine == "" {
+	if funcOutput.totalLine == "" {
 		t.Fatal("expected total line")
 	}
 }
@@ -581,7 +581,7 @@ func TestCoverageFuncOutputMissingTotal(t *testing.T) {
 		},
 	}
 
-	if _, _, _, _, err := tool.coverageFuncOutput("coverage.profile"); err == nil {
+	if _, err := tool.coverageFuncOutput("coverage.profile"); err == nil {
 		t.Fatal("expected error, got nil")
 	}
 }
@@ -596,7 +596,7 @@ func TestCoverageFuncOutputMalformedLine(t *testing.T) {
 		},
 	}
 
-	if _, _, _, _, err := tool.coverageFuncOutput("coverage.profile"); err == nil {
+	if _, err := tool.coverageFuncOutput("coverage.profile"); err == nil {
 		t.Fatal("expected error, got nil")
 	}
 }
@@ -610,7 +610,7 @@ func TestCoverageFuncOutputError(t *testing.T) {
 		},
 	}
 
-	if _, _, _, _, err := tool.coverageFuncOutput("coverage.profile"); err == nil {
+	if _, err := tool.coverageFuncOutput("coverage.profile"); err == nil {
 		t.Fatal("expected error, got nil")
 	}
 }

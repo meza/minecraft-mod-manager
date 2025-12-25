@@ -347,15 +347,15 @@ func Shutdown(ctx context.Context) {
 			return
 		}
 
-		commands, sessionNameHint, perfBaseDir := snapshotState()
-		performance := loadPerformance(perfBaseDir)
+		stateSnapshot := snapshotState()
+		performance := loadPerformance(stateSnapshot.perfBaseDir)
 		canonicalCommand, _ := topCommandNameFromPerformance(performance)
-		commands = applyCanonicalCommandName(commands, canonicalCommand)
+		commands := applyCanonicalCommandName(stateSnapshot.commands, canonicalCommand)
 
 		properties := buildSessionProperties(commands, performance)
 		addSessionDurations(properties)
 
-		sessionName := resolveSessionName(sessionNameHint, canonicalCommand, commands)
+		sessionName := resolveSessionName(stateSnapshot.sessionNameHint, canonicalCommand, commands)
 		captureWithSnapshot(snapshot, sessionName, properties)
 
 		shutdownCtx, cancel := ensureShutdownContext(ctx, snapshot.flushTimeout)
@@ -386,12 +386,22 @@ func captureWithSnapshot(snapshot telemetrySnapshot, event string, properties ma
 	}
 }
 
-func snapshotState() ([]recordedCommand, string, string) {
+type telemetryStateSnapshot struct {
+	commands        []recordedCommand
+	sessionNameHint string
+	perfBaseDir     string
+}
+
+func snapshotState() telemetryStateSnapshot {
 	state.mu.RLock()
 	defer state.mu.RUnlock()
 
 	commands := append([]recordedCommand(nil), state.commands...)
-	return commands, state.sessionNameHint, state.perfBaseDir
+	return telemetryStateSnapshot{
+		commands:        commands,
+		sessionNameHint: state.sessionNameHint,
+		perfBaseDir:     state.perfBaseDir,
+	}
 }
 
 func loadPerformance(perfBaseDir string) []*perf.ExportSpan {
