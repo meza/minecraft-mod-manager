@@ -33,8 +33,7 @@ func (model LoaderModel) Update(msg tea.Msg) (LoaderModel, tea.Cmd) {
 		model.list.SetWidth(msg.Width)
 		return model, nil
 	case tea.KeyMsg:
-		switch keypress := msg.String(); keypress {
-		case "enter":
+		if keypress := msg.String(); keypress == "enter" {
 			item, ok := model.list.SelectedItem().(loaderType)
 			if ok {
 				model.Value = models.Loader(item)
@@ -77,7 +76,7 @@ func (delegate itemDelegate) Render(w io.Writer, listModel list.Model, itemIndex
 		return
 	}
 
-	itemLine := fmt.Sprintf("%s", item)
+	itemLine := string(item)
 
 	if itemIndex == listModel.Index() {
 		if _, err := fmt.Fprint(w, tui.SelectedItemStyle.Render("❯ "+itemLine)); err != nil {

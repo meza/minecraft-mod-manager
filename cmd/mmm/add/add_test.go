@@ -1390,7 +1390,18 @@ func TestResolveRemoteMod_NoFileQuiet(t *testing.T) {
 		},
 	}
 
-	_, _, _, err := resolveRemoteMod(ctx, nil, cfg, addOptions{Quiet: true}, models.MODRINTH, "abc", deps, false, strings.NewReader(""), io.Discard)
+	_, err := resolveRemoteMod(ctx, addResolveInputs{
+		ctx:           ctx,
+		commandSpan:   nil,
+		cfg:           cfg,
+		opts:          addOptions{Quiet: true},
+		platformValue: models.MODRINTH,
+		projectID:     "abc",
+		deps:          deps,
+		useTUI:        false,
+		in:            strings.NewReader(""),
+		out:           io.Discard,
+	})
 	assert.Error(t, err)
 }
 
@@ -1510,11 +1521,22 @@ func TestResolveRemoteModWithTUI_RecordsAttempt(t *testing.T) {
 		},
 	}
 
-	remote, resolvedPlatform, resolvedProject, err := resolveRemoteModWithTUI(ctx, commandSpan, addTUIStateUnknownPlatformSelect, cfg, addOptions{}, models.Platform("invalid"), "abc", deps, strings.NewReader(""), io.Discard)
+	resolved, err := resolveRemoteModWithTUI(ctx, addResolveInputs{
+		ctx:           ctx,
+		commandSpan:   commandSpan,
+		cfg:           cfg,
+		opts:          addOptions{},
+		platformValue: models.Platform("invalid"),
+		projectID:     "abc",
+		deps:          deps,
+		useTUI:        false,
+		in:            strings.NewReader(""),
+		out:           io.Discard,
+	}, addTUIStateUnknownPlatformSelect)
 	assert.NoError(t, err)
-	assert.Equal(t, "example.jar", remote.FileName)
-	assert.Equal(t, models.CURSEFORGE, resolvedPlatform)
-	assert.Equal(t, "abc", resolvedProject)
+	assert.Equal(t, "example.jar", resolved.remoteMod.FileName)
+	assert.Equal(t, models.CURSEFORGE, resolved.platform)
+	assert.Equal(t, "abc", resolved.projectID)
 	assert.Equal(t, 1, fetchCalls)
 
 	commandSpan.End()
@@ -1543,7 +1565,18 @@ func TestResolveRemoteModWithTUIFetchError(t *testing.T) {
 		},
 	}
 
-	_, _, _, err := resolveRemoteModWithTUI(ctx, nil, addTUIStateUnknownPlatformSelect, cfg, addOptions{}, models.MODRINTH, "abc", deps, strings.NewReader(""), io.Discard)
+	_, err := resolveRemoteModWithTUI(ctx, addResolveInputs{
+		ctx:           ctx,
+		commandSpan:   nil,
+		cfg:           cfg,
+		opts:          addOptions{},
+		platformValue: models.MODRINTH,
+		projectID:     "abc",
+		deps:          deps,
+		useTUI:        false,
+		in:            strings.NewReader(""),
+		out:           io.Discard,
+	}, addTUIStateUnknownPlatformSelect)
 	assert.Error(t, err)
 }
 

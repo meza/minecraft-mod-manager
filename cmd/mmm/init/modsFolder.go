@@ -31,11 +31,18 @@ type ModsFolderModel struct {
 	validate func(string) error
 }
 
-func NewModsFolderModel(modsFolder string, meta config.Metadata, fs afero.Fs, prefill bool) ModsFolderModel {
+type modsFolderModelInput struct {
+	modsFolder string
+	meta       config.Metadata
+	fs         afero.Fs
+	prefill    bool
+}
+
+func NewModsFolderModel(input modsFolderModelInput) ModsFolderModel {
 	inputModel := textinput.New()
 	inputModel.Prompt = tui.QuestionStyle.Render("? ") + tui.TitleStyle.Render(i18n.T("cmd.init.tui.mods-folder.question")) + " "
-	resolvedModsFolder := meta.ModsFolderPath(models.ModsJSON{ModsFolder: modsFolder})
-	inputModel.Placeholder = modsFolder
+	resolvedModsFolder := input.meta.ModsFolderPath(models.ModsJSON{ModsFolder: input.modsFolder})
+	inputModel.Placeholder = input.modsFolder
 	// Ensure the placeholder fits so the full path is visible to the user.
 	minWidth := len(resolvedModsFolder) + 2
 	if minWidth < 10 {
@@ -44,8 +51,8 @@ func NewModsFolderModel(modsFolder string, meta config.Metadata, fs afero.Fs, pr
 	inputModel.Width = minWidth
 	inputModel.PlaceholderStyle = tui.PlaceholderStyle
 	inputModel.Focus()
-	if prefill {
-		inputModel.SetValue(modsFolder)
+	if input.prefill {
+		inputModel.SetValue(input.modsFolder)
 	}
 
 	model := ModsFolderModel{
@@ -53,12 +60,12 @@ func NewModsFolderModel(modsFolder string, meta config.Metadata, fs afero.Fs, pr
 		help:   help.New(),
 		keymap: tui.TranslatedInputKeyMap{},
 		validate: func(value string) error {
-			return validateModsFolder(fs, meta, value)
+			return validateModsFolder(input.fs, input.meta, value)
 		},
 	}
 
-	if prefill && model.validate(modsFolder) == nil {
-		model.Value = modsFolder
+	if input.prefill && model.validate(input.modsFolder) == nil {
+		model.Value = input.modsFolder
 	}
 
 	return model

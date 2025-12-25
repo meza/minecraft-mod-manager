@@ -273,10 +273,16 @@ func TestReportScanResultsPaths(t *testing.T) {
 		{Sha1: "lockmissing", Hits: []scanHit{{Platform: models.CURSEFORGE, Project: "def", Name: "NoLock"}}},
 	}
 
-	unresolved, unmanaged, err := reportScanResults(scanned, cfg, lock, deps, false)
+	outcome, err := reportScanResults(scanReportInputs{
+		scanned:  scanned,
+		cfg:      cfg,
+		lock:     lock,
+		deps:     deps,
+		colorize: false,
+	})
 	assert.NoError(t, err)
-	assert.True(t, unresolved)
-	assert.True(t, unmanaged)
+	assert.True(t, outcome.unresolved)
+	assert.True(t, outcome.unmanagedFound)
 	assert.NotEmpty(t, logBuffer.String())
 }
 
@@ -292,10 +298,16 @@ func TestReportScanResultsColorizesUnmanaged(t *testing.T) {
 		{Sha1: "hash", Hits: []scanHit{{Platform: models.MODRINTH, Project: "abc", Name: "Unmanaged"}}},
 	}
 
-	unresolved, unmanaged, err := reportScanResults(scanned, cfg, lock, deps, true)
+	outcome, err := reportScanResults(scanReportInputs{
+		scanned:  scanned,
+		cfg:      cfg,
+		lock:     lock,
+		deps:     deps,
+		colorize: true,
+	})
 	assert.NoError(t, err)
-	assert.False(t, unresolved)
-	assert.True(t, unmanaged)
+	assert.False(t, outcome.unresolved)
+	assert.True(t, outcome.unmanagedFound)
 	assert.Contains(t, logBuffer.String(), "Unmanaged")
 }
 
@@ -306,9 +318,9 @@ func TestHandleExpectedFetchError(t *testing.T) {
 	}
 
 	mod := models.Mod{Name: "Example", ID: "abc", Type: models.MODRINTH}
-	assert.True(t, handleExpectedFetchError(&platform.ModNotFoundError{Platform: models.MODRINTH, ProjectID: "abc"}, mod, deps, false))
-	assert.True(t, handleExpectedFetchError(&platform.NoCompatibleFileError{Platform: models.MODRINTH, ProjectID: "abc"}, mod, deps, false))
-	assert.False(t, handleExpectedFetchError(errors.New("boom"), mod, deps, false))
+	assert.True(t, handleExpectedFetchError(&platform.ModNotFoundError{Platform: models.MODRINTH, ProjectID: "abc"}, installModInputs{mod: mod, deps: deps, colorize: false}))
+	assert.True(t, handleExpectedFetchError(&platform.NoCompatibleFileError{Platform: models.MODRINTH, ProjectID: "abc"}, installModInputs{mod: mod, deps: deps, colorize: false}))
+	assert.False(t, handleExpectedFetchError(errors.New("boom"), installModInputs{mod: mod, deps: deps, colorize: false}))
 }
 
 func TestEnsureLockInstallLogsReasons(t *testing.T) {
@@ -585,10 +597,17 @@ func TestPreflightUnknownFilesNoUnmanaged(t *testing.T) {
 		logger: logger.New(io.Discard, io.Discard, false, false),
 	}
 
-	unresolved, unmanaged, err := preflightUnknownFiles(context.Background(), meta, cfg, lock, deps, false)
+	outcome, err := preflightUnknownFiles(preflightInputs{
+		ctx:      context.Background(),
+		meta:     meta,
+		cfg:      cfg,
+		lock:     lock,
+		deps:     deps,
+		colorize: false,
+	})
 	assert.NoError(t, err)
-	assert.False(t, unresolved)
-	assert.False(t, unmanaged)
+	assert.False(t, outcome.unresolved)
+	assert.False(t, outcome.unmanagedFound)
 }
 
 func TestPreflightUnknownFilesScansUnknown(t *testing.T) {
@@ -611,10 +630,17 @@ func TestPreflightUnknownFilesScansUnknown(t *testing.T) {
 		},
 	}
 
-	unresolved, unmanaged, err := preflightUnknownFiles(context.Background(), meta, cfg, nil, deps, false)
+	outcome, err := preflightUnknownFiles(preflightInputs{
+		ctx:      context.Background(),
+		meta:     meta,
+		cfg:      cfg,
+		lock:     nil,
+		deps:     deps,
+		colorize: false,
+	})
 	assert.NoError(t, err)
-	assert.False(t, unresolved)
-	assert.False(t, unmanaged)
+	assert.False(t, outcome.unresolved)
+	assert.False(t, outcome.unmanagedFound)
 }
 
 func TestPreflightUnknownFilesReturnsErrorOnListFailure(t *testing.T) {
@@ -626,7 +652,14 @@ func TestPreflightUnknownFilesReturnsErrorOnListFailure(t *testing.T) {
 		logger: logger.New(io.Discard, io.Discard, false, false),
 	}
 
-	_, _, err := preflightUnknownFiles(context.Background(), meta, cfg, nil, deps, false)
+	_, err := preflightUnknownFiles(preflightInputs{
+		ctx:      context.Background(),
+		meta:     meta,
+		cfg:      cfg,
+		lock:     nil,
+		deps:     deps,
+		colorize: false,
+	})
 	assert.Error(t, err)
 }
 
@@ -644,7 +677,14 @@ func TestPreflightUnknownFilesReturnsErrorOnScanFailure(t *testing.T) {
 		curseforgeFingerprint: func(string) uint32 { return 1 },
 	}
 
-	_, _, err := preflightUnknownFiles(context.Background(), meta, cfg, nil, deps, false)
+	_, err := preflightUnknownFiles(preflightInputs{
+		ctx:      context.Background(),
+		meta:     meta,
+		cfg:      cfg,
+		lock:     nil,
+		deps:     deps,
+		colorize: false,
+	})
 	assert.Error(t, err)
 }
 

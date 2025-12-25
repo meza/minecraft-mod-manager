@@ -711,7 +711,7 @@ func TestModsFolderModelUsesPlaceholderWhenEmpty(t *testing.T) {
 	assert.NoError(t, fs.MkdirAll(filepath.Dir(meta.ConfigPath), 0755))
 	assert.NoError(t, fs.MkdirAll(meta.ModsFolderPath(models.ModsJSON{ModsFolder: "mods"}), 0755))
 
-	model := NewModsFolderModel("mods", meta, fs, false)
+	model := NewModsFolderModel(modsFolderModelInput{modsFolder: "mods", meta: meta, fs: fs, prefill: false})
 	model.input.SetValue("")
 
 	updated, cmd := model.Update(tea.KeyMsg{Type: tea.KeyEnter})
@@ -755,7 +755,7 @@ func TestNormalizeGameVersion(t *testing.T) {
 		minecraft.ClearManifestCache()
 		opts, err := normalizeGameVersion(context.Background(), initOptions{
 			GameVersion: "1.21.1",
-		}, initDeps{minecraftClient: manifestDoer([]string{"1.21.1"})}, true)
+		}, initDeps{minecraftClient: manifestDoer([]string{"1.21.1"})}, gameVersionInteractive)
 		assert.NoError(t, err)
 		assert.Equal(t, "1.21.1", opts.GameVersion)
 	})
@@ -765,7 +765,7 @@ func TestNormalizeGameVersion(t *testing.T) {
 		opts, err := normalizeGameVersion(context.Background(), initOptions{
 			GameVersion: "latest",
 			Provided:    providedFlags{GameVersion: true},
-		}, initDeps{minecraftClient: manifestDoer([]string{"2.0.0"})}, false)
+		}, initDeps{minecraftClient: manifestDoer([]string{"2.0.0"})}, gameVersionNonInteractive)
 		assert.NoError(t, err)
 		assert.Equal(t, "2.0.0", opts.GameVersion)
 	})
@@ -777,7 +777,7 @@ func TestNormalizeGameVersion(t *testing.T) {
 			Provided:    providedFlags{GameVersion: false},
 		}, initDeps{minecraftClient: doerFunc(func(_ *http.Request) (*http.Response, error) {
 			return nil, errors.New("offline")
-		})}, true)
+		})}, gameVersionInteractive)
 		assert.NoError(t, err)
 		assert.Equal(t, "", opts.GameVersion)
 	})
@@ -789,7 +789,7 @@ func TestNormalizeGameVersion(t *testing.T) {
 			Provided:    providedFlags{GameVersion: true},
 		}, initDeps{minecraftClient: doerFunc(func(_ *http.Request) (*http.Response, error) {
 			return nil, errors.New("offline")
-		})}, true)
+		})}, gameVersionInteractive)
 		assert.Error(t, err)
 	})
 }

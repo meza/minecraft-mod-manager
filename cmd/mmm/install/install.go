@@ -65,6 +65,53 @@ type Result struct {
 	UnmanagedFound bool
 }
 
+type installConfiguredInputs struct {
+	ctx      context.Context
+	meta     config.Metadata
+	cfg      models.ModsJSON
+	lock     []models.ModInstall
+	deps     installDeps
+	colorize bool
+}
+
+type installConfiguredOutcome struct {
+	cfg         models.ModsJSON
+	lock        []models.ModInstall
+	failedCount int
+}
+
+type installModInputs struct {
+	ctx      context.Context
+	meta     config.Metadata
+	cfg      models.ModsJSON
+	lock     []models.ModInstall
+	mod      models.Mod
+	deps     installDeps
+	colorize bool
+}
+
+type preflightInputs struct {
+	ctx      context.Context
+	meta     config.Metadata
+	cfg      models.ModsJSON
+	lock     []models.ModInstall
+	deps     installDeps
+	colorize bool
+}
+
+type scanReportInputs struct {
+	scanned  []scannedFile
+	cfg      models.ModsJSON
+	lock     []models.ModInstall
+	deps     installDeps
+	colorize bool
+}
+
+type scanReportOutcome struct {
+	unresolved     bool
+	unmanagedFound bool
+}
+
 type installRunner func(context.Context, *cobra.Command, installOptions, installDeps) (Result, error)
 
 func Command() *cobra.Command {
@@ -195,59 +242,99 @@ var errInstallFailures = errors.New("one or more mods failed to install")
 func runInstall(ctx context.Context, cmd *cobra.Command, opts installOptions, deps installDeps) (Result, error) {
 	meta := config.NewMetadata(opts.ConfigPath)
 
-	cfg, err := config.ReadConfig(ctx, deps.fs, meta)
-	if err != nil {
-		return Result{}, err
-	}
-
-	lock, err := config.EnsureLock(ctx, deps.fs, meta)
+	cfg, lock, err := loadInstallConfig(ctx, deps, meta)
 	if err != nil {
 		return Result{}, err
 	}
 
 	colorize := tui.IsTerminalWriter(cmd.OutOrStdout())
 
-	unresolved, unmanagedFound, err := preflightUnknownFiles(ctx, meta, cfg, lock, deps, colorize)
-	if err != nil {
-		return Result{}, err
-	}
-	if unresolved {
-		deps.logger.Error(i18n.T("cmd.install.error.unresolved"))
-		return Result{}, errUnresolvedFiles
-	}
-
-	if err := deps.fs.MkdirAll(meta.ModsFolderPath(cfg), 0755); err != nil {
-		return Result{}, err
-	}
-
-	cfg, lock, failedCount, err := installConfiguredMods(ctx, meta, cfg, lock, deps, colorize)
+	preflight, err := preflightInstall(ctx, meta, cfg, lock, deps, colorize)
 	if err != nil {
 		return Result{}, err
 	}
 
-	if err := config.WriteLock(ctx, deps.fs, meta, lock); err != nil {
-		return Result{}, err
+	if mkdirErr := deps.fs.MkdirAll(meta.ModsFolderPath(cfg), 0755); mkdirErr != nil {
+		return Result{}, mkdirErr
 	}
-	if err := config.WriteConfig(ctx, deps.fs, meta, cfg); err != nil {
+
+	configured, err := installConfiguredMods(installConfiguredInputs{
+		ctx:      ctx,
+		meta:     meta,
+		cfg:      cfg,
+		lock:     lock,
+		deps:     deps,
+		colorize: colorize,
+	})
+	if err != nil {
 		return Result{}, err
 	}
 
-	if failedCount > 0 {
-		return Result{InstalledCount: len(cfg.Mods), UnmanagedFound: unmanagedFound}, errInstallFailures
+	if err := persistInstallConfig(ctx, deps, meta, configured); err != nil {
+		return Result{}, err
+	}
+
+	if configured.failedCount > 0 {
+		return Result{InstalledCount: len(configured.cfg.Mods), UnmanagedFound: preflight.unmanagedFound}, errInstallFailures
 	}
 
 	deps.logger.Log(messageWithIcon(tui.SuccessIcon(colorize), i18n.T("cmd.install.success")), true)
-	return Result{InstalledCount: len(cfg.Mods), UnmanagedFound: unmanagedFound}, nil
+	return Result{InstalledCount: len(configured.cfg.Mods), UnmanagedFound: preflight.unmanagedFound}, nil
 }
 
-func installConfiguredMods(ctx context.Context, meta config.Metadata, cfg models.ModsJSON, lock []models.ModInstall, deps installDeps, colorize bool) (models.ModsJSON, []models.ModInstall, int, error) {
+func loadInstallConfig(ctx context.Context, deps installDeps, meta config.Metadata) (models.ModsJSON, []models.ModInstall, error) {
+	cfg, err := config.ReadConfig(ctx, deps.fs, meta)
+	if err != nil {
+		return models.ModsJSON{}, nil, err
+	}
+
+	lock, err := config.EnsureLock(ctx, deps.fs, meta)
+	if err != nil {
+		return models.ModsJSON{}, nil, err
+	}
+
+	return cfg, lock, nil
+}
+
+func preflightInstall(ctx context.Context, meta config.Metadata, cfg models.ModsJSON, lock []models.ModInstall, deps installDeps, colorize bool) (scanReportOutcome, error) {
+	preflight, err := preflightUnknownFiles(preflightInputs{
+		ctx:      ctx,
+		meta:     meta,
+		cfg:      cfg,
+		lock:     lock,
+		deps:     deps,
+		colorize: colorize,
+	})
+	if err != nil {
+		return scanReportOutcome{}, err
+	}
+	if preflight.unresolved {
+		deps.logger.Error(i18n.T("cmd.install.error.unresolved"))
+		return scanReportOutcome{}, errUnresolvedFiles
+	}
+	return preflight, nil
+}
+
+func persistInstallConfig(ctx context.Context, deps installDeps, meta config.Metadata, configured installConfiguredOutcome) error {
+	if err := config.WriteLock(ctx, deps.fs, meta, configured.lock); err != nil {
+		return err
+	}
+	if err := config.WriteConfig(ctx, deps.fs, meta, configured.cfg); err != nil {
+		return err
+	}
+	return nil
+}
+
+func installConfiguredMods(input installConfiguredInputs) (installConfiguredOutcome, error) {
 	failedCount := 0
+	cfg := input.cfg
+	lock := input.lock
 
 	for i := range cfg.Mods {
 		mod := cfg.Mods[i]
 
 		version := modVersionLabel(mod)
-		deps.logger.Debug(i18n.T("cmd.install.debug.checking", i18n.Tvars{
+		input.deps.logger.Debug(i18n.T("cmd.install.debug.checking", i18n.Tvars{
 			Data: &i18n.TData{
 				"name":     mod.Name,
 				"version":  version,
@@ -255,9 +342,17 @@ func installConfiguredMods(ctx context.Context, meta config.Metadata, cfg models
 			},
 		}))
 
-		outcome, err := installMod(ctx, meta, cfg, lock, mod, deps, colorize)
+		outcome, err := installMod(installModInputs{
+			ctx:      input.ctx,
+			meta:     input.meta,
+			cfg:      cfg,
+			lock:     lock,
+			mod:      mod,
+			deps:     input.deps,
+			colorize: input.colorize,
+		})
 		if err != nil {
-			return models.ModsJSON{}, nil, 0, err
+			return installConfiguredOutcome{}, err
 		}
 		if outcome.failed {
 			failedCount++
@@ -271,7 +366,11 @@ func installConfiguredMods(ctx context.Context, meta config.Metadata, cfg models
 		}
 	}
 
-	return cfg, lock, failedCount, nil
+	return installConfiguredOutcome{
+		cfg:         cfg,
+		lock:        lock,
+		failedCount: failedCount,
+	}, nil
 }
 
 type modInstallOutcome struct {
@@ -310,24 +409,24 @@ func lockIndexFor(mod models.Mod, lock []models.ModInstall) int {
 	return -1
 }
 
-func installMod(ctx context.Context, meta config.Metadata, cfg models.ModsJSON, lock []models.ModInstall, mod models.Mod, deps installDeps, colorize bool) (modInstallOutcome, error) {
-	lockIndex := lockIndexFor(mod, lock)
+func installMod(input installModInputs) (modInstallOutcome, error) {
+	lockIndex := lockIndexFor(input.mod, input.lock)
 	if lockIndex >= 0 {
-		return installFromLock(ctx, meta, cfg, mod, lock[lockIndex], deps)
+		return installFromLock(input.ctx, input.meta, input.cfg, input.mod, input.lock[lockIndex], input.deps)
 	}
-	return installFromRemote(ctx, meta, cfg, mod, deps, colorize)
+	return installFromRemote(input)
 }
 
 func installFromLock(ctx context.Context, meta config.Metadata, cfg models.ModsJSON, mod models.Mod, installEntry models.ModInstall, deps installDeps) (modInstallOutcome, error) {
-	normalizedFileName, err := modfilename.Normalize(installEntry.FileName)
-	if err != nil {
+	normalizedFileName, normalizeErr := modfilename.Normalize(installEntry.FileName)
+	if normalizeErr != nil {
 		deps.logger.Error(i18n.T("cmd.install.error.invalid_filename_lock", i18n.Tvars{
 			Data: &i18n.TData{
 				"name": mod.Name,
 				"file": modfilename.Display(installEntry.FileName),
 			},
 		}))
-		return modInstallOutcome{failed: true}, nil
+		return modInstallOutcome{failed: true}, nil //nolint:nilerr // Keep install flow running after logging invalid lock entry.
 	}
 	installEntry.FileName = normalizedFileName
 	if err := ensureLockInstall(ctx, meta, cfg, mod, installEntry, deps); err != nil {
@@ -340,39 +439,39 @@ func installFromLock(ctx context.Context, meta config.Metadata, cfg models.ModsJ
 	return modInstallOutcome{}, nil
 }
 
-func installFromRemote(ctx context.Context, meta config.Metadata, cfg models.ModsJSON, mod models.Mod, deps installDeps, colorize bool) (modInstallOutcome, error) {
-	remote, fetchErr := fetchRemoteModForInstall(ctx, mod, cfg, deps)
+func installFromRemote(input installModInputs) (modInstallOutcome, error) {
+	remote, fetchErr := fetchRemoteModForInstall(input.ctx, input.mod, input.cfg, input.deps)
 	if fetchErr != nil {
-		if handleExpectedFetchError(fetchErr, mod, deps, colorize) {
+		if handleExpectedFetchError(fetchErr, input) {
 			return modInstallOutcome{}, nil
 		}
 		return modInstallOutcome{}, fetchErr
 	}
 
-	normalizedRemote, outcome := normalizeRemoteForInstall(remote, mod, deps)
+	normalizedRemote, outcome := normalizeRemoteForInstall(remote, input.mod, input.deps)
 	if outcome.failed {
 		return outcome, nil
 	}
 
-	deps.logger.Log(i18n.T("cmd.install.download.missing", i18n.Tvars{
+	input.deps.logger.Log(i18n.T("cmd.install.download.missing", i18n.Tvars{
 		Data: &i18n.TData{
-			"name":     mod.Name,
-			"platform": mod.Type,
+			"name":     input.mod.Name,
+			"platform": input.mod.Type,
 		},
 	}), true)
 
-	resolvedDestination, outcome, err := resolveRemoteDestination(meta, cfg, normalizedRemote, mod, deps)
+	resolvedDestination, outcome, err := resolveRemoteDestination(input.meta, input.cfg, normalizedRemote, input.mod, input.deps)
 	if err != nil || outcome.failed {
 		return outcome, err
 	}
 
-	if handled, err := downloadRemoteMod(ctx, normalizedRemote, resolvedDestination, mod, deps); err != nil {
+	if handled, err := downloadRemoteMod(input.ctx, normalizedRemote, resolvedDestination, input.mod, input.deps); err != nil {
 		return modInstallOutcome{}, err
 	} else if handled {
 		return modInstallOutcome{failed: true}, nil
 	}
 
-	lockEntry := buildLockEntry(mod, normalizedRemote)
+	lockEntry := buildLockEntry(input.mod, normalizedRemote)
 	return modInstallOutcome{newName: normalizedRemote.Name, lockEntry: &lockEntry}, nil
 }
 
@@ -498,14 +597,14 @@ func integrityErrorMessage(err error, modName string) (string, bool) {
 	return "", false
 }
 
-func handleExpectedFetchError(err error, mod models.Mod, deps installDeps, colorize bool) bool {
+func handleExpectedFetchError(err error, input installModInputs) bool {
 	var notFound *platform.ModNotFoundError
 	if errors.As(err, &notFound) {
-		deps.logger.Log(messageWithIcon(tui.ErrorIcon(colorize), i18n.T("cmd.install.error.mod_not_found", i18n.Tvars{
+		input.deps.logger.Log(messageWithIcon(tui.ErrorIcon(input.colorize), i18n.T("cmd.install.error.mod_not_found", i18n.Tvars{
 			Data: &i18n.TData{
-				"name":     mod.Name,
-				"id":       mod.ID,
-				"platform": mod.Type,
+				"name":     input.mod.Name,
+				"id":       input.mod.ID,
+				"platform": input.mod.Type,
 			},
 		})), true)
 		return true
@@ -513,11 +612,11 @@ func handleExpectedFetchError(err error, mod models.Mod, deps installDeps, color
 
 	var noFile *platform.NoCompatibleFileError
 	if errors.As(err, &noFile) {
-		deps.logger.Log(messageWithIcon(tui.ErrorIcon(colorize), i18n.T("cmd.install.error.no_file", i18n.Tvars{
+		input.deps.logger.Log(messageWithIcon(tui.ErrorIcon(input.colorize), i18n.T("cmd.install.error.no_file", i18n.Tvars{
 			Data: &i18n.TData{
-				"name":     mod.Name,
-				"id":       mod.ID,
-				"platform": mod.Type,
+				"name":     input.mod.Name,
+				"id":       input.mod.ID,
+				"platform": input.mod.Type,
 			},
 		})), true)
 		return true
@@ -530,57 +629,98 @@ func messageWithIcon(icon string, message string) string {
 	return fmt.Sprintf("%s %s", icon, message)
 }
 
-func preflightUnknownFiles(ctx context.Context, meta config.Metadata, cfg models.ModsJSON, lock []models.ModInstall, deps installDeps, colorize bool) (bool, bool, error) {
-	files, err := listModFiles(deps.fs, meta, cfg)
+func preflightUnknownFiles(input preflightInputs) (scanReportOutcome, error) {
+	files, err := listModFiles(input.deps.fs, input.meta, input.cfg)
 	if err != nil {
-		return false, false, err
+		return scanReportOutcome{}, err
 	}
 
 	nonManaged := make([]string, 0)
 	for _, file := range files {
-		if !fileIsManaged(file, lock) {
+		if !fileIsManaged(file, input.lock) {
 			nonManaged = append(nonManaged, file)
 		}
 	}
 
 	if len(nonManaged) == 0 {
-		return false, false, nil
+		return scanReportOutcome{}, nil
 	}
 
-	scanned, err := scanFiles(ctx, nonManaged, deps)
+	scanned, err := scanFiles(input.ctx, nonManaged, input.deps)
 	if err != nil {
-		return false, false, err
+		return scanReportOutcome{}, err
 	}
 
-	return reportScanResults(scanned, cfg, lock, deps, colorize)
+	return reportScanResults(scanReportInputs{
+		scanned:  scanned,
+		cfg:      input.cfg,
+		lock:     input.lock,
+		deps:     input.deps,
+		colorize: input.colorize,
+	})
 }
 
 func scanFiles(ctx context.Context, files []string, deps installDeps) ([]scannedFile, error) {
-	results := make([]scannedFile, 0, len(files))
+	candidates, err := buildScanCandidates(files, deps)
+	if err != nil {
+		return nil, err
+	}
 
+	if err := applyCurseforgeHits(ctx, candidates.results, candidates.fingerprintToIndices, candidates.fingerprints, deps); err != nil {
+		return nil, err
+	}
+
+	if err := applyModrinthHits(ctx, candidates.results, deps); err != nil {
+		return nil, err
+	}
+
+	for i := range candidates.results {
+		candidates.results[i].Hits = sortHitsPreferModrinth(candidates.results[i].Hits)
+	}
+
+	return candidates.results, nil
+}
+
+type scanCandidates struct {
+	results              []scannedFile
+	fingerprints         []int
+	fingerprintToIndices map[int][]int
+}
+
+func buildScanCandidates(files []string, deps installDeps) (scanCandidates, error) {
+	results := make([]scannedFile, 0, len(files))
 	fingerprints := make([]int, 0, len(files))
 	fingerprintToIndices := make(map[int][]int, len(files))
-	for i, file := range files {
-		sha, err := sha1ForFile(deps.fs, file)
+
+	for index, filePath := range files {
+		sha, err := sha1ForFile(deps.fs, filePath)
 		if err != nil {
-			return nil, err
+			return scanCandidates{}, err
 		}
 
-		fingerprint := int(deps.curseforgeFingerprint(file))
+		fingerprint := int(deps.curseforgeFingerprint(filePath))
 		fingerprints = append(fingerprints, fingerprint)
-		fingerprintToIndices[fingerprint] = append(fingerprintToIndices[fingerprint], i)
+		fingerprintToIndices[fingerprint] = append(fingerprintToIndices[fingerprint], index)
 
 		results = append(results, scannedFile{
-			Path: file,
+			Path: filePath,
 			Sha1: sha,
 		})
 	}
 
 	sort.Ints(fingerprints)
 
+	return scanCandidates{
+		results:              results,
+		fingerprints:         fingerprints,
+		fingerprintToIndices: fingerprintToIndices,
+	}, nil
+}
+
+func applyCurseforgeHits(ctx context.Context, results []scannedFile, fingerprintToIndices map[int][]int, fingerprints []int, deps installDeps) error {
 	curseforgeByFingerprint, err := curseforgeMatchesByFingerprint(ctx, fingerprints, deps)
 	if err != nil {
-		return nil, err
+		return err
 	}
 
 	for fingerprint, hit := range curseforgeByFingerprint {
@@ -593,6 +733,10 @@ func scanFiles(ctx context.Context, files []string, deps installDeps) ([]scanned
 		}
 	}
 
+	return nil
+}
+
+func applyModrinthHits(ctx context.Context, results []scannedFile, deps installDeps) error {
 	for i := range results {
 		version, err := deps.modrinthVersionForSha(ctx, results[i].Sha1, deps.clients.Modrinth)
 		if err != nil {
@@ -600,12 +744,12 @@ func scanFiles(ctx context.Context, files []string, deps installDeps) ([]scanned
 			if errors.As(err, &notFound) {
 				continue
 			}
-			return nil, err
+			return err
 		}
 
 		name, err := deps.modrinthProjectTitle(ctx, version.ProjectID, deps.clients.Modrinth)
 		if err != nil {
-			return nil, err
+			return err
 		}
 
 		results[i].Hits = append(results[i].Hits, scanHit{
@@ -615,11 +759,7 @@ func scanFiles(ctx context.Context, files []string, deps installDeps) ([]scanned
 		})
 	}
 
-	for i := range results {
-		results[i].Hits = sortHitsPreferModrinth(results[i].Hits)
-	}
-
-	return results, nil
+	return nil
 }
 
 func sortHitsPreferModrinth(hits []scanHit) []scanHit {
@@ -681,47 +821,46 @@ func uniqueInts(values []int) []int {
 	return result
 }
 
-func reportScanResults(scanned []scannedFile, cfg models.ModsJSON, lock []models.ModInstall, deps installDeps, colorize bool) (bool, bool, error) {
-	unresolved := false
-	unmanagedFound := false
+func reportScanResults(input scanReportInputs) (scanReportOutcome, error) {
+	outcome := scanReportOutcome{}
 
-	for _, item := range scanned {
+	for _, item := range input.scanned {
 		if len(item.Hits) == 0 {
 			continue
 		}
 
-		matchedModIndex := findConfiguredModIndex(cfg, item.Hits)
+		matchedModIndex := findConfiguredModIndex(input.cfg, item.Hits)
 		if matchedModIndex < 0 {
-			unmanagedFound = true
+			outcome.unmanagedFound = true
 			name := item.Hits[0].Name
-			if colorize {
+			if input.colorize {
 				name = tui.TitleStyle.Copy().Bold(true).Render(name)
 			}
-			deps.logger.Log(tui.SuccessIcon(colorize)+i18n.T("cmd.install.unmanaged.found", i18n.Tvars{
+			input.deps.logger.Log(tui.SuccessIcon(input.colorize)+i18n.T("cmd.install.unmanaged.found", i18n.Tvars{
 				Data: &i18n.TData{"name": name},
 			}), true)
 			continue
 		}
 
-		mod := cfg.Mods[matchedModIndex]
-		lockIndex := lockIndexFor(mod, lock)
+		mod := input.cfg.Mods[matchedModIndex]
+		lockIndex := lockIndexFor(mod, input.lock)
 		if lockIndex < 0 {
-			deps.logger.Log(messageWithIcon(tui.ErrorIcon(colorize), i18n.T("cmd.install.unsure.lock_missing", i18n.Tvars{
+			input.deps.logger.Log(messageWithIcon(tui.ErrorIcon(input.colorize), i18n.T("cmd.install.unsure.lock_missing", i18n.Tvars{
 				Data: &i18n.TData{"name": item.Hits[0].Name},
 			})), true)
-			unresolved = true
+			outcome.unresolved = true
 			continue
 		}
 
-		if !strings.EqualFold(lock[lockIndex].Hash, item.Sha1) {
-			deps.logger.Log(messageWithIcon(tui.ErrorIcon(colorize), i18n.T("cmd.install.unsure.hash_mismatch", i18n.Tvars{
+		if !strings.EqualFold(input.lock[lockIndex].Hash, item.Sha1) {
+			input.deps.logger.Log(messageWithIcon(tui.ErrorIcon(input.colorize), i18n.T("cmd.install.unsure.hash_mismatch", i18n.Tvars{
 				Data: &i18n.TData{"name": item.Hits[0].Name},
 			})), true)
-			unresolved = true
+			outcome.unresolved = true
 		}
 	}
 
-	return unresolved, unmanagedFound, nil
+	return outcome, nil
 }
 
 func findConfiguredModIndex(cfg models.ModsJSON, hits []scanHit) int {

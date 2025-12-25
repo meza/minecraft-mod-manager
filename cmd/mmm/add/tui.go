@@ -195,7 +195,10 @@ func (model addTUIModel) View() string {
 	case addTUIStateUnknownPlatformSelect, addTUIStateModNotFoundSelectPlatform:
 		return model.list.View()
 	case addTUIStateModNotFoundConfirm, addTUIStateNoFileConfirm:
-		return renderConfirm(model.confirmMessage, model.confirmDefault)
+		return renderConfirm(confirmPrompt{
+			message:    model.confirmMessage,
+			defaultYes: model.confirmDefault,
+		})
 	case addTUIStateModNotFoundEnterProjectID, addTUIStateNoFileEnterProjectID:
 		return renderInput(model.input)
 	case addTUIStateFatalError:
@@ -218,49 +221,86 @@ func (model *addTUIModel) enterState(state addTUIState) {
 	}
 
 	model.startWait(state)
+	model.applyState(state)
+}
 
+func (model *addTUIModel) applyState(state addTUIState) {
 	switch state {
 	case addTUIStateUnknownPlatformSelect:
-		message := i18n.T("cmd.add.tui.unknown_platform", i18n.Tvars{
-			Data: &i18n.TData{"platform": string(model.failurePlatform)},
-		})
-		model.list = newPlatformListModel(message, "", true, model.width)
+		model.applyUnknownPlatformState()
 	case addTUIStateModNotFoundConfirm:
-		model.confirmMessage = i18n.T("cmd.add.tui.mod_not_found", i18n.Tvars{
-			Data: &i18n.TData{
-				"id":       model.failureProject,
-				"platform": model.failurePlatform,
-			},
-		})
-		model.confirmDefault = true
+		model.applyModNotFoundConfirmState()
 	case addTUIStateModNotFoundSelectPlatform:
-		message := i18n.T("cmd.add.tui.choose_platform")
-		model.list = newPlatformListModel(message, string(model.failurePlatform), false, model.width)
+		model.applyModNotFoundSelectPlatformState()
 	case addTUIStateModNotFoundEnterProjectID:
-		message := i18n.T("cmd.add.tui.enter_project_id")
-		model.input = newProjectIDInputModel(message, model.failureProject)
+		model.applyModNotFoundEnterProjectIDState()
 	case addTUIStateNoFileConfirm:
-		message := i18n.T("cmd.add.tui.no_file_found", i18n.Tvars{
-			Data: &i18n.TData{
-				"name":        model.failureProject,
-				"platform":    model.failurePlatform,
-				"gameVersion": model.cfg.GameVersion,
-				"loader":      model.cfg.Loader,
-				"other":       alternatePlatform(model.failurePlatform),
-			},
-		})
-		model.confirmMessage = message
-		model.confirmDefault = true
+		model.applyNoFileConfirmState()
 	case addTUIStateNoFileEnterProjectID:
-		message := i18n.T("cmd.add.tui.enter_project_id_on", i18n.Tvars{
-			Data: &i18n.TData{
-				"platform": alternatePlatform(model.failurePlatform),
-			},
-		})
-		model.input = newProjectIDInputModel(message, "")
+		model.applyNoFileEnterProjectIDState()
 	case addTUIStateFatalError:
 		return
 	}
+}
+
+func (model *addTUIModel) applyUnknownPlatformState() {
+	message := i18n.T("cmd.add.tui.unknown_platform", i18n.Tvars{
+		Data: &i18n.TData{"platform": string(model.failurePlatform)},
+	})
+	model.list = newPlatformListModel(platformListOptions{
+		message:       message,
+		defaultValue:  "",
+		includeCancel: true,
+		width:         model.width,
+	})
+}
+
+func (model *addTUIModel) applyModNotFoundConfirmState() {
+	model.confirmMessage = i18n.T("cmd.add.tui.mod_not_found", i18n.Tvars{
+		Data: &i18n.TData{
+			"id":       model.failureProject,
+			"platform": model.failurePlatform,
+		},
+	})
+	model.confirmDefault = true
+}
+
+func (model *addTUIModel) applyModNotFoundSelectPlatformState() {
+	message := i18n.T("cmd.add.tui.choose_platform")
+	model.list = newPlatformListModel(platformListOptions{
+		message:       message,
+		defaultValue:  string(model.failurePlatform),
+		includeCancel: false,
+		width:         model.width,
+	})
+}
+
+func (model *addTUIModel) applyModNotFoundEnterProjectIDState() {
+	message := i18n.T("cmd.add.tui.enter_project_id")
+	model.input = newProjectIDInputModel(message, model.failureProject)
+}
+
+func (model *addTUIModel) applyNoFileConfirmState() {
+	message := i18n.T("cmd.add.tui.no_file_found", i18n.Tvars{
+		Data: &i18n.TData{
+			"name":        model.failureProject,
+			"platform":    model.failurePlatform,
+			"gameVersion": model.cfg.GameVersion,
+			"loader":      model.cfg.Loader,
+			"other":       alternatePlatform(model.failurePlatform),
+		},
+	})
+	model.confirmMessage = message
+	model.confirmDefault = true
+}
+
+func (model *addTUIModel) applyNoFileEnterProjectIDState() {
+	message := i18n.T("cmd.add.tui.enter_project_id_on", i18n.Tvars{
+		Data: &i18n.TData{
+			"platform": alternatePlatform(model.failurePlatform),
+		},
+	})
+	model.input = newProjectIDInputModel(message, "")
 }
 
 func (model addTUIModel) stateName() string {
@@ -378,42 +418,51 @@ func (model addTUIModel) handleModNotFoundPlatformSelection(item addTUIListItem)
 }
 
 func (model addTUIModel) updateInput(msg tea.Msg) (tea.Model, tea.Cmd) {
-	switch msg := msg.(type) {
-	case tea.KeyMsg:
-		switch msg.String() {
-		case "enter":
-			value := strings.TrimSpace(model.input.Value())
-			if value == "" {
-				value = strings.TrimSpace(model.input.Placeholder)
-			}
-			if value == "" {
-				return model, nil
-			}
-			model.endWait("submit_project_id")
-			if model.sessionSpan != nil {
-				model.sessionSpan.AddEvent("tui.add.action.submit_project_id", perf.WithEventAttributes(
-					attribute.String("state", model.stateName()),
-					attribute.String("project_id", value),
-				))
-			}
-			model.candidateProject = value
-			if model.state == addTUIStateNoFileEnterProjectID {
-				model.candidatePlatform = alternatePlatform(model.failurePlatform)
-			}
-			model.beginFetch("submit_project_id", model.candidatePlatform, model.candidateProject)
-			return model, model.fetchCmd(model.candidatePlatform, model.candidateProject)
-		}
+	keyMsg, ok := msg.(tea.KeyMsg)
+	if !ok {
+		return model.updateTextInput(msg)
 	}
 
+	if keyMsg.String() == "enter" {
+		return model.handleInputKey(keyMsg)
+	}
+
+	return model.updateTextInput(msg)
+}
+
+func (model addTUIModel) updateTextInput(msg tea.Msg) (tea.Model, tea.Cmd) {
 	var cmd tea.Cmd
 	model.input, cmd = model.input.Update(msg)
 	return model, cmd
 }
 
+func (model addTUIModel) handleInputKey(_ tea.KeyMsg) (tea.Model, tea.Cmd) {
+	value := strings.TrimSpace(model.input.Value())
+	if value == "" {
+		value = strings.TrimSpace(model.input.Placeholder)
+	}
+	if value == "" {
+		return model, nil
+	}
+
+	model.endWait("submit_project_id")
+	if model.sessionSpan != nil {
+		model.sessionSpan.AddEvent("tui.add.action.submit_project_id", perf.WithEventAttributes(
+			attribute.String("state", model.stateName()),
+			attribute.String("project_id", value),
+		))
+	}
+	model.candidateProject = value
+	if model.state == addTUIStateNoFileEnterProjectID {
+		model.candidatePlatform = alternatePlatform(model.failurePlatform)
+	}
+	model.beginFetch("submit_project_id", model.candidatePlatform, model.candidateProject)
+	return model, model.fetchCmd(model.candidatePlatform, model.candidateProject)
+}
+
 func (model addTUIModel) updateConfirm(msg tea.Msg) (tea.Model, tea.Cmd) {
-	switch msg := msg.(type) {
-	case tea.KeyMsg:
-		switch msg.String() {
+	if keyMsg, ok := msg.(tea.KeyMsg); ok {
+		switch keyMsg.String() {
 		case "enter", "y", "Y":
 			model.endWait("confirm_yes")
 			if model.sessionSpan != nil {
@@ -550,17 +599,24 @@ func (model *addTUIModel) endFetch(msg addTUIFetchResultMsg) {
 	model.fetchSpan = nil
 }
 
-func newPlatformListModel(message string, defaultValue string, includeCancel bool, width int) list.Model {
+type platformListOptions struct {
+	message       string
+	defaultValue  string
+	includeCancel bool
+	width         int
+}
+
+func newPlatformListModel(options platformListOptions) list.Model {
 	items := []list.Item{
 		addTUIListItem{value: string(models.CURSEFORGE)},
 		addTUIListItem{value: string(models.MODRINTH)},
 	}
-	if includeCancel {
+	if options.includeCancel {
 		items = append(items, addTUIListItem{value: "cancel"})
 	}
 
-	model := list.New(items, addTUIListDelegate{}, width, len(items)+3)
-	model.Title = tui.QuestionStyle.Render("? ") + tui.TitleStyle.Render(message)
+	model := list.New(items, addTUIListDelegate{}, options.width, len(items)+3)
+	model.Title = tui.QuestionStyle.Render("? ") + tui.TitleStyle.Render(options.message)
 	model.SetShowStatusBar(false)
 	model.SetFilteringEnabled(false)
 	model.SetShowTitle(true)
@@ -573,7 +629,7 @@ func newPlatformListModel(message string, defaultValue string, includeCancel boo
 	model.KeyMap = tui.TranslatedListKeyMap()
 
 	for idx, item := range items {
-		if candidate, ok := item.(addTUIListItem); ok && candidate.value == defaultValue {
+		if candidate, ok := item.(addTUIListItem); ok && candidate.value == options.defaultValue {
 			model.Select(idx)
 			break
 		}
@@ -596,31 +652,46 @@ func newProjectIDInputModel(message string, placeholder string) textinput.Model 
 	return inputModel
 }
 
-func renderConfirm(message string, defaultYes bool) string {
+type confirmPrompt struct {
+	message    string
+	defaultYes bool
+}
+
+func renderConfirm(prompt confirmPrompt) string {
 	suffix := " (y/N)"
-	if defaultYes {
+	if prompt.defaultYes {
 		suffix = " (Y/n)"
 	}
-	return tui.QuestionStyle.Render("? ") + tui.TitleStyle.Render(message) + suffix
+	return tui.QuestionStyle.Render("? ") + tui.TitleStyle.Render(prompt.message) + suffix
 }
 
 func renderInput(input textinput.Model) string {
 	return input.View()
 }
 
-func (model addTUIModel) result() (platform.RemoteMod, models.Platform, string, error) {
+type addTUIResult struct {
+	remoteMod platform.RemoteMod
+	platform  models.Platform
+	projectID string
+}
+
+func (model addTUIModel) result() (addTUIResult, error) {
 	switch model.state {
 	case addTUIStateDone:
 		if model.remoteMod.FileName == "" {
-			return platform.RemoteMod{}, "", "", errors.New("add TUI finished without a mod selection")
+			return addTUIResult{}, errors.New("add TUI finished without a mod selection")
 		}
-		return model.remoteMod, model.resolvedPlatform, model.resolvedProject, nil
+		return addTUIResult{
+			remoteMod: model.remoteMod,
+			platform:  model.resolvedPlatform,
+			projectID: model.resolvedProject,
+		}, nil
 	case addTUIStateAborted:
-		return platform.RemoteMod{}, "", "", errAborted
+		return addTUIResult{}, errAborted
 	default:
 		if model.err != nil {
-			return platform.RemoteMod{}, "", "", model.err
+			return addTUIResult{}, model.err
 		}
-		return platform.RemoteMod{}, "", "", errors.New("add TUI did not finish")
+		return addTUIResult{}, errors.New("add TUI did not finish")
 	}
 }

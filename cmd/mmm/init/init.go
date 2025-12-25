@@ -184,7 +184,11 @@ func runInit(ctx context.Context, cmd *cobra.Command, options initOptions, deps 
 	shouldUseTUI := tui.ShouldUseTUI(options.Quiet, cmd.InOrStdin(), cmd.OutOrStdout())
 	didUseTUI := false
 
-	options, err := normalizeGameVersion(ctx, options, deps, shouldUseTUI)
+	gameVersionMode := gameVersionNonInteractive
+	if shouldUseTUI {
+		gameVersionMode = gameVersionInteractive
+	}
+	options, err := normalizeGameVersion(ctx, options, deps, gameVersionMode)
 	if err != nil {
 		return options, didUseTUI, err
 	}
@@ -281,13 +285,20 @@ func finalizeInteractiveResult(result tea.Model) (initOptions, error) {
 	return finalModel.result, nil
 }
 
-func normalizeGameVersion(ctx context.Context, options initOptions, deps initDeps, interactive bool) (initOptions, error) {
+type gameVersionNormalizationMode int
+
+const (
+	gameVersionNonInteractive gameVersionNormalizationMode = iota
+	gameVersionInteractive
+)
+
+func normalizeGameVersion(ctx context.Context, options initOptions, deps initDeps, mode gameVersionNormalizationMode) (initOptions, error) {
 	if options.GameVersion == "" {
 		return options, nil
 	}
 
 	if strings.EqualFold(options.GameVersion, "latest") {
-		if interactive && !options.Provided.GameVersion {
+		if mode == gameVersionInteractive && !options.Provided.GameVersion {
 			options.GameVersion = ""
 			return options, nil
 		}
@@ -396,7 +407,7 @@ func getAllReleaseTypes() string {
 	var releaseTypeList string
 
 	for i, releaseType := range releaseTypes {
-		releaseTypeList += fmt.Sprintf("%s", releaseType)
+		releaseTypeList += string(releaseType)
 		if i < len(releaseTypes)-1 {
 			releaseTypeList += ", "
 		}
@@ -410,7 +421,7 @@ func getAllLoaders() string {
 	var loaderList string
 
 	for i, loader := range loaders {
-		loaderList += fmt.Sprintf("%s", string(loader))
+		loaderList += string(loader)
 		if i < len(loaders)-1 {
 			loaderList += ", "
 		}

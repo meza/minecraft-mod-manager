@@ -53,6 +53,17 @@ func TestResolveRemoteMod_WrappedErrorReturnsError(t *testing.T) {
 		},
 	}
 
-	_, _, _, err := resolveRemoteMod(ctx, nil, cfg, addOptions{Quiet: true}, models.MODRINTH, "abc", deps, false, strings.NewReader(""), io.Discard)
+	_, err := resolveRemoteMod(ctx, addResolveInputs{
+		ctx:           ctx,
+		commandSpan:   nil,
+		cfg:           cfg,
+		opts:          addOptions{Quiet: true},
+		platformValue: models.MODRINTH,
+		projectID:     "abc",
+		deps:          deps,
+		useTUI:        false,
+		in:            strings.NewReader(""),
+		out:           io.Discard,
+	})
 	assert.Error(t, err)
 }

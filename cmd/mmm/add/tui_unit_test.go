@@ -38,7 +38,7 @@ func TestAddTUIListDelegateUpdateNoop(t *testing.T) {
 
 func TestAddTUIListDelegateRenderSelectedAndUnselected(t *testing.T) {
 	var delegate addTUIListDelegate
-	model := newPlatformListModel("question", "", false, 20)
+	model := newPlatformListModel(platformListOptions{message: "question", defaultValue: "", includeCancel: false, width: 20})
 	items := model.Items()
 	if !assert.Len(t, items, 2) {
 		return
@@ -56,7 +56,7 @@ func TestAddTUIListDelegateRenderSelectedAndUnselected(t *testing.T) {
 
 func TestAddTUIListDelegateRenderHandlesWriteError(t *testing.T) {
 	var delegate addTUIListDelegate
-	model := newPlatformListModel("question", "", false, 20)
+	model := newPlatformListModel(platformListOptions{message: "question", defaultValue: "", includeCancel: false, width: 20})
 	items := model.Items()
 	if !assert.Len(t, items, 2) {
 		return
@@ -97,7 +97,7 @@ func TestAddTUIModelInitReturnsNilForActiveState(t *testing.T) {
 func TestAddTUIModelUpdateHandlesWindowSize(t *testing.T) {
 	model := addTUIModel{
 		state: addTUIStateUnknownPlatformSelect,
-		list:  newPlatformListModel("question", "", false, 10),
+		list:  newPlatformListModel(platformListOptions{message: "question", defaultValue: "", includeCancel: false, width: 10}),
 	}
 	updated, _ := model.Update(tea.WindowSizeMsg{Width: 120})
 	typed := updated.(addTUIModel)
@@ -211,7 +211,7 @@ func TestAddTUIModelUpdateListCancelAborts(t *testing.T) {
 	initPerf(t)
 	model := addTUIModel{
 		state: addTUIStateUnknownPlatformSelect,
-		list:  newPlatformListModel("question", "", true, 20),
+		list:  newPlatformListModel(platformListOptions{message: "question", defaultValue: "", includeCancel: true, width: 20}),
 		fetchCmd: func(models.Platform, string) tea.Cmd {
 			return nil
 		},
@@ -228,7 +228,7 @@ func TestAddTUIModelUpdateListSelectsPlatform(t *testing.T) {
 	var called bool
 	model := addTUIModel{
 		state: addTUIStateUnknownPlatformSelect,
-		list:  newPlatformListModel("question", "", false, 20),
+		list:  newPlatformListModel(platformListOptions{message: "question", defaultValue: "", includeCancel: false, width: 20}),
 		fetchCmd: func(models.Platform, string) tea.Cmd {
 			called = true
 			return nil
@@ -253,7 +253,7 @@ func TestAddTUIModelUpdateListSelectsPlatformWithSpan(t *testing.T) {
 		ctx:            ctx,
 		sessionSpan:    span,
 		state:          addTUIStateUnknownPlatformSelect,
-		list:           newPlatformListModel("question", "", false, 20),
+		list:           newPlatformListModel(platformListOptions{message: "question", defaultValue: "", includeCancel: false, width: 20}),
 		failureProject: "abc",
 		fetchCmd: func(models.Platform, string) tea.Cmd {
 			called = true
@@ -278,7 +278,7 @@ func TestAddTUIModelUpdateListCancelAddsSpanEvent(t *testing.T) {
 		ctx:         ctx,
 		sessionSpan: span,
 		state:       addTUIStateUnknownPlatformSelect,
-		list:        newPlatformListModel("question", "", true, 20),
+		list:        newPlatformListModel(platformListOptions{message: "question", defaultValue: "", includeCancel: true, width: 20}),
 		fetchCmd: func(models.Platform, string) tea.Cmd {
 			return nil
 		},
@@ -305,7 +305,7 @@ func TestAddTUIModelUpdateListSelectMovesToProjectEntry(t *testing.T) {
 	initPerf(t)
 	model := addTUIModel{
 		state: addTUIStateModNotFoundSelectPlatform,
-		list:  newPlatformListModel("question", "", false, 20),
+		list:  newPlatformListModel(platformListOptions{message: "question", defaultValue: "", includeCancel: false, width: 20}),
 	}
 	model.list.Select(1)
 	updated, _ := model.Update(tea.KeyMsg{Type: tea.KeyEnter})
@@ -317,7 +317,7 @@ func TestAddTUIModelUpdateListSelectMovesToProjectEntry(t *testing.T) {
 func TestAddTUIModelUpdateListPassesThroughToList(t *testing.T) {
 	model := addTUIModel{
 		state: addTUIStateUnknownPlatformSelect,
-		list:  newPlatformListModel("question", "", false, 20),
+		list:  newPlatformListModel(platformListOptions{message: "question", defaultValue: "", includeCancel: false, width: 20}),
 	}
 	model.list.Select(0)
 	updated, _ := model.Update(tea.KeyMsg{Type: tea.KeyDown})
@@ -362,6 +362,22 @@ func TestAddTUIModelUpdateInputPassesThroughToInput(t *testing.T) {
 	updated, _ := model.Update(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune{'a'}})
 	typed := updated.(addTUIModel)
 	assert.Equal(t, "a", typed.input.Value())
+}
+
+func TestAddTUIModelUpdateInputNonKeyMessageUpdatesInput(t *testing.T) {
+	type dummyMsg struct{}
+
+	input := textinput.New()
+	input.SetValue("initial")
+	model := addTUIModel{
+		state: addTUIStateModNotFoundEnterProjectID,
+		input: input,
+	}
+
+	updated, cmd := model.Update(dummyMsg{})
+	typed := updated.(addTUIModel)
+	assert.Equal(t, "initial", typed.input.Value())
+	assert.Nil(t, cmd)
 }
 
 func TestAddTUIModelUpdateInputAddsSpanEvent(t *testing.T) {
@@ -560,7 +576,7 @@ func TestAddTUIModelViewStates(t *testing.T) {
 
 	model = addTUIModel{
 		state: addTUIStateUnknownPlatformSelect,
-		list:  newPlatformListModel("question", "", false, 20),
+		list:  newPlatformListModel(platformListOptions{message: "question", defaultValue: "", includeCancel: false, width: 20}),
 	}
 	assert.NotEmpty(t, model.View())
 
@@ -569,7 +585,7 @@ func TestAddTUIModelViewStates(t *testing.T) {
 
 	model = addTUIModel{
 		state: addTUIStateModNotFoundSelectPlatform,
-		list:  newPlatformListModel("question", "", false, 20),
+		list:  newPlatformListModel(platformListOptions{message: "question", defaultValue: "", includeCancel: false, width: 20}),
 	}
 	assert.NotEmpty(t, model.View())
 
@@ -620,7 +636,7 @@ func TestAddTUIEndFetchNoSpanNoop(t *testing.T) {
 }
 
 func TestNewPlatformListModelSelectsDefaultAndIncludesCancel(t *testing.T) {
-	model := newPlatformListModel("question", string(models.MODRINTH), true, 20)
+	model := newPlatformListModel(platformListOptions{message: "question", defaultValue: string(models.MODRINTH), includeCancel: true, width: 20})
 	items := model.Items()
 	values := make([]string, 0, len(items))
 	for _, item := range items {
@@ -644,8 +660,8 @@ func TestNewProjectIDInputModelUsesPlaceholderWidth(t *testing.T) {
 }
 
 func TestRenderConfirmSuffixes(t *testing.T) {
-	assert.True(t, strings.HasSuffix(renderConfirm("message", false), "(y/N)"))
-	assert.True(t, strings.HasSuffix(renderConfirm("message", true), "(Y/n)"))
+	assert.True(t, strings.HasSuffix(renderConfirm(confirmPrompt{message: "message", defaultYes: false}), "(y/N)"))
+	assert.True(t, strings.HasSuffix(renderConfirm(confirmPrompt{message: "message", defaultYes: true}), "(Y/n)"))
 }
 
 func TestRenderInputReturnsView(t *testing.T) {
@@ -655,13 +671,13 @@ func TestRenderInputReturnsView(t *testing.T) {
 }
 
 func TestAddTUIResultStates(t *testing.T) {
-	_, _, _, err := addTUIModel{state: addTUIStateDone}.result()
+	_, err := addTUIModel{state: addTUIStateDone}.result()
 	assert.Error(t, err)
 
-	_, _, _, err = addTUIModel{state: addTUIStateAborted}.result()
+	_, err = addTUIModel{state: addTUIStateAborted}.result()
 	assert.True(t, errors.Is(err, errAborted))
 
-	_, _, _, err = addTUIModel{state: addTUIStateFatalError, err: errors.New("boom")}.result()
+	_, err = addTUIModel{state: addTUIStateFatalError, err: errors.New("boom")}.result()
 	assert.EqualError(t, err, "boom")
 
 	model := addTUIModel{
@@ -670,25 +686,36 @@ func TestAddTUIResultStates(t *testing.T) {
 		resolvedPlatform: models.MODRINTH,
 		resolvedProject:  "abc",
 	}
-	remote, platformValue, projectID, err := model.result()
+	result, err := model.result()
 	assert.NoError(t, err)
-	assert.Equal(t, "mod.jar", remote.FileName)
-	assert.Equal(t, models.MODRINTH, platformValue)
-	assert.Equal(t, "abc", projectID)
+	assert.Equal(t, "mod.jar", result.remoteMod.FileName)
+	assert.Equal(t, models.MODRINTH, result.platform)
+	assert.Equal(t, "abc", result.projectID)
 }
 
 func TestAddTUIResultErrorsWhenNotFinished(t *testing.T) {
-	_, _, _, err := addTUIModel{state: addTUIStateUnknownPlatformSelect}.result()
+	_, err := addTUIModel{state: addTUIStateUnknownPlatformSelect}.result()
 	assert.EqualError(t, err, "add TUI did not finish")
 }
 
 func TestResolveRemoteModWithTUIMissingRunTea(t *testing.T) {
 	ctx := context.Background()
-	remote, platformValue, projectID, err := resolveRemoteModWithTUI(ctx, nil, addTUIStateUnknownPlatformSelect, models.ModsJSON{}, addOptions{}, models.MODRINTH, "abc", addDeps{}, strings.NewReader(""), io.Discard)
+	resolved, err := resolveRemoteModWithTUI(ctx, addResolveInputs{
+		ctx:           ctx,
+		commandSpan:   nil,
+		cfg:           models.ModsJSON{},
+		opts:          addOptions{},
+		platformValue: models.MODRINTH,
+		projectID:     "abc",
+		deps:          addDeps{},
+		useTUI:        false,
+		in:            strings.NewReader(""),
+		out:           io.Discard,
+	}, addTUIStateUnknownPlatformSelect)
 	assert.Error(t, err)
-	assert.Empty(t, remote.FileName)
-	assert.Equal(t, models.MODRINTH, platformValue)
-	assert.Equal(t, "abc", projectID)
+	assert.Empty(t, resolved.remoteMod.FileName)
+	assert.Equal(t, models.MODRINTH, resolved.platform)
+	assert.Equal(t, "abc", resolved.projectID)
 }
 
 func TestResolveRemoteModWithTUIRunTeaError(t *testing.T) {
@@ -698,7 +725,18 @@ func TestResolveRemoteModWithTUIRunTeaError(t *testing.T) {
 			return nil, errors.New("boom")
 		},
 	}
-	_, _, _, err := resolveRemoteModWithTUI(ctx, nil, addTUIStateUnknownPlatformSelect, models.ModsJSON{}, addOptions{}, models.MODRINTH, "abc", deps, strings.NewReader(""), io.Discard)
+	_, err := resolveRemoteModWithTUI(ctx, addResolveInputs{
+		ctx:           ctx,
+		commandSpan:   nil,
+		cfg:           models.ModsJSON{},
+		opts:          addOptions{},
+		platformValue: models.MODRINTH,
+		projectID:     "abc",
+		deps:          deps,
+		useTUI:        false,
+		in:            strings.NewReader(""),
+		out:           io.Discard,
+	}, addTUIStateUnknownPlatformSelect)
 	assert.Error(t, err)
 }
 
@@ -709,7 +747,18 @@ func TestResolveRemoteModWithTUIUnexpectedModel(t *testing.T) {
 			return fakeTeaModel{}, nil
 		},
 	}
-	_, _, _, err := resolveRemoteModWithTUI(ctx, nil, addTUIStateUnknownPlatformSelect, models.ModsJSON{}, addOptions{}, models.MODRINTH, "abc", deps, strings.NewReader(""), io.Discard)
+	_, err := resolveRemoteModWithTUI(ctx, addResolveInputs{
+		ctx:           ctx,
+		commandSpan:   nil,
+		cfg:           models.ModsJSON{},
+		opts:          addOptions{},
+		platformValue: models.MODRINTH,
+		projectID:     "abc",
+		deps:          deps,
+		useTUI:        false,
+		in:            strings.NewReader(""),
+		out:           io.Discard,
+	}, addTUIStateUnknownPlatformSelect)
 	assert.Error(t, err)
 }
 
@@ -720,7 +769,18 @@ func TestResolveRemoteModWithTUIResultError(t *testing.T) {
 			return addTUIModel{state: addTUIStateDone}, nil
 		},
 	}
-	_, _, _, err := resolveRemoteModWithTUI(ctx, nil, addTUIStateUnknownPlatformSelect, models.ModsJSON{}, addOptions{}, models.MODRINTH, "abc", deps, strings.NewReader(""), io.Discard)
+	_, err := resolveRemoteModWithTUI(ctx, addResolveInputs{
+		ctx:           ctx,
+		commandSpan:   nil,
+		cfg:           models.ModsJSON{},
+		opts:          addOptions{},
+		platformValue: models.MODRINTH,
+		projectID:     "abc",
+		deps:          deps,
+		useTUI:        false,
+		in:            strings.NewReader(""),
+		out:           io.Discard,
+	}, addTUIStateUnknownPlatformSelect)
 	assert.Error(t, err)
 }
 
@@ -731,8 +791,21 @@ func TestResolveRemoteModWithTUIResultAborted(t *testing.T) {
 			return addTUIModel{state: addTUIStateAborted}, nil
 		},
 	}
-	_, _, _, err := resolveRemoteModWithTUI(ctx, nil, addTUIStateUnknownPlatformSelect, models.ModsJSON{}, addOptions{}, models.MODRINTH, "abc", deps, strings.NewReader(""), io.Discard)
+	resolved, err := resolveRemoteModWithTUI(ctx, addResolveInputs{
+		ctx:           ctx,
+		commandSpan:   nil,
+		cfg:           models.ModsJSON{},
+		opts:          addOptions{},
+		platformValue: models.MODRINTH,
+		projectID:     "abc",
+		deps:          deps,
+		useTUI:        false,
+		in:            strings.NewReader(""),
+		out:           io.Discard,
+	}, addTUIStateUnknownPlatformSelect)
 	assert.True(t, errors.Is(err, errAborted))
+	assert.Equal(t, models.MODRINTH, resolved.platform)
+	assert.Equal(t, "abc", resolved.projectID)
 }
 
 func TestAddTUIStateNameForUnknown(t *testing.T) {

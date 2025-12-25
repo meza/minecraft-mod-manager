@@ -161,9 +161,14 @@ func NewModel(ctx context.Context, sessionSpan *perf.Span, options initOptions, 
 		loaderQuestion:       NewLoaderModel(options.Loader.String()),
 		gameVersionQuestion:  NewGameVersionModel(ctx, deps.minecraftClient, options.GameVersion),
 		releaseTypesQuestion: NewReleaseTypesModel(defaultReleaseTypes),
-		modsFolderQuestion:   NewModsFolderModel(options.ModsFolder, meta, deps.fs, options.Provided.ModsFolder),
-		result:               options,
-		initialProvided:      options.Provided,
+		modsFolderQuestion: NewModsFolderModel(modsFolderModelInput{
+			modsFolder: options.ModsFolder,
+			meta:       meta,
+			fs:         deps.fs,
+			prefill:    options.Provided.ModsFolder,
+		}),
+		result:          options,
+		initialProvided: options.Provided,
 	}
 
 	if options.Provided.Loader && options.Loader != "" {

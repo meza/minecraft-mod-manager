@@ -630,7 +630,7 @@ func TestNewModsFolderModelPrefill(t *testing.T) {
 	meta := config.NewMetadata("/cfg/modlist.json")
 	assert.NoError(t, fs.MkdirAll("/cfg/mods", 0755))
 
-	model := NewModsFolderModel("mods", meta, fs, true)
+	model := NewModsFolderModel(modsFolderModelInput{modsFolder: "mods", meta: meta, fs: fs, prefill: true})
 	assert.Equal(t, "mods", model.Value)
 	assert.GreaterOrEqual(t, model.input.Width, 10)
 }
@@ -639,7 +639,7 @@ func TestNewModsFolderModelPrefillInvalidDoesNotSetValue(t *testing.T) {
 	fs := afero.NewMemMapFs()
 	meta := config.NewMetadata("/cfg/modlist.json")
 
-	model := NewModsFolderModel("mods", meta, fs, true)
+	model := NewModsFolderModel(modsFolderModelInput{modsFolder: "mods", meta: meta, fs: fs, prefill: true})
 	assert.Equal(t, "", model.Value)
 }
 
@@ -647,7 +647,7 @@ func TestNewModsFolderModelMinWidth(t *testing.T) {
 	fs := afero.NewMemMapFs()
 	meta := config.NewMetadata("modlist.json")
 
-	model := NewModsFolderModel("m", meta, fs, false)
+	model := NewModsFolderModel(modsFolderModelInput{modsFolder: "m", meta: meta, fs: fs, prefill: false})
 	assert.Equal(t, 10, model.input.Width)
 }
 

@@ -95,7 +95,7 @@ func TestBuildTelemetryPayloadExitCode(t *testing.T) {
 }
 
 func TestNormalizeGameVersionEmptyNoop(t *testing.T) {
-	opts, err := normalizeGameVersion(context.Background(), initOptions{}, initDeps{}, false)
+	opts, err := normalizeGameVersion(context.Background(), initOptions{}, initDeps{}, gameVersionNonInteractive)
 	assert.NoError(t, err)
 	assert.Equal(t, "", opts.GameVersion)
 }

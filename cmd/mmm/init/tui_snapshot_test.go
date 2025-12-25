@@ -130,9 +130,12 @@ func TestInitTUIErrorSnapshots(t *testing.T) {
 
 	t.Run("mods_folder_missing", func(t *testing.T) {
 		enablePerf(t)
-		model := newSnapshotModelWithOptions(t, initOptions{
-			ModsFolder: "missing",
-		}, false)
+		model := newSnapshotModelWithInput(t, snapshotModelInput{
+			options: initOptions{
+				ModsFolder: "missing",
+			},
+			createModsFolder: false,
+		})
 		model = applyWindowSize(t, model, 60)
 		model = selectLoader(t, model, models.FABRIC)
 		model = enterGameVersion(t, model, "1.21.1")
@@ -155,24 +158,36 @@ func TestInitTUIQuietNoTTYSnapshot(t *testing.T) {
 	// Quiet mode should bypass TUI entirely.
 	model := newSnapshotModelWithOptions(t, initOptions{
 		Quiet: true,
-	}, true)
+	})
 
 	matchSnapshot(t, model.View())
 }
 
-func newSnapshotModel(t *testing.T) CommandModel {
-	return newSnapshotModelWithOptions(t, initOptions{}, true)
+type snapshotModelInput struct {
+	options          initOptions
+	createModsFolder bool
 }
 
-func newSnapshotModelWithOptions(t *testing.T, options initOptions, createModsFolder bool) CommandModel {
+func newSnapshotModel(t *testing.T) CommandModel {
+	return newSnapshotModelWithInput(t, snapshotModelInput{createModsFolder: true})
+}
+
+func newSnapshotModelWithOptions(t *testing.T, options initOptions) CommandModel {
+	return newSnapshotModelWithInput(t, snapshotModelInput{
+		options:          options,
+		createModsFolder: true,
+	})
+}
+
+func newSnapshotModelWithInput(t *testing.T, input snapshotModelInput) CommandModel {
 	t.Helper()
 
 	fs := afero.NewMemMapFs()
 	meta := config.NewMetadata(filepath.FromSlash("/cfg/modlist.json"))
 
 	assert.NoError(t, fs.MkdirAll(filepath.Dir(meta.ConfigPath), 0755))
-	if createModsFolder {
-		mods := options.ModsFolder
+	if input.createModsFolder {
+		mods := input.options.ModsFolder
 		if mods == "" {
 			mods = "mods"
 		}
@@ -184,6 +199,7 @@ func newSnapshotModelWithOptions(t *testing.T, options initOptions, createModsFo
 		minecraftClient: manifestDoer([]string{mockLatestVersion, "1.20.4", "1.19.4"}),
 	}
 
+	options := input.options
 	if options.ConfigPath == "" {
 		options.ConfigPath = meta.ConfigPath
 	}
@@ -263,7 +279,7 @@ func TestModsFolderPlaceholderUsesResolvedPath(t *testing.T) {
 	assert.NoError(t, fs.MkdirAll(filepath.Dir(meta.ConfigPath), 0755))
 	assert.NoError(t, fs.MkdirAll(meta.ModsFolderPath(models.ModsJSON{ModsFolder: "mods"}), 0755))
 
-	model := NewModsFolderModel("mods", meta, fs, false)
+	model := NewModsFolderModel(modsFolderModelInput{modsFolder: "mods", meta: meta, fs: fs, prefill: false})
 	assert.Equal(t, "mods", model.input.Placeholder)
 	assert.GreaterOrEqual(t, model.input.Width, len(meta.ModsFolderPath(models.ModsJSON{ModsFolder: "mods"})))
 }
