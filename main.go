@@ -121,20 +121,129 @@ type runDeps struct {
 	perfShutdown      func(context.Context) error
 }
 
-//nolint:gocognit,gocyclo,funlen // Main command routing keeps linear control flow for readability.
 func runWithDeps(deps runDeps) int {
-	getwd := deps.getwd
+	cwd := resolveWorkingDir(deps.getwd)
+	perfCfg := perfExportConfigFromArgs(deps.args, cwd)
+	configureTelemetry(perfCfg, deps.args)
+
+	perfInit, perfShutdown := resolvePerfHooks(deps)
+	initPerf(perfInit, perfCfg)
+
+	rootCtx, rootSpan := perf.StartSpan(context.Background(), "app.lifecycle")
+	_, startupSpan := perf.StartSpan(rootCtx, perfLifecycleStartup)
+	deps.telemetryInit()
+
+	state := newLifecycleState(rootCtx, rootSpan, perfCfg, deps, perfShutdown)
+
+	handlerID := deps.register(func(sig os.Signal) {
+		state.shutdown(shutdownTriggerSignal, sig)
+	})
+	defer deps.unregister(handlerID)
+	defer state.shutdown(shutdownTriggerGraceful, nil)
+
+	startupSpan.End()
+
+	executeCtx, executeSpan := perf.StartSpan(rootCtx, perfLifecycleExecute)
+	state.setExecuteSpan(executeSpan)
+	err := deps.execute(executeCtx)
+	state.endExecute(err == nil)
+
+	if err != nil {
+		return getExitCode(err, 1)
+	}
+
+	return 0
+}
+
+type lifecycleState struct {
+	rootCtx           context.Context
+	rootSpan          *perf.Span
+	perfCfg           perfExportConfig
+	perfExport        func(perfExportConfig) error
+	telemetryShutdown func(context.Context)
+	perfShutdown      func(context.Context) error
+	executeSpan       *perf.Span
+	executeEndOnce    sync.Once
+	shutdownOnce      sync.Once
+}
+
+func newLifecycleState(
+	rootCtx context.Context,
+	rootSpan *perf.Span,
+	perfCfg perfExportConfig,
+	deps runDeps,
+	perfShutdown func(context.Context) error,
+) *lifecycleState {
+	return &lifecycleState{
+		rootCtx:           rootCtx,
+		rootSpan:          rootSpan,
+		perfCfg:           perfCfg,
+		perfExport:        deps.perfExport,
+		telemetryShutdown: deps.telemetryShutdown,
+		perfShutdown:      perfShutdown,
+	}
+}
+
+func (state *lifecycleState) setExecuteSpan(span *perf.Span) {
+	state.executeSpan = span
+}
+
+func (state *lifecycleState) endExecute(success bool) {
+	state.executeEndOnce.Do(func() {
+		if state.executeSpan == nil {
+			return
+		}
+		state.executeSpan.SetAttributes(attribute.Bool("success", success))
+		state.executeSpan.End()
+	})
+}
+
+func (state *lifecycleState) shutdown(trigger shutdownTrigger, sig os.Signal) {
+	state.shutdownOnce.Do(func() {
+		state.endExecute(false)
+
+		attrs := []attribute.KeyValue{
+			attribute.String("trigger", string(trigger)),
+		}
+		if sig != nil {
+			attrs = append(attrs, attribute.String("signal", sig.String()))
+		}
+
+		_, shutdownSpan := perf.StartSpan(state.rootCtx, perfLifecycleShutdown, perf.WithAttributes(attrs...))
+		shutdownSpan.End()
+		state.rootSpan.End()
+
+		state.telemetryShutdown(state.rootCtx)
+		if state.perfCfg.enabled && state.perfExport != nil {
+			exportErr := state.perfExport(state.perfCfg)
+			if exportErr != nil && state.perfCfg.debug {
+				log.Printf("perf export failed: %v", exportErr)
+			}
+		}
+		shutdownErr := state.perfShutdown(context.Background())
+		if shutdownErr != nil && state.perfCfg.debug {
+			log.Printf("perf shutdown failed: %v", shutdownErr)
+		}
+	})
+}
+
+func resolveWorkingDir(getwd func() (string, error)) string {
 	if getwd == nil {
 		getwd = os.Getwd
 	}
 	cwd, err := getwd()
 	if err != nil {
-		cwd = ""
+		return ""
 	}
-	perfCfg := perfExportConfigFromArgs(deps.args, cwd)
-	telemetry.SetPerfBaseDir(perfCfg.baseDir)
-	telemetry.SetSessionNameHint(sessionNameHintFromArgs(deps.args))
+	return cwd
+}
 
+func configureTelemetry(perfCfg perfExportConfig, args []string) {
+	telemetry.SetPerfBaseDir(perfCfg.baseDir)
+	telemetry.SetSessionNameHint(sessionNameHintFromArgs(args))
+}
+
+func resolvePerfHooks(deps runDeps) (func(perf.Config) error, func(context.Context) error) {
 	perfInit := deps.perfInit
 	if perfInit == nil {
 		perfInit = perf.Init
@@ -143,79 +252,14 @@ func runWithDeps(deps runDeps) int {
 	if perfShutdown == nil {
 		perfShutdown = perf.Shutdown
 	}
+	return perfInit, perfShutdown
+}
 
+func initPerf(perfInit func(perf.Config) error, perfCfg perfExportConfig) {
 	initErr := perfInit(perf.Config{Enabled: true})
 	if initErr != nil && perfCfg.debug {
 		log.Printf("perf init failed: %v", initErr)
 	}
-
-	rootCtx, rootSpan := perf.StartSpan(context.Background(), "app.lifecycle")
-
-	_, startupSpan := perf.StartSpan(rootCtx, perfLifecycleStartup)
-
-	deps.telemetryInit()
-
-	var shutdownOnce sync.Once
-	var executeEndOnce sync.Once
-	var executeSpan *perf.Span
-	var executeCtx context.Context
-
-	endExecute := func(success bool) {
-		executeEndOnce.Do(func() {
-			if executeSpan == nil {
-				return
-			}
-			executeSpan.SetAttributes(attribute.Bool("success", success))
-			executeSpan.End()
-		})
-	}
-
-	shutdown := func(trigger shutdownTrigger, sig os.Signal) {
-		shutdownOnce.Do(func() {
-			endExecute(false)
-
-			attrs := []attribute.KeyValue{
-				attribute.String("trigger", string(trigger)),
-			}
-			if sig != nil {
-				attrs = append(attrs, attribute.String("signal", sig.String()))
-			}
-
-			_, shutdownSpan := perf.StartSpan(rootCtx, perfLifecycleShutdown, perf.WithAttributes(attrs...))
-			shutdownSpan.End()
-			rootSpan.End()
-
-			deps.telemetryShutdown(rootCtx)
-			if perfCfg.enabled && deps.perfExport != nil {
-				exportErr := deps.perfExport(perfCfg)
-				if exportErr != nil && perfCfg.debug {
-					log.Printf("perf export failed: %v", exportErr)
-				}
-			}
-			shutdownErr := perfShutdown(context.Background())
-			if shutdownErr != nil && perfCfg.debug {
-				log.Printf("perf shutdown failed: %v", shutdownErr)
-			}
-		})
-	}
-
-	handlerID := deps.register(func(sig os.Signal) {
-		shutdown(shutdownTriggerSignal, sig)
-	})
-	defer deps.unregister(handlerID)
-	defer shutdown(shutdownTriggerGraceful, nil)
-
-	startupSpan.End()
-
-	executeCtx, executeSpan = perf.StartSpan(rootCtx, perfLifecycleExecute)
-	err = deps.execute(executeCtx)
-	endExecute(err == nil)
-
-	if err != nil {
-		return getExitCode(err, 1)
-	}
-
-	return 0
 }
 
 type perfExportConfig struct {
@@ -233,24 +277,9 @@ func perfExportConfigFromArgs(args []string, cwd string) perfExportConfig {
 func perfExportConfigFromArgsWithAbs(args []string, cwd string, absPath func(string) (string, error)) perfExportConfig {
 	parsedArgs := parsePerfExportArgs(args)
 
-	resolvedConfig := parsedArgs.configPath
-	if cwd != "" && !filepath.IsAbs(resolvedConfig) {
-		resolvedConfig = filepath.Join(cwd, resolvedConfig)
-	}
-	resolvedConfig, err := absPath(resolvedConfig)
-	if err != nil {
-		resolvedConfig = parsedArgs.configPath
-	}
-
+	resolvedConfig := resolvePerfConfigPath(parsedArgs, cwd, absPath)
 	baseDir := filepath.Dir(resolvedConfig)
-	outDir := baseDir
-	if strings.TrimSpace(parsedArgs.perfOutDir) != "" {
-		if filepath.IsAbs(parsedArgs.perfOutDir) {
-			outDir = parsedArgs.perfOutDir
-		} else {
-			outDir = filepath.Join(baseDir, parsedArgs.perfOutDir)
-		}
-	}
+	outDir := resolvePerfOutDir(parsedArgs, baseDir)
 
 	return perfExportConfig{
 		enabled: parsedArgs.perfEnabled,
@@ -258,6 +287,28 @@ func perfExportConfigFromArgsWithAbs(args []string, cwd string, absPath func(str
 		baseDir: baseDir,
 		outDir:  outDir,
 	}
+}
+
+func resolvePerfConfigPath(parsedArgs perfExportArgs, cwd string, absPath func(string) (string, error)) string {
+	resolvedConfig := parsedArgs.configPath
+	if cwd != "" && !filepath.IsAbs(resolvedConfig) {
+		resolvedConfig = filepath.Join(cwd, resolvedConfig)
+	}
+	resolvedConfig, err := absPath(resolvedConfig)
+	if err != nil {
+		return parsedArgs.configPath
+	}
+	return resolvedConfig
+}
+
+func resolvePerfOutDir(parsedArgs perfExportArgs, baseDir string) string {
+	if strings.TrimSpace(parsedArgs.perfOutDir) == "" {
+		return baseDir
+	}
+	if filepath.IsAbs(parsedArgs.perfOutDir) {
+		return parsedArgs.perfOutDir
+	}
+	return filepath.Join(baseDir, parsedArgs.perfOutDir)
 }
 
 type perfExportArgs struct {

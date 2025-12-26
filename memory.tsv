@@ -595,3 +595,4 @@ date	time	entry
 2025-12-25	23:32	mmm-75/76/77 in progress: refactored cmd/mmm/scan/scan.go runScan persistence flow into helper, added runModrinthLookups and addCurseforgeMatchesWithCache helpers, removed scan nolint; make test before/after and make fmt pass.
 2025-12-25	23:55	mmm-78/79/80 in progress: refactored cmd/mmm/update/update.go runUpdate/processMod/downloadAndSwap into helpers to reduce complexity nolints; go test ./cmd/mmm/update before and after; make fmt.
 2025-12-26	00:08	mmm-83/84 in progress: refactored cmd/mmm/add/add.go handleExistingInstall into normalize/ensure/telemetry helpers to reduce complexity; go test ./cmd/mmm/add before/after; make fmt.
+2025-12-26	00:16	mmm-81/82 in progress: refactored main.go runWithDeps into lifecycleState helpers and split perfExportConfigFromArgsWithAbs path/outdir helpers; go test . before/after; make fmt.
