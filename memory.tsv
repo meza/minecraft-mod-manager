@@ -609,3 +609,4 @@ date	time	entry
 2025-12-26	09:48	mmm-107: renamed index variables in modsetup findConfigIndex/findLockIndex/findLockEntry per Go naming rules; go test ./internal/modsetup passes.
 2025-12-26	09:53	mmm-107: user confirmed Windows make coverage, make build, and make test-race all pass.
 2025-12-26	09:53	Closed mmm-107 per user request after reviewer approval and Windows make coverage/build/test-race confirmation.
+2025-12-26	10:05	Reopened mmm-109 after make lint reported nestif in tools/coverage/coverage.go.
