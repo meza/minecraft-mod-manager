@@ -763,6 +763,12 @@ func TestUpsertConfigAndLock_MissingResolvedIDReturnsError(t *testing.T) {
 	assert.Error(t, err)
 }
 
+func TestFindLockEntryReturnsFalseWhenMissing(t *testing.T) {
+	entry, ok := findLockEntry([]models.ModInstall{}, models.MODRINTH, "missing")
+	assert.False(t, ok)
+	assert.Nil(t, entry)
+}
+
 func TestModExists_ReturnsTrueWhenPresent(t *testing.T) {
 	cfg := models.ModsJSON{
 		Mods: []models.Mod{

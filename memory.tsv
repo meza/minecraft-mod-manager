@@ -603,3 +603,9 @@ date	time	entry
 2025-12-26	00:47	mmm-106: addressed review feedback by removing unused retryConfig param from recordAttemptRetry helper; go test ./internal/httpclient before/after; make fmt.
 2025-12-26	01:02	mmm-108 in progress: fixed govet shadow in internal/httpclient/downloader.go, internal/modinstall/modinstall.go, tools/coverage/coverage.go; go test ./internal/httpclient ./internal/modinstall ./tools/coverage before/after; make fmt.
 2025-12-26	01:10	mmm-109 in progress: reduced nestif in cmd/mmm/install preflightUnknownFiles, cmd/mmm/scan persistScanMatchesIfRequested, tools/coverage run by early returns/cleanup helper; go test ./cmd/mmm/install ./cmd/mmm/scan ./tools/coverage before/after; make fmt.
+2025-12-26	01:19	mmm-107 in progress: added defensive lock index bounds check in internal/modsetup UpsertConfigAndLock to satisfy G602; go test ./internal/modsetup before/after; make fmt.
+2025-12-26	01:23	mmm-107 in progress: replaced direct lock index access with lockEntryAt helper + added test for out-of-range index to cover G602 guard; go test ./internal/modsetup before/after; make fmt.
+2025-12-26	01:34	mmm-107: fixed modsetup compile errors by using findLockIndex in EnsurePersisted and findLockEntry in UpsertConfigAndLock; go test ./internal/modsetup passes.
+2025-12-26	09:48	mmm-107: renamed index variables in modsetup findConfigIndex/findLockIndex/findLockEntry per Go naming rules; go test ./internal/modsetup passes.
+2025-12-26	09:53	mmm-107: user confirmed Windows make coverage, make build, and make test-race all pass.
+2025-12-26	09:53	Closed mmm-107 per user request after reviewer approval and Windows make coverage/build/test-race confirmation.

@@ -174,7 +174,7 @@ func (coordinator *SetupCoordinator) UpsertConfigAndLock(cfg models.ModsJSON, lo
 	}
 
 	configIndex := findConfigIndex(cfg, resolvedPlatform, resolvedID)
-	lockIndex := findLockIndex(lock, resolvedPlatform, resolvedID)
+	lockEntry, lockEntryFound := findLockEntry(lock, resolvedPlatform, resolvedID)
 
 	result := UpsertResult{}
 
@@ -197,15 +197,14 @@ func (coordinator *SetupCoordinator) UpsertConfigAndLock(cfg models.ModsJSON, lo
 		return UpsertOutcome{}, err
 	}
 
-	if lockIndex < 0 {
+	if !lockEntryFound {
 		lock = append(lock, installEntry)
 		result.LockAdded = true
 		return UpsertOutcome{Config: cfg, Lock: lock, Result: result}, nil
 	}
 
-	current := lock[lockIndex]
-	if lockEntryChanged(current, installEntry) {
-		lock[lockIndex] = installEntry
+	if lockEntryChanged(*lockEntry, installEntry) {
+		*lockEntry = installEntry
 		result.LockUpdated = true
 	}
 
@@ -284,21 +283,30 @@ func optionalString(value string) *string {
 }
 
 func findConfigIndex(cfg models.ModsJSON, platform models.Platform, projectID string) int {
-	for i := range cfg.Mods {
-		if cfg.Mods[i].ID == projectID && cfg.Mods[i].Type == platform {
-			return i
+	for index := range cfg.Mods {
+		if cfg.Mods[index].ID == projectID && cfg.Mods[index].Type == platform {
+			return index
 		}
 	}
 	return -1
 }
 
 func findLockIndex(lock []models.ModInstall, platform models.Platform, projectID string) int {
-	for i := range lock {
-		if lock[i].Type == platform && lock[i].ID == projectID {
-			return i
+	for index := range lock {
+		if lock[index].Type == platform && lock[index].ID == projectID {
+			return index
 		}
 	}
 	return -1
+}
+
+func findLockEntry(lock []models.ModInstall, platform models.Platform, projectID string) (*models.ModInstall, bool) {
+	for index := range lock {
+		if lock[index].Type == platform && lock[index].ID == projectID {
+			return &lock[index], true
+		}
+	}
+	return nil, false
 }
 
 func validateRemoteForLock(remote platform.RemoteMod) (string, error) {
