@@ -31,7 +31,6 @@ import (
 	"github.com/spf13/cobra"
 	"go.opentelemetry.io/otel/attribute"
 	"golang.org/x/sync/errgroup"
-	"golang.org/x/time/rate"
 )
 
 const defaultUpdateMaxConcurrency = 4
@@ -118,7 +117,7 @@ func updateOptionsFromFlags(cmd *cobra.Command) (updateOptions, error) {
 
 func defaultUpdateDeps(cmd *cobra.Command, opts updateOptions) updateDeps {
 	log := logger.New(cmd.OutOrStdout(), cmd.ErrOrStderr(), opts.Quiet, opts.Debug)
-	limiter := rate.NewLimiter(rate.Inf, 0)
+	limiter := httpclient.DefaultLimiter()
 
 	return updateDeps{
 		fs:         afero.NewOsFs(),

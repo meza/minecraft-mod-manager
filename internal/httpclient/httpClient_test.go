@@ -11,6 +11,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/meza/minecraft-mod-manager/internal/perf"
 	"github.com/stretchr/testify/assert"
 	"golang.org/x/time/rate"
 )
@@ -33,6 +34,92 @@ func (transport *sequenceTransport) RoundTrip(req *http.Request) (*http.Response
 	resp := transport.responses[transport.callCount]
 	transport.callCount++
 	return resp, nil
+}
+
+type roundTripResult struct {
+	response *http.Response
+	err      error
+}
+
+type sequenceRoundTripper struct {
+	results   []roundTripResult
+	callCount int
+}
+
+func (transport *sequenceRoundTripper) RoundTrip(request *http.Request) (*http.Response, error) {
+	if transport.callCount >= len(transport.results) {
+		return nil, fmt.Errorf("no response configured for call %d", transport.callCount)
+	}
+	result := transport.results[transport.callCount]
+	transport.callCount++
+	return result.response, result.err
+}
+
+type requestBodyRecordingTransport struct {
+	responses      []*http.Response
+	recordedBodies []string
+	callCount      int
+}
+
+func (transport *requestBodyRecordingTransport) RoundTrip(request *http.Request) (*http.Response, error) {
+	if transport.callCount >= len(transport.responses) {
+		return nil, fmt.Errorf("no response configured for call %d", transport.callCount)
+	}
+	if request != nil && request.Body != nil {
+		bodyBytes, readErr := io.ReadAll(request.Body)
+		if readErr != nil {
+			return nil, readErr
+		}
+		transport.recordedBodies = append(transport.recordedBodies, string(bodyBytes))
+		if closeErr := request.Body.Close(); closeErr != nil {
+			return nil, closeErr
+		}
+	}
+	response := transport.responses[transport.callCount]
+	transport.callCount++
+	return response, nil
+}
+
+type retryableNetworkError struct{}
+
+func (err retryableNetworkError) Error() string {
+	return "temporary network error"
+}
+
+func (err retryableNetworkError) Timeout() bool {
+	return false
+}
+
+func (err retryableNetworkError) Temporary() bool {
+	return true
+}
+
+type timeoutNetworkError struct{}
+
+func (err timeoutNetworkError) Error() string {
+	return "timeout network error"
+}
+
+func (err timeoutNetworkError) Timeout() bool {
+	return true
+}
+
+func (err timeoutNetworkError) Temporary() bool {
+	return false
+}
+
+type nonTemporaryNetworkError struct{}
+
+func (err nonTemporaryNetworkError) Error() string {
+	return "non-temporary network error"
+}
+
+func (err nonTemporaryNetworkError) Timeout() bool {
+	return false
+}
+
+func (err nonTemporaryNetworkError) Temporary() bool {
+	return false
 }
 
 type trackingBody struct {
@@ -203,6 +290,19 @@ func TestRLHTTPClient_DoWithoutRateLimiting_Assert(t *testing.T) {
 	assert.Less(t, duration, time.Second)
 }
 
+func TestRLHTTPClient_DoReturnsErrorForNilRequest(t *testing.T) {
+	client := NewRLClient(rate.NewLimiter(rate.Inf, 0))
+	client.RetryConfig = NoRetries()
+
+	response, err := client.Do(nil)
+	if response != nil && response.Body != nil {
+		assert.NoError(t, response.Body.Close())
+	}
+
+	assert.ErrorContains(t, err, "request is nil")
+	assert.Nil(t, response)
+}
+
 func TestRLHTTPClient_DoWithRetriesOnServerError(t *testing.T) {
 	attempts := 0
 	mockServer := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
@@ -218,11 +318,11 @@ func TestRLHTTPClient_DoWithRetriesOnServerError(t *testing.T) {
 	}))
 	t.Cleanup(mockServer.Close)
 
-	limiter := rate.NewLimiter(1, 1)
+	limiter := rate.NewLimiter(rate.Inf, 0)
 	client := NewRLClient(limiter)
 	client.RetryConfig = &RetryConfig{
 		MaxRetries: 3,
-		Interval:   1 * time.Second,
+		Interval:   50 * time.Millisecond,
 	}
 
 	request := newRequest(t, mockServer.URL)
@@ -233,7 +333,7 @@ func TestRLHTTPClient_DoWithRetriesOnServerError(t *testing.T) {
 	assert.Equal(t, http.StatusOK, response.StatusCode)
 	closeResponseBody(t, response)
 	duration := time.Since(start)
-	expectedDuration := 2 * time.Second // 2 retries with 1 second interval
+	expectedDuration := 150 * time.Millisecond // 2 retries with backoff: 1x + 2x
 	assert.GreaterOrEqual(t, duration, expectedDuration)
 }
 
@@ -503,4 +603,567 @@ func TestRLHTTPClient_WrapsTimeoutErrorFromTransport(t *testing.T) {
 	assert.Nil(t, resp)
 	var timeoutErr *TimeoutError
 	assert.ErrorAs(t, err, &timeoutErr)
+}
+
+func TestRLHTTPClient_RetriesRequestWithBody(t *testing.T) {
+	firstResponseBody := newTrackingBody("first")
+	successResponseBody := newTrackingBody("ok")
+	transport := &requestBodyRecordingTransport{
+		responses: []*http.Response{
+			{
+				StatusCode: http.StatusInternalServerError,
+				Body:       firstResponseBody,
+				Header:     make(http.Header),
+			},
+			{
+				StatusCode: http.StatusOK,
+				Body:       successResponseBody,
+				Header:     make(http.Header),
+			},
+		},
+	}
+
+	client := NewRLClient(rate.NewLimiter(rate.Inf, 0))
+	client.RetryConfig = &RetryConfig{MaxRetries: 1, Interval: 0}
+	client.client = &http.Client{Transport: transport}
+
+	request, err := http.NewRequest(http.MethodPost, "https://example.com/retry", strings.NewReader("payload"))
+	assert.NoError(t, err)
+
+	response, err := client.Do(request)
+	assert.NoError(t, err)
+	assert.Equal(t, http.StatusOK, response.StatusCode)
+	closeResponseBody(t, response)
+
+	assert.Equal(t, 2, transport.callCount)
+	assert.Equal(t, []string{"payload", "payload"}, transport.recordedBodies)
+	assert.True(t, firstResponseBody.closed)
+	assert.True(t, firstResponseBody.read)
+}
+
+func TestRLHTTPClient_FailsWhenRequestBodyCannotBeRetried(t *testing.T) {
+	transport := &sequenceRoundTripper{
+		results: []roundTripResult{
+			{
+				response: &http.Response{
+					StatusCode: http.StatusOK,
+					Body:       io.NopCloser(strings.NewReader("ok")),
+					Header:     make(http.Header),
+				},
+			},
+		},
+	}
+
+	client := NewRLClient(rate.NewLimiter(rate.Inf, 0))
+	client.RetryConfig = &RetryConfig{MaxRetries: 1, Interval: 0}
+	client.client = &http.Client{Transport: transport}
+
+	request, err := http.NewRequest(http.MethodPost, "https://example.com/retry", io.NopCloser(strings.NewReader("payload")))
+	assert.NoError(t, err)
+	request.GetBody = nil
+
+	response, err := client.Do(request)
+	if response != nil {
+		closeResponseBody(t, response)
+	}
+	assert.ErrorContains(t, err, "request body retries require GetBody")
+	assert.Nil(t, response)
+	assert.Equal(t, 0, transport.callCount)
+}
+
+func TestRLHTTPClient_RetriesTransientNetworkErrors(t *testing.T) {
+	attempts := 0
+	client := NewRLClient(rate.NewLimiter(rate.Inf, 0))
+	client.RetryConfig = &RetryConfig{MaxRetries: 1, Interval: 0}
+	client.client = &http.Client{
+		Transport: roundTripFunc(func(request *http.Request) (*http.Response, error) {
+			attempts++
+			if attempts == 1 {
+				return nil, retryableNetworkError{}
+			}
+			return &http.Response{
+				StatusCode: http.StatusOK,
+				Body:       io.NopCloser(strings.NewReader("ok")),
+				Header:     make(http.Header),
+			}, nil
+		}),
+	}
+
+	request := newRequest(t, "https://example.com/retry")
+
+	response, err := client.Do(request)
+	assert.NoError(t, err)
+	assert.Equal(t, 2, attempts)
+	assert.Equal(t, http.StatusOK, response.StatusCode)
+	closeResponseBody(t, response)
+}
+
+func TestRLHTTPClient_RetriesOnTooManyRequests(t *testing.T) {
+	limitedBody := newTrackingBody("limited")
+	successBody := newTrackingBody("ok")
+	transport := &sequenceTransport{
+		responses: []*http.Response{
+			{
+				StatusCode: http.StatusTooManyRequests,
+				Body:       limitedBody,
+				Header: http.Header{
+					"Retry-After": []string{"0"},
+				},
+			},
+			{
+				StatusCode: http.StatusOK,
+				Body:       successBody,
+				Header:     make(http.Header),
+			},
+		},
+	}
+
+	client := NewRLClient(rate.NewLimiter(rate.Inf, 0))
+	client.RetryConfig = &RetryConfig{MaxRetries: 1, Interval: 0}
+	client.client = &http.Client{Transport: transport}
+
+	request := newRequest(t, "https://example.com/retry")
+
+	response, err := client.Do(request)
+	assert.NoError(t, err)
+	assert.Equal(t, http.StatusOK, response.StatusCode)
+	closeResponseBody(t, response)
+	assert.True(t, limitedBody.closed)
+	assert.True(t, limitedBody.read)
+}
+
+func TestRLHTTPClient_ReturnsErrorWhenGetBodyFailsDuringRetry(t *testing.T) {
+	failureBody := newTrackingBody("fail")
+	transport := &sequenceTransport{
+		responses: []*http.Response{
+			{
+				StatusCode: http.StatusInternalServerError,
+				Body:       failureBody,
+				Header:     make(http.Header),
+			},
+		},
+	}
+
+	client := NewRLClient(rate.NewLimiter(rate.Inf, 0))
+	client.RetryConfig = &RetryConfig{MaxRetries: 1, Interval: 0}
+	client.client = &http.Client{Transport: transport}
+
+	request, err := http.NewRequest(http.MethodPost, "https://example.com/retry", strings.NewReader("payload"))
+	assert.NoError(t, err)
+	request.GetBody = func() (io.ReadCloser, error) {
+		return nil, errors.New("get body failed")
+	}
+
+	response, err := client.Do(request)
+	if response != nil {
+		closeResponseBody(t, response)
+	}
+	assert.ErrorContains(t, err, "failed to reset request body")
+	assert.Equal(t, 1, transport.callCount)
+	assert.True(t, failureBody.closed)
+}
+
+func TestRLHTTPClient_StopsRetryWhenContextCanceledOnError(t *testing.T) {
+	ctx, cancel := context.WithCancel(context.Background())
+	client := NewRLClient(rate.NewLimiter(rate.Inf, 0))
+	client.RetryConfig = &RetryConfig{MaxRetries: 1, Interval: time.Second}
+	client.client = &http.Client{
+		Transport: roundTripFunc(func(request *http.Request) (*http.Response, error) {
+			cancel()
+			return nil, retryableNetworkError{}
+		}),
+	}
+
+	request, err := http.NewRequestWithContext(ctx, http.MethodGet, "https://example.com/retry", nil)
+	assert.NoError(t, err)
+
+	response, err := client.Do(request)
+	if response != nil {
+		closeResponseBody(t, response)
+	}
+	assert.ErrorIs(t, err, context.Canceled)
+}
+
+func TestRLHTTPClient_StopsRetryWhenContextCanceledOnResponse(t *testing.T) {
+	ctx, cancel := context.WithCancel(context.Background())
+	client := NewRLClient(rate.NewLimiter(rate.Inf, 0))
+	client.RetryConfig = &RetryConfig{MaxRetries: 1, Interval: time.Second}
+	client.client = &http.Client{
+		Transport: roundTripFunc(func(request *http.Request) (*http.Response, error) {
+			cancel()
+			return &http.Response{
+				StatusCode: http.StatusInternalServerError,
+				Body:       io.NopCloser(strings.NewReader("fail")),
+				Header:     make(http.Header),
+			}, nil
+		}),
+	}
+
+	request, err := http.NewRequestWithContext(ctx, http.MethodGet, "https://example.com/retry", nil)
+	assert.NoError(t, err)
+
+	response, err := client.Do(request)
+	if response != nil {
+		closeResponseBody(t, response)
+	}
+	assert.ErrorIs(t, err, context.Canceled)
+}
+
+func TestRLHTTPClient_WaitForRateLimitStopsOnContextCancel(t *testing.T) {
+	client := NewRLClient(rate.NewLimiter(rate.Inf, 0))
+	client.setRateLimitUntil(2 * time.Second)
+
+	ctx, cancel := context.WithCancel(context.Background())
+	cancel()
+
+	request := newRequest(t, "https://example.com/rate")
+	err := client.waitForRateLimit(ctx, 0, request)
+	assert.ErrorIs(t, err, context.Canceled)
+}
+
+func TestRateLimitDelayFromHeaders_UsesRetryAfterSeconds(t *testing.T) {
+	header := http.Header{
+		"Retry-After": []string{"2"},
+	}
+	now := time.Unix(100, 0)
+
+	delay, ok := rateLimitDelayFromHeaders(header, now)
+	assert.True(t, ok)
+	assert.Equal(t, 2*time.Second, delay)
+}
+
+func TestRateLimitDelayFromHeaders_UsesResetWhenRemainingLow(t *testing.T) {
+	header := http.Header{
+		"X-Ratelimit-Remaining": []string{"9"},
+		"X-Ratelimit-Reset":     []string{"10"},
+	}
+	now := time.Unix(100, 0)
+
+	delay, ok := rateLimitDelayFromHeaders(header, now)
+	assert.True(t, ok)
+	assert.Equal(t, 10*time.Second, delay)
+}
+
+func TestRateLimitDelayFromHeaders_IgnoresHighRemaining(t *testing.T) {
+	header := http.Header{
+		"X-Ratelimit-Remaining": []string{"10"},
+		"X-Ratelimit-Reset":     []string{"10"},
+	}
+	now := time.Unix(100, 0)
+
+	delay, ok := rateLimitDelayFromHeaders(header, now)
+	assert.False(t, ok)
+	assert.Equal(t, time.Duration(0), delay)
+}
+
+func TestParseRetryAfterDelay_HTTPDate(t *testing.T) {
+	now := time.Unix(100, 0)
+	retryAt := now.Add(5 * time.Second).UTC().Format(http.TimeFormat)
+
+	delay, ok := parseRetryAfterDelay(retryAt, now)
+	assert.True(t, ok)
+	assert.Equal(t, 5*time.Second, delay)
+}
+
+func TestParseRetryAfterDelay_IgnoresPastDate(t *testing.T) {
+	now := time.Unix(100, 0)
+	retryAt := now.Add(-5 * time.Second).UTC().Format(http.TimeFormat)
+
+	delay, ok := parseRetryAfterDelay(retryAt, now)
+	assert.False(t, ok)
+	assert.Equal(t, time.Duration(0), delay)
+}
+
+func TestParseResetDelay_UsesEpochWhenAfterNow(t *testing.T) {
+	now := time.Unix(1700000000, 0)
+	delay, ok := parseResetDelay("1700003600", now)
+	assert.True(t, ok)
+	assert.Equal(t, time.Hour, delay)
+}
+
+func TestParseResetDelay_UsesRelativeSeconds(t *testing.T) {
+	now := time.Unix(100, 0)
+	delay, ok := parseResetDelay("30", now)
+	assert.True(t, ok)
+	assert.Equal(t, 30*time.Second, delay)
+}
+
+func TestParseResetDelay_IgnoresPastEpoch(t *testing.T) {
+	now := time.Unix(1700003600, 0)
+	delay, ok := parseResetDelay("1700000000", now)
+	assert.False(t, ok)
+	assert.Equal(t, time.Duration(0), delay)
+}
+
+func TestRLHTTPClient_WaitForRateLimitDelayHonorsContext(t *testing.T) {
+	client := NewRLClient(rate.NewLimiter(rate.Inf, 0))
+	client.setRateLimitUntil(2 * time.Second)
+
+	ctx, cancel := context.WithCancel(context.Background())
+	cancel()
+
+	err := client.waitForRateLimitDelay(ctx)
+	assert.ErrorIs(t, err, context.Canceled)
+}
+
+func TestDefaultLimiter_UsesDefaults(t *testing.T) {
+	limiter := DefaultLimiter()
+	assert.Equal(t, rate.Every(DefaultRateLimitInterval), limiter.Limit())
+	assert.Equal(t, DefaultRateLimitBurst, limiter.Burst())
+}
+
+func TestNewRLClient_UsesDefaultLimiterWhenNil(t *testing.T) {
+	client := NewRLClient(nil)
+	assert.NotNil(t, client.Ratelimiter)
+	assert.Equal(t, rate.Every(DefaultRateLimitInterval), client.Ratelimiter.Limit())
+}
+
+func TestValidateRequestForRetries(t *testing.T) {
+	retryConfig := RetryConfig{MaxRetries: 1, Interval: time.Second}
+	requestErr := validateRequestForRetries(nil, retryConfig)
+	assert.ErrorContains(t, requestErr, "request is nil")
+
+	request, err := http.NewRequest(http.MethodGet, "https://example.com", nil)
+	assert.NoError(t, err)
+	assert.NoError(t, validateRequestForRetries(request, retryConfig))
+
+	nilURLRequest := &http.Request{Method: http.MethodGet}
+	assert.ErrorContains(t, validateRequestForRetries(nilURLRequest, retryConfig), "request url is nil")
+
+	bodyRequest, err := http.NewRequest(http.MethodPost, "https://example.com", io.NopCloser(strings.NewReader("payload")))
+	assert.NoError(t, err)
+	bodyRequest.GetBody = nil
+	assert.ErrorContains(t, validateRequestForRetries(bodyRequest, retryConfig), "request body retries require GetBody")
+
+	noRetryConfig := RetryConfig{MaxRetries: 0, Interval: time.Second}
+	assert.NoError(t, validateRequestForRetries(bodyRequest, noRetryConfig))
+}
+
+func TestBuildAttemptRequest_AllowsNilBody(t *testing.T) {
+	request, err := http.NewRequest(http.MethodGet, "https://example.com", nil)
+	assert.NoError(t, err)
+
+	attemptRequest, err := buildAttemptRequest(context.Background(), request, 0)
+	assert.NoError(t, err)
+	assert.NotNil(t, attemptRequest)
+}
+
+func TestBuildAttemptRequest_ReturnsErrorOnNilRequest(t *testing.T) {
+	request, err := buildAttemptRequest(context.Background(), nil, 0)
+	assert.ErrorContains(t, err, "request is nil")
+	assert.Nil(t, request)
+}
+
+func TestBuildAttemptRequest_ReturnsGetBodyError(t *testing.T) {
+	request, err := http.NewRequest(http.MethodPost, "https://example.com", strings.NewReader("payload"))
+	assert.NoError(t, err)
+	request.GetBody = func() (io.ReadCloser, error) {
+		return nil, errors.New("get body failed")
+	}
+
+	attemptRequest, err := buildAttemptRequest(context.Background(), request, 1)
+	assert.ErrorContains(t, err, "failed to reset request body")
+	assert.Nil(t, attemptRequest)
+}
+
+func TestBuildAttemptRequest_ReturnsMissingGetBodyError(t *testing.T) {
+	request, err := http.NewRequest(http.MethodPost, "https://example.com", io.NopCloser(strings.NewReader("payload")))
+	assert.NoError(t, err)
+	request.GetBody = nil
+
+	attemptRequest, err := buildAttemptRequest(context.Background(), request, 1)
+	assert.ErrorContains(t, err, "request body retries require GetBody")
+	assert.Nil(t, attemptRequest)
+}
+
+func TestShouldRetryError_StopsOnContextCancellation(t *testing.T) {
+	retryConfig := RetryConfig{MaxRetries: 1, Interval: time.Second}
+	assert.False(t, shouldRetryError(context.Canceled, 0, retryConfig))
+	assert.False(t, shouldRetryError(context.DeadlineExceeded, 0, retryConfig))
+}
+
+func TestShouldRetryError_ReturnsFalseForNil(t *testing.T) {
+	retryConfig := RetryConfig{MaxRetries: 1, Interval: time.Second}
+	assert.False(t, shouldRetryError(nil, 0, retryConfig))
+}
+
+func TestShouldRetryError_RetriesTimeouts(t *testing.T) {
+	retryConfig := RetryConfig{MaxRetries: 1, Interval: time.Second}
+	assert.True(t, shouldRetryError(timeoutNetworkError{}, 0, retryConfig))
+}
+
+func TestShouldRetryError_RejectsNonTemporaryErrors(t *testing.T) {
+	retryConfig := RetryConfig{MaxRetries: 1, Interval: time.Second}
+	assert.False(t, shouldRetryError(nonTemporaryNetworkError{}, 0, retryConfig))
+}
+
+func TestShouldRetryError_StopsAtMaxRetries(t *testing.T) {
+	retryConfig := RetryConfig{MaxRetries: 1, Interval: time.Second}
+	assert.False(t, shouldRetryError(retryableNetworkError{}, 1, retryConfig))
+}
+
+func TestRetryDelayForResponse_IgnoresNilResponse(t *testing.T) {
+	retryConfig := RetryConfig{MaxRetries: 1, Interval: time.Second}
+	delay, ok := retryDelayForResponse(nil, 0, retryConfig)
+	assert.False(t, ok)
+	assert.Equal(t, time.Duration(0), delay)
+}
+
+func TestRetryDelayForResponse_StopsAtMaxRetries(t *testing.T) {
+	retryConfig := RetryConfig{MaxRetries: 0, Interval: time.Second}
+	response := &http.Response{StatusCode: http.StatusInternalServerError}
+	delay, ok := retryDelayForResponse(response, 0, retryConfig)
+	assert.False(t, ok)
+	assert.Equal(t, time.Duration(0), delay)
+}
+
+func TestRetryDelayForResponse_UsesRetryAfterHeader(t *testing.T) {
+	retryConfig := RetryConfig{MaxRetries: 1, Interval: time.Second}
+	response := &http.Response{
+		StatusCode: http.StatusTooManyRequests,
+		Header: http.Header{
+			"Retry-After": []string{"2"},
+		},
+	}
+
+	delay, ok := retryDelayForResponse(response, 0, retryConfig)
+	assert.True(t, ok)
+	assert.Equal(t, 2*time.Second, delay)
+}
+
+func TestNoteRateLimitDelay_UpdatesDelay(t *testing.T) {
+	client := NewRLClient(rate.NewLimiter(rate.Inf, 0))
+	response := &http.Response{
+		StatusCode: http.StatusOK,
+		Header: http.Header{
+			"Retry-After": []string{"1"},
+		},
+	}
+
+	client.noteRateLimitDelay(response, nil)
+
+	client.rateLimitMutex.Lock()
+	waitUntil := client.rateLimitUntil
+	client.rateLimitMutex.Unlock()
+
+	assert.False(t, waitUntil.IsZero())
+	assert.Greater(t, time.Until(waitUntil), time.Duration(0))
+}
+
+func TestNoteRateLimitDelay_SetsSpanAttributes(t *testing.T) {
+	client := NewRLClient(rate.NewLimiter(rate.Inf, 0))
+	response := &http.Response{
+		StatusCode: http.StatusOK,
+		Header: http.Header{
+			"Retry-After": []string{"1"},
+		},
+	}
+
+	ctx, span := perf.StartSpan(context.Background(), "test.noteRateLimitDelay")
+	client.noteRateLimitDelay(response, span)
+	span.End()
+	_, _ = ctx, span
+}
+
+func TestNoteRateLimitDelay_IgnoresMissingHeaders(t *testing.T) {
+	client := NewRLClient(rate.NewLimiter(rate.Inf, 0))
+	response := &http.Response{
+		StatusCode: http.StatusOK,
+		Header:     make(http.Header),
+	}
+
+	client.noteRateLimitDelay(response, nil)
+
+	client.rateLimitMutex.Lock()
+	waitUntil := client.rateLimitUntil
+	client.rateLimitMutex.Unlock()
+
+	assert.True(t, waitUntil.IsZero())
+}
+
+func TestNoteRateLimitDelay_IgnoresNilResponse(t *testing.T) {
+	client := NewRLClient(rate.NewLimiter(rate.Inf, 0))
+	client.noteRateLimitDelay(nil, nil)
+
+	client.rateLimitMutex.Lock()
+	waitUntil := client.rateLimitUntil
+	client.rateLimitMutex.Unlock()
+
+	assert.True(t, waitUntil.IsZero())
+}
+
+func TestRateLimitDelayFromHeaders_IgnoresInvalidRemaining(t *testing.T) {
+	header := http.Header{
+		"X-Ratelimit-Remaining": []string{"not-a-number"},
+		"X-Ratelimit-Reset":     []string{"10"},
+	}
+	now := time.Unix(100, 0)
+
+	delay, ok := rateLimitDelayFromHeaders(header, now)
+	assert.False(t, ok)
+	assert.Equal(t, time.Duration(0), delay)
+}
+
+func TestRateLimitDelayFromHeaders_IgnoresEmptyHeaders(t *testing.T) {
+	delay, ok := rateLimitDelayFromHeaders(nil, time.Unix(100, 0))
+	assert.False(t, ok)
+	assert.Equal(t, time.Duration(0), delay)
+}
+
+func TestParseRetryAfterDelay_IgnoresInvalidValue(t *testing.T) {
+	delay, ok := parseRetryAfterDelay("not-a-date", time.Unix(100, 0))
+	assert.False(t, ok)
+	assert.Equal(t, time.Duration(0), delay)
+}
+
+func TestParseRetryAfterDelay_IgnoresZeroSeconds(t *testing.T) {
+	delay, ok := parseRetryAfterDelay("0", time.Unix(100, 0))
+	assert.False(t, ok)
+	assert.Equal(t, time.Duration(0), delay)
+}
+
+func TestParseRetryAfterDelay_IgnoresEmptyValue(t *testing.T) {
+	delay, ok := parseRetryAfterDelay("", time.Unix(100, 0))
+	assert.False(t, ok)
+	assert.Equal(t, time.Duration(0), delay)
+}
+
+func TestParseResetDelay_IgnoresInvalidValue(t *testing.T) {
+	delay, ok := parseResetDelay("invalid", time.Unix(100, 0))
+	assert.False(t, ok)
+	assert.Equal(t, time.Duration(0), delay)
+}
+
+func TestParseResetDelay_IgnoresEmptyValue(t *testing.T) {
+	delay, ok := parseResetDelay("", time.Unix(100, 0))
+	assert.False(t, ok)
+	assert.Equal(t, time.Duration(0), delay)
+}
+
+func TestParseResetDelay_IgnoresNonPositiveValue(t *testing.T) {
+	delay, ok := parseResetDelay("0", time.Unix(100, 0))
+	assert.False(t, ok)
+	assert.Equal(t, time.Duration(0), delay)
+}
+
+func TestSetRateLimitUntil_IgnoresZeroDelay(t *testing.T) {
+	client := NewRLClient(rate.NewLimiter(rate.Inf, 0))
+	client.setRateLimitUntil(0)
+
+	client.rateLimitMutex.Lock()
+	waitUntil := client.rateLimitUntil
+	client.rateLimitMutex.Unlock()
+
+	assert.True(t, waitUntil.IsZero())
+}
+
+func TestWaitForRateLimitDelay_SkipsPastDelays(t *testing.T) {
+	client := NewRLClient(rate.NewLimiter(rate.Inf, 0))
+
+	client.rateLimitMutex.Lock()
+	client.rateLimitUntil = time.Now().Add(-time.Second)
+	client.rateLimitMutex.Unlock()
+
+	err := client.waitForRateLimitDelay(context.Background())
+	assert.NoError(t, err)
 }

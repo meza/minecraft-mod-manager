@@ -21,7 +21,6 @@ import (
 	"github.com/spf13/cobra"
 	"go.opentelemetry.io/otel/attribute"
 	"golang.org/x/sync/errgroup"
-	"golang.org/x/time/rate"
 )
 
 const defaultTestMaxConcurrency = 4
@@ -144,7 +143,7 @@ func resolveGameVersion(args []string) string {
 }
 
 func defaultTestDeps(log *logger.Logger) testDeps {
-	limiter := rate.NewLimiter(rate.Inf, 0)
+	limiter := httpclient.DefaultLimiter()
 	return testDeps{
 		fs:             afero.NewOsFs(),
 		logger:         log,

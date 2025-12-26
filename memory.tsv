@@ -645,3 +645,7 @@ date	time	entry
 2025-12-26	19:23	Removed "Cluster - " prefix from mmm-114..117 and umbrellas mmm-118..143.
 2025-12-26	19:28	Updated mmm-118..143 descriptions to describe implementation grouping decision (no umbrella terminology) and clarify tracking remains at leaf tickets.
 2025-12-26	19:31	Updated mmm-114..117 descriptions to clarify they are tracking groups; execution happens in linked implementation groups and leaf tickets.
+2025-12-26	20:12	mmm-118 in progress: implemented safe retry request cloning, context-aware retry waits/backoff, 429 + rate-limit header handling, default non-inf rate limiter at command boundaries, nil-limiter defaults, and nil Sender handling; added extensive httpclient/downloader tests and updated internal/httpclient/README. make fmt/lint/coverage/build pass locally.
+2025-12-26	20:29	mmm-118: fixed rate limit reset parsing to ignore past epoch values, added tests for epoch vs relative reset, created mmm-144 to track bug; make fmt/lint/coverage/build pass locally.
+2025-12-26	21:17	mmm-118: guarded nil request/URL in validateRequestForRetries, limited retries to timeouts or Temporary errors, added Do nil request and non-temporary retry tests; make fmt/lint/coverage/build pass.
+2025-12-26	21:28	Closed mmm-118 and dependencies mmm-63.16/17/18/22/87 plus mmm-144 per user request after review approval and Windows verification.

@@ -37,7 +37,7 @@ type Clients struct {
 
 func DefaultClients(limiter *rate.Limiter) Clients {
 	if limiter == nil {
-		limiter = rate.NewLimiter(rate.Inf, 0)
+		limiter = httpclient.DefaultLimiter()
 	}
 	client := httpclient.NewRLClient(limiter)
 	return Clients{

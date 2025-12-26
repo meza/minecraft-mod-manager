@@ -142,6 +142,25 @@ func TestDownloadFile(t *testing.T) {
 		assert.True(t, ok)
 	})
 
+	t.Run("nil program does not panic", func(t *testing.T) {
+		fs := afero.NewMemMapFs()
+
+		mockServer := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			w.WriteHeader(http.StatusOK)
+			if _, err := w.Write([]byte("file content")); err != nil {
+				t.Fatalf("failed to write response: %v", err)
+			}
+		}))
+		defer mockServer.Close()
+
+		err := DownloadFile(context.Background(), mockServer.URL, "testfile", mockServer.Client(), nil, fs)
+		assert.NoError(t, err)
+
+		content, err := afero.ReadFile(fs, "testfile")
+		assert.NoError(t, err)
+		assert.Equal(t, "file content", string(content))
+	})
+
 	t.Run("HTTP request error", func(t *testing.T) {
 		mockServer := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {}))
 		defer mockServer.Close()
@@ -263,4 +282,33 @@ func TestDownloadFile(t *testing.T) {
 		err := DownloadFile(context.Background(), "https://example.com/file", "test", doer, program, fs)
 		assert.ErrorContains(t, err, "failed to remove partial file")
 	})
+}
+
+type valueProgram struct{}
+
+func (program valueProgram) Send(_ tea.Msg) {}
+
+func TestSendProgressWithProgram(t *testing.T) {
+	program := &MockProgram{}
+	sendProgress(program, progressMsg(0.5))
+	assert.Len(t, program.SentMessages(), 1)
+	_, ok := program.SentMessages()[0].(progressMsg)
+	assert.True(t, ok)
+}
+
+func TestSendProgressWithNilProgram(t *testing.T) {
+	assert.NotPanics(t, func() {
+		sendProgress(nil, progressMsg(0.5))
+	})
+}
+
+func TestIsNilSenderHandlesTypedNil(t *testing.T) {
+	var program *MockProgram
+	var sender Sender = program
+	assert.True(t, isNilSender(sender))
+}
+
+func TestIsNilSenderHandlesNonNil(t *testing.T) {
+	assert.False(t, isNilSender(&MockProgram{}))
+	assert.False(t, isNilSender(valueProgram{}))
 }

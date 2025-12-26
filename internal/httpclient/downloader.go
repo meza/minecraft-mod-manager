@@ -8,6 +8,7 @@ import (
 	"io"
 	"net/http"
 	"os"
+	"reflect"
 
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/meza/minecraft-mod-manager/internal/fileutils"
@@ -110,13 +111,16 @@ func createDownloadFile(filesystem afero.Fs, path string) (afero.File, error) {
 }
 
 func buildProgressWriter(response *http.Response, file afero.File, program Sender, span *perf.Span) *progressWriter {
+	canSendProgress := !isNilSender(program)
 	progressWriter := &progressWriter{
 		total:  int(response.ContentLength),
 		file:   file,
 		reader: response.Body,
-		onProgress: func(ratio float64) {
-			program.Send(progressMsg(ratio))
-		},
+	}
+	if canSendProgress {
+		progressWriter.onProgress = func(ratio float64) {
+			sendProgress(program, progressMsg(ratio))
+		}
 	}
 	if progressWriter.total > 0 {
 		span.SetAttributes(attribute.Int64("bytes", int64(progressWriter.total)))
@@ -133,9 +137,29 @@ func copyDownload(progressWriter *progressWriter) error {
 }
 
 func handleDownloadWriteError(err error, program Sender, filesystem afero.Fs, path string) error {
-	program.Send(progressErrMsg{err})
+	sendProgress(program, progressErrMsg{err})
 	if removeErr := filesystem.Remove(path); removeErr != nil && !errors.Is(removeErr, os.ErrNotExist) {
 		return errors.Join(err, fmt.Errorf("failed to remove partial file: %w", removeErr))
 	}
 	return err
+}
+
+func sendProgress(program Sender, message tea.Msg) {
+	if isNilSender(program) {
+		return
+	}
+	program.Send(message)
+}
+
+func isNilSender(program Sender) bool {
+	if program == nil {
+		return true
+	}
+	programValue := reflect.ValueOf(program)
+	switch programValue.Kind() {
+	case reflect.Ptr, reflect.Chan, reflect.Func, reflect.Interface, reflect.Map, reflect.Slice:
+		return programValue.IsNil()
+	default:
+		return false
+	}
 }

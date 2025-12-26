@@ -179,7 +179,7 @@ func runAddCommand(cmd *cobra.Command, args []string, runner addRunner) error {
 	}
 
 	log := logger.New(cmd.OutOrStdout(), cmd.ErrOrStderr(), options.Quiet, options.Debug)
-	deps := defaultAddDeps(log, rate.NewLimiter(rate.Inf, 0))
+	deps := defaultAddDeps(log, httpclient.DefaultLimiter())
 
 	telemetryPayload, err := runner(ctx, span, cmd, options, deps)
 	errToReturn := normalizeAddError(err)

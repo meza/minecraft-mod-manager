@@ -20,7 +20,6 @@ import (
 	"github.com/spf13/cobra"
 	"go.opentelemetry.io/otel/attribute"
 	"golang.org/x/sync/errgroup"
-	"golang.org/x/time/rate"
 
 	"github.com/meza/minecraft-mod-manager/internal/clierrors"
 	"github.com/meza/minecraft-mod-manager/internal/config"
@@ -165,7 +164,7 @@ func scanOptionsFromFlags(cmd *cobra.Command) (scanOptions, error) {
 
 func defaultScanDeps(cmd *cobra.Command, opts scanOptions) scanDeps {
 	log := logger.New(cmd.OutOrStdout(), cmd.ErrOrStderr(), opts.Quiet, opts.Debug)
-	limiter := rate.NewLimiter(rate.Inf, 0)
+	limiter := httpclient.DefaultLimiter()
 
 	return scanDeps{
 		fs:              afero.NewOsFs(),

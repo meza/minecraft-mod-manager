@@ -16,12 +16,15 @@ If you are adding a command that talks to an external API, start here.
 - `type RLHTTPClient struct { ... }` (implements `Doer`)
 - `NewRLClient(limiter *rate.Limiter) *RLHTTPClient`
 - `RetryConfig` and `NoRetries() *RetryConfig`
+- `DefaultLimiter()` for the default rate-limit policy
 
 `RLHTTPClient.Do`:
 
 - waits on the provided rate limiter before each request
-- retries server errors (HTTP 5xx) up to `MaxRetries`
+- retries transient network errors and HTTP 5xx/429 responses up to `MaxRetries` with backoff
 - drains and closes the response body between retries to avoid leaking connections
+- requires `request.GetBody` when retrying requests with bodies so each attempt gets a fresh body
+- honors `Retry-After` and `X-Ratelimit-*` headers to delay subsequent requests when rate limits are low
 - wraps timeout errors with an i18n-backed message instructing retry/connection checks
 
 ### File download with progress

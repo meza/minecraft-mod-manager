@@ -137,7 +137,7 @@ func commandWithRunner(runner installRunner) *cobra.Command {
 // as a prerequisite.
 func Run(ctx context.Context, cmd *cobra.Command, configPath string, quiet bool, debug bool) (Result, error) {
 	log := logger.New(cmd.OutOrStdout(), cmd.ErrOrStderr(), quiet, debug)
-	limiter := rate.NewLimiter(rate.Inf, 0)
+	limiter := httpclient.DefaultLimiter()
 
 	opts := installOptions{
 		ConfigPath: configPath,
@@ -159,7 +159,7 @@ func runInstallCommand(cmd *cobra.Command, runner installRunner) error {
 	}
 
 	log := logger.New(cmd.OutOrStdout(), cmd.ErrOrStderr(), opts.Quiet, opts.Debug)
-	limiter := rate.NewLimiter(rate.Inf, 0)
+	limiter := httpclient.DefaultLimiter()
 	deps := defaultInstallDeps(log, limiter, telemetry.RecordCommand)
 
 	result, err := runner(ctx, cmd, opts, deps)
