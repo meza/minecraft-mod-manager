@@ -123,9 +123,7 @@ func (tool *coverageTool) run() error {
 	if err != nil {
 		return err
 	}
-	if cleanupFiltered != nil {
-		defer cleanupFiltered()
-	}
+	defer cleanupFilteredCoverage(cleanupFiltered)
 
 	if generateErr := tool.generateCoverageHTML(filteredCoveragePath, paths.htmlPath); generateErr != nil {
 		return generateErr
@@ -141,6 +139,12 @@ func (tool *coverageTool) run() error {
 	}
 
 	return reportCoverage(paths.funcOutputPath, paths.htmlPath, funcOutput.totalLine, funcOutput.coverage, funcOutput.offendingLines)
+}
+
+func cleanupFilteredCoverage(cleanup func()) {
+	if cleanup != nil {
+		cleanup()
+	}
 }
 
 type coverageOutputPaths struct {

@@ -657,16 +657,11 @@ func preflightUnknownFiles(input preflightInputs) (scanReportOutcome, error) {
 
 	scanned, err := scanFiles(input.ctx, nonManaged, input.deps)
 	if err != nil {
-		var lookupFailure *platformLookupFailure
-		if errors.As(err, &lookupFailure) {
-			colorMode := tui.ColorDisabled
-			if input.colorize {
-				colorMode = tui.ColorEnabled
-			}
-			logPlatformLookupFailure(input.deps.logger, lookupFailure, colorMode)
+		handled, handleErr := handlePreflightScanFailure(input, err)
+		if handled {
 			return scanReportOutcome{unresolved: true}, nil
 		}
-		return scanReportOutcome{}, err
+		return scanReportOutcome{}, handleErr
 	}
 
 	return reportScanResults(scanReportInputs{
@@ -676,6 +671,19 @@ func preflightUnknownFiles(input preflightInputs) (scanReportOutcome, error) {
 		deps:     input.deps,
 		colorize: input.colorize,
 	})
+}
+
+func handlePreflightScanFailure(input preflightInputs, scanErr error) (bool, error) {
+	var lookupFailure *platformLookupFailure
+	if errors.As(scanErr, &lookupFailure) {
+		colorMode := tui.ColorDisabled
+		if input.colorize {
+			colorMode = tui.ColorEnabled
+		}
+		logPlatformLookupFailure(input.deps.logger, lookupFailure, colorMode)
+		return true, nil
+	}
+	return false, scanErr
 }
 
 func scanFiles(ctx context.Context, files []string, deps installDeps) ([]scannedFile, error) {

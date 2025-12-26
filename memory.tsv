@@ -602,3 +602,4 @@ date	time	entry
 2025-12-26	00:42	mmm-106 in progress: refactored internal/httpclient RLHTTPClient.doAttempt to extract failure/retry span handling; go test ./internal/httpclient before/after; make fmt.
 2025-12-26	00:47	mmm-106: addressed review feedback by removing unused retryConfig param from recordAttemptRetry helper; go test ./internal/httpclient before/after; make fmt.
 2025-12-26	01:02	mmm-108 in progress: fixed govet shadow in internal/httpclient/downloader.go, internal/modinstall/modinstall.go, tools/coverage/coverage.go; go test ./internal/httpclient ./internal/modinstall ./tools/coverage before/after; make fmt.
+2025-12-26	01:10	mmm-109 in progress: reduced nestif in cmd/mmm/install preflightUnknownFiles, cmd/mmm/scan persistScanMatchesIfRequested, tools/coverage run by early returns/cleanup helper; go test ./cmd/mmm/install ./cmd/mmm/scan ./tools/coverage before/after; make fmt.

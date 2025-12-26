@@ -259,20 +259,21 @@ func persistScanMatchesIfRequested(
 	if err != nil {
 		return scanFailureTelemetry(err), err
 	}
+	if !shouldPersist {
+		return scanSuccessTelemetry(preferPlatform, opts.Add), nil
+	}
 
-	if shouldPersist {
-		if len(unsure) > 0 {
-			deps.logger.Log(i18n.T("cmd.scan.persist_skipped_unsure"), logger.LogQuiet)
-			return scanSuccessTelemetry(preferPlatform, opts.Add), nil
-		}
+	if len(unsure) > 0 {
+		deps.logger.Log(i18n.T("cmd.scan.persist_skipped_unsure"), logger.LogQuiet)
+		return scanSuccessTelemetry(preferPlatform, opts.Add), nil
+	}
 
-		persisted, err := persistScanMatches(ctx, cmd, meta, setupCoordinator, deps, matches, cfg, lock)
-		if err != nil {
-			return scanFailureTelemetry(err), err
-		}
-		if persisted {
-			deps.logger.Log(i18n.T("cmd.scan.persisted"), logger.LogQuiet)
-		}
+	persisted, err := persistScanMatches(ctx, cmd, meta, setupCoordinator, deps, matches, cfg, lock)
+	if err != nil {
+		return scanFailureTelemetry(err), err
+	}
+	if persisted {
+		deps.logger.Log(i18n.T("cmd.scan.persisted"), logger.LogQuiet)
 	}
 
 	return scanSuccessTelemetry(preferPlatform, opts.Add), nil
