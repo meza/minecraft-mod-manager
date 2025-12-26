@@ -824,27 +824,43 @@ func defaultAddDeps(log *logger.Logger, limiter *rate.Limiter) addDeps {
 }
 
 func handleExistingInstall(input existingInstallInput) (telemetry.CommandTelemetry, error) {
-	normalizedFileName, normalizeErr := modfilename.Normalize(input.install.FileName)
-	if normalizeErr != nil {
+	install, err := normalizeExistingInstallFileName(input)
+	if err != nil {
+		return addFailureTelemetry(input.platformValue, input.projectID, input.opts, input.useTUI, err), err
+	}
+
+	ensureResult, ensureErr := ensureExistingInstall(input, install)
+	if ensureErr != nil {
+		return addFailureTelemetry(input.platformValue, input.projectID, input.opts, input.useTUI, ensureErr), ensureErr
+	}
+
+	logEnsureResult(input.deps.logger, ensureResult.Reason, input.cfg, input.platformValue, input.projectID)
+	return recordExistingInstallTelemetry(input, ensureResult.Reason), nil
+}
+
+func normalizeExistingInstallFileName(input existingInstallInput) (models.ModInstall, error) {
+	normalizedFileName, err := modfilename.Normalize(input.install.FileName)
+	if err != nil {
 		message := i18n.T("cmd.add.error.invalid_filename_lock", i18n.Tvars{
 			Data: &i18n.TData{
 				"name": modNameForConfig(input.cfg, input.platformValue, input.projectID),
 				"file": modfilename.Display(input.install.FileName),
 			},
 		})
-		err := errors.New(message)
-		return addFailureTelemetry(input.platformValue, input.projectID, input.opts, input.useTUI, err), err
+		return models.ModInstall{}, errors.New(message)
 	}
-	input.install.FileName = normalizedFileName
 
+	install := input.install
+	install.FileName = normalizedFileName
+	return install, nil
+}
+
+func ensureExistingInstall(input existingInstallInput, install models.ModInstall) (modinstall.EnsureResult, error) {
 	installer := modinstall.NewInstaller(input.deps.fs, modinstall.Downloader(input.deps.downloader))
-	ensureResult, ensureErr := installer.EnsureLockedFile(input.ctx, input.meta, input.cfg, input.install, downloadClient(input.deps.clients), nil)
-	if ensureErr != nil {
-		return addFailureTelemetry(input.platformValue, input.projectID, input.opts, input.useTUI, ensureErr), ensureErr
-	}
+	return installer.EnsureLockedFile(input.ctx, input.meta, input.cfg, install, downloadClient(input.deps.clients), nil)
+}
 
-	logEnsureResult(input.deps.logger, ensureResult.Reason, input.cfg, input.platformValue, input.projectID)
-
+func recordExistingInstallTelemetry(input existingInstallInput, reason modinstall.EnsureReason) telemetry.CommandTelemetry {
 	if input.commandSpan != nil {
 		input.commandSpan.AddEvent("app.command.add.outcome.already_exists", perf.WithEventAttributes(
 			attribute.String("platform", string(input.platformValue)),
@@ -857,7 +873,7 @@ func handleExistingInstall(input existingInstallInput) (telemetry.CommandTelemet
 			"platform": input.platformValue,
 		},
 	}))
-	return addExistingInstallTelemetry(input.platformValue, input.projectID, input.opts, input.useTUI, ensureResult.Reason), nil
+	return addExistingInstallTelemetry(input.platformValue, input.projectID, input.opts, input.useTUI, reason)
 }
 
 func logEnsureResult(log *logger.Logger, reason modinstall.EnsureReason, cfg models.ModsJSON, platformValue models.Platform, projectID string) {
