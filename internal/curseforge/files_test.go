@@ -6,6 +6,7 @@ import (
 	"io"
 	"net/http"
 	"net/http/httptest"
+	"net/url"
 	"testing"
 	"time"
 
@@ -890,4 +891,32 @@ func TestGetPaginatedFilesForProjectReturnsErrorOnResponseCloseFailure(t *testin
 	files, err := getPaginatedFilesForProject(context.Background(), 12345, client, 0)
 	assert.ErrorIs(t, err, closeErr)
 	assert.NotNil(t, files)
+}
+
+func TestBuildPaginatedFilesRequestReturnsErrorOnParseFailure(t *testing.T) {
+	originalParse := parseURL
+	parseURL = func(string) (*url.URL, error) {
+		return nil, stdErrors.New("parse failed")
+	}
+	t.Cleanup(func() {
+		parseURL = originalParse
+	})
+
+	request, _, err := buildPaginatedFilesRequest(context.Background(), 123, 0)
+	assert.Error(t, err)
+	assert.Nil(t, request)
+}
+
+func TestNewFingerprintMatchRequestReturnsErrorOnParseFailure(t *testing.T) {
+	originalParse := parseURL
+	parseURL = func(string) (*url.URL, error) {
+		return nil, stdErrors.New("parse failed")
+	}
+	t.Cleanup(func() {
+		parseURL = originalParse
+	})
+
+	request, _, err := newFingerprintMatchRequest(context.Background(), []int{1, 2})
+	assert.Error(t, err)
+	assert.Nil(t, request)
 }

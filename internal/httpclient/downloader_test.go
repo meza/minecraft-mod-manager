@@ -6,6 +6,7 @@ import (
 	"io"
 	"net/http"
 	"net/http/httptest"
+	"net/url"
 	"strings"
 	"testing"
 
@@ -24,6 +25,34 @@ type doerFunc func(*http.Request) (*http.Response, error)
 
 func (doer doerFunc) Do(req *http.Request) (*http.Response, error) {
 	return doer(req)
+}
+
+type hostRewriteDoer struct {
+	base *url.URL
+	next Doer
+}
+
+func newHostRewriteDoer(serverURL string, next Doer) (*hostRewriteDoer, error) {
+	if next == nil {
+		return nil, errors.New("next doer is nil")
+	}
+
+	base, err := url.Parse(serverURL)
+	if err != nil {
+		return nil, err
+	}
+	if base.Scheme == "" || base.Host == "" {
+		return nil, errors.New("server url must include scheme and host")
+	}
+	return &hostRewriteDoer{base: base, next: next}, nil
+}
+
+func (doer *hostRewriteDoer) Do(req *http.Request) (*http.Response, error) {
+	cloned := req.Clone(req.Context())
+	cloned.URL.Scheme = doer.base.Scheme
+	cloned.URL.Host = doer.base.Host
+	cloned.Host = doer.base.Host
+	return doer.next.Do(cloned)
 }
 
 func (program *MockProgram) Send(msg tea.Msg) {
@@ -113,7 +142,24 @@ func (body *readErrorBody) Close() error {
 	return nil
 }
 
+type readCloseErrorBody struct {
+	readErr  error
+	closeErr error
+}
+
+func (body *readCloseErrorBody) Read(_ []byte) (int, error) {
+	return 0, body.readErr
+}
+
+func (body *readCloseErrorBody) Close() error {
+	return body.closeErr
+}
+
 func TestDownloadFile(t *testing.T) {
+	allowedURL := func(path string) string {
+		return "https://cdn.modrinth.com" + path
+	}
+
 	t.Run("successful download", func(t *testing.T) {
 		fs := afero.NewMemMapFs()
 		program := &MockProgram{}
@@ -126,9 +172,11 @@ func TestDownloadFile(t *testing.T) {
 		}))
 		defer mockServer.Close()
 
+		doer, err := newHostRewriteDoer(mockServer.URL, mockServer.Client())
+		assert.NoError(t, err)
 		destinationFile := "testfile"
 
-		err := DownloadFile(context.Background(), mockServer.URL, destinationFile, mockServer.Client(), program, fs)
+		err = DownloadFile(context.Background(), allowedURL("/testfile"), destinationFile, doer, program, fs)
 		assert.NoError(t, err)
 
 		// Verify the file content
@@ -153,7 +201,9 @@ func TestDownloadFile(t *testing.T) {
 		}))
 		defer mockServer.Close()
 
-		err := DownloadFile(context.Background(), mockServer.URL, "testfile", mockServer.Client(), nil, fs)
+		doer, err := newHostRewriteDoer(mockServer.URL, mockServer.Client())
+		assert.NoError(t, err)
+		err = DownloadFile(context.Background(), allowedURL("/testfile"), "testfile", doer, nil, fs)
 		assert.NoError(t, err)
 
 		content, err := afero.ReadFile(fs, "testfile")
@@ -161,19 +211,52 @@ func TestDownloadFile(t *testing.T) {
 		assert.Equal(t, "file content", string(content))
 	})
 
-	t.Run("HTTP request error", func(t *testing.T) {
-		mockServer := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {}))
-		defer mockServer.Close()
-
-		err := DownloadFile(context.Background(), "invalid-url", "testfile", mockServer.Client(), &MockProgram{}, afero.NewMemMapFs())
-		assert.ErrorContains(t, err, "failed to download file")
+	t.Run("invalid download URL returns validation error", func(t *testing.T) {
+		err := DownloadFile(context.Background(), "invalid-url", "testfile", doerFunc(func(_ *http.Request) (*http.Response, error) {
+			return nil, errors.New("unexpected request")
+		}), &MockProgram{}, afero.NewMemMapFs())
+		assert.Error(t, err)
+		assert.Equal(t, i18n.T("error.download_url_invalid", i18n.Tvars{
+			Data: &i18n.TData{"url": "invalid-url"},
+		}), err.Error())
 	})
 
-	t.Run("HTTP request build error", func(t *testing.T) {
-		mockServer := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {}))
-		defer mockServer.Close()
+	t.Run("insecure download URL returns validation error", func(t *testing.T) {
+		insecureURL := "http://cdn.modrinth.com/file"
 
-		err := DownloadFile(context.Background(), "http://[::1", "testfile", mockServer.Client(), &MockProgram{}, afero.NewMemMapFs())
+		err := DownloadFile(context.Background(), insecureURL, "testfile", doerFunc(func(_ *http.Request) (*http.Response, error) {
+			return nil, errors.New("unexpected request")
+		}), &MockProgram{}, afero.NewMemMapFs())
+		assert.Error(t, err)
+		assert.Equal(t, i18n.T("error.download_url_insecure", i18n.Tvars{
+			Data: &i18n.TData{"url": insecureURL},
+		}), err.Error())
+	})
+
+	t.Run("untrusted download host returns validation error", func(t *testing.T) {
+		untrustedURL := "https://example.com/file"
+
+		err := DownloadFile(context.Background(), untrustedURL, "testfile", doerFunc(func(_ *http.Request) (*http.Response, error) {
+			return nil, errors.New("unexpected request")
+		}), &MockProgram{}, afero.NewMemMapFs())
+		assert.Error(t, err)
+		assert.Equal(t, i18n.T("error.download_url_untrusted_host", i18n.Tvars{
+			Data: &i18n.TData{"host": "example.com", "url": untrustedURL},
+		}), err.Error())
+	})
+
+	t.Run("request build failure returns error", func(t *testing.T) {
+		originalBuild := buildDownloadRequestFunc
+		buildDownloadRequestFunc = func(context.Context, string) (*http.Request, func(), error) {
+			return nil, func() {}, errors.New("request failed")
+		}
+		t.Cleanup(func() {
+			buildDownloadRequestFunc = originalBuild
+		})
+
+		err := DownloadFile(context.Background(), allowedURL("/file"), "testfile", doerFunc(func(_ *http.Request) (*http.Response, error) {
+			return nil, errors.New("unexpected request")
+		}), &MockProgram{}, afero.NewMemMapFs())
 		assert.ErrorContains(t, err, "failed to build download request")
 	})
 
@@ -189,7 +272,9 @@ func TestDownloadFile(t *testing.T) {
 		}))
 		defer mockServer.Close()
 
-		err := DownloadFile(context.Background(), mockServer.URL, "testfile", mockServer.Client(), program, fs)
+		doer, err := newHostRewriteDoer(mockServer.URL, mockServer.Client())
+		assert.NoError(t, err)
+		err = DownloadFile(context.Background(), allowedURL("/testfile"), "testfile", doer, program, fs)
 		assert.ErrorContains(t, err, "download request failed with status 400")
 		exists, existsErr := afero.Exists(fs, "testfile")
 		assert.NoError(t, existsErr)
@@ -203,7 +288,7 @@ func TestDownloadFile(t *testing.T) {
 			return nil, &TimeoutError{Err: context.DeadlineExceeded}
 		})
 
-		err := DownloadFile(context.Background(), "https://example.com/file", "testfile", timeoutDoer, program, fs)
+		err := DownloadFile(context.Background(), allowedURL("/file"), "testfile", timeoutDoer, program, fs)
 		assert.Error(t, err)
 		assert.Equal(t, i18n.T("error.network_timeout"), err.Error())
 	})
@@ -220,7 +305,9 @@ func TestDownloadFile(t *testing.T) {
 		}))
 		defer mockServer.Close()
 
-		err := DownloadFile(context.Background(), mockServer.URL, "/invalid/path/testfile", mockServer.Client(), &MockProgram{}, fs)
+		doer, err := newHostRewriteDoer(mockServer.URL, mockServer.Client())
+		assert.NoError(t, err)
+		err = DownloadFile(context.Background(), allowedURL("/testfile"), "/invalid/path/testfile", doer, &MockProgram{}, fs)
 		assert.ErrorContains(t, err, "failed to create file")
 	})
 
@@ -234,7 +321,9 @@ func TestDownloadFile(t *testing.T) {
 		fs := afero.NewMemMapFs()
 
 		program := &MockProgram{}
-		err := DownloadFile(context.Background(), mockServer.URL, "test", mockServer.Client(), program, fs)
+		doer, err := newHostRewriteDoer(mockServer.URL, mockServer.Client())
+		assert.NoError(t, err)
+		err = DownloadFile(context.Background(), allowedURL("/test"), "test", doer, program, fs)
 		assert.ErrorContains(t, err, "failed to write file")
 		exists, existsErr := afero.Exists(fs, "test")
 		assert.NoError(t, existsErr)
@@ -250,7 +339,7 @@ func TestDownloadFile(t *testing.T) {
 			}, nil
 		})
 
-		err := DownloadFile(context.Background(), "https://example.com/file", "testfile", doer, &MockProgram{}, afero.NewMemMapFs())
+		err := DownloadFile(context.Background(), allowedURL("/file"), "testfile", doer, &MockProgram{}, afero.NewMemMapFs())
 		assert.ErrorIs(t, err, bodyErr)
 	})
 
@@ -264,7 +353,7 @@ func TestDownloadFile(t *testing.T) {
 			}, nil
 		})
 
-		err := DownloadFile(context.Background(), "https://example.com/file", "testfile", doer, &MockProgram{}, fs)
+		err := DownloadFile(context.Background(), allowedURL("/file"), "testfile", doer, &MockProgram{}, fs)
 		assert.ErrorContains(t, err, "close failed")
 	})
 
@@ -279,8 +368,29 @@ func TestDownloadFile(t *testing.T) {
 		})
 		program := &MockProgram{}
 
-		err := DownloadFile(context.Background(), "https://example.com/file", "test", doer, program, fs)
+		err := DownloadFile(context.Background(), allowedURL("/file"), "test", doer, program, fs)
 		assert.ErrorContains(t, err, "failed to remove partial file")
+	})
+
+	t.Run("response close error ignored when write fails", func(t *testing.T) {
+		fs := afero.NewMemMapFs()
+		readErr := errors.New("read failed")
+		closeErr := errors.New("close failed")
+		doer := doerFunc(func(_ *http.Request) (*http.Response, error) {
+			return &http.Response{
+				StatusCode: http.StatusOK,
+				Body:       &readCloseErrorBody{readErr: readErr, closeErr: closeErr},
+			}, nil
+		})
+		program := &MockProgram{}
+
+		err := DownloadFile(context.Background(), allowedURL("/file"), "test", doer, program, fs)
+		assert.ErrorContains(t, err, "failed to write file")
+		assert.ErrorIs(t, err, readErr)
+		assert.NotErrorIs(t, err, closeErr)
+		exists, existsErr := afero.Exists(fs, "test")
+		assert.NoError(t, existsErr)
+		assert.False(t, exists)
 	})
 }
 
@@ -311,4 +421,52 @@ func TestIsNilSenderHandlesTypedNil(t *testing.T) {
 func TestIsNilSenderHandlesNonNil(t *testing.T) {
 	assert.False(t, isNilSender(&MockProgram{}))
 	assert.False(t, isNilSender(valueProgram{}))
+}
+
+func TestValidateDownloadURLAcceptsTrustedHost(t *testing.T) {
+	parsed, err := validateDownloadURL("https://cdn.modrinth.com/data/file.jar")
+	assert.NoError(t, err)
+	assert.Equal(t, "cdn.modrinth.com", parsed.Hostname())
+}
+
+func TestValidateDownloadURLRejectsMissingHost(t *testing.T) {
+	parsed, err := validateDownloadURL("https:///file.jar")
+	assert.Error(t, err)
+	assert.Nil(t, parsed)
+
+	var invalidErr InvalidDownloadURLError
+	assert.ErrorAs(t, err, &invalidErr)
+}
+
+func TestValidateDownloadURLRejectsEmptyHostname(t *testing.T) {
+	parsed, err := validateDownloadURL("https://:443/file.jar")
+	assert.Error(t, err)
+	assert.Nil(t, parsed)
+
+	var invalidErr InvalidDownloadURLError
+	assert.ErrorAs(t, err, &invalidErr)
+}
+
+func TestValidateDownloadURLRejectsParseErrors(t *testing.T) {
+	parsed, err := validateDownloadURL("http://[::1")
+	assert.Error(t, err)
+	assert.Nil(t, parsed)
+
+	var invalidErr InvalidDownloadURLError
+	assert.ErrorAs(t, err, &invalidErr)
+}
+
+func TestBuildDownloadRequestReturnsRequest(t *testing.T) {
+	request, cancel, err := buildDownloadRequest(context.Background(), "https://cdn.modrinth.com/file.jar")
+	assert.NoError(t, err)
+	assert.NotNil(t, request)
+	assert.Equal(t, http.MethodGet, request.Method)
+	cancel()
+}
+
+func TestBuildDownloadRequestReturnsErrorOnInvalidURL(t *testing.T) {
+	request, cancel, err := buildDownloadRequest(context.Background(), "http://[::1")
+	assert.Error(t, err)
+	assert.Nil(t, request)
+	cancel()
 }

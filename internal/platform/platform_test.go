@@ -4,9 +4,11 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
+	"fmt"
 	"io"
 	"net/http"
 	"net/http/httptest"
+	"net/url"
 	"strings"
 	"testing"
 
@@ -241,6 +243,42 @@ func TestFetchCurseforgeFilesReturnsErrorOnRequestBuildFailure(t *testing.T) {
 	files, err := fetchCurseforgeFiles(context.Background(), "12345", "1.20.1", curseforge.Fabric, errorDoer{})
 	assert.Error(t, err)
 	assert.Nil(t, files)
+}
+
+func TestFetchCurseforgeFilesReturnsErrorOnURLBuildFailure(t *testing.T) {
+	originalParse := parseURL
+	parseURL = func(string) (*url.URL, error) {
+		return nil, errors.New("parse failed")
+	}
+	t.Cleanup(func() {
+		parseURL = originalParse
+	})
+
+	files, err := fetchCurseforgeFiles(context.Background(), "12345", "1.20.1", curseforge.Fabric, errorDoer{})
+	assert.Error(t, err)
+	assert.Nil(t, files)
+}
+
+func TestBuildCurseforgeFilesURLEscapesInputs(t *testing.T) {
+	requestURL, err := buildCurseforgeFilesURL("12/34", "1.20.1&bad=true", curseforge.Fabric)
+	assert.NoError(t, err)
+	assert.Equal(t, "/v1/mods/12%2F34/files", requestURL.EscapedPath())
+	assert.Contains(t, requestURL.RawQuery, "gameVersion=1.20.1%26bad%3Dtrue")
+	assert.Contains(t, requestURL.RawQuery, fmt.Sprintf("modLoaderType=%d", curseforge.Fabric))
+}
+
+func TestBuildCurseforgeFilesURLReturnsErrorOnParseFailure(t *testing.T) {
+	originalParse := parseURL
+	parseURL = func(string) (*url.URL, error) {
+		return nil, errors.New("parse failed")
+	}
+	t.Cleanup(func() {
+		parseURL = originalParse
+	})
+
+	requestURL, err := buildCurseforgeFilesURL("12345", "1.20.1", curseforge.Fabric)
+	assert.Error(t, err)
+	assert.Nil(t, requestURL)
 }
 
 func TestFetchCurseforgeFilesReturnsErrorOnResponseCloseFailure(t *testing.T) {

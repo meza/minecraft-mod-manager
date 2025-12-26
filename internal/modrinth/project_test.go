@@ -5,6 +5,7 @@ import (
 	"io"
 	"net/http"
 	"net/http/httptest"
+	"net/url"
 	"strings"
 	"testing"
 
@@ -100,6 +101,58 @@ func TestGetProject(t *testing.T) {
 	assert.Equal(t, Mod, project.Type)
 	assert.Equal(t, []string{"1.19", "1.19.1", "1.19.2", "1.19.3"}, project.GameVersions)
 	assert.Equal(t, []models.Loader{"forge", "fabric", "quilt"}, project.Loaders)
+}
+
+func TestGetProjectEscapesProjectID(t *testing.T) {
+	mockResponse := `{"title":"My Project","id":"AABBCCDD"}`
+	projectID := "A/BC"
+
+	t.Setenv("MODRINTH_API_KEY", "mock_modrinth_api_key")
+
+	mockServer := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.URL.EscapedPath() != "/v2/project/A%2FBC" {
+			t.Errorf("Expected escaped path '/v2/project/A%%2FBC', got '%s'", r.URL.EscapedPath())
+		}
+
+		w.Header().Set("Content-Type", "application/json")
+		w.WriteHeader(http.StatusOK)
+		writeStringResponse(t, w, mockResponse)
+	}))
+	defer mockServer.Close()
+
+	project, err := GetProject(context.Background(), projectID, NewClient(testutil.MustNewHostRewriteDoer(mockServer.URL, mockServer.Client())))
+	assert.NoError(t, err)
+	assert.NotNil(t, project)
+	assert.Equal(t, "My Project", project.Title)
+	assert.Equal(t, "AABBCCDD", project.ID)
+}
+
+func TestBuildProjectURLReturnsErrorOnParseFailure(t *testing.T) {
+	originalParse := parseURL
+	parseURL = func(string) (*url.URL, error) {
+		return nil, stdErrors.New("parse failed")
+	}
+	t.Cleanup(func() {
+		parseURL = originalParse
+	})
+
+	requestURL, err := buildProjectURL("AABBCCDD")
+	assert.Error(t, err)
+	assert.Nil(t, requestURL)
+}
+
+func TestGetProjectReturnsErrorOnURLBuildFailure(t *testing.T) {
+	originalParse := parseURL
+	parseURL = func(string) (*url.URL, error) {
+		return nil, stdErrors.New("parse failed")
+	}
+	t.Cleanup(func() {
+		parseURL = originalParse
+	})
+
+	project, err := GetProject(context.Background(), "AABBCCDD", NewClient(errorDoer{err: stdErrors.New("unused")}))
+	assert.Error(t, err)
+	assert.Nil(t, project)
 }
 
 func TestGetProjectWhenProjectNotFound(t *testing.T) {

@@ -32,7 +32,7 @@ The exported JSON includes ended spans with correlation IDs:
 - `attributes` for low-cardinality structured context
 - `children[]` so the primary parent/child tree is readable without post-processing
 
-Any absolute filesystem paths stored in known attribute keys (for example `config_path`, `path`, `*_path`) are normalized to be relative to the config directory so you can share the file without leaking machine-specific prefixes.
+Any absolute filesystem paths stored in known attribute keys (for example `config_path`, `path`, `*_path`) are normalized to be relative to the config directory so you can share the file without leaking machine-specific prefixes. URL attributes drop query strings before export, and the output directory/file are created with 0700/0600 permissions.
 
 This export is best-effort: failure must never affect exit codes or normal CLI output.
 

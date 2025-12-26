@@ -22,6 +22,8 @@ type renameFailFs struct {
 type renameFailure struct {
 	old                string
 	new                string
+	oldContains        string
+	newContains        string
 	onlyWhenDestExists bool
 	err                error
 }
@@ -32,6 +34,12 @@ func (filesystem renameFailFs) Rename(oldname, newname string) error {
 			continue
 		}
 		if failure.new != "" && newname != failure.new {
+			continue
+		}
+		if failure.oldContains != "" && !strings.Contains(oldname, failure.oldContains) {
+			continue
+		}
+		if failure.newContains != "" && !strings.Contains(newname, failure.newContains) {
 			continue
 		}
 		if failure.onlyWhenDestExists {
@@ -50,10 +58,14 @@ func (filesystem renameFailFs) Rename(oldname, newname string) error {
 
 type removeErrorFs struct {
 	afero.Fs
-	failPaths map[string]error
+	failPaths    map[string]error
+	failContains string
 }
 
 func (filesystem removeErrorFs) Remove(name string) error {
+	if filesystem.failContains != "" && strings.Contains(filepath.Clean(name), filesystem.failContains) {
+		return errors.New("remove failed")
+	}
 	if err, ok := filesystem.failPaths[filepath.Clean(name)]; ok {
 		if err != nil {
 			return err
@@ -65,13 +77,15 @@ func (filesystem removeErrorFs) Remove(name string) error {
 
 type removeAfterFirstFs struct {
 	afero.Fs
-	failPath  string
-	failErr   error
-	callCount int
+	failPath     string
+	failContains string
+	failErr      error
+	callCount    int
 }
 
 func (filesystem *removeAfterFirstFs) Remove(name string) error {
-	if filepath.Clean(name) == filepath.Clean(filesystem.failPath) {
+	cleaned := filepath.Clean(name)
+	if (filesystem.failPath != "" && cleaned == filepath.Clean(filesystem.failPath)) || (filesystem.failContains != "" && strings.Contains(cleaned, filesystem.failContains)) {
 		filesystem.callCount++
 		if filesystem.callCount == 1 {
 			return nil
@@ -96,6 +110,101 @@ func (filesystem openFileErrorFs) OpenFile(name string, flag int, perm os.FileMo
 	return filesystem.Fs.OpenFile(name, flag, perm)
 }
 
+type writeErrorFile struct {
+	afero.File
+	err error
+}
+
+func (file writeErrorFile) Write(_ []byte) (int, error) {
+	return 0, file.err
+}
+
+type writeErrorFs struct {
+	afero.Fs
+	err error
+}
+
+func (filesystem writeErrorFs) OpenFile(name string, flag int, perm os.FileMode) (afero.File, error) {
+	file, err := filesystem.Fs.OpenFile(name, flag, perm)
+	if err != nil {
+		return nil, err
+	}
+	return writeErrorFile{File: file, err: filesystem.err}, nil
+}
+
+type writeCloseErrorFile struct {
+	afero.File
+	writeErr error
+	closeErr error
+}
+
+func (file writeCloseErrorFile) Write(_ []byte) (int, error) {
+	return 0, file.writeErr
+}
+
+func (file writeCloseErrorFile) Close() error {
+	return file.closeErr
+}
+
+type writeCloseErrorFs struct {
+	afero.Fs
+	writeErr error
+	closeErr error
+}
+
+func (filesystem writeCloseErrorFs) OpenFile(name string, flag int, perm os.FileMode) (afero.File, error) {
+	file, err := filesystem.Fs.OpenFile(name, flag, perm)
+	if err != nil {
+		return nil, err
+	}
+	return writeCloseErrorFile{File: file, writeErr: filesystem.writeErr, closeErr: filesystem.closeErr}, nil
+}
+
+type closeErrorFile struct {
+	afero.File
+	closeErr error
+}
+
+func (file closeErrorFile) Close() error {
+	closeErr := file.File.Close()
+	if closeErr != nil && file.closeErr != nil {
+		return errors.Join(closeErr, file.closeErr)
+	}
+	if closeErr != nil {
+		return closeErr
+	}
+	if file.closeErr != nil {
+		return file.closeErr
+	}
+	return nil
+}
+
+type closeErrorFs struct {
+	afero.Fs
+	closeErr error
+}
+
+func (filesystem closeErrorFs) OpenFile(name string, flag int, perm os.FileMode) (afero.File, error) {
+	file, err := filesystem.Fs.OpenFile(name, flag, perm)
+	if err != nil {
+		return nil, err
+	}
+	return closeErrorFile{File: file, closeErr: filesystem.closeErr}, nil
+}
+
+type chmodErrorFs struct {
+	afero.Fs
+	failContains string
+	err          error
+}
+
+func (filesystem chmodErrorFs) Chmod(name string, mode os.FileMode) error {
+	if filesystem.failContains != "" && strings.Contains(filepath.Clean(name), filesystem.failContains) {
+		return filesystem.err
+	}
+	return filesystem.Fs.Chmod(name, mode)
+}
+
 func TestWriteFileAtomicCreatesWhenMissing(t *testing.T) {
 	fs := afero.NewMemMapFs()
 	path := filepath.FromSlash("/cfg/modlist.json")
@@ -116,8 +225,8 @@ func TestWriteFileAtomicDoesNotCorruptWhenRenameIntoMissingTargetFails(t *testin
 	fs := renameFailFs{
 		Fs: base,
 		failures: []renameFailure{{
-			old: path + ".mmm.tmp",
-			new: path,
+			oldContains: ".mmm.tmp",
+			new:         path,
 		}},
 	}
 
@@ -127,9 +236,7 @@ func TestWriteFileAtomicDoesNotCorruptWhenRenameIntoMissingTargetFails(t *testin
 	assert.NoError(t, err)
 	assert.False(t, exists, "target should not be created on failure")
 
-	tempExists, err := afero.Exists(base, path+".mmm.tmp")
-	assert.NoError(t, err)
-	assert.False(t, tempExists, "temp file should be cleaned up")
+	assertNoTempFiles(t, base, filepath.Dir(path))
 }
 
 func TestWriteFileAtomicReturnsJoinedErrorWhenExistsCheckFailsAndTempCleanupFails(t *testing.T) {
@@ -138,14 +245,13 @@ func TestWriteFileAtomicReturnsJoinedErrorWhenExistsCheckFailsAndTempCleanupFail
 
 	assert.NoError(t, base.MkdirAll(filepath.Dir(path), 0755))
 	statErr := errors.New("stat failed")
-	fs := &removeAfterFirstFs{
+	fs := removeErrorFs{
 		Fs: statErrorFs{
 			Fs:       base,
 			failPath: path,
 			err:      statErr,
 		},
-		failPath: path + ".mmm.tmp",
-		failErr:  errors.New("remove failed"),
+		failContains: ".mmm.tmp",
 	}
 
 	err := writeFileAtomic(fs, path, []byte("new"))
@@ -154,7 +260,7 @@ func TestWriteFileAtomicReturnsJoinedErrorWhenExistsCheckFailsAndTempCleanupFail
 	assert.Contains(t, err.Error(), "failed to remove temp file")
 }
 
-func TestWriteFileAtomicReturnsErrorWhenTempWriteFails(t *testing.T) {
+func TestWriteFileAtomicReturnsErrorWhenTempFileCreateFails(t *testing.T) {
 	base := afero.NewMemMapFs()
 	path := filepath.FromSlash("/cfg/modlist.json")
 	assert.NoError(t, base.MkdirAll(filepath.Dir(path), 0755))
@@ -173,14 +279,13 @@ func TestWriteFileAtomicReturnsJoinedErrorWhenCleanupFailsAfterRenameToMissingTa
 	renameFs := renameFailFs{
 		Fs: base,
 		failures: []renameFailure{{
-			old: path + ".mmm.tmp",
-			new: path,
+			oldContains: ".mmm.tmp",
+			new:         path,
 		}},
 	}
-	fs := &removeAfterFirstFs{
-		Fs:       renameFs,
-		failPath: path + ".mmm.tmp",
-		failErr:  errors.New("remove failed"),
+	fs := removeErrorFs{
+		Fs:           renameFs,
+		failContains: ".mmm.tmp",
 	}
 
 	err := writeFileAtomic(fs, path, []byte("new"))
@@ -196,15 +301,13 @@ func TestWriteFileAtomicReturnsJoinedErrorWhenTempCleanupFailsAfterRenameToMissi
 	failRename := renameFailFs{
 		Fs: base,
 		failures: []renameFailure{{
-			old: path + ".mmm.tmp",
-			new: path,
+			oldContains: ".mmm.tmp",
+			new:         path,
 		}},
 	}
 	fs := removeErrorFs{
-		Fs: failRename,
-		failPaths: map[string]error{
-			filepath.Clean(path + ".mmm.tmp"): errors.New("remove failed"),
-		},
+		Fs:           failRename,
+		failContains: ".mmm.tmp",
 	}
 
 	err := writeFileAtomic(fs, path, []byte("new"))
@@ -223,8 +326,8 @@ func TestWriteFileAtomicDoesNotCorruptWhenBackupRenameFails(t *testing.T) {
 		Fs: base,
 		failures: []renameFailure{
 			{
-				old: path + ".mmm.tmp",
-				new: path,
+				oldContains: ".mmm.tmp",
+				new:         path,
 			},
 			{
 				old: path,
@@ -239,9 +342,7 @@ func TestWriteFileAtomicDoesNotCorruptWhenBackupRenameFails(t *testing.T) {
 	assert.NoError(t, err)
 	assert.Equal(t, []byte("old"), data)
 
-	tempExists, err := afero.Exists(base, path+".mmm.tmp")
-	assert.NoError(t, err)
-	assert.False(t, tempExists, "temp file should be cleaned up")
+	assertNoTempFiles(t, base, filepath.Dir(path))
 
 	backupExists, err := afero.Exists(base, path+".mmm.bak")
 	assert.NoError(t, err)
@@ -258,8 +359,8 @@ func TestWriteFileAtomicReturnsJoinedErrorWhenBackupRenameCleanupFails(t *testin
 		Fs: base,
 		failures: []renameFailure{
 			{
-				old: path + ".mmm.tmp",
-				new: path,
+				oldContains: ".mmm.tmp",
+				new:         path,
 			},
 			{
 				old: path,
@@ -267,10 +368,9 @@ func TestWriteFileAtomicReturnsJoinedErrorWhenBackupRenameCleanupFails(t *testin
 			},
 		},
 	}
-	fs := &removeAfterFirstFs{
-		Fs:       renameFs,
-		failPath: path + ".mmm.tmp",
-		failErr:  errors.New("remove failed"),
+	fs := removeErrorFs{
+		Fs:           renameFs,
+		failContains: ".mmm.tmp",
 	}
 
 	err := writeFileAtomic(fs, path, []byte("new"))
@@ -290,8 +390,8 @@ func TestWriteFileAtomicReturnsJoinedErrorWhenRollbackFails(t *testing.T) {
 		Fs: base,
 		failures: []renameFailure{
 			{
-				old: path + ".mmm.tmp",
-				new: path,
+				oldContains: ".mmm.tmp",
+				new:         path,
 			},
 			{
 				old: backup,
@@ -317,8 +417,8 @@ func TestWriteFileAtomicReturnsJoinedErrorWhenSwapCleanupFails(t *testing.T) {
 		Fs: base,
 		failures: []renameFailure{
 			{
-				old: path + ".mmm.tmp",
-				new: path,
+				oldContains: ".mmm.tmp",
+				new:         path,
 			},
 			{
 				old: backup,
@@ -326,10 +426,9 @@ func TestWriteFileAtomicReturnsJoinedErrorWhenSwapCleanupFails(t *testing.T) {
 			},
 		},
 	}
-	fs := &removeAfterFirstFs{
-		Fs:       renameFs,
-		failPath: path + ".mmm.tmp",
-		failErr:  errors.New("remove failed"),
+	fs := removeErrorFs{
+		Fs:           renameFs,
+		failContains: ".mmm.tmp",
 	}
 
 	err := writeFileAtomic(fs, path, []byte("new"))
@@ -347,7 +446,7 @@ func TestWriteFileAtomicFallsBackToBackupSwapWhenOverwriteRenameFails(t *testing
 	fs := renameFailFs{
 		Fs: base,
 		failures: []renameFailure{{
-			old:                path + ".mmm.tmp",
+			oldContains:        ".mmm.tmp",
 			new:                path,
 			onlyWhenDestExists: true,
 		}},
@@ -375,7 +474,7 @@ func TestWriteFileAtomicReturnsErrorWhenBackupCleanupFails(t *testing.T) {
 	failRename := renameFailFs{
 		Fs: base,
 		failures: []renameFailure{{
-			old:                path + ".mmm.tmp",
+			oldContains:        ".mmm.tmp",
 			new:                path,
 			onlyWhenDestExists: true,
 		}},
@@ -402,8 +501,8 @@ func TestWriteFileAtomicRollsBackWhenSwapRenameFails(t *testing.T) {
 	fs := renameFailFs{
 		Fs: base,
 		failures: []renameFailure{{
-			old: path + ".mmm.tmp",
-			new: path,
+			oldContains: ".mmm.tmp",
+			new:         path,
 		}},
 	}
 
@@ -431,19 +530,19 @@ func TestWriteFileAtomicUpdatesExistingFileAndCleansBackupBestEffort(t *testing.
 	assert.Equal(t, []byte("new"), data)
 }
 
-func TestWriteFileAtomicUsesNextTempPathWhenTempExists(t *testing.T) {
+func TestWriteFileAtomicCleansTempFilesOnSuccess(t *testing.T) {
 	fs := afero.NewMemMapFs()
 	path := filepath.FromSlash("/cfg/modlist.json")
 
 	assert.NoError(t, fs.MkdirAll(filepath.Dir(path), 0755))
 	assert.NoError(t, afero.WriteFile(fs, path, []byte("old"), 0644))
-	assert.NoError(t, afero.WriteFile(fs, path+".mmm.tmp", []byte("collision"), 0644))
 
 	assert.NoError(t, writeFileAtomic(fs, path, []byte("new")))
 
 	data, err := afero.ReadFile(fs, path)
 	assert.NoError(t, err)
 	assert.Equal(t, []byte("new"), data)
+	assertNoTempFiles(t, fs, filepath.Dir(path))
 }
 
 func TestNextSiblingPathReturnsErrorWhenStatFails(t *testing.T) {
@@ -482,22 +581,64 @@ func TestWriteFileAtomicReturnsErrorWhenTargetExistenceCheckFails(t *testing.T) 
 	assert.Error(t, writeFileAtomic(fs, target, []byte("new")))
 }
 
-func TestWriteFileAtomicReturnsErrorWhenCannotAllocateTempPath(t *testing.T) {
+func TestWriteFileAtomicReturnsErrorWhenTempWriteFails(t *testing.T) {
 	fs := afero.NewMemMapFs()
 	target := filepath.FromSlash("/cfg/modlist.json")
 
 	assert.NoError(t, fs.MkdirAll(filepath.Dir(target), 0755))
 
-	tempBase := target + ".mmm.tmp"
-	for i := 0; i < 100; i++ {
-		name := tempBase
-		if i > 0 {
-			name = tempBase + fmt.Sprintf(".%d", i)
-		}
-		assert.NoError(t, afero.WriteFile(fs, name, []byte("x"), 0644))
+	err := writeFileAtomic(writeErrorFs{Fs: fs, err: errors.New("write failed")}, target, []byte("new"))
+	assert.Error(t, err)
+	assertNoTempFiles(t, fs, filepath.Dir(target))
+}
+
+func TestWriteFileAtomicReturnsJoinedErrorWhenTempWriteAndCloseFail(t *testing.T) {
+	base := afero.NewMemMapFs()
+	target := filepath.FromSlash("/cfg/modlist.json")
+
+	assert.NoError(t, base.MkdirAll(filepath.Dir(target), 0755))
+
+	fs := writeCloseErrorFs{
+		Fs:       base,
+		writeErr: errors.New("write failed"),
+		closeErr: errors.New("close failed"),
 	}
 
-	assert.Error(t, writeFileAtomic(fs, target, []byte("new")))
+	err := writeFileAtomic(fs, target, []byte("new"))
+	assert.Error(t, err)
+	assert.Contains(t, err.Error(), "write failed")
+	assert.Contains(t, err.Error(), "close failed")
+	assertNoTempFiles(t, base, filepath.Dir(target))
+}
+
+func TestWriteFileAtomicReturnsErrorWhenTempCloseFails(t *testing.T) {
+	base := afero.NewMemMapFs()
+	target := filepath.FromSlash("/cfg/modlist.json")
+
+	assert.NoError(t, base.MkdirAll(filepath.Dir(target), 0755))
+
+	err := writeFileAtomic(closeErrorFs{Fs: base, closeErr: errors.New("close failed")}, target, []byte("new"))
+	assert.Error(t, err)
+	assert.Contains(t, err.Error(), "close failed")
+	assertNoTempFiles(t, base, filepath.Dir(target))
+}
+
+func TestWriteFileAtomicReturnsErrorWhenChmodFails(t *testing.T) {
+	base := afero.NewMemMapFs()
+	target := filepath.FromSlash("/cfg/modlist.json")
+
+	assert.NoError(t, base.MkdirAll(filepath.Dir(target), 0755))
+
+	fs := chmodErrorFs{
+		Fs:           base,
+		failContains: ".mmm.tmp",
+		err:          errors.New("chmod failed"),
+	}
+
+	err := writeFileAtomic(fs, target, []byte("new"))
+	assert.Error(t, err)
+	assert.Contains(t, err.Error(), "chmod failed")
+	assertNoTempFiles(t, base, filepath.Dir(target))
 }
 
 func TestWriteFileAtomicReturnsErrorWhenCannotAllocateBackupPath(t *testing.T) {
@@ -516,6 +657,18 @@ func TestWriteFileAtomicReturnsErrorWhenCannotAllocateBackupPath(t *testing.T) {
 	}
 
 	assert.Error(t, writeFileAtomic(fs, target, []byte("new")))
+}
+
+func assertNoTempFiles(t *testing.T, fs afero.Fs, dir string) {
+	t.Helper()
+
+	entries, err := afero.ReadDir(fs, dir)
+	assert.NoError(t, err)
+	for _, entry := range entries {
+		if strings.Contains(entry.Name(), ".mmm.tmp") {
+			t.Fatalf("unexpected temp file left behind: %s", entry.Name())
+		}
+	}
 }
 
 func TestWriteFileAtomicReturnsWriteError(t *testing.T) {

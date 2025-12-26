@@ -6,6 +6,7 @@ import (
 	"math"
 	"os"
 	"path/filepath"
+	"runtime"
 	"testing"
 	"time"
 
@@ -32,6 +33,7 @@ func TestExportToFile_WritesJSONAndNormalizesPaths(t *testing.T) {
 		WithAttributes(
 			attribute.String("config_path", absConfig),
 			attribute.String("path", absJar),
+			attribute.String("url", "https://example.com/file.jar?token=secret"),
 		),
 	)
 	_, child := StartSpan(ctx, "child", WithAttributes(attribute.Int("status", 200)))
@@ -60,6 +62,7 @@ func TestExportToFile_WritesJSONAndNormalizesPaths(t *testing.T) {
 	assert.NotNil(t, foundExample)
 	assert.Equal(t, "modlist.json", foundExample.Attributes["config_path"])
 	assert.Equal(t, "mods/a.jar", foundExample.Attributes["path"])
+	assert.Equal(t, "https://example.com/file.jar", foundExample.Attributes["url"])
 	assert.NotEmpty(t, foundExample.TraceID)
 	assert.NotEmpty(t, foundExample.SpanID)
 	assert.GreaterOrEqual(t, foundExample.DurationNS, int64(0))
@@ -93,6 +96,38 @@ func TestExportToFile_DefaultOutDirWritesToWorkingDirectory(t *testing.T) {
 	assert.Equal(t, defaultExportFilename, written)
 	_, err = os.Stat(written)
 	assert.NoError(t, err)
+}
+
+func TestExportToFile_UsesTightPermissions(t *testing.T) {
+	if runtime.GOOS == "windows" {
+		t.Skip("file permission bits are not reliable on Windows")
+	}
+
+	Reset()
+	t.Cleanup(Reset)
+	assert.NoError(t, Init(Config{Enabled: true}))
+
+	tempDir := t.TempDir()
+	outDir := filepath.Join(tempDir, "out")
+
+	_, span := StartSpan(context.Background(), "span")
+	span.End()
+
+	written, err := ExportToFile(outDir, tempDir)
+	assert.NoError(t, err)
+
+	dirInfo, err := os.Stat(outDir)
+	assert.NoError(t, err)
+	assert.Equal(t, os.FileMode(0700), dirInfo.Mode().Perm())
+
+	fileInfo, err := os.Stat(written)
+	assert.NoError(t, err)
+	assert.Equal(t, os.FileMode(0600), fileInfo.Mode().Perm())
+}
+
+func TestNormalizeURLValueReturnsOriginalOnParseFailure(t *testing.T) {
+	input := "https://[::1"
+	assert.Equal(t, input, normalizeURLValue(input))
 }
 
 func TestExportToFile_ReturnsErrorWhenOutDirIsFile(t *testing.T) {

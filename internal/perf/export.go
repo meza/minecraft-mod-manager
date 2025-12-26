@@ -3,6 +3,7 @@ package perf
 import (
 	"encoding/json"
 	"errors"
+	"net/url"
 	"os"
 	"path/filepath"
 	"sort"
@@ -64,7 +65,7 @@ func ExportToFile(outDir string, baseDir string) (string, error) {
 		return "", err
 	}
 
-	mkdirErr := os.MkdirAll(outDir, 0755)
+	mkdirErr := os.MkdirAll(outDir, 0700)
 	if mkdirErr != nil {
 		return "", mkdirErr
 	}
@@ -75,7 +76,7 @@ func ExportToFile(outDir string, baseDir string) (string, error) {
 		return "", err
 	}
 
-	return path, os.WriteFile(path, data, 0644)
+	return path, os.WriteFile(path, data, 0600)
 }
 
 // GetExportTree returns a hierarchical span tree suitable for exporting in
@@ -311,6 +312,10 @@ func normalizeValue(key string, value interface{}, baseDir string) interface{} {
 		return normalizeConfigPath(stringValue, baseDir)
 	}
 
+	if looksLikeURLKey(key) {
+		return normalizeURLValue(stringValue)
+	}
+
 	if !looksLikePathKey(key) {
 		return value
 	}
@@ -321,6 +326,11 @@ func normalizeValue(key string, value interface{}, baseDir string) interface{} {
 func looksLikePathKey(key string) bool {
 	key = strings.ToLower(strings.TrimSpace(key))
 	return key == "path" || strings.HasSuffix(key, "_path") || strings.HasSuffix(key, "path")
+}
+
+func looksLikeURLKey(key string) bool {
+	key = strings.ToLower(strings.TrimSpace(key))
+	return key == "url" || strings.HasSuffix(key, "_url") || strings.HasSuffix(key, "url")
 }
 
 func trimLeadingDot(value string) string {
@@ -360,4 +370,14 @@ func normalizePathValue(value string, baseDir string) string {
 		}
 	}
 	return exportPath(value)
+}
+
+func normalizeURLValue(value string) string {
+	parsed, err := url.Parse(value)
+	if err != nil {
+		return value
+	}
+	parsed.RawQuery = ""
+	parsed.Fragment = ""
+	return parsed.String()
 }

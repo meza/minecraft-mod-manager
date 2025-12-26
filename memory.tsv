@@ -649,3 +649,7 @@ date	time	entry
 2025-12-26	20:29	mmm-118: fixed rate limit reset parsing to ignore past epoch values, added tests for epoch vs relative reset, created mmm-144 to track bug; make fmt/lint/coverage/build pass locally.
 2025-12-26	21:17	mmm-118: guarded nil request/URL in validateRequestForRetries, limited retries to timeouts or Temporary errors, added Do nil request and non-temporary retry tests; make fmt/lint/coverage/build pass.
 2025-12-26	21:28	Closed mmm-118 and dependencies mmm-63.16/17/18/22/87 plus mmm-144 per user request after review approval and Windows verification.
+2025-12-26	21:54	Started mmm-119; reviewed child issues mmm-63.14/63.85/63.11/63.37 and ADR 0007 symlink-safe writes.
+2025-12-26	22:08	User confirmed assumptions; ADR-0007 symlink-safe writes confirmed for mmm-119.
+2025-12-26	23:11	mmm-119: added tests for temp close error, fetchCurseforgeFiles URL build failure, validateDownloadURL empty hostname, and download request build failure (via injectable builder); make fmt/coverage/build pass locally.
+2025-12-26	23:47	Closed mmm-119 and leaf tickets mmm-63.14/63.85/63.11/63.37 after review approval and Windows confirmation.

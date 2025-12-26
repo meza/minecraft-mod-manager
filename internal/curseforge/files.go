@@ -5,14 +5,16 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"net/http"
+	"net/url"
+	"strconv"
 
 	"github.com/meza/minecraft-mod-manager/internal/globalerrors"
 	"github.com/meza/minecraft-mod-manager/internal/httpclient"
 	"github.com/meza/minecraft-mod-manager/internal/models"
 	"github.com/meza/minecraft-mod-manager/internal/perf"
+	"github.com/meza/minecraft-mod-manager/internal/urlbuilder"
 	"github.com/pkg/errors"
-	"net/http"
-	"strconv"
 
 	"go.opentelemetry.io/otel/attribute"
 )
@@ -93,9 +95,12 @@ func getPaginatedFilesForProject(ctx context.Context, projectID int, client http
 }
 
 func buildPaginatedFilesRequest(ctx context.Context, projectID int, cursor int) (*http.Request, func(), error) {
-	url := fmt.Sprintf("%s/mods/%d/files?index=%d", GetBaseURL(), projectID, cursor)
+	requestURL, err := buildPaginatedFilesURL(projectID, cursor)
+	if err != nil {
+		return nil, func() {}, err
+	}
 	timeoutCtx, cancel := httpclient.WithMetadataTimeout(ctx)
-	request, err := newRequestWithContext(timeoutCtx, http.MethodGet, url, nil)
+	request, err := newRequestWithContext(timeoutCtx, http.MethodGet, requestURL.String(), nil)
 	if err != nil {
 		cancel()
 		return nil, func() {}, err
@@ -165,7 +170,10 @@ func GetFingerprintsMatches(ctx context.Context, fingerprints []int, client http
 }
 
 func newFingerprintMatchRequest(ctx context.Context, fingerprints []int) (*http.Request, func(), error) {
-	url := fmt.Sprintf("%s/fingerprints/%d", GetBaseURL(), Minecraft)
+	requestURL, err := buildFingerprintMatchURL()
+	if err != nil {
+		return nil, func() {}, err
+	}
 
 	body, err := marshalJSON(getFingerprintsRequest{Fingerprints: fingerprints})
 	if err != nil {
@@ -173,13 +181,34 @@ func newFingerprintMatchRequest(ctx context.Context, fingerprints []int) (*http.
 	}
 
 	timeoutCtx, cancel := httpclient.WithMetadataTimeout(ctx)
-	request, err := newRequestWithContext(timeoutCtx, http.MethodPost, url, bytes.NewBuffer(body))
+	request, err := newRequestWithContext(timeoutCtx, http.MethodPost, requestURL.String(), bytes.NewBuffer(body))
 	if err != nil {
 		cancel()
 		return nil, func() {}, err
 	}
 	request.Header.Add("Content-Type", "application/json")
 	return request, cancel, nil
+}
+
+func buildPaginatedFilesURL(projectID int, cursor int) (*url.URL, error) {
+	baseURL, err := parseURL(GetBaseURL())
+	if err != nil {
+		return nil, err
+	}
+	requestURL := urlbuilder.JoinEscapedPath(baseURL, "mods", strconv.Itoa(projectID), "files")
+	query := url.Values{}
+	query.Set("index", fmt.Sprintf("%d", cursor))
+	requestURL.RawQuery = query.Encode()
+	return requestURL, nil
+}
+
+func buildFingerprintMatchURL() (*url.URL, error) {
+	baseURL, err := parseURL(GetBaseURL())
+	if err != nil {
+		return nil, err
+	}
+	requestURL := urlbuilder.JoinEscapedPath(baseURL, "fingerprints", fmt.Sprintf("%d", Minecraft))
+	return requestURL, nil
 }
 
 func doFingerprintMatchRequest(client httpclient.Doer, request *http.Request, fingerprints []int) (*http.Response, error) {

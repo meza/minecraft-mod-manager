@@ -3,12 +3,13 @@ package modrinth
 import (
 	"context"
 	"encoding/json"
-	"fmt"
+	"net/url"
 
 	"github.com/meza/minecraft-mod-manager/internal/globalerrors"
 	"github.com/meza/minecraft-mod-manager/internal/httpclient"
 	"github.com/meza/minecraft-mod-manager/internal/models"
 	"github.com/meza/minecraft-mod-manager/internal/perf"
+	"github.com/meza/minecraft-mod-manager/internal/urlbuilder"
 	"github.com/pkg/errors"
 	"net/http"
 
@@ -57,11 +58,14 @@ func GetProject(ctx context.Context, projectID string, client httpclient.Doer) (
 	ctx, span := perf.StartSpan(ctx, "api.modrinth.project.get", perf.WithAttributes(attribute.String("project_id", projectID)))
 	defer span.End()
 
-	url := fmt.Sprintf("%s/v2/project/%s", GetBaseURL(), projectID)
+	requestURL, err := buildProjectURL(projectID)
+	if err != nil {
+		return nil, err
+	}
 
 	timeoutCtx, cancel := httpclient.WithMetadataTimeout(ctx)
 	defer cancel()
-	request, err := newRequestWithContext(timeoutCtx, http.MethodGet, url, nil)
+	request, err := newRequestWithContext(timeoutCtx, http.MethodGet, requestURL.String(), nil)
 	if err != nil {
 		return nil, err
 	}
@@ -95,4 +99,13 @@ func GetProject(ctx context.Context, projectID string, client httpclient.Doer) (
 		return nil, globalerrors.ProjectAPIErrorWrap(errors.Wrap(err, "failed to decode response body"), projectID, models.MODRINTH)
 	}
 	return project, nil
+}
+
+func buildProjectURL(projectID string) (*url.URL, error) {
+	baseURL, err := parseURL(GetBaseURL())
+	if err != nil {
+		return nil, err
+	}
+	requestURL := urlbuilder.JoinEscapedPath(baseURL, "v2", "project", projectID)
+	return requestURL, nil
 }

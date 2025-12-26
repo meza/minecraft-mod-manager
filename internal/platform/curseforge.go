@@ -7,6 +7,7 @@ import (
 	"errors"
 	"fmt"
 	"net/http"
+	"net/url"
 	"sort"
 	"strings"
 
@@ -14,6 +15,7 @@ import (
 	"github.com/meza/minecraft-mod-manager/internal/globalerrors"
 	"github.com/meza/minecraft-mod-manager/internal/httpclient"
 	"github.com/meza/minecraft-mod-manager/internal/models"
+	"github.com/meza/minecraft-mod-manager/internal/urlbuilder"
 )
 
 type curseforgeDoer interface {
@@ -25,6 +27,7 @@ type curseforgeFilesResponse struct {
 }
 
 var newRequestWithContext = http.NewRequestWithContext
+var parseURL = url.Parse
 
 func fetchCurseforge(ctx context.Context, projectID string, opts FetchOptions, client curseforgeDoer) (RemoteMod, error) {
 	curseforgeClient := curseforge.NewClient(client)
@@ -86,10 +89,13 @@ func buildCurseforgeRemoteMod(project *curseforge.Project, selected curseforge.F
 }
 
 func fetchCurseforgeFiles(ctx context.Context, projectID string, gameVersion string, loader curseforge.ModLoaderType, client curseforgeDoer) (files []curseforge.File, returnErr error) {
-	url := fmt.Sprintf("%s/mods/%s/files?gameVersion=%s&modLoaderType=%d", curseforge.GetBaseURL(), projectID, gameVersion, loader)
+	requestURL, err := buildCurseforgeFilesURL(projectID, gameVersion, loader)
+	if err != nil {
+		return nil, err
+	}
 	timeoutCtx, cancel := httpclient.WithMetadataTimeout(ctx)
 	defer cancel()
-	request, err := newRequestWithContext(timeoutCtx, http.MethodGet, url, nil)
+	request, err := newRequestWithContext(timeoutCtx, http.MethodGet, requestURL.String(), nil)
 	if err != nil {
 		return nil, err
 	}
@@ -121,6 +127,19 @@ func fetchCurseforgeFiles(ctx context.Context, projectID string, gameVersion str
 	}
 
 	return filesResponse.Data, nil
+}
+
+func buildCurseforgeFilesURL(projectID string, gameVersion string, loader curseforge.ModLoaderType) (*url.URL, error) {
+	baseURL, err := parseURL(curseforge.GetBaseURL())
+	if err != nil {
+		return nil, err
+	}
+	requestURL := urlbuilder.JoinEscapedPath(baseURL, "mods", projectID, "files")
+	query := url.Values{}
+	query.Set("gameVersion", gameVersion)
+	query.Set("modLoaderType", fmt.Sprintf("%d", loader))
+	requestURL.RawQuery = query.Encode()
+	return requestURL, nil
 }
 
 func filterCurseforgeFiles(files []curseforge.File, opts FetchOptions, targetVersion string) []curseforge.File {

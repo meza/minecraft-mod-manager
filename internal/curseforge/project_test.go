@@ -5,6 +5,7 @@ import (
 	"io"
 	"net/http"
 	"net/http/httptest"
+	"net/url"
 	"testing"
 	"time"
 
@@ -184,6 +185,57 @@ func TestGetProject(t *testing.T) {
 	assert.Equal(t, 1, project.GamePopularityRank)
 	assert.Equal(t, 100, project.ThumbsUpCount)
 	assert.Equal(t, 5, project.Rating)
+}
+
+func TestGetProjectEscapesProjectID(t *testing.T) {
+	mockResponse := `{"data":{"id":12345,"name":"Example Project"}}`
+	projectID := "123/45"
+
+	t.Setenv("CURSEFORGE_API_KEY", "mock_curseforge_api_key")
+
+	mockServer := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.URL.EscapedPath() != "/v1/mods/123%2F45" {
+			t.Errorf("Expected escaped path '/v1/mods/123%%2F45', got '%s'", r.URL.EscapedPath())
+		}
+
+		w.Header().Set("Content-Type", "application/json")
+		w.WriteHeader(http.StatusOK)
+		writeStringResponse(t, w, mockResponse)
+	}))
+	defer mockServer.Close()
+
+	project, err := GetProject(context.Background(), projectID, NewClient(testutil.MustNewHostRewriteDoer(mockServer.URL, mockServer.Client())))
+	assert.NoError(t, err)
+	assert.NotNil(t, project)
+	assert.Equal(t, "Example Project", project.Name)
+}
+
+func TestBuildProjectURLReturnsErrorOnParseFailure(t *testing.T) {
+	originalParse := parseURL
+	parseURL = func(string) (*url.URL, error) {
+		return nil, stdErrors.New("parse failed")
+	}
+	t.Cleanup(func() {
+		parseURL = originalParse
+	})
+
+	requestURL, err := buildProjectURL("12345")
+	assert.Error(t, err)
+	assert.Nil(t, requestURL)
+}
+
+func TestGetProjectReturnsErrorOnURLBuildFailure(t *testing.T) {
+	originalParse := parseURL
+	parseURL = func(string) (*url.URL, error) {
+		return nil, stdErrors.New("parse failed")
+	}
+	t.Cleanup(func() {
+		parseURL = originalParse
+	})
+
+	project, err := GetProject(context.Background(), "12345", NewClient(errorDoer{err: stdErrors.New("unused")}))
+	assert.Error(t, err)
+	assert.Nil(t, project)
 }
 
 func TestGetProjectWhenProjectNotFound(t *testing.T) {

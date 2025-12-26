@@ -3,12 +3,12 @@ package modrinth
 import (
 	"context"
 	"encoding/json"
-	"fmt"
 
 	"github.com/meza/minecraft-mod-manager/internal/globalerrors"
 	"github.com/meza/minecraft-mod-manager/internal/httpclient"
 	"github.com/meza/minecraft-mod-manager/internal/models"
 	"github.com/meza/minecraft-mod-manager/internal/perf"
+	"github.com/meza/minecraft-mod-manager/internal/urlbuilder"
 	"github.com/pkg/errors"
 	"net/http"
 	"net/url"
@@ -149,7 +149,7 @@ func buildVersionListURL(lookup *VersionLookup) (*url.URL, error) {
 		return nil, err
 	}
 
-	baseURL, err := parseURL(fmt.Sprintf("%s/v2/project/%s/version", GetBaseURL(), lookup.ProjectID))
+	baseURL, err := buildVersionListBaseURL(lookup.ProjectID)
 	if err != nil {
 		return nil, err
 	}
@@ -165,11 +165,14 @@ func GetVersionForHash(ctx context.Context, lookup *VersionHashLookup, client ht
 	ctx, span := perf.StartSpan(ctx, "api.modrinth.version_file.get", perf.WithAttributes(attribute.String("hash", lookup.hash)))
 	defer span.End()
 
-	url := fmt.Sprintf("%s/v2/version_file/%s?algorithm=%s", GetBaseURL(), lookup.hash, lookup.algorithm)
+	requestURL, err := buildVersionFileURL(lookup)
+	if err != nil {
+		return nil, err
+	}
 
 	timeoutCtx, cancel := httpclient.WithMetadataTimeout(ctx)
 	defer cancel()
-	request, err := newRequestWithContext(timeoutCtx, "GET", url, nil)
+	request, err := newRequestWithContext(timeoutCtx, "GET", requestURL.String(), nil)
 	if err != nil {
 		return nil, err
 	}
@@ -201,4 +204,25 @@ func GetVersionForHash(ctx context.Context, lookup *VersionHashLookup, client ht
 		return nil, VersionAPIErrorWrap(errors.Wrap(err, "failed to decode response body"), *lookup)
 	}
 	return version, nil
+}
+
+func buildVersionListBaseURL(projectID string) (*url.URL, error) {
+	baseURL, err := parseURL(GetBaseURL())
+	if err != nil {
+		return nil, err
+	}
+	requestURL := urlbuilder.JoinEscapedPath(baseURL, "v2", "project", projectID, "version")
+	return requestURL, nil
+}
+
+func buildVersionFileURL(lookup *VersionHashLookup) (*url.URL, error) {
+	baseURL, err := parseURL(GetBaseURL())
+	if err != nil {
+		return nil, err
+	}
+	requestURL := urlbuilder.JoinEscapedPath(baseURL, "v2", "version_file", lookup.hash)
+	query := url.Values{}
+	query.Set("algorithm", string(lookup.algorithm))
+	requestURL.RawQuery = query.Encode()
+	return requestURL, nil
 }

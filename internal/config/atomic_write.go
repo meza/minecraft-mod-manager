@@ -4,6 +4,7 @@ import (
 	"errors"
 	"fmt"
 	"os"
+	"path/filepath"
 
 	"github.com/spf13/afero"
 )
@@ -11,22 +12,14 @@ import (
 const defaultFileMode os.FileMode = 0o644
 
 func writeFileAtomic(fs afero.Fs, targetPath string, data []byte) error {
-	tempPath, err := nextSiblingPath(fs, targetPath, ".tmp")
-	if err != nil {
-		return err
-	}
 	backupPath, err := nextSiblingPath(fs, targetPath, ".bak")
 	if err != nil {
 		return err
 	}
 
-	tempRemoveErr := removePathIfExists(fs, tempPath)
-	if tempRemoveErr != nil {
-		return removePathError("temp file", tempPath, tempRemoveErr)
-	}
-	writeErr := afero.WriteFile(fs, tempPath, data, defaultFileMode)
-	if writeErr != nil {
-		return writeErr
+	tempPath, err := writeTempFile(fs, targetPath, data)
+	if err != nil {
+		return err
 	}
 
 	exists, err := afero.Exists(fs, targetPath)
@@ -38,6 +31,33 @@ func writeFileAtomic(fs afero.Fs, targetPath string, data []byte) error {
 	}
 
 	return replaceExistingFile(fs, tempPath, targetPath, backupPath)
+}
+
+func writeTempFile(fs afero.Fs, targetPath string, data []byte) (string, error) {
+	tempFile, err := afero.TempFile(fs, filepath.Dir(targetPath), filepath.Base(targetPath)+".mmm.tmp.*")
+	if err != nil {
+		return "", err
+	}
+
+	tempPath := tempFile.Name()
+	if _, err := tempFile.Write(data); err != nil {
+		return "", cleanupTempOnErrorWithClose(fs, tempFile, tempPath, err)
+	}
+	if closeErr := tempFile.Close(); closeErr != nil {
+		return "", cleanupTempOnError(fs, tempPath, closeErr)
+	}
+	if chmodErr := fs.Chmod(tempPath, defaultFileMode); chmodErr != nil {
+		return "", cleanupTempOnError(fs, tempPath, chmodErr)
+	}
+
+	return tempPath, nil
+}
+
+func cleanupTempOnErrorWithClose(fs afero.Fs, tempFile afero.File, tempPath string, err error) error {
+	if closeErr := tempFile.Close(); closeErr != nil {
+		err = errors.Join(err, closeErr)
+	}
+	return cleanupTempOnError(fs, tempPath, err)
 }
 
 func nextSiblingPath(fs afero.Fs, targetPath string, suffix string) (string, error) {

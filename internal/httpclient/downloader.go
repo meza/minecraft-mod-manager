@@ -41,17 +41,24 @@ type Sender interface {
 	Send(msg tea.Msg)
 }
 
+var buildDownloadRequestFunc = buildDownloadRequest
+
 func DownloadFile(ctx context.Context, url string, filepath string, client Doer, program Sender, filesystemOverrides ...afero.Fs) (returnErr error) {
+	validatedURL, err := validateDownloadURL(url)
+	if err != nil {
+		return err
+	}
+
 	_, span := perf.StartSpan(ctx, "io.download.file",
 		perf.WithAttributes(
-			attribute.String("url", url),
+			attribute.String("url", validatedURL.String()),
 			attribute.String("path", filepath),
 		),
 	)
 	defer span.End()
 
 	filesystem := fileutils.InitFilesystem(filesystemOverrides...)
-	request, cancel, err := buildDownloadRequest(ctx, url)
+	request, cancel, err := buildDownloadRequestFunc(ctx, validatedURL.String())
 	if err != nil {
 		return fmt.Errorf("failed to build download request: %w", err)
 	}

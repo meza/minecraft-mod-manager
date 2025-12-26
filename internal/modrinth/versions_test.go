@@ -117,6 +117,68 @@ func TestGetVersionsForProject_SingleVersion(t *testing.T) {
 	assert.Equal(t, int64(1097270), versions[0].Files[0].Size)
 }
 
+func TestBuildVersionListURLEscapesProjectID(t *testing.T) {
+	lookup := &VersionLookup{
+		ProjectID:    "A/BC",
+		Loaders:      []models.Loader{"fabric"},
+		GameVersions: []string{"1.20.1"},
+	}
+
+	requestURL, err := buildVersionListURL(lookup)
+	assert.NoError(t, err)
+	assert.Equal(t, "/v2/project/A%2FBC/version", requestURL.EscapedPath())
+}
+
+func TestBuildVersionListURLReturnsErrorOnParseFailure(t *testing.T) {
+	originalParse := parseURL
+	parseURL = func(string) (*url.URL, error) {
+		return nil, stdErrors.New("parse failed")
+	}
+	t.Cleanup(func() {
+		parseURL = originalParse
+	})
+
+	lookup := &VersionLookup{
+		ProjectID:    "AABBCCDD",
+		Loaders:      []models.Loader{"fabric"},
+		GameVersions: []string{"1.20.1"},
+	}
+
+	requestURL, err := buildVersionListURL(lookup)
+	assert.Error(t, err)
+	assert.Nil(t, requestURL)
+}
+
+func TestBuildVersionFileURLReturnsErrorOnParseFailure(t *testing.T) {
+	originalParse := parseURL
+	parseURL = func(string) (*url.URL, error) {
+		return nil, stdErrors.New("parse failed")
+	}
+	t.Cleanup(func() {
+		parseURL = originalParse
+	})
+
+	lookup := NewVersionHashLookup("abc", SHA1)
+	requestURL, err := buildVersionFileURL(lookup)
+	assert.Error(t, err)
+	assert.Nil(t, requestURL)
+}
+
+func TestGetVersionForHashReturnsErrorOnURLBuildFailure(t *testing.T) {
+	originalParse := parseURL
+	parseURL = func(string) (*url.URL, error) {
+		return nil, stdErrors.New("parse failed")
+	}
+	t.Cleanup(func() {
+		parseURL = originalParse
+	})
+
+	lookup := NewVersionHashLookup("abc", SHA1)
+	version, err := GetVersionForHash(context.Background(), lookup, NewClient(errorDoer{}))
+	assert.Error(t, err)
+	assert.Nil(t, version)
+}
+
 func TestGetVersionsForProject_MultipleVersions(t *testing.T) {
 	mockResponse := `[{
 			"name": "Version 1.0.0",

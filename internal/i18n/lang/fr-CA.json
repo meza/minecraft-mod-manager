@@ -1,5 +1,8 @@
 {
   "error.network_timeout": "La requete reseau a expire. Verifie ta connexion Internet et reessaie.",
+  "error.download_url_invalid": "L'URL de telechargement est invalide: {url}",
+  "error.download_url_insecure": "L'URL de telechargement doit utiliser https: {url}",
+  "error.download_url_untrusted_host": "L'hote de telechargement n'est pas approuve: {host}",
   "cmd.platform.error.reason.auth": "La plateforme a refuse la requete. Verifie ta cle API ({token}) et reessaie.",
   "cmd.platform.error.reason.rate_limited": "La plateforme limite les requetes. Attends un peu et reessaie.",
   "cmd.platform.error.reason.not_found": "La plateforme n'a pas trouve les donnees necessaires. Reessaie plus tard.",

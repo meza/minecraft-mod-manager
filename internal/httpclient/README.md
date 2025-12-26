@@ -29,9 +29,9 @@ If you are adding a command that talks to an external API, start here.
 
 ### File download with progress
 
-- `DownloadFile(url string, filepath string, client Doer, program Sender, filesystem ...afero.Fs) error`
+- `DownloadFile(ctx context.Context, url string, filepath string, client Doer, program Sender, filesystem ...afero.Fs) error`
 
-`DownloadFile` writes the response body to `filepath` and sends progress updates to `program.Send(...)`. It requires a successful 2xx response and returns an error for non-2xx statuses. It is used by interactive commands that want to surface download progress in the TUI.
+`DownloadFile` validates that download URLs use https and point at trusted hosts (`cdn.modrinth.com`, `edge.forgecdn.net`, `media.forgecdn.net`), writes the response body to `filepath`, and sends progress updates to `program.Send(...)`. It requires a successful 2xx response and returns an error for non-2xx statuses. It is used by interactive commands that want to surface download progress in the TUI.
 
 ### Timeout policy
 
