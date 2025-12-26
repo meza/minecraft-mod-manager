@@ -628,3 +628,9 @@ date	time	entry
 2025-12-26	14:36	Closed mmm-63.23: Modrinth JSON decode errors already handled and tested; no further remediation needed.
 2025-12-26	14:48	mmm-63.86: added shutdown timeout + second-signal forced exit in internal/lifecycle; added tests for second signal and timeout default; make fmt/lint/coverage/build pass; awaiting Windows confirmation.
 2025-12-26	15:45	Closed mmm-63.86 after reviewer approval and Windows verification; lifecycle now forces exit on second signal and after shutdown timeout with tests.
+2025-12-26	16:19	mmm-63.84: added max-concurrency flag to update/test, bounded concurrency via errgroup.SetLimit, added cancellation/bound tests, updated docs and i18n; make fmt/lint/coverage/build pass locally.
+2025-12-26	16:32	Session start: reviewed memory and bd for mmm-63.84; issue remains in_progress with local changes in update/test/docs/i18n and pending Windows verification/review.
+2025-12-26	16:41	mmm-63.84: addressed reviewer feedback by renaming loop indices in new concurrency tests; ran go test ./cmd/mmm/update and ./cmd/mmm/test before/after, plus make fmt/lint/coverage/build.
+2025-12-26	17:03	mmm-63.84: updated update cancellation handling to persist outcomes via context.WithoutCancel; added TestRunUpdatePersistsCompletedUpdatesWhenCanceled and adjusted processCandidates/runUpdate; ran go test ./cmd/mmm/update plus make fmt/lint/coverage/build.
+2025-12-26	17:27	mmm-63.84: removed max-concurrency flag from update/test commands, options, docs, i18n; hardcoded concurrency limit via default constants; updated tests accordingly and ran go test ./cmd/mmm/update ./cmd/mmm/test.
+2025-12-26	17:44	[RESOLVED] Closed mmm-63.84 after reviewer approval and Windows verification; concurrency now hardcoded, cancellation persistence covered, and CONTRIBUTING shared-infra risk guidance added.

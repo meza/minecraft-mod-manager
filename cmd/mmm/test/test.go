@@ -5,7 +5,6 @@ import (
 	"errors"
 	"fmt"
 	"strings"
-	"sync"
 
 	"github.com/meza/minecraft-mod-manager/internal/clierrors"
 	"github.com/meza/minecraft-mod-manager/internal/config"
@@ -21,8 +20,11 @@ import (
 	"github.com/spf13/afero"
 	"github.com/spf13/cobra"
 	"go.opentelemetry.io/otel/attribute"
+	"golang.org/x/sync/errgroup"
 	"golang.org/x/time/rate"
 )
+
+const defaultTestMaxConcurrency = 4
 
 type testOptions struct {
 	ConfigPath  string
@@ -237,30 +239,11 @@ func runTest(ctx context.Context, cmd *cobra.Command, opts testOptions, deps tes
 		colorMode = tui.ColorEnabled
 	}
 
-	outcomes := collectOutcomes(ctx, cfg, targetVersion, deps)
-	unsupportedMods := logOutcomes(outcomes, deps)
-
-	if len(unsupportedMods) > 0 {
-		deps.logger.Log(i18n.T("cmd.test.missing_support_header", i18n.Tvars{
-			Data: &i18n.TData{"version": targetVersion},
-		}), logger.LogForce)
-
-		for _, unsupported := range unsupportedMods {
-			modEntry := formatMissingModEntry(unsupported.Mod, colorMode)
-			deps.logger.Log(modEntry, logger.LogForce)
-		}
-
-		deps.logger.Log(i18n.T("cmd.test.cannot_upgrade", i18n.Tvars{
-			Data: &i18n.TData{"version": targetVersion},
-		}), logger.LogForce)
-
-		return 1, errUnsupportedMods
+	outcomes, err := collectOutcomes(ctx, cfg, targetVersion, deps)
+	if err != nil {
+		return 0, err
 	}
-
-	deps.logger.Log(i18n.T("cmd.test.success", i18n.Tvars{
-		Data: &i18n.TData{"version": targetVersion},
-	}), logger.LogQuiet)
-	return 0, nil
+	return evaluateTestOutcomes(targetVersion, outcomes, deps, colorMode)
 }
 
 func checkMod(
@@ -457,7 +440,11 @@ func resolveTargetVersion(ctx context.Context, cfg models.ModsJSON, opts testOpt
 	return targetVersion, 0, nil
 }
 
-func collectOutcomes(ctx context.Context, cfg models.ModsJSON, targetVersion string, deps testDeps) []modCheckOutcome {
+func collectOutcomes(ctx context.Context, cfg models.ModsJSON, targetVersion string, deps testDeps) ([]modCheckOutcome, error) {
+	if err := ctx.Err(); err != nil {
+		return nil, err
+	}
+
 	candidates := make([]modCheckCandidate, 0, len(cfg.Mods))
 	for i := range cfg.Mods {
 		candidates = append(candidates, modCheckCandidate{
@@ -466,29 +453,29 @@ func collectOutcomes(ctx context.Context, cfg models.ModsJSON, targetVersion str
 		})
 	}
 
-	results := make(chan modCheckOutcome, len(candidates))
-	var waitGroup sync.WaitGroup
+	outcomes := make([]modCheckOutcome, len(candidates))
+	group, groupCtx := errgroup.WithContext(ctx)
+	group.SetLimit(defaultTestMaxConcurrency)
 
 	for _, candidate := range candidates {
 		candidate := candidate
-		waitGroup.Add(1)
-		go func() {
-			defer waitGroup.Done()
-			results <- checkMod(ctx, cfg, candidate, targetVersion, deps)
-		}()
+		group.Go(func() error {
+			outcome := checkMod(groupCtx, cfg, candidate, targetVersion, deps)
+			if outcome.ConfigIndex >= 0 && outcome.ConfigIndex < len(outcomes) {
+				outcomes[outcome.ConfigIndex] = outcome
+			}
+			if err := groupCtx.Err(); err != nil {
+				return err
+			}
+			return nil
+		})
 	}
 
-	waitGroup.Wait()
-	close(results)
-
-	outcomes := make([]modCheckOutcome, len(candidates))
-	for outcome := range results {
-		if outcome.ConfigIndex >= 0 && outcome.ConfigIndex < len(outcomes) {
-			outcomes[outcome.ConfigIndex] = outcome
-		}
+	if err := group.Wait(); err != nil {
+		return nil, err
 	}
 
-	return outcomes
+	return outcomes, nil
 }
 
 func logOutcomes(outcomes []modCheckOutcome, deps testDeps) []modCheckOutcome {
@@ -508,4 +495,29 @@ func logOutcomes(outcomes []modCheckOutcome, deps testDeps) []modCheckOutcome {
 		}
 	}
 	return unsupportedMods
+}
+
+func evaluateTestOutcomes(targetVersion string, outcomes []modCheckOutcome, deps testDeps, colorMode tui.ColorMode) (int, error) {
+	unsupportedMods := logOutcomes(outcomes, deps)
+	if len(unsupportedMods) > 0 {
+		deps.logger.Log(i18n.T("cmd.test.missing_support_header", i18n.Tvars{
+			Data: &i18n.TData{"version": targetVersion},
+		}), logger.LogForce)
+
+		for _, unsupported := range unsupportedMods {
+			modEntry := formatMissingModEntry(unsupported.Mod, colorMode)
+			deps.logger.Log(modEntry, logger.LogForce)
+		}
+
+		deps.logger.Log(i18n.T("cmd.test.cannot_upgrade", i18n.Tvars{
+			Data: &i18n.TData{"version": targetVersion},
+		}), logger.LogForce)
+
+		return 1, errUnsupportedMods
+	}
+
+	deps.logger.Log(i18n.T("cmd.test.success", i18n.Tvars{
+		Data: &i18n.TData{"version": targetVersion},
+	}), logger.LogQuiet)
+	return 0, nil
 }

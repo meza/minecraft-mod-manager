@@ -33,4 +33,3 @@ This command only uses the global options:
 | `-c, --config` | Path to `modlist.json` | file path | `mmm --config ./server/modlist.json update` |
 | `-q, --quiet` | Suppress normal output | `true/false` | `mmm --quiet update` |
 | `-d, --debug` | Print debug details | `true/false` | `mmm --debug update` |
-

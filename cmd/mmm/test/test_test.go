@@ -4,10 +4,13 @@ import (
 	"bytes"
 	"context"
 	"errors"
+	"io"
 	"net/http"
 	"path/filepath"
 	"sync"
+	"sync/atomic"
 	"testing"
+	"time"
 
 	"github.com/meza/minecraft-mod-manager/internal/config"
 	"github.com/meza/minecraft-mod-manager/internal/httpclient"
@@ -19,6 +22,7 @@ import (
 	"github.com/spf13/afero"
 	"github.com/spf13/cobra"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
 
 type noopDoer struct{}
@@ -1103,3 +1107,170 @@ type fakeTTYWriter struct {
 }
 
 func (writer fakeTTYWriter) Fd() uintptr { return 1 }
+
+func TestRunTestReturnsContextErrorWhenCanceled(t *testing.T) {
+	ctx, cancel := context.WithCancel(context.Background())
+	cancel()
+
+	fs := afero.NewMemMapFs()
+	tempDir := t.TempDir()
+	configPath := filepath.Join(tempDir, "modlist.json")
+	meta := config.NewMetadata(configPath)
+
+	cfg := models.ModsJSON{
+		Loader:                     models.FABRIC,
+		GameVersion:                "1.20.0",
+		DefaultAllowedReleaseTypes: []models.ReleaseType{models.Release},
+		ModsFolder:                 "mods",
+		Mods: []models.Mod{
+			{Name: "Mod One", ID: "mod-one", Type: models.MODRINTH},
+		},
+	}
+
+	require.NoError(t, fs.MkdirAll(meta.Dir(), 0755))
+	require.NoError(t, fs.MkdirAll(meta.ModsFolderPath(cfg), 0755))
+	require.NoError(t, config.WriteConfig(ctx, fs, meta, cfg))
+
+	deps := testDeps{
+		fs:     fs,
+		logger: logger.New(io.Discard, io.Discard, true, false),
+		fetchMod: func(context.Context, models.Platform, string, platform.FetchOptions, platform.Clients) (platform.RemoteMod, error) {
+			t.Fatal("fetchMod should not be called after cancellation")
+			return platform.RemoteMod{}, errors.New("unexpected")
+		},
+		latestVersion:  func(context.Context, httpclient.Doer) (string, error) { return "1.20.1", nil },
+		isValidVersion: func(context.Context, string, httpclient.Doer) bool { return true },
+	}
+
+	opts := testOptions{ConfigPath: configPath, GameVersion: "1.20.1"}
+	cmd := &cobra.Command{}
+	cmd.SetOut(io.Discard)
+	cmd.SetErr(io.Discard)
+
+	_, err := runTest(ctx, cmd, opts, deps)
+	assert.Error(t, err)
+	assert.ErrorIs(t, err, context.Canceled)
+}
+
+func TestCollectOutcomesBoundsConcurrency(t *testing.T) {
+	cfg := models.ModsJSON{
+		Loader:                     models.FABRIC,
+		GameVersion:                "1.20.1",
+		DefaultAllowedReleaseTypes: []models.ReleaseType{models.Release},
+		Mods: []models.Mod{
+			{Name: "Mod One", ID: "mod-one", Type: models.MODRINTH},
+			{Name: "Mod Two", ID: "mod-two", Type: models.MODRINTH},
+			{Name: "Mod Three", ID: "mod-three", Type: models.MODRINTH},
+			{Name: "Mod Four", ID: "mod-four", Type: models.MODRINTH},
+		},
+	}
+	readyCh := make(chan struct{}, len(cfg.Mods))
+	releaseCh := make(chan struct{})
+	var currentInFlight int64
+	var maxInFlight int64
+
+	deps := testDeps{
+		fetchMod: func(ctx context.Context, platformName models.Platform, projectID string, opts platform.FetchOptions, clients platform.Clients) (platform.RemoteMod, error) {
+			current := atomic.AddInt64(&currentInFlight, 1)
+			for {
+				observed := atomic.LoadInt64(&maxInFlight)
+				if current <= observed || atomic.CompareAndSwapInt64(&maxInFlight, observed, current) {
+					break
+				}
+			}
+			readyCh <- struct{}{}
+			<-releaseCh
+			atomic.AddInt64(&currentInFlight, -1)
+			return platform.RemoteMod{}, errors.New("fetch failed")
+		},
+	}
+
+	resultCh := make(chan error, 1)
+	concurrencyLimit := defaultTestMaxConcurrency
+	go func() {
+		_, err := collectOutcomes(context.Background(), cfg, "1.20.1", deps)
+		resultCh <- err
+	}()
+
+	for index := 0; index < concurrencyLimit; index++ {
+		select {
+		case <-readyCh:
+		case <-time.After(time.Second):
+			t.Fatal("timeout waiting for bounded concurrency")
+		}
+	}
+
+	if observed := atomic.LoadInt64(&maxInFlight); observed > int64(concurrencyLimit) {
+		t.Fatalf("expected max concurrency %d, got %d", concurrencyLimit, observed)
+	}
+
+	close(releaseCh)
+
+	select {
+	case err := <-resultCh:
+		assert.NoError(t, err)
+	case <-time.After(time.Second):
+		t.Fatal("collectOutcomes did not finish")
+	}
+}
+
+func TestCollectOutcomesHonorsContextCancellation(t *testing.T) {
+	ctx, cancel := context.WithCancel(context.Background())
+	cancel()
+
+	deps := testDeps{
+		fetchMod: func(context.Context, models.Platform, string, platform.FetchOptions, platform.Clients) (platform.RemoteMod, error) {
+			t.Fatal("fetchMod should not be called after cancellation")
+			return platform.RemoteMod{}, errors.New("unexpected")
+		},
+	}
+
+	cfg := models.ModsJSON{
+		Mods: []models.Mod{{Name: "Mod One", ID: "mod-one", Type: models.MODRINTH}},
+	}
+
+	_, err := collectOutcomes(ctx, cfg, "1.20.1", deps)
+	assert.Error(t, err)
+	assert.ErrorIs(t, err, context.Canceled)
+}
+
+func TestCollectOutcomesReturnsErrorWhenCanceledDuringWork(t *testing.T) {
+	ctx, cancel := context.WithCancel(context.Background())
+
+	cfg := models.ModsJSON{
+		Mods: []models.Mod{{Name: "Mod One", ID: "mod-one", Type: models.MODRINTH}},
+	}
+
+	readyCh := make(chan struct{}, 1)
+	releaseCh := make(chan struct{})
+	deps := testDeps{
+		fetchMod: func(context.Context, models.Platform, string, platform.FetchOptions, platform.Clients) (platform.RemoteMod, error) {
+			readyCh <- struct{}{}
+			<-releaseCh
+			return platform.RemoteMod{}, errors.New("fetch failed")
+		},
+	}
+
+	resultCh := make(chan error, 1)
+	go func() {
+		_, err := collectOutcomes(ctx, cfg, "1.20.1", deps)
+		resultCh <- err
+	}()
+
+	select {
+	case <-readyCh:
+	case <-time.After(time.Second):
+		t.Fatal("timeout waiting for worker")
+	}
+
+	cancel()
+	close(releaseCh)
+
+	select {
+	case err := <-resultCh:
+		assert.Error(t, err)
+		assert.ErrorIs(t, err, context.Canceled)
+	case <-time.After(time.Second):
+		t.Fatal("collectOutcomes did not finish")
+	}
+}

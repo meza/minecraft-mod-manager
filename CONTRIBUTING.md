@@ -18,6 +18,16 @@ Please note we have a code of conduct, please follow it in all your interactions
 This project optimizes for long-term maintainability and predictable behavior. Prefer small, boring, readable changes over clever
 ones.
 
+## Shared infrastructure risk
+
+This CLI relies on shared infrastructure and credentials. That means a single bad actor can degrade or remove service for
+every user, and recovering may require a coordinated release. Treat any change that could amplify abuse, increase request
+volume, or relax safeguards as a safety boundary.
+
+Do not add user-facing knobs or configuration that let users change behavior in ways that could increase external load or
+reduce protections without explicit approval. If you believe an exception is needed, open an issue and get sign-off before
+changing behavior.
+
 ### Code philosophy
 
 - Simplicity first: implement the smallest change that satisfies the requirement.

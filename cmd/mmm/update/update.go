@@ -10,7 +10,6 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
-	"sync"
 	"time"
 
 	tea "github.com/charmbracelet/bubbletea"
@@ -31,8 +30,11 @@ import (
 	"github.com/spf13/afero"
 	"github.com/spf13/cobra"
 	"go.opentelemetry.io/otel/attribute"
+	"golang.org/x/sync/errgroup"
 	"golang.org/x/time/rate"
 )
+
+const defaultUpdateMaxConcurrency = 4
 
 type updateOptions struct {
 	ConfigPath string
@@ -192,12 +194,31 @@ func runUpdate(ctx context.Context, cmd *cobra.Command, opts updateOptions, deps
 	}
 
 	candidates := updateCandidates(updateContext.cfg)
-	outcomes := processCandidates(ctx, updateContext.meta, updateContext.cfg, updateContext.lock, candidates, deps, updateContext.colorMode)
+	outcomes, err := processCandidates(
+		ctx,
+		updateContext.meta,
+		updateContext.cfg,
+		updateContext.lock,
+		candidates,
+		deps,
+		updateContext.colorMode,
+	)
+	if err != nil && outcomes == nil {
+		return updateCounts{}, err
+	}
 	counts := applyUpdateOutcomes(deps.logger, outcomes, &updateContext.cfg, updateContext.lock)
 
 	reportNoUpdatesIfNeeded(deps.logger, counts, updateContext.colorMode)
 
-	if err := persistUpdateConfig(ctx, deps, updateContext); err != nil {
+	persistContext := ctx
+	if isContextCancellation(err) {
+		persistContext = context.WithoutCancel(ctx)
+	}
+	if persistErr := persistUpdateConfig(persistContext, deps, updateContext); persistErr != nil {
+		return counts, persistErr
+	}
+
+	if err != nil {
 		return counts, err
 	}
 
@@ -280,27 +301,37 @@ func updateCandidates(cfg models.ModsJSON) []modUpdateCandidate {
 	return candidates
 }
 
-func processCandidates(ctx context.Context, meta config.Metadata, cfg models.ModsJSON, lock []models.ModInstall, candidates []modUpdateCandidate, deps updateDeps, colorMode tui.ColorMode) []modUpdateOutcome {
-	results := make(chan modUpdateOutcome, len(candidates))
-	var waitGroup sync.WaitGroup
+func processCandidates(
+	ctx context.Context,
+	meta config.Metadata,
+	cfg models.ModsJSON,
+	lock []models.ModInstall,
+	candidates []modUpdateCandidate,
+	deps updateDeps,
+	colorMode tui.ColorMode,
+) ([]modUpdateOutcome, error) {
+	if err := ctx.Err(); err != nil {
+		return nil, err
+	}
+
+	outcomes := make([]modUpdateOutcome, len(candidates))
+	group, groupCtx := errgroup.WithContext(ctx)
+	group.SetLimit(defaultUpdateMaxConcurrency)
 
 	for _, candidate := range candidates {
 		candidate := candidate
-		waitGroup.Add(1)
-		go func() {
-			defer waitGroup.Done()
-			results <- processMod(ctx, meta, cfg, lock, candidate, deps, colorMode)
-		}()
+		group.Go(func() error {
+			outcome := processMod(groupCtx, meta, cfg, lock, candidate, deps, colorMode)
+			outcomes[outcome.ConfigIndex] = outcome
+			if err := groupCtx.Err(); err != nil {
+				return err
+			}
+			return nil
+		})
 	}
 
-	waitGroup.Wait()
-	close(results)
-
-	outcomes := make([]modUpdateOutcome, len(candidates))
-	for outcome := range results {
-		outcomes[outcome.ConfigIndex] = outcome
-	}
-	return outcomes
+	err := group.Wait()
+	return outcomes, err
 }
 
 func applyUpdateOutcomes(log *logger.Logger, outcomes []modUpdateOutcome, cfg *models.ModsJSON, lock []models.ModInstall) updateCounts {
@@ -338,6 +369,13 @@ func applyUpdateOutcomes(log *logger.Logger, outcomes []modUpdateOutcome, cfg *m
 	}
 
 	return counts
+}
+
+func isContextCancellation(err error) bool {
+	if err == nil {
+		return false
+	}
+	return errors.Is(err, context.Canceled) || errors.Is(err, context.DeadlineExceeded)
 }
 
 var errUpdateFailures = errors.New("one or more mods failed to update")

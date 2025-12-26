@@ -4,12 +4,15 @@ import (
 	"bytes"
 	"context"
 	"errors"
+	"fmt"
 	"io"
 	"net/http"
 	"os"
 	"path/filepath"
 	"strings"
+	"sync/atomic"
 	"testing"
+	"time"
 
 	"github.com/meza/minecraft-mod-manager/cmd/mmm/install"
 	"github.com/meza/minecraft-mod-manager/internal/config"
@@ -23,6 +26,7 @@ import (
 	"github.com/spf13/afero"
 	"github.com/spf13/cobra"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
 
 type noopDoer struct{}
@@ -2012,4 +2016,349 @@ func (filesystem renameOnNewErrorFs) Rename(oldname, newname string) error {
 		return filesystem.err
 	}
 	return filesystem.Fs.Rename(oldname, newname)
+}
+
+func TestProcessCandidatesBoundsConcurrency(t *testing.T) {
+	meta := config.NewMetadata("modlist.json")
+	cfg := models.ModsJSON{
+		Loader:                     models.FABRIC,
+		GameVersion:                "1.20.1",
+		DefaultAllowedReleaseTypes: []models.ReleaseType{models.Release},
+		ModsFolder:                 "mods",
+		Mods: []models.Mod{
+			{Name: "Mod One", ID: "mod-one", Type: models.MODRINTH},
+			{Name: "Mod Two", ID: "mod-two", Type: models.MODRINTH},
+			{Name: "Mod Three", ID: "mod-three", Type: models.MODRINTH},
+			{Name: "Mod Four", ID: "mod-four", Type: models.MODRINTH},
+		},
+	}
+	lock := []models.ModInstall{
+		{Name: "Mod One", ID: "mod-one", Type: models.MODRINTH},
+		{Name: "Mod Two", ID: "mod-two", Type: models.MODRINTH},
+		{Name: "Mod Three", ID: "mod-three", Type: models.MODRINTH},
+		{Name: "Mod Four", ID: "mod-four", Type: models.MODRINTH},
+	}
+	candidates := updateCandidates(cfg)
+	readyCh := make(chan struct{}, len(candidates))
+	releaseCh := make(chan struct{})
+	var currentInFlight int64
+	var maxInFlight int64
+
+	deps := updateDeps{
+		fetchMod: func(ctx context.Context, platformName models.Platform, projectID string, opts platform.FetchOptions, clients platform.Clients) (platform.RemoteMod, error) {
+			current := atomic.AddInt64(&currentInFlight, 1)
+			for {
+				observed := atomic.LoadInt64(&maxInFlight)
+				if current <= observed || atomic.CompareAndSwapInt64(&maxInFlight, observed, current) {
+					break
+				}
+			}
+			readyCh <- struct{}{}
+			<-releaseCh
+			atomic.AddInt64(&currentInFlight, -1)
+			return platform.RemoteMod{}, errors.New("fetch failed")
+		},
+	}
+
+	resultCh := make(chan error, 1)
+	concurrencyLimit := defaultUpdateMaxConcurrency
+	go func() {
+		_, err := processCandidates(context.Background(), meta, cfg, lock, candidates, deps, tui.ColorDisabled)
+		resultCh <- err
+	}()
+
+	for index := 0; index < concurrencyLimit; index++ {
+		select {
+		case <-readyCh:
+		case <-time.After(time.Second):
+			t.Fatal("timeout waiting for bounded concurrency")
+		}
+	}
+
+	if observed := atomic.LoadInt64(&maxInFlight); observed > int64(concurrencyLimit) {
+		t.Fatalf("expected max concurrency %d, got %d", concurrencyLimit, observed)
+	}
+
+	close(releaseCh)
+
+	select {
+	case err := <-resultCh:
+		assert.NoError(t, err)
+	case <-time.After(time.Second):
+		t.Fatal("processCandidates did not finish")
+	}
+}
+
+func TestProcessCandidatesHonorsContextCancellation(t *testing.T) {
+	ctx, cancel := context.WithCancel(context.Background())
+	cancel()
+
+	deps := updateDeps{
+		fetchMod: func(context.Context, models.Platform, string, platform.FetchOptions, platform.Clients) (platform.RemoteMod, error) {
+			t.Fatal("fetchMod should not be called after cancellation")
+			return platform.RemoteMod{}, errors.New("unexpected")
+		},
+	}
+
+	meta := config.NewMetadata("modlist.json")
+	cfg := models.ModsJSON{
+		Mods: []models.Mod{{Name: "Mod One", ID: "mod-one", Type: models.MODRINTH}},
+	}
+	lock := []models.ModInstall{{Name: "Mod One", ID: "mod-one", Type: models.MODRINTH}}
+	candidates := updateCandidates(cfg)
+
+	_, err := processCandidates(ctx, meta, cfg, lock, candidates, deps, tui.ColorDisabled)
+	assert.Error(t, err)
+	assert.ErrorIs(t, err, context.Canceled)
+}
+
+func TestProcessCandidatesReturnsErrorWhenCanceledDuringWork(t *testing.T) {
+	ctx, cancel := context.WithCancel(context.Background())
+
+	meta := config.NewMetadata("modlist.json")
+	cfg := models.ModsJSON{
+		Mods: []models.Mod{{Name: "Mod One", ID: "mod-one", Type: models.MODRINTH}},
+	}
+	lock := []models.ModInstall{{Name: "Mod One", ID: "mod-one", Type: models.MODRINTH}}
+	candidates := updateCandidates(cfg)
+
+	readyCh := make(chan struct{}, 1)
+	releaseCh := make(chan struct{})
+	deps := updateDeps{
+		fetchMod: func(context.Context, models.Platform, string, platform.FetchOptions, platform.Clients) (platform.RemoteMod, error) {
+			readyCh <- struct{}{}
+			<-releaseCh
+			return platform.RemoteMod{}, errors.New("fetch failed")
+		},
+	}
+
+	resultCh := make(chan error, 1)
+	go func() {
+		_, err := processCandidates(ctx, meta, cfg, lock, candidates, deps, tui.ColorDisabled)
+		resultCh <- err
+	}()
+
+	select {
+	case <-readyCh:
+	case <-time.After(time.Second):
+		t.Fatal("timeout waiting for worker")
+	}
+
+	cancel()
+	close(releaseCh)
+
+	select {
+	case err := <-resultCh:
+		assert.Error(t, err)
+		assert.ErrorIs(t, err, context.Canceled)
+	case <-time.After(time.Second):
+		t.Fatal("processCandidates did not finish")
+	}
+}
+
+func TestRunUpdateReturnsContextErrorWhenCanceled(t *testing.T) {
+	ctx, cancel := context.WithCancel(context.Background())
+	cancel()
+
+	fs := afero.NewMemMapFs()
+	tempDir := t.TempDir()
+	configPath := filepath.Join(tempDir, "modlist.json")
+	meta := config.NewMetadata(configPath)
+
+	cfg := models.ModsJSON{
+		Loader:                     models.FABRIC,
+		GameVersion:                "1.20.1",
+		DefaultAllowedReleaseTypes: []models.ReleaseType{models.Release},
+		ModsFolder:                 "mods",
+		Mods: []models.Mod{
+			{Name: "Mod One", ID: "mod-one", Type: models.MODRINTH},
+		},
+	}
+	lock := []models.ModInstall{
+		{Name: "Mod One", ID: "mod-one", Type: models.MODRINTH},
+	}
+
+	require.NoError(t, fs.MkdirAll(meta.Dir(), 0755))
+	require.NoError(t, fs.MkdirAll(meta.ModsFolderPath(cfg), 0755))
+	require.NoError(t, config.WriteConfig(ctx, fs, meta, cfg))
+	require.NoError(t, config.WriteLock(ctx, fs, meta, lock))
+
+	deps := updateDeps{
+		fs:     fs,
+		logger: logger.New(io.Discard, io.Discard, true, false),
+		install: func(context.Context, *cobra.Command, string, bool, bool) (install.Result, error) {
+			return install.Result{}, nil
+		},
+		fetchMod: func(context.Context, models.Platform, string, platform.FetchOptions, platform.Clients) (platform.RemoteMod, error) {
+			t.Fatal("fetchMod should not be called after cancellation")
+			return platform.RemoteMod{}, errors.New("unexpected")
+		},
+	}
+
+	cmd := &cobra.Command{}
+	setCommandOutputForTesting(cmd)
+
+	_, err := runUpdate(ctx, cmd, updateOptions{ConfigPath: configPath}, deps)
+	assert.Error(t, err)
+	assert.ErrorIs(t, err, context.Canceled)
+}
+
+func TestRunUpdatePersistsCompletedUpdatesWhenCanceled(t *testing.T) {
+	t.Setenv("MMM_TEST", "true")
+
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+
+	fs := afero.NewMemMapFs()
+	meta := config.NewMetadata(filepath.FromSlash("/cfg/modlist.json"))
+
+	cfg := models.ModsJSON{
+		Loader:                     models.FABRIC,
+		GameVersion:                "1.21.1",
+		DefaultAllowedReleaseTypes: []models.ReleaseType{models.Release},
+		ModsFolder:                 "mods",
+		Mods: []models.Mod{
+			{ID: "mod-fast", Name: "Fast Mod", Type: models.MODRINTH},
+			{ID: "mod-slow", Name: "Slow Mod", Type: models.MODRINTH},
+		},
+	}
+
+	lock := []models.ModInstall{
+		{
+			Type:        models.MODRINTH,
+			ID:          "mod-fast",
+			Name:        "Fast Mod",
+			FileName:    "fast-old.jar",
+			ReleasedOn:  "2024-01-01T00:00:00Z",
+			Hash:        "oldhash",
+			DownloadURL: "https://example.invalid/fast-old.jar",
+		},
+		{
+			Type:        models.MODRINTH,
+			ID:          "mod-slow",
+			Name:        "Slow Mod",
+			FileName:    "slow-old.jar",
+			ReleasedOn:  "2024-01-01T00:00:00Z",
+			Hash:        "oldhash",
+			DownloadURL: "https://example.invalid/slow-old.jar",
+		},
+	}
+
+	require.NoError(t, fs.MkdirAll(meta.Dir(), 0755))
+	require.NoError(t, fs.MkdirAll(meta.ModsFolderPath(cfg), 0755))
+	require.NoError(t, config.WriteConfig(ctx, fs, meta, cfg))
+	require.NoError(t, config.WriteLock(ctx, fs, meta, lock))
+
+	fastOldPath := filepath.Join(meta.ModsFolderPath(cfg), "fast-old.jar")
+	slowOldPath := filepath.Join(meta.ModsFolderPath(cfg), "slow-old.jar")
+	require.NoError(t, afero.WriteFile(fs, fastOldPath, []byte("fast-old"), 0644))
+	require.NoError(t, afero.WriteFile(fs, slowOldPath, []byte("slow-old"), 0644))
+
+	fastDownloaded := make(chan struct{})
+	slowFetchStarted := make(chan struct{})
+
+	deps := updateDeps{
+		fs:     fs,
+		logger: logger.New(io.Discard, io.Discard, true, false),
+		install: func(context.Context, *cobra.Command, string, bool, bool) (install.Result, error) {
+			return install.Result{}, nil
+		},
+		fetchMod: func(ctx context.Context, platformName models.Platform, projectID string, opts platform.FetchOptions, clients platform.Clients) (platform.RemoteMod, error) {
+			switch projectID {
+			case "mod-fast":
+				return platform.RemoteMod{
+					Name:        "Fast Remote",
+					FileName:    "fast-new.jar",
+					ReleaseDate: "2024-01-02T00:00:00Z",
+					Hash:        sha1Hex("fast-new"),
+					DownloadURL: "https://example.invalid/fast-new.jar",
+				}, nil
+			case "mod-slow":
+				close(slowFetchStarted)
+				<-ctx.Done()
+				return platform.RemoteMod{}, ctx.Err()
+			default:
+				return platform.RemoteMod{}, errors.New("unexpected project id")
+			}
+		},
+		downloader: func(_ context.Context, downloadURL string, destination string, _ httpclient.Doer, _ httpclient.Sender, filesystems ...afero.Fs) error {
+			if strings.Contains(downloadURL, "fast-new.jar") {
+				if err := afero.WriteFile(filesystems[0], destination, []byte("fast-new"), 0644); err != nil {
+					return err
+				}
+				close(fastDownloaded)
+				return nil
+			}
+			return fmt.Errorf("unexpected download URL: %s", downloadURL)
+		},
+		clients:   platform.Clients{Modrinth: noopDoer{}},
+		telemetry: func(telemetry.CommandTelemetry) {},
+	}
+
+	cmd := &cobra.Command{}
+	setCommandOutputForTesting(cmd)
+
+	resultCh := make(chan struct {
+		counts updateCounts
+		err    error
+	}, 1)
+	go func() {
+		counts, err := runUpdate(ctx, cmd, updateOptions{ConfigPath: meta.ConfigPath}, deps)
+		resultCh <- struct {
+			counts updateCounts
+			err    error
+		}{counts: counts, err: err}
+	}()
+
+	select {
+	case <-fastDownloaded:
+	case <-time.After(time.Second):
+		t.Fatal("timeout waiting for fast download")
+	}
+
+	select {
+	case <-slowFetchStarted:
+	case <-time.After(time.Second):
+		t.Fatal("timeout waiting for slow fetch")
+	}
+
+	cancel()
+
+	var result struct {
+		counts updateCounts
+		err    error
+	}
+	select {
+	case result = <-resultCh:
+	case <-time.After(time.Second):
+		t.Fatal("timeout waiting for update completion")
+	}
+
+	assert.ErrorIs(t, result.err, context.Canceled)
+	assert.Equal(t, 1, result.counts.updated)
+	assert.Equal(t, 1, result.counts.failed)
+
+	updatedLock, lockErr := config.ReadLock(context.Background(), fs, meta)
+	require.NoError(t, lockErr)
+	assert.Equal(t, "fast-new.jar", updatedLock[0].FileName)
+	assert.Equal(t, sha1Hex("fast-new"), updatedLock[0].Hash)
+	assert.Equal(t, "slow-old.jar", updatedLock[1].FileName)
+
+	updatedCfg, cfgErr := config.ReadConfig(context.Background(), fs, meta)
+	require.NoError(t, cfgErr)
+	assert.Equal(t, "Fast Remote", updatedCfg.Mods[0].Name)
+	assert.Equal(t, "Slow Mod", updatedCfg.Mods[1].Name)
+
+	fastExists, fastErr := afero.Exists(fs, fastOldPath)
+	require.NoError(t, fastErr)
+	assert.False(t, fastExists)
+
+	newFastPath := filepath.Join(meta.ModsFolderPath(cfg), "fast-new.jar")
+	newFastExists, newFastErr := afero.Exists(fs, newFastPath)
+	require.NoError(t, newFastErr)
+	assert.True(t, newFastExists)
+
+	slowExists, slowErr := afero.Exists(fs, slowOldPath)
+	require.NoError(t, slowErr)
+	assert.True(t, slowExists)
 }
