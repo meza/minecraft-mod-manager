@@ -127,8 +127,8 @@ func (tool *coverageTool) run() error {
 		defer cleanupFiltered()
 	}
 
-	if err := tool.generateCoverageHTML(filteredCoveragePath, paths.htmlPath); err != nil {
-		return err
+	if generateErr := tool.generateCoverageHTML(filteredCoveragePath, paths.htmlPath); generateErr != nil {
+		return generateErr
 	}
 
 	funcOutput, err := tool.coverageFuncOutput(filteredCoveragePath)

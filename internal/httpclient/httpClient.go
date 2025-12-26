@@ -95,14 +95,7 @@ func (client *RLHTTPClient) doAttempt(
 
 	waitErr := client.waitForRateLimit(attemptCtx, attempt, request)
 	if waitErr != nil {
-		attemptSpan.SetAttributes(
-			attribute.Bool("success", false),
-			attribute.String("error_type", fmt.Sprintf("%T", waitErr)),
-		)
-		requestSpan.SetAttributes(
-			attribute.Bool("success", false),
-			attribute.String("error_type", fmt.Sprintf("%T", waitErr)),
-		)
+		recordAttemptFailure(attemptSpan, requestSpan, waitErr)
 		if IsTimeoutError(waitErr) {
 			return nil, false, WrapTimeoutError(waitErr)
 		}
@@ -111,25 +104,12 @@ func (client *RLHTTPClient) doAttempt(
 
 	response, err := client.client.Do(request.WithContext(attemptCtx))
 	if err != nil {
-		attemptSpan.SetAttributes(
-			attribute.Bool("success", false),
-			attribute.String("error_type", fmt.Sprintf("%T", err)),
-		)
-		requestSpan.SetAttributes(
-			attribute.Bool("success", false),
-			attribute.String("error_type", fmt.Sprintf("%T", err)),
-		)
+		recordAttemptFailure(attemptSpan, requestSpan, err)
 		return nil, false, WrapTimeoutError(err)
 	}
 
 	if shouldRetry(response, attempt, retryConfig) {
-		attemptSpan.SetAttributes(
-			attribute.Bool("success", false),
-			attribute.Int("status", response.StatusCode),
-		)
-		if drainErr := drainAndClose(response.Body); drainErr != nil {
-			attemptSpan.SetAttributes(attribute.String("cleanup_error", drainErr.Error()))
-		}
+		recordAttemptRetry(attemptSpan, response)
 		time.Sleep(retryConfig.Interval)
 		return nil, true, nil
 	}
@@ -139,6 +119,27 @@ func (client *RLHTTPClient) doAttempt(
 		attribute.Int("status", response.StatusCode),
 	)
 	return response, false, nil
+}
+
+func recordAttemptFailure(attemptSpan *perf.Span, requestSpan *perf.Span, err error) {
+	attemptSpan.SetAttributes(
+		attribute.Bool("success", false),
+		attribute.String("error_type", fmt.Sprintf("%T", err)),
+	)
+	requestSpan.SetAttributes(
+		attribute.Bool("success", false),
+		attribute.String("error_type", fmt.Sprintf("%T", err)),
+	)
+}
+
+func recordAttemptRetry(attemptSpan *perf.Span, response *http.Response) {
+	attemptSpan.SetAttributes(
+		attribute.Bool("success", false),
+		attribute.Int("status", response.StatusCode),
+	)
+	if drainErr := drainAndClose(response.Body); drainErr != nil {
+		attemptSpan.SetAttributes(attribute.String("cleanup_error", drainErr.Error()))
+	}
 }
 
 func (client *RLHTTPClient) waitForRateLimit(ctx context.Context, attempt int, request *http.Request) error {

@@ -66,8 +66,8 @@ func DownloadFile(ctx context.Context, url string, filepath string, client Doer,
 		}
 	}()
 
-	if err := validateDownloadResponse(response); err != nil {
-		return err
+	if responseValidationErr := validateDownloadResponse(response); responseValidationErr != nil {
+		return responseValidationErr
 	}
 
 	file, err := createDownloadFile(filesystem, filepath)

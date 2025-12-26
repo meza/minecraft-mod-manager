@@ -599,3 +599,6 @@ date	time	entry
 2025-12-26	00:24	mmm-105 in progress: refactored internal/curseforge GetFingerprintsMatches into request/response/build helpers to reduce function length; go test ./internal/curseforge before/after; make fmt.
 2025-12-26	00:33	mmm-85: checked cmd/mmm/test/test.go commandWithRunner; no nolint or revive finding and make lint does not report it, so ticket appears already resolved.
 2025-12-26	00:37	mmm-104 in progress: refactored cmd/mmm/list Command into runListCommand + flag/deps/telemetry helpers to fix function-length; go test ./cmd/mmm/list before/after; make fmt.
+2025-12-26	00:42	mmm-106 in progress: refactored internal/httpclient RLHTTPClient.doAttempt to extract failure/retry span handling; go test ./internal/httpclient before/after; make fmt.
+2025-12-26	00:47	mmm-106: addressed review feedback by removing unused retryConfig param from recordAttemptRetry helper; go test ./internal/httpclient before/after; make fmt.
+2025-12-26	01:02	mmm-108 in progress: fixed govet shadow in internal/httpclient/downloader.go, internal/modinstall/modinstall.go, tools/coverage/coverage.go; go test ./internal/httpclient ./internal/modinstall ./tools/coverage before/after; make fmt.

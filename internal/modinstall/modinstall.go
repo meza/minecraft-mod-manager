@@ -94,8 +94,8 @@ func (installer *Installer) EnsureLockedFile(ctx context.Context, meta config.Me
 	}
 
 	if !exists {
-		if err := installer.ensureDownload(ctx, install.DownloadURL, resolvedDestination, expectedHash, downloadClient, sender, normalizedFileName); err != nil {
-			return EnsureResult{}, err
+		if downloadErr := installer.ensureDownload(ctx, install.DownloadURL, resolvedDestination, expectedHash, downloadClient, sender, normalizedFileName); downloadErr != nil {
+			return EnsureResult{}, downloadErr
 		}
 		return EnsureResult{Downloaded: true, Reason: EnsureReasonMissing}, nil
 	}
@@ -106,8 +106,8 @@ func (installer *Installer) EnsureLockedFile(ctx context.Context, meta config.Me
 	}
 
 	if !strings.EqualFold(expectedHash, localSha) {
-		if err := installer.ensureDownload(ctx, install.DownloadURL, resolvedDestination, expectedHash, downloadClient, sender, normalizedFileName); err != nil {
-			return EnsureResult{}, err
+		if downloadErr := installer.ensureDownload(ctx, install.DownloadURL, resolvedDestination, expectedHash, downloadClient, sender, normalizedFileName); downloadErr != nil {
+			return EnsureResult{}, downloadErr
 		}
 		return EnsureResult{Downloaded: true, Reason: EnsureReasonHashMismatch}, nil
 	}
