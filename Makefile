@@ -53,7 +53,7 @@ endef
 endif
 
 # Targets
-.PHONY: all clean fmt lint lint-fix build dist prepare test test-race coverage mod-download
+.PHONY: all clean fmt fmt-check lint lint-fix build dist prepare test test-race coverage mod-download
 
 # Build for all platforms
 all: clean build
@@ -63,6 +63,13 @@ run:
 
 fmt:
 	go fmt ./...
+
+fmt-check:
+ifeq ($(OSFAMILY), Windows)
+	@powershell -NoProfile -Command "$$files = gofmt -l .; if ($$files) { Write-Host 'Run gofmt on:'; $$files; exit 1 }"
+else
+	@files=$$(gofmt -l .); if [ -n "$$files" ]; then echo 'Run gofmt on:'; echo "$$files"; exit 1; fi
+endif
 
 lint:
 ifeq ($(OSFAMILY), Windows)

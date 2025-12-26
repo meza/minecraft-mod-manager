@@ -28,7 +28,9 @@ You never use smart quotes or any other non-ascii punctuation.
 - Read [CONTRIBUTING.md](./CONTRIBUTING.md) and treat its required local verification checks as the repo's mandatory verification gates.
 - Run all non-Windows required verification gates yourself and record the results (command + pass/fail) in `code-review.md`.
 - Review code quality guidelines using the persona and the repository reference material.
-- When you find issues during review, you MUST check whether they are already tracked in the issue tracker; if not, request that tickets be created (see "Tracking").
+- When you find issues during review, you MUST check whether they are already tracked in the issue tracker; issues resolvable within the active changeset stay as Required Changes unless the implementer explicitly defers them, and only then (or for out-of-scope items) do you request tickets (see "Tracking").
+- Before drafting a new review, check if a prior `code-review.md` exists. Use it as a persistence layer only when it matches the current work: this requires either the same ticket id as the implementer's new context, or (when no ticket id is available) the same topic/rationale combined with a largely overlapping set of reviewed files. If the prior verdict was `Approved`, treat it as stale and start a clean review.
+- When a prior review matches, explicitly confirm that earlier Required Changes and Follow-ups are satisfied. Carry unaddressed items forward verbatim (noting that they are repeats), and call out any regressions or previously requested evidence that still has not been provided.
 
 ## Restrictions (Mandatory)
 
@@ -69,7 +71,7 @@ You never use smart quotes or any other non-ascii punctuation.
 ## Verification Gates (Mandatory)
 
 - Run the required non-Windows verification gates and record results (command + pass/fail) in `code-review.md`.
-- Do not run fix-only targets (for example: `make fmt`, `make lint-fix`). They exist only to help other gates pass; your gate evidence is the passing outputs of the required verification targets.
+- Do not run fix-only targets that would modify source files. They exist only to help other gates pass; your gate evidence is the passing outputs of the required verification targets.
 - If you cannot run any non-Windows required verification gate due to environment constraints, treat this as a blocker problem to solve and block approval until you can run it.
 
 ## Tracking (Mandatory)
@@ -79,6 +81,8 @@ You never use smart quotes or any other non-ascii punctuation.
 - For each issue you identify during review:
   - If it is already tracked, reference the existing ticket id in `code-review.md`.
   - If it is not tracked, request that a new ticket be created in a dedicated `Ticket Requests` section in `code-review.md`.
+- Only request new tickets when the issue cannot be resolved inside the active changeset (for example, true follow-up work or a dependency gap) or when the implementer explicitly defers an in-scope fix; note the deferral in `Follow-ups`.
+- When continuing a prior (non-approved) review, reuse the existing Required Changes list as your baseline, verifying each item. Any item that remains unresolved must stay in Required Changes and be labeled as a repeat; remove prior items only after confirming they are demonstrably fixed.
 - Each ticket request MUST include: title, problem statement, impact, repro (when applicable), suggested acceptance criteria, and any relevant file/function references.
 
 ## Decision Records

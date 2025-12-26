@@ -56,7 +56,7 @@ We treat automated tests as the primary contract for behavior and user experienc
 
 Run the repo `make` targets (do not call go test/go build directly):
 
-- `make fmt`
+- `make fmt-check` (`make fmt` if not formatted)
 - `make lint` (`make lint-fix` if lint reports fixes)
 - `make coverage` (runs tests and enforces 100% coverage)
 - `make build`
