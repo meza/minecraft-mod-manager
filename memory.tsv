@@ -622,3 +622,4 @@ date	time	entry
 2025-12-26	14:16	Closed mmm-63.106 now that revive/non-gosec lint leafs are complete and dependency direction fixed; lint is clean.
 2025-12-26	14:17	Closed mmm-63.107 after all linked lint remediation tickets are closed and make lint is clean.
 2025-12-26	14:18	Added mmm-63 dependencies so all mmm-63.* tickets block mmm-63 (bulk dep add; duplicates skipped).
+2025-12-26	14:22	Adjusted priorities per user: mmm-63.3 and mmm-63.2 downgraded to P3.
