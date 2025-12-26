@@ -597,3 +597,5 @@ date	time	entry
 2025-12-26	00:08	mmm-83/84 in progress: refactored cmd/mmm/add/add.go handleExistingInstall into normalize/ensure/telemetry helpers to reduce complexity; go test ./cmd/mmm/add before/after; make fmt.
 2025-12-26	00:16	mmm-81/82 in progress: refactored main.go runWithDeps into lifecycleState helpers and split perfExportConfigFromArgsWithAbs path/outdir helpers; go test . before/after; make fmt.
 2025-12-26	00:24	mmm-105 in progress: refactored internal/curseforge GetFingerprintsMatches into request/response/build helpers to reduce function length; go test ./internal/curseforge before/after; make fmt.
+2025-12-26	00:33	mmm-85: checked cmd/mmm/test/test.go commandWithRunner; no nolint or revive finding and make lint does not report it, so ticket appears already resolved.
+2025-12-26	00:37	mmm-104 in progress: refactored cmd/mmm/list Command into runListCommand + flag/deps/telemetry helpers to fix function-length; go test ./cmd/mmm/list before/after; make fmt.

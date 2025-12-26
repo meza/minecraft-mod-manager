@@ -32,61 +32,87 @@ func Command() *cobra.Command {
 		Use:     "list",
 		Aliases: []string{"ls", "l"},
 		Short:   i18n.T("cmd.list.short"),
-		RunE: func(cmd *cobra.Command, _ []string) (err error) {
-			ctx, span := perf.StartSpan(cmd.Context(), "app.command.list")
-
-			configPath, err := cmd.Flags().GetString("config")
-			if err != nil {
-				span.SetAttributes(attribute.Bool("success", false))
-				span.End()
-				return err
-			}
-			quiet, err := cmd.Flags().GetBool("quiet")
-			if err != nil {
-				span.SetAttributes(attribute.Bool("success", false))
-				span.End()
-				return err
-			}
-			debug, err := cmd.Flags().GetBool("debug")
-			if err != nil {
-				span.SetAttributes(attribute.Bool("success", false))
-				span.End()
-				return err
-			}
-
-			log := logger.New(cmd.OutOrStdout(), cmd.ErrOrStderr(), quiet, debug)
-			deps := listDeps{
-				fs:            afero.NewOsFs(),
-				logger:        log,
-				telemetry:     telemetry.RecordCommand,
-				programRunner: defaultProgramRunner,
-			}
-
-			entriesCount, usedTUI, err := runList(ctx, cmd, configPath, runListOptions{quiet: quiet}, deps)
-			span.SetAttributes(attribute.Bool("success", err == nil))
-			span.End()
-
-			payload := telemetry.CommandTelemetry{
-				Command:     "list",
-				Success:     err == nil,
-				Error:       err,
-				ExitCode:    0,
-				Interactive: usedTUI,
-			}
-			if err != nil {
-				payload.ExitCode = 1
-			} else {
-				payload.Extra = map[string]interface{}{
-					"numberOfMods": entriesCount,
-				}
-			}
-			deps.telemetry(payload)
-
-			return err
-		},
+		RunE:    runListCommand,
 	}
 
 	return cmd
+}
+
+type listCommandOptions struct {
+	configPath string
+	quiet      bool
+	debug      bool
+}
+
+func runListCommand(cmd *cobra.Command, _ []string) error {
+	ctx, span := perf.StartSpan(cmd.Context(), "app.command.list")
+
+	options, err := listOptionsFromFlags(cmd)
+	if err != nil {
+		finishListSpan(span, false)
+		return err
+	}
+
+	deps := defaultListDeps(cmd, options)
+	entriesCount, usedTUI, runErr := runList(ctx, cmd, options.configPath, runListOptions{quiet: options.quiet}, deps)
+	finishListSpan(span, runErr == nil)
+	recordListTelemetry(deps.telemetry, entriesCount, usedTUI, runErr)
+
+	return runErr
+}
+
+func listOptionsFromFlags(cmd *cobra.Command) (listCommandOptions, error) {
+	configPath, err := cmd.Flags().GetString("config")
+	if err != nil {
+		return listCommandOptions{}, err
+	}
+	quiet, err := cmd.Flags().GetBool("quiet")
+	if err != nil {
+		return listCommandOptions{}, err
+	}
+	debug, err := cmd.Flags().GetBool("debug")
+	if err != nil {
+		return listCommandOptions{}, err
+	}
+
+	return listCommandOptions{
+		configPath: configPath,
+		quiet:      quiet,
+		debug:      debug,
+	}, nil
+}
+
+func defaultListDeps(cmd *cobra.Command, options listCommandOptions) listDeps {
+	log := logger.New(cmd.OutOrStdout(), cmd.ErrOrStderr(), options.quiet, options.debug)
+	return listDeps{
+		fs:            afero.NewOsFs(),
+		logger:        log,
+		telemetry:     telemetry.RecordCommand,
+		programRunner: defaultProgramRunner,
+	}
+}
+
+func finishListSpan(span *perf.Span, success bool) {
+	span.SetAttributes(attribute.Bool("success", success))
+	span.End()
+}
+
+func recordListTelemetry(telemetryRecorder func(telemetry.CommandTelemetry), entriesCount int, usedTUI bool, err error) {
+	payload := telemetry.CommandTelemetry{
+		Command:     "list",
+		Success:     err == nil,
+		Error:       err,
+		ExitCode:    0,
+		Interactive: usedTUI,
+	}
+	if err != nil {
+		payload.ExitCode = 1
+	} else {
+		payload.Extra = map[string]interface{}{
+			"numberOfMods": entriesCount,
+		}
+	}
+	telemetryRecorder(payload)
 }
 
 type listDeps struct {
