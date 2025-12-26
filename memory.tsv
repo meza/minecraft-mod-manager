@@ -634,3 +634,14 @@ date	time	entry
 2025-12-26	17:03	mmm-63.84: updated update cancellation handling to persist outcomes via context.WithoutCancel; added TestRunUpdatePersistsCompletedUpdatesWhenCanceled and adjusted processCandidates/runUpdate; ran go test ./cmd/mmm/update plus make fmt/lint/coverage/build.
 2025-12-26	17:27	mmm-63.84: removed max-concurrency flag from update/test commands, options, docs, i18n; hardcoded concurrency limit via default constants; updated tests accordingly and ran go test ./cmd/mmm/update ./cmd/mmm/test.
 2025-12-26	17:44	[RESOLVED] Closed mmm-63.84 after reviewer approval and Windows verification; concurrency now hardcoded, cancellation persistence covered, and CONTRIBUTING shared-infra risk guidance added.
+2025-12-26	18:23	Inspected all open mmm-63.* tickets against code; only mmm-63.29 appears resolved (config/lock Exists errors now handled) pending explicit closure approval; others remain open.
+2025-12-26	18:48	Closed mmm-63.29 after verifying config/lock Exists errors are handled; user asked about clustering remaining open mmm-63.* tickets.
+2025-12-26	19:00	Created cluster epics mmm-114..mmm-117, attached open mmm-63.* tickets as blockers, and removed mmm-63 dependencies so it now depends only on the cluster epics; closed mmm-63.29 per user.
+2025-12-26	19:04	User asked about tackling epic mmm-114 in one pass instead of only child tickets; awaiting scope/approval.
+2025-12-26	19:11	Created umbrella epics mmm-118..mmm-124 for mmm-114 groups and wired dependencies so mmm-114 depends on those umbrellas; each umbrella depends on its grouped mmm-63.* child tickets.
+2025-12-26	19:17	Created umbrella epics mmm-125..mmm-143 for mmm-115/116/117 groupings and wired dependencies so each parent cluster depends on the new umbrellas; each umbrella depends on its grouped mmm-63.* child tickets.
+2025-12-26	19:20	Removed direct mmm-114 dependencies on mmm-63.* tickets so it is blocked only by cluster epics mmm-118..mmm-124.
+2025-12-26	19:21	Removed direct mmm-115/116/117 dependencies on mmm-63.* tickets so each depends only on their cluster umbrellas (mmm-125..143).
+2025-12-26	19:23	Removed "Cluster - " prefix from mmm-114..117 and umbrellas mmm-118..143.
+2025-12-26	19:28	Updated mmm-118..143 descriptions to describe implementation grouping decision (no umbrella terminology) and clarify tracking remains at leaf tickets.
+2025-12-26	19:31	Updated mmm-114..117 descriptions to clarify they are tracking groups; execution happens in linked implementation groups and leaf tickets.
