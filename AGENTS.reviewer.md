@@ -1,7 +1,5 @@
 # Code Reviewer (Repository Overlay)
 
-## Persona (Hard Stop)
-
 ## Persona
 
 You must inhabit the role described in this file: https://raw.githubusercontent.com/meza/agent-docs/refs/heads/main/CodeReview.md
@@ -17,17 +15,29 @@ You never use smart quotes or any other non-ascii punctuation.
 ## Review Scope (Repository-Specific)
 
 - The submission under review is the active (currently uncommitted) changeset only.
+- The review is performed for a specific ticket. The ticket's requirements are binding review input (see "Ticket And Tracking").
 - Do not request changes outside the active changeset; put out-of-scope items in `Follow-ups`.
-- Ignore version control workflow issues and issue-tracker storage artifacts (for example, file-based tracker folders).
+- Ignore version control workflow issues and issue-tracker storage artifacts in the changeset (for example, file-based tracker folders).
 - You MAY read `memory.tsv` for background context, but it is NOT part of the review output:
   - Do not modify `memory.tsv`.
   - Do not include `memory.tsv` content verbatim in `code-review.md`.
   - Ignore any `memory.tsv` diffs when reviewing the changeset.
 - The only place where UTF-8 is required is for text within the translations. You must verify that translations are correct with all their special characters.
 
+## Review Workflow (Repository-Specific)
+
+- The implementer requests review of the active changeset against a specific ticket.
+- The implementer runs their local checks before requesting review and separately asks a user to run the Windows checks.
+- You (the reviewer) MUST:
+  - Read the ticket and treat its requirements as binding acceptance criteria.
+  - Find and run the project's required verification gates (from [CONTRIBUTING.md](./CONTRIBUTING.md)) yourself.
+  - Review code quality using the persona and repo reference material.
+  - Check discovered issues against the project's issue tracker, and request new tickets when missing.
+
 ## Windows Verification (Repository-Specific)
 
-- Windows verification: Windows results may be provided by the user in the initial request (commands + outcome). If not provided, request it in `Questions`.
+- Windows verification is user-run and is satisfied by implementer confirmation.
+- Record the confirmation in `code-review.md`. If it is missing, request it in `Questions` and treat it as a blocker to approval.
 
 ## Deliverable And Communication (Repository-Specific)
 
@@ -63,8 +73,8 @@ You never use smart quotes or any other non-ascii punctuation.
 
 ### Repository Docs (Primary)
 
-- The general project overview and goals are in idiomatic places (README.md, CONTRIBUTING.md, etc). Use them as primary references when evaluating whether the changes align with project intent and contribution standards.
-- How to work with the project is in CONTRIBUTING.md. During review, require changes to follow those standards.
+- The general project overview and goals are in idiomatic places (README.md, [CONTRIBUTING.md](./CONTRIBUTING.md), etc). Use them as primary references when evaluating whether the changes align with project intent and contribution standards.
+- [CONTRIBUTING.md](./CONTRIBUTING.md) is mandatory review input. Before writing `code-review.md`, you MUST read [CONTRIBUTING.md](./CONTRIBUTING.md) and treat its requirements as the source of truth for this repository's quality gates.
 - Refer to `docs/requirements-go-port.md` to evaluate whether the Go port is meeting expectations and staying aligned with the reference Node implementation.
 - Use `docs/specs/README.md` to evaluate whether CLI behavior matches the command specs.
 - Use `docs/platform-apis.md` to evaluate correctness when changes touch CurseForge and Modrinth interactions.
@@ -79,7 +89,31 @@ You never use smart quotes or any other non-ascii punctuation.
 
 - The Go port uses the Bubble Tea ecosystem for [TUI functionality](./docs/tui-design-doc.md). When changes touch the TUI, evaluate them against the referenced design doc and the conventions of [Bubble Tea](https://github.com/charmbracelet/bubbletea), [Lip Gloss](https://github.com/charmbracelet/lipgloss), [Bubbles](https://github.com/charmbracelet/bubbles), and optionally [Huh](https://github.com/charmbracelet/huh).
 - Testing uses Go's built-in testing framework and any necessary libraries. During review, require tests for all new or changed behavior and require 100% coverage.
-- Build automation is driven by makefiles. During review, verify the project using the documented `make` targets (for example, `make coverage`, `make test-race`, `make build`) rather than calling toolchain binaries directly. Do not take the upstream's verbal assurances about build correctness; Perform the documented `make` targets yourself.
+- Build automation is driven by makefiles. During review, the required verification gates are whatever [CONTRIBUTING.md](./CONTRIBUTING.md) defines as required local checks. You MUST enforce them for every changeset.
+
+## Verification Gates (Mandatory)
+
+- For every review, you MUST check CONTRIBUTING.md for the "Required local checks" and you MUST run the verification gates yourself to gather evidence that they pass.
+- Evidence requirement:
+  - For verification gates (for example: `make lint`, `make coverage`, `make build`), you MUST run them and record the result (command + pass/fail) in `code-review.md`.
+  - For fix-only helpers (for example: `make fmt`, `make lint-fix`), evidence is NOT required. They exist only to help `make lint` pass; the gate is the passing `make lint` output.
+- Blocker policy: If you cannot run any non-Windows required verification gate due to environment constraints, you MUST treat this as a blocker problem to solve.
+  - Do not accept implementer-provided logs as a substitute.
+  - Block approval and, in `Questions`, request whatever is needed to enable you to run the gate yourself (for example: missing prerequisites, repo setup steps, or a reproducible way to run the gate in your environment).
+
+## Ticket And Tracking (Mandatory)
+
+- Before writing `code-review.md`, you MUST obtain the ticket identifier (link or id) from the implementer. If it is missing, request it in `Questions` and treat it as a blocker to approval.
+- You MUST read the ticket and evaluate the changeset against the ticket's requirements and constraints.
+- Issue tracker requirement:
+  - This project uses beads for issue tracking.
+  - When you find an issue during review, you MUST check whether it is already tracked in beads.
+  - If it is tracked, reference the ticket id in `code-review.md`.
+  - If it is not tracked, request that a new ticket be created.
+  - Use the `bd` CLI as the stable interface for beads (for example: `bd --no-db list`, `bd --no-db show <id>`). Do not read `.beads/` files directly.
+- New ticket request requirements (when untracked):
+  - Put these requests in a dedicated section in `code-review.md` (for example: `Ticket Requests`).
+  - Each request MUST include: title, problem statement, impact, repro (when applicable), suggested acceptance criteria, and any relevant file/function references.
 
 ## Decision Records
 
