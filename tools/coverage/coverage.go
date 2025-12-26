@@ -80,15 +80,20 @@ func runMain() int {
 	}
 
 	if err := tool.run(); err != nil {
-		var coverageError coverageNotFullError
-		if !errors.As(err, &coverageError) {
-			if _, writeErr := fmt.Fprintln(stderrWriter, err); writeErr != nil {
-				return 1
-			}
-		}
-		return 1
+		return handleRunError(err)
 	}
 	return 0
+}
+
+func handleRunError(runErr error) int {
+	var coverageError coverageNotFullError
+	if errors.As(runErr, &coverageError) {
+		return 1
+	}
+	if _, writeErr := fmt.Fprintln(stderrWriter, runErr); writeErr != nil {
+		return 1
+	}
+	return 1
 }
 
 func newCoverageTool() (*coverageTool, error) {

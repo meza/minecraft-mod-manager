@@ -316,7 +316,7 @@ func renderEntry(entry listEntry, colorMode tui.ColorMode) string {
 	} else {
 		icon = tui.RenderIfColorEnabled(colorMode, tui.ErrorStyle, icon)
 	}
-	id = tui.RenderIfColorEnabled(colorMode, tui.PlaceholderStyle.Copy().PaddingLeft(0), id)
+	id = tui.RenderIfColorEnabled(colorMode, tui.PlaceholderStyle.PaddingLeft(0), id)
 
 	message := i18n.T(key, i18n.Tvars{
 		Data: &i18n.TData{

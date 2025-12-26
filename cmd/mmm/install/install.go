@@ -916,7 +916,7 @@ func reportScanResults(input scanReportInputs) (scanReportOutcome, error) {
 			outcome.unmanagedFound = true
 			name := item.Hits[0].Name
 			if input.colorize {
-				name = tui.TitleStyle.Copy().Bold(true).Render(name)
+				name = tui.TitleStyle.Bold(true).Render(name)
 			}
 			input.deps.logger.Log(tui.SuccessIcon(colorMode)+i18n.T("cmd.install.unmanaged.found", i18n.Tvars{
 				Data: &i18n.TData{"name": name},

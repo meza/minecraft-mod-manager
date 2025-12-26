@@ -610,3 +610,6 @@ date	time	entry
 2025-12-26	09:53	mmm-107: user confirmed Windows make coverage, make build, and make test-race all pass.
 2025-12-26	09:53	Closed mmm-107 per user request after reviewer approval and Windows make coverage/build/test-race confirmation.
 2025-12-26	10:05	Reopened mmm-109 after make lint reported nestif in tools/coverage/coverage.go.
+2025-12-26	11:12	Ran make lint; new lint findings map to existing tickets mmm-109..112; created mmm-113 for staticcheck deprecations (Style.Copy) and added blockers mmm-109..113 to mmm-63.107.
+2025-12-26	11:14	mmm-113 in progress: replaced deprecated lipgloss Style.Copy calls with direct style usage in cmd/mmm/install, cmd/mmm/list, cmd/mmm/scan; ran go test ./cmd/mmm/install ./cmd/mmm/list ./cmd/mmm/scan before/after.
+2025-12-26	11:17	mmm-109 in progress: refactored tools/coverage runMain error handling into handleRunError to clear nestif; go test ./tools/coverage before/after pass.

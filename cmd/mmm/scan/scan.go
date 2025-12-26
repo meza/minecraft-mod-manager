@@ -986,7 +986,7 @@ func printResults(log *logger.Logger, out io.Writer, _ models.Platform, matches 
 	if len(matches) > 0 {
 		log.Log(i18n.T("cmd.scan.recognized.header"), logger.LogQuiet)
 		for _, match := range matches {
-			name := tui.RenderIfColorEnabled(colorMode, tui.TitleStyle.Copy().Bold(true), match.Name)
+			name := tui.RenderIfColorEnabled(colorMode, tui.TitleStyle.Bold(true), match.Name)
 			log.Log(messageWithIcon(tui.SuccessIcon(colorMode), i18n.T("cmd.scan.recognized.entry", i18n.Tvars{
 				Data: &i18n.TData{
 					"name":     name,
