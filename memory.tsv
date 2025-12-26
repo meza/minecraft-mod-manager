@@ -593,3 +593,4 @@ date	time	entry
 2025-12-25	21:41	Closed mmm-63.106.4 after reviewer approval and Windows verification; errcheck/bodyclose cleaned.
 2025-12-25	22:55	mmm-98: extracted tui.RenderIfColorEnabled helper, updated list/scan/test formatting, added terminal-colorize coverage tests (install/update/test/scan) plus colorize paths in install helpers; make fmt/test/coverage pass.
 2025-12-25	23:32	mmm-75/76/77 in progress: refactored cmd/mmm/scan/scan.go runScan persistence flow into helper, added runModrinthLookups and addCurseforgeMatchesWithCache helpers, removed scan nolint; make test before/after and make fmt pass.
+2025-12-25	23:55	mmm-78/79/80 in progress: refactored cmd/mmm/update/update.go runUpdate/processMod/downloadAndSwap into helpers to reduce complexity nolints; go test ./cmd/mmm/update before and after; make fmt.

@@ -181,47 +181,23 @@ type updateCounts struct {
 	failed  int
 }
 
-//nolint:gocognit,gocyclo,funlen // Update flow mirrors spec stages; splitting obscures behavior.
 func runUpdate(ctx context.Context, cmd *cobra.Command, opts updateOptions, deps updateDeps) (updateCounts, error) {
-	installResult, err := deps.install(ctx, cmd, opts.ConfigPath, opts.Quiet, opts.Debug)
-	if err != nil {
+	if err := ensureInstallForUpdate(ctx, cmd, opts, deps); err != nil {
 		return updateCounts{}, err
 	}
-	if installResult.UnmanagedFound {
-		deps.logger.Error(i18n.T("cmd.update.error.unmanaged_found"))
-		return updateCounts{}, errUnmanagedFiles
-	}
 
-	meta := config.NewMetadata(opts.ConfigPath)
-
-	cfg, err := config.ReadConfig(ctx, deps.fs, meta)
+	updateContext, err := loadUpdateContext(ctx, cmd, opts, deps)
 	if err != nil {
 		return updateCounts{}, err
 	}
 
-	lock, err := config.ReadLock(ctx, deps.fs, meta)
-	if err != nil {
-		return updateCounts{}, err
-	}
+	candidates := updateCandidates(updateContext.cfg)
+	outcomes := processCandidates(ctx, updateContext.meta, updateContext.cfg, updateContext.lock, candidates, deps, updateContext.colorMode)
+	counts := applyUpdateOutcomes(deps.logger, outcomes, &updateContext.cfg, updateContext.lock)
 
-	colorize := tui.IsTerminalWriter(cmd.OutOrStdout())
-	colorMode := tui.ColorDisabled
-	if colorize {
-		colorMode = tui.ColorEnabled
-	}
+	reportNoUpdatesIfNeeded(deps.logger, counts, updateContext.colorMode)
 
-	candidates := updateCandidates(cfg)
-	outcomes := processCandidates(ctx, meta, cfg, lock, candidates, deps, colorMode)
-	counts := applyUpdateOutcomes(deps.logger, outcomes, &cfg, lock)
-
-	if counts.updated == 0 && counts.failed == 0 {
-		deps.logger.Log(messageWithIcon(tui.SuccessIcon(colorMode), i18n.T("cmd.update.no_updates")), logger.LogForce)
-	}
-
-	if err := config.WriteLock(ctx, deps.fs, meta, lock); err != nil {
-		return counts, err
-	}
-	if err := config.WriteConfig(ctx, deps.fs, meta, cfg); err != nil {
+	if err := persistUpdateConfig(ctx, deps, updateContext); err != nil {
 		return counts, err
 	}
 
@@ -230,6 +206,67 @@ func runUpdate(ctx context.Context, cmd *cobra.Command, opts updateOptions, deps
 	}
 
 	return counts, nil
+}
+
+type updateContext struct {
+	meta      config.Metadata
+	cfg       models.ModsJSON
+	lock      []models.ModInstall
+	colorMode tui.ColorMode
+}
+
+func ensureInstallForUpdate(ctx context.Context, cmd *cobra.Command, opts updateOptions, deps updateDeps) error {
+	installResult, err := deps.install(ctx, cmd, opts.ConfigPath, opts.Quiet, opts.Debug)
+	if err != nil {
+		return err
+	}
+	if installResult.UnmanagedFound {
+		deps.logger.Error(i18n.T("cmd.update.error.unmanaged_found"))
+		return errUnmanagedFiles
+	}
+	return nil
+}
+
+func loadUpdateContext(ctx context.Context, cmd *cobra.Command, opts updateOptions, deps updateDeps) (updateContext, error) {
+	meta := config.NewMetadata(opts.ConfigPath)
+
+	cfg, err := config.ReadConfig(ctx, deps.fs, meta)
+	if err != nil {
+		return updateContext{}, err
+	}
+
+	lock, err := config.ReadLock(ctx, deps.fs, meta)
+	if err != nil {
+		return updateContext{}, err
+	}
+
+	colorMode := tui.ColorDisabled
+	if tui.IsTerminalWriter(cmd.OutOrStdout()) {
+		colorMode = tui.ColorEnabled
+	}
+
+	return updateContext{
+		meta:      meta,
+		cfg:       cfg,
+		lock:      lock,
+		colorMode: colorMode,
+	}, nil
+}
+
+func reportNoUpdatesIfNeeded(log *logger.Logger, counts updateCounts, colorMode tui.ColorMode) {
+	if counts.updated == 0 && counts.failed == 0 {
+		log.Log(messageWithIcon(tui.SuccessIcon(colorMode), i18n.T("cmd.update.no_updates")), logger.LogForce)
+	}
+}
+
+func persistUpdateConfig(ctx context.Context, deps updateDeps, updateContext updateContext) error {
+	if err := config.WriteLock(ctx, deps.fs, updateContext.meta, updateContext.lock); err != nil {
+		return err
+	}
+	if err := config.WriteConfig(ctx, deps.fs, updateContext.meta, updateContext.cfg); err != nil {
+		return err
+	}
+	return nil
 }
 
 func updateCandidates(cfg models.ModsJSON) []modUpdateCandidate {
@@ -306,7 +343,6 @@ func applyUpdateOutcomes(log *logger.Logger, outcomes []modUpdateOutcome, cfg *m
 var errUpdateFailures = errors.New("one or more mods failed to update")
 var errUnmanagedFiles = errors.New("unmanaged files in mods folder")
 
-//nolint:gocyclo,funlen // Keeps per-mod update flow readable.
 func processMod(
 	ctx context.Context,
 	meta config.Metadata,
@@ -318,6 +354,52 @@ func processMod(
 ) modUpdateOutcome {
 	mod := candidate.Mod
 
+	outcome, lockIndex, shouldContinue := initializeUpdateOutcome(candidate, lock)
+	if !shouldContinue {
+		return outcome
+	}
+
+	appendUpdateCheckEvent(&outcome, mod)
+
+	remote, ok := fetchRemoteForUpdate(ctx, cfg, mod, deps, colorMode, &outcome)
+	if !ok {
+		return outcome
+	}
+
+	remote, ok = normalizeRemoteFileNameForUpdate(remote, mod, &outcome)
+	if !ok {
+		return outcome
+	}
+
+	outcome.NewName = remote.Name
+
+	installed := lock[lockIndex]
+	oldPath, ok := resolveInstalledUpdatePath(meta, cfg, mod, installed, deps, &outcome)
+	if !ok {
+		return outcome
+	}
+
+	shouldUpdate, ok := shouldUpdateMod(installed, remote, mod, &outcome)
+	if !ok || !shouldUpdate {
+		return outcome
+	}
+
+	appendUpdateAvailableEvent(&outcome, mod)
+
+	newPath := filepath.Join(meta.ModsFolderPath(cfg), remote.FileName)
+
+	if err := downloadAndSwap(ctx, deps, oldPath, newPath, meta.ModsFolderPath(cfg), remote.DownloadURL, remote.Hash); err != nil {
+		appendUpdateFailure(&outcome, err, mod.Name)
+		return outcome
+	}
+
+	outcome.NewInstall = buildUpdatedInstall(mod, remote)
+	outcome.Updated = true
+	return outcome
+}
+
+func initializeUpdateOutcome(candidate modUpdateCandidate, lock []models.ModInstall) (modUpdateOutcome, int, bool) {
+	mod := candidate.Mod
 	outcome := modUpdateOutcome{
 		ConfigIndex: candidate.ConfigIndex,
 	}
@@ -334,15 +416,19 @@ func processMod(
 			}),
 		})
 		outcome.Error = errUpdateFailures
-		return outcome
+		return outcome, -1, false
 	}
 	outcome.LockIndex = lockIndex
 
 	if isPinned(mod) {
 		outcome.NewName = lock[lockIndex].Name
-		return outcome
+		return outcome, lockIndex, false
 	}
 
+	return outcome, lockIndex, true
+}
+
+func appendUpdateCheckEvent(outcome *modUpdateOutcome, mod models.Mod) {
 	outcome.LogEvents = append(outcome.LogEvents, logEvent{
 		Kind: logEventKindDebug,
 		Message: i18n.T("cmd.update.debug.checking", i18n.Tvars{
@@ -352,20 +438,32 @@ func processMod(
 			},
 		}),
 	})
+}
 
-	remote, fetchErr := deps.fetchMod(ctx, mod.Type, mod.ID, platform.FetchOptions{
+func fetchRemoteForUpdate(
+	ctx context.Context,
+	cfg models.ModsJSON,
+	mod models.Mod,
+	deps updateDeps,
+	colorMode tui.ColorMode,
+	outcome *modUpdateOutcome,
+) (platform.RemoteMod, bool) {
+	remote, err := deps.fetchMod(ctx, mod.Type, mod.ID, platform.FetchOptions{
 		AllowedReleaseTypes: effectiveAllowedReleaseTypes(mod, cfg),
 		GameVersion:         cfg.GameVersion,
 		Loader:              cfg.Loader,
 		AllowFallback:       mod.AllowVersionFallback != nil && *mod.AllowVersionFallback,
 		FixedVersion:        "",
 	}, deps.clients)
-	if fetchErr != nil {
-		outcome.LogEvents = append(outcome.LogEvents, fetchErrorEvents(fetchErr, mod, colorMode)...)
+	if err != nil {
+		outcome.LogEvents = append(outcome.LogEvents, fetchErrorEvents(err, mod, colorMode)...)
 		outcome.Error = errUpdateFailures
-		return outcome
+		return platform.RemoteMod{}, false
 	}
+	return remote, true
+}
 
+func normalizeRemoteFileNameForUpdate(remote platform.RemoteMod, mod models.Mod, outcome *modUpdateOutcome) (platform.RemoteMod, bool) {
 	normalizedRemoteFileName, err := modfilename.Normalize(remote.FileName)
 	if err != nil {
 		outcome.LogEvents = append(outcome.LogEvents, logEvent{
@@ -378,11 +476,20 @@ func processMod(
 			}),
 		})
 		outcome.Error = errUpdateFailures
-		return outcome
+		return platform.RemoteMod{}, false
 	}
 	remote.FileName = normalizedRemoteFileName
+	return remote, true
+}
 
-	installed := lock[lockIndex]
+func resolveInstalledUpdatePath(
+	meta config.Metadata,
+	cfg models.ModsJSON,
+	mod models.Mod,
+	installed models.ModInstall,
+	deps updateDeps,
+	outcome *modUpdateOutcome,
+) (string, bool) {
 	normalizedInstalledFileName, err := modfilename.Normalize(installed.FileName)
 	if err != nil {
 		outcome.LogEvents = append(outcome.LogEvents, logEvent{
@@ -395,14 +502,15 @@ func processMod(
 			}),
 		})
 		outcome.Error = errUpdateFailures
-		return outcome
+		return "", false
 	}
+
 	oldPath := filepath.Join(meta.ModsFolderPath(cfg), normalizedInstalledFileName)
 	exists, err := afero.Exists(deps.fs, oldPath)
 	if err != nil {
 		outcome.LogEvents = append(outcome.LogEvents, logEvent{Kind: logEventKindError, Message: err.Error()})
 		outcome.Error = errUpdateFailures
-		return outcome
+		return "", false
 	}
 	if !exists {
 		outcome.LogEvents = append(outcome.LogEvents, logEvent{
@@ -416,28 +524,28 @@ func processMod(
 			}),
 		})
 		outcome.Error = errUpdateFailures
-		return outcome
+		return "", false
 	}
 
+	return oldPath, true
+}
+
+func shouldUpdateMod(installed models.ModInstall, remote platform.RemoteMod, mod models.Mod, outcome *modUpdateOutcome) (bool, bool) {
 	installedDate, err := parseRFC3339(installed.ReleasedOn)
 	if err != nil {
 		outcome.LogEvents = append(outcome.LogEvents, logEvent{Kind: logEventKindError, Message: err.Error()})
 		outcome.Error = errUpdateFailures
-		return outcome
+		return false, false
 	}
 	remoteDate, err := parseRFC3339(remote.ReleaseDate)
 	if err != nil {
 		outcome.LogEvents = append(outcome.LogEvents, logEvent{Kind: logEventKindError, Message: err.Error()})
 		outcome.Error = errUpdateFailures
-		return outcome
+		return false, false
 	}
-
-	outcome.NewName = remote.Name
-
 	if !remoteDate.After(installedDate) {
-		return outcome
+		return false, true
 	}
-
 	if strings.TrimSpace(installed.Hash) == "" {
 		outcome.LogEvents = append(outcome.LogEvents, logEvent{
 			Kind: logEventKindError,
@@ -446,9 +554,8 @@ func processMod(
 			}),
 		})
 		outcome.Error = errUpdateFailures
-		return outcome
+		return false, false
 	}
-
 	if strings.TrimSpace(remote.Hash) == "" {
 		outcome.LogEvents = append(outcome.LogEvents, logEvent{
 			Kind: logEventKindError,
@@ -457,13 +564,15 @@ func processMod(
 			}),
 		})
 		outcome.Error = errUpdateFailures
-		return outcome
+		return false, false
 	}
-
 	if strings.EqualFold(strings.TrimSpace(remote.Hash), strings.TrimSpace(installed.Hash)) {
-		return outcome
+		return false, true
 	}
+	return true, true
+}
 
+func appendUpdateAvailableEvent(outcome *modUpdateOutcome, mod models.Mod) {
 	outcome.LogEvents = append(outcome.LogEvents, logEvent{
 		Kind:      logEventKindLog,
 		ForceShow: true,
@@ -471,20 +580,19 @@ func processMod(
 			Data: &i18n.TData{"name": mod.Name},
 		}),
 	})
+}
 
-	newPath := filepath.Join(meta.ModsFolderPath(cfg), remote.FileName)
-
-	if err := downloadAndSwap(ctx, deps, oldPath, newPath, meta.ModsFolderPath(cfg), remote.DownloadURL, remote.Hash); err != nil {
-		if message, handled := integrityErrorMessage(err, mod.Name); handled {
-			outcome.LogEvents = append(outcome.LogEvents, logEvent{Kind: logEventKindError, Message: message})
-		} else {
-			outcome.LogEvents = append(outcome.LogEvents, logEvent{Kind: logEventKindError, Message: err.Error()})
-		}
-		outcome.Error = errUpdateFailures
-		return outcome
+func appendUpdateFailure(outcome *modUpdateOutcome, err error, modName string) {
+	if message, handled := integrityErrorMessage(err, modName); handled {
+		outcome.LogEvents = append(outcome.LogEvents, logEvent{Kind: logEventKindError, Message: message})
+	} else {
+		outcome.LogEvents = append(outcome.LogEvents, logEvent{Kind: logEventKindError, Message: err.Error()})
 	}
+	outcome.Error = errUpdateFailures
+}
 
-	updatedInstall := models.ModInstall{
+func buildUpdatedInstall(mod models.Mod, remote platform.RemoteMod) models.ModInstall {
+	return models.ModInstall{
 		Type:        mod.Type,
 		ID:          mod.ID,
 		Name:        remote.Name,
@@ -493,31 +601,20 @@ func processMod(
 		Hash:        remote.Hash,
 		DownloadURL: remote.DownloadURL,
 	}
-
-	outcome.NewInstall = updatedInstall
-	outcome.Updated = true
-	return outcome
 }
 
-//nolint:gocognit,gocyclo // Sequential swap steps are clearer without extra indirection.
 func downloadAndSwap(ctx context.Context, deps updateDeps, oldPath string, newPath string, modsFolder string, downloadURL string, expectedHash string) error {
 	if strings.TrimSpace(expectedHash) == "" {
 		return modinstall.MissingHashError{FileName: filepath.Base(newPath)}
 	}
 
-	resolvedNewPath, err := modpath.ResolveWritablePath(deps.fs, modsFolder, newPath)
+	resolvedNewPath, tempPath, err := prepareDownloadPaths(deps.fs, modsFolder, newPath)
 	if err != nil {
 		return err
 	}
 
-	tempPath, err := createTempDownloadPath(deps.fs, resolvedNewPath)
-	if err != nil {
-		return err
-	}
-
-	downloadErr := deps.downloader(ctx, downloadURL, tempPath, downloadClient(deps.clients), &noopSender{}, deps.fs)
-	if downloadErr != nil {
-		return removeTempFile(deps.fs, tempPath, downloadErr)
+	if err := downloadToTemp(ctx, deps, downloadURL, tempPath); err != nil {
+		return removeTempFile(deps.fs, tempPath, err)
 	}
 
 	if err := verifyDownloadedHash(deps.fs, tempPath, expectedHash, newPath); err != nil {
@@ -528,12 +625,34 @@ func downloadAndSwap(ctx context.Context, deps updateDeps, oldPath string, newPa
 		return removeTempFile(deps.fs, tempPath, err)
 	}
 
+	return removeOldInstall(deps.fs, oldPath, newPath, resolvedNewPath)
+}
+
+func prepareDownloadPaths(fs afero.Fs, modsFolder string, newPath string) (string, string, error) {
+	resolvedNewPath, err := modpath.ResolveWritablePath(fs, modsFolder, newPath)
+	if err != nil {
+		return "", "", err
+	}
+
+	tempPath, err := createTempDownloadPath(fs, resolvedNewPath)
+	if err != nil {
+		return "", "", err
+	}
+
+	return resolvedNewPath, tempPath, nil
+}
+
+func downloadToTemp(ctx context.Context, deps updateDeps, downloadURL string, tempPath string) error {
+	return deps.downloader(ctx, downloadURL, tempPath, downloadClient(deps.clients), &noopSender{}, deps.fs)
+}
+
+func removeOldInstall(fs afero.Fs, oldPath string, newPath string, resolvedNewPath string) error {
 	if filepath.Clean(oldPath) == filepath.Clean(newPath) {
 		return nil
 	}
 
-	if err := deps.fs.Remove(oldPath); err != nil {
-		removeErr := deps.fs.Remove(resolvedNewPath)
+	if err := fs.Remove(oldPath); err != nil {
+		removeErr := fs.Remove(resolvedNewPath)
 		if removeErr != nil && !errors.Is(removeErr, os.ErrNotExist) {
 			return errors.Join(err, fmt.Errorf("failed to remove new file %s: %w", resolvedNewPath, removeErr))
 		}
