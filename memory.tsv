@@ -623,3 +623,4 @@ date	time	entry
 2025-12-26	14:17	Closed mmm-63.107 after all linked lint remediation tickets are closed and make lint is clean.
 2025-12-26	14:18	Added mmm-63 dependencies so all mmm-63.* tickets block mmm-63 (bulk dep add; duplicates skipped).
 2025-12-26	14:22	Adjusted priorities per user: mmm-63.3 and mmm-63.2 downgraded to P3.
+2025-12-26	14:32	Closed mmm-63.30: request construction errors already handled with tests; URL validation deferred to mmm-63.85 and download URL checks to mmm-63.14 per user.
