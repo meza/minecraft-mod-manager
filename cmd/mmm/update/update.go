@@ -530,7 +530,7 @@ func resolveInstalledUpdatePath(
 	return oldPath, true
 }
 
-func shouldUpdateMod(installed models.ModInstall, remote platform.RemoteMod, mod models.Mod, outcome *modUpdateOutcome) (bool, bool) {
+func shouldUpdateMod(installed models.ModInstall, remote platform.RemoteMod, mod models.Mod, outcome *modUpdateOutcome) (shouldUpdate bool, shouldCheck bool) {
 	installedDate, err := parseRFC3339(installed.ReleasedOn)
 	if err != nil {
 		outcome.LogEvents = append(outcome.LogEvents, logEvent{Kind: logEventKindError, Message: err.Error()})
@@ -628,13 +628,13 @@ func downloadAndSwap(ctx context.Context, deps updateDeps, oldPath string, newPa
 	return removeOldInstall(deps.fs, oldPath, newPath, resolvedNewPath)
 }
 
-func prepareDownloadPaths(fs afero.Fs, modsFolder string, newPath string) (string, string, error) {
-	resolvedNewPath, err := modpath.ResolveWritablePath(fs, modsFolder, newPath)
+func prepareDownloadPaths(fs afero.Fs, modsFolder string, newPath string) (resolvedNewPath string, tempPath string, err error) {
+	resolvedNewPath, err = modpath.ResolveWritablePath(fs, modsFolder, newPath)
 	if err != nil {
 		return "", "", err
 	}
 
-	tempPath, err := createTempDownloadPath(fs, resolvedNewPath)
+	tempPath, err = createTempDownloadPath(fs, resolvedNewPath)
 	if err != nil {
 		return "", "", err
 	}

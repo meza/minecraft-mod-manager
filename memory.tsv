@@ -616,3 +616,4 @@ date	time	entry
 2025-12-26	11:39	Checked mmm-63.107 lint epic: remaining open leaf tickets are mmm-110, mmm-111, mmm-112; mmm-63.106.1 still in progress and is the biggest revive cleanup.
 2025-12-26	12:09	Closed mmm-112 after reviewer approval and Windows verification; unparam resolved by removing constant-only parameter from readBodySnippet.
 2025-12-26	13:42	Closed mmm-110 after reviewer approval and Windows verification; persistScanMatchesIfRequested now uses persistScanRequest to satisfy revive argument-limit.
+2025-12-26	14:10	Closed mmm-111 after reviewer approval and Windows verification; named return values for shouldUpdateMod and prepareDownloadPaths to satisfy revive confusing-results.
