@@ -121,7 +121,7 @@ func TestReadBodySnippetTruncates(t *testing.T) {
 	longBody := strings.Repeat("a", responseBodySnippetLimit+10)
 	reader := io.NopCloser(strings.NewReader(longBody))
 
-	snippet, err := readBodySnippet(reader, responseBodySnippetLimit)
+	snippet, err := readBodySnippet(reader)
 	assert.NoError(t, err)
 	assert.Len(t, snippet, responseBodySnippetLimit)
 }
@@ -129,7 +129,7 @@ func TestReadBodySnippetTruncates(t *testing.T) {
 func TestReadBodySnippetReturnsError(t *testing.T) {
 	reader := readErrorCloser{err: errors.New("read failed")}
 
-	_, err := readBodySnippet(reader, responseBodySnippetLimit)
+	_, err := readBodySnippet(reader)
 	assert.Error(t, err)
 }
 
@@ -139,7 +139,7 @@ func TestReadBodySnippetReturnsDrainError(t *testing.T) {
 		err:       errors.New("drain failed"),
 	}
 
-	_, err := readBodySnippet(reader, responseBodySnippetLimit)
+	_, err := readBodySnippet(reader)
 	assert.Error(t, err)
 }
 

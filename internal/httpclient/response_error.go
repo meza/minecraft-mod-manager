@@ -49,7 +49,7 @@ func NewResponseError(response *http.Response) *ResponseError {
 		return &ResponseError{Method: "", URL: "", StatusCode: 0}
 	}
 
-	snippet, err := readBodySnippet(response.Body, responseBodySnippetLimit)
+	snippet, err := readBodySnippet(response.Body)
 	if err != nil {
 		snippet = fmt.Sprintf("failed to read response body: %v", err)
 	}
@@ -87,11 +87,12 @@ func rateLimitInfo(header http.Header) RateLimitInfo {
 	}
 }
 
-func readBodySnippet(body io.ReadCloser, limit int) (string, error) {
+func readBodySnippet(body io.ReadCloser) (string, error) {
 	if body == nil {
 		return "", nil
 	}
 
+	limit := responseBodySnippetLimit
 	limited := io.LimitReader(body, int64(limit+1))
 	content, readErr := io.ReadAll(limited)
 	if readErr != nil {

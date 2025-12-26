@@ -613,3 +613,5 @@ date	time	entry
 2025-12-26	11:12	Ran make lint; new lint findings map to existing tickets mmm-109..112; created mmm-113 for staticcheck deprecations (Style.Copy) and added blockers mmm-109..113 to mmm-63.107.
 2025-12-26	11:14	mmm-113 in progress: replaced deprecated lipgloss Style.Copy calls with direct style usage in cmd/mmm/install, cmd/mmm/list, cmd/mmm/scan; ran go test ./cmd/mmm/install ./cmd/mmm/list ./cmd/mmm/scan before/after.
 2025-12-26	11:17	mmm-109 in progress: refactored tools/coverage runMain error handling into handleRunError to clear nestif; go test ./tools/coverage before/after pass.
+2025-12-26	11:39	Checked mmm-63.107 lint epic: remaining open leaf tickets are mmm-110, mmm-111, mmm-112; mmm-63.106.1 still in progress and is the biggest revive cleanup.
+2025-12-26	12:09	Closed mmm-112 after reviewer approval and Windows verification; unparam resolved by removing constant-only parameter from readBodySnippet.
