@@ -624,3 +624,7 @@ date	time	entry
 2025-12-26	14:18	Added mmm-63 dependencies so all mmm-63.* tickets block mmm-63 (bulk dep add; duplicates skipped).
 2025-12-26	14:22	Adjusted priorities per user: mmm-63.3 and mmm-63.2 downgraded to P3.
 2025-12-26	14:32	Closed mmm-63.30: request construction errors already handled with tests; URL validation deferred to mmm-63.85 and download URL checks to mmm-63.14 per user.
+2025-12-26	14:34	Closed mmm-63.28: Modrinth JSON decode errors already handled in project/version endpoints with tests; no code changes needed.
+2025-12-26	14:36	Closed mmm-63.23: Modrinth JSON decode errors already handled and tested; no further remediation needed.
+2025-12-26	14:48	mmm-63.86: added shutdown timeout + second-signal forced exit in internal/lifecycle; added tests for second signal and timeout default; make fmt/lint/coverage/build pass; awaiting Windows confirmation.
+2025-12-26	15:45	Closed mmm-63.86 after reviewer approval and Windows verification; lifecycle now forces exit on second signal and after shutdown timeout with tests.

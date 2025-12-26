@@ -7,6 +7,7 @@ import (
 	"sync"
 	"sync/atomic"
 	"syscall"
+	"time"
 )
 
 // Handler receives the OS signal that triggered shutdown.
@@ -16,7 +17,8 @@ type Handler func(os.Signal)
 type HandlerID int64
 
 var (
-	defaultSignals = []os.Signal{os.Interrupt, syscall.SIGTERM}
+	defaultSignals         = []os.Signal{os.Interrupt, syscall.SIGTERM}
+	defaultShutdownTimeout = 10 * time.Second
 
 	handlerCounter atomic.Int64
 
@@ -33,7 +35,10 @@ var (
 	notifyFunc      = signal.Notify
 	stopFunc        = signal.Stop
 	exitFunc        = os.Exit
+	timeAfterFunc   = time.After
 	listenerStopped = func() {}
+
+	shutdownTimeout = defaultShutdownTimeout
 )
 
 // Register adds a handler that will run when a shutdown signal arrives.
@@ -89,8 +94,26 @@ func startListener() {
 		defer localListenerStopped()
 		select {
 		case sig := <-localSignalChan:
-			runHandlers(sig)
-			exitFunc(exitCode(sig))
+			handlersDone := make(chan struct{})
+			go func() {
+				runHandlers(sig)
+				close(handlersDone)
+			}()
+
+			timeout := shutdownTimeout
+			if timeout <= 0 {
+				timeout = defaultShutdownTimeout
+			}
+			timeoutChan := timeAfterFunc(timeout)
+
+			select {
+			case <-handlersDone:
+				exitFunc(exitCode(sig))
+			case secondSignal := <-localSignalChan:
+				exitFunc(exitCode(secondSignal))
+			case <-timeoutChan:
+				exitFunc(exitCode(sig))
+			}
 		case <-localStopChan:
 			return
 		}
@@ -171,5 +194,7 @@ func restoreFactories() {
 	notifyFunc = signal.Notify
 	stopFunc = signal.Stop
 	exitFunc = os.Exit
+	timeAfterFunc = time.After
 	listenerStopped = func() {}
+	shutdownTimeout = defaultShutdownTimeout
 }

@@ -55,6 +55,69 @@ func TestRegisterIgnoresNil(t *testing.T) {
 	})
 }
 
+func TestSecondSignalForcesExit(t *testing.T) {
+	withSignalHarness(t, func(sigCh chan os.Signal, exitCh chan int) {
+		started := make(chan struct{})
+		block := make(chan struct{})
+		Register(func(os.Signal) {
+			close(started)
+			<-block
+		})
+
+		sigCh <- syscall.SIGINT
+
+		select {
+		case <-started:
+		case <-time.After(time.Second):
+			t.Fatal("handler did not start")
+		}
+
+		sigCh <- syscall.SIGTERM
+		waitExit(t, exitCh, syscall.SIGTERM)
+	})
+}
+
+func TestShutdownTimeoutForcesExit(t *testing.T) {
+	withSignalHarness(t, func(sigCh chan os.Signal, exitCh chan int) {
+		timeoutCh := make(chan time.Time, 1)
+		timeAfterFunc = func(time.Duration) <-chan time.Time {
+			return timeoutCh
+		}
+		shutdownTimeout = time.Second
+
+		Register(func(os.Signal) {
+			select {}
+		})
+
+		sigCh <- syscall.SIGINT
+		timeoutCh <- time.Now()
+
+		waitExit(t, exitCh, syscall.SIGINT)
+	})
+}
+
+func TestShutdownTimeoutDefaultsWhenUnset(t *testing.T) {
+	withSignalHarness(t, func(sigCh chan os.Signal, exitCh chan int) {
+		timeoutCh := make(chan time.Time, 1)
+		var observedTimeout time.Duration
+		timeAfterFunc = func(timeout time.Duration) <-chan time.Time {
+			observedTimeout = timeout
+			return timeoutCh
+		}
+		shutdownTimeout = 0
+
+		Register(func(os.Signal) {
+			select {}
+		})
+
+		sigCh <- syscall.SIGINT
+		timeoutCh <- time.Now()
+
+		waitExit(t, exitCh, syscall.SIGINT)
+		assert.Equal(t, defaultShutdownTimeout, observedTimeout)
+	})
+}
+
 func TestExitCodeMappings(t *testing.T) {
 	assert.Equal(t, 130, exitCode(os.Interrupt))
 	assert.Equal(t, 143, exitCode(syscall.SIGTERM))
