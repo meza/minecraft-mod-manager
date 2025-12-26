@@ -135,22 +135,54 @@ func GetFingerprintsMatches(ctx context.Context, fingerprints []int, client http
 	ctx, span := perf.StartSpan(ctx, "api.curseforge.fingerprints.match", perf.WithAttributes(attribute.Int("fingerprints_count", len(fingerprints))))
 	defer span.End()
 
-	gameID := Minecraft
+	request, cancel, err := newFingerprintMatchRequest(ctx, fingerprints)
+	if err != nil {
+		return nil, err
+	}
+	defer cancel()
 
-	url := fmt.Sprintf("%s/fingerprints/%d", GetBaseURL(), gameID)
+	response, err := doFingerprintMatchRequest(client, request, fingerprints)
+	if err != nil {
+		return nil, err
+	}
+	defer func() {
+		if closeErr := response.Body.Close(); closeErr != nil && returnErr == nil {
+			returnErr = closeErr
+		}
+	}()
+
+	fingerprintsResponse, err := decodeFingerprintMatchesResponse(response, fingerprints)
+	if err != nil {
+		return nil, err
+	}
+
+	result, err = buildFingerprintResult(fingerprintsResponse, fingerprints)
+	if err != nil {
+		return nil, err
+	}
+
+	return result, nil
+}
+
+func newFingerprintMatchRequest(ctx context.Context, fingerprints []int) (*http.Request, func(), error) {
+	url := fmt.Sprintf("%s/fingerprints/%d", GetBaseURL(), Minecraft)
 
 	body, err := marshalJSON(getFingerprintsRequest{Fingerprints: fingerprints})
 	if err != nil {
-		return nil, err
+		return nil, func() {}, err
 	}
+
 	timeoutCtx, cancel := httpclient.WithMetadataTimeout(ctx)
-	defer cancel()
 	request, err := newRequestWithContext(timeoutCtx, http.MethodPost, url, bytes.NewBuffer(body))
 	if err != nil {
-		return nil, err
+		cancel()
+		return nil, func() {}, err
 	}
 	request.Header.Add("Content-Type", "application/json")
+	return request, cancel, nil
+}
 
+func doFingerprintMatchRequest(client httpclient.Doer, request *http.Request, fingerprints []int) (*http.Response, error) {
 	response, err := client.Do(request)
 	if err != nil {
 		if httpclient.IsTimeoutError(err) {
@@ -161,12 +193,10 @@ func GetFingerprintsMatches(ctx context.Context, fingerprints []int, client http
 			Err:    err,
 		}
 	}
-	defer func() {
-		if closeErr := response.Body.Close(); closeErr != nil && returnErr == nil {
-			returnErr = closeErr
-		}
-	}()
+	return response, nil
+}
 
+func decodeFingerprintMatchesResponse(response *http.Response, fingerprints []int) (*getFingerprintsMatchesResponse, error) {
 	if response.StatusCode != http.StatusOK {
 		return nil, &FingerprintAPIError{
 			Lookup: fingerprints,
@@ -175,20 +205,22 @@ func GetFingerprintsMatches(ctx context.Context, fingerprints []int, client http
 	}
 
 	var fingerprintsResponse getFingerprintsMatchesResponse
-	err = json.NewDecoder(response.Body).Decode(&fingerprintsResponse)
-	if err != nil {
+	if err := json.NewDecoder(response.Body).Decode(&fingerprintsResponse); err != nil {
 		return nil, &FingerprintAPIError{
 			Lookup: fingerprints,
 			Err:    errors.Wrap(err, "failed to decode response body"),
 		}
 	}
+	return &fingerprintsResponse, nil
+}
 
-	result = &FingerprintResult{
+func buildFingerprintResult(response *getFingerprintsMatchesResponse, fingerprints []int) (*FingerprintResult, error) {
+	result := &FingerprintResult{
 		Matches:   make([]File, 0),
 		Unmatched: make([]int, 0),
 	}
 
-	for _, item := range fingerprintsResponse.Data.ExactMatches {
+	for _, item := range response.Data.ExactMatches {
 		file := item.File
 		if file.Fingerprint == 0 && file.FileFingerprint != 0 {
 			file.Fingerprint = file.FileFingerprint
@@ -196,7 +228,7 @@ func GetFingerprintsMatches(ctx context.Context, fingerprints []int, client http
 		result.Matches = append(result.Matches, file)
 	}
 
-	unmatched, decodeErr := decodeUnmatchedFingerprints(fingerprintsResponse.Data.UnmatchedFingerprints)
+	unmatched, decodeErr := decodeUnmatchedFingerprints(response.Data.UnmatchedFingerprints)
 	if decodeErr != nil {
 		return nil, &FingerprintAPIError{
 			Lookup: fingerprints,
@@ -204,7 +236,6 @@ func GetFingerprintsMatches(ctx context.Context, fingerprints []int, client http
 		}
 	}
 	result.Unmatched = append(result.Unmatched, unmatched...)
-
 	return result, nil
 }
 
