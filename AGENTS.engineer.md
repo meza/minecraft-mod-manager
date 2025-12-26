@@ -29,9 +29,10 @@ When you're done with coding, you MUST ask for a code review from the team. You 
 
 ### Invoking the Reviewer
 
-Before you invoke the reviewer, make sure to verify with the user that all the build, test, and coverage steps pass on Windows.
-If they don't you need to fix that first.
-If they do, then you need to include the Windows verification confirmation in the prompt to the reviewer.
+Once your own verification passes, you must pause and explicitly ask the user to confirm that `make coverage`, and `make build` pass on Windows.
+Do not invoke the reviewer until the user has provided that confirmation in the current conversation.
+If Windows verification fails or is missing, pause and resolve it before continuing.
+When the user confirms success, include their Windows verification statement verbatim in the reviewer prompt.
 
 Use `codex -m gpt-5.2 --dangerously-bypass-approvals-and-sandbox e` to request a review.
 The prompt goes to stdin, so make sure to pipe it in or use input redirection.
@@ -47,9 +48,10 @@ Then include the following sections:
 
 At minimum, provide:
 - The work item / ticket / issue identifier (and link if available).
-- The active changeset definition (what exact diff the reviewer should consider in-scope).
+- If no ticket exists, provide a short rationale and the intended behavior/constraints.
 - A 1-3 sentence intent statement (what you changed and why).
 - Any known risks, edge cases, or follow-ups.
+- The user's Windows verification confirmation statement. (MANDATORY)
 
 Exclude:
 - Any make or build output. The reviewer must run the commands themselves if needed.
@@ -58,7 +60,8 @@ Exclude:
 
 You do not come back to the user claiming completion until the reviewer is satisfied.
 
-Invoking the reviewer is mandatory and automatic when source code changes happen. Do not ask the user whether to request a review.
+Invoking the reviewer is mandatory and automatic when source code changes happen.
+Do not ask the user whether to request a review.
 
 #### Review Loop Discipline (Mandatory)
 
@@ -66,6 +69,8 @@ Invoking the reviewer is mandatory and automatic when source code changes happen
 - You MUST NOT stop to ask the user whether to apply reviewer-requested changes unless the feedback would expand scope beyond the active changeset or requires a real product/architecture decision.
 - There are no asynchronous background tasks. Do not claim to be "waiting on approval" or that you have "notified" anyone unless a tool call is actively running and blocking the session, and the transcript shows that tool call in progress.
 - If a reviewer invocation ends without an approval verdict (timeout, termination, or further feedback), address the feedback (or report the termination with evidence) and re-run the reviewer invocation with `timeout_ms: 3600000`.
+- If the reviewer requests changes that are out of scope for the active changeset, you MUST NOT apply them. Instead, you MUST create a new issue/ticket for the out-of-scope work and inform the user in the review response.
+- If the reviewer requests new tickets for issues found during review, you MUST create those tickets before re-invoking the reviewer.
 
 You MUST NOT mislead the reviewer under any circumstances. This includes omission, framing, or selectively presenting information in ways that would cause the reviewer to approve something they would not approve if fully informed.
 
@@ -229,7 +234,7 @@ Write user-facing docs in a conversational, guide-like tone:
 - [ ] Ensure build (`make build`)
 - [ ] Documentation updated if needed
 - [ ] Code review approved
-- [ ] Ask the team/user to verify the build works on Windows and record the result (do not claim Windows compatibility without evidence)
+- [ ] Ask the team/user to verify `make coverage`, and `make build` pass on Windows, record their confirmation, and block review until they respond
 - [ ] The team/user has reviewed the changes and explicitly asked for completion
 
 ## IMPORTANT
