@@ -617,3 +617,8 @@ date	time	entry
 2025-12-26	12:09	Closed mmm-112 after reviewer approval and Windows verification; unparam resolved by removing constant-only parameter from readBodySnippet.
 2025-12-26	13:42	Closed mmm-110 after reviewer approval and Windows verification; persistScanMatchesIfRequested now uses persistScanRequest to satisfy revive argument-limit.
 2025-12-26	14:10	Closed mmm-111 after reviewer approval and Windows verification; named return values for shouldUpdateMod and prepareDownloadPaths to satisfy revive confusing-results.
+2025-12-26	14:14	Closed mmm-63.106.1 after its revive leaf tickets (mmm-97..106,110..112) were closed and make lint is clean.
+2025-12-26	14:16	Fixed dependency direction: mmm-63 now depends on mmm-63.106 (blocking), removed erroneous mmm-63.106 -> mmm-63.
+2025-12-26	14:16	Closed mmm-63.106 now that revive/non-gosec lint leafs are complete and dependency direction fixed; lint is clean.
+2025-12-26	14:17	Closed mmm-63.107 after all linked lint remediation tickets are closed and make lint is clean.
+2025-12-26	14:18	Added mmm-63 dependencies so all mmm-63.* tickets block mmm-63 (bulk dep add; duplicates skipped).
