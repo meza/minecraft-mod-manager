@@ -239,44 +239,67 @@ func runScan(ctx context.Context, cmd *cobra.Command, opts scanOptions, deps sca
 	matches, unknown, unsure := identifyCandidates(ctx, candidates, preferPlatform, deps)
 	printResults(deps.logger, cmd.OutOrStdout(), preferPlatform, matches, unknown, unsure)
 
-	return persistScanMatchesIfRequested(ctx, cmd, opts, deps, meta, setupCoordinator, matches, unsure, cfg, lock, preferPlatform)
+	return persistScanMatchesIfRequested(persistScanRequest{
+		Context:          ctx,
+		Command:          cmd,
+		Options:          opts,
+		Dependencies:     deps,
+		Metadata:         meta,
+		SetupCoordinator: setupCoordinator,
+		Matches:          matches,
+		Unsure:           unsure,
+		Config:           cfg,
+		Lock:             lock,
+		PreferPlatform:   preferPlatform,
+	})
 }
 
-func persistScanMatchesIfRequested(
-	ctx context.Context,
-	cmd *cobra.Command,
-	opts scanOptions,
-	deps scanDeps,
-	meta config.Metadata,
-	setupCoordinator *modsetup.SetupCoordinator,
-	matches []scanMatch,
-	unsure []scanUnsure,
-	cfg models.ModsJSON,
-	lock []models.ModInstall,
-	preferPlatform models.Platform,
-) (telemetry.CommandTelemetry, error) {
-	shouldPersist, err := confirmPersist(opts, deps)
+type persistScanRequest struct {
+	Context          context.Context
+	Command          *cobra.Command
+	Options          scanOptions
+	Dependencies     scanDeps
+	Metadata         config.Metadata
+	SetupCoordinator *modsetup.SetupCoordinator
+	Matches          []scanMatch
+	Unsure           []scanUnsure
+	Config           models.ModsJSON
+	Lock             []models.ModInstall
+	PreferPlatform   models.Platform
+}
+
+func persistScanMatchesIfRequested(request persistScanRequest) (telemetry.CommandTelemetry, error) {
+	shouldPersist, err := confirmPersist(request.Options, request.Dependencies)
 	if err != nil {
 		return scanFailureTelemetry(err), err
 	}
 	if !shouldPersist {
-		return scanSuccessTelemetry(preferPlatform, opts.Add), nil
+		return scanSuccessTelemetry(request.PreferPlatform, request.Options.Add), nil
 	}
 
-	if len(unsure) > 0 {
-		deps.logger.Log(i18n.T("cmd.scan.persist_skipped_unsure"), logger.LogQuiet)
-		return scanSuccessTelemetry(preferPlatform, opts.Add), nil
+	if len(request.Unsure) > 0 {
+		request.Dependencies.logger.Log(i18n.T("cmd.scan.persist_skipped_unsure"), logger.LogQuiet)
+		return scanSuccessTelemetry(request.PreferPlatform, request.Options.Add), nil
 	}
 
-	persisted, err := persistScanMatches(ctx, cmd, meta, setupCoordinator, deps, matches, cfg, lock)
+	persisted, err := persistScanMatches(
+		request.Context,
+		request.Command,
+		request.Metadata,
+		request.SetupCoordinator,
+		request.Dependencies,
+		request.Matches,
+		request.Config,
+		request.Lock,
+	)
 	if err != nil {
 		return scanFailureTelemetry(err), err
 	}
 	if persisted {
-		deps.logger.Log(i18n.T("cmd.scan.persisted"), logger.LogQuiet)
+		request.Dependencies.logger.Log(i18n.T("cmd.scan.persisted"), logger.LogQuiet)
 	}
 
-	return scanSuccessTelemetry(preferPlatform, opts.Add), nil
+	return scanSuccessTelemetry(request.PreferPlatform, request.Options.Add), nil
 }
 
 func scanFailureTelemetry(err error) telemetry.CommandTelemetry {
