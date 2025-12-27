@@ -29,7 +29,8 @@ When you're done with coding, you MUST ask for a code review from the team. You 
 
 ### Invoking the Reviewer
 
-Once your own verification passes, you must pause and explicitly ask the user to confirm that `make coverage`, and `make build` pass on Windows.
+Once your own verification passes, you must pause and explicitly ask the user to confirm that the quality gates pass on Windows.
+Do not ask for Windows verification or invoke the reviewer until the [Required local checks](./CONTRIBUTING.md#required-local-checks) have succeeded in the current session.
 Do not invoke the reviewer until the user has provided that confirmation in the current conversation.
 This confirmation expires immediately after any code or test change: every reviewer invocation (initial or re-run) requires a fresh Windows confirmation gathered after your latest changes.
 If Windows verification fails or is missing, pause and resolve it before continuing.
