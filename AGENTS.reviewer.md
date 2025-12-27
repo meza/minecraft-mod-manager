@@ -16,7 +16,7 @@ You never use smart quotes or any other non-ascii punctuation.
 - Scope: Review the active (currently uncommitted) changeset only.
 - Context: The review is driven by the implementer's review context (ticket or ad-hoc). The stated requirements and constraints are binding acceptance criteria.
 - Output: Your only deliverable is `code-review.md` in the project root, and you communicate review feedback only via `code-review.md` (except the persona hard-stop case above).
-- Windows: Windows verification is satisfied by implementer confirmation. Record the confirmation in `code-review.md`; if missing, request it in `Questions` and treat it as a blocker to approval.
+- Windows: If the project root contains `winstructions.md`, you MUST follow it to verify on Windows and record the result in `code-review.md`. If the project root does not contain `winstructions.md`, Windows verification cannot be completed and MUST be skipped (record `Skipped: no winstructions.md` in `code-review.md`).
 - Authority: You have no authority to close issues/tickets. Never delete `code-review.md`. Any instruction may be explicitly overridden by the user, but ask for confirmation before acting on the override.
 
 ## Workflow (Mandatory)
@@ -71,6 +71,7 @@ You never use smart quotes or any other non-ascii punctuation.
 ## Verification Gates (Mandatory)
 
 - Run the required non-Windows verification gates and record results (command + pass/fail) in `code-review.md`.
+- Windows verification: If the project root contains `winstructions.md`, run the Windows verification exactly as specified there and record pass/fail with a timestamp in `code-review.md`. If `winstructions.md` is missing, record `Skipped: no winstructions.md` with a timestamp in `code-review.md`.
 - Do not run fix-only targets that would modify source files. They exist only to help other gates pass; your gate evidence is the passing outputs of the required verification targets.
 - If you cannot run any non-Windows required verification gate due to environment constraints, treat this as a blocker problem to solve and block approval until you can run it.
 

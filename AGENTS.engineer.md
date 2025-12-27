@@ -29,12 +29,16 @@ When you're done with coding, you MUST ask for a code review from the team. You 
 
 ### Invoking the Reviewer
 
-Once your own verification passes, you must pause and explicitly ask the user to confirm that the quality gates pass on Windows.
-Do not ask for Windows verification or invoke the reviewer until the [Required local checks](./CONTRIBUTING.md#required-local-checks) have succeeded in the current session.
-Do not invoke the reviewer until the user has provided that confirmation in the current conversation.
-This confirmation expires immediately after any code or test change: every reviewer invocation (initial or re-run) requires a fresh Windows confirmation gathered after your latest changes.
-If Windows verification fails or is missing, pause and resolve it before continuing.
-When the user confirms success, include their Windows verification statement verbatim in the reviewer prompt and note the timestamp so you can prove it occurred after the latest changes.
+Do not invoke the reviewer until the [Required local checks](./CONTRIBUTING.md#required-local-checks) have succeeded in the current session.
+
+Windows verification procedure:
+
+- If the project root contains `winstructions.md`, you MUST follow it to verify on Windows before invoking the reviewer.
+- If the project root does not contain `winstructions.md`, Windows verification cannot be completed and MUST be skipped.
+
+Always record the Windows verification status (pass/fail/skip) and a timestamp, and include it in every reviewer invocation.
+
+After any code/test/documentation change (including reviewer-requested fixes), previous Windows verification results are invalid. You must rerun your local verification and (if `winstructions.md` exists) rerun Windows verification before re-invoking the reviewer.
 
 Use `codex -m gpt-5.2 --dangerously-bypass-approvals-and-sandbox e` to request a review.
 The prompt goes to stdin, so make sure to pipe it in or use input redirection.
@@ -53,7 +57,7 @@ At minimum, provide:
 - If no ticket exists, provide a short rationale and the intended behavior/constraints.
 - A 1-3 sentence intent statement (what you changed and why).
 - Any known risks, edge cases, or follow-ups.
-- The user's Windows verification confirmation statement. (MANDATORY)
+- Windows verification status: pass/fail from `winstructions.md`, or `Skipped: no winstructions.md` (include timestamp). (MANDATORY)
 
 Exclude:
 - Any make or build output. The reviewer must run the commands themselves if needed.
@@ -73,7 +77,7 @@ Do not ask the user whether to request a review.
 - If a reviewer invocation ends without an approval verdict (timeout, termination, or further feedback), address the feedback (or report the termination with evidence) and re-run the reviewer invocation with `timeout_ms: 3600000`.
 - If the reviewer requests changes that are out of scope for the active changeset, you MUST NOT apply them. Instead, you MUST create a new issue/ticket for the out-of-scope work and inform the user in the review response.
 - If the reviewer requests new tickets for issues found during review, you MUST create those tickets before re-invoking the reviewer.
-- After any code/test/documentation change (including reviewer-requested fixes), previous Windows confirmations are invalid. You must rerun your local verification, ask the user to re-confirm Windows results, and only then re-invoke the reviewer.
+- After any code/test/documentation change (including reviewer-requested fixes), previous Windows verification results are invalid. You must rerun your local verification and (if `winstructions.md` exists) rerun Windows verification before re-invoking the reviewer.
 
 You MUST NOT mislead the reviewer under any circumstances. This includes omission, framing, or selectively presenting information in ways that would cause the reviewer to approve something they would not approve if fully informed.
 
@@ -246,7 +250,7 @@ Write user-facing docs in a conversational, guide-like tone:
 - [ ] Documentation updated if needed
 - [ ] Implementation matches every cited spec section; list the sections in your report and explain how the change satisfies each one.
 - [ ] Code review approved
-- [ ] Ask the team/user to verify `make coverage`, and `make build` pass on Windows after your latest changes. Record their fresh confirmation, block review until they respond, and include the exact statement in every reviewer invocation.
+- [ ] Windows verification: If `winstructions.md` exists in the project root, follow it and record pass/fail with a timestamp; otherwise record `Skipped: no winstructions.md` with a timestamp.
 - [ ] The team/user has reviewed the changes and explicitly asked for completion
 
 ## IMPORTANT
