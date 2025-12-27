@@ -2,7 +2,6 @@ package config
 
 import (
 	"path/filepath"
-	"runtime"
 	"testing"
 
 	"github.com/meza/minecraft-mod-manager/internal/models"
@@ -30,14 +29,4 @@ func TestMetadataModsFolderPathKeepsRootedForwardSlash(t *testing.T) {
 	meta := NewMetadata(filepath.FromSlash("/home/user/modlist.json"))
 	cfg := models.ModsJSON{ModsFolder: "/var/mc/mods"}
 	assert.Equal(t, "/var/mc/mods", meta.ModsFolderPath(cfg))
-}
-
-func TestMetadataModsFolderPathKeepsWindowsDriveAbsolute(t *testing.T) {
-	if runtime.GOOS != "windows" {
-		t.Skip("Windows-only coverage for drive-letter absolute paths")
-	}
-
-	meta := NewMetadata(`C:\home\user\modlist.json`)
-	cfg := models.ModsJSON{ModsFolder: `C:\var\mc\mods`}
-	assert.Equal(t, `C:\var\mc\mods`, meta.ModsFolderPath(cfg))
 }

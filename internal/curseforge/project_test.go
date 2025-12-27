@@ -128,7 +128,7 @@ func TestGetProject(t *testing.T) {
 		}
 
 		if r.Header.Get("x-api-key") != "mock_curseforge_api_key" {
-			t.Errorf("Expected x-api-key header to be 'mock_curseforge_api_key', got '%s'", r.Header.Get("Authorization"))
+			t.Errorf("Expected x-api-key header to be 'mock_curseforge_api_key', got '%s'", r.Header.Get("x-api-key"))
 		}
 
 		w.Header().Set("Content-Type", "application/json")

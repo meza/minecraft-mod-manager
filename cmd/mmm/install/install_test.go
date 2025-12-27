@@ -7,6 +7,7 @@ import (
 	"os"
 	"path/filepath"
 	"testing"
+	"time"
 
 	"github.com/meza/minecraft-mod-manager/internal/config"
 	"github.com/meza/minecraft-mod-manager/internal/curseforge"
@@ -965,7 +966,7 @@ func TestRunInstallContinuesWhenFetchReturnsExpectedErrors(t *testing.T) {
 func TestRunInstallReportsSymlinkOutsideMods(t *testing.T) {
 	t.Setenv("MMM_TEST", "true")
 
-	fs := afero.NewOsFs()
+	fs := symlinkStubFs{Fs: afero.NewOsFs(), symlinks: map[string]string{}}
 	root := t.TempDir()
 	meta := config.NewMetadata(filepath.Join(root, "modlist.json"))
 
@@ -998,9 +999,8 @@ func TestRunInstallReportsSymlinkOutsideMods(t *testing.T) {
 	assert.NoError(t, os.WriteFile(target, []byte("data"), 0644))
 
 	linkPath := filepath.Join(meta.ModsFolderPath(cfg), "link.jar")
-	if err := os.Symlink(target, linkPath); err != nil {
-		t.Skipf("symlink not supported: %v", err)
-	}
+	assert.NoError(t, afero.WriteFile(fs, linkPath, []byte("link"), 0644))
+	fs.symlinks[linkPath] = target
 
 	out := &bytes.Buffer{}
 	errOut := &bytes.Buffer{}
@@ -1136,3 +1136,37 @@ type lstatErrorFs struct {
 func (filesystem lstatErrorFs) LstatIfPossible(string) (os.FileInfo, bool, error) {
 	return nil, true, filesystem.err
 }
+
+type symlinkStubFs struct {
+	afero.Fs
+	symlinks map[string]string
+}
+
+func (filesystem symlinkStubFs) LstatIfPossible(path string) (os.FileInfo, bool, error) {
+	cleanPath := filepath.Clean(path)
+	if _, ok := filesystem.symlinks[cleanPath]; ok {
+		return fakeFileInfo{name: filepath.Base(cleanPath), mode: os.ModeSymlink}, true, nil
+	}
+	return nil, true, os.ErrNotExist
+}
+
+func (filesystem symlinkStubFs) ReadlinkIfPossible(path string) (string, error) {
+	cleanPath := filepath.Clean(path)
+	target, ok := filesystem.symlinks[cleanPath]
+	if !ok {
+		return "", os.ErrNotExist
+	}
+	return target, nil
+}
+
+type fakeFileInfo struct {
+	name string
+	mode os.FileMode
+}
+
+func (info fakeFileInfo) Name() string       { return info.name }
+func (info fakeFileInfo) Size() int64        { return 0 }
+func (info fakeFileInfo) Mode() os.FileMode  { return info.mode }
+func (info fakeFileInfo) ModTime() time.Time { return time.Time{} }
+func (info fakeFileInfo) IsDir() bool        { return false }
+func (info fakeFileInfo) Sys() interface{}   { return nil }

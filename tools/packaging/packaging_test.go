@@ -9,7 +9,6 @@ import (
 	"log"
 	"os"
 	"path/filepath"
-	"runtime"
 	"strings"
 	"testing"
 )
@@ -226,23 +225,16 @@ func TestNewDistToolGetwdFailure(t *testing.T) {
 }
 
 func TestResetDistDirError(t *testing.T) {
-	if runtime.GOOS == "windows" {
-		t.Skip("chmod-based permission test is not reliable on Windows")
-	}
-	parentDir := t.TempDir()
-	//nolint:gosec // test requires restrictive perms to simulate failure.
-	if err := os.Chmod(parentDir, 0o500); err != nil {
-		t.Fatalf("failed to chmod parent dir: %v", err)
-	}
+	originalMkdirAll := mkdirAll
 	t.Cleanup(func() {
-		//nolint:gosec // test cleanup restores writable perms.
-		if err := os.Chmod(parentDir, 0o700); err != nil {
-			t.Fatalf("failed to restore parent dir perms: %v", err)
-		}
+		mkdirAll = originalMkdirAll
 	})
 
-	distDir := filepath.Join(parentDir, "dist")
-	if err := resetDistDir(distDir); err == nil {
+	mkdirAll = func(string, os.FileMode) error {
+		return errors.New("mkdir failed")
+	}
+
+	if err := resetDistDir(filepath.Join(t.TempDir(), "dist")); err == nil {
 		t.Fatal("expected error, got nil")
 	}
 }

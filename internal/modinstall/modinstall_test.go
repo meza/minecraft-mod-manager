@@ -11,6 +11,7 @@ import (
 	"strconv"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/spf13/afero"
 	"github.com/stretchr/testify/assert"
@@ -147,7 +148,7 @@ func TestEnsureLockedFile_ExistingFileWithMismatchedHashDownloads(t *testing.T) 
 }
 
 func TestEnsureLockedFile_ResolvesSymlinkTargetInsideRoot(t *testing.T) {
-	fs := afero.NewOsFs()
+	fs := symlinkStubFs{Fs: afero.NewOsFs(), symlinks: map[string]string{}}
 	root := t.TempDir()
 	meta := config.NewMetadata(filepath.Join(root, "modlist.json"))
 	cfg := models.ModsJSON{ModsFolder: "mods"}
@@ -159,9 +160,8 @@ func TestEnsureLockedFile_ResolvesSymlinkTargetInsideRoot(t *testing.T) {
 	assert.NoError(t, os.WriteFile(target, []byte("old"), 0644))
 
 	link := filepath.Join(modsDir, "link.jar")
-	if err := os.Symlink(target, link); err != nil {
-		t.Skipf("symlink not supported: %v", err)
-	}
+	assert.NoError(t, afero.WriteFile(fs, link, []byte("link"), 0644))
+	fs.symlinks[link] = target
 
 	installer := NewInstaller(fs, func(_ context.Context, _ string, dst string, _ httpclient.Doer, _ httpclient.Sender, filesystem ...afero.Fs) error {
 		return afero.WriteFile(filesystem[0], dst, []byte("data"), 0644)
@@ -180,14 +180,10 @@ func TestEnsureLockedFile_ResolvesSymlinkTargetInsideRoot(t *testing.T) {
 	content, readErr := os.ReadFile(target)
 	assert.NoError(t, readErr)
 	assert.Equal(t, []byte("data"), content)
-
-	linkInfo, statErr := os.Lstat(link)
-	assert.NoError(t, statErr)
-	assert.True(t, linkInfo.Mode()&os.ModeSymlink != 0)
 }
 
 func TestEnsureLockedFile_RejectsSymlinkTargetOutsideRoot(t *testing.T) {
-	fs := afero.NewOsFs()
+	fs := symlinkStubFs{Fs: afero.NewOsFs(), symlinks: map[string]string{}}
 	root := t.TempDir()
 	meta := config.NewMetadata(filepath.Join(root, "modlist.json"))
 	cfg := models.ModsJSON{ModsFolder: "mods"}
@@ -200,9 +196,8 @@ func TestEnsureLockedFile_RejectsSymlinkTargetOutsideRoot(t *testing.T) {
 	assert.NoError(t, os.WriteFile(target, []byte("data"), 0644))
 
 	link := filepath.Join(modsDir, "link.jar")
-	if err := os.Symlink(target, link); err != nil {
-		t.Skipf("symlink not supported: %v", err)
-	}
+	assert.NoError(t, afero.WriteFile(fs, link, []byte("link"), 0644))
+	fs.symlinks[link] = target
 
 	installer := NewInstaller(fs, func(context.Context, string, string, httpclient.Doer, httpclient.Sender, ...afero.Fs) error {
 		return errors.New("unexpected download")
@@ -966,3 +961,37 @@ type openFileErrorFs struct {
 func (filesystem openFileErrorFs) OpenFile(string, int, os.FileMode) (afero.File, error) {
 	return nil, filesystem.err
 }
+
+type symlinkStubFs struct {
+	afero.Fs
+	symlinks map[string]string
+}
+
+func (filesystem symlinkStubFs) LstatIfPossible(path string) (os.FileInfo, bool, error) {
+	cleanPath := filepath.Clean(path)
+	if _, ok := filesystem.symlinks[cleanPath]; ok {
+		return fakeFileInfo{name: filepath.Base(cleanPath), mode: os.ModeSymlink}, true, nil
+	}
+	return nil, true, os.ErrNotExist
+}
+
+func (filesystem symlinkStubFs) ReadlinkIfPossible(path string) (string, error) {
+	cleanPath := filepath.Clean(path)
+	target, ok := filesystem.symlinks[cleanPath]
+	if !ok {
+		return "", os.ErrNotExist
+	}
+	return target, nil
+}
+
+type fakeFileInfo struct {
+	name string
+	mode os.FileMode
+}
+
+func (info fakeFileInfo) Name() string       { return info.name }
+func (info fakeFileInfo) Size() int64        { return 0 }
+func (info fakeFileInfo) Mode() os.FileMode  { return info.mode }
+func (info fakeFileInfo) ModTime() time.Time { return time.Time{} }
+func (info fakeFileInfo) IsDir() bool        { return false }
+func (info fakeFileInfo) Sys() interface{}   { return nil }

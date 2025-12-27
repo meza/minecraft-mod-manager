@@ -22,72 +22,83 @@ func TestResolveWritablePath_NonOsFsReturnsDestination(t *testing.T) {
 }
 
 func TestResolveWritablePath_AllowsSymlinkedRoot(t *testing.T) {
-	fs := afero.NewOsFs()
-	root := t.TempDir()
-	modsRoot := filepath.Join(root, "mods")
-	assert.NoError(t, os.MkdirAll(modsRoot, 0755))
-
-	linkRoot := filepath.Join(root, "mods-link")
-	if err := os.Symlink(modsRoot, linkRoot); err != nil {
-		t.Skipf("symlink not supported: %v", err)
+	fs := linkStubFs{
+		Fs:       afero.NewMemMapFs(),
+		symlinks: map[string]string{},
 	}
-
+	linkRoot := absolutePath(t, "mods-link")
+	modsRoot := absolutePath(t, "mods")
 	destination := filepath.Join(linkRoot, "example.jar")
-	resolved, err := ResolveWritablePath(fs, linkRoot, destination)
+
+	resolved, err := resolveWritablePathWithFuncs(fs, linkRoot, destination, func(path string) (string, error) {
+		if path == linkRoot || path == filepath.Dir(destination) {
+			return modsRoot, nil
+		}
+		return path, nil
+	}, func(path string) (string, error) {
+		return path, nil
+	})
 	assert.NoError(t, err)
 	assert.Equal(t, filepath.Join(modsRoot, "example.jar"), resolved)
 }
 
 func TestResolveWritablePath_AllowsSymlinkedFileInsideRoot(t *testing.T) {
-	fs := afero.NewOsFs()
-	root := t.TempDir()
-	modsRoot := filepath.Join(root, "mods")
-	assert.NoError(t, os.MkdirAll(modsRoot, 0755))
-
+	modsRoot := absolutePath(t, "mods")
 	target := filepath.Join(modsRoot, "target.jar")
-	assert.NoError(t, os.WriteFile(target, []byte("data"), 0644))
-
 	linkPath := filepath.Join(modsRoot, "link.jar")
-	if err := os.Symlink(target, linkPath); err != nil {
-		t.Skipf("symlink not supported: %v", err)
+	fs := linkStubFs{
+		Fs: afero.NewMemMapFs(),
+		symlinks: map[string]string{
+			linkPath: target,
+		},
 	}
 
-	resolved, err := ResolveWritablePath(fs, modsRoot, linkPath)
+	resolved, err := resolveWritablePathWithFuncs(fs, modsRoot, linkPath, func(path string) (string, error) {
+		return path, nil
+	}, func(path string) (string, error) {
+		return path, nil
+	})
 	assert.NoError(t, err)
 	assert.Equal(t, target, resolved)
 }
 
 func TestResolveWritablePath_ResolvesRelativeSymlinkTarget(t *testing.T) {
-	fs := afero.NewOsFs()
-	root := t.TempDir()
-	modsRoot := filepath.Join(root, "mods")
-	assert.NoError(t, os.MkdirAll(modsRoot, 0755))
-
-	target := filepath.Join(modsRoot, "target.jar")
-	assert.NoError(t, os.WriteFile(target, []byte("data"), 0644))
-
+	modsRoot := absolutePath(t, "mods")
 	linkPath := filepath.Join(modsRoot, "link.jar")
-	if err := os.Symlink("target.jar", linkPath); err != nil {
-		t.Skipf("symlink not supported: %v", err)
+	fs := linkStubFs{
+		Fs: afero.NewMemMapFs(),
+		symlinks: map[string]string{
+			linkPath: "target.jar",
+		},
 	}
 
-	resolved, err := ResolveWritablePath(fs, modsRoot, linkPath)
+	resolved, err := resolveWritablePathWithFuncs(fs, modsRoot, linkPath, func(path string) (string, error) {
+		return path, nil
+	}, func(path string) (string, error) {
+		return path, nil
+	})
 	assert.NoError(t, err)
-	assert.Equal(t, target, resolved)
+	assert.Equal(t, filepath.Join(modsRoot, "target.jar"), resolved)
 }
 
 func TestResolveWritablePath_ReturnsErrorWhenSymlinkTargetDirMissing(t *testing.T) {
-	fs := afero.NewOsFs()
-	root := t.TempDir()
-	modsRoot := filepath.Join(root, "mods")
-	assert.NoError(t, os.MkdirAll(modsRoot, 0755))
-
+	modsRoot := absolutePath(t, "mods")
 	linkPath := filepath.Join(modsRoot, "link.jar")
-	if err := os.Symlink(filepath.Join("missing", "target.jar"), linkPath); err != nil {
-		t.Skipf("symlink not supported: %v", err)
+	fs := linkStubFs{
+		Fs: afero.NewMemMapFs(),
+		symlinks: map[string]string{
+			linkPath: filepath.Join("missing", "target.jar"),
+		},
 	}
 
-	_, err := ResolveWritablePath(fs, modsRoot, linkPath)
+	_, err := resolveWritablePathWithFuncs(fs, modsRoot, linkPath, func(path string) (string, error) {
+		if path == filepath.Join(modsRoot, "missing") {
+			return "", os.ErrNotExist
+		}
+		return path, nil
+	}, func(path string) (string, error) {
+		return path, nil
+	})
 	assert.Error(t, err)
 }
 
@@ -103,46 +114,27 @@ func TestResolveWritablePath_ReturnsErrorWhenDestinationDirMissing(t *testing.T)
 }
 
 func TestResolveWritablePath_RejectsSymlinkedFileOutsideRoot(t *testing.T) {
-	fs := afero.NewOsFs()
-	root := t.TempDir()
-	modsRoot := filepath.Join(root, "mods")
-	assert.NoError(t, os.MkdirAll(modsRoot, 0755))
-
-	outside := t.TempDir()
-	target := filepath.Join(outside, "target.jar")
-	assert.NoError(t, os.WriteFile(target, []byte("data"), 0644))
-
+	modsRoot := absolutePath(t, "mods")
 	linkPath := filepath.Join(modsRoot, "link.jar")
-	if err := os.Symlink(target, linkPath); err != nil {
-		t.Skipf("symlink not supported: %v", err)
+	target := absolutePath(t, "outside", "target.jar")
+	fs := linkStubFs{
+		Fs: afero.NewMemMapFs(),
+		symlinks: map[string]string{
+			linkPath: target,
+		},
 	}
 
-	_, err := ResolveWritablePath(fs, modsRoot, linkPath)
+	_, err := resolveWritablePathWithFuncs(fs, modsRoot, linkPath, func(path string) (string, error) {
+		return path, nil
+	}, func(path string) (string, error) {
+		return path, nil
+	})
 	assert.Error(t, err)
 	assert.IsType(t, OutsideRootError{}, err)
 	assert.Contains(t, err.Error(), "outside root")
 }
 
 func TestResolveWritablePath_RejectsSymlinkedDirOutsideRoot(t *testing.T) {
-	fs := afero.NewOsFs()
-	root := t.TempDir()
-	modsRoot := filepath.Join(root, "mods")
-	assert.NoError(t, os.MkdirAll(modsRoot, 0755))
-
-	outside := t.TempDir()
-	linkDir := filepath.Join(modsRoot, "linked")
-	if err := os.Symlink(outside, linkDir); err != nil {
-		t.Skipf("symlink not supported: %v", err)
-	}
-
-	destination := filepath.Join(linkDir, "example.jar")
-	_, err := ResolveWritablePath(fs, modsRoot, destination)
-	assert.Error(t, err)
-	assert.IsType(t, OutsideRootError{}, err)
-	assert.Contains(t, err.Error(), "outside root")
-}
-
-func TestResolveWritablePath_RejectsSymlinkedDirOutsideRootWithStubFs(t *testing.T) {
 	root := absolutePath(t, "mods")
 	destination := filepath.Join(root, "linked", "example.jar")
 	outsideDir := absolutePath(t, "outside")
@@ -151,7 +143,8 @@ func TestResolveWritablePath_RejectsSymlinkedDirOutsideRootWithStubFs(t *testing
 		Fs:       afero.NewMemMapFs(),
 		symlinks: map[string]string{},
 	}
-	evalSymlinks := func(path string) (string, error) {
+
+	_, err := resolveWritablePathWithFuncs(fs, root, destination, func(path string) (string, error) {
 		if path == root {
 			return root, nil
 		}
@@ -159,13 +152,12 @@ func TestResolveWritablePath_RejectsSymlinkedDirOutsideRootWithStubFs(t *testing
 			return outsideDir, nil
 		}
 		return path, nil
-	}
-
-	_, err := resolveWritablePathWithFuncs(fs, root, destination, evalSymlinks, func(path string) (string, error) {
+	}, func(path string) (string, error) {
 		return path, nil
 	})
 	assert.Error(t, err)
 	assert.IsType(t, OutsideRootError{}, err)
+	assert.Contains(t, err.Error(), "outside root")
 }
 
 func TestResolveWritablePath_ReturnsErrorWhenRootMissing(t *testing.T) {
@@ -244,20 +236,19 @@ func TestResolveWritablePath_ReturnsErrorOnLstatFailure(t *testing.T) {
 }
 
 func TestResolveWritablePath_ReturnsErrorOnReadlinkFailure(t *testing.T) {
-	root := t.TempDir()
-	modsRoot := filepath.Join(root, "mods")
-	assert.NoError(t, os.MkdirAll(modsRoot, 0755))
-
-	target := filepath.Join(modsRoot, "target.jar")
-	assert.NoError(t, os.WriteFile(target, []byte("data"), 0644))
-
-	linkPath := filepath.Join(modsRoot, "link.jar")
-	if err := os.Symlink(target, linkPath); err != nil {
-		t.Skipf("symlink not supported: %v", err)
+	root := absolutePath(t, "mods")
+	linkPath := filepath.Join(root, "link.jar")
+	fs := readlinkErrorFs{
+		Fs:       afero.NewMemMapFs(),
+		symlinks: map[string]string{linkPath: filepath.Join(root, "target.jar")},
+		err:      os.ErrPermission,
 	}
 
-	fs := readlinkErrorFs{OsFs: &afero.OsFs{}, err: os.ErrPermission}
-	_, err := ResolveWritablePath(fs, modsRoot, linkPath)
+	_, err := resolveWritablePathWithFuncs(fs, root, linkPath, func(path string) (string, error) {
+		return path, nil
+	}, func(path string) (string, error) {
+		return path, nil
+	})
 	assert.Error(t, err)
 }
 
@@ -339,8 +330,16 @@ func TestPathWithinRootCoversBranches(t *testing.T) {
 }
 
 type readlinkErrorFs struct {
-	*afero.OsFs
-	err error
+	afero.Fs
+	symlinks map[string]string
+	err      error
+}
+
+func (filesystem readlinkErrorFs) LstatIfPossible(path string) (os.FileInfo, bool, error) {
+	if _, ok := filesystem.symlinks[path]; ok {
+		return fakeFileInfo{name: filepath.Base(path), mode: os.ModeSymlink}, true, nil
+	}
+	return nil, true, os.ErrNotExist
 }
 
 func (filesystem readlinkErrorFs) ReadlinkIfPossible(string) (string, error) {

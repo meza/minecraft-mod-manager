@@ -12,23 +12,23 @@ import (
 	"golang.org/x/text/language"
 )
 
-type MockLocaleProvider struct {
+type mockLocaleProvider struct {
 	LocaleProvider
 }
 
-func (provider MockLocaleProvider) GetLocales() ([]string, error) {
+func (provider mockLocaleProvider) GetLocales() ([]string, error) {
 	return nil, errors.New("mock error")
 }
 
-type FakeLocaleProvider struct{}
+type fakeLocaleProvider struct{}
 
-func (provider FakeLocaleProvider) GetLocales() ([]string, error) {
+func (provider fakeLocaleProvider) GetLocales() ([]string, error) {
 	return []string{"fr_FR", "de_DE"}, nil
 }
 
-type EmptyLocaleProvider struct{}
+type emptyLocaleProvider struct{}
 
-func (provider EmptyLocaleProvider) GetLocales() ([]string, error) {
+func (provider emptyLocaleProvider) GetLocales() ([]string, error) {
 	return []string{"", "es_ES"}, nil
 }
 
@@ -250,7 +250,7 @@ func TestTestModeRequiresTestBinary(t *testing.T) {
 func TestFallbackToEnglish(t *testing.T) {
 	enFS = testData
 	langDir = "__fixtures__"
-	localeProvider = MockLocaleProvider{}
+	localeProvider = mockLocaleProvider{}
 
 	t.Run("fallback to English", func(t *testing.T) {
 		ResetForTesting()
@@ -263,7 +263,7 @@ func TestFallbackToEnglish(t *testing.T) {
 func TestGetUserLocalesNoLang(t *testing.T) {
 	enFS = testData
 	langDir = "__fixtures__"
-	localeProvider = MockLocaleProvider{}
+	localeProvider = mockLocaleProvider{}
 
 	oldLang := os.Getenv("LANG")
 	assert.NoError(t, os.Unsetenv("LANG"))
@@ -276,7 +276,7 @@ func TestGetUserLocalesNoLang(t *testing.T) {
 func TestGetUserLocalesProviderSuccess(t *testing.T) {
 	enFS = testData
 	langDir = "__fixtures__"
-	localeProvider = FakeLocaleProvider{}
+	localeProvider = fakeLocaleProvider{}
 
 	oldLang := os.Getenv("LANG")
 	assert.NoError(t, os.Unsetenv("LANG"))
@@ -310,7 +310,7 @@ func TestBuildLocalizerLocalesNormalizesLangVariants(t *testing.T) {
 func TestGetUserLocalesSkipsEmptyEntries(t *testing.T) {
 	enFS = testData
 	langDir = "__fixtures__"
-	localeProvider = EmptyLocaleProvider{}
+	localeProvider = emptyLocaleProvider{}
 
 	oldLang := os.Getenv("LANG")
 	assert.NoError(t, os.Unsetenv("LANG"))

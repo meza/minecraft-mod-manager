@@ -18,6 +18,11 @@ import (
 
 const defaultExportFilename = "mmm-perf.json"
 
+var (
+	mkdirAll  = os.MkdirAll
+	writeFile = os.WriteFile
+)
+
 type ExportSpan struct {
 	Name         string                 `json:"name"`
 	TraceID      string                 `json:"trace_id"`
@@ -66,7 +71,7 @@ func ExportToFile(outDir string, baseDir string) (string, error) {
 		return "", err
 	}
 
-	mkdirErr := os.MkdirAll(outDir, 0700)
+	mkdirErr := mkdirAll(outDir, 0700)
 	if mkdirErr != nil {
 		return "", mkdirErr
 	}
@@ -77,7 +82,7 @@ func ExportToFile(outDir string, baseDir string) (string, error) {
 		return "", err
 	}
 
-	return path, os.WriteFile(path, data, 0600)
+	return path, writeFile(path, data, 0600)
 }
 
 // GetExportTree returns a hierarchical span tree suitable for exporting in

@@ -168,16 +168,29 @@ func TestExportToFile_DefaultOutDirWritesToWorkingDirectory(t *testing.T) {
 }
 
 func TestExportToFile_UsesTightPermissions(t *testing.T) {
-	if runtime.GOOS == "windows" {
-		t.Skip("file permission bits are not reliable on Windows")
-	}
-
 	Reset()
 	t.Cleanup(Reset)
 	assert.NoError(t, Init(Config{Enabled: true}))
 
 	tempDir := t.TempDir()
 	outDir := filepath.Join(tempDir, "out")
+	var observedDirPerm os.FileMode
+	var observedFilePerm os.FileMode
+	originalMkdirAll := mkdirAll
+	originalWriteFile := writeFile
+	t.Cleanup(func() {
+		mkdirAll = originalMkdirAll
+		writeFile = originalWriteFile
+	})
+
+	mkdirAll = func(path string, perm os.FileMode) error {
+		observedDirPerm = perm
+		return os.MkdirAll(path, perm)
+	}
+	writeFile = func(path string, data []byte, perm os.FileMode) error {
+		observedFilePerm = perm
+		return os.WriteFile(path, data, perm)
+	}
 
 	_, span := StartSpan(context.Background(), "span")
 	span.End()
@@ -187,11 +200,13 @@ func TestExportToFile_UsesTightPermissions(t *testing.T) {
 
 	dirInfo, err := os.Stat(outDir)
 	assert.NoError(t, err)
-	assert.Equal(t, os.FileMode(0700), dirInfo.Mode().Perm())
+	assert.Equal(t, os.FileMode(0700), observedDirPerm)
+	assert.NotEmpty(t, dirInfo.Mode())
 
 	fileInfo, err := os.Stat(written)
 	assert.NoError(t, err)
-	assert.Equal(t, os.FileMode(0600), fileInfo.Mode().Perm())
+	assert.Equal(t, os.FileMode(0600), observedFilePerm)
+	assert.NotEmpty(t, fileInfo.Mode())
 }
 
 func TestNormalizeURLValueReturnsOriginalOnParseFailure(t *testing.T) {

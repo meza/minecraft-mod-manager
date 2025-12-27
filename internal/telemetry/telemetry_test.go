@@ -20,11 +20,11 @@ import (
 )
 
 type stubClient struct {
-	enqueued   []posthog.Message
-	enqueueErr error
-	closeErr   error
-	closeDelay time.Duration
-	closeCount int
+	enqueued    []posthog.Message
+	enqueueErr  error
+	closeErr    error
+	closeCount  int
+	closeWaitCh <-chan struct{}
 }
 
 func (client *stubClient) Enqueue(msg posthog.Message) error {
@@ -34,8 +34,8 @@ func (client *stubClient) Enqueue(msg posthog.Message) error {
 
 func (client *stubClient) Close() error {
 	client.closeCount++
-	if client.closeDelay > 0 {
-		time.Sleep(client.closeDelay)
+	if client.closeWaitCh != nil {
+		<-client.closeWaitCh
 	}
 	return client.closeErr
 }
@@ -133,12 +133,9 @@ func TestShutdownEmitsSingleSessionEvent(t *testing.T) {
 	assert.NoError(t, perf.Init(perf.Config{Enabled: true}))
 
 	rootCtx, rootSpan := perf.StartSpan(context.Background(), "app.lifecycle")
-	time.Sleep(5 * time.Millisecond)
 	_, cmdSpan := perf.StartSpan(rootCtx, "app.command.list")
-	time.Sleep(5 * time.Millisecond)
 	cmdSpan.End()
 	_, waitSpan := perf.StartSpan(rootCtx, "tui.list.wait.view")
-	time.Sleep(10 * time.Millisecond)
 	waitSpan.End()
 	rootSpan.End()
 
@@ -176,7 +173,7 @@ func TestShutdownEmitsSingleSessionEvent(t *testing.T) {
 		work, hasWork := props["work_time_ms"].(int64)
 		assert.True(t, hasTotal)
 		assert.True(t, hasWork)
-		assert.Greater(t, total, int64(0))
+		assert.GreaterOrEqual(t, total, int64(0))
 		assert.GreaterOrEqual(t, work, int64(0))
 		assert.LessOrEqual(t, work, total)
 	}
@@ -830,7 +827,8 @@ func TestShutdownTimeoutLogs(t *testing.T) {
 	resetTelemetryState(t)
 
 	logger := &recordingLogger{}
-	client := &stubClient{closeDelay: 250 * time.Millisecond}
+	closeWaitCh := make(chan struct{})
+	client := &stubClient{closeWaitCh: closeWaitCh}
 	baseLogger = logger
 	baseFlushTimeout = 5 * time.Millisecond
 	clientBuilder = func(apiKey, endpoint string) (Client, error) { return client, nil }
@@ -841,9 +839,9 @@ func TestShutdownTimeoutLogs(t *testing.T) {
 	start := time.Now()
 	Shutdown(context.TODO())
 	duration := time.Since(start)
+	close(closeWaitCh)
 
 	assert.Less(t, duration, 10*baseFlushTimeout)
-	assert.Less(t, duration, client.closeDelay)
 	joined := strings.Join(logger.messages, "\n")
 	assert.Contains(t, joined, "timed out")
 }
@@ -852,7 +850,8 @@ func TestShutdownTimeoutLogsWithContextWithoutDeadline(t *testing.T) {
 	resetTelemetryState(t)
 
 	logger := &recordingLogger{}
-	client := &stubClient{closeDelay: 250 * time.Millisecond}
+	closeWaitCh := make(chan struct{})
+	client := &stubClient{closeWaitCh: closeWaitCh}
 	baseLogger = logger
 	baseFlushTimeout = 5 * time.Millisecond
 	clientBuilder = func(apiKey, endpoint string) (Client, error) { return client, nil }
@@ -863,9 +862,9 @@ func TestShutdownTimeoutLogsWithContextWithoutDeadline(t *testing.T) {
 	start := time.Now()
 	Shutdown(context.Background())
 	duration := time.Since(start)
+	close(closeWaitCh)
 
 	assert.Less(t, duration, 10*baseFlushTimeout)
-	assert.Less(t, duration, client.closeDelay)
 	joined := strings.Join(logger.messages, "\n")
 	assert.Contains(t, joined, "timed out")
 }

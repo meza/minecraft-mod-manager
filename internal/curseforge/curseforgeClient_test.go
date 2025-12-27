@@ -10,12 +10,11 @@ import (
 	"github.com/stretchr/testify/mock"
 )
 
-// MockDoer is a mock implementation of the httpclient.Doer interface
-type MockDoer struct {
+type mockDoer struct {
 	mock.Mock
 }
 
-func (doer *MockDoer) Do(req *http.Request) (*http.Response, error) {
+func (doer *mockDoer) Do(req *http.Request) (*http.Response, error) {
 	args := doer.Called(req)
 	return args.Get(0).(*http.Response), args.Error(1)
 }
@@ -25,7 +24,7 @@ func TestClient_Do(t *testing.T) {
 	t.Setenv("CURSEFORGE_API_KEY", "test-api-key")
 
 	// Create a mock Doer
-	mockDoer := new(MockDoer)
+	mockDoer := new(mockDoer)
 	mockDoer.On("Do", mock.Anything).Return(&http.Response{
 		StatusCode: http.StatusOK,
 		Body:       io.NopCloser(strings.NewReader("")),
@@ -66,7 +65,7 @@ func TestBaseURLIsConstant(t *testing.T) {
 }
 
 func TestNewClient(t *testing.T) {
-	mockDoer := new(MockDoer)
+	mockDoer := new(mockDoer)
 	client := NewClient(mockDoer)
 	assert.NotNil(t, client)
 }

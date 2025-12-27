@@ -16,7 +16,7 @@ import (
 	"github.com/stretchr/testify/assert"
 )
 
-type MockProgram struct {
+type mockProgram struct {
 	Sender
 	sentMessages []tea.Msg
 }
@@ -55,11 +55,11 @@ func (doer *hostRewriteDoer) Do(req *http.Request) (*http.Response, error) {
 	return doer.next.Do(cloned)
 }
 
-func (program *MockProgram) Send(msg tea.Msg) {
+func (program *mockProgram) Send(msg tea.Msg) {
 	program.sentMessages = append(program.sentMessages, msg)
 }
 
-func (program *MockProgram) SentMessages() []tea.Msg {
+func (program *mockProgram) SentMessages() []tea.Msg {
 	return program.sentMessages
 }
 
@@ -162,7 +162,7 @@ func TestDownloadFile(t *testing.T) {
 
 	t.Run("successful download", func(t *testing.T) {
 		fs := afero.NewMemMapFs()
-		program := &MockProgram{}
+		program := &mockProgram{}
 
 		mockServer := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 			w.WriteHeader(http.StatusOK)
@@ -214,7 +214,7 @@ func TestDownloadFile(t *testing.T) {
 	t.Run("invalid download URL returns validation error", func(t *testing.T) {
 		err := DownloadFile(context.Background(), "invalid-url", "testfile", doerFunc(func(_ *http.Request) (*http.Response, error) {
 			return nil, errors.New("unexpected request")
-		}), &MockProgram{}, afero.NewMemMapFs())
+		}), &mockProgram{}, afero.NewMemMapFs())
 		assert.Error(t, err)
 		assert.Equal(t, i18n.T("error.download_url_invalid", i18n.Tvars{
 			Data: &i18n.TData{"url": "invalid-url"},
@@ -226,7 +226,7 @@ func TestDownloadFile(t *testing.T) {
 
 		err := DownloadFile(context.Background(), insecureURL, "testfile", doerFunc(func(_ *http.Request) (*http.Response, error) {
 			return nil, errors.New("unexpected request")
-		}), &MockProgram{}, afero.NewMemMapFs())
+		}), &mockProgram{}, afero.NewMemMapFs())
 		assert.Error(t, err)
 		assert.Equal(t, i18n.T("error.download_url_insecure", i18n.Tvars{
 			Data: &i18n.TData{"url": insecureURL},
@@ -238,7 +238,7 @@ func TestDownloadFile(t *testing.T) {
 
 		err := DownloadFile(context.Background(), untrustedURL, "testfile", doerFunc(func(_ *http.Request) (*http.Response, error) {
 			return nil, errors.New("unexpected request")
-		}), &MockProgram{}, afero.NewMemMapFs())
+		}), &mockProgram{}, afero.NewMemMapFs())
 		assert.Error(t, err)
 		assert.Equal(t, i18n.T("error.download_url_untrusted_host", i18n.Tvars{
 			Data: &i18n.TData{"host": "example.com", "url": untrustedURL},
@@ -256,13 +256,13 @@ func TestDownloadFile(t *testing.T) {
 
 		err := DownloadFile(context.Background(), allowedURL("/file"), "testfile", doerFunc(func(_ *http.Request) (*http.Response, error) {
 			return nil, errors.New("unexpected request")
-		}), &MockProgram{}, afero.NewMemMapFs())
+		}), &mockProgram{}, afero.NewMemMapFs())
 		assert.ErrorContains(t, err, "failed to build download request")
 	})
 
 	t.Run("HTTP non-2xx response returns error", func(t *testing.T) {
 		fs := afero.NewMemMapFs()
-		program := &MockProgram{}
+		program := &mockProgram{}
 
 		mockServer := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 			w.WriteHeader(http.StatusBadRequest)
@@ -283,7 +283,7 @@ func TestDownloadFile(t *testing.T) {
 
 	t.Run("HTTP timeout error keeps i18n message", func(t *testing.T) {
 		fs := afero.NewMemMapFs()
-		program := &MockProgram{}
+		program := &mockProgram{}
 		timeoutDoer := doerFunc(func(_ *http.Request) (*http.Response, error) {
 			return nil, &TimeoutError{Err: context.DeadlineExceeded}
 		})
@@ -307,7 +307,7 @@ func TestDownloadFile(t *testing.T) {
 
 		doer, err := newHostRewriteDoer(mockServer.URL, mockServer.Client())
 		assert.NoError(t, err)
-		err = DownloadFile(context.Background(), allowedURL("/testfile"), "/invalid/path/testfile", doer, &MockProgram{}, fs)
+		err = DownloadFile(context.Background(), allowedURL("/testfile"), "/invalid/path/testfile", doer, &mockProgram{}, fs)
 		assert.ErrorContains(t, err, "failed to create file")
 	})
 
@@ -320,7 +320,7 @@ func TestDownloadFile(t *testing.T) {
 
 		fs := afero.NewMemMapFs()
 
-		program := &MockProgram{}
+		program := &mockProgram{}
 		doer, err := newHostRewriteDoer(mockServer.URL, mockServer.Client())
 		assert.NoError(t, err)
 		err = DownloadFile(context.Background(), allowedURL("/test"), "test", doer, program, fs)
@@ -339,7 +339,7 @@ func TestDownloadFile(t *testing.T) {
 			}, nil
 		})
 
-		err := DownloadFile(context.Background(), allowedURL("/file"), "testfile", doer, &MockProgram{}, afero.NewMemMapFs())
+		err := DownloadFile(context.Background(), allowedURL("/file"), "testfile", doer, &mockProgram{}, afero.NewMemMapFs())
 		assert.ErrorIs(t, err, bodyErr)
 	})
 
@@ -353,7 +353,7 @@ func TestDownloadFile(t *testing.T) {
 			}, nil
 		})
 
-		err := DownloadFile(context.Background(), allowedURL("/file"), "testfile", doer, &MockProgram{}, fs)
+		err := DownloadFile(context.Background(), allowedURL("/file"), "testfile", doer, &mockProgram{}, fs)
 		assert.ErrorContains(t, err, "close failed")
 	})
 
@@ -366,7 +366,7 @@ func TestDownloadFile(t *testing.T) {
 				Body:       &readErrorBody{err: readErr},
 			}, nil
 		})
-		program := &MockProgram{}
+		program := &mockProgram{}
 
 		err := DownloadFile(context.Background(), allowedURL("/file"), "test", doer, program, fs)
 		assert.ErrorContains(t, err, "failed to remove partial file")
@@ -382,7 +382,7 @@ func TestDownloadFile(t *testing.T) {
 				Body:       &readCloseErrorBody{readErr: readErr, closeErr: closeErr},
 			}, nil
 		})
-		program := &MockProgram{}
+		program := &mockProgram{}
 
 		err := DownloadFile(context.Background(), allowedURL("/file"), "test", doer, program, fs)
 		assert.ErrorContains(t, err, "failed to write file")
@@ -399,7 +399,7 @@ type valueProgram struct{}
 func (program valueProgram) Send(_ tea.Msg) {}
 
 func TestSendProgressWithProgram(t *testing.T) {
-	program := &MockProgram{}
+	program := &mockProgram{}
 	sendProgress(program, progressMsg(0.5))
 	assert.Len(t, program.SentMessages(), 1)
 	_, ok := program.SentMessages()[0].(progressMsg)
@@ -413,13 +413,13 @@ func TestSendProgressWithNilProgram(t *testing.T) {
 }
 
 func TestIsNilSenderHandlesTypedNil(t *testing.T) {
-	var program *MockProgram
+	var program *mockProgram
 	var sender Sender = program
 	assert.True(t, isNilSender(sender))
 }
 
 func TestIsNilSenderHandlesNonNil(t *testing.T) {
-	assert.False(t, isNilSender(&MockProgram{}))
+	assert.False(t, isNilSender(&mockProgram{}))
 	assert.False(t, isNilSender(valueProgram{}))
 }
 
