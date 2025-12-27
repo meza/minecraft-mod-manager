@@ -364,8 +364,8 @@ func initWithDeps(ctx context.Context, options initOptions, deps initDeps) (conf
 		return config.Metadata{}, err
 	}
 
-	if !minecraft.IsValidVersion(ctx, options.GameVersion, deps.minecraftClient) {
-		return config.Metadata{}, fmt.Errorf("invalid minecraft version: %s", options.GameVersion)
+	if err := validateGameVersion(ctx, options.GameVersion, deps); err != nil {
+		return config.Metadata{}, err
 	}
 
 	if err := deps.fs.MkdirAll(meta.Dir(), 0755); err != nil {
@@ -392,6 +392,17 @@ func initWithDeps(ctx context.Context, options initOptions, deps initDeps) (conf
 	}
 
 	return meta, nil
+}
+
+func validateGameVersion(ctx context.Context, gameVersion string, deps initDeps) error {
+	valid, validationErr := minecraft.IsValidVersion(ctx, gameVersion, deps.minecraftClient)
+	if validationErr != nil {
+		return fmt.Errorf("%s", i18n.T("cmd.init.error.game-version.unavailable", i18n.Tvars{}))
+	}
+	if !valid {
+		return fmt.Errorf("invalid minecraft version: %s", gameVersion)
+	}
+	return nil
 }
 
 func getCurrentWorkingDirectory() string {

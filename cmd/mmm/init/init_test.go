@@ -193,6 +193,24 @@ func TestInitWithDeps(t *testing.T) {
 		assert.ErrorContains(t, err, "invalid minecraft version")
 	})
 
+	t.Run("manifest validation error returns error", func(t *testing.T) {
+		minecraft.ClearManifestCache()
+		fs := afero.NewMemMapFs()
+		assert.NoError(t, fs.MkdirAll(filepath.FromSlash("/cfg/mods"), 0755))
+
+		_, err := initWithDeps(context.Background(), initOptions{
+			ConfigPath:   filepath.FromSlash("/cfg/modlist.json"),
+			Loader:       models.FABRIC,
+			GameVersion:  "1.21.1",
+			ReleaseTypes: []models.ReleaseType{models.Release},
+			ModsFolder:   "mods",
+		}, initDeps{
+			fs:              fs,
+			minecraftClient: doerFunc(func(*http.Request) (*http.Response, error) { return nil, errors.New("offline") }),
+		})
+		assert.ErrorContains(t, err, "Could not verify the Minecraft version.")
+	})
+
 	t.Run("config exists with --quiet returns error", func(t *testing.T) {
 		minecraft.ClearManifestCache()
 		fs := afero.NewMemMapFs()
@@ -655,7 +673,7 @@ func TestParseReleaseTypes(t *testing.T) {
 	})
 }
 
-func TestGameVersionModelAllowsOfflineEntry(t *testing.T) {
+func TestGameVersionModelRejectsOfflineEntry(t *testing.T) {
 	minecraft.ClearManifestCache()
 
 	offlineDoer := doerFunc(func(_ *http.Request) (*http.Response, error) {
@@ -666,11 +684,9 @@ func TestGameVersionModelAllowsOfflineEntry(t *testing.T) {
 	model.input.SetValue("1.2.3")
 
 	updated, cmd := model.Update(tea.KeyMsg{Type: tea.KeyEnter})
-	assert.Equal(t, "1.2.3", updated.Value)
-
-	msg := cmd()
-	assert.IsType(t, GameVersionSelectedMessage{}, msg)
-	assert.Equal(t, "1.2.3", msg.(GameVersionSelectedMessage).GameVersion)
+	assert.Empty(t, updated.Value)
+	assert.Nil(t, cmd)
+	assert.NotNil(t, updated.error)
 }
 
 func TestGameVersionModelUsesPlaceholderWhenEmpty(t *testing.T) {

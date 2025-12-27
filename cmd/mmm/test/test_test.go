@@ -87,8 +87,8 @@ func TestExitCode0WhenAllModsSupported(t *testing.T) {
 		latestVersion: func(ctx context.Context, client httpclient.Doer) (string, error) {
 			return "1.22.0", nil
 		},
-		isValidVersion: func(ctx context.Context, version string, client httpclient.Doer) bool {
-			return version == "1.22.0" || version == "1.21.1"
+		isValidVersion: func(ctx context.Context, version string, client httpclient.Doer) (bool, error) {
+			return version == "1.22.0" || version == "1.21.1", nil
 		},
 		telemetry: func(telemetry.CommandTelemetry) {},
 	})
@@ -143,8 +143,8 @@ func TestExitCode1WhenSomeModsUnsupported(t *testing.T) {
 		latestVersion: func(ctx context.Context, client httpclient.Doer) (string, error) {
 			return "1.22.0", nil
 		},
-		isValidVersion: func(ctx context.Context, version string, client httpclient.Doer) bool {
-			return true
+		isValidVersion: func(ctx context.Context, version string, client httpclient.Doer) (bool, error) {
+			return true, nil
 		},
 		telemetry: func(telemetry.CommandTelemetry) {},
 	})
@@ -201,8 +201,8 @@ func TestExitCode2WhenVersionMatchesCurrent(t *testing.T) {
 		latestVersion: func(ctx context.Context, client httpclient.Doer) (string, error) {
 			return "1.22.0", nil
 		},
-		isValidVersion: func(ctx context.Context, version string, client httpclient.Doer) bool {
-			return true
+		isValidVersion: func(ctx context.Context, version string, client httpclient.Doer) (bool, error) {
+			return true, nil
 		},
 		telemetry: func(telemetry.CommandTelemetry) {},
 	})
@@ -259,8 +259,8 @@ func TestLatestVersionResolution(t *testing.T) {
 		latestVersion: func(ctx context.Context, client httpclient.Doer) (string, error) {
 			return "1.22.0", nil
 		},
-		isValidVersion: func(ctx context.Context, version string, client httpclient.Doer) bool {
-			return true
+		isValidVersion: func(ctx context.Context, version string, client httpclient.Doer) (bool, error) {
+			return true, nil
 		},
 		telemetry: func(telemetry.CommandTelemetry) {},
 	})
@@ -312,14 +312,68 @@ func TestInvalidVersionHandling(t *testing.T) {
 		latestVersion: func(ctx context.Context, client httpclient.Doer) (string, error) {
 			return "1.22.0", nil
 		},
-		isValidVersion: func(ctx context.Context, version string, client httpclient.Doer) bool {
-			return version == "1.22.0" || version == "1.21.1"
+		isValidVersion: func(ctx context.Context, version string, client httpclient.Doer) (bool, error) {
+			return version == "1.22.0" || version == "1.21.1", nil
 		},
 		telemetry: func(telemetry.CommandTelemetry) {},
 	})
 
 	assert.Error(t, err)
 	assert.ErrorIs(t, err, errInvalidVersion)
+	assert.Contains(t, errOut.String(), "cmd.test.error.invalid_version")
+}
+
+func TestVersionValidationFailureReturnsError(t *testing.T) {
+	t.Setenv("MMM_TEST", "true")
+
+	fs := afero.NewMemMapFs()
+	meta := config.NewMetadata(filepath.FromSlash("/cfg/modlist.json"))
+
+	cfg := models.ModsJSON{
+		Loader:                     models.FABRIC,
+		GameVersion:                "1.21.1",
+		DefaultAllowedReleaseTypes: []models.ReleaseType{models.Release},
+		ModsFolder:                 "mods",
+		Mods: []models.Mod{
+			{ID: "proj-1", Name: "SomeMod", Type: models.MODRINTH},
+		},
+	}
+
+	assert.NoError(t, fs.MkdirAll(meta.Dir(), 0755))
+	assert.NoError(t, config.WriteConfig(context.Background(), fs, meta, cfg))
+
+	out := &bytes.Buffer{}
+	errOut := &bytes.Buffer{}
+	cmd := &cobra.Command{}
+	cmd.SetIn(&bytes.Buffer{})
+	cmd.SetOut(out)
+	cmd.SetErr(errOut)
+
+	_, err := runTest(context.Background(), cmd, testOptions{
+		ConfigPath:  meta.ConfigPath,
+		GameVersion: "1.22.0",
+	}, testDeps{
+		fs:     fs,
+		logger: logger.New(out, errOut, false, false),
+		clients: platform.Clients{
+			Modrinth: noopDoer{},
+		},
+		fetchMod: func(ctx context.Context, p models.Platform, id string, opts platform.FetchOptions, clients platform.Clients) (platform.RemoteMod, error) {
+			t.Fatal("fetchMod should not be called when version validation fails")
+			return platform.RemoteMod{}, nil
+		},
+		latestVersion: func(ctx context.Context, client httpclient.Doer) (string, error) {
+			return "1.22.0", nil
+		},
+		isValidVersion: func(ctx context.Context, version string, client httpclient.Doer) (bool, error) {
+			return false, errors.New("manifest unavailable")
+		},
+		telemetry: func(telemetry.CommandTelemetry) {},
+	})
+
+	assert.Error(t, err)
+	assert.ErrorIs(t, err, errVersionValidationUnavailable)
+	assert.Contains(t, errOut.String(), "cmd.test.error.version_unavailable")
 }
 
 func TestQuietFlagBehavior(t *testing.T) {
@@ -364,8 +418,8 @@ func TestQuietFlagBehavior(t *testing.T) {
 		latestVersion: func(ctx context.Context, client httpclient.Doer) (string, error) {
 			return "1.22.0", nil
 		},
-		isValidVersion: func(ctx context.Context, version string, client httpclient.Doer) bool {
-			return true
+		isValidVersion: func(ctx context.Context, version string, client httpclient.Doer) (bool, error) {
+			return true, nil
 		},
 		telemetry: func(telemetry.CommandTelemetry) {},
 	})
@@ -418,8 +472,8 @@ func TestDebugFlagBehavior(t *testing.T) {
 		latestVersion: func(ctx context.Context, client httpclient.Doer) (string, error) {
 			return "1.22.0", nil
 		},
-		isValidVersion: func(ctx context.Context, version string, client httpclient.Doer) bool {
-			return true
+		isValidVersion: func(ctx context.Context, version string, client httpclient.Doer) (bool, error) {
+			return true, nil
 		},
 		telemetry: func(telemetry.CommandTelemetry) {},
 	})
@@ -479,8 +533,8 @@ func TestAllowVersionFallbackHonored(t *testing.T) {
 		latestVersion: func(ctx context.Context, client httpclient.Doer) (string, error) {
 			return "1.22.0", nil
 		},
-		isValidVersion: func(ctx context.Context, version string, client httpclient.Doer) bool {
-			return true
+		isValidVersion: func(ctx context.Context, version string, client httpclient.Doer) (bool, error) {
+			return true, nil
 		},
 		telemetry: func(telemetry.CommandTelemetry) {},
 	})
@@ -540,8 +594,8 @@ func TestPinnedModsAreChecked(t *testing.T) {
 		latestVersion: func(ctx context.Context, client httpclient.Doer) (string, error) {
 			return "1.22.0", nil
 		},
-		isValidVersion: func(ctx context.Context, version string, client httpclient.Doer) bool {
-			return true
+		isValidVersion: func(ctx context.Context, version string, client httpclient.Doer) (bool, error) {
+			return true, nil
 		},
 		telemetry: func(telemetry.CommandTelemetry) {},
 	})
@@ -593,8 +647,8 @@ func TestModNotFoundError(t *testing.T) {
 		latestVersion: func(ctx context.Context, client httpclient.Doer) (string, error) {
 			return "1.22.0", nil
 		},
-		isValidVersion: func(ctx context.Context, version string, client httpclient.Doer) bool {
-			return true
+		isValidVersion: func(ctx context.Context, version string, client httpclient.Doer) (bool, error) {
+			return true, nil
 		},
 		telemetry: func(telemetry.CommandTelemetry) {},
 	})
@@ -636,8 +690,8 @@ func TestConfigFileNotFound(t *testing.T) {
 		latestVersion: func(ctx context.Context, client httpclient.Doer) (string, error) {
 			return "1.22.0", nil
 		},
-		isValidVersion: func(ctx context.Context, version string, client httpclient.Doer) bool {
-			return true
+		isValidVersion: func(ctx context.Context, version string, client httpclient.Doer) (bool, error) {
+			return true, nil
 		},
 		telemetry: func(telemetry.CommandTelemetry) {},
 	})
@@ -690,8 +744,8 @@ func TestLatestVersionResolutionError(t *testing.T) {
 		latestVersion: func(ctx context.Context, client httpclient.Doer) (string, error) {
 			return "", errors.New("network error")
 		},
-		isValidVersion: func(ctx context.Context, version string, client httpclient.Doer) bool {
-			return true
+		isValidVersion: func(ctx context.Context, version string, client httpclient.Doer) (bool, error) {
+			return true, nil
 		},
 		telemetry: func(telemetry.CommandTelemetry) {},
 	})
@@ -742,8 +796,8 @@ func TestEmptyModListSuccess(t *testing.T) {
 		latestVersion: func(ctx context.Context, client httpclient.Doer) (string, error) {
 			return "1.22.0", nil
 		},
-		isValidVersion: func(ctx context.Context, version string, client httpclient.Doer) bool {
-			return true
+		isValidVersion: func(ctx context.Context, version string, client httpclient.Doer) (bool, error) {
+			return true, nil
 		},
 		telemetry: func(telemetry.CommandTelemetry) {},
 	})
@@ -794,8 +848,8 @@ func TestRunTestReturnsCorrectExitCodeForTelemetry(t *testing.T) {
 		latestVersion: func(ctx context.Context, client httpclient.Doer) (string, error) {
 			return "1.22.0", nil
 		},
-		isValidVersion: func(ctx context.Context, version string, client httpclient.Doer) bool {
-			return true
+		isValidVersion: func(ctx context.Context, version string, client httpclient.Doer) (bool, error) {
+			return true, nil
 		},
 		telemetry: func(telemetry.CommandTelemetry) {},
 	})
@@ -856,8 +910,8 @@ func TestParallelModChecks(t *testing.T) {
 		latestVersion: func(ctx context.Context, client httpclient.Doer) (string, error) {
 			return "1.22.0", nil
 		},
-		isValidVersion: func(ctx context.Context, version string, client httpclient.Doer) bool {
-			return true
+		isValidVersion: func(ctx context.Context, version string, client httpclient.Doer) (bool, error) {
+			return true, nil
 		},
 		telemetry: func(telemetry.CommandTelemetry) {},
 	})
@@ -915,8 +969,8 @@ func TestMixedPlatformMods(t *testing.T) {
 		latestVersion: func(ctx context.Context, client httpclient.Doer) (string, error) {
 			return "1.22.0", nil
 		},
-		isValidVersion: func(ctx context.Context, version string, client httpclient.Doer) bool {
-			return true
+		isValidVersion: func(ctx context.Context, version string, client httpclient.Doer) (bool, error) {
+			return true, nil
 		},
 		telemetry: func(telemetry.CommandTelemetry) {},
 	})
@@ -974,8 +1028,8 @@ func TestCustomAllowedReleaseTypes(t *testing.T) {
 		latestVersion: func(ctx context.Context, client httpclient.Doer) (string, error) {
 			return "1.22.0", nil
 		},
-		isValidVersion: func(ctx context.Context, version string, client httpclient.Doer) bool {
-			return true
+		isValidVersion: func(ctx context.Context, version string, client httpclient.Doer) (bool, error) {
+			return true, nil
 		},
 		telemetry: func(telemetry.CommandTelemetry) {},
 	})
@@ -1027,8 +1081,8 @@ func TestGenericFetchErrorLogsToErrorOutput(t *testing.T) {
 		latestVersion: func(ctx context.Context, client httpclient.Doer) (string, error) {
 			return "1.22.0", nil
 		},
-		isValidVersion: func(ctx context.Context, version string, client httpclient.Doer) bool {
-			return true
+		isValidVersion: func(ctx context.Context, version string, client httpclient.Doer) (bool, error) {
+			return true, nil
 		},
 		telemetry: func(telemetry.CommandTelemetry) {},
 	})
@@ -1139,7 +1193,7 @@ func TestRunTestReturnsContextErrorWhenCanceled(t *testing.T) {
 			return platform.RemoteMod{}, errors.New("unexpected")
 		},
 		latestVersion:  func(context.Context, httpclient.Doer) (string, error) { return "1.20.1", nil },
-		isValidVersion: func(context.Context, string, httpclient.Doer) bool { return true },
+		isValidVersion: func(context.Context, string, httpclient.Doer) (bool, error) { return true, nil },
 	}
 
 	opts := testOptions{ConfigPath: configPath, GameVersion: "1.20.1"}

@@ -2,6 +2,7 @@ package init
 
 import (
 	"context"
+	"fmt"
 	"path/filepath"
 	"strings"
 	"testing"
@@ -12,6 +13,7 @@ import (
 	"github.com/stretchr/testify/assert"
 
 	"github.com/meza/minecraft-mod-manager/internal/config"
+	"github.com/meza/minecraft-mod-manager/internal/i18n"
 	"github.com/meza/minecraft-mod-manager/internal/models"
 	"github.com/meza/minecraft-mod-manager/internal/perf"
 )
@@ -99,6 +101,25 @@ func TestInitTUIErrorSnapshots(t *testing.T) {
 		model = selectLoader(t, model, models.FABRIC)
 
 		model.gameVersionQuestion.input.SetValue("invalid")
+		updated, cmd := model.gameVersionQuestion.Update(tea.KeyMsg{Type: tea.KeyEnter})
+		model.gameVersionQuestion = updated
+		model = runCmd(t, model, cmd)
+
+		matchSnapshot(t, model.View())
+		spans := finalizePerfForModel(t, &model)
+		assertPerfEventExistsInit(t, spans, "tui.init.session", "tui.init.action.select_loader")
+	})
+
+	t.Run("game_version_unavailable", func(t *testing.T) {
+		enablePerf(t)
+		model := newSnapshotModel(t)
+		model = applyWindowSize(t, model, 60)
+		model = selectLoader(t, model, models.FABRIC)
+		model.gameVersionQuestion.validate = func(string) error {
+			return fmt.Errorf("%s", i18n.T("cmd.init.tui.game-version.unavailable", i18n.Tvars{}))
+		}
+
+		model.gameVersionQuestion.input.SetValue("1.21.1")
 		updated, cmd := model.gameVersionQuestion.Update(tea.KeyMsg{Type: tea.KeyEnter})
 		model.gameVersionQuestion = updated
 		model = runCmd(t, model, cmd)

@@ -6,20 +6,20 @@ This package talks to Mojang's version manifest to answer a few questions the CL
 - is a user-provided version string valid?
 - what versions exist (for UI selection and validation)
 
-The manifest is cached in-memory to keep repeated calls fast.
+The manifest is cached in-memory to keep repeated calls fast. The cache expires after 15 minutes.
 
 ## Public API
 
-- `GetLatestVersion(client httpclient.Doer) (string, error)`
-- `IsValidVersion(version string, client httpclient.Doer) bool`
-- `GetAllMineCraftVersions(client httpclient.Doer) []string`
+- `GetLatestVersion(ctx context.Context, client httpclient.Doer) (string, error)`
+- `IsValidVersion(ctx context.Context, version string, client httpclient.Doer) (bool, error)`
+- `GetAllMineCraftVersions(ctx context.Context, client httpclient.Doer) []string`
 - `ClearManifestCache()` (test helper)
 
 ## Offline / failure behavior
 
-`IsValidVersion` is deliberately permissive when the manifest cannot be fetched:
+`IsValidVersion` requires a manifest lookup to validate a version:
 
-- if the manifest request fails, it returns `true` so the user can still try to proceed offline
+- if the manifest request fails, it returns `false` with an error
 - if the version string is empty, it returns `false`
 
 This behavior matters for UX: "cannot validate" is not the same as "invalid".

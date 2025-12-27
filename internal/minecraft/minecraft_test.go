@@ -2,11 +2,13 @@ package minecraft
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
 	"io"
 	"net/http"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/meza/minecraft-mod-manager/internal/httpclient"
 	"github.com/stretchr/testify/assert"
@@ -102,11 +104,25 @@ func TestMinecraft(t *testing.T) {
 		assert.NoError(t, err)
 		defer mockServer.Close()
 
-		assert.True(t, IsValidVersion(context.Background(), "1.21.1", mockServer.Client()))
-		assert.False(t, IsValidVersion(context.Background(), "1.21.2", mockServer.Client()))
-		assert.False(t, IsValidVersion(context.Background(), "", mockServer.Client()))
-		assert.False(t, IsValidVersion(context.Background(), "1.21.3", mockServer.Client()))
-		assert.True(t, IsValidVersion(context.Background(), "24w33a", mockServer.Client()))
+		valid, err := IsValidVersion(context.Background(), "1.21.1", mockServer.Client())
+		assert.NoError(t, err)
+		assert.True(t, valid)
+
+		valid, err = IsValidVersion(context.Background(), "1.21.2", mockServer.Client())
+		assert.NoError(t, err)
+		assert.False(t, valid)
+
+		valid, err = IsValidVersion(context.Background(), "", mockServer.Client())
+		assert.NoError(t, err)
+		assert.False(t, valid)
+
+		valid, err = IsValidVersion(context.Background(), "1.21.3", mockServer.Client())
+		assert.NoError(t, err)
+		assert.False(t, valid)
+
+		valid, err = IsValidVersion(context.Background(), "24w33a", mockServer.Client())
+		assert.NoError(t, err)
+		assert.True(t, valid)
 	})
 
 	t.Run("GetAllMineCraftVersions", func(t *testing.T) {
@@ -188,7 +204,9 @@ func TestMinecraft(t *testing.T) {
 		assert.NoError(t, err)
 		defer mockServer.Close()
 
-		assert.True(t, IsValidVersion(context.Background(), "1.21.1", mockServer.Client()))
+		valid, err := IsValidVersion(context.Background(), "1.21.1", mockServer.Client())
+		assert.Error(t, err)
+		assert.False(t, valid)
 	})
 
 	t.Run("GetAllMineCraftVersions_Error", func(t *testing.T) {
@@ -205,6 +223,15 @@ func TestMinecraft(t *testing.T) {
 
 	t.Run("Caching", func(t *testing.T) {
 		ClearManifestCache()
+		originalTimeNow := timeNow
+		defer func() {
+			timeNow = originalTimeNow
+		}()
+		now := time.Now()
+		timeNow = func() time.Time {
+			return now
+		}
+
 		callCount := 0
 		mockServer, err := httpstest.NewServer([]string{
 			"launchermeta.mojang.com",
@@ -225,13 +252,12 @@ func TestMinecraft(t *testing.T) {
 		_, err = getMinecraftVersionManifest(context.Background(), client)
 		assert.NoError(t, err)
 
-		ClearManifestCache()
-
-		// Third call should refetch after clearing cache
+		// Third call should refetch after TTL expiration
+		now = now.Add(manifestCacheTTL + time.Second)
 		_, err = getMinecraftVersionManifest(context.Background(), client)
 		assert.NoError(t, err)
 
-		assert.Equal(t, 2, callCount, "server should be called twice (cache cleared once)")
+		assert.Equal(t, 2, callCount, "server should be called twice (cache expired once)")
 	})
 
 	t.Run("GetManifestReturnsErrorOnRequestBuildFailure", func(t *testing.T) {
@@ -263,6 +289,68 @@ func TestMinecraft(t *testing.T) {
 		}))
 		assert.ErrorIs(t, err, closeErr)
 		assert.Nil(t, manifest)
-		assert.Nil(t, latestManifest)
+		assert.Nil(t, manifestCacheState.manifest)
+	})
+
+	t.Run("GetManifestReturnsErrorOnStatusFailure", func(t *testing.T) {
+		ClearManifestCache()
+		manifest, err := getMinecraftVersionManifest(context.Background(), doerFunc(func(req *http.Request) (*http.Response, error) {
+			return &http.Response{
+				StatusCode: http.StatusInternalServerError,
+				Body:       io.NopCloser(strings.NewReader("server error")),
+				Request:    req,
+			}, nil
+		}))
+		assert.Nil(t, manifest)
+		var responseErr *httpclient.ResponseError
+		assert.ErrorAs(t, err, &responseErr)
+		assert.Equal(t, http.StatusInternalServerError, responseErr.StatusCode)
+		assert.Nil(t, manifestCacheState.manifest)
+	})
+
+	t.Run("GetManifestReturnsJoinedErrorOnStatusCloseFailure", func(t *testing.T) {
+		ClearManifestCache()
+		closeErr := errors.New("close failed")
+		manifest, err := getMinecraftVersionManifest(context.Background(), doerFunc(func(req *http.Request) (*http.Response, error) {
+			return &http.Response{
+				StatusCode: http.StatusInternalServerError,
+				Body:       newCloseErrorBody("server error", closeErr),
+				Request:    req,
+			}, nil
+		}))
+		assert.Nil(t, manifest)
+		var responseErr *httpclient.ResponseError
+		assert.ErrorAs(t, err, &responseErr)
+		assert.ErrorIs(t, err, closeErr)
+		assert.Nil(t, manifestCacheState.manifest)
+	})
+
+	t.Run("GetManifestReturnsErrorOnDecodeFailure", func(t *testing.T) {
+		ClearManifestCache()
+		manifest, err := getMinecraftVersionManifest(context.Background(), doerFunc(func(_ *http.Request) (*http.Response, error) {
+			return &http.Response{
+				StatusCode: http.StatusOK,
+				Body:       io.NopCloser(strings.NewReader("{invalid")),
+			}, nil
+		}))
+		assert.Nil(t, manifest)
+		assert.Error(t, err)
+		assert.Nil(t, manifestCacheState.manifest)
+	})
+
+	t.Run("GetManifestReturnsJoinedErrorOnDecodeCloseFailure", func(t *testing.T) {
+		ClearManifestCache()
+		closeErr := errors.New("close failed")
+		manifest, err := getMinecraftVersionManifest(context.Background(), doerFunc(func(_ *http.Request) (*http.Response, error) {
+			return &http.Response{
+				StatusCode: http.StatusOK,
+				Body:       newCloseErrorBody("{invalid", closeErr),
+			}, nil
+		}))
+		assert.Nil(t, manifest)
+		var syntaxErr *json.SyntaxError
+		assert.ErrorAs(t, err, &syntaxErr)
+		assert.ErrorIs(t, err, closeErr)
+		assert.Nil(t, manifestCacheState.manifest)
 	})
 }

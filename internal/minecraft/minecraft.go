@@ -4,7 +4,9 @@ package minecraft
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"net/http"
+	"sync"
 	"time"
 
 	"github.com/meza/minecraft-mod-manager/internal/httpclient"
@@ -30,18 +32,55 @@ type versionManifest struct {
 }
 
 var versionManifestURL = "https://launchermeta.mojang.com/mc/game/version_manifest.json"
-var latestManifest *versionManifest
 var newRequestWithContext = http.NewRequestWithContext
+var manifestCacheTTL = 15 * time.Minute
+var timeNow = time.Now
+
+type manifestCache struct {
+	mutex     sync.RWMutex
+	manifest  *versionManifest
+	fetchedAt time.Time
+}
+
+func (cache *manifestCache) clear() {
+	cache.mutex.Lock()
+	defer cache.mutex.Unlock()
+	cache.manifest = nil
+	cache.fetchedAt = time.Time{}
+}
+
+func (cache *manifestCache) get(now time.Time) (*versionManifest, bool) {
+	cache.mutex.RLock()
+	defer cache.mutex.RUnlock()
+	if cache.manifest == nil {
+		return nil, false
+	}
+	cacheAge := now.Sub(cache.fetchedAt)
+	if cacheAge < 0 || cacheAge >= manifestCacheTTL {
+		return nil, false
+	}
+	return cache.manifest, true
+}
+
+func (cache *manifestCache) set(now time.Time, manifest *versionManifest) {
+	cache.mutex.Lock()
+	defer cache.mutex.Unlock()
+	cache.manifest = manifest
+	cache.fetchedAt = now
+}
+
+var manifestCacheState = &manifestCache{}
 
 func ClearManifestCache() {
-	latestManifest = nil
+	manifestCacheState.clear()
 }
 
 func getMinecraftVersionManifest(ctx context.Context, client httpclient.Doer) (*versionManifest, error) {
 	_, span := perf.StartSpan(ctx, "api.minecraft.version_manifest.get")
 	defer span.End()
-	if latestManifest != nil {
-		return latestManifest, nil
+	cacheNow := timeNow()
+	if manifest, ok := manifestCacheState.get(cacheNow); ok {
+		return manifest, nil
 	}
 
 	timeoutCtx, cancel := httpclient.WithMetadataTimeout(ctx)
@@ -56,20 +95,32 @@ func getMinecraftVersionManifest(ctx context.Context, client httpclient.Doer) (*
 		if httpclient.IsTimeoutError(err) {
 			return nil, httpclient.WrapTimeoutError(err)
 		}
-		return nil, ErrManifestNotFound
+		return nil, err
+	}
+
+	if response.StatusCode != http.StatusOK {
+		responseErr := httpclient.NewResponseError(response)
+		closeErr := response.Body.Close()
+		if closeErr != nil {
+			return nil, errors.Join(responseErr, closeErr)
+		}
+		return nil, responseErr
 	}
 
 	var decodedManifest versionManifest
 	decodeErr := json.NewDecoder(response.Body).Decode(&decodedManifest)
 	closeErr := response.Body.Close()
 	if decodeErr != nil {
-		return nil, ErrManifestNotFound
+		if closeErr != nil {
+			return nil, errors.Join(decodeErr, closeErr)
+		}
+		return nil, decodeErr
 	}
 	if closeErr != nil {
 		return nil, closeErr
 	}
-	latestManifest = &decodedManifest
-	return latestManifest, nil
+	manifestCacheState.set(cacheNow, &decodedManifest)
+	return &decodedManifest, nil
 }
 
 func GetLatestVersion(ctx context.Context, client httpclient.Doer) (string, error) {
@@ -85,26 +136,24 @@ func GetLatestVersion(ctx context.Context, client httpclient.Doer) (string, erro
 	return manifest.Latest.Release, nil
 }
 
-func IsValidVersion(ctx context.Context, version string, client httpclient.Doer) bool {
+func IsValidVersion(ctx context.Context, version string, client httpclient.Doer) (bool, error) {
 	if version == "" {
-		return false
+		return false, nil
 	}
 
 	manifest, err := getMinecraftVersionManifest(ctx, client)
 
 	if err != nil {
-		// If we couldn't get the manifest, we can't determine if the version is valid
-		// so we return true to allow the user to try to download the version anyway
-		return true
+		return false, err
 	}
 
-	for _, v := range manifest.Versions {
-		if v.ID == version {
-			return true
+	for _, manifestVersion := range manifest.Versions {
+		if manifestVersion.ID == version {
+			return true, nil
 		}
 	}
 
-	return false
+	return false, nil
 }
 
 func GetAllMineCraftVersions(ctx context.Context, client httpclient.Doer) []string {

@@ -46,10 +46,11 @@ type fetcher func(context.Context, models.Platform, string, platform.FetchOption
 
 type latestVersionFetcher func(context.Context, httpclient.Doer) (string, error)
 
-type versionValidator func(context.Context, string, httpclient.Doer) bool
+type versionValidator func(context.Context, string, httpclient.Doer) (bool, error)
 
 var errInvalidVersion = errors.New("invalid minecraft version")
 var errLatestVersionRequired = errors.New("could not determine latest version: please provide an explicit version")
+var errVersionValidationUnavailable = errors.New("could not verify minecraft version")
 
 // exitCodeError is a private error type that carries a specific exit code.
 // Used for the "same version" case (exit code 2) where we need a non-standard exit code
@@ -166,7 +167,7 @@ func handleTestCommandError(cmd *cobra.Command, err error) {
 	if errors.As(err, &exitErr) {
 		// Exit code errors (like same-version) are already logged; suppress cobra output
 		cmd.SilenceErrors = true
-	} else if errors.Is(err, errLatestVersionRequired) || errors.Is(err, errInvalidVersion) {
+	} else if errors.Is(err, errLatestVersionRequired) || errors.Is(err, errInvalidVersion) || errors.Is(err, errVersionValidationUnavailable) {
 		// These errors are already logged via deps.logger.Error(); suppress cobra output
 		cmd.SilenceErrors = true
 	}
@@ -419,9 +420,12 @@ func resolveTargetVersion(ctx context.Context, cfg models.ModsJSON, opts testOpt
 		targetVersion = latest
 	}
 
-	// Per ADR 0006: if version validation fails (manifest unavailable), assume valid.
-	// The isValidVersion function should already handle this per ADR 0006.
-	if !deps.isValidVersion(ctx, targetVersion, deps.clients.Modrinth) {
+	valid, validationErr := deps.isValidVersion(ctx, targetVersion, deps.clients.Modrinth)
+	if validationErr != nil {
+		deps.logger.Error(i18n.T("cmd.test.error.version_unavailable", i18n.Tvars{}))
+		return "", 0, errVersionValidationUnavailable
+	}
+	if !valid {
 		deps.logger.Error(i18n.T("cmd.test.error.invalid_version", i18n.Tvars{
 			Data: &i18n.TData{"version": targetVersion},
 		}))

@@ -345,7 +345,10 @@ func TestGameVersionModelUpdateTabFillsPlaceholder(t *testing.T) {
 }
 
 func TestGameVersionModelUpdateDefaultClearsError(t *testing.T) {
-	model := GameVersionModel{input: textinput.New(), error: errors.New("boom")}
+	model := GameVersionModel{
+		input: textinput.New(),
+		error: errors.New("boom"),
+	}
 	model.input.Focus()
 	updated, _ := model.Update(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune{'a'}})
 	assert.Nil(t, updated.error)
@@ -392,6 +395,12 @@ func TestValidateMinecraftVersion(t *testing.T) {
 	minecraft.ClearManifestCache()
 	err = validateMinecraftVersion(context.Background(), "1.21.1", manifestDoer([]string{"1.21.1"}))
 	assert.NoError(t, err)
+
+	minecraft.ClearManifestCache()
+	err = validateMinecraftVersion(context.Background(), "1.21.1", doerFunc(func(*http.Request) (*http.Response, error) {
+		return nil, errors.New("offline")
+	}))
+	assert.Error(t, err)
 }
 
 func TestLoaderModelInitAndUpdate(t *testing.T) {

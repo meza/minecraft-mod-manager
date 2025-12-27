@@ -26,7 +26,7 @@ After inputs are finalized, `initWithDeps`:
 
 1. Validates the mods folder exists and is a directory (relative to the config file directory unless absolute).
 2. Resolves `latest` to the current Minecraft release version when needed.
-3. Validates the Minecraft version against the Mojang manifest (see `internal/minecraft`), but allows offline use where appropriate.
+3. Validates the Minecraft version against the Mojang manifest (see `internal/minecraft`). Validation failures are treated as errors.
 4. Writes `modlist.json` and an empty `modlist-lock.json`.
 
 ## Overwrite behavior (non-TUI prompt)

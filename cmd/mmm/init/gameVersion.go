@@ -59,7 +59,6 @@ func (model GameVersionModel) View() string {
 	}
 
 	errorString := ""
-
 	if model.error != nil {
 		errorString = tui.ErrorStyle.Render(" <- " + model.error.Error())
 	}
@@ -156,9 +155,11 @@ func NewGameVersionModel(ctx context.Context, minecraftClient httpclient.Doer, g
 		},
 	}
 
-	if gameVersion != "" && !strings.EqualFold(gameVersion, "latest") && model.validate(gameVersion) == nil {
-		model.Value = gameVersion
-		model.input.SetValue(gameVersion)
+	if gameVersion != "" && !strings.EqualFold(gameVersion, "latest") {
+		if err := model.validate(gameVersion); err == nil {
+			model.Value = gameVersion
+			model.input.SetValue(gameVersion)
+		}
 	}
 
 	return model
@@ -169,8 +170,12 @@ func validateMinecraftVersion(ctx context.Context, value string, client httpclie
 		return fmt.Errorf("%s", i18n.T("cmd.init.tui.game-version.error"))
 	}
 
-	if !minecraft.IsValidVersion(ctx, value, client) {
+	valid, validationErr := minecraft.IsValidVersion(ctx, value, client)
+	if !valid && validationErr == nil {
 		return fmt.Errorf("%s", i18n.T("cmd.init.tui.game-version.invalid"))
+	}
+	if validationErr != nil {
+		return fmt.Errorf("%s", i18n.T("cmd.init.tui.game-version.unavailable"))
 	}
 	return nil
 }
