@@ -7,6 +7,7 @@ import (
 	"io"
 	"net/http"
 	"path/filepath"
+	"runtime"
 	"strings"
 	"testing"
 
@@ -15,6 +16,7 @@ import (
 	"github.com/meza/minecraft-mod-manager/internal/config"
 	"github.com/meza/minecraft-mod-manager/internal/minecraft"
 	"github.com/meza/minecraft-mod-manager/internal/models"
+	"github.com/meza/minecraft-mod-manager/internal/privacy"
 	"github.com/meza/minecraft-mod-manager/internal/telemetry"
 	"github.com/meza/minecraft-mod-manager/internal/tui"
 	"github.com/spf13/afero"
@@ -447,6 +449,35 @@ func TestRunInitCommandRecordsTelemetryUsingFinalOptions(t *testing.T) {
 		assert.Equal(t, []string{"release"}, args["releaseTypes"])
 		assert.Equal(t, "mods", args["modsFolder"])
 	}
+}
+
+func TestBuildTelemetryPayloadRedactsModsFolderUsername(t *testing.T) {
+	privacy.ResetForTesting()
+	t.Setenv("USER", "alice")
+
+	var modsFolder string
+	var expected string
+	switch runtime.GOOS {
+	case "windows":
+		modsFolder = `C:\Users\alice\mods`
+		expected = `C:\Users\<user>\mods`
+	case "darwin":
+		modsFolder = "/Users/alice/mods"
+		expected = "/Users/<user>/mods"
+	default:
+		modsFolder = "/home/alice/mods"
+		expected = "/home/<user>/mods"
+	}
+
+	payload := buildTelemetryPayload(initOptions{
+		Loader:       models.FABRIC,
+		GameVersion:  "1.21.1",
+		ReleaseTypes: []models.ReleaseType{models.Release},
+		ModsFolder:   modsFolder,
+	}, false, nil)
+
+	args := payload.Arguments
+	assert.Equal(t, expected, args["modsFolder"])
 }
 
 func TestRunInitCommandDoesNotMarkInteractiveWhenTUIWasNotLaunched(t *testing.T) {

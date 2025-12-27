@@ -658,3 +658,9 @@ date	time	entry
 2025-12-27	01:16	Adjusted mmm-120 per user: version validation failures are hard errors (no warnings), updated init/test/TUI behavior, tests, and removed warning i18n keys; make fmt/lint/coverage/build pass.
 2025-12-27	01:34	User clarification: specs are binding law; manifest validation failures must be hard errors to avoid invalid platform requests and shared token bans.
 2025-12-27	01:51	User reiterated specs are binding; invalid-version text must not be invented beyond spec behavior and we must iterate with reviewer after refreshing instructions.
+2025-12-27	09:57
+mmm-121: reviewed mmm-63.35/63.36 requirements (telemetry privacy); docs claim anonymized/anonymous + perf trace attachment; remediation calls for payload minimization, path/user-input redaction, perf attachment opt-in, and invariant test for API keys; awaiting alignment.	
+2025-12-27	10:20
+mmm-121 alignment: only sensitive data is usernames in filesystem paths; ok to keep full perf span tree; add redaction helper to scrub known usernames in path fields; OS-provided username list preferred if feasible; placeholder <user>.	
+2025-12-27	11:01
+mmm-121: reviewer approved after username redaction helper + perf/telemetry updates; code-review.md updated; Windows make coverage/build confirmed green.	

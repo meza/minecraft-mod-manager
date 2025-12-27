@@ -10,6 +10,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/meza/minecraft-mod-manager/internal/privacy"
 	"go.opentelemetry.io/otel/attribute"
 	"go.opentelemetry.io/otel/codes"
 	"go.opentelemetry.io/otel/sdk/trace"
@@ -353,23 +354,23 @@ func normalizeConfigPath(value string, baseDir string) string {
 	if baseDir != "" && filepath.IsAbs(value) {
 		rel, err := filepath.Rel(baseDir, value)
 		if err == nil {
-			return exportPath(rel)
+			return privacy.RedactPathUsernames(exportPath(rel))
 		}
 	}
-	return exportPath(value)
+	return privacy.RedactPathUsernames(exportPath(value))
 }
 
 func normalizePathValue(value string, baseDir string) string {
 	if baseDir == "" {
-		return exportPath(value)
+		return privacy.RedactPathUsernames(exportPath(value))
 	}
 	if filepath.IsAbs(value) {
 		rel, err := filepath.Rel(baseDir, value)
 		if err == nil {
-			return exportPath(rel)
+			return privacy.RedactPathUsernames(exportPath(rel))
 		}
 	}
-	return exportPath(value)
+	return privacy.RedactPathUsernames(exportPath(value))
 }
 
 func normalizeURLValue(value string) string {

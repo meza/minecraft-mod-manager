@@ -18,6 +18,7 @@ import (
 	"github.com/meza/minecraft-mod-manager/internal/minecraft"
 	"github.com/meza/minecraft-mod-manager/internal/models"
 	"github.com/meza/minecraft-mod-manager/internal/perf"
+	"github.com/meza/minecraft-mod-manager/internal/privacy"
 	"github.com/meza/minecraft-mod-manager/internal/telemetry"
 	"github.com/meza/minecraft-mod-manager/internal/tui"
 	"github.com/spf13/afero"
@@ -229,7 +230,7 @@ func buildTelemetryPayload(options initOptions, didUseTUI bool, err error) telem
 			"loader":       options.Loader,
 			"gameVersion":  options.GameVersion,
 			"releaseTypes": releaseTypesToStrings(options.ReleaseTypes),
-			"modsFolder":   options.ModsFolder,
+			"modsFolder":   privacy.RedactPathUsernames(options.ModsFolder),
 		},
 	}
 	if err != nil {

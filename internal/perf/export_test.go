@@ -7,9 +7,11 @@ import (
 	"os"
 	"path/filepath"
 	"runtime"
+	"strings"
 	"testing"
 	"time"
 
+	"github.com/meza/minecraft-mod-manager/internal/privacy"
 	"github.com/stretchr/testify/assert"
 	"go.opentelemetry.io/otel/attribute"
 	"go.opentelemetry.io/otel/codes"
@@ -66,6 +68,73 @@ func TestExportToFile_WritesJSONAndNormalizesPaths(t *testing.T) {
 	assert.NotEmpty(t, foundExample.TraceID)
 	assert.NotEmpty(t, foundExample.SpanID)
 	assert.GreaterOrEqual(t, foundExample.DurationNS, int64(0))
+}
+
+func TestExportToFile_RedactsUsernamesInPaths(t *testing.T) {
+	Reset()
+	t.Cleanup(Reset)
+	assert.NoError(t, Init(Config{Enabled: true}))
+
+	privacy.ResetForTesting()
+	t.Setenv("USER", "alice")
+
+	var inputPath string
+	var expectedPath string
+	switch runtime.GOOS {
+	case "windows":
+		inputPath = `C:\Users\alice\mods\a.jar`
+		expectedPath = "C:/Users/<user>/mods/a.jar"
+	case "darwin":
+		inputPath = "/Users/alice/mods/a.jar"
+		expectedPath = "/Users/<user>/mods/a.jar"
+	default:
+		inputPath = "/home/alice/mods/a.jar"
+		expectedPath = "/home/<user>/mods/a.jar"
+	}
+
+	_, span := StartSpan(context.Background(), "example", WithAttributes(attribute.String("path", inputPath)))
+	span.End()
+
+	written, err := ExportToFile(t.TempDir(), "")
+	assert.NoError(t, err)
+
+	raw, err := os.ReadFile(written)
+	assert.NoError(t, err)
+
+	var decoded []*ExportSpan
+	assert.NoError(t, json.Unmarshal(raw, &decoded))
+
+	all := flattenExportSpanTree(decoded)
+	var foundPath string
+	for _, span := range all {
+		if span.Name == "example" {
+			if value, ok := span.Attributes["path"].(string); ok {
+				foundPath = value
+			}
+		}
+	}
+	assert.Equal(t, expectedPath, foundPath)
+}
+
+func TestExportToFile_DoesNotLeakAPIKeys(t *testing.T) {
+	Reset()
+	t.Cleanup(Reset)
+	assert.NoError(t, Init(Config{Enabled: true}))
+
+	privacy.ResetForTesting()
+	t.Setenv("MODRINTH_API_KEY", "test-secret")
+
+	_, span := StartSpan(context.Background(), "example", WithAttributes(
+		attribute.String("url", "https://example.com/file.jar?token=test-secret"),
+	))
+	span.End()
+
+	written, err := ExportToFile(t.TempDir(), "")
+	assert.NoError(t, err)
+
+	raw, err := os.ReadFile(written)
+	assert.NoError(t, err)
+	assert.False(t, strings.Contains(string(raw), "test-secret"))
 }
 
 func TestExportToFile_ReturnsErrorWhenPerfDisabled(t *testing.T) {

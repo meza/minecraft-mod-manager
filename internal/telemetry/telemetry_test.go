@@ -2,6 +2,7 @@ package telemetry
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"path/filepath"
@@ -178,6 +179,38 @@ func TestShutdownEmitsSingleSessionEvent(t *testing.T) {
 		assert.Greater(t, total, int64(0))
 		assert.GreaterOrEqual(t, work, int64(0))
 		assert.LessOrEqual(t, work, total)
+	}
+}
+
+func TestShutdownDoesNotLeakAPIKeys(t *testing.T) {
+	resetTelemetryState(t)
+
+	perf.Reset()
+	t.Cleanup(perf.Reset)
+	assert.NoError(t, perf.Init(perf.Config{Enabled: true}))
+
+	t.Setenv("MODRINTH_API_KEY", "test-secret")
+	t.Setenv("CURSEFORGE_API_KEY", "other-secret")
+
+	client := &stubClient{}
+	initWithClient(t, client, "cmd-test")
+
+	RecordCommand(CommandTelemetry{
+		Command:  "list",
+		Success:  true,
+		ExitCode: 0,
+	})
+
+	Shutdown(context.Background())
+
+	if assert.Len(t, client.enqueued, 1) {
+		capture := client.enqueued[0].(posthog.Capture)
+		raw, err := json.Marshal(capture)
+		assert.NoError(t, err)
+		payload := string(raw)
+		assert.False(t, strings.Contains(payload, "test-secret"))
+		assert.False(t, strings.Contains(payload, "other-secret"))
+		assert.False(t, strings.Contains(payload, "test-key"))
 	}
 }
 

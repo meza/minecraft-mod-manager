@@ -1,6 +1,6 @@
 # internal/telemetry
 
-Minecraft Mod Manager ships anonymous usage metrics to PostHog (https://posthog.com) so we can understand which commands people reach for, where errors cluster, and where time is spent.
+Minecraft Mod Manager ships anonymous usage metrics to PostHog (https://posthog.com) so we can understand which commands people reach for, where errors cluster, and where time is spent. Telemetry uses a stable machine identifier that is not PII so we can track long-term behavior without collecting personal data.
 
 Telemetry is best-effort: failures never block a command. By default, the telemetry package uses a no-op logger, so telemetry failures are silent unless the package logger is explicitly wired for debugging.
 
@@ -33,7 +33,7 @@ Call `Init` once when the process starts, record command outcomes via `RecordCom
 - `app.lifecycle.startup` includes `telemetry.Init()`
 - `app.lifecycle.shutdown` ends before the telemetry flush, so the perf export tree is complete when `telemetry.Shutdown(...)` uploads it
 
-Session telemetry includes the full `internal/perf` span tree under the `performance` property, plus top-level `total_time_ms` and `work_time_ms` (total runtime minus `tui.*.wait.*` thinking time).
+Session telemetry includes the full `internal/perf` span tree under the `performance` property, plus top-level `total_time_ms` and `work_time_ms` (total runtime minus `tui.*.wait.*` thinking time). Perf span attributes can include URLs and filesystem paths; query strings are stripped and usernames in paths are redacted.
 
 ## Runtime lifecycle
 
