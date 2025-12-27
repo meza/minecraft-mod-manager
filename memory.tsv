@@ -679,3 +679,8 @@ mmm-121: reviewer approved after username redaction helper + perf/telemetry upda
 mmm-123: resumed after disconnect; ran make fmt, make lint (clean), make coverage (100%), and make build.	
 2025-12-27	14:41	mmm-123: reviewer approved; code-review.md updated after Windows confirmation.
 2025-12-27	14:42	Closed mmm-123 and leaf tickets mmm-63.91, mmm-63.15, mmm-63.98 per user request after reviewer approval.
+2025-12-27	15:14	mmm-124: set make vuln to govulncheck -scan=package with comment referencing Go issue 73871; make vuln now passes.
+2025-12-27	15:16	mmm-124: make fmt/lint/coverage/build pass after make vuln switch to -scan=package; make vuln reports no vulnerabilities.
+2025-12-27	15:22	mmm-124: user confirmed Windows checks all green; ready for reviewer invocation.
+2025-12-27	15:28	Closed mmm-124 and leaf tickets mmm-63.31, mmm-63.32 per user request after reviewer approval.
+2025-12-27	15:34	Closed mmm-114 after confirming all dependency epics are closed.

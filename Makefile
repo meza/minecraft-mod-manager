@@ -5,7 +5,8 @@ APP_NAME := minecraft-mod-manager
 EXECUTABLE_NAME := mmm
 BUILD_DIR := build
 VERSION ?= dev
-GOLANGCI_LINT_TOOLCHAIN := go1.25.0
+GOLANGCI_LINT_TOOLCHAIN := go1.25.5
+GOVULNCHECK_TOOLCHAIN := go1.25.5
 
 ifeq ($(OS),Windows_NT)
         OSFLAG  := WIN
@@ -53,7 +54,7 @@ endef
 endif
 
 # Targets
-.PHONY: all clean fmt fmt-check lint lint-fix build dist prepare test test-race coverage mod-download
+.PHONY: all clean fmt fmt-check lint lint-fix vuln build dist prepare test test-race coverage mod-download
 
 # Build for all platforms
 all: clean build
@@ -83,6 +84,14 @@ ifeq ($(OSFAMILY), Windows)
 	@powershell -NoProfile -Command "$$env:GOTOOLCHAIN='$(GOLANGCI_LINT_TOOLCHAIN)'; go run github.com/golangci/golangci-lint/v2/cmd/golangci-lint run --fix"
 else
 	@GOTOOLCHAIN=$(GOLANGCI_LINT_TOOLCHAIN) go run github.com/golangci/golangci-lint/v2/cmd/golangci-lint run --fix
+endif
+
+# NOTE: govulncheck symbol scan panics under Go 1.25.x; see https://github.com/golang/go/issues/73871
+vuln:
+ifeq ($(OSFAMILY), Windows)
+	@powershell -NoProfile -Command "$$env:GOTOOLCHAIN='$(GOVULNCHECK_TOOLCHAIN)'; go run golang.org/x/vuln/cmd/govulncheck -scan=package ./..."
+else
+	@GOTOOLCHAIN=$(GOVULNCHECK_TOOLCHAIN) go run golang.org/x/vuln/cmd/govulncheck -scan=package ./...
 endif
 
 # Clean build directory
