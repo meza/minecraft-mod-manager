@@ -684,3 +684,6 @@ mmm-123: resumed after disconnect; ran make fmt, make lint (clean), make coverag
 2025-12-27	15:22	mmm-124: user confirmed Windows checks all green; ready for reviewer invocation.
 2025-12-27	15:28	Closed mmm-124 and leaf tickets mmm-63.31, mmm-63.32 per user request after reviewer approval.
 2025-12-27	15:34	Closed mmm-114 after confirming all dependency epics are closed.
+2025-12-27	15:39	Session start: user asked to work on mmm-116 (UX and i18n); need to pick a child ticket (mmm-131..135) to proceed.
+2025-12-27	15:51	mmm-131: i18n now ignores MMM_TEST outside test binaries, setup failures return key fallback instead of panic, and LANG normalization handles .UTF-8/@ modifiers + C/POSIX; tests/docs updated; make fmt/lint/coverage/build run locally.
+2025-12-27	16:03	mmm-131: adjusted i18n arg handling to return key+args when >1 Tvars provided; updated tests and README; make fmt/lint/coverage/build run locally.

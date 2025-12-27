@@ -44,7 +44,7 @@ There is no explicit initialization step. The first call to `T()` lazily loads t
 `T()` resolves a translation key and returns a string.
 
 * If the key is missing, the key itself is returned (this is a deliberate, visible failure mode).
-* Only zero or one `Tvars` argument is supported. Passing more will panic.
+* Only zero or one `Tvars` argument is supported. Passing more returns the key and arguments.
 
 Simple usage:
 
@@ -118,16 +118,13 @@ Requirements:
 * filenames must match the locale code (example: `de-DE.json`).
 * files must be valid JSON.
 
-Fail-fast behavior:
-
-* missing `lang/` directory panics
-* invalid locale JSON panics
+Setup failures fall back to returning the key (and any args), so user-facing commands do not crash if locale files are unavailable.
 
 These are treated as developer/CI failures, not user-facing errors.
 
 ## Test mode
 
-Set `MMM_TEST=true` to make `T()` deterministic.
+Set `MMM_TEST=true` to make `T()` deterministic. This flag is honored only in test binaries.
 
 In test mode, `T()` returns the key (and argument details) instead of translating.
 

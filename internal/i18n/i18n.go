@@ -3,6 +3,7 @@ package i18n
 
 import (
 	"embed"
+	"flag"
 	"fmt"
 	"os"
 	"path/filepath"
@@ -34,6 +35,10 @@ var bundle *i18nLib.I18n
 var langDir = "lang"
 var localeProvider LocaleProvider
 var setupOnce sync.Once
+var setupError error
+var testBinaryCheck = func() bool {
+	return flag.Lookup("test.v") != nil
+}
 
 // translationMutex guards localizer.Get() due to race conditions in go-i18n's internal cache.
 var translationMutex sync.Mutex
@@ -44,6 +49,7 @@ func ResetForTesting() {
 	bundle = nil
 	translationMutex.Unlock()
 	setupOnce = sync.Once{}
+	setupError = nil
 }
 
 type TData map[string]interface{}
@@ -59,17 +65,19 @@ var i18nWriteString = func(builder *strings.Builder, value string) error {
 }
 
 func ensureInitialized() {
-	setupOnce.Do(setup)
+	setupOnce.Do(func() {
+		setupError = setup()
+	})
 }
 
-func setup() {
+func setup() error {
 	if localeProvider == nil {
 		localeProvider = DefaultLocaleProvider{}
 	}
 
 	files, err := enFS.ReadDir(langDir)
 	if err != nil {
-		panic(err)
+		return err
 	}
 
 	availableLocales := []string{defaultLocale}
@@ -91,7 +99,7 @@ func setup() {
 	)
 
 	if err := newBundle.LoadFS(enFS, fmt.Sprintf("%s/*.json", langDir)); err != nil {
-		panic(err)
+		return err
 	}
 
 	userLocales := buildLocalizerLocales(getUserLocales())
@@ -101,19 +109,23 @@ func setup() {
 	bundle = newBundle
 	localizer = newLocalizer
 	translationMutex.Unlock()
+
+	return nil
 }
 
 func T(key string, args ...Tvars) string {
-	_, present := os.LookupEnv("MMM_TEST")
-
-	if present {
+	if useTestMode() {
 		return formatKeyAndArgs(key, args...)
 	}
 
 	ensureInitialized()
 
+	if setupError != nil {
+		return formatKeyAndArgs(key, args...)
+	}
+
 	if len(args) > 1 {
-		panic("Too many arguments")
+		return formatKeyAndArgs(key, args...)
 	}
 
 	// Prepare vars before acquiring lock to minimize lock hold time
@@ -130,6 +142,10 @@ func T(key string, args ...Tvars) string {
 
 	translationMutex.Lock()
 	defer translationMutex.Unlock()
+
+	if localizer == nil {
+		return formatKeyAndArgs(key, args...)
+	}
 
 	if len(args) == 0 {
 		return localizer.Get(key)
@@ -183,11 +199,12 @@ func buildLocalizerLocales(rawLocales []string) []string {
 	seen := make(map[string]struct{}, len(rawLocales)*2)
 
 	for _, localeName := range rawLocales {
-		if localeName == "" {
+		normalizedLocale := normalizeLocaleName(localeName)
+		if normalizedLocale == "" {
 			continue
 		}
 
-		tag, err := language.Parse(localeName)
+		tag, err := language.Parse(normalizedLocale)
 		if err != nil {
 			continue
 		}
@@ -208,4 +225,35 @@ func buildLocalizerLocales(rawLocales []string) []string {
 	}
 
 	return locales
+}
+
+func normalizeLocaleName(localeName string) string {
+	trimmed := strings.TrimSpace(localeName)
+	if trimmed == "" {
+		return ""
+	}
+
+	trimmed = strings.SplitN(trimmed, ".", 2)[0]
+	trimmed = strings.SplitN(trimmed, "@", 2)[0]
+	trimmed = strings.TrimSpace(trimmed)
+	if trimmed == "" {
+		return ""
+	}
+
+	trimmed = strings.ReplaceAll(trimmed, "_", "-")
+	upper := strings.ToUpper(trimmed)
+	if upper == "C" || upper == "POSIX" {
+		return language.English.String()
+	}
+
+	return trimmed
+}
+
+func useTestMode() bool {
+	if !testBinaryCheck() {
+		return false
+	}
+
+	_, present := os.LookupEnv("MMM_TEST")
+	return present
 }

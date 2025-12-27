@@ -68,6 +68,14 @@ func TestFormatKeyAndArgsReturnsEmptyOnArgWriteError(t *testing.T) {
 	assert.Equal(t, "", formatKeyAndArgs("key", Tvars{Count: 1}))
 }
 
+func TestNormalizeLocaleName(t *testing.T) {
+	assert.Equal(t, "", normalizeLocaleName(" "))
+	assert.Equal(t, "", normalizeLocaleName(".UTF-8"))
+	assert.Equal(t, "fr-FR", normalizeLocaleName("fr_FR.UTF-8@euro"))
+	assert.Equal(t, "en", normalizeLocaleName("C.UTF-8"))
+	assert.Equal(t, "en", normalizeLocaleName("POSIX"))
+}
+
 //go:embed __fixtures_invalid__/*.json
 var invalidLocales embed.FS
 
@@ -178,9 +186,7 @@ func TestBadLangDir(t *testing.T) {
 	t.Run("bad lang dir", func(t *testing.T) {
 		ResetForTesting()
 		langDir = "badDir"
-		assert.Panics(t, func() {
-			setup()
-		})
+		assert.Equal(t, "test.simple", T("test.simple"))
 	})
 }
 
@@ -189,9 +195,7 @@ func TestInvalidLocaleFiles(t *testing.T) {
 	langDir = "__fixtures_invalid__"
 	ResetForTesting()
 
-	assert.Panics(t, func() {
-		setup()
-	})
+	assert.Equal(t, "test.simple", T("test.simple"))
 }
 
 func TestSetupKeepsDefaultFirst(t *testing.T) {
@@ -208,7 +212,7 @@ func TestSetupKeepsDefaultFirst(t *testing.T) {
 		ResetForTesting()
 	})
 
-	setup()
+	assert.NoError(t, setup())
 
 	supported := bundle.SupportedLanguages()
 	assert.Equal(t, defaultLocale, supported[0].String())
@@ -220,10 +224,27 @@ func TestWrongNumberOfArguments(t *testing.T) {
 
 	t.Run("wrong number of arguments", func(t *testing.T) {
 		ResetForTesting()
-		assert.Panicsf(t, func() {
-			T("test.simple", Tvars{}, Tvars{})
-		}, "Too many arguments")
+		result := T("test.multiple",
+			Tvars{Count: 1, Data: &TData{"injectedData": "first"}},
+			Tvars{Count: 2, Data: &TData{"injectedData": "second"}},
+		)
+		assert.Equal(t, "test.multiple, Arg 1: {Count: 1, Data: &map[injectedData:first]}, Arg 2: {Count: 2, Data: &map[injectedData:second]}", result)
 	})
+}
+
+func TestTestModeRequiresTestBinary(t *testing.T) {
+	enFS = testData
+	langDir = "__fixtures__"
+	ResetForTesting()
+
+	originalTestBinaryCheck := testBinaryCheck
+	t.Cleanup(func() { testBinaryCheck = originalTestBinaryCheck })
+	testBinaryCheck = func() bool { return false }
+
+	t.Setenv("MMM_TEST", "true")
+
+	actual := T("test.simple")
+	assert.Equal(t, "Hello World", actual)
 }
 
 func TestFallbackToEnglish(t *testing.T) {
@@ -281,6 +302,11 @@ func TestBuildLocalizerLocales(t *testing.T) {
 	assert.Equal(t, []string{"fr-FR", "fr"}, withInvalid)
 }
 
+func TestBuildLocalizerLocalesNormalizesLangVariants(t *testing.T) {
+	locales := buildLocalizerLocales([]string{"fr_FR.UTF-8", "C.UTF-8", "en_US.UTF-8"})
+	assert.Equal(t, []string{"fr-FR", "fr", "en", "en-US"}, locales)
+}
+
 func TestGetUserLocalesSkipsEmptyEntries(t *testing.T) {
 	enFS = testData
 	langDir = "__fixtures__"
@@ -292,6 +318,20 @@ func TestGetUserLocalesSkipsEmptyEntries(t *testing.T) {
 
 	locales := getUserLocales()
 	assert.Equal(t, []string{"es_ES"}, locales)
+}
+
+func TestTHandlesMissingLocalizerAfterInit(t *testing.T) {
+	enFS = testData
+	langDir = "__fixtures__"
+	ResetForTesting()
+
+	assert.Equal(t, "Hello World", T("test.simple"))
+
+	translationMutex.Lock()
+	localizer = nil
+	translationMutex.Unlock()
+
+	assert.Equal(t, "test.simple", T("test.simple"))
 }
 
 func TestConcurrentAccess(t *testing.T) {
