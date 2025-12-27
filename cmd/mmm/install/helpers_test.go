@@ -56,8 +56,8 @@ func TestNoopSenderSend(t *testing.T) {
 	sender.Send(nil)
 }
 
-func TestUniqueInts(t *testing.T) {
-	assert.Equal(t, []int{1, 2, 3}, uniqueInts([]int{1, 2, 2, 3, 1}))
+func TestUniqueUint32s(t *testing.T) {
+	assert.Equal(t, []uint32{1, 2, 3}, uniqueUint32s([]uint32{1, 2, 2, 3, 1}))
 }
 
 func TestSortHitsPreferModrinth(t *testing.T) {
@@ -102,7 +102,7 @@ func TestCurseforgeMatchesByFingerprintEmpty(t *testing.T) {
 func TestCurseforgeMatchesByFingerprintMapsHits(t *testing.T) {
 	deps := installDeps{
 		clients: platform.DefaultClients(rate.NewLimiter(rate.Inf, 0)),
-		curseforgeFingerprintMatch: func(context.Context, []int, httpclient.Doer) (*curseforge.FingerprintResult, error) {
+		curseforgeFingerprintMatch: func(context.Context, []uint32, httpclient.Doer) (*curseforge.FingerprintResult, error) {
 			return &curseforge.FingerprintResult{
 				Matches: []curseforge.File{{ProjectID: 123, Fingerprint: 42}},
 			}, nil
@@ -112,7 +112,7 @@ func TestCurseforgeMatchesByFingerprintMapsHits(t *testing.T) {
 		},
 	}
 
-	matches, err := curseforgeMatchesByFingerprint(context.Background(), []int{42, 42}, deps)
+	matches, err := curseforgeMatchesByFingerprint(context.Background(), []uint32{42, 42}, deps)
 	assert.NoError(t, err)
 	assert.Equal(t, "Example", matches[42].Name)
 	assert.Equal(t, models.CURSEFORGE, matches[42].Platform)
@@ -121,7 +121,7 @@ func TestCurseforgeMatchesByFingerprintMapsHits(t *testing.T) {
 func TestCurseforgeMatchesByFingerprintProjectNameError(t *testing.T) {
 	deps := installDeps{
 		clients: platform.DefaultClients(rate.NewLimiter(rate.Inf, 0)),
-		curseforgeFingerprintMatch: func(context.Context, []int, httpclient.Doer) (*curseforge.FingerprintResult, error) {
+		curseforgeFingerprintMatch: func(context.Context, []uint32, httpclient.Doer) (*curseforge.FingerprintResult, error) {
 			return &curseforge.FingerprintResult{
 				Matches: []curseforge.File{{ProjectID: 123, Fingerprint: 42}},
 			}, nil
@@ -131,7 +131,7 @@ func TestCurseforgeMatchesByFingerprintProjectNameError(t *testing.T) {
 		},
 	}
 
-	_, err := curseforgeMatchesByFingerprint(context.Background(), []int{42}, deps)
+	_, err := curseforgeMatchesByFingerprint(context.Background(), []uint32{42}, deps)
 	assert.ErrorContains(t, err, "boom")
 }
 
@@ -171,7 +171,7 @@ func TestScanFilesSkipsUnknownFingerprintAndModrinthNotFound(t *testing.T) {
 			}
 			return 2
 		},
-		curseforgeFingerprintMatch: func(context.Context, []int, httpclient.Doer) (*curseforge.FingerprintResult, error) {
+		curseforgeFingerprintMatch: func(context.Context, []uint32, httpclient.Doer) (*curseforge.FingerprintResult, error) {
 			return &curseforge.FingerprintResult{
 				Matches: []curseforge.File{{ProjectID: 9001, Fingerprint: 999}},
 			}, nil
@@ -582,7 +582,7 @@ func TestDefaultModrinthProjectTitle(t *testing.T) {
 }
 
 func TestDefaultCurseforgeFingerprintMatchReturnsError(t *testing.T) {
-	_, err := defaultCurseforgeFingerprintMatch(context.Background(), []int{1}, errorDoer{err: errors.New("boom")})
+	_, err := defaultCurseforgeFingerprintMatch(context.Background(), []uint32{1}, errorDoer{err: errors.New("boom")})
 	assert.Error(t, err)
 }
 
@@ -636,7 +636,7 @@ func TestPreflightUnknownFilesScansUnknown(t *testing.T) {
 		logger:                logger.New(io.Discard, io.Discard, false, false),
 		clients:               platform.DefaultClients(rate.NewLimiter(rate.Inf, 0)),
 		curseforgeFingerprint: func(string) uint32 { return 1 },
-		curseforgeFingerprintMatch: func(context.Context, []int, httpclient.Doer) (*curseforge.FingerprintResult, error) {
+		curseforgeFingerprintMatch: func(context.Context, []uint32, httpclient.Doer) (*curseforge.FingerprintResult, error) {
 			return &curseforge.FingerprintResult{}, nil
 		},
 		modrinthVersionForSha: func(context.Context, string, httpclient.Doer) (*modrinth.Version, error) {
@@ -714,7 +714,7 @@ func TestScanFilesHandlesModrinthErrors(t *testing.T) {
 		fs:                    fs,
 		clients:               platform.DefaultClients(rate.NewLimiter(rate.Inf, 0)),
 		curseforgeFingerprint: func(string) uint32 { return 1 },
-		curseforgeFingerprintMatch: func(context.Context, []int, httpclient.Doer) (*curseforge.FingerprintResult, error) {
+		curseforgeFingerprintMatch: func(context.Context, []uint32, httpclient.Doer) (*curseforge.FingerprintResult, error) {
 			return &curseforge.FingerprintResult{}, nil
 		},
 		modrinthVersionForSha: func(context.Context, string, httpclient.Doer) (*modrinth.Version, error) {
@@ -742,7 +742,7 @@ func TestScanFilesReturnsErrorOnCurseforgeFailure(t *testing.T) {
 		fs:                    fs,
 		clients:               platform.DefaultClients(rate.NewLimiter(rate.Inf, 0)),
 		curseforgeFingerprint: func(string) uint32 { return 1 },
-		curseforgeFingerprintMatch: func(context.Context, []int, httpclient.Doer) (*curseforge.FingerprintResult, error) {
+		curseforgeFingerprintMatch: func(context.Context, []uint32, httpclient.Doer) (*curseforge.FingerprintResult, error) {
 			return nil, errors.New("boom")
 		},
 	}
@@ -765,7 +765,7 @@ func TestScanFilesSkipsModrinthNotFound(t *testing.T) {
 		fs:                    fs,
 		clients:               platform.DefaultClients(rate.NewLimiter(rate.Inf, 0)),
 		curseforgeFingerprint: func(string) uint32 { return 1 },
-		curseforgeFingerprintMatch: func(context.Context, []int, httpclient.Doer) (*curseforge.FingerprintResult, error) {
+		curseforgeFingerprintMatch: func(context.Context, []uint32, httpclient.Doer) (*curseforge.FingerprintResult, error) {
 			return &curseforge.FingerprintResult{}, nil
 		},
 		modrinthVersionForSha: func(context.Context, string, httpclient.Doer) (*modrinth.Version, error) {
@@ -788,7 +788,7 @@ func TestScanFilesSuccessAddsHits(t *testing.T) {
 		fs:                    fs,
 		clients:               platform.DefaultClients(rate.NewLimiter(rate.Inf, 0)),
 		curseforgeFingerprint: func(string) uint32 { return 1 },
-		curseforgeFingerprintMatch: func(context.Context, []int, httpclient.Doer) (*curseforge.FingerprintResult, error) {
+		curseforgeFingerprintMatch: func(context.Context, []uint32, httpclient.Doer) (*curseforge.FingerprintResult, error) {
 			return &curseforge.FingerprintResult{
 				Matches: []curseforge.File{{ProjectID: 123, Fingerprint: 1}},
 			}, nil
@@ -823,7 +823,7 @@ func TestScanFilesReturnsErrorOnFingerprintMatchFailure(t *testing.T) {
 		fs:                    fs,
 		clients:               platform.DefaultClients(rate.NewLimiter(rate.Inf, 0)),
 		curseforgeFingerprint: func(string) uint32 { return 1 },
-		curseforgeFingerprintMatch: func(context.Context, []int, httpclient.Doer) (*curseforge.FingerprintResult, error) {
+		curseforgeFingerprintMatch: func(context.Context, []uint32, httpclient.Doer) (*curseforge.FingerprintResult, error) {
 			return nil, errors.New("fingerprint failed")
 		},
 		modrinthVersionForSha: func(context.Context, string, httpclient.Doer) (*modrinth.Version, error) {
@@ -851,7 +851,7 @@ func TestScanFilesReturnsErrorOnModrinthProjectTitleFailure(t *testing.T) {
 		fs:                    fs,
 		clients:               platform.DefaultClients(rate.NewLimiter(rate.Inf, 0)),
 		curseforgeFingerprint: func(string) uint32 { return 1 },
-		curseforgeFingerprintMatch: func(context.Context, []int, httpclient.Doer) (*curseforge.FingerprintResult, error) {
+		curseforgeFingerprintMatch: func(context.Context, []uint32, httpclient.Doer) (*curseforge.FingerprintResult, error) {
 			return &curseforge.FingerprintResult{}, nil
 		},
 		modrinthVersionForSha: func(context.Context, string, httpclient.Doer) (*modrinth.Version, error) {
@@ -971,7 +971,7 @@ func TestPreflightUnknownFilesLogsPlatformErrors(t *testing.T) {
 		logger:                logger.New(out, errOut, false, true),
 		clients:               platform.DefaultClients(rate.NewLimiter(rate.Inf, 0)),
 		curseforgeFingerprint: func(string) uint32 { return 123 },
-		curseforgeFingerprintMatch: func(context.Context, []int, httpclient.Doer) (*curseforge.FingerprintResult, error) {
+		curseforgeFingerprintMatch: func(context.Context, []uint32, httpclient.Doer) (*curseforge.FingerprintResult, error) {
 			return nil, &httpclient.ResponseError{StatusCode: http.StatusForbidden}
 		},
 		modrinthVersionForSha: func(context.Context, string, httpclient.Doer) (*modrinth.Version, error) {

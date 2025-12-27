@@ -8,7 +8,6 @@ import (
 	"net/http"
 	"strings"
 	"testing"
-	"time"
 
 	"github.com/meza/minecraft-mod-manager/internal/httpclient"
 	"github.com/stretchr/testify/assert"
@@ -223,15 +222,6 @@ func TestMinecraft(t *testing.T) {
 
 	t.Run("Caching", func(t *testing.T) {
 		ClearManifestCache()
-		originalTimeNow := timeNow
-		defer func() {
-			timeNow = originalTimeNow
-		}()
-		now := time.Now()
-		timeNow = func() time.Time {
-			return now
-		}
-
 		callCount := 0
 		mockServer, err := httpstest.NewServer([]string{
 			"launchermeta.mojang.com",
@@ -252,12 +242,11 @@ func TestMinecraft(t *testing.T) {
 		_, err = getMinecraftVersionManifest(context.Background(), client)
 		assert.NoError(t, err)
 
-		// Third call should refetch after TTL expiration
-		now = now.Add(manifestCacheTTL + time.Second)
+		// Third call should still use the cached manifest
 		_, err = getMinecraftVersionManifest(context.Background(), client)
 		assert.NoError(t, err)
 
-		assert.Equal(t, 2, callCount, "server should be called twice (cache expired once)")
+		assert.Equal(t, 1, callCount, "server should be called once (cached for lifecycle)")
 	})
 
 	t.Run("GetManifestReturnsErrorOnRequestBuildFailure", func(t *testing.T) {
@@ -352,5 +341,51 @@ func TestMinecraft(t *testing.T) {
 		assert.ErrorAs(t, err, &syntaxErr)
 		assert.ErrorIs(t, err, closeErr)
 		assert.Nil(t, manifestCacheState.manifest)
+	})
+
+	t.Run("NextPatchDownFallsBackWithinSeries", func(t *testing.T) {
+		ClearManifestCache()
+		mockServer, err := httpstest.NewServer([]string{
+			"launchermeta.mojang.com",
+		}, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			if r.URL.Path != "/mc/game/version_manifest.json" {
+				t.Fatalf("unexpected path: %s", r.URL.Path)
+			}
+			writeResponse(t, w, `{"versions": [
+      {"id": "1.21.3", "type": "release"},
+      {"id": "1.21.2", "type": "release"},
+      {"id": "1.21.1", "type": "release"},
+      {"id": "1.20.9", "type": "release"},
+      {"id": "26.1-snapshot-1", "type": "snapshot"}
+    ]}`)
+		}))
+		assert.NoError(t, err)
+		defer mockServer.Close()
+
+		next, ok, err := NextPatchDown(context.Background(), "1.21.3", mockServer.Client())
+		assert.NoError(t, err)
+		assert.True(t, ok)
+		assert.Equal(t, "1.21.2", next)
+	})
+
+	t.Run("NextPatchDownRejectsUnknownRelease", func(t *testing.T) {
+		ClearManifestCache()
+		mockServer, err := httpstest.NewServer([]string{
+			"launchermeta.mojang.com",
+		}, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			if r.URL.Path != "/mc/game/version_manifest.json" {
+				t.Fatalf("unexpected path: %s", r.URL.Path)
+			}
+			writeResponse(t, w, `{"versions": [
+      {"id": "26.1.3", "type": "release"},
+      {"id": "26.1.2", "type": "release"}
+    ]}`)
+		}))
+		assert.NoError(t, err)
+		defer mockServer.Close()
+
+		_, _, err = NextPatchDown(context.Background(), "26.1.4", mockServer.Client())
+		var invalidVersion *InvalidReleaseVersionError
+		assert.ErrorAs(t, err, &invalidVersion)
 	})
 }

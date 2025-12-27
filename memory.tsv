@@ -668,3 +668,14 @@ mmm-121: reviewer approved after username redaction helper + perf/telemetry upda
 2025-12-27	11:19	mmm-122 alignment: Modrinth primary selection must be honored (use primary file when present, else first file), and platform layer should use shared helper while keeping Modrinth/CurseForge plumbing in their packages; CurseForge file listing must use paginated low-level client for typed errors; update docs/platform-apis.md accordingly.
 2025-12-27	11:26	mmm-122 scope expanded: internal/platform must be pure orchestration; internal/curseforge and internal/modrinth must return platform.RemoteMod and own all API communication + translation; platform layer should not build RemoteMod.
 2025-12-27	12:14	mmm-122: added coverage tests for modrinth sorting/lookup errors and curseforge filter/close error paths; make fmt/lint/coverage/build pass.
+2025-12-27	12:30	Started mmm-123 alignment; reviewed tickets mmm-63.91/63.15/63.98, ADR 0006, docs/specs add/install/scan, docs/platform-apis, and code in internal/gameversion, internal/httpclient/downloader, cmd/mmm/install fingerprint scan.
+2025-12-27	13:01	mmm-123 alignment: user chose Option A for fingerprint uint32 end-to-end; clarified version fallback is per-mod for previous patch versions when mod metadata lags; progress overflow fix should keep downloads going and only affect progress reporting.
+2025-12-27	13:14	mmm-123 alignment finalized: fingerprint uint32 end-to-end; download progress int64 bookkeeping with ratio skipped on unknown length; version fallback uses manifest releases, patch-only within same series key, and invalid configured gameVersion is hard error.
+2025-12-27	13:15	mmm-123 refinement: manifest fetch should be single per app lifecycle; reuse cached manifest data for fallback decisions.
+2025-12-27	13:38	mmm-123: ran make test after updates (manifest caching, fallback, fingerprint uint32, progress int64); all tests passed.
+2025-12-27	13:51	mmm-123: ran make fmt/lint/coverage/build; coverage 100% and build succeeded after adding fallback tests and lint refactors.
+2025-12-27	14:18	Added docs/test for patch-to-minor fallback (1.20.1 -> 1.20) and updated fallback comment; ran make fmt/lint/coverage/build.
+2025-12-27	14:34
+mmm-123: resumed after disconnect; ran make fmt, make lint (clean), make coverage (100%), and make build.	
+2025-12-27	14:41	mmm-123: reviewer approved; code-review.md updated after Windows confirmation.
+2025-12-27	14:42	Closed mmm-123 and leaf tickets mmm-63.91, mmm-63.15, mmm-63.98 per user request after reviewer approval.

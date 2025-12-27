@@ -172,7 +172,7 @@ func TestGetFilesForProject(t *testing.T) {
 	assert.Equal(t, 1, len(files[0].Dependencies))
 	assert.Equal(t, 2001, files[0].Dependencies[0].ProjectID)
 	assert.Equal(t, RequiredDependency, files[0].Dependencies[0].Type)
-	assert.Equal(t, 1234567890, files[0].Fingerprint)
+	assert.Equal(t, uint32(1234567890), files[0].Fingerprint)
 
 	assert.Equal(t, 2, files[1].ID)
 	assert.Equal(t, 1, files[1].GameID)
@@ -209,7 +209,7 @@ func TestGetFilesForProject(t *testing.T) {
 	assert.Equal(t, 1, len(files[1].Dependencies))
 	assert.Equal(t, 2002, files[1].Dependencies[0].ProjectID)
 	assert.Equal(t, OptionalDependency, files[1].Dependencies[0].Type)
-	assert.Equal(t, 1234567891, files[1].Fingerprint)
+	assert.Equal(t, uint32(1234567891), files[1].Fingerprint)
 }
 
 func TestGetFilesForProjectWithPagination(t *testing.T) {
@@ -374,7 +374,7 @@ func TestGetFilesForProjectWithPagination(t *testing.T) {
 	assert.Equal(t, 1, len(files[0].Dependencies))
 	assert.Equal(t, 2001, files[0].Dependencies[0].ProjectID)
 	assert.Equal(t, RequiredDependency, files[0].Dependencies[0].Type)
-	assert.Equal(t, 1234567890, files[0].Fingerprint)
+	assert.Equal(t, uint32(1234567890), files[0].Fingerprint)
 
 	// Assertions for the second file
 	assert.Equal(t, 2, files[1].ID)
@@ -412,7 +412,7 @@ func TestGetFilesForProjectWithPagination(t *testing.T) {
 	assert.Equal(t, 1, len(files[1].Dependencies))
 	assert.Equal(t, 2002, files[1].Dependencies[0].ProjectID)
 	assert.Equal(t, OptionalDependency, files[1].Dependencies[0].Type)
-	assert.Equal(t, 1234567891, files[1].Fingerprint)
+	assert.Equal(t, uint32(1234567891), files[1].Fingerprint)
 }
 
 func TestGetFilesForProjectWhenProjectNotFound(t *testing.T) {
@@ -696,7 +696,7 @@ func TestGetFingerprintsMatchesWithOneExactMatch(t *testing.T) {
 
 	t.Setenv("CURSEFORGE_API_KEY", "mock_curseforge_api_key")
 	client := NewClient(testutil.MustNewHostRewriteDoer(mockServer.URL, mockServer.Client()))
-	fingerprints := []int{1234}
+	fingerprints := []uint32{1234}
 
 	result, err := GetFingerprintsMatches(context.Background(), fingerprints, client)
 	assert.NoError(t, err)
@@ -705,7 +705,7 @@ func TestGetFingerprintsMatchesWithOneExactMatch(t *testing.T) {
 	assert.Equal(t, 110, result.Matches[0].ID)
 	assert.Equal(t, 111, result.Matches[0].ProjectID)
 	assert.Equal(t, "string", result.Matches[0].DisplayName)
-	assert.Equal(t, 1234, result.Matches[0].Fingerprint)
+	assert.Equal(t, uint32(1234), result.Matches[0].Fingerprint)
 }
 
 func TestGetFingerprintsMatchesWithMultipleExactMatches(t *testing.T) {
@@ -747,7 +747,7 @@ func TestGetFingerprintsMatchesWithMultipleExactMatches(t *testing.T) {
 	defer mockServer.Close()
 
 	client := NewClient(testutil.MustNewHostRewriteDoer(mockServer.URL, mockServer.Client()))
-	fingerprints := []int{123456, 1234567}
+	fingerprints := []uint32{123456, 1234567}
 
 	result, err := GetFingerprintsMatches(context.Background(), fingerprints, client)
 	assert.NoError(t, err)
@@ -775,14 +775,14 @@ func TestGetFingerprintsMatchesWithNoExactMatches(t *testing.T) {
 	defer mockServer.Close()
 
 	client := NewClient(testutil.MustNewHostRewriteDoer(mockServer.URL, mockServer.Client()))
-	fingerprints := []int{0, 1}
+	fingerprints := []uint32{0, 1}
 
 	result, err := GetFingerprintsMatches(context.Background(), fingerprints, client)
 	assert.NoError(t, err)
 	assert.Len(t, result.Matches, 0)
 	assert.Len(t, result.Unmatched, 2)
-	assert.Equal(t, 0, result.Unmatched[0])
-	assert.Equal(t, 1, result.Unmatched[1])
+	assert.Equal(t, uint32(0), result.Unmatched[0])
+	assert.Equal(t, uint32(1), result.Unmatched[1])
 }
 
 func TestGetFingerprintsMatches_AllowsObjectFingerprintFields(t *testing.T) {
@@ -817,7 +817,7 @@ func TestGetFingerprintsMatches_AllowsObjectFingerprintFields(t *testing.T) {
 	defer mockServer.Close()
 
 	client := NewClient(testutil.MustNewHostRewriteDoer(mockServer.URL, mockServer.Client()))
-	fingerprints := []int{123456}
+	fingerprints := []uint32{123456}
 
 	result, err := GetFingerprintsMatches(context.Background(), fingerprints, client)
 	assert.NoError(t, err)
@@ -831,14 +831,14 @@ func TestDecodeUnmatchedFingerprints_AllowsMapKeyAny(t *testing.T) {
 	raw := json.RawMessage(`{"123": {}, "456": 1}`)
 	values, err := decodeUnmatchedFingerprints(raw)
 	assert.NoError(t, err)
-	assert.ElementsMatch(t, []int{123, 456}, values)
+	assert.ElementsMatch(t, []uint32{123, 456}, values)
 }
 
 func TestDecodeUnmatchedFingerprints_AllowsList(t *testing.T) {
 	raw := json.RawMessage(`[1,2,3]`)
 	values, err := decodeUnmatchedFingerprints(raw)
 	assert.NoError(t, err)
-	assert.Equal(t, []int{1, 2, 3}, values)
+	assert.Equal(t, []uint32{1, 2, 3}, values)
 }
 
 func TestDecodeUnmatchedFingerprints_AllowsNullAndEmpty(t *testing.T) {
@@ -882,17 +882,17 @@ func TestGetFingerprintsMatches_UnmatchedFingerprintsMapIsTolerated(t *testing.T
 	defer mockServer.Close()
 
 	client := NewClient(testutil.MustNewHostRewriteDoer(mockServer.URL, mockServer.Client()))
-	fingerprints := []int{123456}
+	fingerprints := []uint32{123456}
 
 	result, err := GetFingerprintsMatches(context.Background(), fingerprints, client)
 	assert.NoError(t, err)
 	assert.NotNil(t, result)
 	assert.Len(t, result.Matches, 0)
-	assert.Equal(t, []int{123}, result.Unmatched)
+	assert.Equal(t, []uint32{123}, result.Unmatched)
 }
 
 func TestGetFingerprintsMatchesWithApiFailure(t *testing.T) {
-	fingerprints := []int{0, 1}
+	fingerprints := []uint32{0, 1}
 
 	client := NewClient(errorDoer{err: pkgErrors.New("request failed")})
 	result, err := GetFingerprintsMatches(context.Background(), fingerprints, client)
@@ -901,7 +901,7 @@ func TestGetFingerprintsMatchesWithApiFailure(t *testing.T) {
 }
 
 func TestGetFingerprintsMatchesWithApiTimeout(t *testing.T) {
-	fingerprints := []int{0, 1}
+	fingerprints := []uint32{0, 1}
 
 	client := NewClient(errorDoer{err: context.DeadlineExceeded})
 	result, err := GetFingerprintsMatches(context.Background(), fingerprints, client)
@@ -917,7 +917,7 @@ func TestGetFingerprintsMatchesWithNotFound(t *testing.T) {
 		w.WriteHeader(http.StatusNotFound)
 	}))
 	defer mockServer.Close()
-	fingerprints := []int{0, 1}
+	fingerprints := []uint32{0, 1}
 
 	client := NewClient(testutil.MustNewHostRewriteDoer(mockServer.URL, mockServer.Client()))
 	result, err := GetFingerprintsMatches(context.Background(), fingerprints, client)
@@ -936,7 +936,7 @@ func TestGetFingerprintsMatchesWithUnexpectedStatusReturnsApiError(t *testing.T)
 		writeStringResponse(t, w, `{"error":"forbidden"}`)
 	}))
 	defer mockServer.Close()
-	fingerprints := []int{0, 1}
+	fingerprints := []uint32{0, 1}
 
 	client := NewClient(testutil.MustNewHostRewriteDoer(mockServer.URL, mockServer.Client()))
 	result, err := GetFingerprintsMatches(context.Background(), fingerprints, client)
@@ -963,7 +963,7 @@ func TestGetFingerprintsMatches_UnmatchedFingerprintsUnsupportedTypeErrors(t *te
 		writeStringResponse(t, w, mockResponse)
 	}))
 	defer mockServer.Close()
-	fingerprints := []int{0, 1}
+	fingerprints := []uint32{0, 1}
 
 	client := NewClient(testutil.MustNewHostRewriteDoer(mockServer.URL, mockServer.Client()))
 	result, err := GetFingerprintsMatches(context.Background(), fingerprints, client)
@@ -979,7 +979,7 @@ func TestGetFingerprintsMatchesWithCorruptedBody(t *testing.T) {
 		writeStringResponse(t, w, `{`)
 	}))
 	defer mockServer.Close()
-	fingerprints := []int{0, 1}
+	fingerprints := []uint32{0, 1}
 
 	client := NewClient(testutil.MustNewHostRewriteDoer(mockServer.URL, mockServer.Client()))
 	result, err := GetFingerprintsMatches(context.Background(), fingerprints, client)
@@ -996,7 +996,7 @@ func TestGetFingerprintsMatchesReturnsErrorOnMarshalFailure(t *testing.T) {
 		marshalJSON = originalMarshal
 	})
 
-	result, err := GetFingerprintsMatches(context.Background(), []int{1}, NewClient(errorDoer{}))
+	result, err := GetFingerprintsMatches(context.Background(), []uint32{1}, NewClient(errorDoer{}))
 	assert.Error(t, err)
 	assert.Nil(t, result)
 }
@@ -1010,7 +1010,7 @@ func TestGetFingerprintsMatchesReturnsErrorOnRequestBuildFailure(t *testing.T) {
 		newRequestWithContext = originalRequest
 	})
 
-	result, err := GetFingerprintsMatches(context.Background(), []int{1}, NewClient(errorDoer{}))
+	result, err := GetFingerprintsMatches(context.Background(), []uint32{1}, NewClient(errorDoer{}))
 	assert.Error(t, err)
 	assert.Nil(t, result)
 }
@@ -1026,7 +1026,7 @@ func TestGetFingerprintsMatchesReturnsErrorOnResponseCloseFailure(t *testing.T) 
 		},
 	})
 
-	result, err := GetFingerprintsMatches(context.Background(), []int{1}, client)
+	result, err := GetFingerprintsMatches(context.Background(), []uint32{1}, client)
 	assert.ErrorIs(t, err, closeErr)
 	assert.NotNil(t, result)
 }
@@ -1084,7 +1084,7 @@ func TestNewFingerprintMatchRequestReturnsErrorOnParseFailure(t *testing.T) {
 		parseURL = originalParse
 	})
 
-	request, _, err := newFingerprintMatchRequest(context.Background(), []int{1, 2})
+	request, _, err := newFingerprintMatchRequest(context.Background(), []uint32{1, 2})
 	assert.Error(t, err)
 	assert.Nil(t, request)
 }

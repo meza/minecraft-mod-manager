@@ -43,9 +43,9 @@ remote, err := curseforge.FetchRemoteMod(ctx, "1234", models.FetchOptions{
 
 ### Fingerprints (hash lookups)
 
-- `GetFingerprintsMatches(fingerprints []int, client httpclient.Doer) (*FingerprintResult, error)`
+- `GetFingerprintsMatches(fingerprints []uint32, client httpclient.Doer) (*FingerprintResult, error)`
 
-The API expects CurseForge fingerprints (integers). This is separate from Modrinth SHA-1 lookups.
+The API expects CurseForge fingerprints (uint32). This is separate from Modrinth SHA-1 lookups.
 
 ## Headers and authentication
 

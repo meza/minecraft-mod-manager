@@ -18,8 +18,8 @@ import (
 )
 
 type progressWriter struct {
-	total      int
-	downloaded int
+	total      int64
+	downloaded int64
 	file       afero.File
 	reader     io.Reader
 	onProgress func(float64)
@@ -30,7 +30,7 @@ type progressMsg float64
 type progressErrMsg struct{ err error }
 
 func (pw *progressWriter) Write(p []byte) (int, error) {
-	pw.downloaded += len(p)
+	pw.downloaded += int64(len(p))
 	if pw.total > 0 && pw.onProgress != nil {
 		pw.onProgress(float64(pw.downloaded) / float64(pw.total))
 	}
@@ -120,7 +120,7 @@ func createDownloadFile(filesystem afero.Fs, path string) (afero.File, error) {
 func buildProgressWriter(response *http.Response, file afero.File, program Sender, span *perf.Span) *progressWriter {
 	canSendProgress := !isNilSender(program)
 	progressWriter := &progressWriter{
-		total:  int(response.ContentLength),
+		total:  response.ContentLength,
 		file:   file,
 		reader: response.Body,
 	}
@@ -130,7 +130,7 @@ func buildProgressWriter(response *http.Response, file afero.File, program Sende
 		}
 	}
 	if progressWriter.total > 0 {
-		span.SetAttributes(attribute.Int64("bytes", int64(progressWriter.total)))
+		span.SetAttributes(attribute.Int64("bytes", progressWriter.total))
 	}
 	return progressWriter
 }

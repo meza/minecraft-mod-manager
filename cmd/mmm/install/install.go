@@ -47,7 +47,7 @@ type installDeps struct {
 	curseforgeFingerprint      func(string) uint32
 	modrinthVersionForSha      func(context.Context, string, httpclient.Doer) (*modrinth.Version, error)
 	modrinthProjectTitle       func(context.Context, string, httpclient.Doer) (string, error)
-	curseforgeFingerprintMatch func(context.Context, []int, httpclient.Doer) (*curseforge.FingerprintResult, error)
+	curseforgeFingerprintMatch func(context.Context, []uint32, httpclient.Doer) (*curseforge.FingerprintResult, error)
 	curseforgeProjectName      func(context.Context, string, httpclient.Doer) (string, error)
 }
 
@@ -709,8 +709,8 @@ func scanFiles(ctx context.Context, files []string, deps installDeps) ([]scanned
 
 type scanCandidates struct {
 	results              []scannedFile
-	fingerprints         []int
-	fingerprintToIndices map[int][]int
+	fingerprints         []uint32
+	fingerprintToIndices map[uint32][]int
 }
 
 type platformLookupFailure struct {
@@ -767,8 +767,8 @@ func logPlatformLookupFailure(log *logger.Logger, failure *platformLookupFailure
 
 func buildScanCandidates(files []string, deps installDeps) (scanCandidates, error) {
 	results := make([]scannedFile, 0, len(files))
-	fingerprints := make([]int, 0, len(files))
-	fingerprintToIndices := make(map[int][]int, len(files))
+	fingerprints := make([]uint32, 0, len(files))
+	fingerprintToIndices := make(map[uint32][]int, len(files))
 
 	for index, filePath := range files {
 		sha, err := sha1ForFile(deps.fs, filePath)
@@ -776,7 +776,7 @@ func buildScanCandidates(files []string, deps installDeps) (scanCandidates, erro
 			return scanCandidates{}, err
 		}
 
-		fingerprint := int(deps.curseforgeFingerprint(filePath))
+		fingerprint := deps.curseforgeFingerprint(filePath)
 		fingerprints = append(fingerprints, fingerprint)
 		fingerprintToIndices[fingerprint] = append(fingerprintToIndices[fingerprint], index)
 
@@ -786,7 +786,9 @@ func buildScanCandidates(files []string, deps installDeps) (scanCandidates, erro
 		})
 	}
 
-	sort.Ints(fingerprints)
+	sort.Slice(fingerprints, func(leftIndex int, rightIndex int) bool {
+		return fingerprints[leftIndex] < fingerprints[rightIndex]
+	})
 
 	return scanCandidates{
 		results:              results,
@@ -795,7 +797,7 @@ func buildScanCandidates(files []string, deps installDeps) (scanCandidates, erro
 	}, nil
 }
 
-func applyCurseforgeHits(ctx context.Context, results []scannedFile, fingerprintToIndices map[int][]int, fingerprints []int, deps installDeps) error {
+func applyCurseforgeHits(ctx context.Context, results []scannedFile, fingerprintToIndices map[uint32][]int, fingerprints []uint32, deps installDeps) error {
 	curseforgeByFingerprint, err := curseforgeMatchesByFingerprint(ctx, fingerprints, deps)
 	if err != nil {
 		return err
@@ -858,10 +860,10 @@ func sortHitsPreferModrinth(hits []scanHit) []scanHit {
 	return hits
 }
 
-func curseforgeMatchesByFingerprint(ctx context.Context, fingerprints []int, deps installDeps) (map[int]scanHit, error) {
-	unique := uniqueInts(fingerprints)
+func curseforgeMatchesByFingerprint(ctx context.Context, fingerprints []uint32, deps installDeps) (map[uint32]scanHit, error) {
+	unique := uniqueUint32s(fingerprints)
 	if len(unique) == 0 {
-		return map[int]scanHit{}, nil
+		return map[uint32]scanHit{}, nil
 	}
 
 	result, err := deps.curseforgeFingerprintMatch(ctx, unique, deps.clients.Curseforge)
@@ -869,7 +871,7 @@ func curseforgeMatchesByFingerprint(ctx context.Context, fingerprints []int, dep
 		return nil, err
 	}
 
-	matches := make(map[int]scanHit, len(result.Matches))
+	matches := make(map[uint32]scanHit, len(result.Matches))
 	for _, file := range result.Matches {
 		projectID := fmt.Sprintf("%d", file.ProjectID)
 		name, err := deps.curseforgeProjectName(ctx, projectID, deps.clients.Curseforge)
@@ -886,9 +888,9 @@ func curseforgeMatchesByFingerprint(ctx context.Context, fingerprints []int, dep
 	return matches, nil
 }
 
-func uniqueInts(values []int) []int {
-	seen := make(map[int]struct{}, len(values))
-	result := make([]int, 0, len(values))
+func uniqueUint32s(values []uint32) []uint32 {
+	seen := make(map[uint32]struct{}, len(values))
+	result := make([]uint32, 0, len(values))
 	for _, value := range values {
 		if _, ok := seen[value]; ok {
 			continue
@@ -1045,7 +1047,7 @@ func defaultModrinthProjectTitle(ctx context.Context, projectID string, doer htt
 	return project.Title, nil
 }
 
-func defaultCurseforgeFingerprintMatch(ctx context.Context, fingerprints []int, doer httpclient.Doer) (*curseforge.FingerprintResult, error) {
+func defaultCurseforgeFingerprintMatch(ctx context.Context, fingerprints []uint32, doer httpclient.Doer) (*curseforge.FingerprintResult, error) {
 	client := curseforge.NewClient(doer)
 	return curseforge.GetFingerprintsMatches(ctx, fingerprints, client)
 }

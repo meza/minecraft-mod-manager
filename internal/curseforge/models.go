@@ -120,8 +120,8 @@ type File struct {
 	GameVersions         []string              `json:"gameVersions"`
 	SortableGameVersions []SortableGameVersion `json:"sortableGameVersions"`
 	Dependencies         []Dependency          `json:"dependencies"`
-	FileFingerprint      int                   `json:"fileFingerprint"`
-	Fingerprint          int                   `json:"fingerprint"`
+	FileFingerprint      uint32                `json:"fileFingerprint"`
+	Fingerprint          uint32                `json:"fingerprint"`
 }
 
 type Project struct {
@@ -173,6 +173,6 @@ const (
 )
 
 type FingerprintResult struct {
-	Matches   []File `json:"matches"`
-	Unmatched []int  `json:"unmatched"`
+	Matches   []File   `json:"matches"`
+	Unmatched []uint32 `json:"unmatched"`
 }

@@ -69,7 +69,7 @@ func TestRunInstallHaltsWhenPreflightFindsUnsureHashMismatch(t *testing.T) {
 		telemetry: func(telemetry.CommandTelemetry) {},
 
 		curseforgeFingerprint: func(string) uint32 { return 0 },
-		curseforgeFingerprintMatch: func(context.Context, []int, httpclient.Doer) (*curseforge.FingerprintResult, error) {
+		curseforgeFingerprintMatch: func(context.Context, []uint32, httpclient.Doer) (*curseforge.FingerprintResult, error) {
 			return &curseforge.FingerprintResult{}, nil
 		},
 		curseforgeProjectName: func(context.Context, string, httpclient.Doer) (string, error) {
@@ -135,7 +135,7 @@ func TestRunInstallReportsUnmanagedButDoesNotHalt(t *testing.T) {
 		telemetry: func(telemetry.CommandTelemetry) {},
 
 		curseforgeFingerprint: func(string) uint32 { return 0 },
-		curseforgeFingerprintMatch: func(context.Context, []int, httpclient.Doer) (*curseforge.FingerprintResult, error) {
+		curseforgeFingerprintMatch: func(context.Context, []uint32, httpclient.Doer) (*curseforge.FingerprintResult, error) {
 			return &curseforge.FingerprintResult{}, nil
 		},
 		curseforgeProjectName: func(context.Context, string, httpclient.Doer) (string, error) {
@@ -213,7 +213,7 @@ func TestRunInstallPreflightRespectsMmmignoreAndDisabledFiles(t *testing.T) {
 			fingerprintCalls++
 			return 123
 		},
-		curseforgeFingerprintMatch: func(context.Context, []int, httpclient.Doer) (*curseforge.FingerprintResult, error) {
+		curseforgeFingerprintMatch: func(context.Context, []uint32, httpclient.Doer) (*curseforge.FingerprintResult, error) {
 			return &curseforge.FingerprintResult{}, nil
 		},
 		curseforgeProjectName: func(context.Context, string, httpclient.Doer) (string, error) {
@@ -278,7 +278,7 @@ func TestRunInstallSilentlyIgnoresFilesWithNoPlatformHits(t *testing.T) {
 		telemetry: func(telemetry.CommandTelemetry) {},
 
 		curseforgeFingerprint: func(string) uint32 { return 123 },
-		curseforgeFingerprintMatch: func(context.Context, []int, httpclient.Doer) (*curseforge.FingerprintResult, error) {
+		curseforgeFingerprintMatch: func(context.Context, []uint32, httpclient.Doer) (*curseforge.FingerprintResult, error) {
 			return &curseforge.FingerprintResult{}, nil
 		},
 		curseforgeProjectName: func(context.Context, string, httpclient.Doer) (string, error) {
@@ -350,7 +350,7 @@ func TestRunInstallDownloadsMissingManagedFileFromLock(t *testing.T) {
 		telemetry: func(telemetry.CommandTelemetry) {},
 
 		curseforgeFingerprint: func(string) uint32 { return 0 },
-		curseforgeFingerprintMatch: func(context.Context, []int, httpclient.Doer) (*curseforge.FingerprintResult, error) {
+		curseforgeFingerprintMatch: func(context.Context, []uint32, httpclient.Doer) (*curseforge.FingerprintResult, error) {
 			return &curseforge.FingerprintResult{}, nil
 		},
 		curseforgeProjectName: func(context.Context, string, httpclient.Doer) (string, error) {
@@ -425,7 +425,7 @@ func TestRunInstallDownloadsWhenHashMismatch(t *testing.T) {
 		telemetry: func(telemetry.CommandTelemetry) {},
 
 		curseforgeFingerprint: func(string) uint32 { return 0 },
-		curseforgeFingerprintMatch: func(context.Context, []int, httpclient.Doer) (*curseforge.FingerprintResult, error) {
+		curseforgeFingerprintMatch: func(context.Context, []uint32, httpclient.Doer) (*curseforge.FingerprintResult, error) {
 			return &curseforge.FingerprintResult{}, nil
 		},
 		curseforgeProjectName: func(context.Context, string, httpclient.Doer) (string, error) {
@@ -500,7 +500,7 @@ func TestRunInstallFetchesAndAppendsLockWhenMissing(t *testing.T) {
 		telemetry: func(telemetry.CommandTelemetry) {},
 
 		curseforgeFingerprint: func(string) uint32 { return 0 },
-		curseforgeFingerprintMatch: func(context.Context, []int, httpclient.Doer) (*curseforge.FingerprintResult, error) {
+		curseforgeFingerprintMatch: func(context.Context, []uint32, httpclient.Doer) (*curseforge.FingerprintResult, error) {
 			return &curseforge.FingerprintResult{}, nil
 		},
 		curseforgeProjectName: func(context.Context, string, httpclient.Doer) (string, error) {
@@ -588,7 +588,7 @@ func TestRunInstallReportsMissingHashWithoutHalting(t *testing.T) {
 		},
 		telemetry:             func(telemetry.CommandTelemetry) {},
 		curseforgeFingerprint: func(string) uint32 { return 0 },
-		curseforgeFingerprintMatch: func(context.Context, []int, httpclient.Doer) (*curseforge.FingerprintResult, error) {
+		curseforgeFingerprintMatch: func(context.Context, []uint32, httpclient.Doer) (*curseforge.FingerprintResult, error) {
 			return &curseforge.FingerprintResult{}, nil
 		},
 		curseforgeProjectName: func(context.Context, string, httpclient.Doer) (string, error) {
@@ -659,7 +659,7 @@ func TestRunInstallReportsHashMismatch(t *testing.T) {
 		},
 		telemetry:             func(telemetry.CommandTelemetry) {},
 		curseforgeFingerprint: func(string) uint32 { return 0 },
-		curseforgeFingerprintMatch: func(context.Context, []int, httpclient.Doer) (*curseforge.FingerprintResult, error) {
+		curseforgeFingerprintMatch: func(context.Context, []uint32, httpclient.Doer) (*curseforge.FingerprintResult, error) {
 			return &curseforge.FingerprintResult{}, nil
 		},
 		curseforgeProjectName: func(context.Context, string, httpclient.Doer) (string, error) {
@@ -734,7 +734,7 @@ func TestRunInstallReportsMissingHashForLockEntry(t *testing.T) {
 		},
 		telemetry:             func(telemetry.CommandTelemetry) {},
 		curseforgeFingerprint: func(string) uint32 { return 0 },
-		curseforgeFingerprintMatch: func(context.Context, []int, httpclient.Doer) (*curseforge.FingerprintResult, error) {
+		curseforgeFingerprintMatch: func(context.Context, []uint32, httpclient.Doer) (*curseforge.FingerprintResult, error) {
 			return &curseforge.FingerprintResult{}, nil
 		},
 		curseforgeProjectName: func(context.Context, string, httpclient.Doer) (string, error) {
@@ -805,7 +805,7 @@ func TestRunInstallReportsInvalidLockFileName(t *testing.T) {
 		},
 		telemetry:             func(telemetry.CommandTelemetry) {},
 		curseforgeFingerprint: func(string) uint32 { return 0 },
-		curseforgeFingerprintMatch: func(context.Context, []int, httpclient.Doer) (*curseforge.FingerprintResult, error) {
+		curseforgeFingerprintMatch: func(context.Context, []uint32, httpclient.Doer) (*curseforge.FingerprintResult, error) {
 			return &curseforge.FingerprintResult{}, nil
 		},
 		curseforgeProjectName: func(context.Context, string, httpclient.Doer) (string, error) {
@@ -872,7 +872,7 @@ func TestRunInstallReportsInvalidRemoteFileName(t *testing.T) {
 		},
 		telemetry:             func(telemetry.CommandTelemetry) {},
 		curseforgeFingerprint: func(string) uint32 { return 0 },
-		curseforgeFingerprintMatch: func(context.Context, []int, httpclient.Doer) (*curseforge.FingerprintResult, error) {
+		curseforgeFingerprintMatch: func(context.Context, []uint32, httpclient.Doer) (*curseforge.FingerprintResult, error) {
 			return &curseforge.FingerprintResult{}, nil
 		},
 		curseforgeProjectName: func(context.Context, string, httpclient.Doer) (string, error) {
@@ -939,7 +939,7 @@ func TestRunInstallContinuesWhenFetchReturnsExpectedErrors(t *testing.T) {
 		telemetry: func(telemetry.CommandTelemetry) {},
 
 		curseforgeFingerprint: func(string) uint32 { return 0 },
-		curseforgeFingerprintMatch: func(context.Context, []int, httpclient.Doer) (*curseforge.FingerprintResult, error) {
+		curseforgeFingerprintMatch: func(context.Context, []uint32, httpclient.Doer) (*curseforge.FingerprintResult, error) {
 			return &curseforge.FingerprintResult{}, nil
 		},
 		curseforgeProjectName: func(context.Context, string, httpclient.Doer) (string, error) {
@@ -1027,7 +1027,7 @@ func TestRunInstallReportsSymlinkOutsideMods(t *testing.T) {
 		telemetry: func(telemetry.CommandTelemetry) {},
 
 		curseforgeFingerprint: func(string) uint32 { return 0 },
-		curseforgeFingerprintMatch: func(context.Context, []int, httpclient.Doer) (*curseforge.FingerprintResult, error) {
+		curseforgeFingerprintMatch: func(context.Context, []uint32, httpclient.Doer) (*curseforge.FingerprintResult, error) {
 			return &curseforge.FingerprintResult{}, nil
 		},
 		curseforgeProjectName: func(context.Context, string, httpclient.Doer) (string, error) {
@@ -1092,7 +1092,7 @@ func TestRunInstallReturnsErrorOnResolveFailure(t *testing.T) {
 		telemetry: func(telemetry.CommandTelemetry) {},
 
 		curseforgeFingerprint: func(string) uint32 { return 0 },
-		curseforgeFingerprintMatch: func(context.Context, []int, httpclient.Doer) (*curseforge.FingerprintResult, error) {
+		curseforgeFingerprintMatch: func(context.Context, []uint32, httpclient.Doer) (*curseforge.FingerprintResult, error) {
 			return &curseforge.FingerprintResult{}, nil
 		},
 		curseforgeProjectName: func(context.Context, string, httpclient.Doer) (string, error) {

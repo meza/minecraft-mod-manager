@@ -9,9 +9,9 @@ import (
 	"strings"
 	"time"
 
-	"github.com/meza/minecraft-mod-manager/internal/gameversion"
 	"github.com/meza/minecraft-mod-manager/internal/globalerrors"
 	"github.com/meza/minecraft-mod-manager/internal/httpclient"
+	"github.com/meza/minecraft-mod-manager/internal/minecraft"
 	"github.com/meza/minecraft-mod-manager/internal/models"
 )
 
@@ -47,9 +47,12 @@ func FetchRemoteMod(ctx context.Context, projectID string, opts models.FetchOpti
 
 		candidates := filterCurseforgeFiles(files, opts, currentVersion)
 		if len(candidates) == 0 {
-			next, canGoDown := gameversion.NextPatchDown(currentVersion)
-			if opts.AllowFallback && canGoDown {
-				currentVersion = next
+			nextVersion, canFallback, err := fallbackVersion(ctx, currentVersion, opts, client)
+			if err != nil {
+				return models.RemoteMod{}, err
+			}
+			if canFallback {
+				currentVersion = nextVersion
 				continue
 			}
 			return models.RemoteMod{}, &models.NoCompatibleFileError{Platform: models.CURSEFORGE, ProjectID: projectID}
@@ -89,6 +92,13 @@ func buildRemoteMod(project *Project, selected File, projectID string) (models.R
 		Hash:        hash,
 		DownloadURL: selected.DownloadURL,
 	}, nil
+}
+
+func fallbackVersion(ctx context.Context, currentVersion string, opts models.FetchOptions, client httpclient.Doer) (string, bool, error) {
+	if !opts.AllowFallback {
+		return "", false, nil
+	}
+	return minecraft.NextPatchDown(ctx, currentVersion, client)
 }
 
 func formatReleaseDate(date time.Time) string {

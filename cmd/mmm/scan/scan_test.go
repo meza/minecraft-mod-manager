@@ -90,7 +90,7 @@ func TestRunScan_PreferModrinthDoesNotCallCurseforgeWhenHit(t *testing.T) {
 		curseforgeFingerprint: func(string) uint32 {
 			return 123
 		},
-		curseforgeFingerprintMatch: func(context.Context, []int, httpclient.Doer) (*curseforge.FingerprintResult, error) {
+		curseforgeFingerprintMatch: func(context.Context, []uint32, httpclient.Doer) (*curseforge.FingerprintResult, error) {
 			curseforgeCalled = true
 			return &curseforge.FingerprintResult{}, nil
 		},
@@ -153,7 +153,7 @@ func TestRunScan_FallbackOnMissUsesOtherPlatform(t *testing.T) {
 		curseforgeFingerprint: func(string) uint32 {
 			return 999
 		},
-		curseforgeFingerprintMatch: func(context.Context, []int, httpclient.Doer) (*curseforge.FingerprintResult, error) {
+		curseforgeFingerprintMatch: func(context.Context, []uint32, httpclient.Doer) (*curseforge.FingerprintResult, error) {
 			return &curseforge.FingerprintResult{
 				Matches: []curseforge.File{
 					{
@@ -227,9 +227,9 @@ func TestRunScan_Curseforge403ErrorIncludesPerFileFingerprint(t *testing.T) {
 				return 0
 			}
 		},
-		curseforgeFingerprintMatch: func(context.Context, []int, httpclient.Doer) (*curseforge.FingerprintResult, error) {
+		curseforgeFingerprintMatch: func(context.Context, []uint32, httpclient.Doer) (*curseforge.FingerprintResult, error) {
 			return nil, &curseforge.FingerprintAPIError{
-				Lookup: []int{111, 222},
+				Lookup: []uint32{111, 222},
 				Err:    &httpclient.ResponseError{StatusCode: http.StatusForbidden},
 			}
 		},
@@ -286,7 +286,7 @@ func TestRunScan_PreferredLookupErrorDoesNotFallbackAndIsUnsure(t *testing.T) {
 			return nil, &modrinth.VersionAPIError{}
 		},
 		curseforgeFingerprint: func(string) uint32 { return 999 },
-		curseforgeFingerprintMatch: func(context.Context, []int, httpclient.Doer) (*curseforge.FingerprintResult, error) {
+		curseforgeFingerprintMatch: func(context.Context, []uint32, httpclient.Doer) (*curseforge.FingerprintResult, error) {
 			curseforgeCalled = true
 			return &curseforge.FingerprintResult{}, nil
 		},
@@ -946,7 +946,7 @@ func TestRunScan_AddLogsPersistFailureAndContinues(t *testing.T) {
 			return "Example", nil
 		},
 		curseforgeFingerprint: func(string) uint32 { return 123 },
-		curseforgeFingerprintMatch: func(context.Context, []int, httpclient.Doer) (*curseforge.FingerprintResult, error) {
+		curseforgeFingerprintMatch: func(context.Context, []uint32, httpclient.Doer) (*curseforge.FingerprintResult, error) {
 			return &curseforge.FingerprintResult{}, nil
 		},
 	})

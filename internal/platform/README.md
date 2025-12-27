@@ -94,13 +94,16 @@ See `docs/platform-apis.md` for the behavior rules that the platform-specific he
 
 ### Fallback behavior
 
-Fallback is deliberately conservative: it only decreases the patch component.
+Fallback is deliberately conservative: it only decreases the patch component within the same series key.
+Mojang publishes releases like `1.20` followed by `1.20.1` without a `1.20.0`, so falling back from
+`1.20.1` to `1.20` is considered a patch-level fallback.
 
 - `1.20.2` falls back to `1.20.1`
-- `1.20.1` does not fall back (there is no `1.20.0` attempt)
+- `1.20.1` falls back to `1.20` (Mojang publishes `1.20` then `1.20.1` without a `1.20.0`)
 - `1.20` does not fall back (no patch component to decrement)
 
-This is implemented by `internal/gameversion.NextPatchDown`.
+This is implemented via `internal/minecraft.NextPatchDown`, which consults the Mojang manifest release list.
+If the configured Minecraft version is not a manifest release, fallback stops with an error rather than issuing invalid API requests.
 
 ## Clients, headers, and environment
 

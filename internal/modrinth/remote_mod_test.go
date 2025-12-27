@@ -8,6 +8,7 @@ import (
 
 	"github.com/meza/minecraft-mod-manager/internal/globalerrors"
 	"github.com/meza/minecraft-mod-manager/internal/httpclient"
+	"github.com/meza/minecraft-mod-manager/internal/minecraft"
 	"github.com/meza/minecraft-mod-manager/internal/models"
 	"github.com/meza/minecraft-mod-manager/testutil"
 	"github.com/stretchr/testify/assert"
@@ -216,6 +217,13 @@ func TestFetchRemoteModUsesFixedVersion(t *testing.T) {
 
 func TestFetchRemoteModFallsBackWhenEnabled(t *testing.T) {
 	server := httptest.NewServer(http.HandlerFunc(func(writer http.ResponseWriter, request *http.Request) {
+		if request.URL.Path == "/mc/game/version_manifest.json" {
+			writeStringResponse(t, writer, `{"versions": [
+      {"id": "1.20.2", "type": "release"},
+      {"id": "1.20.1", "type": "release"}
+    ]}`)
+			return
+		}
 		if request.URL.Path == "/v2/project/test-mod" {
 			writeStringResponse(t, writer, `{"title":"Test Mod","id":"test-mod"}`)
 			return
@@ -262,6 +270,12 @@ func TestFetchRemoteModFallsBackWhenEnabled(t *testing.T) {
 
 func TestFetchRemoteModReturnsNoCompatibleFile(t *testing.T) {
 	server := httptest.NewServer(http.HandlerFunc(func(writer http.ResponseWriter, request *http.Request) {
+		if request.URL.Path == "/mc/game/version_manifest.json" {
+			writeStringResponse(t, writer, `{"versions": [
+      {"id": "1.20.1", "type": "release"}
+    ]}`)
+			return
+		}
 		if request.URL.Path == "/v2/project/test-mod" {
 			writeStringResponse(t, writer, `{"title":"Test Mod","id":"test-mod"}`)
 			return
@@ -365,6 +379,39 @@ func TestFetchRemoteModReturnsNoCompatibleWhenFallbackStops(t *testing.T) {
 
 	var noCompatible *models.NoCompatibleFileError
 	assert.ErrorAs(t, err, &noCompatible)
+}
+
+func TestFetchRemoteModFallbackRejectsUnknownRelease(t *testing.T) {
+	server := httptest.NewServer(http.HandlerFunc(func(writer http.ResponseWriter, request *http.Request) {
+		if request.URL.Path == "/mc/game/version_manifest.json" {
+			writeStringResponse(t, writer, `{"versions": [
+      {"id": "1.20.2", "type": "release"}
+    ]}`)
+			return
+		}
+		if request.URL.Path == "/v2/project/test-mod" {
+			writeStringResponse(t, writer, `{"title":"Test Mod","id":"test-mod"}`)
+			return
+		}
+		if request.URL.Path == "/v2/project/test-mod/version" {
+			writeJSONResponse(t, writer, []map[string]interface{}{})
+			return
+		}
+		writer.WriteHeader(http.StatusNotFound)
+	}))
+	defer server.Close()
+
+	client := testutil.MustNewHostRewriteDoer(server.URL, httpclient.NewRLClient(rate.NewLimiter(rate.Inf, 0)))
+
+	_, err := FetchRemoteMod(context.Background(), "test-mod", models.FetchOptions{
+		AllowedReleaseTypes: []models.ReleaseType{models.Release},
+		GameVersion:         "1.20.9",
+		Loader:              models.FABRIC,
+		AllowFallback:       true,
+	}, client)
+
+	var invalid *minecraft.InvalidReleaseVersionError
+	assert.ErrorAs(t, err, &invalid)
 }
 
 func TestFetchRemoteModFailsOnMissingFields(t *testing.T) {

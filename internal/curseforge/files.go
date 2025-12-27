@@ -41,7 +41,7 @@ func (filter FileListFilter) pageSize() int {
 }
 
 type getFingerprintsRequest struct {
-	Fingerprints []int `json:"fingerprints"`
+	Fingerprints []uint32 `json:"fingerprints"`
 }
 
 type fingerprintMatch struct {
@@ -233,7 +233,7 @@ func GetFilesForProjectWithFilters(ctx context.Context, projectID int, filter Fi
 	return files, nil
 }
 
-func GetFingerprintsMatches(ctx context.Context, fingerprints []int, client httpclient.Doer) (result *FingerprintResult, returnErr error) {
+func GetFingerprintsMatches(ctx context.Context, fingerprints []uint32, client httpclient.Doer) (result *FingerprintResult, returnErr error) {
 	ctx, span := perf.StartSpan(ctx, "api.curseforge.fingerprints.match", perf.WithAttributes(attribute.Int("fingerprints_count", len(fingerprints))))
 	defer span.End()
 
@@ -266,7 +266,7 @@ func GetFingerprintsMatches(ctx context.Context, fingerprints []int, client http
 	return result, nil
 }
 
-func newFingerprintMatchRequest(ctx context.Context, fingerprints []int) (*http.Request, func(), error) {
+func newFingerprintMatchRequest(ctx context.Context, fingerprints []uint32) (*http.Request, func(), error) {
 	requestURL, err := buildFingerprintMatchURL()
 	if err != nil {
 		return nil, func() {}, err
@@ -327,7 +327,7 @@ func buildFingerprintMatchURL() (*url.URL, error) {
 	return requestURL, nil
 }
 
-func doFingerprintMatchRequest(client httpclient.Doer, request *http.Request, fingerprints []int) (*http.Response, error) {
+func doFingerprintMatchRequest(client httpclient.Doer, request *http.Request, fingerprints []uint32) (*http.Response, error) {
 	response, err := client.Do(request)
 	if err != nil {
 		if httpclient.IsTimeoutError(err) {
@@ -341,7 +341,7 @@ func doFingerprintMatchRequest(client httpclient.Doer, request *http.Request, fi
 	return response, nil
 }
 
-func decodeFingerprintMatchesResponse(response *http.Response, fingerprints []int) (*getFingerprintsMatchesResponse, error) {
+func decodeFingerprintMatchesResponse(response *http.Response, fingerprints []uint32) (*getFingerprintsMatchesResponse, error) {
 	if response.StatusCode != http.StatusOK {
 		return nil, &FingerprintAPIError{
 			Lookup: fingerprints,
@@ -359,10 +359,10 @@ func decodeFingerprintMatchesResponse(response *http.Response, fingerprints []in
 	return &fingerprintsResponse, nil
 }
 
-func buildFingerprintResult(response *getFingerprintsMatchesResponse, fingerprints []int) (*FingerprintResult, error) {
+func buildFingerprintResult(response *getFingerprintsMatchesResponse, fingerprints []uint32) (*FingerprintResult, error) {
 	result := &FingerprintResult{
 		Matches:   make([]File, 0),
-		Unmatched: make([]int, 0),
+		Unmatched: make([]uint32, 0),
 	}
 
 	for _, item := range response.Data.ExactMatches {
@@ -384,12 +384,12 @@ func buildFingerprintResult(response *getFingerprintsMatchesResponse, fingerprin
 	return result, nil
 }
 
-func decodeUnmatchedFingerprints(raw json.RawMessage) ([]int, error) {
+func decodeUnmatchedFingerprints(raw json.RawMessage) ([]uint32, error) {
 	if len(raw) == 0 || string(raw) == "null" {
 		return nil, nil
 	}
 
-	var list []int
+	var list []uint32
 	if err := json.Unmarshal(raw, &list); err == nil {
 		return list, nil
 	}
@@ -407,14 +407,14 @@ func decodeUnmatchedFingerprints(raw json.RawMessage) ([]int, error) {
 	return nil, errors.Errorf("unsupported type: %s", string(raw))
 }
 
-func parseUnmatchedMapKeys[V any](m map[string]V) ([]int, error) {
-	out := make([]int, 0, len(m))
+func parseUnmatchedMapKeys[V any](m map[string]V) ([]uint32, error) {
+	out := make([]uint32, 0, len(m))
 	for key := range m {
-		value, err := strconv.Atoi(key)
+		value, err := strconv.ParseUint(key, 10, 32)
 		if err != nil {
 			continue
 		}
-		out = append(out, value)
+		out = append(out, uint32(value))
 	}
 	return out, nil
 }

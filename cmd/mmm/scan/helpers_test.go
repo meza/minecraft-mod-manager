@@ -177,8 +177,8 @@ func TestModrinthDownloadDetailsErrorsOnMissingURL(t *testing.T) {
 	assert.Error(t, err)
 }
 
-func TestUniqueInts(t *testing.T) {
-	assert.Equal(t, []int{3, 1, 2}, uniqueInts([]int{3, 1, 3, 2, 1}))
+func TestUniqueUint32s(t *testing.T) {
+	assert.Equal(t, []uint32{3, 1, 2}, uniqueUint32s([]uint32{3, 1, 3, 2, 1}))
 }
 
 func TestPrintResultsLogsAllSections(t *testing.T) {
@@ -280,7 +280,7 @@ func TestIdentifyCandidatesCombinesPreferredAndFallback(t *testing.T) {
 			return "Modrinth Title", nil
 		},
 		curseforgeFingerprint: func(string) uint32 { return 101 },
-		curseforgeFingerprintMatch: func(context.Context, []int, httpclient.Doer) (*curseforge.FingerprintResult, error) {
+		curseforgeFingerprintMatch: func(context.Context, []uint32, httpclient.Doer) (*curseforge.FingerprintResult, error) {
 			return &curseforge.FingerprintResult{
 				Matches: []curseforge.File{
 					{ProjectID: 22, Fingerprint: 101, DownloadURL: "https://example.invalid/b.jar", FileDate: time.Date(2024, 1, 3, 0, 0, 0, 0, time.UTC)},
@@ -350,7 +350,7 @@ func TestIdentifyCandidatesSkipsUnknownWhenUnsure(t *testing.T) {
 			return nil, errors.New("modrinth error")
 		},
 		curseforgeFingerprint: func(string) uint32 { return 101 },
-		curseforgeFingerprintMatch: func(context.Context, []int, httpclient.Doer) (*curseforge.FingerprintResult, error) {
+		curseforgeFingerprintMatch: func(context.Context, []uint32, httpclient.Doer) (*curseforge.FingerprintResult, error) {
 			return &curseforge.FingerprintResult{}, nil
 		},
 	}
@@ -377,7 +377,7 @@ func TestIdentifyCandidatesAddsUnknownWhenUnmatched(t *testing.T) {
 			return nil, &modrinth.VersionNotFoundError{Lookup: *modrinth.NewVersionHashLookup(hash, modrinth.SHA1)}
 		},
 		curseforgeFingerprint: func(string) uint32 { return 101 },
-		curseforgeFingerprintMatch: func(context.Context, []int, httpclient.Doer) (*curseforge.FingerprintResult, error) {
+		curseforgeFingerprintMatch: func(context.Context, []uint32, httpclient.Doer) (*curseforge.FingerprintResult, error) {
 			return &curseforge.FingerprintResult{}, nil
 		},
 	}
@@ -404,7 +404,7 @@ func TestIdentifyCandidatesMergesFallbackUnsure(t *testing.T) {
 			return nil, &modrinth.VersionNotFoundError{Lookup: *modrinth.NewVersionHashLookup(hash, modrinth.SHA1)}
 		},
 		curseforgeFingerprint: func(string) uint32 { return 101 },
-		curseforgeFingerprintMatch: func(context.Context, []int, httpclient.Doer) (*curseforge.FingerprintResult, error) {
+		curseforgeFingerprintMatch: func(context.Context, []uint32, httpclient.Doer) (*curseforge.FingerprintResult, error) {
 			return nil, errors.New("fingerprint failed")
 		},
 	}
@@ -437,7 +437,7 @@ func TestIdentifyCandidatesSkipsUnknownWhenPathIsUnsure(t *testing.T) {
 			return nil, &modrinth.VersionNotFoundError{Lookup: *modrinth.NewVersionHashLookup(hash, modrinth.SHA1)}
 		},
 		curseforgeFingerprint: func(string) uint32 { return 101 },
-		curseforgeFingerprintMatch: func(context.Context, []int, httpclient.Doer) (*curseforge.FingerprintResult, error) {
+		curseforgeFingerprintMatch: func(context.Context, []uint32, httpclient.Doer) (*curseforge.FingerprintResult, error) {
 			return &curseforge.FingerprintResult{}, nil
 		},
 	}
@@ -615,7 +615,7 @@ func TestDefaultModrinthProjectTitle(t *testing.T) {
 }
 
 func TestDefaultCurseforgeFingerprintMatchReturnsError(t *testing.T) {
-	_, err := defaultCurseforgeFingerprintMatch(context.Background(), []int{1}, errorDoer{err: errors.New("boom")})
+	_, err := defaultCurseforgeFingerprintMatch(context.Background(), []uint32{1}, errorDoer{err: errors.New("boom")})
 	assert.Error(t, err)
 }
 
@@ -832,7 +832,7 @@ func TestLookupCurseforgeMissingDownloadURLAddsUnsure(t *testing.T) {
 
 	deps := scanDeps{
 		curseforgeFingerprint: func(string) uint32 { return 101 },
-		curseforgeFingerprintMatch: func(context.Context, []int, httpclient.Doer) (*curseforge.FingerprintResult, error) {
+		curseforgeFingerprintMatch: func(context.Context, []uint32, httpclient.Doer) (*curseforge.FingerprintResult, error) {
 			return &curseforge.FingerprintResult{
 				Matches: []curseforge.File{
 					{ProjectID: 22, Fingerprint: 101, DownloadURL: ""},
@@ -864,7 +864,7 @@ func TestLookupCurseforgeSkipsUnknownFingerprint(t *testing.T) {
 			}
 			return 202
 		},
-		curseforgeFingerprintMatch: func(context.Context, []int, httpclient.Doer) (*curseforge.FingerprintResult, error) {
+		curseforgeFingerprintMatch: func(context.Context, []uint32, httpclient.Doer) (*curseforge.FingerprintResult, error) {
 			return &curseforge.FingerprintResult{
 				Matches: []curseforge.File{
 					{ProjectID: 42, Fingerprint: 999, DownloadURL: "https://example.invalid/extra.jar"},
@@ -890,7 +890,7 @@ func TestLookupCurseforgeProjectNameErrorAddsUnsure(t *testing.T) {
 
 	deps := scanDeps{
 		curseforgeFingerprint: func(string) uint32 { return 101 },
-		curseforgeFingerprintMatch: func(context.Context, []int, httpclient.Doer) (*curseforge.FingerprintResult, error) {
+		curseforgeFingerprintMatch: func(context.Context, []uint32, httpclient.Doer) (*curseforge.FingerprintResult, error) {
 			return &curseforge.FingerprintResult{
 				Matches: []curseforge.File{
 					{ProjectID: 22, Fingerprint: 101, DownloadURL: "https://example.invalid/a.jar"},

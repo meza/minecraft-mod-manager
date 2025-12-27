@@ -170,7 +170,7 @@ func TestGetProject(t *testing.T) {
 	assert.Equal(t, "d41d8cd98f00b204e9800998ecf8427e", project.LatestFiles[0].Hashes[0].Hash)
 	assert.Equal(t, SHA1, project.LatestFiles[0].Hashes[0].Algorithm)
 	assert.Equal(t, "1.0.0", project.LatestFiles[0].GameVersions[0])
-	assert.Equal(t, 1234567890, project.LatestFiles[0].Fingerprint)
+	assert.Equal(t, uint32(1234567890), project.LatestFiles[0].Fingerprint)
 
 	dateCreated, err := time.Parse(time.RFC3339, "2023-10-01T12:00:00Z")
 	assert.NoError(t, err)

@@ -8,12 +8,12 @@ import (
 )
 
 type FingerprintAPIError struct {
-	Lookup []int
+	Lookup []uint32
 	Err    error
 }
 
 func (fingerprintError *FingerprintAPIError) Error() string {
-	return fmt.Sprintf("Fingerprints for %d cannot be fetched due to an api error: %v", fingerprintError.Lookup, fingerprintError.Err)
+	return fmt.Sprintf("Fingerprints for %v cannot be fetched due to an api error: %v", fingerprintError.Lookup, fingerprintError.Err)
 }
 
 func (fingerprintError *FingerprintAPIError) Is(target error) bool {

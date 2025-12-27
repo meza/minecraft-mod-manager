@@ -121,7 +121,7 @@ func TestRunInstallReturnsUnresolvedFilesError(t *testing.T) {
 		logger:                logger.New(io.Discard, io.Discard, false, false),
 		clients:               platform.DefaultClients(rate.NewLimiter(rate.Inf, 0)),
 		curseforgeFingerprint: func(string) uint32 { return 1 },
-		curseforgeFingerprintMatch: func(context.Context, []int, httpclient.Doer) (*curseforge.FingerprintResult, error) {
+		curseforgeFingerprintMatch: func(context.Context, []uint32, httpclient.Doer) (*curseforge.FingerprintResult, error) {
 			return &curseforge.FingerprintResult{
 				Matches: []curseforge.File{{ProjectID: 123, Fingerprint: 1}},
 			}, nil
@@ -563,7 +563,7 @@ func TestRunInstallReportsUnmanagedFound(t *testing.T) {
 		logger:                logger.New(io.Discard, io.Discard, false, false),
 		clients:               platform.DefaultClients(rate.NewLimiter(rate.Inf, 0)),
 		curseforgeFingerprint: func(string) uint32 { return 1 },
-		curseforgeFingerprintMatch: func(context.Context, []int, httpclient.Doer) (*curseforge.FingerprintResult, error) {
+		curseforgeFingerprintMatch: func(context.Context, []uint32, httpclient.Doer) (*curseforge.FingerprintResult, error) {
 			return &curseforge.FingerprintResult{
 				Matches: []curseforge.File{{ProjectID: 456, Fingerprint: 1}},
 			}, nil

@@ -33,40 +33,31 @@ type versionManifest struct {
 
 var versionManifestURL = "https://launchermeta.mojang.com/mc/game/version_manifest.json"
 var newRequestWithContext = http.NewRequestWithContext
-var manifestCacheTTL = 15 * time.Minute
-var timeNow = time.Now
 
 type manifestCache struct {
-	mutex     sync.RWMutex
-	manifest  *versionManifest
-	fetchedAt time.Time
+	mutex    sync.RWMutex
+	manifest *versionManifest
 }
 
 func (cache *manifestCache) clear() {
 	cache.mutex.Lock()
 	defer cache.mutex.Unlock()
 	cache.manifest = nil
-	cache.fetchedAt = time.Time{}
 }
 
-func (cache *manifestCache) get(now time.Time) (*versionManifest, bool) {
+func (cache *manifestCache) get() (*versionManifest, bool) {
 	cache.mutex.RLock()
 	defer cache.mutex.RUnlock()
 	if cache.manifest == nil {
 		return nil, false
 	}
-	cacheAge := now.Sub(cache.fetchedAt)
-	if cacheAge < 0 || cacheAge >= manifestCacheTTL {
-		return nil, false
-	}
 	return cache.manifest, true
 }
 
-func (cache *manifestCache) set(now time.Time, manifest *versionManifest) {
+func (cache *manifestCache) set(manifest *versionManifest) {
 	cache.mutex.Lock()
 	defer cache.mutex.Unlock()
 	cache.manifest = manifest
-	cache.fetchedAt = now
 }
 
 var manifestCacheState = &manifestCache{}
@@ -78,8 +69,7 @@ func ClearManifestCache() {
 func getMinecraftVersionManifest(ctx context.Context, client httpclient.Doer) (*versionManifest, error) {
 	_, span := perf.StartSpan(ctx, "api.minecraft.version_manifest.get")
 	defer span.End()
-	cacheNow := timeNow()
-	if manifest, ok := manifestCacheState.get(cacheNow); ok {
+	if manifest, ok := manifestCacheState.get(); ok {
 		return manifest, nil
 	}
 
@@ -119,7 +109,7 @@ func getMinecraftVersionManifest(ctx context.Context, client httpclient.Doer) (*
 	if closeErr != nil {
 		return nil, closeErr
 	}
-	manifestCacheState.set(cacheNow, &decodedManifest)
+	manifestCacheState.set(&decodedManifest)
 	return &decodedManifest, nil
 }
 
