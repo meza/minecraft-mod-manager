@@ -31,8 +31,9 @@ When you're done with coding, you MUST ask for a code review from the team. You 
 
 Once your own verification passes, you must pause and explicitly ask the user to confirm that `make coverage`, and `make build` pass on Windows.
 Do not invoke the reviewer until the user has provided that confirmation in the current conversation.
+This confirmation expires immediately after any code or test change: every reviewer invocation (initial or re-run) requires a fresh Windows confirmation gathered after your latest changes.
 If Windows verification fails or is missing, pause and resolve it before continuing.
-When the user confirms success, include their Windows verification statement verbatim in the reviewer prompt.
+When the user confirms success, include their Windows verification statement verbatim in the reviewer prompt and note the timestamp so you can prove it occurred after the latest changes.
 
 Use `codex -m gpt-5.2 --dangerously-bypass-approvals-and-sandbox e` to request a review.
 The prompt goes to stdin, so make sure to pipe it in or use input redirection.
@@ -71,6 +72,7 @@ Do not ask the user whether to request a review.
 - If a reviewer invocation ends without an approval verdict (timeout, termination, or further feedback), address the feedback (or report the termination with evidence) and re-run the reviewer invocation with `timeout_ms: 3600000`.
 - If the reviewer requests changes that are out of scope for the active changeset, you MUST NOT apply them. Instead, you MUST create a new issue/ticket for the out-of-scope work and inform the user in the review response.
 - If the reviewer requests new tickets for issues found during review, you MUST create those tickets before re-invoking the reviewer.
+- After any code/test/documentation change (including reviewer-requested fixes), previous Windows confirmations are invalid. You must rerun your local verification, ask the user to re-confirm Windows results, and only then re-invoke the reviewer.
 
 You MUST NOT mislead the reviewer under any circumstances. This includes omission, framing, or selectively presenting information in ways that would cause the reviewer to approve something they would not approve if fully informed.
 
@@ -127,6 +129,13 @@ Follow our established [Golang Coding Standards](https://raw.githubusercontent.c
 - ALWAYS read the documentation of the tooling and libraries used in the project. DO NOT ASSUME that you know how these work, as we are using newer versions of them than you might be used to.
 - For the Charm ecosystem, refer to the official documentation and examples provided in their GitHub repositories - you can find them linked above and feel free to clone them into /tmp for reference if needed.
 - ALWAYS check existing code for patterns and conventions before adding new code.
+
+## Specification Authority
+
+- Specifications in `docs/specs` and `docs/requirements-go-port.md` are the immovable source of truth for behaviour and constraints. If specs, code, docs, or tests ever disagree, the specs win 100% of the time.
+- Do not edit or reinterpret a spec unless the user explicitly orders the change in this conversation. If a spec is unclear or appears wrong, stop immediately and ask for direction instead of diverging or requesting to rewrite the spec.
+- Planning MUST start with the relevant spec sections. Call out which spec documents (and sections if applicable) govern the change, summarize the required behaviour, and ensure your plan accounts for them before touching code or tests.
+- During implementation and verification, continuously check your work against the cited spec passages. Documentation updates exist to explain spec-compliant behaviour; they never redefine it.
 
 ### Decision Records and historical context
 
@@ -215,6 +224,7 @@ Write user-facing docs in a conversational, guide-like tone:
 
 ## Development Workflow
 
+0. **Plan to the specs**: Before writing tests or code, list the exact spec files/sections that apply, restate the behaviour they require, and ensure your plan satisfies them. If anything is uncertain, clarify before proceeding.
 1. **Write tests first**: Follow TDD principles where possible
 2. **Implement changes**: Make minimal, focused changes
 3. **Verify continuously**: Run the relevant tests frequently during development
@@ -233,8 +243,9 @@ Write user-facing docs in a conversational, guide-like tone:
 - [ ] Ensure tests and coverage pass (`make coverage`)
 - [ ] Ensure build (`make build`)
 - [ ] Documentation updated if needed
+- [ ] Implementation matches every cited spec section; list the sections in your report and explain how the change satisfies each one.
 - [ ] Code review approved
-- [ ] Ask the team/user to verify `make coverage`, and `make build` pass on Windows, record their confirmation, and block review until they respond
+- [ ] Ask the team/user to verify `make coverage`, and `make build` pass on Windows after your latest changes. Record their fresh confirmation, block review until they respond, and include the exact statement in every reviewer invocation.
 - [ ] The team/user has reviewed the changes and explicitly asked for completion
 
 ## IMPORTANT
