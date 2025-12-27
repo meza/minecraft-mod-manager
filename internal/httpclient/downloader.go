@@ -43,6 +43,17 @@ type Sender interface {
 
 var buildDownloadRequestFunc = buildDownloadRequest
 
+// DownloadFile downloads a URL to disk and optionally streams progress to program.
+// It validates the URL against the trusted host allowlist, enforces a 2xx status,
+// and removes partial files on write failures.
+//
+// Pass a nil Sender when no progress updates are needed. The output path is
+// created or overwritten, and downloads are restricted to the trusted host list
+// (cdn.modrinth.com, edge.forgecdn.net, and media.forgecdn.net).
+//
+// Example:
+//
+//	err := httpclient.DownloadFile(ctx, downloadURL, destPath, client, nil)
 func DownloadFile(ctx context.Context, url string, filepath string, client Doer, program Sender, filesystemOverrides ...afero.Fs) (returnErr error) {
 	validatedURL, err := validateDownloadURL(url)
 	if err != nil {

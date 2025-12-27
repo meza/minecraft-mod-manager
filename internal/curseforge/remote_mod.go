@@ -15,7 +15,28 @@ import (
 	"github.com/meza/minecraft-mod-manager/internal/models"
 )
 
-// FetchRemoteMod selects the newest compatible CurseForge file and returns it as a domain RemoteMod.
+// FetchRemoteMod turns a CurseForge project ID into a normalized RemoteMod that is
+// ready for download. The returned RemoteMod contains the project name, file name,
+// release date, hash, and download URL expected by downstream install flows.
+//
+// It filters files by loader, game version, allowed release types, and acceptable
+// status, then selects the newest file by file date.
+//
+// FixedVersion matches against the filename string (not a semantic version).
+// When AllowFallback is true and no compatible file exists for the requested
+// game version, it walks patch versions downward using the Mojang manifest.
+//
+// It returns ModNotFoundError when the project is missing or the ID is invalid,
+// NoCompatibleFileError when no eligible file can be selected (including missing
+// download URL or hash), or any underlying API/validation errors from CurseForge.
+//
+// Example:
+//
+//	remote, err := curseforge.FetchRemoteMod(ctx, "1234", models.FetchOptions{
+//	  AllowedReleaseTypes: []models.ReleaseType{models.Release},
+//	  GameVersion:         "1.20.1",
+//	  Loader:              models.FABRIC,
+//	}, client)
 func FetchRemoteMod(ctx context.Context, projectID string, opts models.FetchOptions, client httpclient.Doer) (models.RemoteMod, error) {
 	curseforgeClient := NewClient(client)
 

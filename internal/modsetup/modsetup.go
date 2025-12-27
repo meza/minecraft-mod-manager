@@ -53,6 +53,22 @@ func (coordinator *SetupCoordinator) EnsureConfigAndLock(ctx context.Context, me
 	return cfg, lock, nil
 }
 
+// EnsureDownloaded takes a RemoteMod from a platform lookup and writes the file to disk.
+// Use this when you need the jar present before you persist config/lock changes; it
+// does not write modlist.json or modlist-lock.json.
+//
+// It uses RemoteMod.FileName, DownloadURL, and Hash. The filename is normalized, the
+// mods directory is created if needed, the destination is checked for symlink escapes,
+// and the download is verified against the provided hash before placing it. The return
+// value is the intended destination path (the resolved path is used for the write).
+//
+// It fails if the RemoteMod lacks a download URL or hash, if the destination escapes
+// the mods directory, or if download/filesystem operations fail.
+//
+// Example:
+//
+//	remote, err := platform.FetchMod(ctx, models.MODRINTH, "AANobbMI", opts, clients)
+//	path, err := coordinator.EnsureDownloaded(ctx, meta, cfg, remote, clients.Modrinth)
 func (coordinator *SetupCoordinator) EnsureDownloaded(ctx context.Context, meta config.Metadata, cfg models.ModsJSON, remote platform.RemoteMod, downloadClient httpclient.Doer) (string, error) {
 	normalizedFileName, err := modfilename.Normalize(remote.FileName)
 	if err != nil {
@@ -104,6 +120,21 @@ type EnsurePersistedOutcome struct {
 	Result EnsureResult
 }
 
+// EnsurePersisted adds a resolved mod to config/lock if it is missing and persists it.
+// It is additive only: existing entries are left unchanged. Use UpsertConfigAndLock
+// when you need to update names or lock data for an existing entry.
+//
+// It writes modlist.json or modlist-lock.json only when it adds new entries and
+// returns the updated config/lock plus flags describing what was added. The
+// options are persisted into config (version/fallback) only when a new config entry
+// is created.
+//
+// It fails on missing platform/id, invalid remote fields, or write errors.
+//
+// Example:
+//
+//	outcome, err := coordinator.EnsurePersisted(ctx, meta, cfg, lock, platform, id, remote, opts)
+//	if outcome.Result.ConfigAdded { /* new mod in config */ }
 func (coordinator *SetupCoordinator) EnsurePersisted(ctx context.Context, meta config.Metadata, cfg models.ModsJSON, lock []models.ModInstall, resolvedPlatform models.Platform, resolvedID string, remote platform.RemoteMod, options EnsurePersistOptions) (EnsurePersistedOutcome, error) {
 	if strings.TrimSpace(string(resolvedPlatform)) == "" {
 		return EnsurePersistedOutcome{}, errors.New("missing resolved platform")
@@ -165,6 +196,17 @@ type UpsertOutcome struct {
 	Result UpsertResult
 }
 
+// UpsertConfigAndLock updates or inserts config/lock entries in memory only.
+// It adds new entries when missing, updates names and lock fields when changed,
+// and returns the updated slices without writing to disk. Callers must persist the
+// results themselves if they want the changes saved.
+//
+// It fails on missing platform/id or invalid remote fields.
+//
+// Example:
+//
+//	outcome, err := coordinator.UpsertConfigAndLock(cfg, lock, platform, id, remote, opts)
+//	if outcome.Result.LockUpdated { /* write lock file */ }
 func (coordinator *SetupCoordinator) UpsertConfigAndLock(cfg models.ModsJSON, lock []models.ModInstall, resolvedPlatform models.Platform, resolvedID string, remote platform.RemoteMod, options EnsurePersistOptions) (UpsertOutcome, error) {
 	if strings.TrimSpace(string(resolvedPlatform)) == "" {
 		return UpsertOutcome{}, errors.New("missing resolved platform")

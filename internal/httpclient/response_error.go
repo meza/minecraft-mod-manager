@@ -44,6 +44,14 @@ func (responseError *ResponseError) Error() string {
 	return message
 }
 
+// NewResponseError captures response context, including a bounded body snippet.
+// It drains the body for connection reuse and extracts rate limit headers.
+// Callers should not read the response body after calling this helper, and the
+// snippet is limited to responseBodySnippetLimit bytes.
+//
+// Example:
+//
+//	responseErr := httpclient.NewResponseError(response)
 func NewResponseError(response *http.Response) *ResponseError {
 	if response == nil {
 		return &ResponseError{Method: "", URL: "", StatusCode: 0}

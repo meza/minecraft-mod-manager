@@ -94,6 +94,20 @@ func NewVersionHashLookup(hash string, algorithm VersionAlgorithm) *VersionHashL
 	}
 }
 
+// GetVersionsForProject fetches Modrinth versions for a project using the lookup filters.
+// The lookup is sent to the API as-is; this function does not apply additional
+// client-side filtering beyond decoding the response.
+//
+// It returns ProjectNotFoundError when the project does not exist and ProjectAPIError
+// when the request fails, the status is non-200, or the response cannot be decoded.
+//
+// Example:
+//
+//	versions, err := modrinth.GetVersionsForProject(ctx, &modrinth.VersionLookup{
+//	  ProjectID:    "AANobbMI",
+//	  Loaders:      []models.Loader{models.FABRIC},
+//	  GameVersions: []string{"1.20.1"},
+//	}, client)
 func GetVersionsForProject(ctx context.Context, lookup *VersionLookup, client httpclient.Doer) (versions Versions, returnErr error) {
 	ctx, span := perf.StartSpan(ctx, "api.modrinth.version.list", perf.WithAttributes(attribute.String("project_id", lookup.ProjectID)))
 	defer span.End()
@@ -161,6 +175,17 @@ func buildVersionListURL(lookup *VersionLookup) (*url.URL, error) {
 	return baseURL, nil
 }
 
+// GetVersionForHash fetches a Modrinth version by hash and algorithm.
+// Use NewVersionHashLookup to construct the lookup.
+//
+// It returns VersionNotFoundError only when the API responds with 404 and
+// VersionAPIError when the request fails, the status is non-200, or the response
+// cannot be decoded.
+//
+// Example:
+//
+//	lookup := modrinth.NewVersionHashLookup(sha1, modrinth.SHA1)
+//	version, err := modrinth.GetVersionForHash(ctx, lookup, client)
 func GetVersionForHash(ctx context.Context, lookup *VersionHashLookup, client httpclient.Doer) (version *Version, returnErr error) {
 	ctx, span := perf.StartSpan(ctx, "api.modrinth.version_file.get", perf.WithAttributes(attribute.String("hash", lookup.hash)))
 	defer span.End()

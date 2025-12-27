@@ -28,6 +28,13 @@ var shutdownTracerProvider = func(provider *trace.TracerProvider) error {
 	return provider.Shutdown(context.Background())
 }
 
+// Init configures the global tracer provider and resets any previous provider.
+// When disabled, it clears the exporter and installs a noop provider.
+// It affects global process state, so call it once during startup or tests.
+//
+// Example:
+//
+//	_ = perf.Init(perf.Config{Enabled: true})
 func Init(cfg Config) error {
 	globalMu.Lock()
 	defer globalMu.Unlock()

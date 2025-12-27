@@ -233,6 +233,16 @@ func GetFilesForProjectWithFilters(ctx context.Context, projectID int, filter Fi
 	return files, nil
 }
 
+// GetFingerprintsMatches resolves CurseForge fingerprints into matches/unmatched sets.
+// It expects CurseForge fingerprint hashes (uint32) and returns both matched files
+// and the unmatched list for follow-up handling.
+//
+// It returns FingerprintAPIError when the request fails, the status is non-200, or
+// the response cannot be decoded.
+//
+// Example:
+//
+//	result, err := curseforge.GetFingerprintsMatches(ctx, []uint32{fingerprint}, client)
 func GetFingerprintsMatches(ctx context.Context, fingerprints []uint32, client httpclient.Doer) (result *FingerprintResult, returnErr error) {
 	ctx, span := perf.StartSpan(ctx, "api.curseforge.fingerprints.match", perf.WithAttributes(attribute.Int("fingerprints_count", len(fingerprints))))
 	defer span.End()

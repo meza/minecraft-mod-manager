@@ -20,6 +20,15 @@ type getProjectResponse struct {
 	Data Project `json:"data"`
 }
 
+// GetProject fetches a CurseForge project by ID for downstream selection logic.
+// It does no caching and returns the raw project payload as returned by the API.
+//
+// It returns ProjectNotFoundError when the project does not exist and ProjectAPIError
+// when the request fails, the status is non-200, or the response cannot be decoded.
+//
+// Example:
+//
+//	project, err := curseforge.GetProject(ctx, "1234", client)
 func GetProject(ctx context.Context, projectID string, client httpclient.Doer) (project *Project, returnErr error) {
 	ctx, span := perf.StartSpan(ctx, "api.curseforge.project.get", perf.WithAttributes(attribute.String("project_id", projectID)))
 	defer span.End()

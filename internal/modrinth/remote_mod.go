@@ -12,7 +12,29 @@ import (
 	"github.com/meza/minecraft-mod-manager/internal/models"
 )
 
-// FetchRemoteMod selects the newest compatible Modrinth file and returns it as a domain RemoteMod.
+// FetchRemoteMod turns a Modrinth project ID into a normalized RemoteMod that is
+// ready for download. The returned RemoteMod contains the project name, file name,
+// release date, hash, and download URL expected by downstream install flows.
+//
+// It chooses versions by loader, game version, and allowed release types, then
+// picks the newest version by publish date. If a version has multiple files, it
+// uses the primary file and falls back to the first file when no primary exists.
+//
+// FixedVersion narrows selection to an exact version number. When AllowFallback
+// is true and no compatible file exists for the requested game version, it walks
+// patch versions downward using the Mojang manifest.
+//
+// It returns ModNotFoundError when the project does not exist, NoCompatibleFileError
+// when no eligible file can be selected (including missing hash or download URL),
+// or any underlying API/validation errors from Modrinth.
+//
+// Example:
+//
+//	remote, err := modrinth.FetchRemoteMod(ctx, "AANobbMI", models.FetchOptions{
+//	  AllowedReleaseTypes: []models.ReleaseType{models.Release},
+//	  GameVersion:         "1.20.1",
+//	  Loader:              models.FABRIC,
+//	}, client)
 func FetchRemoteMod(ctx context.Context, projectID string, opts models.FetchOptions, client httpclient.Doer) (models.RemoteMod, error) {
 	modrinthClient := NewClient(client)
 

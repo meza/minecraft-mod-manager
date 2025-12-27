@@ -54,6 +54,15 @@ type Project struct {
 	Loaders      []models.Loader    `json:"loaders"`
 }
 
+// GetProject fetches a Modrinth project by ID for downstream selection logic.
+// It does no caching and returns the raw project payload as returned by the API.
+//
+// It returns ProjectNotFoundError when the project does not exist and ProjectAPIError
+// when the request fails, the status is non-200, or the response cannot be decoded.
+//
+// Example:
+//
+//	project, err := modrinth.GetProject(ctx, "AANobbMI", client)
 func GetProject(ctx context.Context, projectID string, client httpclient.Doer) (project *Project, returnErr error) {
 	ctx, span := perf.StartSpan(ctx, "api.modrinth.project.get", perf.WithAttributes(attribute.String("project_id", projectID)))
 	defer span.End()

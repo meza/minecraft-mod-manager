@@ -16,6 +16,12 @@ var (
 	relPath = filepath.Rel
 )
 
+// ListPatterns loads .mmmignore patterns from rootDir and always includes
+// the default disabled pattern. Blank lines are ignored.
+//
+// Example:
+//
+//	patterns, err := mmmignore.ListPatterns(fs, configDir)
 func ListPatterns(fs afero.Fs, rootDir string) ([]string, error) {
 	ignoreFile := filepath.Join(rootDir, ".mmmignore")
 	exists, err := afero.Exists(fs, ignoreFile)

@@ -6,6 +6,14 @@ import (
 	"strings"
 )
 
+// JoinEscapedPath joins path segments while preserving a correctly escaped RawPath.
+// Use this when path segments may contain characters that require escaping.
+// It returns a new URL value and leaves the input URL untouched.
+//
+// Example:
+//
+//	apiURL, _ := url.Parse("https://api.modrinth.com")
+//	versionURL := urlbuilder.JoinEscapedPath(apiURL, "v2", "project", projectID, "version")
 func JoinEscapedPath(base *url.URL, segments ...string) *url.URL {
 	joined := *base
 

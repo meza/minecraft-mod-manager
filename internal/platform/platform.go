@@ -29,6 +29,17 @@ func DefaultClients(limiter *rate.Limiter) Clients {
 	}
 }
 
+// FetchMod is the cross-platform entrypoint for resolving a project to RemoteMod.
+// It dispatches to the provider-specific FetchRemoteMod implementation and returns
+// the normalized RemoteMod output.
+//
+// It returns UnknownPlatformError for unsupported platforms, ModNotFoundError when
+// the project is missing, NoCompatibleFileError when no eligible file exists, or
+// underlying provider API/validation errors.
+//
+// Example:
+//
+//	remote, err := platform.FetchMod(ctx, models.MODRINTH, "AANobbMI", opts, clients)
 func FetchMod(ctx context.Context, platform models.Platform, projectID string, opts FetchOptions, clients Clients) (RemoteMod, error) {
 	ctx, span := perf.StartSpan(ctx, "platform.fetch_mod",
 		perf.WithAttributes(

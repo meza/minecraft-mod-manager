@@ -113,6 +113,34 @@ func setup() error {
 	return nil
 }
 
+// T looks up a localized string by key and formats it with optional variables.
+// Use it for all user-facing text so keys stay consistent across languages and
+// tests, and so fallback behavior remains deterministic.
+//
+// Translation strings live in lang/*.json and use Go template variables.
+// Example translation entry:
+//
+//	"mods.added": "Added {{.count}} mods"
+//	"mods.remove.confirm": "Remove {{.name}}?"
+//
+// Tvars is the single optional argument:
+// - Count becomes the template variable "count" (used for pluralization).
+// - Data is a map of template variables (keys map to {{.key}} in the template).
+//
+// If you pass more than one Tvars, T returns a stable key+args string instead of
+// guessing which variables to apply. The same fallback happens when i18n setup
+// fails, so tests can assert deterministically.
+//
+// MMM_TEST turns T into test mode: it always returns the key plus the provided
+// arguments, without attempting localization.
+//
+// Examples:
+//
+//	title := i18n.T("tui.title")
+//	added := i18n.T("mods.added", i18n.Tvars{Count: 2})
+//	prompt := i18n.T("mods.remove.confirm", i18n.Tvars{Data: &i18n.TData{
+//	  "name": modName,
+//	}})
 func T(key string, args ...Tvars) string {
 	if useTestMode() {
 		return formatKeyAndArgs(key, args...)

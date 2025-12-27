@@ -67,6 +67,21 @@ func NewInstaller(fs afero.Fs, downloader Downloader) *Installer {
 	}
 }
 
+// EnsureLockedFile makes the lock entry real on disk and verifies its hash.
+// If the file is missing or the hash differs, it downloads and replaces it and
+// returns a reason indicating what happened.
+//
+// It uses the lock's FileName, DownloadURL, and Hash, resolves a symlink-safe
+// destination under the mods folder, and verifies the downloaded file before
+// placing it. Missing or empty hashes surface as MissingHashError.
+//
+// It fails on missing lock fields, download or hash verification failures,
+// symlink escapes, or filesystem errors.
+//
+// Example:
+//
+//	result, err := installer.EnsureLockedFile(ctx, meta, cfg, install, client, nil)
+//	if result.Downloaded && result.Reason == EnsureReasonHashMismatch { /* re-downloaded */ }
 func (installer *Installer) EnsureLockedFile(ctx context.Context, meta config.Metadata, cfg models.ModsJSON, install models.ModInstall, downloadClient httpclient.Doer, sender httpclient.Sender) (EnsureResult, error) {
 	lockData, err := normalizeLockData(install)
 	if err != nil {

@@ -702,3 +702,10 @@ Ran winstructions.md Windows verification via ssh winhost; make lint/build/cover
 2025-12-27	19:20	Windows verification (winstructions): make lint/build/coverage/test-race via winhost succeeded; PSReadLine VT warning only.
 2025-12-27	19:58	mmm-136 in progress: removed t.Skip and time.Sleep in tests by using symlink stub FS + blocking Close channel, added perf ExportToFile injection for permission assertions, moved Windows-only metadata test to build-tag file, renamed exported test helper types to unexported, and fixed CurseForge x-api-key assertion messages.
 2025-12-27	20:10	mmm-136: make fmt/lint/coverage/build pass; Windows winstructions make lint/build/coverage/test-race pass (PSReadLine VT warning only). Updated perf export permission test to assert configured perms without OS-specific bits.
+2025-12-27	20:29
+mmm-137 in progress: scanned exported decls missing GoDoc (454 missing across 87 prod files; top offenders include internal/curseforge/models.go, internal/modrinth/version.go, internal/models/loader.go). Need scope decision on full doc coverage vs unexport/allowlist.	
+2025-12-27	22:07	mmm-137: updated docblocks for non-trivial internal APIs and i18n T doc; make fmt/lint/vuln/coverage/build pass; winstructions ssh make lint/build/coverage/test-race completed with PSReadLine VT warning, command timed out but outputs show success; created mmm-145 to revisit multi-Tvars fallback.
+2025-12-27	22:22	mmm-137: reran make fmt-check/lint/vuln/coverage/build; winstructions ssh make lint/build/coverage/test-race pass with PSReadLine VT warning only; ready to invoke reviewer.
+2025-12-27	22:28	Reviewer invoked for mmm-137; code-review.md updated with Approved verdict and evidence (local + Windows checks).
+2025-12-27	22:41	Checked mmm-140 children: internal/packager no longer exists so mmm-63.21 appears resolved; large cmd files and duplicated helpers still present so mmm-63.60 and mmm-63.71 remain valid.
+2025-12-27	22:42	Closed mmm-63.21 per user request; dependency remains valid but issue is now closed since internal/packager is gone.
