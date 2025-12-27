@@ -4,10 +4,12 @@ import (
 	"bytes"
 	"context"
 	"errors"
+	"fmt"
 	"io"
 	"net/http"
 	"os"
 	"path/filepath"
+	"runtime"
 	"testing"
 
 	"github.com/spf13/afero"
@@ -17,6 +19,7 @@ import (
 	"github.com/meza/minecraft-mod-manager/internal/logger"
 	"github.com/meza/minecraft-mod-manager/internal/minecraft"
 	"github.com/meza/minecraft-mod-manager/internal/models"
+	"github.com/meza/minecraft-mod-manager/internal/privacy"
 )
 
 type errorReader struct {
@@ -124,10 +127,33 @@ func TestValidateModsFolderErrors(t *testing.T) {
 	assert.ErrorContains(t, err, "stat second call")
 }
 
-func TestGetCurrentWorkingDirectoryError(t *testing.T) {
-	assert.Equal(t, "", getCurrentWorkingDirectoryWith(func() (string, error) {
-		return "", errors.New("boom")
-	}))
+func TestBuildTelemetryPayloadRedactsModsFolderError(t *testing.T) {
+	t.Setenv("USER", "alice")
+	t.Setenv("USERNAME", "")
+	t.Setenv("LOGNAME", "")
+	privacy.ResetForTesting()
+
+	var pathWithUsername string
+	var expectedRedacted string
+	switch runtime.GOOS {
+	case "windows":
+		pathWithUsername = `C:\Users\alice\mods`
+		expectedRedacted = `C:\Users\<user>\mods`
+	case "darwin":
+		pathWithUsername = "/Users/alice/mods"
+		expectedRedacted = "/Users/<user>/mods"
+	default:
+		pathWithUsername = "/home/alice/mods"
+		expectedRedacted = "/home/<user>/mods"
+	}
+
+	inputError := fmt.Errorf("mods folder does not exist: %s", pathWithUsername)
+	payload := buildTelemetryPayload(initOptions{}, false, inputError)
+
+	if assert.Error(t, payload.Error) {
+		assert.Equal(t, fmt.Sprintf("mods folder does not exist: %s", expectedRedacted), payload.Error.Error())
+		assert.ErrorIs(t, payload.Error, inputError)
+	}
 }
 
 func TestInitWithDepsPrompterErrors(t *testing.T) {

@@ -692,3 +692,7 @@ mmm-123: resumed after disconnect; ran make fmt, make lint (clean), make coverag
 2025-12-27	17:31	mmm-132.1: fixed fr-CA key corruption/placeholders and restored accents; rewrote de-DE translations with umlauts and translated new init/remove strings.
 2025-12-27	17:54	mmm-132.1/63.66 follow-up: added add success output tests for ASCII/emoji, fixed fr-CA accent, and updated list docs for ASCII V/X fallback.
 2025-12-27	18:07	Closed mmm-63.66, mmm-132.1, and mmm-132 per user request after reviewer approval and Windows confirmation.
+2025-12-27	18:20
+Ran winstructions.md Windows verification via ssh winhost; make lint/build/coverage/test-race completed with only a PSReadLine warning, builds/tests/coverage succeeded.	
+2025-12-27	18:21	User confirmed Windows verification flow is acceptable and prefers it to remove manual involvement until reviewer sign-off.
+2025-12-27	18:42	mmm-133 Windows verification ran via winstructions (make lint/build/coverage/test-race); all passed with PSReadLine VT warning only.

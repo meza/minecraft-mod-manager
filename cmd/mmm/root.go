@@ -29,7 +29,7 @@ func Command() *cobra.Command {
 	}
 
 	rootCmd.PersistentFlags().StringP("config", "c", "./modlist.json", "An alternative JSON file containing the configuration")
-	rootCmd.PersistentFlags().BoolP("quiet", "q", false, "Suppress all output")
+	rootCmd.PersistentFlags().BoolP("quiet", "q", false, "Suppress non-essential output (errors and required results still print)")
 	rootCmd.PersistentFlags().BoolP("debug", "d", false, "Enable debug messages")
 	rootCmd.PersistentFlags().Bool("perf", false, "Write a performance log (mmm-perf.json) when the command exits")
 	rootCmd.PersistentFlags().String("perf-out-dir", "", "Directory to write mmm-perf.json (defaults to the config file directory)")

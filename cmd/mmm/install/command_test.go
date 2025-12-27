@@ -130,7 +130,7 @@ func TestRun_ReturnsZeroWhenNoMods(t *testing.T) {
 
 func addPersistentFlagsForTesting(cmd *cobra.Command) {
 	cmd.PersistentFlags().StringP("config", "c", "./modlist.json", "An alternative JSON file containing the configuration")
-	cmd.PersistentFlags().BoolP("quiet", "q", false, "Suppress all output")
+	cmd.PersistentFlags().BoolP("quiet", "q", false, "Suppress non-essential output (errors and required results still print)")
 	cmd.PersistentFlags().BoolP("debug", "d", false, "Enable debug messages")
 }
 

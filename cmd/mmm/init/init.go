@@ -76,9 +76,7 @@ func commandWithRunner(runner initRunner) *cobra.Command {
 		Data: &i18n.TData{"releaseTypes": getAllReleaseTypes()},
 	}))
 	cmd.Flags().StringP("game-version", "g", "latest", i18n.T("cmd.init.usage.game-version"))
-	cmd.Flags().StringP("mods-folder", "m", "mods", i18n.T("cmd.init.usage.mods-folder", i18n.Tvars{
-		Data: &i18n.TData{"cwd": getCurrentWorkingDirectory()},
-	}))
+	cmd.Flags().StringP("mods-folder", "m", "mods", i18n.T("cmd.init.usage.mods-folder"))
 
 	if err := registerFlagCompletion(cmd, "loader", completeLoaders); err != nil {
 		if _, writeErr := fmt.Fprintf(completionWarnWriter, "warning: failed to register loader completion: %v\n", err); writeErr != nil {
@@ -224,10 +222,11 @@ func releaseTypesToStrings(releaseTypes []models.ReleaseType) []string {
 }
 
 func buildTelemetryPayload(options initOptions, didUseTUI bool, err error) telemetry.CommandTelemetry {
+	telemetryError := redactModsFolderErrorForTelemetry(err)
 	payload := telemetry.CommandTelemetry{
 		Command:     "init",
-		Success:     err == nil,
-		Error:       err,
+		Success:     telemetryError == nil,
+		Error:       telemetryError,
 		ExitCode:    0,
 		Interactive: didUseTUI,
 		Arguments: map[string]interface{}{
@@ -241,6 +240,33 @@ func buildTelemetryPayload(options initOptions, didUseTUI bool, err error) telem
 		payload.ExitCode = 1
 	}
 	return payload
+}
+
+type telemetryRedactedError struct {
+	original error
+	message  string
+}
+
+func (err telemetryRedactedError) Error() string {
+	return err.message
+}
+
+func (err telemetryRedactedError) Unwrap() error {
+	return err.original
+}
+
+func redactModsFolderErrorForTelemetry(err error) error {
+	if err == nil {
+		return nil
+	}
+
+	message := err.Error()
+	redactedMessage := privacy.RedactPathUsernames(message)
+	if redactedMessage == message {
+		return err
+	}
+
+	return telemetryRedactedError{original: err, message: redactedMessage}
 }
 
 func runInteractiveInitWithLaunchFlag(ctx context.Context, cmd *cobra.Command, options initOptions, deps initDeps, meta config.Metadata) (initOptions, bool, error) {
@@ -416,18 +442,6 @@ func validateGameVersion(ctx context.Context, gameVersion string, deps initDeps)
 		}))
 	}
 	return nil
-}
-
-func getCurrentWorkingDirectory() string {
-	return getCurrentWorkingDirectoryWith(os.Getwd)
-}
-
-func getCurrentWorkingDirectoryWith(getwd func() (string, error)) string {
-	cwd, err := getwd()
-	if err != nil {
-		return ""
-	}
-	return cwd
 }
 
 func getAllReleaseTypes() string {
