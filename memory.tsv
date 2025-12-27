@@ -664,3 +664,7 @@ mmm-121: reviewed mmm-63.35/63.36 requirements (telemetry privacy); docs claim a
 mmm-121 alignment: only sensitive data is usernames in filesystem paths; ok to keep full perf span tree; add redaction helper to scrub known usernames in path fields; OS-provided username list preferred if feasible; placeholder <user>.	
 2025-12-27	11:01
 mmm-121: reviewer approved after username redaction helper + perf/telemetry updates; code-review.md updated; Windows make coverage/build confirmed green.	
+2025-12-27	11:08	mmm-122 alignment: reviewed mmm-122, mmm-63.24, mmm-63.25, audit.md platform findings, docs/platform-apis.md, specs add/install/update/scan, internal/platform modrinth/curseforge, internal/curseforge files, scan modrinth primary selection; no ADRs directly cover platform selection.
+2025-12-27	11:19	mmm-122 alignment: Modrinth primary selection must be honored (use primary file when present, else first file), and platform layer should use shared helper while keeping Modrinth/CurseForge plumbing in their packages; CurseForge file listing must use paginated low-level client for typed errors; update docs/platform-apis.md accordingly.
+2025-12-27	11:26	mmm-122 scope expanded: internal/platform must be pure orchestration; internal/curseforge and internal/modrinth must return platform.RemoteMod and own all API communication + translation; platform layer should not build RemoteMod.
+2025-12-27	12:14	mmm-122: added coverage tests for modrinth sorting/lookup errors and curseforge filter/close error paths; make fmt/lint/coverage/build pass.

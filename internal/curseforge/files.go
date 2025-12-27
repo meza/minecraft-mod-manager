@@ -24,6 +24,22 @@ type getFilesResponse struct {
 	Pagination Pagination `json:"pagination"`
 }
 
+const defaultFilesPageSize = 50
+
+// FileListFilter describes filters for the CurseForge files list endpoint.
+type FileListFilter struct {
+	GameVersion   string
+	ModLoaderType ModLoaderType
+	PageSize      int
+}
+
+func (filter FileListFilter) pageSize() int {
+	if filter.PageSize <= 0 {
+		return defaultFilesPageSize
+	}
+	return filter.PageSize
+}
+
 type getFingerprintsRequest struct {
 	Fingerprints []int `json:"fingerprints"`
 }
@@ -94,8 +110,69 @@ func getPaginatedFilesForProject(ctx context.Context, projectID int, client http
 	return decodedFilesResponse, nil
 }
 
+func getPaginatedFilesForProjectWithFilters(ctx context.Context, projectID int, filter FileListFilter, client httpclient.Doer, cursor int) (filesResponse *getFilesResponse, returnErr error) {
+	ctx, span := perf.StartSpan(ctx, "api.curseforge.project.files.list",
+		perf.WithAttributes(
+			attribute.Int("project_id", projectID),
+			attribute.Int("cursor", cursor),
+		),
+	)
+	defer span.End()
+
+	request, cancel, err := buildPaginatedFilesRequestWithFilters(ctx, projectID, cursor, filter)
+	if err != nil {
+		return nil, err
+	}
+	defer cancel()
+
+	response, err := client.Do(request)
+	if err != nil {
+		if httpclient.IsTimeoutError(err) {
+			return nil, httpclient.WrapTimeoutError(err)
+		}
+		return nil, globalerrors.ProjectAPIErrorWrap(err, strconv.Itoa(projectID), models.CURSEFORGE)
+	}
+	defer func() {
+		if closeErr := response.Body.Close(); closeErr != nil && returnErr == nil {
+			returnErr = closeErr
+		}
+	}()
+
+	if response.StatusCode == http.StatusNotFound {
+		return nil, &globalerrors.ProjectNotFoundError{
+			ProjectID: strconv.Itoa(projectID),
+			Platform:  models.CURSEFORGE,
+		}
+	}
+
+	if response.StatusCode != http.StatusOK {
+		return nil, globalerrors.ProjectAPIErrorWrap(httpclient.NewResponseError(response), strconv.Itoa(projectID), models.CURSEFORGE)
+	}
+
+	decodedFilesResponse, err := decodeFilesResponse(response)
+	if err != nil {
+		return nil, globalerrors.ProjectAPIErrorWrap(errors.Wrap(err, "failed to decode response body"), strconv.Itoa(projectID), models.CURSEFORGE)
+	}
+
+	return decodedFilesResponse, nil
+}
+
 func buildPaginatedFilesRequest(ctx context.Context, projectID int, cursor int) (*http.Request, func(), error) {
 	requestURL, err := buildPaginatedFilesURL(projectID, cursor)
+	if err != nil {
+		return nil, func() {}, err
+	}
+	timeoutCtx, cancel := httpclient.WithMetadataTimeout(ctx)
+	request, err := newRequestWithContext(timeoutCtx, http.MethodGet, requestURL.String(), nil)
+	if err != nil {
+		cancel()
+		return nil, func() {}, err
+	}
+	return request, cancel, nil
+}
+
+func buildPaginatedFilesRequestWithFilters(ctx context.Context, projectID int, cursor int, filter FileListFilter) (*http.Request, func(), error) {
+	requestURL, err := buildPaginatedFilesURLWithFilters(projectID, cursor, filter)
 	if err != nil {
 		return nil, func() {}, err
 	}
@@ -121,6 +198,26 @@ func GetFilesForProject(ctx context.Context, projectID int, client httpclient.Do
 	cursor := 0
 	for {
 		filesResponse, err := getPaginatedFilesForProject(ctx, projectID, client, cursor)
+		if err != nil {
+			return nil, err
+		}
+
+		files = append(files, filesResponse.Data...)
+		if (cursor + filesResponse.Pagination.ResultCount) >= filesResponse.Pagination.TotalCount {
+			break
+		}
+
+		cursor += filesResponse.Pagination.ResultCount
+	}
+
+	return files, nil
+}
+
+func GetFilesForProjectWithFilters(ctx context.Context, projectID int, filter FileListFilter, client httpclient.Doer) ([]File, error) {
+	var files []File
+	cursor := 0
+	for {
+		filesResponse, err := getPaginatedFilesForProjectWithFilters(ctx, projectID, filter, client, cursor)
 		if err != nil {
 			return nil, err
 		}
@@ -198,6 +295,25 @@ func buildPaginatedFilesURL(projectID int, cursor int) (*url.URL, error) {
 	requestURL := urlbuilder.JoinEscapedPath(baseURL, "mods", strconv.Itoa(projectID), "files")
 	query := url.Values{}
 	query.Set("index", fmt.Sprintf("%d", cursor))
+	requestURL.RawQuery = query.Encode()
+	return requestURL, nil
+}
+
+func buildPaginatedFilesURLWithFilters(projectID int, cursor int, filter FileListFilter) (*url.URL, error) {
+	baseURL, err := parseURL(GetBaseURL())
+	if err != nil {
+		return nil, err
+	}
+	requestURL := urlbuilder.JoinEscapedPath(baseURL, "mods", strconv.Itoa(projectID), "files")
+	query := url.Values{}
+	query.Set("index", fmt.Sprintf("%d", cursor))
+	query.Set("pageSize", fmt.Sprintf("%d", filter.pageSize()))
+	if filter.GameVersion != "" {
+		query.Set("gameVersion", filter.GameVersion)
+	}
+	if filter.ModLoaderType != Any && filter.GameVersion != "" {
+		query.Set("modLoaderType", fmt.Sprintf("%d", filter.ModLoaderType))
+	}
 	requestURL.RawQuery = query.Encode()
 	return requestURL, nil
 }

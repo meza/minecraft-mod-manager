@@ -20,6 +20,11 @@ If you change anything in here, assume you are changing the user-facing contract
 
 Helpers like `AllLoaders()` and `AllReleaseTypes()` exist for UI selection flows.
 
+### Platform selection types
+
+- `FetchOptions` describes how to pick a file from a platform.
+- `RemoteMod` is the normalized "download this" shape returned by platform-specific packages.
+
 ## Related docs
 
 For the user-facing explanation of `modlist.json` and `modlist-lock.json`, see the root `README.md` and `docs/requirements-go-port.md`.

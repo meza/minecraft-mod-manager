@@ -2,7 +2,7 @@
 
 This package speaks to the Modrinth API and returns typed Go models and errors.
 
-It is intentionally low-level: it does not try to decide which file should be installed. If you need "pick the newest compatible file", use `internal/platform` instead.
+It owns Modrinth-specific selection logic and returns the domain `models.RemoteMod` when asked to resolve a file.
 
 ## Start with the behavior docs
 
@@ -24,6 +24,16 @@ versions, err := modrinth.GetVersionsForProject(&modrinth.VersionLookup{
 }, client)
 ```
 
+To select a downloadable file, use the higher-level helper:
+
+```go
+remote, err := modrinth.FetchRemoteMod(ctx, "AANobbMI", models.FetchOptions{
+	AllowedReleaseTypes: []models.ReleaseType{models.Release},
+	GameVersion:         "1.20.1",
+	Loader:              models.FABRIC,
+}, client)
+```
+
 ## Public API
 
 ### Client and base URL
@@ -40,6 +50,7 @@ versions, err := modrinth.GetVersionsForProject(&modrinth.VersionLookup{
 ### Versions (project lookups)
 
 - `GetVersionsForProject(lookup *VersionLookup, client httpclient.Doer) (Versions, error)`
+- `FetchRemoteMod(ctx context.Context, projectId string, opts models.FetchOptions, client httpclient.Doer) (models.RemoteMod, error)`
 
 `VersionLookup` defines the filter for the Modrinth `/version` endpoint (project ID, loaders, and game versions).
 

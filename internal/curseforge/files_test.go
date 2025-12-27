@@ -7,6 +7,7 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"net/url"
+	"sync"
 	"testing"
 	"time"
 
@@ -18,6 +19,7 @@ import (
 	"github.com/meza/minecraft-mod-manager/testutil"
 	pkgErrors "github.com/pkg/errors"
 	"github.com/stretchr/testify/assert"
+	"golang.org/x/time/rate"
 )
 
 func TestGetFilesForProject(t *testing.T) {
@@ -490,6 +492,172 @@ func TestGetFilesForProjectWhenApiCallTimesOut(t *testing.T) {
 	var timeoutErr *httpclient.TimeoutError
 	assert.ErrorAs(t, err, &timeoutErr)
 	assert.Nil(t, project)
+}
+
+func TestGetFilesForProjectWithFiltersIncludesQueryParams(t *testing.T) {
+	var lock sync.Mutex
+	var queries []url.Values
+	mockServer := httptest.NewServer(http.HandlerFunc(func(writer http.ResponseWriter, request *http.Request) {
+		lock.Lock()
+		queries = append(queries, request.URL.Query())
+		lock.Unlock()
+
+		index := request.URL.Query().Get("index")
+		if index == "0" {
+			writeJSONResponse(t, writer, map[string]interface{}{
+				"data": []map[string]interface{}{
+					{"id": 1, "fileName": "one.jar"},
+				},
+				"pagination": map[string]interface{}{
+					"index":       0,
+					"pageSize":    50,
+					"resultCount": 1,
+					"totalCount":  2,
+				},
+			})
+			return
+		}
+		writeJSONResponse(t, writer, map[string]interface{}{
+			"data": []map[string]interface{}{
+				{"id": 2, "fileName": "two.jar"},
+			},
+			"pagination": map[string]interface{}{
+				"index":       1,
+				"pageSize":    50,
+				"resultCount": 1,
+				"totalCount":  2,
+			},
+		})
+	}))
+	defer mockServer.Close()
+
+	files, err := GetFilesForProjectWithFilters(context.Background(), 12345, FileListFilter{
+		GameVersion:   "1.20.1",
+		ModLoaderType: Fabric,
+	}, NewClient(testutil.MustNewHostRewriteDoer(mockServer.URL, mockServer.Client())))
+
+	assert.NoError(t, err)
+	assert.Len(t, files, 2)
+
+	lock.Lock()
+	defer lock.Unlock()
+	assert.Len(t, queries, 2)
+	assert.Equal(t, "1.20.1", queries[0].Get("gameVersion"))
+	assert.Equal(t, "4", queries[0].Get("modLoaderType"))
+	assert.Equal(t, "50", queries[0].Get("pageSize"))
+	assert.Equal(t, "0", queries[0].Get("index"))
+	assert.Equal(t, "1", queries[1].Get("index"))
+}
+
+func TestFileListFilterPageSize(t *testing.T) {
+	defaultFilter := FileListFilter{}
+	assert.Equal(t, defaultFilesPageSize, defaultFilter.pageSize())
+
+	customFilter := FileListFilter{PageSize: 10}
+	assert.Equal(t, 10, customFilter.pageSize())
+}
+
+func TestBuildPaginatedFilesURLWithFiltersReturnsErrorOnBadURL(t *testing.T) {
+	originalParseURL := parseURL
+	parseURL = func(_ string) (*url.URL, error) {
+		return nil, stdErrors.New("boom")
+	}
+	t.Cleanup(func() {
+		parseURL = originalParseURL
+	})
+
+	_, err := buildPaginatedFilesURLWithFilters(1234, 0, FileListFilter{})
+	assert.Error(t, err)
+}
+
+func TestBuildPaginatedFilesRequestWithFiltersReturnsErrorOnRequestBuild(t *testing.T) {
+	originalNewRequest := newRequestWithContext
+	newRequestWithContext = func(_ context.Context, _ string, _ string, _ io.Reader) (*http.Request, error) {
+		return nil, stdErrors.New("boom")
+	}
+	t.Cleanup(func() {
+		newRequestWithContext = originalNewRequest
+	})
+
+	_, _, err := buildPaginatedFilesRequestWithFilters(context.Background(), 1234, 0, FileListFilter{})
+	assert.Error(t, err)
+}
+
+func TestGetPaginatedFilesForProjectWithFiltersTimeout(t *testing.T) {
+	_, err := getPaginatedFilesForProjectWithFilters(context.Background(), 1234, FileListFilter{}, errorDoer{err: context.DeadlineExceeded}, 0)
+	assert.Error(t, err)
+	var timeoutErr *httpclient.TimeoutError
+	assert.ErrorAs(t, err, &timeoutErr)
+}
+
+func TestGetPaginatedFilesForProjectWithFiltersRequestFailure(t *testing.T) {
+	_, err := getPaginatedFilesForProjectWithFilters(context.Background(), 1234, FileListFilter{}, errorDoer{err: stdErrors.New("boom")}, 0)
+	assert.Error(t, err)
+	var apiError *globalerrors.ProjectAPIError
+	assert.ErrorAs(t, err, &apiError)
+}
+
+func TestGetPaginatedFilesForProjectWithFiltersNotFound(t *testing.T) {
+	response := &http.Response{
+		StatusCode: http.StatusNotFound,
+		Body:       newCloseErrorBody("", nil),
+	}
+	_, err := getPaginatedFilesForProjectWithFilters(context.Background(), 1234, FileListFilter{}, responseDoer{response: response}, 0)
+	assert.Error(t, err)
+	var notFound *globalerrors.ProjectNotFoundError
+	assert.ErrorAs(t, err, &notFound)
+}
+
+func TestGetPaginatedFilesForProjectWithFiltersApiError(t *testing.T) {
+	response := &http.Response{
+		StatusCode: http.StatusInternalServerError,
+		Body:       newCloseErrorBody("", nil),
+	}
+	_, err := getPaginatedFilesForProjectWithFilters(context.Background(), 1234, FileListFilter{}, responseDoer{response: response}, 0)
+	assert.Error(t, err)
+	var apiError *globalerrors.ProjectAPIError
+	assert.ErrorAs(t, err, &apiError)
+}
+
+func TestGetPaginatedFilesForProjectWithFiltersCorruptBody(t *testing.T) {
+	response := &http.Response{
+		StatusCode: http.StatusOK,
+		Body:       newCloseErrorBody("{", nil),
+	}
+	_, err := getPaginatedFilesForProjectWithFilters(context.Background(), 1234, FileListFilter{}, responseDoer{response: response}, 0)
+	assert.Error(t, err)
+	var apiError *globalerrors.ProjectAPIError
+	assert.ErrorAs(t, err, &apiError)
+}
+
+func TestGetPaginatedFilesForProjectWithFiltersCloseError(t *testing.T) {
+	response := &http.Response{
+		StatusCode: http.StatusOK,
+		Body: newCloseErrorBody(`{
+			"data": [],
+			"pagination": {
+				"index": 0,
+				"pageSize": 50,
+				"resultCount": 0,
+				"totalCount": 0
+			}
+		}`, stdErrors.New("close")),
+	}
+	_, err := getPaginatedFilesForProjectWithFilters(context.Background(), 1234, FileListFilter{}, responseDoer{response: response}, 0)
+	assert.EqualError(t, err, "close")
+}
+
+func TestGetFilesForProjectWithFiltersReturnsErrorOnBadURL(t *testing.T) {
+	originalParseURL := parseURL
+	parseURL = func(_ string) (*url.URL, error) {
+		return nil, stdErrors.New("boom")
+	}
+	t.Cleanup(func() {
+		parseURL = originalParseURL
+	})
+
+	_, err := GetFilesForProjectWithFilters(context.Background(), 1234, FileListFilter{}, NewClient(httpclient.NewRLClient(rate.NewLimiter(rate.Inf, 0))))
+	assert.Error(t, err)
 }
 
 func TestGetFingerprintsMatchesWithOneExactMatch(t *testing.T) {

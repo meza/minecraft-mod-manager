@@ -1,11 +1,13 @@
-package platform
+package gameversion
 
 import (
 	"strconv"
 	"strings"
 )
 
-func nextVersionDown(version string) (string, bool) {
+// NextPatchDown returns the next lower patch version when available.
+// It returns the original formatted version and false when no fallback applies.
+func NextPatchDown(version string) (string, bool) {
 	parts := splitVersion(version)
 	if parts.patch > 1 {
 		return parts.format(parts.patch - 1), true
@@ -45,9 +47,9 @@ func splitVersion(version string) versionParts {
 }
 
 func parseInt(value string) int {
-	n, err := strconv.Atoi(value)
+	number, err := strconv.Atoi(value)
 	if err != nil {
 		return 0
 	}
-	return n
+	return number
 }

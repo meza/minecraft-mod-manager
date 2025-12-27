@@ -1,8 +1,6 @@
 # internal/curseforge
 
-This package speaks to the CurseForge API and returns typed Go models and errors. It is intentionally low-level: it does not try to decide which file to download.
-
-If you need "pick the newest compatible file", use `internal/platform` instead.
+This package speaks to the CurseForge API and returns typed Go models and errors. It owns CurseForge-specific selection logic and returns the domain `models.RemoteMod` when asked to resolve a file.
 
 ## Quick start
 
@@ -12,6 +10,16 @@ Create a client by wrapping an `httpclient.Doer` (usually rate-limited), then ca
 client := curseforge.NewClient(httpclient.NewRLClient(limiter))
 project, err := curseforge.GetProject("1234", client)
 files, err := curseforge.GetFilesForProject(1234, client)
+```
+
+To select a downloadable file, use the higher-level helper:
+
+```go
+remote, err := curseforge.FetchRemoteMod(ctx, "1234", models.FetchOptions{
+	AllowedReleaseTypes: []models.ReleaseType{models.Release},
+	GameVersion:         "1.20.1",
+	Loader:              models.FABRIC,
+}, client)
 ```
 
 ## Public API
@@ -30,6 +38,8 @@ files, err := curseforge.GetFilesForProject(1234, client)
 ### Files
 
 - `GetFilesForProject(projectId int, client httpclient.Doer) ([]File, error)` (handles pagination)
+- `GetFilesForProjectWithFilters(projectId int, filter FileListFilter, client httpclient.Doer) ([]File, error)`
+- `FetchRemoteMod(ctx context.Context, projectId string, opts models.FetchOptions, client httpclient.Doer) (models.RemoteMod, error)`
 
 ### Fingerprints (hash lookups)
 

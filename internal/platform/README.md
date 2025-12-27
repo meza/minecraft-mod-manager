@@ -85,15 +85,12 @@ This sits above provider-specific `api.*` and `net.http.*` regions so you can te
 
 ## How selection works
 
-The intent is "pick the newest compatible file."
+`internal/platform` delegates selection to the platform-specific packages:
 
-For both platforms:
+- Modrinth selection lives in `internal/modrinth` and honors Modrinth's primary-file semantics.
+- CurseForge selection lives in `internal/curseforge` and uses paginated file listings with typed API errors.
 
-1. Fetch project metadata to get a human-friendly name.
-2. Fetch the available files/versions for the requested game version and loader.
-3. Filter candidates by `AllowedReleaseTypes` and `FixedVersion` (if provided).
-4. Sort by publish date descending and take the newest.
-5. Require a download URL and SHA-1 hash.
+See `docs/platform-apis.md` for the behavior rules that the platform-specific helpers implement.
 
 ### Fallback behavior
 
@@ -103,7 +100,7 @@ Fallback is deliberately conservative: it only decreases the patch component.
 - `1.20.1` does not fall back (there is no `1.20.0` attempt)
 - `1.20` does not fall back (no patch component to decrement)
 
-This is implemented by `nextVersionDown` in `internal/platform/fallback.go`.
+This is implemented by `internal/gameversion.NextPatchDown`.
 
 ## Clients, headers, and environment
 
@@ -135,10 +132,10 @@ The rest of the errors are treated as unexpected failures (network issues, API e
 When you add support for another platform, keep the surface area the same:
 
 1. Add a new `models.Platform` value (in `internal/models`) and ensure it has a stable string form for UX.
-2. Implement a `fetch<Platform>` function that returns `RemoteMod` and uses the same filtering intent as the existing platforms.
-3. Add a new `case` in `FetchMod`'s switch.
-4. Map platform-specific "not found" responses to `ModNotFoundError` so the UX stays consistent.
-5. Add `httptest` coverage in `internal/platform/platform_test.go` for success, not-found, no-compatible-file, and fallback.
+2. Implement a platform-specific helper (in the provider package) that returns `models.RemoteMod`.
+3. Add a new `case` in `FetchMod`'s switch to call the provider helper.
+4. Ensure the provider maps "not found" responses to `ModNotFoundError` so the UX stays consistent.
+5. Add `httptest` coverage in the provider package and minimal orchestration tests in `internal/platform/platform_test.go`.
 
 ## Tests
 
