@@ -992,7 +992,7 @@ func listModFiles(fs afero.Fs, meta config.Metadata, cfg models.ModsJSON) ([]str
 
 	filtered := make([]string, 0, len(candidates))
 	for _, path := range candidates {
-		if mmmignore.IsIgnored(meta.Dir(), path, patterns) {
+		if mmmignore.IsIgnored(meta.ModsFolderPath(cfg), path, patterns) {
 			continue
 		}
 		filtered = append(filtered, path)

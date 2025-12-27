@@ -7,15 +7,15 @@ It intentionally matches the existing behavior found in `cmd/mmm/install`:
 - Patterns are read from `.mmmignore` in the config directory.
 - Blank lines are ignored.
 - A default pattern of `**/*.disabled` is always applied.
-- Patterns are evaluated against paths relative to the config directory.
+- Patterns are evaluated against paths relative to the mods directory.
 
 This is not intended to perfectly match Node's glob semantics.
 
 ## Public API
 
-- `IgnoredFiles(fs, rootDir) (map[string]bool, error)` returns a set of absolute paths that should be treated as ignored.
-- `ListPatterns(fs, rootDir) ([]string, error)` returns the resolved list of patterns (including the default).
-- `IsIgnored(rootDir, absolutePath, patterns) bool` checks whether a single absolute path is ignored by the provided patterns.
+- `IgnoredFiles(fs, ignoreDir, matchRoot) (map[string]bool, error)` returns a set of absolute paths that should be treated as ignored.
+- `ListPatterns(fs, ignoreDir) ([]string, error)` returns the resolved list of patterns (including the default).
+- `IsIgnored(matchRoot, absolutePath, patterns) bool` checks whether a single absolute path is ignored by the provided patterns.
 
 ## Recommended usage
 
@@ -28,7 +28,7 @@ if err != nil {
 }
 
 for _, candidatePath := range candidatePaths {
-  if mmmignore.IsIgnored(meta.Dir(), candidatePath, patterns) {
+  if mmmignore.IsIgnored(meta.ModsFolderPath(cfg), candidatePath, patterns) {
     continue
   }
   // process candidatePath
@@ -37,4 +37,4 @@ for _, candidatePath := range candidatePaths {
 
 ## Out-of-tree paths
 
-Patterns are rooted at the config directory (`meta.Dir()`). Paths outside that directory are treated as "not ignored".
+Patterns are matched relative to the mods directory. Paths outside that directory are treated as "not ignored".

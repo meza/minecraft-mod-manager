@@ -206,7 +206,7 @@ func TestListModFilesFiltersNonJarAndIgnored(t *testing.T) {
 	assert.NoError(t, afero.WriteFile(fs, filepath.Join(modsFolder, "notes.txt"), []byte("x"), 0644))
 	assert.NoError(t, fs.MkdirAll(filepath.Join(modsFolder, "dir"), 0755))
 
-	assert.NoError(t, afero.WriteFile(fs, filepath.Join(meta.Dir(), ".mmmignore"), []byte("**/ignored.jar\n"), 0644))
+	assert.NoError(t, afero.WriteFile(fs, filepath.Join(meta.Dir(), ".mmmignore"), []byte("ignored.jar\n"), 0644))
 
 	files, err := listModFiles(fs, meta, models.ModsJSON{ModsFolder: "mods"})
 	assert.NoError(t, err)
@@ -224,6 +224,24 @@ func TestListModFilesReturnsAllWhenNoIgnorePatterns(t *testing.T) {
 	files, err := listModFiles(fs, meta, models.ModsJSON{ModsFolder: "mods"})
 	assert.NoError(t, err)
 	assert.Len(t, files, 1)
+}
+
+func TestListModFilesIgnoresPatternsWhenModsFolderOutsideConfig(t *testing.T) {
+	fs := afero.NewMemMapFs()
+	meta := config.NewMetadata(filepath.FromSlash("/cfg/modlist.json"))
+	cfg := models.ModsJSON{ModsFolder: filepath.FromSlash("/data/mods")}
+	modsFolder := meta.ModsFolderPath(cfg)
+
+	assert.NoError(t, fs.MkdirAll(meta.Dir(), 0755))
+	assert.NoError(t, fs.MkdirAll(modsFolder, 0755))
+	assert.NoError(t, afero.WriteFile(fs, filepath.Join(modsFolder, "ignored.jar"), []byte("x"), 0644))
+	assert.NoError(t, afero.WriteFile(fs, filepath.Join(modsFolder, "keep.jar"), []byte("x"), 0644))
+	assert.NoError(t, afero.WriteFile(fs, filepath.Join(meta.Dir(), ".mmmignore"), []byte("ignored.jar\n"), 0644))
+
+	files, err := listModFiles(fs, meta, cfg)
+	assert.NoError(t, err)
+	assert.Len(t, files, 1)
+	assert.True(t, strings.HasSuffix(files[0], "keep.jar"))
 }
 
 func TestListModFilesReturnsErrorOnReadDirFailure(t *testing.T) {

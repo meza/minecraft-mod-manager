@@ -584,7 +584,7 @@ func TestRunScan_RespectsMmmignoreAndSkipsManagedFiles(t *testing.T) {
 	assert.NoError(t, afero.WriteFile(fs, filepath.Join(meta.ModsFolderPath(cfg), "managed.jar"), []byte("content"), 0644))
 	assert.NoError(t, afero.WriteFile(fs, filepath.Join(meta.ModsFolderPath(cfg), "ignored.jar"), []byte("content"), 0644))
 	assert.NoError(t, afero.WriteFile(fs, filepath.Join(meta.ModsFolderPath(cfg), "unmanaged.jar"), []byte("content"), 0644))
-	assert.NoError(t, afero.WriteFile(fs, filepath.Join(meta.Dir(), ".mmmignore"), []byte("mods/ignored.jar\n"), 0644))
+	assert.NoError(t, afero.WriteFile(fs, filepath.Join(meta.Dir(), ".mmmignore"), []byte("ignored.jar\n"), 0644))
 
 	called := 0
 	out := &bytes.Buffer{}

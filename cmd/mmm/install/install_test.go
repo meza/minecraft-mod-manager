@@ -178,7 +178,7 @@ func TestRunInstallPreflightRespectsMmmignoreAndDisabledFiles(t *testing.T) {
 	_, err := config.EnsureLock(context.Background(), fs, meta)
 	assert.NoError(t, err)
 
-	assert.NoError(t, afero.WriteFile(fs, filepath.Join(meta.Dir(), ".mmmignore"), []byte("mods/ignored-*.jar\n"), 0644))
+	assert.NoError(t, afero.WriteFile(fs, filepath.Join(meta.Dir(), ".mmmignore"), []byte("ignored-*.jar\n"), 0644))
 
 	assert.NoError(t, afero.WriteFile(fs, filepath.Join(meta.ModsFolderPath(cfg), "keep.jar"), []byte("x"), 0644))
 	assert.NoError(t, afero.WriteFile(fs, filepath.Join(meta.ModsFolderPath(cfg), "ignored-1.jar"), []byte("x"), 0644))

@@ -424,15 +424,13 @@ Having files listed in the `.mmmignore` will make all operations ignore the give
 
 Each line within the ignore file is a Glob Pattern.
 
-The patterns will be applied by taking the directory of the modlist.json file's directory as the starting point.
-
-> This will change in the future. If you would like it to change sooner, please open an issue on github
+Patterns are evaluated relative to your mods folder. If you use subfolders under your mods directory, include them in the pattern.
 
 For example to ignore the worldedit and the modmenu mods, the `.mmmignore` file would have the following entries:
 
 ```
-mods/modmenu-*.jar
-mods/worldedit-*.jar
+modmenu-*.jar
+worldedit-*.jar
 ```
 
 ##### Dots
