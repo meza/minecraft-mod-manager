@@ -696,3 +696,4 @@ mmm-123: resumed after disconnect; ran make fmt, make lint (clean), make coverag
 Ran winstructions.md Windows verification via ssh winhost; make lint/build/coverage/test-race completed with only a PSReadLine warning, builds/tests/coverage succeeded.	
 2025-12-27	18:21	User confirmed Windows verification flow is acceptable and prefers it to remove manual involvement until reviewer sign-off.
 2025-12-27	18:42	mmm-133 Windows verification ran via winstructions (make lint/build/coverage/test-race); all passed with PSReadLine VT warning only.
+2025-12-27	19:02	Checked bd: mmm-134 depends on mmm-63.38; mmm-63.28 is already closed. Awaiting user direction on whether to reopen or proceed with mmm-63.38.2025-12-27	19:04	Verified mmm-63.28 is fixed: Modrinth decode errors now wrapped in project/version handlers; closed mmm-134 per user request (mmm-63.38 remains open).
