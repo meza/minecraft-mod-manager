@@ -2,17 +2,19 @@
 package tui
 
 func SuccessIcon(colorMode ColorMode) string {
-	icon := "✅"
+	emojiIcon := "\u2705"
+	asciiIcon := "V"
 	if colorMode.Enabled() {
-		return QuestionStyle.Render(icon)
+		return QuestionStyle.Render(emojiIcon)
 	}
-	return icon
+	return asciiIcon
 }
 
 func ErrorIcon(colorMode ColorMode) string {
-	icon := "❌"
+	emojiIcon := "\u274C"
+	asciiIcon := "X"
 	if colorMode.Enabled() {
-		return ErrorStyle.Render(icon)
+		return ErrorStyle.Render(emojiIcon)
 	}
-	return icon
+	return asciiIcon
 }

@@ -687,3 +687,8 @@ mmm-123: resumed after disconnect; ran make fmt, make lint (clean), make coverag
 2025-12-27	15:39	Session start: user asked to work on mmm-116 (UX and i18n); need to pick a child ticket (mmm-131..135) to proceed.
 2025-12-27	15:51	mmm-131: i18n now ignores MMM_TEST outside test binaries, setup failures return key fallback instead of panic, and LANG normalization handles .UTF-8/@ modifiers + C/POSIX; tests/docs updated; make fmt/lint/coverage/build run locally.
 2025-12-27	16:03	mmm-131: adjusted i18n arg handling to return key+args when >1 Tvars provided; updated tests and README; make fmt/lint/coverage/build run locally.
+2025-12-27	16:52	mmm-132 WIP: icons now emoji only when colorized and ASCII when not; removed emoji from add/scan i18n strings and prefixed with SuccessIcon; list/remove/test outputs updated; replaced non-ASCII literals in Go source with escapes; updated tests/snapshots; make fmt/lint/coverage/build pass.
+2025-12-27	17:06	mmm-63.66 WIP: moved init/remove user-facing strings to i18n keys, added new translations (en/de/fr placeholders), updated init TUI snapshot for MMM_TEST key output; make fmt/lint/coverage/build pass.
+2025-12-27	17:31	mmm-132.1: fixed fr-CA key corruption/placeholders and restored accents; rewrote de-DE translations with umlauts and translated new init/remove strings.
+2025-12-27	17:54	mmm-132.1/63.66 follow-up: added add success output tests for ASCII/emoji, fixed fr-CA accent, and updated list docs for ASCII V/X fallback.
+2025-12-27	18:07	Closed mmm-63.66, mmm-132.1, and mmm-132 per user request after reviewer approval and Windows confirmation.

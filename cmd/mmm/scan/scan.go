@@ -224,9 +224,10 @@ func runScan(ctx context.Context, cmd *cobra.Command, opts scanOptions, deps sca
 	}
 
 	unmanaged := unmanagedFiles(files, lock)
+	colorMode := colorModeForOutput(cmd.OutOrStdout())
 
 	if len(unmanaged) == 0 {
-		deps.logger.Log(i18n.T("cmd.scan.all_managed"), logger.LogQuiet)
+		deps.logger.Log(messageWithIcon(tui.SuccessIcon(colorMode), i18n.T("cmd.scan.all_managed")), logger.LogQuiet)
 		return scanSuccessTelemetryWithoutArgs(), nil
 	}
 
@@ -250,7 +251,15 @@ func runScan(ctx context.Context, cmd *cobra.Command, opts scanOptions, deps sca
 		Config:           cfg,
 		Lock:             lock,
 		PreferPlatform:   preferPlatform,
+		ColorMode:        colorMode,
 	})
+}
+
+func colorModeForOutput(out io.Writer) tui.ColorMode {
+	if tui.IsTerminalWriter(out) {
+		return tui.ColorEnabled
+	}
+	return tui.ColorDisabled
 }
 
 type persistScanRequest struct {
@@ -265,6 +274,7 @@ type persistScanRequest struct {
 	Config           models.ModsJSON
 	Lock             []models.ModInstall
 	PreferPlatform   models.Platform
+	ColorMode        tui.ColorMode
 }
 
 func persistScanMatchesIfRequested(request persistScanRequest) (telemetry.CommandTelemetry, error) {
@@ -295,7 +305,7 @@ func persistScanMatchesIfRequested(request persistScanRequest) (telemetry.Comman
 		return scanFailureTelemetry(err), err
 	}
 	if persisted {
-		request.Dependencies.logger.Log(i18n.T("cmd.scan.persisted"), logger.LogQuiet)
+		request.Dependencies.logger.Log(messageWithIcon(tui.SuccessIcon(request.ColorMode), i18n.T("cmd.scan.persisted")), logger.LogQuiet)
 	}
 
 	return scanSuccessTelemetry(request.PreferPlatform, request.Options.Add), nil

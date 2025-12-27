@@ -10,6 +10,7 @@ import (
 	"testing"
 
 	"github.com/spf13/afero"
+	"github.com/spf13/cobra"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
@@ -17,7 +18,16 @@ import (
 	"github.com/meza/minecraft-mod-manager/internal/logger"
 	"github.com/meza/minecraft-mod-manager/internal/models"
 	"github.com/meza/minecraft-mod-manager/internal/telemetry"
+	"github.com/meza/minecraft-mod-manager/internal/tui"
 )
+
+type fakeTerminalWriter struct {
+	bytes.Buffer
+}
+
+func (writer *fakeTerminalWriter) Fd() uintptr {
+	return 1
+}
 
 func TestResolveModsToRemoveMatchesIDsAndNamesAndPreservesOrder(t *testing.T) {
 	cfg := models.ModsJSON{
@@ -144,6 +154,45 @@ func TestRunRemoveDryRunDoesNotCreateLockFileWhenMissing(t *testing.T) {
 	assert.Equal(t, "sodium", updatedCfg.Mods[0].ID)
 }
 
+func TestRunRemoveCommandUsesTerminalColorMode(t *testing.T) {
+	restore := tui.SetIsTerminalFuncForTesting(func(_ int) bool { return true })
+	t.Cleanup(restore)
+
+	fs := afero.NewOsFs()
+	meta := config.NewMetadata(filepath.Join(t.TempDir(), "modlist.json"))
+
+	cfg := models.ModsJSON{
+		Loader:                     models.FABRIC,
+		GameVersion:                "1.20.1",
+		DefaultAllowedReleaseTypes: []models.ReleaseType{models.Release},
+		ModsFolder:                 "mods",
+		Mods: []models.Mod{
+			{Type: models.MODRINTH, ID: "sodium", Name: "Sodium"},
+		},
+	}
+
+	require.NoError(t, fs.MkdirAll(meta.Dir(), 0755))
+	require.NoError(t, fs.MkdirAll(meta.ModsFolderPath(cfg), 0755))
+	require.NoError(t, config.WriteConfig(context.Background(), fs, meta, cfg))
+	require.NoError(t, config.WriteLock(context.Background(), fs, meta, []models.ModInstall{
+		{Type: models.MODRINTH, ID: "sodium", Name: "Sodium", FileName: "sodium.jar"},
+	}))
+	require.NoError(t, afero.WriteFile(fs, filepath.Join(meta.ModsFolderPath(cfg), "sodium.jar"), []byte("mod"), 0644))
+
+	var out fakeTerminalWriter
+	cmd := &cobra.Command{}
+	cmd.SetContext(context.Background())
+	cmd.SetOut(&out)
+	cmd.SetErr(&out)
+	cmd.Flags().String("config", meta.ConfigPath, "")
+	cmd.Flags().Bool("quiet", false, "")
+	cmd.Flags().Bool("debug", false, "")
+	cmd.Flags().Bool("dry-run", false, "")
+
+	assert.NoError(t, runRemoveCommand(cmd, []string{"sodium"}))
+	assert.Contains(t, out.String(), "\u2705 Removed Sodium")
+}
+
 func TestRunRemoveQuietSuppressesNormalOutput(t *testing.T) {
 	fs := afero.NewMemMapFs()
 	var out bytes.Buffer
@@ -242,7 +291,7 @@ func TestRunRemoveDeletesFilesUpdatesLockAndConfig(t *testing.T) {
 	require.NoError(t, err)
 	assert.Empty(t, updatedCfg.Mods)
 
-	assert.Equal(t, "✅ Removed Sodium\n✅ Removed Fabric API\n", out.String())
+	assert.Equal(t, "V Removed Sodium\nV Removed Fabric API\n", out.String())
 }
 
 func TestRemoveConfigEntryNoMatchDoesNothing(t *testing.T) {
@@ -305,7 +354,7 @@ func TestRunRemoveSkipsMissingFilesWithoutFailing(t *testing.T) {
 	require.NoError(t, err)
 	assert.Empty(t, updatedCfg.Mods)
 
-	assert.Equal(t, "✅ Removed Sodium\n", out.String())
+	assert.Equal(t, "V Removed Sodium\n", out.String())
 }
 
 func TestRunRemoveReturnsZeroWhenNoMatches(t *testing.T) {

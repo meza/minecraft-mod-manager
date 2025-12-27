@@ -1117,7 +1117,7 @@ func TestFormatMissingModEntryWithoutColorization(t *testing.T) {
 
 	result := formatMissingModEntry(mod, tui.ColorDisabled)
 
-	assert.Equal(t, "❌ TestMod (test-mod-id)", result)
+	assert.Equal(t, "X TestMod (test-mod-id)", result)
 }
 
 func TestFormatReleaseTypesEmptyReturnsNone(t *testing.T) {

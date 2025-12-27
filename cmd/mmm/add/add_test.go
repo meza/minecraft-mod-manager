@@ -101,6 +101,108 @@ func TestRunAdd_Success(t *testing.T) {
 	assertPerfSpanExists(t, "app.command.add.stage.persist")
 }
 
+func TestRunAdd_SuccessLogsAsciiIconWhenNotTerminal(t *testing.T) {
+	t.Setenv("MMM_TEST", "true")
+	ctx, commandSpan := startAddPerf(t)
+	fs := afero.NewMemMapFs()
+	meta := config.NewMetadata(filepath.FromSlash("/cfg/modlist.json"))
+	assert.NoError(t, fs.MkdirAll(filepath.Dir(meta.ConfigPath), 0755))
+
+	cfg := models.ModsJSON{
+		Loader:                     models.FABRIC,
+		GameVersion:                "1.20.1",
+		DefaultAllowedReleaseTypes: []models.ReleaseType{models.Release},
+		ModsFolder:                 "mods",
+		Mods:                       []models.Mod{},
+	}
+	assert.NoError(t, config.WriteConfig(context.Background(), fs, meta, cfg))
+	assert.NoError(t, config.WriteLock(context.Background(), fs, meta, nil))
+
+	out := bytes.NewBuffer(nil)
+	cmd := &cobra.Command{}
+	cmd.SetIn(bytes.NewBuffer(nil))
+	cmd.SetOut(out)
+	cmd.SetErr(out)
+
+	_, err := runAdd(ctx, commandSpan, cmd, addOptions{
+		Platform:   "modrinth",
+		ProjectID:  "abc",
+		ConfigPath: meta.ConfigPath,
+	}, addDeps{
+		fs:      fs,
+		clients: platform.DefaultClients(rate.NewLimiter(rate.Inf, 0)),
+		logger:  logger.New(cmd.OutOrStdout(), cmd.ErrOrStderr(), false, false),
+		fetchMod: func(_ context.Context, _ models.Platform, _ string, _ platform.FetchOptions, _ platform.Clients) (platform.RemoteMod, error) {
+			return platform.RemoteMod{
+				Name:        "Example",
+				FileName:    "example.jar",
+				Hash:        sha1Hex("data"),
+				ReleaseDate: "2024-01-01T00:00:00Z",
+				DownloadURL: "https://example.com/example.jar",
+			}, nil
+		},
+		downloader: func(_ context.Context, _ string, path string, _ httpclient.Doer, _ httpclient.Sender, _ ...afero.Fs) error {
+			return afero.WriteFile(fs, path, []byte("data"), 0644)
+		},
+	})
+
+	assert.NoError(t, err)
+	assert.Contains(t, out.String(), "V cmd.add.success")
+}
+
+func TestRunAdd_SuccessLogsEmojiIconWhenTerminal(t *testing.T) {
+	t.Setenv("MMM_TEST", "true")
+	ctx, commandSpan := startAddPerf(t)
+	fs := afero.NewMemMapFs()
+	meta := config.NewMetadata(filepath.FromSlash("/cfg/modlist.json"))
+	assert.NoError(t, fs.MkdirAll(filepath.Dir(meta.ConfigPath), 0755))
+
+	cfg := models.ModsJSON{
+		Loader:                     models.FABRIC,
+		GameVersion:                "1.20.1",
+		DefaultAllowedReleaseTypes: []models.ReleaseType{models.Release},
+		ModsFolder:                 "mods",
+		Mods:                       []models.Mod{},
+	}
+	assert.NoError(t, config.WriteConfig(context.Background(), fs, meta, cfg))
+	assert.NoError(t, config.WriteLock(context.Background(), fs, meta, nil))
+
+	restoreTTY := tuiinternal.SetIsTerminalFuncForTesting(func(int) bool { return true })
+	t.Cleanup(restoreTTY)
+
+	out := &fakeTerminalWriter{}
+	cmd := &cobra.Command{}
+	cmd.SetIn(bytes.NewBuffer(nil))
+	cmd.SetOut(out)
+	cmd.SetErr(out)
+
+	_, err := runAdd(ctx, commandSpan, cmd, addOptions{
+		Platform:   "modrinth",
+		ProjectID:  "abc",
+		ConfigPath: meta.ConfigPath,
+	}, addDeps{
+		fs:      fs,
+		clients: platform.DefaultClients(rate.NewLimiter(rate.Inf, 0)),
+		logger:  logger.New(cmd.OutOrStdout(), cmd.ErrOrStderr(), false, false),
+		fetchMod: func(_ context.Context, _ models.Platform, _ string, _ platform.FetchOptions, _ platform.Clients) (platform.RemoteMod, error) {
+			return platform.RemoteMod{
+				Name:        "Example",
+				FileName:    "example.jar",
+				Hash:        sha1Hex("data"),
+				ReleaseDate: "2024-01-01T00:00:00Z",
+				DownloadURL: "https://example.com/example.jar",
+			}, nil
+		},
+		downloader: func(_ context.Context, _ string, path string, _ httpclient.Doer, _ httpclient.Sender, _ ...afero.Fs) error {
+			return afero.WriteFile(fs, path, []byte("data"), 0644)
+		},
+	})
+
+	assert.NoError(t, err)
+	assert.Contains(t, out.String(), "\u2705")
+	assert.Contains(t, out.String(), "cmd.add.success")
+}
+
 func TestRunAdd_SkipsDownloadWhenFileAlreadyMatchesRemoteHash(t *testing.T) {
 	ctx, commandSpan := startAddPerf(t)
 	fs := afero.NewMemMapFs()
@@ -1578,6 +1680,14 @@ func TestResolveRemoteModWithTUIFetchError(t *testing.T) {
 		out:           io.Discard,
 	}, addTUIStateUnknownPlatformSelect)
 	assert.Error(t, err)
+}
+
+type fakeTerminalWriter struct {
+	bytes.Buffer
+}
+
+func (writer *fakeTerminalWriter) Fd() uintptr {
+	return 1
 }
 
 func startAddPerf(t *testing.T) (context.Context, *perf.Span) {

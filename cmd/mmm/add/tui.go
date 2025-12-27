@@ -104,7 +104,7 @@ func (delegate addTUIListDelegate) Render(w io.Writer, listModel list.Model, ite
 
 	itemLine := item.value
 	if itemIndex == listModel.Index() {
-		if _, err := fmt.Fprint(w, tui.SelectedItemStyle.Render("❯ "+itemLine)); err != nil {
+		if _, err := fmt.Fprint(w, tui.SelectedItemStyle.Render("\u276F "+itemLine)); err != nil {
 			return
 		}
 		return

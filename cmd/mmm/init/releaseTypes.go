@@ -155,13 +155,13 @@ func (delegate releaseTypeDelegate) Render(w io.Writer, listModel list.Model, it
 
 	icon := " "
 	if item.selected[item.value] {
-		icon = "✓"
+		icon = "\u2713"
 	}
 
 	itemLine := fmt.Sprintf("%s %s", icon, item.value)
 
 	if itemIndex == listModel.Index() {
-		if _, err := fmt.Fprint(w, tui.SelectedItemStyle.Render("❯ "+itemLine)); err != nil {
+		if _, err := fmt.Fprint(w, tui.SelectedItemStyle.Render("\u276F "+itemLine)); err != nil {
 			return
 		}
 		return

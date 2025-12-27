@@ -7,17 +7,17 @@ import (
 )
 
 func TestSuccessIconIsUnstyledWhenNotColorized(t *testing.T) {
-	assert.Equal(t, "✅", SuccessIcon(ColorDisabled))
+	assert.Equal(t, "V", SuccessIcon(ColorDisabled))
 }
 
 func TestErrorIconIsUnstyledWhenNotColorized(t *testing.T) {
-	assert.Equal(t, "❌", ErrorIcon(ColorDisabled))
+	assert.Equal(t, "X", ErrorIcon(ColorDisabled))
 }
 
 func TestSuccessIconIsStyledWhenColorized(t *testing.T) {
-	assert.Equal(t, QuestionStyle.Render("✅"), SuccessIcon(ColorEnabled))
+	assert.Equal(t, QuestionStyle.Render("\u2705"), SuccessIcon(ColorEnabled))
 }
 
 func TestErrorIconIsStyledWhenColorized(t *testing.T) {
-	assert.Equal(t, ErrorStyle.Render("❌"), ErrorIcon(ColorEnabled))
+	assert.Equal(t, ErrorStyle.Render("\u274C"), ErrorIcon(ColorEnabled))
 }

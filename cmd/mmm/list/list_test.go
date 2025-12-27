@@ -66,8 +66,8 @@ func TestRunListPrintsInstalledAndMissing(t *testing.T) {
 
 	assert.NoError(t, err)
 	expected := "cmd.list.header\n" +
-		"✓ cmd.list.entry.installed, Arg 1: {Count: 0, Data: &map[id:mod-a name:Mod A]}\n" +
-		"✗ cmd.list.entry.missing, Arg 1: {Count: 0, Data: &map[id:mod-b name:Mod B]}\n"
+		"V cmd.list.entry.installed, Arg 1: {Count: 0, Data: &map[id:mod-a name:Mod A]}\n" +
+		"X cmd.list.entry.missing, Arg 1: {Count: 0, Data: &map[id:mod-b name:Mod B]}\n"
 	assert.Equal(t, expected, out.String())
 	assert.Empty(t, errOut.String())
 }
@@ -204,7 +204,7 @@ func TestRunListMissingLockTreatsAllAsNotInstalled(t *testing.T) {
 
 	assert.NoError(t, err)
 	expected := "cmd.list.header\n" +
-		"✗ cmd.list.entry.missing, Arg 1: {Count: 0, Data: &map[id:mod-a name:Mod A]}\n"
+		"X cmd.list.entry.missing, Arg 1: {Count: 0, Data: &map[id:mod-a name:Mod A]}\n"
 	assert.Equal(t, expected, out.String())
 }
 
@@ -342,7 +342,7 @@ func TestRunListQuietStillPrints(t *testing.T) {
 
 	assert.NoError(t, err)
 	expected := "cmd.list.header\n" +
-		"✗ cmd.list.entry.missing, Arg 1: {Count: 0, Data: &map[id:mod-a name:Mod A]}\n"
+		"X cmd.list.entry.missing, Arg 1: {Count: 0, Data: &map[id:mod-a name:Mod A]}\n"
 	assert.Equal(t, expected, out.String())
 }
 

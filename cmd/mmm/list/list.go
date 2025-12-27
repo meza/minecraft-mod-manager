@@ -302,20 +302,15 @@ func appendListEntry(builder *strings.Builder, entry listEntry, colorMode tui.Co
 }
 
 func renderEntry(entry listEntry, colorMode tui.ColorMode) string {
-	icon := "✗"
+	icon := tui.ErrorIcon(colorMode)
 	key := "cmd.list.entry.missing"
 	name := entry.DisplayName
 	id := entry.ID
 	if entry.Installed {
-		icon = "✓"
+		icon = tui.SuccessIcon(colorMode)
 		key = "cmd.list.entry.installed"
 	}
 
-	if entry.Installed {
-		icon = tui.RenderIfColorEnabled(colorMode, tui.QuestionStyle, icon)
-	} else {
-		icon = tui.RenderIfColorEnabled(colorMode, tui.ErrorStyle, icon)
-	}
 	id = tui.RenderIfColorEnabled(colorMode, tui.PlaceholderStyle.PaddingLeft(0), id)
 
 	message := i18n.T(key, i18n.Tvars{

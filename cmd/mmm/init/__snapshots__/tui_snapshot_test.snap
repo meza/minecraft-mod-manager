@@ -128,7 +128,7 @@ release types cannot be empty
                                                            
   ↑/k key.help.up • ↓/j key.help.down • / key.help.filter …
                                                            
-? cmd.init.tui.mods-folder.question missing         <- mods folder does not exist: /cfg/missing
+? cmd.init.tui.mods-folder.question missing         <- cmd.init.error.mods-folder.missing, Arg 1: {Count: 0, Data: &map[path:/cfg/missing]}
 
 key.tab key.help.complete • key.enter key.help.accept • key.ctrl_c/key.esc key.help.quit
 ---

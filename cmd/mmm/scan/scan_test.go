@@ -24,11 +24,20 @@ import (
 	"github.com/meza/minecraft-mod-manager/internal/modrinth"
 	"github.com/meza/minecraft-mod-manager/internal/platform"
 	"github.com/meza/minecraft-mod-manager/internal/telemetry"
+	"github.com/meza/minecraft-mod-manager/internal/tui"
 )
 
 type fakePrompter struct {
 	confirm bool
 	err     error
+}
+
+type fakeTerminalWriter struct {
+	bytes.Buffer
+}
+
+func (writer *fakeTerminalWriter) Fd() uintptr {
+	return 1
 }
 
 func (prompter fakePrompter) ConfirmAdd() (bool, error) { return prompter.confirm, prompter.err }
@@ -871,7 +880,7 @@ func TestRunScan_AllManagedReturnsEarly(t *testing.T) {
 	})
 
 	assert.NoError(t, err)
-	assert.Contains(t, out.String(), "cmd.scan.all_managed")
+	assert.Contains(t, out.String(), "V cmd.scan.all_managed")
 }
 
 func TestRunScan_ReturnsErrorOnEnsureConfigFailure(t *testing.T) {
@@ -1183,4 +1192,20 @@ func TestLookupModrinthReturnsUnsureOnContextCancel(t *testing.T) {
 	assert.Equal(t, candidates, misses)
 	assert.Len(t, unsure, 1)
 	assert.ErrorIs(t, unsure[candidates[0].Path], context.Canceled)
+}
+
+func TestColorModeForOutputWhenTerminal(t *testing.T) {
+	restore := tui.SetIsTerminalFuncForTesting(func(_ int) bool { return true })
+	t.Cleanup(restore)
+
+	writer := &fakeTerminalWriter{}
+	assert.Equal(t, tui.ColorEnabled, colorModeForOutput(writer))
+}
+
+func TestColorModeForOutputWhenNotTerminal(t *testing.T) {
+	restore := tui.SetIsTerminalFuncForTesting(func(_ int) bool { return false })
+	t.Cleanup(restore)
+
+	writer := &fakeTerminalWriter{}
+	assert.Equal(t, tui.ColorDisabled, colorModeForOutput(writer))
 }

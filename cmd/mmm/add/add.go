@@ -135,6 +135,7 @@ type finalizeAddInput struct {
 	setupCoordinator *modsetup.SetupCoordinator
 	logger           *logger.Logger
 	useTUI           bool
+	colorMode        tui.ColorMode
 }
 
 // Command builds the add command.
@@ -225,6 +226,7 @@ func runAdd(ctx context.Context, commandSpan *perf.Span, cmd *cobra.Command, opt
 	if err != nil {
 		return addFailureTelemetryWithoutArgs(runState.useTUI, err), err
 	}
+	colorMode := colorModeForOutput(cmd.OutOrStdout())
 	platformValue, projectID := normalizedAddIdentifiers(opts)
 	if telemetryResult, handled, existingInstallErr := handleExistingInstallIfPresent(existingInstallCheckInput{
 		ctx:           ctx,
@@ -268,7 +270,15 @@ func runAdd(ctx context.Context, commandSpan *perf.Span, cmd *cobra.Command, opt
 		setupCoordinator: runState.setupCoordinator,
 		logger:           deps.logger,
 		useTUI:           runState.useTUI,
+		colorMode:        colorMode,
 	})
+}
+
+func colorModeForOutput(out io.Writer) tui.ColorMode {
+	if tui.IsTerminalWriter(out) {
+		return tui.ColorEnabled
+	}
+	return tui.ColorDisabled
 }
 
 func prepareAddConfig(ctx context.Context, opts addOptions, meta config.Metadata, setupCoordinator *modsetup.SetupCoordinator) (models.ModsJSON, []models.ModInstall, error) {
@@ -451,18 +461,18 @@ func finalizeAdd(input finalizeAddInput) (telemetry.CommandTelemetry, error) {
 		return addFailureTelemetry(input.resolvedPlatform, input.resolvedID, input.opts, input.useTUI, err), err
 	}
 
-	logAddSuccess(input.logger, input.remoteMod.Name, input.resolvedID, input.resolvedPlatform)
+	logAddSuccess(input.logger, input.colorMode, input.remoteMod.Name, input.resolvedID, input.resolvedPlatform)
 	return addSuccessTelemetry(input.resolvedPlatform, input.resolvedID, input.opts, input.useTUI), nil
 }
 
-func logAddSuccess(log *logger.Logger, modName string, resolvedID string, resolvedPlatform models.Platform) {
-	log.Log(i18n.T("cmd.add.success", i18n.Tvars{
+func logAddSuccess(log *logger.Logger, colorMode tui.ColorMode, modName string, resolvedID string, resolvedPlatform models.Platform) {
+	log.Log(fmt.Sprintf("%s %s", tui.SuccessIcon(colorMode), i18n.T("cmd.add.success", i18n.Tvars{
 		Data: &i18n.TData{
 			"name":     modName,
 			"id":       resolvedID,
 			"platform": resolvedPlatform,
 		},
-	}), logger.LogForce)
+	})), logger.LogForce)
 }
 
 func addSuccessTelemetry(platformValue models.Platform, projectID string, opts addOptions, useTUI bool) telemetry.CommandTelemetry {

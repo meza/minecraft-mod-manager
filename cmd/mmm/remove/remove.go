@@ -18,6 +18,7 @@ import (
 	"github.com/meza/minecraft-mod-manager/internal/modfilename"
 	"github.com/meza/minecraft-mod-manager/internal/perf"
 	"github.com/meza/minecraft-mod-manager/internal/telemetry"
+	"github.com/meza/minecraft-mod-manager/internal/tui"
 )
 
 type removeOptions struct {
@@ -32,6 +33,7 @@ type removeDeps struct {
 	fs        afero.Fs
 	logger    *logger.Logger
 	telemetry func(telemetry.CommandTelemetry)
+	colorMode tui.ColorMode
 }
 
 func Command() *cobra.Command {
@@ -60,7 +62,11 @@ func runRemoveCommand(cmd *cobra.Command, args []string) error {
 	}
 
 	log := logger.New(cmd.OutOrStdout(), cmd.ErrOrStderr(), opts.Quiet, opts.Debug)
-	deps := defaultRemoveDeps(log)
+	colorMode := tui.ColorDisabled
+	if tui.IsTerminalWriter(cmd.OutOrStdout()) {
+		colorMode = tui.ColorEnabled
+	}
+	deps := defaultRemoveDeps(log, colorMode)
 
 	removedCount, err := runRemove(ctx, opts, deps)
 	span.SetAttributes(attribute.Bool("success", err == nil))
@@ -97,11 +103,12 @@ func removeOptionsFromFlags(cmd *cobra.Command, args []string) (removeOptions, e
 	}, nil
 }
 
-func defaultRemoveDeps(log *logger.Logger) removeDeps {
+func defaultRemoveDeps(log *logger.Logger, colorMode tui.ColorMode) removeDeps {
 	return removeDeps{
 		fs:        afero.NewOsFs(),
 		logger:    log,
 		telemetry: telemetry.RecordCommand,
+		colorMode: colorMode,
 	}
 }
 
@@ -146,7 +153,7 @@ func runRemove(ctx context.Context, opts removeOptions, deps removeDeps) (int, e
 	}
 
 	if opts.DryRun {
-		deps.logger.Log("Running in dry-run mode. Nothing will actually be removed.", logger.LogQuiet)
+		deps.logger.Log(i18n.T("cmd.remove.dry-run.notice", i18n.Tvars{}), logger.LogQuiet)
 	}
 
 	return removeMatchedMods(ctx, meta, &cfg, &lock, matches, opts, deps)
@@ -169,7 +176,9 @@ func removeMatchedMods(ctx context.Context, meta config.Metadata, cfg *models.Mo
 
 func removeMod(ctx context.Context, meta config.Metadata, cfg *models.ModsJSON, lock *[]models.ModInstall, mod models.Mod, opts removeOptions, deps removeDeps) (bool, error) {
 	if opts.DryRun {
-		deps.logger.Log(fmt.Sprintf("Would have removed %s", mod.Name), logger.LogQuiet)
+		deps.logger.Log(i18n.T("cmd.remove.dry-run.would-remove", i18n.Tvars{
+			Data: &i18n.TData{"name": mod.Name},
+		}), logger.LogQuiet)
 		return false, nil
 	}
 
@@ -180,7 +189,9 @@ func removeMod(ctx context.Context, meta config.Metadata, cfg *models.ModsJSON, 
 		return false, err
 	}
 
-	deps.logger.Log(fmt.Sprintf("✅ Removed %s", mod.Name), logger.LogQuiet)
+	deps.logger.Log(fmt.Sprintf("%s %s", tui.SuccessIcon(deps.colorMode), i18n.T("cmd.remove.removed", i18n.Tvars{
+		Data: &i18n.TData{"name": mod.Name},
+	})), logger.LogQuiet)
 	return true, nil
 }
 

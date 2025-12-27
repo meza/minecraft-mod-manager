@@ -132,7 +132,9 @@ type terminalPrompter struct {
 }
 
 func (prompter terminalPrompter) ConfirmOverwrite(configPath string) (bool, error) {
-	if _, err := fmt.Fprintf(prompter.out, "Configuration file already exists at %s. Overwrite? (y/N): ", configPath); err != nil {
+	if _, err := fmt.Fprint(prompter.out, i18n.T("cmd.init.prompt.config-overwrite.question", i18n.Tvars{
+		Data: &i18n.TData{"configPath": configPath},
+	})); err != nil {
 		return false, err
 	}
 	answer, err := readLine(prompter.in)
@@ -145,7 +147,9 @@ func (prompter terminalPrompter) ConfirmOverwrite(configPath string) (bool, erro
 }
 
 func (prompter terminalPrompter) RequestNewConfigPath(configPath string) (string, error) {
-	if _, err := fmt.Fprintf(prompter.out, "Enter a new config file path (current: %s): ", configPath); err != nil {
+	if _, err := fmt.Fprint(prompter.out, i18n.T("cmd.init.prompt.config-path.question", i18n.Tvars{
+		Data: &i18n.TData{"configPath": configPath},
+	})); err != nil {
 		return "", err
 	}
 	answer, err := readLine(prompter.in)
@@ -155,7 +159,7 @@ func (prompter terminalPrompter) RequestNewConfigPath(configPath string) (string
 
 	answer = strings.TrimSpace(answer)
 	if answer == "" {
-		return "", errors.New("config path cannot be empty")
+		return "", errors.New(i18n.T("cmd.init.error.config-path.empty", i18n.Tvars{}))
 	}
 	return answer, nil
 }
@@ -276,7 +280,7 @@ func finalizeInteractiveResult(result tea.Model) (initOptions, error) {
 	case CommandModel:
 		finalModel = typed
 	default:
-		return initOptions{}, errors.New("interactive init failed")
+		return initOptions{}, errors.New(i18n.T("cmd.init.error.interactive.failed", i18n.Tvars{}))
 	}
 
 	if finalModel.err != nil {
@@ -284,7 +288,7 @@ func finalizeInteractiveResult(result tea.Model) (initOptions, error) {
 	}
 
 	if finalModel.state != done {
-		return initOptions{}, errors.New("init canceled")
+		return initOptions{}, errors.New(i18n.T("cmd.init.error.canceled", i18n.Tvars{}))
 	}
 
 	return finalModel.result, nil
@@ -321,7 +325,7 @@ func normalizeGameVersion(ctx context.Context, options initOptions, deps initDep
 func validateModsFolder(fs afero.Fs, meta config.Metadata, modsFolder string) error {
 	modsFolder = strings.TrimSpace(modsFolder)
 	if modsFolder == "" {
-		return errors.New("mods folder cannot be empty")
+		return errors.New(i18n.T("cmd.init.error.mods-folder.empty", i18n.Tvars{}))
 	}
 
 	modsFolderConfig := models.ModsJSON{ModsFolder: modsFolder}
@@ -331,7 +335,9 @@ func validateModsFolder(fs afero.Fs, meta config.Metadata, modsFolder string) er
 		return err
 	}
 	if !modsFolderExists {
-		return fmt.Errorf("mods folder does not exist: %s", modsFolderPath)
+		return fmt.Errorf("%s", i18n.T("cmd.init.error.mods-folder.missing", i18n.Tvars{
+			Data: &i18n.TData{"path": modsFolderPath},
+		}))
 	}
 
 	isDir, err := afero.IsDir(fs, modsFolderPath)
@@ -339,7 +345,9 @@ func validateModsFolder(fs afero.Fs, meta config.Metadata, modsFolder string) er
 		return err
 	}
 	if !isDir {
-		return fmt.Errorf("mods folder is not a directory: %s", modsFolderPath)
+		return fmt.Errorf("%s", i18n.T("cmd.init.error.mods-folder.not-directory", i18n.Tvars{
+			Data: &i18n.TData{"path": modsFolderPath},
+		}))
 	}
 
 	return nil
@@ -389,7 +397,9 @@ func initWithDeps(ctx context.Context, options initOptions, deps initDeps) (conf
 	}
 
 	if deps.logger != nil {
-		deps.logger.Log("Initialized configuration at "+meta.ConfigPath, logger.LogQuiet)
+		deps.logger.Log(i18n.T("cmd.init.success", i18n.Tvars{
+			Data: &i18n.TData{"configPath": meta.ConfigPath},
+		}), logger.LogQuiet)
 	}
 
 	return meta, nil
@@ -401,7 +411,9 @@ func validateGameVersion(ctx context.Context, gameVersion string, deps initDeps)
 		return fmt.Errorf("%s", i18n.T("cmd.init.error.game-version.unavailable", i18n.Tvars{}))
 	}
 	if !valid {
-		return fmt.Errorf("invalid minecraft version: %s", gameVersion)
+		return fmt.Errorf("%s", i18n.T("cmd.init.error.game-version.invalid", i18n.Tvars{
+			Data: &i18n.TData{"gameVersion": gameVersion},
+		}))
 	}
 	return nil
 }
@@ -510,7 +522,7 @@ func defaultInitDeps(cmd *cobra.Command, log *logger.Logger) initDeps {
 
 func requireLoader(options initOptions) error {
 	if options.Loader == "" {
-		return errors.New("init requires flag: -l/--loader")
+		return errors.New(i18n.T("cmd.init.error.loader.required", i18n.Tvars{}))
 	}
 	return nil
 }
@@ -522,7 +534,7 @@ func resolveLatestGameVersion(ctx context.Context, options initOptions, deps ini
 
 	latest, err := minecraft.GetLatestVersion(ctx, deps.minecraftClient)
 	if err != nil {
-		return options, errors.New("could not determine latest minecraft version; provide -g/--game-version")
+		return options, errors.New(i18n.T("cmd.init.error.game-version.latest-unavailable", i18n.Tvars{}))
 	}
 	options.GameVersion = latest
 	return options, nil
@@ -531,13 +543,15 @@ func resolveLatestGameVersion(ctx context.Context, options initOptions, deps ini
 func resolveConfigPath(meta config.Metadata, options initOptions, deps initDeps) (config.Metadata, error) {
 	exists, err := afero.Exists(deps.fs, meta.ConfigPath)
 	if err != nil {
-		return config.Metadata{}, fmt.Errorf("failed to check configuration file: %w", err)
+		return config.Metadata{}, fmt.Errorf("%s: %w", i18n.T("cmd.init.error.config-file.check", i18n.Tvars{}), err)
 	}
 	if !exists {
 		return meta, nil
 	}
 	if options.Quiet {
-		return config.Metadata{}, fmt.Errorf("configuration file already exists: %s", meta.ConfigPath)
+		return config.Metadata{}, fmt.Errorf("%s", i18n.T("cmd.init.error.config-file.exists", i18n.Tvars{
+			Data: &i18n.TData{"configPath": meta.ConfigPath},
+		}))
 	}
 
 	overwrite, err := deps.prompter.ConfirmOverwrite(meta.ConfigPath)
@@ -571,7 +585,9 @@ func (flag *loaderFlag) Set(value string) error {
 			return nil
 		}
 	}
-	return fmt.Errorf("invalid loader: %s", value)
+	return fmt.Errorf("%s", i18n.T("cmd.init.error.loader.invalid", i18n.Tvars{
+		Data: &i18n.TData{"loader": value},
+	}))
 }
 
 func (flag *loaderFlag) Type() string {
@@ -598,13 +614,15 @@ func parseReleaseTypes(raw []string) ([]models.ReleaseType, error) {
 
 		candidate := models.ReleaseType(part)
 		if !isValidReleaseType(candidate) {
-			return nil, fmt.Errorf("invalid release type: %s", part)
+			return nil, fmt.Errorf("%s", i18n.T("cmd.init.error.release-types.invalid", i18n.Tvars{
+				Data: &i18n.TData{"releaseType": part},
+			}))
 		}
 		releaseTypes = append(releaseTypes, candidate)
 	}
 
 	if len(releaseTypes) == 0 {
-		return nil, errors.New("release types cannot be empty")
+		return nil, errors.New(i18n.T("cmd.init.error.release-types.empty", i18n.Tvars{}))
 	}
 
 	return releaseTypes, nil
