@@ -98,14 +98,14 @@ func HelpMoreClose() key.Binding {
 
 func NextPage() key.Binding {
 	return key.NewBinding(
-		key.WithKeys("right", "l", i18n.T("key.pgdown"), "f", "d"),
+		key.WithKeys("right", "l", "pgdown", "f", "d"),
 		key.WithHelp(fmt.Sprintf("%s/%s/%s", "→", "l", i18n.T("key.pgdown")), i18n.T("key.help.page_next")),
 	)
 }
 
 func PreviousPage() key.Binding {
 	return key.NewBinding(
-		key.WithKeys("left", "h", i18n.T("key.pgup"), "b", "u"),
+		key.WithKeys("left", "h", "pgup", "b", "u"),
 		key.WithHelp(fmt.Sprintf("%s/%s/%s", "←", "h", i18n.T("key.pgup")), i18n.T("key.help.page_previous")),
 	)
 }

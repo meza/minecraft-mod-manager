@@ -12,12 +12,12 @@ list.KeyMap{
         disabled: false,
     },
     NextPage: key.Binding{
-        keys:     {"right", "l", "key.pgdown", "f", "d"},
+        keys:     {"right", "l", "pgdown", "f", "d"},
         help:     key.Help{Key:"→/l/key.pgdown", Desc:"key.help.page_next"},
         disabled: false,
     },
     PrevPage: key.Binding{
-        keys:     {"left", "h", "key.pgup", "b", "u"},
+        keys:     {"left", "h", "pgup", "b", "u"},
         help:     key.Help{Key:"←/h/key.pgup", Desc:"key.help.page_previous"},
         disabled: false,
     },
