@@ -25,6 +25,7 @@ import (
 	"github.com/meza/minecraft-mod-manager/internal/minecraft"
 	"github.com/meza/minecraft-mod-manager/internal/models"
 	"github.com/meza/minecraft-mod-manager/internal/modpath"
+	"github.com/meza/minecraft-mod-manager/internal/output"
 	"github.com/meza/minecraft-mod-manager/internal/perf"
 	"github.com/meza/minecraft-mod-manager/internal/platform"
 	tuiinternal "github.com/meza/minecraft-mod-manager/internal/tui"
@@ -61,6 +62,7 @@ func TestRunAdd_Success(t *testing.T) {
 		fs:      fs,
 		clients: platform.DefaultClients(rate.NewLimiter(rate.Inf, 0)),
 		logger:  logger.New(cmd.OutOrStdout(), cmd.ErrOrStderr(), false, false),
+		output:  output.New(cmd.OutOrStdout(), cmd.ErrOrStderr(), false),
 		fetchMod: func(_ context.Context, p models.Platform, id string, _ platform.FetchOptions, _ platform.Clients) (platform.RemoteMod, error) {
 			return platform.RemoteMod{
 				Name:        "Example",
@@ -132,6 +134,7 @@ func TestRunAdd_SuccessLogsAsciiIconWhenNotTerminal(t *testing.T) {
 		fs:      fs,
 		clients: platform.DefaultClients(rate.NewLimiter(rate.Inf, 0)),
 		logger:  logger.New(cmd.OutOrStdout(), cmd.ErrOrStderr(), false, false),
+		output:  output.New(cmd.OutOrStdout(), cmd.ErrOrStderr(), false),
 		fetchMod: func(_ context.Context, _ models.Platform, _ string, _ platform.FetchOptions, _ platform.Clients) (platform.RemoteMod, error) {
 			return platform.RemoteMod{
 				Name:        "Example",
@@ -184,6 +187,7 @@ func TestRunAdd_SuccessLogsEmojiIconWhenTerminal(t *testing.T) {
 		fs:      fs,
 		clients: platform.DefaultClients(rate.NewLimiter(rate.Inf, 0)),
 		logger:  logger.New(cmd.OutOrStdout(), cmd.ErrOrStderr(), false, false),
+		output:  output.New(cmd.OutOrStdout(), cmd.ErrOrStderr(), false),
 		fetchMod: func(_ context.Context, _ models.Platform, _ string, _ platform.FetchOptions, _ platform.Clients) (platform.RemoteMod, error) {
 			return platform.RemoteMod{
 				Name:        "Example",
@@ -237,6 +241,7 @@ func TestRunAdd_SkipsDownloadWhenFileAlreadyMatchesRemoteHash(t *testing.T) {
 		fs:      fs,
 		clients: platform.DefaultClients(rate.NewLimiter(rate.Inf, 0)),
 		logger:  logger.New(cmd.OutOrStdout(), cmd.ErrOrStderr(), false, false),
+		output:  output.New(cmd.OutOrStdout(), cmd.ErrOrStderr(), false),
 		fetchMod: func(_ context.Context, p models.Platform, id string, _ platform.FetchOptions, _ platform.Clients) (platform.RemoteMod, error) {
 			assert.Equal(t, models.MODRINTH, p)
 			assert.Equal(t, "abc", id)
@@ -277,6 +282,7 @@ func TestRunAdd_QuietMissingConfigReturnsError(t *testing.T) {
 		fs:      fs,
 		clients: platform.DefaultClients(rate.NewLimiter(rate.Inf, 0)),
 		logger:  logger.New(cmd.OutOrStdout(), cmd.ErrOrStderr(), true, false),
+		output:  output.New(cmd.OutOrStdout(), cmd.ErrOrStderr(), true),
 	})
 
 	assert.Error(t, err)
@@ -333,6 +339,7 @@ func TestRunAdd_DuplicateSkipsWorkWhenFilePresent(t *testing.T) {
 		fs:       fs,
 		clients:  platform.DefaultClients(rate.NewLimiter(rate.Inf, 0)),
 		logger:   logger.New(cmd.OutOrStdout(), cmd.ErrOrStderr(), false, true),
+		output:   output.New(cmd.OutOrStdout(), cmd.ErrOrStderr(), false),
 		fetchMod: platform.FetchMod,
 		downloader: func(_ context.Context, _ string, _ string, _ httpclient.Doer, _ httpclient.Sender, _ ...afero.Fs) error {
 			downloaded = true
@@ -385,6 +392,7 @@ func TestRunAdd_DuplicateDownloadsWhenFileMissing(t *testing.T) {
 		fs:      fs,
 		clients: platform.DefaultClients(rate.NewLimiter(rate.Inf, 0)),
 		logger:  logger.New(cmd.OutOrStdout(), cmd.ErrOrStderr(), false, false),
+		output:  output.New(cmd.OutOrStdout(), cmd.ErrOrStderr(), false),
 		downloader: func(_ context.Context, _ string, destination string, _ httpclient.Doer, _ httpclient.Sender, filesystem ...afero.Fs) error {
 			return afero.WriteFile(filesystem[0], destination, []byte("downloaded"), 0644)
 		},
@@ -430,6 +438,7 @@ func TestRunAdd_PersistFailureReturnsError(t *testing.T) {
 		fs:      fs,
 		clients: platform.DefaultClients(rate.NewLimiter(rate.Inf, 0)),
 		logger:  logger.New(cmd.OutOrStdout(), cmd.ErrOrStderr(), false, false),
+		output:  output.New(cmd.OutOrStdout(), cmd.ErrOrStderr(), false),
 		fetchMod: func(context.Context, models.Platform, string, platform.FetchOptions, platform.Clients) (platform.RemoteMod, error) {
 			return platform.RemoteMod{
 				Name:        "Example",
@@ -487,6 +496,7 @@ func TestRunAdd_DuplicateEnsureLockedFileError(t *testing.T) {
 		fs:      fs,
 		clients: platform.DefaultClients(rate.NewLimiter(rate.Inf, 0)),
 		logger:  logger.New(cmd.OutOrStdout(), cmd.ErrOrStderr(), false, true),
+		output:  output.New(cmd.OutOrStdout(), cmd.ErrOrStderr(), false),
 	})
 
 	assert.Error(t, err)
@@ -535,6 +545,7 @@ func TestRunAdd_DuplicateInvalidLockFileNameReturnsFriendlyError(t *testing.T) {
 		fs:      fs,
 		clients: platform.DefaultClients(rate.NewLimiter(rate.Inf, 0)),
 		logger:  logger.New(cmd.OutOrStdout(), cmd.ErrOrStderr(), false, true),
+		output:  output.New(cmd.OutOrStdout(), cmd.ErrOrStderr(), false),
 		downloader: func(context.Context, string, string, httpclient.Doer, httpclient.Sender, ...afero.Fs) error {
 			t.Fatal("downloader should not be called when lock filename is invalid")
 			return nil
@@ -595,6 +606,7 @@ func TestRunAdd_DuplicateHashMismatchDownloads(t *testing.T) {
 		fs:      fs,
 		clients: platform.DefaultClients(rate.NewLimiter(rate.Inf, 0)),
 		logger:  logger.New(cmd.OutOrStdout(), cmd.ErrOrStderr(), false, true),
+		output:  output.New(cmd.OutOrStdout(), cmd.ErrOrStderr(), false),
 		downloader: func(_ context.Context, _ string, path string, _ httpclient.Doer, _ httpclient.Sender, _ ...afero.Fs) error {
 			downloaded = true
 			return afero.WriteFile(fs, path, []byte("updated"), 0644)
@@ -639,6 +651,7 @@ func TestRunAdd_ConfigPresentLockMissingBackfillsLock(t *testing.T) {
 		fs:      fs,
 		clients: platform.DefaultClients(rate.NewLimiter(rate.Inf, 0)),
 		logger:  logger.New(cmd.OutOrStdout(), cmd.ErrOrStderr(), false, true),
+		output:  output.New(cmd.OutOrStdout(), cmd.ErrOrStderr(), false),
 		fetchMod: func(_ context.Context, _ models.Platform, _ string, _ platform.FetchOptions, _ platform.Clients) (platform.RemoteMod, error) {
 			return platform.RemoteMod{
 				Name:        "Example",
@@ -710,6 +723,7 @@ func TestRunAdd_ConfigAndLockPresentButFileMissingDownloads(t *testing.T) {
 		fs:      fs,
 		clients: platform.DefaultClients(rate.NewLimiter(rate.Inf, 0)),
 		logger:  logger.New(cmd.OutOrStdout(), cmd.ErrOrStderr(), false, true),
+		output:  output.New(cmd.OutOrStdout(), cmd.ErrOrStderr(), false),
 		fetchMod: func(context.Context, models.Platform, string, platform.FetchOptions, platform.Clients) (platform.RemoteMod, error) {
 			return platform.RemoteMod{}, errors.New("fetch should not be called")
 		},
@@ -771,6 +785,7 @@ func TestRunAdd_DownloadsWhenModsFolderMissingOnOsFs(t *testing.T) {
 		fs:      fs,
 		clients: platform.DefaultClients(rate.NewLimiter(rate.Inf, 0)),
 		logger:  logger.New(cmd.OutOrStdout(), cmd.ErrOrStderr(), false, true),
+		output:  output.New(cmd.OutOrStdout(), cmd.ErrOrStderr(), false),
 		fetchMod: func(context.Context, models.Platform, string, platform.FetchOptions, platform.Clients) (platform.RemoteMod, error) {
 			return platform.RemoteMod{}, errors.New("fetch should not be called")
 		},
@@ -837,6 +852,7 @@ func TestRunAdd_UnknownPlatformQuiet(t *testing.T) {
 		fs:      fs,
 		clients: platform.DefaultClients(rate.NewLimiter(rate.Inf, 0)),
 		logger:  logger.New(cmd.OutOrStdout(), cmd.ErrOrStderr(), true, false),
+		output:  output.New(cmd.OutOrStdout(), cmd.ErrOrStderr(), true),
 		fetchMod: func(_ context.Context, _ models.Platform, _ string, _ platform.FetchOptions, _ platform.Clients) (platform.RemoteMod, error) {
 			return platform.RemoteMod{}, &platform.UnknownPlatformError{Platform: "invalid"}
 		},
@@ -877,6 +893,7 @@ func TestRunAdd_ModNotFoundCancelled(t *testing.T) {
 		fs:      fs,
 		clients: platform.DefaultClients(rate.NewLimiter(rate.Inf, 0)),
 		logger:  logger.New(cmd.OutOrStdout(), cmd.ErrOrStderr(), false, false),
+		output:  output.New(cmd.OutOrStdout(), cmd.ErrOrStderr(), false),
 		fetchMod: func(_ context.Context, _ models.Platform, _ string, _ platform.FetchOptions, _ platform.Clients) (platform.RemoteMod, error) {
 			return platform.RemoteMod{}, &platform.ModNotFoundError{Platform: models.MODRINTH, ProjectID: "abc"}
 		},
@@ -924,6 +941,7 @@ func TestRunAdd_ModNotFoundRetry(t *testing.T) {
 		fs:      fs,
 		clients: platform.DefaultClients(rate.NewLimiter(rate.Inf, 0)),
 		logger:  logger.New(cmd.OutOrStdout(), cmd.ErrOrStderr(), false, false),
+		output:  output.New(cmd.OutOrStdout(), cmd.ErrOrStderr(), false),
 		fetchMod: func(_ context.Context, p models.Platform, id string, _ platform.FetchOptions, _ platform.Clients) (platform.RemoteMod, error) {
 			return platform.RemoteMod{}, &platform.ModNotFoundError{Platform: p, ProjectID: id}
 		},
@@ -991,6 +1009,7 @@ func TestRunAdd_NoFileRetryAlternate(t *testing.T) {
 		fs:      fs,
 		clients: platform.DefaultClients(rate.NewLimiter(rate.Inf, 0)),
 		logger:  logger.New(cmd.OutOrStdout(), cmd.ErrOrStderr(), false, false),
+		output:  output.New(cmd.OutOrStdout(), cmd.ErrOrStderr(), false),
 		fetchMod: func(_ context.Context, p models.Platform, id string, _ platform.FetchOptions, _ platform.Clients) (platform.RemoteMod, error) {
 			return platform.RemoteMod{}, &platform.NoCompatibleFileError{Platform: p, ProjectID: id}
 		},
@@ -1054,6 +1073,7 @@ func TestRunAdd_DownloadFailure(t *testing.T) {
 		fs:      fs,
 		clients: platform.DefaultClients(rate.NewLimiter(rate.Inf, 0)),
 		logger:  logger.New(cmd.OutOrStdout(), cmd.ErrOrStderr(), false, false),
+		output:  output.New(cmd.OutOrStdout(), cmd.ErrOrStderr(), false),
 		fetchMod: func(_ context.Context, _ models.Platform, _ string, _ platform.FetchOptions, _ platform.Clients) (platform.RemoteMod, error) {
 			return platform.RemoteMod{
 				Name:        "Example",
@@ -1105,6 +1125,7 @@ func TestRunAdd_MissingHashReturnsFriendlyError(t *testing.T) {
 		fs:      fs,
 		clients: platform.DefaultClients(rate.NewLimiter(rate.Inf, 0)),
 		logger:  logger.New(cmd.OutOrStdout(), cmd.ErrOrStderr(), false, false),
+		output:  output.New(cmd.OutOrStdout(), cmd.ErrOrStderr(), false),
 		fetchMod: func(_ context.Context, _ models.Platform, _ string, _ platform.FetchOptions, _ platform.Clients) (platform.RemoteMod, error) {
 			return platform.RemoteMod{
 				Name:        "Example",
@@ -1153,6 +1174,7 @@ func TestRunAdd_InvalidFileNameReturnsFriendlyError(t *testing.T) {
 		fs:      fs,
 		clients: platform.DefaultClients(rate.NewLimiter(rate.Inf, 0)),
 		logger:  logger.New(cmd.OutOrStdout(), cmd.ErrOrStderr(), false, false),
+		output:  output.New(cmd.OutOrStdout(), cmd.ErrOrStderr(), false),
 		fetchMod: func(_ context.Context, _ models.Platform, _ string, _ platform.FetchOptions, _ platform.Clients) (platform.RemoteMod, error) {
 			return platform.RemoteMod{
 				Name:        "Example",
@@ -1201,6 +1223,7 @@ func TestRunAdd_HashMismatchReturnsFriendlyError(t *testing.T) {
 		fs:      fs,
 		clients: platform.DefaultClients(rate.NewLimiter(rate.Inf, 0)),
 		logger:  logger.New(cmd.OutOrStdout(), cmd.ErrOrStderr(), false, false),
+		output:  output.New(cmd.OutOrStdout(), cmd.ErrOrStderr(), false),
 		fetchMod: func(_ context.Context, _ models.Platform, _ string, _ platform.FetchOptions, _ platform.Clients) (platform.RemoteMod, error) {
 			return platform.RemoteMod{
 				Name:        "Example",
@@ -1268,6 +1291,7 @@ func TestRunAdd_PersistErrorReturnsError(t *testing.T) {
 		fs:      fs,
 		clients: platform.DefaultClients(rate.NewLimiter(rate.Inf, 0)),
 		logger:  logger.New(cmd.OutOrStdout(), cmd.ErrOrStderr(), false, false),
+		output:  output.New(cmd.OutOrStdout(), cmd.ErrOrStderr(), false),
 		fetchMod: func(_ context.Context, _ models.Platform, _ string, _ platform.FetchOptions, _ platform.Clients) (platform.RemoteMod, error) {
 			return platform.RemoteMod{
 				Name:        "Example",
@@ -1311,6 +1335,7 @@ func TestRunAdd_CreatesConfigWhenMissing(t *testing.T) {
 		clients:         platform.DefaultClients(rate.NewLimiter(rate.Inf, 0)),
 		minecraftClient: manifestDoer{body: `{"latest":{"release":"1.21.1","snapshot":""},"versions":[]}`},
 		logger:          logger.New(cmd.OutOrStdout(), cmd.ErrOrStderr(), false, false),
+		output:          output.New(cmd.OutOrStdout(), cmd.ErrOrStderr(), false),
 		fetchMod: func(_ context.Context, _ models.Platform, _ string, _ platform.FetchOptions, _ platform.Clients) (platform.RemoteMod, error) {
 			return platform.RemoteMod{
 				Name:        "Example",
@@ -1374,6 +1399,7 @@ func TestRunAdd_UnknownPlatformInteractiveRetry(t *testing.T) {
 		fs:      fs,
 		clients: platform.DefaultClients(rate.NewLimiter(rate.Inf, 0)),
 		logger:  logger.New(cmd.OutOrStdout(), cmd.ErrOrStderr(), false, false),
+		output:  output.New(cmd.OutOrStdout(), cmd.ErrOrStderr(), false),
 		fetchMod: func(_ context.Context, p models.Platform, id string, _ platform.FetchOptions, _ platform.Clients) (platform.RemoteMod, error) {
 			return platform.RemoteMod{}, &platform.UnknownPlatformError{Platform: "invalid"}
 		},
@@ -1467,6 +1493,7 @@ func TestRunAdd_ModNotFoundQuiet(t *testing.T) {
 		fs:      fs,
 		clients: platform.DefaultClients(rate.NewLimiter(rate.Inf, 0)),
 		logger:  logger.New(cmd.OutOrStdout(), cmd.ErrOrStderr(), true, false),
+		output:  output.New(cmd.OutOrStdout(), cmd.ErrOrStderr(), true),
 		fetchMod: func(_ context.Context, _ models.Platform, _ string, _ platform.FetchOptions, _ platform.Clients) (platform.RemoteMod, error) {
 			return platform.RemoteMod{}, &platform.ModNotFoundError{Platform: models.MODRINTH, ProjectID: "abc"}
 		},
@@ -1487,6 +1514,7 @@ func TestResolveRemoteMod_NoFileQuiet(t *testing.T) {
 	deps := addDeps{
 		clients: platform.DefaultClients(rate.NewLimiter(rate.Inf, 0)),
 		logger:  logger.New(out, out, true, false),
+		output:  output.New(out, out, true),
 		fetchMod: func(_ context.Context, p models.Platform, id string, _ platform.FetchOptions, _ platform.Clients) (platform.RemoteMod, error) {
 			return platform.RemoteMod{}, &platform.NoCompatibleFileError{Platform: p, ProjectID: id}
 		},
@@ -1538,6 +1566,7 @@ func TestRunAdd_FetchOptionsPropagateVersionAndFallback(t *testing.T) {
 		fs:      fs,
 		clients: platform.DefaultClients(rate.NewLimiter(rate.Inf, 0)),
 		logger:  logger.New(cmd.OutOrStdout(), cmd.ErrOrStderr(), false, false),
+		output:  output.New(cmd.OutOrStdout(), cmd.ErrOrStderr(), false),
 		fetchMod: func(_ context.Context, _ models.Platform, _ string, opts platform.FetchOptions, _ platform.Clients) (platform.RemoteMod, error) {
 			gotOpts = opts
 			return platform.RemoteMod{
@@ -1586,6 +1615,7 @@ func TestRunAdd_TelemetryOnFailure(t *testing.T) {
 		fs:      fs,
 		clients: platform.DefaultClients(rate.NewLimiter(rate.Inf, 0)),
 		logger:  logger.New(cmd.OutOrStdout(), cmd.ErrOrStderr(), false, false),
+		output:  output.New(cmd.OutOrStdout(), cmd.ErrOrStderr(), false),
 		fetchMod: func(_ context.Context, _ models.Platform, _ string, _ platform.FetchOptions, _ platform.Clients) (platform.RemoteMod, error) {
 			return platform.RemoteMod{}, errors.New("boom")
 		},
@@ -1609,6 +1639,7 @@ func TestResolveRemoteModWithTUI_RecordsAttempt(t *testing.T) {
 	deps := addDeps{
 		clients: platform.DefaultClients(rate.NewLimiter(rate.Inf, 0)),
 		logger:  logger.New(io.Discard, io.Discard, false, false),
+		output:  output.New(io.Discard, io.Discard, false),
 		fetchMod: func(_ context.Context, p models.Platform, id string, _ platform.FetchOptions, _ platform.Clients) (platform.RemoteMod, error) {
 			fetchCalls++
 			return platform.RemoteMod{Name: "Example", FileName: "example.jar"}, nil
@@ -1655,6 +1686,7 @@ func TestResolveRemoteModWithTUIFetchError(t *testing.T) {
 	deps := addDeps{
 		clients: platform.DefaultClients(rate.NewLimiter(rate.Inf, 0)),
 		logger:  logger.New(io.Discard, io.Discard, false, false),
+		output:  output.New(io.Discard, io.Discard, false),
 		fetchMod: func(_ context.Context, _ models.Platform, _ string, _ platform.FetchOptions, _ platform.Clients) (platform.RemoteMod, error) {
 			return platform.RemoteMod{}, errors.New("boom")
 		},

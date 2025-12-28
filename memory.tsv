@@ -722,3 +722,13 @@ mmm-137 in progress: scanned exported decls missing GoDoc (454 missing across 87
 2025-12-28	13:10	Actioned reviewer feedback: perf shutdown in main now uses bounded context; added deadline test; reran make fmt/lint/vuln/coverage/build and Windows winstructions (all pass, PSReadLine warning only).
 2025-12-28	13:16	Reviewer approved mmm-142 changes; code-review.md updated with pass verdict and Windows verification timestamp.
 2025-12-28	13:48	Closed mmm-142 and children mmm-63.88/89/92/93/94 per user request.
+2025-12-28	13:52	Started mmm-143; reviewed README/CONTRIBUTING/ADRs and ticket; preparing CodeQuality coverage index documentation.
+2025-12-28	14:01	Added docs/code-quality-coverage.md with CodeQuality coverage map and evidence ledger for mmm-143; ran make fmt-check/lint/coverage/vuln/test-race and rg audits for evidence.
+2025-12-28	14:13	Closed mmm-63.82 and mmm-143 per user request; removed docs/code-quality-coverage.md after user stated static analyzers are sufficient.
+2025-12-28	14:24	Rescoped mmm-63.97 to separate logger vs output and define write-failure policy; created child mmm-138.1 for Bubble Tea non-interactive output and set it as a blocker of mmm-138.
+2025-12-28	14:27	Starting mmm-63.97: will separate user output from logger and add explicit write-error handling (ignore broken pipe), keeping output unchanged.
+2025-12-28	16:49	Session resumed for mmm-138 refactor; loaded persona/skills and memory, will continue output/logger separation and coverage fixes.
+2025-12-28	18:40	mmm-138: added tests covering resolveRemoteMod logFetchFailure branch, installFromRemote normalize error path, and runUpdate applyUpdateOutcomes error; make fmt/coverage/lint/build pass.
+2025-12-28	19:06	mmm-138: fixed removeLockEntry to log invalid filename but still remove lock entry/write lock; added test to assert lock removal and output error path; reran make fmt-check/lint/vuln/coverage/build and Windows winhost checks (pass, PSReadLine warning).
+2025-12-28	19:26	mmm-138: restored quiet+debug output behavior by disabling output quiet when debug enabled across command entrypoints; make fmt-check/lint/vuln/coverage/build pass and Windows winhost checks pass (PSReadLine warning).
+2025-12-28	19:35	mmm-138: reviewer approved after quiet+debug output fix; code-review.md updated, all checks green, awaiting user sign-off/closure instructions.

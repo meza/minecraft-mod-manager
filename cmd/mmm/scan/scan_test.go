@@ -22,6 +22,7 @@ import (
 	"github.com/meza/minecraft-mod-manager/internal/logger"
 	"github.com/meza/minecraft-mod-manager/internal/models"
 	"github.com/meza/minecraft-mod-manager/internal/modrinth"
+	"github.com/meza/minecraft-mod-manager/internal/output"
 	"github.com/meza/minecraft-mod-manager/internal/platform"
 	"github.com/meza/minecraft-mod-manager/internal/telemetry"
 	"github.com/meza/minecraft-mod-manager/internal/tui"
@@ -77,6 +78,7 @@ func TestRunScan_PreferModrinthDoesNotCallCurseforgeWhenHit(t *testing.T) {
 	}, scanDeps{
 		fs:     fs,
 		logger: logger.New(out, errOut, false, false),
+		output: output.New(out, errOut, false),
 		clients: platform.Clients{
 			Modrinth:   nil,
 			Curseforge: nil,
@@ -147,6 +149,7 @@ func TestRunScan_FallbackOnMissUsesOtherPlatform(t *testing.T) {
 	}, scanDeps{
 		fs:     fs,
 		logger: logger.New(out, errOut, false, false),
+		output: output.New(out, errOut, false),
 		clients: platform.Clients{
 			Modrinth:   nil,
 			Curseforge: nil,
@@ -218,6 +221,7 @@ func TestRunScan_Curseforge403ErrorIncludesPerFileFingerprint(t *testing.T) {
 	}, scanDeps{
 		fs:     fs,
 		logger: logger.New(out, errOut, false, false),
+		output: output.New(out, errOut, false),
 		clients: platform.Clients{
 			Modrinth:   nil,
 			Curseforge: nil,
@@ -286,6 +290,7 @@ func TestRunScan_PreferredLookupErrorDoesNotFallbackAndIsUnsure(t *testing.T) {
 	}, scanDeps{
 		fs:     fs,
 		logger: logger.New(out, errOut, false, false),
+		output: output.New(out, errOut, false),
 		clients: platform.Clients{
 			Modrinth:   nil,
 			Curseforge: nil,
@@ -341,6 +346,7 @@ func TestRunScan_AddPersistsConfigAndLock(t *testing.T) {
 	}, scanDeps{
 		fs:     fs,
 		logger: logger.New(out, errOut, false, false),
+		output: output.New(out, errOut, false),
 		telemetry: func(telemetry.CommandTelemetry) {
 		},
 		modrinthVersionForSha: func(context.Context, string, httpclient.Doer) (*modrinth.Version, error) {
@@ -413,6 +419,7 @@ func TestRunScan_AddDoesNotPersistWhenAnyFileIsUnsure(t *testing.T) {
 	}, scanDeps{
 		fs:     fs,
 		logger: logger.New(out, errOut, false, false),
+		output: output.New(out, errOut, false),
 		telemetry: func(telemetry.CommandTelemetry) {
 		},
 		modrinthVersionForSha: func(_ context.Context, sha string, _ httpclient.Doer) (*modrinth.Version, error) {
@@ -478,6 +485,7 @@ func TestRunScan_QuietSuppressesNormalOutput(t *testing.T) {
 	}, scanDeps{
 		fs:        fs,
 		logger:    logger.New(out, errOut, true, false),
+		output:    output.New(out, errOut, true),
 		telemetry: func(telemetry.CommandTelemetry) {},
 		modrinthVersionForSha: func(context.Context, string, httpclient.Doer) (*modrinth.Version, error) {
 			return &modrinth.Version{
@@ -534,6 +542,7 @@ func TestRunScan_AddBackfillsMissingLockEntry(t *testing.T) {
 	}, scanDeps{
 		fs:     fs,
 		logger: logger.New(out, errOut, false, false),
+		output: output.New(out, errOut, false),
 		modrinthVersionForSha: func(context.Context, string, httpclient.Doer) (*modrinth.Version, error) {
 			return &modrinth.Version{
 				ProjectID:     "proj-1",
@@ -600,6 +609,7 @@ func TestRunScan_RespectsMmmignoreAndSkipsManagedFiles(t *testing.T) {
 	}, scanDeps{
 		fs:     fs,
 		logger: logger.New(out, errOut, false, false),
+		output: output.New(out, errOut, false),
 		modrinthVersionForSha: func(context.Context, string, httpclient.Doer) (*modrinth.Version, error) {
 			called++
 			return &modrinth.Version{
@@ -651,6 +661,7 @@ func TestRunScan_InvalidPreferReturnsError(t *testing.T) {
 	}, scanDeps{
 		fs:        fs,
 		logger:    logger.New(out, errOut, false, false),
+		output:    output.New(out, errOut, false),
 		telemetry: func(telemetry.CommandTelemetry) {},
 	})
 
@@ -686,6 +697,7 @@ func TestRunScan_ReturnsErrorOnListJarFailure(t *testing.T) {
 	}, scanDeps{
 		fs:        fs,
 		logger:    logger.New(out, errOut, false, false),
+		output:    output.New(out, errOut, false),
 		telemetry: func(telemetry.CommandTelemetry) {},
 	})
 
@@ -727,6 +739,7 @@ func TestRunScan_ReturnsErrorOnSha1Failure(t *testing.T) {
 	}, scanDeps{
 		fs:        fs,
 		logger:    logger.New(out, errOut, false, false),
+		output:    output.New(out, errOut, false),
 		telemetry: func(telemetry.CommandTelemetry) {},
 	})
 
@@ -766,6 +779,7 @@ func TestRunScan_ReturnsErrorOnPrompterFailure(t *testing.T) {
 	}, scanDeps{
 		fs:        fs,
 		logger:    logger.New(out, errOut, false, false),
+		output:    output.New(out, errOut, false),
 		prompter:  fakePrompter{err: errors.New("confirm failed")},
 		telemetry: func(telemetry.CommandTelemetry) {},
 		modrinthVersionForSha: func(context.Context, string, httpclient.Doer) (*modrinth.Version, error) {
@@ -819,6 +833,7 @@ func TestRunScan_PromptDeclineSkipsPersist(t *testing.T) {
 	}, scanDeps{
 		fs:        fs,
 		logger:    logger.New(out, errOut, false, false),
+		output:    output.New(out, errOut, false),
 		prompter:  fakePrompter{confirm: false},
 		telemetry: func(telemetry.CommandTelemetry) {},
 		modrinthVersionForSha: func(context.Context, string, httpclient.Doer) (*modrinth.Version, error) {
@@ -876,6 +891,7 @@ func TestRunScan_AllManagedReturnsEarly(t *testing.T) {
 	}, scanDeps{
 		fs:        fs,
 		logger:    logger.New(out, errOut, false, false),
+		output:    output.New(out, errOut, false),
 		telemetry: func(telemetry.CommandTelemetry) {},
 	})
 
@@ -901,6 +917,7 @@ func TestRunScan_ReturnsErrorOnEnsureConfigFailure(t *testing.T) {
 	}, scanDeps{
 		fs:        fs,
 		logger:    logger.New(out, errOut, true, false),
+		output:    output.New(out, errOut, true),
 		telemetry: func(telemetry.CommandTelemetry) {},
 	})
 
@@ -941,6 +958,7 @@ func TestRunScan_AddLogsPersistFailureAndContinues(t *testing.T) {
 	}, scanDeps{
 		fs:        fs,
 		logger:    logger.New(out, errOut, false, false),
+		output:    output.New(out, errOut, false),
 		telemetry: func(telemetry.CommandTelemetry) {},
 		modrinthVersionForSha: func(context.Context, string, httpclient.Doer) (*modrinth.Version, error) {
 			return &modrinth.Version{
@@ -1000,6 +1018,7 @@ func TestRunScan_WriteConfigFailure(t *testing.T) {
 	}, scanDeps{
 		fs:        fs,
 		logger:    logger.New(out, errOut, false, false),
+		output:    output.New(out, errOut, false),
 		telemetry: func(telemetry.CommandTelemetry) {},
 		modrinthVersionForSha: func(context.Context, string, httpclient.Doer) (*modrinth.Version, error) {
 			return &modrinth.Version{
@@ -1055,6 +1074,7 @@ func TestRunScan_WriteLockFailure(t *testing.T) {
 	}, scanDeps{
 		fs:        fs,
 		logger:    logger.New(out, errOut, false, false),
+		output:    output.New(out, errOut, false),
 		telemetry: func(telemetry.CommandTelemetry) {},
 		modrinthVersionForSha: func(context.Context, string, httpclient.Doer) (*modrinth.Version, error) {
 			return &modrinth.Version{
@@ -1176,7 +1196,7 @@ func TestLookupModrinthReturnsUnsureOnContextCancel(t *testing.T) {
 		{Path: filepath.FromSlash("/mods/example.jar"), FileName: "example.jar", Sha1: "abc"},
 	}
 
-	matches, misses, unsure := lookupModrinth(ctx, candidates, scanDeps{
+	outcome, err := lookupModrinth(ctx, candidates, scanDeps{
 		modrinthVersionForSha: func(context.Context, string, httpclient.Doer) (*modrinth.Version, error) {
 			t.Fatal("unexpected lookup call after context cancellation")
 			return nil, errors.New("unexpected lookup call after context cancellation")
@@ -1188,10 +1208,11 @@ func TestLookupModrinthReturnsUnsureOnContextCancel(t *testing.T) {
 		clients: platform.Clients{},
 	})
 
-	assert.Empty(t, matches)
-	assert.Equal(t, candidates, misses)
-	assert.Len(t, unsure, 1)
-	assert.ErrorIs(t, unsure[candidates[0].Path], context.Canceled)
+	assert.NoError(t, err)
+	assert.Empty(t, outcome.matches)
+	assert.Equal(t, candidates, outcome.misses)
+	assert.Len(t, outcome.unsure, 1)
+	assert.ErrorIs(t, outcome.unsure[candidates[0].Path], context.Canceled)
 }
 
 func TestColorModeForOutputWhenTerminal(t *testing.T) {

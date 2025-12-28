@@ -12,27 +12,38 @@ import (
 	"github.com/meza/minecraft-mod-manager/internal/models"
 )
 
-func lookupCurseforge(ctx context.Context, candidates []scanCandidate, deps scanDeps) ([]scanMatch, []scanCandidate, map[string]error) {
-	matches := make([]scanMatch, 0)
-	unsure := make(map[string]error)
+func lookupCurseforge(ctx context.Context, candidates []scanCandidate, deps scanDeps) (platformLookupOutcome, error) {
+	outcome := platformLookupOutcome{
+		matches: make([]scanMatch, 0),
+		unsure:  make(map[string]error),
+	}
 
 	fingerprintIndex := buildCurseforgeFingerprintIndex(candidates, deps)
 
 	unique := uniqueUint32s(fingerprintIndex.fingerprints)
 	if len(unique) == 0 {
-		return nil, candidates, unsure
+		outcome.misses = candidates
+		return outcome, nil
 	}
 
 	result, err := deps.curseforgeFingerprintMatch(ctx, unique, deps.clients.Curseforge)
 	if err != nil {
 		summary := summarizePlatformFailure(err, models.CURSEFORGE)
-		logPlatformDebug(deps.logger, models.CURSEFORGE, summary.DebugDetails)
-		return nil, nil, buildCurseforgeErrors(candidates, platformUnsureReason(models.CURSEFORGE, summary.Reason))
+		if logErr := logPlatformDebug(deps.logger, models.CURSEFORGE, summary.DebugDetails); logErr != nil {
+			return platformLookupOutcome{}, logErr
+		}
+		return platformLookupOutcome{
+			matches: nil,
+			misses:  nil,
+			unsure:  buildCurseforgeErrors(candidates, platformUnsureReason(models.CURSEFORGE, summary.Reason)),
+		}, nil
 	}
 
-	addCurseforgeMatchesWithCache(ctx, candidates, fingerprintIndex, result.Matches, deps, &matches, unsure)
-	misses := curseforgeMisses(candidates, matches, unsure)
-	return matches, misses, unsure
+	if err := addCurseforgeMatchesWithCache(ctx, candidates, fingerprintIndex, result.Matches, deps, &outcome.matches, outcome.unsure); err != nil {
+		return platformLookupOutcome{}, err
+	}
+	outcome.misses = curseforgeMisses(candidates, outcome.matches, outcome.unsure)
+	return outcome, nil
 }
 
 type curseforgeFingerprintIndex struct {
@@ -72,11 +83,11 @@ func addCurseforgeMatchesWithCache(
 	deps scanDeps,
 	scanMatches *[]scanMatch,
 	unsure map[string]error,
-) {
+) error {
 	nameCache := make(map[string]string)
 	var nameMu sync.Mutex
 
-	addCurseforgeMatches(ctx, curseforgeMatchContext{
+	return addCurseforgeMatches(ctx, curseforgeMatchContext{
 		candidates:           candidates,
 		fingerprintToIndices: fingerprintIndex.fingerprintToIndices,
 		matches:              matches,
@@ -99,49 +110,57 @@ type curseforgeMatchContext struct {
 	unsure               map[string]error
 }
 
-func addCurseforgeMatches(ctx context.Context, matchContext curseforgeMatchContext) {
+func addCurseforgeMatches(ctx context.Context, matchContext curseforgeMatchContext) error {
 	for _, file := range matchContext.matches {
-		indices := matchContext.fingerprintToIndices[file.Fingerprint]
-		if len(indices) == 0 {
-			continue
-		}
-
-		projectID := fmt.Sprintf("%d", file.ProjectID)
-		name, err := cachedCurseforgeProjectName(ctx, projectID, matchContext.deps, matchContext.nameCache, matchContext.nameMu)
-		if err != nil {
-			summary := summarizePlatformFailure(err, models.CURSEFORGE)
-			logPlatformDebug(matchContext.deps.logger, models.CURSEFORGE, summary.DebugDetails)
-			reason := platformUnsureReason(models.CURSEFORGE, summary.Reason)
-			for _, index := range indices {
-				matchContext.unsure[matchContext.candidates[index].Path] = errors.New(reason)
-			}
-			continue
-		}
-
-		if strings.TrimSpace(file.DownloadURL) == "" {
-			summary := summarizePlatformFailure(errors.New("curseforge match missing download url"), models.CURSEFORGE)
-			logPlatformDebug(matchContext.deps.logger, models.CURSEFORGE, summary.DebugDetails)
-			reason := platformUnsureReason(models.CURSEFORGE, summary.Reason)
-			for _, index := range indices {
-				matchContext.unsure[matchContext.candidates[index].Path] = errors.New(reason)
-			}
-			continue
-		}
-
-		published := file.FileDate.Format(time.RFC3339)
-		for _, index := range indices {
-			*matchContext.scanMatches = append(*matchContext.scanMatches, scanMatch{
-				Path:        matchContext.candidates[index].Path,
-				Platform:    models.CURSEFORGE,
-				ProjectID:   projectID,
-				Name:        name,
-				FileName:    matchContext.candidates[index].FileName,
-				Hash:        matchContext.candidates[index].Sha1,
-				ReleaseDate: published,
-				DownloadURL: file.DownloadURL,
-			})
+		if err := applyCurseforgeMatch(ctx, matchContext, file); err != nil {
+			return err
 		}
 	}
+	return nil
+}
+
+func applyCurseforgeMatch(ctx context.Context, matchContext curseforgeMatchContext, file curseforge.File) error {
+	indices := matchContext.fingerprintToIndices[file.Fingerprint]
+	if len(indices) == 0 {
+		return nil
+	}
+
+	projectID := fmt.Sprintf("%d", file.ProjectID)
+	name, err := cachedCurseforgeProjectName(ctx, projectID, matchContext.deps, matchContext.nameCache, matchContext.nameMu)
+	if err != nil {
+		return recordCurseforgeUnsure(matchContext, indices, err)
+	}
+
+	if strings.TrimSpace(file.DownloadURL) == "" {
+		return recordCurseforgeUnsure(matchContext, indices, errors.New("curseforge match missing download url"))
+	}
+
+	published := file.FileDate.Format(time.RFC3339)
+	for _, index := range indices {
+		*matchContext.scanMatches = append(*matchContext.scanMatches, scanMatch{
+			Path:        matchContext.candidates[index].Path,
+			Platform:    models.CURSEFORGE,
+			ProjectID:   projectID,
+			Name:        name,
+			FileName:    matchContext.candidates[index].FileName,
+			Hash:        matchContext.candidates[index].Sha1,
+			ReleaseDate: published,
+			DownloadURL: file.DownloadURL,
+		})
+	}
+	return nil
+}
+
+func recordCurseforgeUnsure(matchContext curseforgeMatchContext, indices []int, err error) error {
+	summary := summarizePlatformFailure(err, models.CURSEFORGE)
+	if logErr := logPlatformDebug(matchContext.deps.logger, models.CURSEFORGE, summary.DebugDetails); logErr != nil {
+		return logErr
+	}
+	reason := platformUnsureReason(models.CURSEFORGE, summary.Reason)
+	for _, index := range indices {
+		matchContext.unsure[matchContext.candidates[index].Path] = errors.New(reason)
+	}
+	return nil
 }
 
 func cachedCurseforgeProjectName(ctx context.Context, projectID string, deps scanDeps, nameCache map[string]string, nameMu *sync.Mutex) (string, error) {

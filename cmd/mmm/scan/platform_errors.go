@@ -29,14 +29,17 @@ func platformUnsureReason(platform models.Platform, reason string) string {
 	})
 }
 
-func logPlatformDebug(log *logger.Logger, platform models.Platform, details string) {
+func logPlatformDebug(log *logger.Logger, platform models.Platform, details string) error {
 	if log == nil || strings.TrimSpace(details) == "" {
-		return
+		return nil
 	}
-	log.Debug(i18n.T("cmd.scan.debug.platform_error", i18n.Tvars{
+	if err := log.Debug(i18n.T("cmd.scan.debug.platform_error", i18n.Tvars{
 		Data: &i18n.TData{
 			"platform": platform,
 			"details":  details,
 		},
-	}))
+	})); err != nil {
+		return err
+	}
+	return nil
 }

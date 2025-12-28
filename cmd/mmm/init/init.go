@@ -9,6 +9,7 @@ import (
 	"github.com/meza/minecraft-mod-manager/internal/config"
 	"github.com/meza/minecraft-mod-manager/internal/i18n"
 	"github.com/meza/minecraft-mod-manager/internal/logger"
+	"github.com/meza/minecraft-mod-manager/internal/output"
 	"github.com/meza/minecraft-mod-manager/internal/perf"
 	"github.com/spf13/cobra"
 	"go.opentelemetry.io/otel/attribute"
@@ -47,8 +48,10 @@ func commandWithRunner(runner initRunner) *cobra.Command {
 				return err
 			}
 
-			log := logger.New(cmd.OutOrStdout(), cmd.ErrOrStderr(), options.Quiet, options.Debug)
-			deps := defaultInitDeps(cmd, log)
+			quietForOutput := options.Quiet && !options.Debug
+			out := output.New(cmd.OutOrStdout(), cmd.ErrOrStderr(), quietForOutput)
+			log := logger.New(cmd.OutOrStdout(), cmd.ErrOrStderr(), false, options.Debug)
+			deps := defaultInitDeps(cmd, log, out)
 			meta := config.NewMetadata(options.ConfigPath)
 
 			err = runner(ctx, cmd, options, deps, meta)

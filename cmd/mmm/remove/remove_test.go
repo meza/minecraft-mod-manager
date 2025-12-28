@@ -17,6 +17,7 @@ import (
 	"github.com/meza/minecraft-mod-manager/internal/config"
 	"github.com/meza/minecraft-mod-manager/internal/logger"
 	"github.com/meza/minecraft-mod-manager/internal/models"
+	"github.com/meza/minecraft-mod-manager/internal/output"
 	"github.com/meza/minecraft-mod-manager/internal/telemetry"
 	"github.com/meza/minecraft-mod-manager/internal/tui"
 )
@@ -27,6 +28,14 @@ type fakeTerminalWriter struct {
 
 func (writer *fakeTerminalWriter) Fd() uintptr {
 	return 1
+}
+
+type errorWriter struct {
+	err error
+}
+
+func (writer errorWriter) Write([]byte) (int, error) {
+	return 0, writer.err
 }
 
 func TestResolveModsToRemoveMatchesIDsAndNamesAndPreservesOrder(t *testing.T) {
@@ -90,6 +99,7 @@ func TestRunRemoveDryRunPrintsHeaderAndWouldHaveLines(t *testing.T) {
 	deps := removeDeps{
 		fs:     fs,
 		logger: log,
+		output: output.New(&out, &out, false),
 		telemetry: func(_ telemetry.CommandTelemetry) {
 		},
 	}
@@ -132,6 +142,7 @@ func TestRunRemoveDryRunDoesNotCreateLockFileWhenMissing(t *testing.T) {
 	deps := removeDeps{
 		fs:     fs,
 		logger: log,
+		output: output.New(&out, &out, true),
 		telemetry: func(_ telemetry.CommandTelemetry) {
 		},
 	}
@@ -216,6 +227,7 @@ func TestRunRemoveQuietSuppressesNormalOutput(t *testing.T) {
 	deps := removeDeps{
 		fs:     fs,
 		logger: log,
+		output: output.New(&out, &out, true),
 		telemetry: func(_ telemetry.CommandTelemetry) {
 		},
 	}
@@ -263,6 +275,7 @@ func TestRunRemoveDeletesFilesUpdatesLockAndConfig(t *testing.T) {
 	deps := removeDeps{
 		fs:     fs,
 		logger: log,
+		output: output.New(&out, &out, false),
 		telemetry: func(_ telemetry.CommandTelemetry) {
 		},
 	}
@@ -334,6 +347,7 @@ func TestRunRemoveSkipsMissingFilesWithoutFailing(t *testing.T) {
 	deps := removeDeps{
 		fs:     fs,
 		logger: log,
+		output: output.New(&out, &out, false),
 		telemetry: func(_ telemetry.CommandTelemetry) {
 		},
 	}
@@ -378,6 +392,7 @@ func TestRunRemoveReturnsZeroWhenNoMatches(t *testing.T) {
 	deps := removeDeps{
 		fs:     fs,
 		logger: log,
+		output: output.New(io.Discard, io.Discard, false),
 		telemetry: func(_ telemetry.CommandTelemetry) {
 		},
 	}
@@ -397,6 +412,7 @@ func TestRunRemoveReturnsErrorWhenConfigMissing(t *testing.T) {
 	deps := removeDeps{
 		fs:     fs,
 		logger: log,
+		output: output.New(io.Discard, io.Discard, false),
 		telemetry: func(_ telemetry.CommandTelemetry) {
 		},
 	}
@@ -428,6 +444,7 @@ func TestRunRemoveReturnsErrorWhenReadLockFails(t *testing.T) {
 	deps := removeDeps{
 		fs:     fs,
 		logger: log,
+		output: output.New(io.Discard, io.Discard, false),
 		telemetry: func(_ telemetry.CommandTelemetry) {
 		},
 	}
@@ -458,6 +475,7 @@ func TestRunRemoveReturnsErrorWhenResolveModsFails(t *testing.T) {
 	deps := removeDeps{
 		fs:     fs,
 		logger: log,
+		output: output.New(io.Discard, io.Discard, false),
 		telemetry: func(_ telemetry.CommandTelemetry) {
 		},
 	}
@@ -493,6 +511,7 @@ func TestRunRemoveReturnsErrorWhenWriteLockFails(t *testing.T) {
 	deps := removeDeps{
 		fs:     fs,
 		logger: log,
+		output: output.New(io.Discard, io.Discard, false),
 		telemetry: func(_ telemetry.CommandTelemetry) {
 		},
 	}
@@ -527,6 +546,7 @@ func TestRunRemoveReturnsErrorWhenWriteConfigFails(t *testing.T) {
 	deps := removeDeps{
 		fs:     fs,
 		logger: log,
+		output: output.New(io.Discard, io.Discard, false),
 		telemetry: func(_ telemetry.CommandTelemetry) {
 		},
 	}
@@ -558,6 +578,7 @@ func TestRunRemoveSkipsLockWhenMissing(t *testing.T) {
 	deps := removeDeps{
 		fs:     fs,
 		logger: log,
+		output: output.New(io.Discard, io.Discard, false),
 		telemetry: func(_ telemetry.CommandTelemetry) {
 		},
 	}
@@ -605,6 +626,7 @@ func TestRunRemoveSkipsFileRemovalWhenFileNameEmpty(t *testing.T) {
 	deps := removeDeps{
 		fs:     fs,
 		logger: log,
+		output: output.New(out, errOut, false),
 		telemetry: func(_ telemetry.CommandTelemetry) {
 		},
 	}
@@ -616,6 +638,84 @@ func TestRunRemoveSkipsFileRemovalWhenFileNameEmpty(t *testing.T) {
 	require.NoError(t, err)
 	assert.Equal(t, 1, removed)
 	assert.Contains(t, errOut.String(), "cmd.remove.error.invalid_filename_lock")
+
+	lock, err := config.ReadLock(context.Background(), fs, meta)
+	require.NoError(t, err)
+	assert.Empty(t, lock)
+}
+
+func TestRunRemoveReturnsErrorWhenDryRunNoticeWriteFails(t *testing.T) {
+	fs := afero.NewMemMapFs()
+	cfg := models.ModsJSON{
+		Mods: []models.Mod{
+			{Type: models.MODRINTH, ID: "sodium", Name: "Sodium"},
+		},
+	}
+	meta := config.NewMetadata("modlist.json")
+	require.NoError(t, config.WriteConfig(context.Background(), fs, meta, cfg))
+
+	writeErr := errors.New("write failed")
+	deps := removeDeps{
+		fs:     fs,
+		logger: logger.New(io.Discard, io.Discard, false, false),
+		output: output.New(errorWriter{err: writeErr}, errorWriter{err: writeErr}, false),
+		telemetry: func(_ telemetry.CommandTelemetry) {
+		},
+	}
+
+	_, err := runRemove(context.Background(), removeOptions{
+		ConfigPath: meta.ConfigPath,
+		DryRun:     true,
+		Lookups:    []string{"*"},
+	}, deps)
+	assert.ErrorIs(t, err, writeErr)
+}
+
+func TestRemoveLockEntryReturnsErrorWhenInvalidFilenameLogFails(t *testing.T) {
+	writeErr := errors.New("write failed")
+	lock := []models.ModInstall{{Type: models.MODRINTH, ID: "sodium", FileName: ""}}
+	deps := removeDeps{
+		fs:     afero.NewMemMapFs(),
+		output: output.New(io.Discard, errorWriter{err: writeErr}, false),
+	}
+	cfg := models.ModsJSON{ModsFolder: "mods"}
+
+	err := removeLockEntry(context.Background(), config.NewMetadata("modlist.json"), &cfg, &lock, models.Mod{
+		Type: models.MODRINTH,
+		ID:   "sodium",
+		Name: "Sodium",
+	}, deps)
+	assert.ErrorIs(t, err, writeErr)
+}
+
+func TestRemoveModReturnsErrorWhenDryRunLogFails(t *testing.T) {
+	writeErr := errors.New("write failed")
+	deps := removeDeps{
+		output: output.New(errorWriter{err: writeErr}, errorWriter{err: writeErr}, false),
+	}
+
+	_, err := removeMod(context.Background(), config.Metadata{}, &models.ModsJSON{}, &[]models.ModInstall{}, models.Mod{Name: "Sodium"}, removeOptions{DryRun: true}, deps)
+	assert.ErrorIs(t, err, writeErr)
+}
+
+func TestRemoveModReturnsErrorWhenSuccessLogFails(t *testing.T) {
+	fs := afero.NewMemMapFs()
+	meta := config.NewMetadata("modlist.json")
+	cfg := models.ModsJSON{
+		Mods: []models.Mod{
+			{Type: models.MODRINTH, ID: "sodium", Name: "Sodium"},
+		},
+	}
+	require.NoError(t, config.WriteConfig(context.Background(), fs, meta, cfg))
+
+	writeErr := errors.New("write failed")
+	deps := removeDeps{
+		fs:     fs,
+		output: output.New(errorWriter{err: writeErr}, errorWriter{err: writeErr}, false),
+	}
+
+	_, err := removeMod(context.Background(), meta, &cfg, &[]models.ModInstall{}, models.Mod{Type: models.MODRINTH, ID: "sodium", Name: "Sodium"}, removeOptions{}, deps)
+	assert.ErrorIs(t, err, writeErr)
 }
 
 func TestRunRemoveReturnsErrorWhenFileRemovalFails(t *testing.T) {
@@ -646,6 +746,7 @@ func TestRunRemoveReturnsErrorWhenFileRemovalFails(t *testing.T) {
 	deps := removeDeps{
 		fs:     fs,
 		logger: logger.New(io.Discard, io.Discard, false, false),
+		output: output.New(io.Discard, io.Discard, false),
 		telemetry: func(_ telemetry.CommandTelemetry) {
 		},
 	}

@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"context"
 	"errors"
+	"io"
 	"os"
 	"path/filepath"
 	"strings"
@@ -11,6 +12,7 @@ import (
 
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/meza/minecraft-mod-manager/internal/logger"
+	"github.com/meza/minecraft-mod-manager/internal/output"
 	"github.com/meza/minecraft-mod-manager/internal/telemetry"
 	"github.com/meza/minecraft-mod-manager/internal/tui"
 	"github.com/spf13/afero"
@@ -61,6 +63,7 @@ func TestRunListPrintsInstalledAndMissing(t *testing.T) {
 	_, _, err := runList(context.Background(), cmd, meta.ConfigPath, runListOptions{quiet: false}, listDeps{
 		fs:        fs,
 		logger:    logger.New(out, errOut, false, false),
+		output:    output.New(out, errOut, false),
 		telemetry: func(telemetry.CommandTelemetry) {},
 	})
 
@@ -104,11 +107,93 @@ func TestRunListLogsInvalidLockFileName(t *testing.T) {
 	_, _, err := runList(context.Background(), cmd, meta.ConfigPath, runListOptions{quiet: false}, listDeps{
 		fs:        fs,
 		logger:    logger.New(out, errOut, false, false),
+		output:    output.New(out, errOut, false),
 		telemetry: func(telemetry.CommandTelemetry) {},
 	})
 
 	assert.NoError(t, err)
 	assert.Contains(t, errOut.String(), "cmd.list.error.invalid_filename_lock")
+}
+
+func TestLogInvalidLockEntriesReturnsOutputError(t *testing.T) {
+	t.Setenv("MMM_TEST", "true")
+
+	writeErr := errors.New("write failed")
+	outWriter := output.New(errorWriter{err: writeErr}, errorWriter{err: writeErr}, false)
+
+	err := logInvalidLockEntries([]models.ModInstall{
+		{ID: "mod-a", Name: "Mod A", FileName: "mods/mod-a.jar"},
+	}, outWriter)
+	assert.ErrorIs(t, err, writeErr)
+}
+
+func TestRenderListReturnsOutputError(t *testing.T) {
+	writeErr := errors.New("write failed")
+	cmd := &cobra.Command{}
+
+	err := renderList(context.Background(), cmd, nil, "view", listDeps{
+		output: output.New(errorWriter{err: writeErr}, errorWriter{err: writeErr}, false),
+	}, listDisplayCLI)
+	assert.ErrorIs(t, err, writeErr)
+}
+
+func TestRenderListReturnsOutputErrorWhenTuiEmpty(t *testing.T) {
+	writeErr := errors.New("write failed")
+	cmd := &cobra.Command{}
+	cmd.SetIn(&bytes.Buffer{})
+	cmd.SetOut(&bytes.Buffer{})
+
+	err := renderList(context.Background(), cmd, nil, "view", listDeps{
+		output: output.New(errorWriter{err: writeErr}, errorWriter{err: writeErr}, false),
+		programRunner: func(tea.Model, ...tea.ProgramOption) error {
+			return nil
+		},
+	}, listDisplayTUI)
+	assert.ErrorIs(t, err, writeErr)
+}
+
+func TestRenderListLogsWhenTuiEmpty(t *testing.T) {
+	var out bytes.Buffer
+	cmd := &cobra.Command{}
+	cmd.SetIn(&bytes.Buffer{})
+	cmd.SetOut(&out)
+
+	err := renderList(context.Background(), cmd, nil, "view", listDeps{
+		output: output.New(&out, &out, false),
+		programRunner: func(tea.Model, ...tea.ProgramOption) error {
+			return nil
+		},
+	}, listDisplayTUI)
+	assert.NoError(t, err)
+	assert.Contains(t, out.String(), "view")
+}
+
+func TestRenderListReturnsProgramRunnerError(t *testing.T) {
+	cmd := &cobra.Command{}
+	cmd.SetIn(&bytes.Buffer{})
+	cmd.SetOut(&bytes.Buffer{})
+
+	err := renderList(context.Background(), cmd, []listEntry{{ID: "mod-a", DisplayName: "Mod A"}}, "view", listDeps{
+		output: output.New(io.Discard, io.Discard, false),
+		programRunner: func(tea.Model, ...tea.ProgramOption) error {
+			return errors.New("boom")
+		},
+	}, listDisplayTUI)
+	assert.ErrorContains(t, err, "boom")
+}
+
+func TestRenderListReturnsNilWhenTuiHasEntries(t *testing.T) {
+	cmd := &cobra.Command{}
+	cmd.SetIn(&bytes.Buffer{})
+	cmd.SetOut(&bytes.Buffer{})
+
+	err := renderList(context.Background(), cmd, []listEntry{{ID: "mod-a", DisplayName: "Mod A"}}, "view", listDeps{
+		output: output.New(io.Discard, io.Discard, false),
+		programRunner: func(tea.Model, ...tea.ProgramOption) error {
+			return nil
+		},
+	}, listDisplayTUI)
+	assert.NoError(t, err)
 }
 
 func TestRenderListViewReturnsEmptyOnWriteError(t *testing.T) {
@@ -199,6 +284,7 @@ func TestRunListMissingLockTreatsAllAsNotInstalled(t *testing.T) {
 	_, _, err := runList(context.Background(), cmd, meta.ConfigPath, runListOptions{quiet: false}, listDeps{
 		fs:        fs,
 		logger:    logger.New(out, errOut, false, false),
+		output:    output.New(out, errOut, false),
 		telemetry: func(telemetry.CommandTelemetry) {},
 	})
 
@@ -241,10 +327,44 @@ func TestRunListInvalidLockErrors(t *testing.T) {
 	_, _, err := runList(context.Background(), cmd, meta.ConfigPath, runListOptions{quiet: false}, listDeps{
 		fs:        fs,
 		logger:    logger.New(out, errOut, false, false),
+		output:    output.New(out, errOut, false),
 		telemetry: func(telemetry.CommandTelemetry) {},
 	})
 
 	assert.Error(t, err)
+}
+
+func TestRunListReturnsErrorOnInvalidLockOutputFailure(t *testing.T) {
+	fs := afero.NewMemMapFs()
+	meta := config.NewMetadata(filepath.FromSlash("/cfg/modlist.json"))
+	cfg := models.ModsJSON{
+		Loader:                     models.FABRIC,
+		GameVersion:                "1.20.1",
+		DefaultAllowedReleaseTypes: []models.ReleaseType{models.Release},
+		ModsFolder:                 "mods",
+		Mods: []models.Mod{
+			{ID: "mod-a", Name: "Mod A", Type: models.MODRINTH},
+		},
+	}
+	assert.NoError(t, fs.MkdirAll(meta.Dir(), 0755))
+	assert.NoError(t, config.WriteConfig(context.Background(), fs, meta, cfg))
+	assert.NoError(t, config.WriteLock(context.Background(), fs, meta, []models.ModInstall{
+		{ID: "mod-a", Name: "Mod A", Type: models.MODRINTH, FileName: "mods/mod-a.jar"},
+	}))
+
+	cmd := &cobra.Command{}
+	cmd.SetIn(&bytes.Buffer{})
+	cmd.SetOut(&bytes.Buffer{})
+	cmd.SetErr(&bytes.Buffer{})
+
+	writeErr := errors.New("write failed")
+	_, _, err := runList(context.Background(), cmd, meta.ConfigPath, runListOptions{quiet: false}, listDeps{
+		fs:        fs,
+		logger:    logger.New(io.Discard, io.Discard, false, false),
+		output:    output.New(io.Discard, errorWriter{err: writeErr}, false),
+		telemetry: func(telemetry.CommandTelemetry) {},
+	})
+	assert.ErrorIs(t, err, writeErr)
 }
 
 func TestRunListInvalidConfigErrors(t *testing.T) {
@@ -266,6 +386,7 @@ func TestRunListInvalidConfigErrors(t *testing.T) {
 	_, _, err := runList(context.Background(), cmd, meta.ConfigPath, runListOptions{quiet: false}, listDeps{
 		fs:        fs,
 		logger:    logger.New(out, errOut, false, false),
+		output:    output.New(out, errOut, false),
 		telemetry: func(telemetry.CommandTelemetry) {},
 	})
 
@@ -299,6 +420,7 @@ func TestRunListShowsEmptyMessageWhenNoMods(t *testing.T) {
 	_, _, err := runList(context.Background(), cmd, meta.ConfigPath, runListOptions{quiet: false}, listDeps{
 		fs:        fs,
 		logger:    logger.New(out, errOut, false, false),
+		output:    output.New(out, errOut, false),
 		telemetry: func(telemetry.CommandTelemetry) {},
 	})
 
@@ -337,6 +459,7 @@ func TestRunListQuietStillPrints(t *testing.T) {
 	_, _, err := runList(context.Background(), cmd, meta.ConfigPath, runListOptions{quiet: true}, listDeps{
 		fs:        fs,
 		logger:    logger.New(out, errOut, true, false),
+		output:    output.New(out, errOut, true),
 		telemetry: func(telemetry.CommandTelemetry) {},
 	})
 
@@ -429,6 +552,7 @@ func TestRunListTuiProgramRunnerError(t *testing.T) {
 	_, usedTUI, err := runList(context.Background(), cmd, meta.ConfigPath, runListOptions{quiet: false}, listDeps{
 		fs:        fs,
 		logger:    logger.New(out, errOut, false, false),
+		output:    output.New(out, errOut, false),
 		telemetry: func(telemetry.CommandTelemetry) {},
 		programRunner: func(tea.Model, ...tea.ProgramOption) error {
 			return errors.New("tui failed")
@@ -467,6 +591,7 @@ func TestRunListTuiLogsEmptyView(t *testing.T) {
 	entriesCount, usedTUI, err := runList(context.Background(), cmd, meta.ConfigPath, runListOptions{quiet: false}, listDeps{
 		fs:            fs,
 		logger:        logger.New(out, errOut, false, false),
+		output:        output.New(out, errOut, false),
 		telemetry:     func(telemetry.CommandTelemetry) {},
 		programRunner: defaultProgramRunner,
 	})
@@ -505,6 +630,7 @@ func TestRunListUsesDefaultProgramRunner(t *testing.T) {
 	_, usedTUI, err := runList(context.Background(), cmd, meta.ConfigPath, runListOptions{quiet: false}, listDeps{
 		fs:            fs,
 		logger:        logger.New(out, &bytes.Buffer{}, false, false),
+		output:        output.New(out, &bytes.Buffer{}, false),
 		telemetry:     func(telemetry.CommandTelemetry) {},
 		programRunner: defaultProgramRunner,
 	})
@@ -518,6 +644,14 @@ type statErrorFs struct {
 	afero.Fs
 	failPath string
 	err      error
+}
+
+type errorWriter struct {
+	err error
+}
+
+func (writer errorWriter) Write([]byte) (int, error) {
+	return 0, writer.err
 }
 
 func (filesystem statErrorFs) Stat(name string) (os.FileInfo, error) {

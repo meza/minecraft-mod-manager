@@ -4,11 +4,11 @@ import (
 	"errors"
 
 	"github.com/meza/minecraft-mod-manager/internal/i18n"
-	"github.com/meza/minecraft-mod-manager/internal/logger"
 	"github.com/meza/minecraft-mod-manager/internal/models"
 	"github.com/meza/minecraft-mod-manager/internal/modfilename"
 	"github.com/meza/minecraft-mod-manager/internal/modinstall"
 	"github.com/meza/minecraft-mod-manager/internal/modsetup"
+	"github.com/meza/minecraft-mod-manager/internal/output"
 	"github.com/meza/minecraft-mod-manager/internal/perf"
 	"github.com/meza/minecraft-mod-manager/internal/platform"
 	"github.com/meza/minecraft-mod-manager/internal/telemetry"
@@ -55,8 +55,15 @@ func handleExistingInstall(input existingInstallInput) (telemetry.CommandTelemet
 		return addFailureTelemetry(input.platformValue, input.projectID, input.opts, input.useTUI, ensureErr), ensureErr
 	}
 
-	logEnsureResult(input.deps.logger, ensureResult.Reason, input.cfg, input.platformValue, input.projectID)
-	return recordExistingInstallTelemetry(input, ensureResult.Reason), nil
+	if outputErr := logEnsureResult(input.deps.output, ensureResult.Reason, input.cfg, input.platformValue, input.projectID); outputErr != nil {
+		return addFailureTelemetry(input.platformValue, input.projectID, input.opts, input.useTUI, outputErr), outputErr
+	}
+
+	telemetryPayload, err := recordExistingInstallTelemetry(input, ensureResult.Reason)
+	if err != nil {
+		return addFailureTelemetry(input.platformValue, input.projectID, input.opts, input.useTUI, err), err
+	}
+	return telemetryPayload, nil
 }
 
 func normalizeExistingInstallFileName(input existingInstallInput) (models.ModInstall, error) {
@@ -81,34 +88,38 @@ func ensureExistingInstall(input existingInstallInput, install models.ModInstall
 	return installer.EnsureLockedFile(input.ctx, input.meta, input.cfg, install, platform.PreferredDownloadClient(input.deps.clients), nil)
 }
 
-func recordExistingInstallTelemetry(input existingInstallInput, reason modinstall.EnsureReason) telemetry.CommandTelemetry {
+func recordExistingInstallTelemetry(input existingInstallInput, reason modinstall.EnsureReason) (telemetry.CommandTelemetry, error) {
 	if input.commandSpan != nil {
 		input.commandSpan.AddEvent("app.command.add.outcome.already_exists", perf.WithEventAttributes(
 			attribute.String("platform", string(input.platformValue)),
 			attribute.String("project_id", input.projectID),
 		))
 	}
-	input.deps.logger.Debug(i18n.T("cmd.add.debug.already_exists", i18n.Tvars{
+	if err := input.deps.logger.Debug(i18n.T("cmd.add.debug.already_exists", i18n.Tvars{
 		Data: &i18n.TData{
 			"id":       input.projectID,
 			"platform": input.platformValue,
 		},
-	}))
-	return addExistingInstallTelemetry(input.platformValue, input.projectID, input.opts, input.useTUI, reason)
+	})); err != nil {
+		return telemetry.CommandTelemetry{}, err
+	}
+	return addExistingInstallTelemetry(input.platformValue, input.projectID, input.opts, input.useTUI, reason), nil
 }
 
-func logEnsureResult(log *logger.Logger, reason modinstall.EnsureReason, cfg models.ModsJSON, platformValue models.Platform, projectID string) {
+func logEnsureResult(out *output.Output, reason modinstall.EnsureReason, cfg models.ModsJSON, platformValue models.Platform, projectID string) error {
 	switch reason {
 	case modinstall.EnsureReasonMissing:
-		log.Log(i18n.T("cmd.install.download.missing", i18n.Tvars{
+		return out.Log(i18n.T("cmd.install.download.missing", i18n.Tvars{
 			Data: &i18n.TData{
 				"name":     modNameForConfig(cfg, platformValue, projectID),
 				"platform": platformValue,
 			},
-		}), logger.LogForce)
+		}), output.LogForce)
 	case modinstall.EnsureReasonHashMismatch:
-		log.Log(i18n.T("cmd.install.download.hash_mismatch", i18n.Tvars{
+		return out.Log(i18n.T("cmd.install.download.hash_mismatch", i18n.Tvars{
 			Data: &i18n.TData{"name": modNameForConfig(cfg, platformValue, projectID)},
-		}), logger.LogForce)
+		}), output.LogForce)
+	default:
+		return nil
 	}
 }

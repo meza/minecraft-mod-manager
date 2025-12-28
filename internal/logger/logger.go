@@ -1,9 +1,11 @@
-// Package logger provides structured logging helpers.
+// Package logger provides diagnostic logging helpers.
 package logger
 
 import (
 	"fmt"
 	"io"
+
+	"github.com/meza/minecraft-mod-manager/internal/writeerrors"
 )
 
 type Logger struct {
@@ -29,32 +31,35 @@ func New(out io.Writer, err io.Writer, quiet bool, debug bool) *Logger {
 	}
 }
 
-func (logger *Logger) Log(message string, visibility LogVisibility) {
+func (logger *Logger) Log(message string, visibility LogVisibility) error {
 	if logger.quiet && visibility != LogForce && !logger.debug {
-		return
+		return nil
 	}
-	if _, err := fmt.Fprintln(logger.out, message); err != nil {
-		return
-	}
+	_, err := fmt.Fprintln(logger.out, message)
+	return normalizeWriteError(err)
 }
 
-func (logger *Logger) Debug(message string) {
+func (logger *Logger) Debug(message string) error {
 	if !logger.debug {
-		return
+		return nil
 	}
-	if _, err := fmt.Fprintln(logger.out, message); err != nil {
-		return
-	}
+	_, err := fmt.Fprintln(logger.out, message)
+	return normalizeWriteError(err)
 }
 
-func (logger *Logger) Error(message string) {
-	if _, err := fmt.Fprintln(logger.err, message); err != nil {
-		return
-	}
+func (logger *Logger) Error(message string) error {
+	_, err := fmt.Fprintln(logger.err, message)
+	return normalizeWriteError(err)
 }
 
-func (logger *Logger) Errorf(format string, args ...any) {
-	if _, err := fmt.Fprintf(logger.err, format, args...); err != nil {
-		return
+func (logger *Logger) Errorf(format string, args ...any) error {
+	_, err := fmt.Fprintf(logger.err, format, args...)
+	return normalizeWriteError(err)
+}
+
+func normalizeWriteError(err error) error {
+	if err == nil || writeerrors.IsBrokenPipe(err) {
+		return nil
 	}
+	return err
 }

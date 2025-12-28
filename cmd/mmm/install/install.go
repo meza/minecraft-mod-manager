@@ -6,6 +6,7 @@ import (
 	"github.com/meza/minecraft-mod-manager/internal/httpclient"
 	"github.com/meza/minecraft-mod-manager/internal/i18n"
 	"github.com/meza/minecraft-mod-manager/internal/logger"
+	"github.com/meza/minecraft-mod-manager/internal/output"
 	"github.com/meza/minecraft-mod-manager/internal/perf"
 	"github.com/meza/minecraft-mod-manager/internal/telemetry"
 	"github.com/spf13/cobra"
@@ -33,7 +34,9 @@ func commandWithRunner(runner installRunner) *cobra.Command {
 // It is used by other commands (for example `update`) that need install semantics
 // as a prerequisite.
 func Run(ctx context.Context, cmd *cobra.Command, configPath string, quiet bool, debug bool) (Result, error) {
-	log := logger.New(cmd.OutOrStdout(), cmd.ErrOrStderr(), quiet, debug)
+	quietForOutput := quiet && !debug
+	out := output.New(cmd.OutOrStdout(), cmd.ErrOrStderr(), quietForOutput)
+	log := logger.New(cmd.OutOrStdout(), cmd.ErrOrStderr(), false, debug)
 	limiter := httpclient.DefaultLimiter()
 
 	opts := installOptions{
@@ -42,7 +45,7 @@ func Run(ctx context.Context, cmd *cobra.Command, configPath string, quiet bool,
 		Debug:      debug,
 	}
 
-	return runInstall(ctx, cmd, opts, defaultInstallDeps(log, limiter, func(telemetry.CommandTelemetry) {}))
+	return runInstall(ctx, cmd, opts, defaultInstallDeps(log, out, limiter, func(telemetry.CommandTelemetry) {}))
 }
 
 func runInstallCommand(cmd *cobra.Command, runner installRunner) error {
@@ -55,9 +58,11 @@ func runInstallCommand(cmd *cobra.Command, runner installRunner) error {
 		return err
 	}
 
-	log := logger.New(cmd.OutOrStdout(), cmd.ErrOrStderr(), opts.Quiet, opts.Debug)
+	quietForOutput := opts.Quiet && !opts.Debug
+	out := output.New(cmd.OutOrStdout(), cmd.ErrOrStderr(), quietForOutput)
+	log := logger.New(cmd.OutOrStdout(), cmd.ErrOrStderr(), false, opts.Debug)
 	limiter := httpclient.DefaultLimiter()
-	deps := defaultInstallDeps(log, limiter, telemetry.RecordCommand)
+	deps := defaultInstallDeps(log, out, limiter, telemetry.RecordCommand)
 
 	result, err := runner(ctx, cmd, opts, deps)
 	span.SetAttributes(attribute.Bool("success", err == nil))

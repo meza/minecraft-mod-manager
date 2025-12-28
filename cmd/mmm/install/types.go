@@ -9,6 +9,7 @@ import (
 	"github.com/meza/minecraft-mod-manager/internal/logger"
 	"github.com/meza/minecraft-mod-manager/internal/models"
 	"github.com/meza/minecraft-mod-manager/internal/modrinth"
+	"github.com/meza/minecraft-mod-manager/internal/output"
 	"github.com/meza/minecraft-mod-manager/internal/platform"
 	"github.com/meza/minecraft-mod-manager/internal/telemetry"
 	"github.com/spf13/afero"
@@ -18,6 +19,7 @@ import (
 type installDeps struct {
 	fs         afero.Fs
 	logger     *logger.Logger
+	output     *output.Output
 	clients    platform.Clients
 	downloader downloader
 	fetchMod   fetcher

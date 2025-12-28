@@ -7,8 +7,8 @@ import (
 
 	"github.com/meza/minecraft-mod-manager/internal/config"
 	"github.com/meza/minecraft-mod-manager/internal/i18n"
-	"github.com/meza/minecraft-mod-manager/internal/logger"
 	"github.com/meza/minecraft-mod-manager/internal/models"
+	"github.com/meza/minecraft-mod-manager/internal/output"
 	"github.com/meza/minecraft-mod-manager/internal/tui"
 	"github.com/spf13/cobra"
 	"golang.org/x/sync/errgroup"
@@ -28,7 +28,7 @@ func runUpdate(ctx context.Context, cmd *cobra.Command, opts updateOptions, deps
 	}
 
 	candidates := updateCandidates(updateContext.cfg)
-	outcomes, err := processCandidates(
+	outcomes, processErr := processCandidates(
 		ctx,
 		updateContext.meta,
 		updateContext.cfg,
@@ -37,23 +37,28 @@ func runUpdate(ctx context.Context, cmd *cobra.Command, opts updateOptions, deps
 		deps,
 		updateContext.colorMode,
 	)
-	if err != nil && outcomes == nil {
+	if processErr != nil && outcomes == nil {
+		return updateCounts{}, processErr
+	}
+	counts, err := applyUpdateOutcomes(deps, outcomes, &updateContext.cfg, updateContext.lock)
+	if err != nil {
 		return updateCounts{}, err
 	}
-	counts := applyUpdateOutcomes(deps.logger, outcomes, &updateContext.cfg, updateContext.lock)
 
-	reportNoUpdatesIfNeeded(deps.logger, counts, updateContext.colorMode)
+	if err := reportNoUpdatesIfNeeded(deps.output, counts, updateContext.colorMode); err != nil {
+		return updateCounts{}, err
+	}
 
 	persistContext := ctx
-	if isContextCancellation(err) {
+	if isContextCancellation(processErr) {
 		persistContext = context.WithoutCancel(ctx)
 	}
 	if persistErr := persistUpdateConfig(persistContext, deps, updateContext); persistErr != nil {
 		return counts, persistErr
 	}
 
-	if err != nil {
-		return counts, err
+	if processErr != nil {
+		return counts, processErr
 	}
 
 	if counts.failed > 0 {
@@ -69,7 +74,9 @@ func ensureInstallForUpdate(ctx context.Context, cmd *cobra.Command, opts update
 		return err
 	}
 	if installResult.UnmanagedFound {
-		deps.logger.Error(i18n.T("cmd.update.error.unmanaged_found"))
+		if outputErr := deps.output.Error(i18n.T("cmd.update.error.unmanaged_found")); outputErr != nil {
+			return outputErr
+		}
 		return errUnmanagedFiles
 	}
 	return nil
@@ -101,10 +108,11 @@ func loadUpdateContext(ctx context.Context, cmd *cobra.Command, opts updateOptio
 	}, nil
 }
 
-func reportNoUpdatesIfNeeded(log *logger.Logger, counts updateCounts, colorMode tui.ColorMode) {
+func reportNoUpdatesIfNeeded(out *output.Output, counts updateCounts, colorMode tui.ColorMode) error {
 	if counts.updated == 0 && counts.failed == 0 {
-		log.Log(messageWithIcon(tui.SuccessIcon(colorMode), i18n.T("cmd.update.no_updates")), logger.LogForce)
+		return out.Log(messageWithIcon(tui.SuccessIcon(colorMode), i18n.T("cmd.update.no_updates")), output.LogForce)
 	}
+	return nil
 }
 
 func persistUpdateConfig(ctx context.Context, deps updateDeps, updateContext updateContext) error {
@@ -161,41 +169,58 @@ func processCandidates(
 	return outcomes, err
 }
 
-func applyUpdateOutcomes(log *logger.Logger, outcomes []modUpdateOutcome, cfg *models.ModsJSON, lock []models.ModInstall) updateCounts {
+func applyUpdateOutcomes(deps updateDeps, outcomes []modUpdateOutcome, cfg *models.ModsJSON, lock []models.ModInstall) (updateCounts, error) {
 	counts := updateCounts{}
 
 	for _, outcome := range outcomes {
-		for _, event := range outcome.LogEvents {
-			switch event.Kind {
-			case logEventKindLog:
-				visibility := logger.LogQuiet
-				if event.ForceShow {
-					visibility = logger.LogForce
-				}
-				log.Log(event.Message, visibility)
-			case logEventKindError:
-				log.Error(event.Message)
-			case logEventKindDebug:
-				log.Debug(event.Message)
-			}
+		if err := logUpdateEvents(deps, outcome.LogEvents); err != nil {
+			return updateCounts{}, err
 		}
 
-		if strings.TrimSpace(outcome.NewName) != "" && outcome.ConfigIndex >= 0 && outcome.ConfigIndex < len(cfg.Mods) {
-			cfg.Mods[outcome.ConfigIndex].Name = outcome.NewName
-		}
-
-		if outcome.Error != nil {
-			counts.failed++
-			continue
-		}
-
-		if outcome.Updated {
-			lock[outcome.LockIndex] = outcome.NewInstall
-			counts.updated++
-		}
+		applyOutcomeUpdate(&counts, outcome, cfg, lock)
 	}
 
-	return counts
+	return counts, nil
+}
+
+func logUpdateEvents(deps updateDeps, events []logEvent) error {
+	for _, event := range events {
+		switch event.Kind {
+		case logEventKindLog:
+			visibility := output.LogQuiet
+			if event.ForceShow {
+				visibility = output.LogForce
+			}
+			if err := deps.output.Log(event.Message, visibility); err != nil {
+				return err
+			}
+		case logEventKindError:
+			if err := deps.output.Error(event.Message); err != nil {
+				return err
+			}
+		case logEventKindDebug:
+			if err := deps.logger.Debug(event.Message); err != nil {
+				return err
+			}
+		}
+	}
+	return nil
+}
+
+func applyOutcomeUpdate(counts *updateCounts, outcome modUpdateOutcome, cfg *models.ModsJSON, lock []models.ModInstall) {
+	if strings.TrimSpace(outcome.NewName) != "" && outcome.ConfigIndex >= 0 && outcome.ConfigIndex < len(cfg.Mods) {
+		cfg.Mods[outcome.ConfigIndex].Name = outcome.NewName
+	}
+
+	if outcome.Error != nil {
+		counts.failed++
+		return
+	}
+
+	if outcome.Updated {
+		lock[outcome.LockIndex] = outcome.NewInstall
+		counts.updated++
+	}
 }
 
 func isContextCancellation(err error) bool {

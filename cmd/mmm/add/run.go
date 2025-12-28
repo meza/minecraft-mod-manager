@@ -8,10 +8,10 @@ import (
 
 	"github.com/meza/minecraft-mod-manager/internal/config"
 	"github.com/meza/minecraft-mod-manager/internal/i18n"
-	"github.com/meza/minecraft-mod-manager/internal/logger"
 	"github.com/meza/minecraft-mod-manager/internal/models"
 	"github.com/meza/minecraft-mod-manager/internal/modinstall"
 	"github.com/meza/minecraft-mod-manager/internal/modsetup"
+	"github.com/meza/minecraft-mod-manager/internal/output"
 	"github.com/meza/minecraft-mod-manager/internal/perf"
 	"github.com/meza/minecraft-mod-manager/internal/platform"
 	"github.com/meza/minecraft-mod-manager/internal/telemetry"
@@ -57,6 +57,10 @@ func runAdd(ctx context.Context, commandSpan *perf.Span, cmd *cobra.Command, opt
 	if err != nil {
 		return addFailureTelemetry(resolved.platform, resolved.projectID, opts, runState.useTUI, err), err
 	}
+	return finalizeAddWithResolved(ctx, runState, resolved, remoteMod, opts, deps, colorMode)
+}
+
+func finalizeAddWithResolved(ctx context.Context, runState addRunState, resolved resolvedRemoteMod, remoteMod platform.RemoteMod, opts addOptions, deps addDeps, colorMode tui.ColorMode) (telemetry.CommandTelemetry, error) {
 	return finalizeAdd(finalizeAddInput{
 		ctx:              ctx,
 		meta:             runState.meta,
@@ -68,6 +72,7 @@ func runAdd(ctx context.Context, commandSpan *perf.Span, cmd *cobra.Command, opt
 		opts:             opts,
 		setupCoordinator: runState.setupCoordinator,
 		logger:           deps.logger,
+		output:           deps.output,
 		useTUI:           runState.useTUI,
 		colorMode:        colorMode,
 	})
@@ -174,16 +179,18 @@ func finalizeAdd(input finalizeAddInput) (telemetry.CommandTelemetry, error) {
 		return addFailureTelemetry(input.resolvedPlatform, input.resolvedID, input.opts, input.useTUI, err), err
 	}
 
-	logAddSuccess(input.logger, input.colorMode, input.remoteMod.Name, input.resolvedID, input.resolvedPlatform)
+	if err := logAddSuccess(input.output, input.colorMode, input.remoteMod.Name, input.resolvedID, input.resolvedPlatform); err != nil {
+		return addFailureTelemetry(input.resolvedPlatform, input.resolvedID, input.opts, input.useTUI, err), err
+	}
 	return addSuccessTelemetry(input.resolvedPlatform, input.resolvedID, input.opts, input.useTUI), nil
 }
 
-func logAddSuccess(log *logger.Logger, colorMode tui.ColorMode, modName string, resolvedID string, resolvedPlatform models.Platform) {
-	log.Log(fmt.Sprintf("%s %s", tui.SuccessIcon(colorMode), i18n.T("cmd.add.success", i18n.Tvars{
+func logAddSuccess(out *output.Output, colorMode tui.ColorMode, modName string, resolvedID string, resolvedPlatform models.Platform) error {
+	return out.Log(fmt.Sprintf("%s %s", tui.SuccessIcon(colorMode), i18n.T("cmd.add.success", i18n.Tvars{
 		Data: &i18n.TData{
 			"name":     modName,
 			"id":       resolvedID,
 			"platform": resolvedPlatform,
 		},
-	})), logger.LogForce)
+	})), output.LogForce)
 }

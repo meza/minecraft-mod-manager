@@ -83,7 +83,7 @@ func normalizeRemoteModFileName(remoteMod platform.RemoteMod) (platform.RemoteMo
 }
 
 func resolveRemoteMod(ctx context.Context, inputs addResolveInputs) (resolvedRemoteMod, error) {
-	inputs.deps.logger.Debug(fmt.Sprintf(
+	if err := inputs.deps.logger.Debug(fmt.Sprintf(
 		"fetching %s/%s (loader=%s, gameVersion=%s, fallback=%t, fixedVersion=%s)",
 		inputs.platformValue,
 		inputs.projectID,
@@ -91,7 +91,12 @@ func resolveRemoteMod(ctx context.Context, inputs addResolveInputs) (resolvedRem
 		inputs.cfg.GameVersion,
 		inputs.opts.AllowVersionFallback,
 		inputs.opts.Version,
-	))
+	)); err != nil {
+		return resolvedRemoteMod{
+			platform:  inputs.platformValue,
+			projectID: inputs.projectID,
+		}, err
+	}
 
 	remote, err := fetchRemoteModOnce(ctx, inputs)
 	if err == nil {
@@ -102,7 +107,12 @@ func resolveRemoteMod(ctx context.Context, inputs addResolveInputs) (resolvedRem
 		}, nil
 	}
 
-	logFetchFailure(inputs.deps.logger, inputs.platformValue, inputs.projectID, err)
+	if logErr := logFetchFailure(inputs.deps.logger, inputs.platformValue, inputs.projectID, err); logErr != nil {
+		return resolvedRemoteMod{
+			platform:  inputs.platformValue,
+			projectID: inputs.projectID,
+		}, logErr
+	}
 	return resolveRemoteModFromError(ctx, inputs, err)
 }
 
@@ -132,11 +142,16 @@ func fetchRemoteModOnce(ctx context.Context, inputs addResolveInputs) (platform.
 	return remote, err
 }
 
-func logFetchFailure(log *logger.Logger, platformValue models.Platform, projectID string, err error) {
-	log.Debug(fmt.Sprintf("fetch failed for %s/%s: %v", platformValue, projectID, err))
-	if inner := errors.Unwrap(err); inner != nil {
-		log.Debug(fmt.Sprintf("fetch failure detail: %v", inner))
+func logFetchFailure(log *logger.Logger, platformValue models.Platform, projectID string, err error) error {
+	if logErr := log.Debug(fmt.Sprintf("fetch failed for %s/%s: %v", platformValue, projectID, err)); logErr != nil {
+		return logErr
 	}
+	if inner := errors.Unwrap(err); inner != nil {
+		if logErr := log.Debug(fmt.Sprintf("fetch failure detail: %v", inner)); logErr != nil {
+			return logErr
+		}
+	}
+	return nil
 }
 
 func resolveRemoteModFromError(ctx context.Context, inputs addResolveInputs, err error) (resolvedRemoteMod, error) {
@@ -164,7 +179,12 @@ func resolveRemoteModFromError(ctx context.Context, inputs addResolveInputs, err
 func resolveUnknownPlatform(ctx context.Context, inputs addResolveInputs, unknownPlatformError *platform.UnknownPlatformError) (resolvedRemoteMod, error) {
 	if inputs.opts.Quiet || !inputs.useTUI {
 		message := errorMessageForUnknownPlatform(unknownPlatformError.Platform)
-		inputs.deps.logger.Error(message)
+		if err := inputs.deps.output.Error(message); err != nil {
+			return resolvedRemoteMod{
+				platform:  inputs.platformValue,
+				projectID: inputs.projectID,
+			}, err
+		}
 		return resolvedRemoteMod{
 			platform:  inputs.platformValue,
 			projectID: inputs.projectID,
@@ -175,7 +195,12 @@ func resolveUnknownPlatform(ctx context.Context, inputs addResolveInputs, unknow
 
 func resolveModNotFound(ctx context.Context, inputs addResolveInputs, err error) (resolvedRemoteMod, error) {
 	if inputs.opts.Quiet || !inputs.useTUI {
-		inputs.deps.logger.Error(errorMessageForModNotFound(inputs.projectID, inputs.platformValue))
+		if outputErr := inputs.deps.output.Error(errorMessageForModNotFound(inputs.projectID, inputs.platformValue)); outputErr != nil {
+			return resolvedRemoteMod{
+				platform:  inputs.platformValue,
+				projectID: inputs.projectID,
+			}, outputErr
+		}
 		return resolvedRemoteMod{
 			platform:  inputs.platformValue,
 			projectID: inputs.projectID,
@@ -186,7 +211,12 @@ func resolveModNotFound(ctx context.Context, inputs addResolveInputs, err error)
 
 func resolveNoCompatibleFile(ctx context.Context, inputs addResolveInputs, err error) (resolvedRemoteMod, error) {
 	if inputs.opts.Quiet || !inputs.useTUI {
-		inputs.deps.logger.Error(errorMessageForNoFile(inputs.projectID, inputs.platformValue))
+		if outputErr := inputs.deps.output.Error(errorMessageForNoFile(inputs.projectID, inputs.platformValue)); outputErr != nil {
+			return resolvedRemoteMod{
+				platform:  inputs.platformValue,
+				projectID: inputs.projectID,
+			}, outputErr
+		}
 		return resolvedRemoteMod{
 			platform:  inputs.platformValue,
 			projectID: inputs.projectID,

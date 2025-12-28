@@ -18,6 +18,7 @@ import (
 	"github.com/meza/minecraft-mod-manager/internal/mmmignore"
 	"github.com/meza/minecraft-mod-manager/internal/models"
 	"github.com/meza/minecraft-mod-manager/internal/modrinth"
+	"github.com/meza/minecraft-mod-manager/internal/output"
 	"github.com/meza/minecraft-mod-manager/internal/tui"
 	"github.com/spf13/afero"
 )
@@ -35,7 +36,9 @@ func preflightInstall(ctx context.Context, meta config.Metadata, cfg models.Mods
 		return scanReportOutcome{}, err
 	}
 	if preflight.unresolved {
-		deps.logger.Error(i18n.T("cmd.install.error.unresolved"))
+		if outputErr := deps.output.Error(i18n.T("cmd.install.error.unresolved")); outputErr != nil {
+			return scanReportOutcome{}, outputErr
+		}
 		return scanReportOutcome{}, errUnresolvedFiles
 	}
 	return preflight, nil
@@ -81,7 +84,9 @@ func handlePreflightScanFailure(input preflightInputs, scanErr error) (bool, err
 		if input.colorize {
 			colorMode = tui.ColorEnabled
 		}
-		logPlatformLookupFailure(input.deps.logger, lookupFailure, colorMode)
+		if err := logPlatformLookupFailure(input.deps.output, input.deps.logger, lookupFailure, colorMode); err != nil {
+			return false, err
+		}
 		return true, nil
 	}
 	return false, scanErr
@@ -126,27 +131,35 @@ func newPlatformLookupFailure(platformValue models.Platform, files []string, err
 	}
 }
 
-func logPlatformLookupFailure(log *logger.Logger, failure *platformLookupFailure, colorMode tui.ColorMode) {
-	if failure == nil || log == nil {
-		return
+func logPlatformLookupFailure(out *output.Output, log *logger.Logger, failure *platformLookupFailure, colorMode tui.ColorMode) error {
+	if failure == nil || out == nil {
+		return nil
 	}
 	if strings.TrimSpace(failure.DebugDetails) != "" {
-		log.Debug(i18n.T("cmd.install.debug.platform_error", i18n.Tvars{
+		if log == nil {
+			return errors.New("missing logger for platform debug output")
+		}
+		if err := log.Debug(i18n.T("cmd.install.debug.platform_error", i18n.Tvars{
 			Data: &i18n.TData{
 				"platform": failure.Platform,
 				"details":  failure.DebugDetails,
 			},
-		}))
+		})); err != nil {
+			return err
+		}
 	}
 	for _, filePath := range failure.Files {
-		log.Log(messageWithIcon(tui.ErrorIcon(colorMode), i18n.T("cmd.install.unsure.platform_error", i18n.Tvars{
+		if err := out.Log(messageWithIcon(tui.ErrorIcon(colorMode), i18n.T("cmd.install.unsure.platform_error", i18n.Tvars{
 			Data: &i18n.TData{
 				"file":     filepath.Base(filePath),
 				"platform": failure.Platform,
 				"reason":   failure.Reason,
 			},
-		})), logger.LogForce)
+		})), output.LogForce); err != nil {
+			return err
+		}
 	}
+	return nil
 }
 
 func buildScanCandidates(files []string, deps installDeps) (scanCandidates, error) {
@@ -268,42 +281,57 @@ func reportScanResults(input scanReportInputs) (scanReportOutcome, error) {
 	}
 
 	for _, item := range input.scanned {
-		if len(item.Hits) == 0 {
-			continue
+		itemOutcome, err := reportScanResult(input, item, colorMode)
+		if err != nil {
+			return scanReportOutcome{}, err
 		}
-
-		matchedModIndex := findConfiguredModIndex(input.cfg, item.Hits)
-		if matchedModIndex < 0 {
-			outcome.unmanagedFound = true
-			name := item.Hits[0].Name
-			if input.colorize {
-				name = tui.TitleStyle.Bold(true).Render(name)
-			}
-			input.deps.logger.Log(tui.SuccessIcon(colorMode)+i18n.T("cmd.install.unmanaged.found", i18n.Tvars{
-				Data: &i18n.TData{"name": name},
-			}), logger.LogForce)
-			continue
-		}
-
-		mod := input.cfg.Mods[matchedModIndex]
-		lockIndex := models.LockIndexForMod(mod, input.lock)
-		if lockIndex < 0 {
-			input.deps.logger.Log(messageWithIcon(tui.ErrorIcon(colorMode), i18n.T("cmd.install.unsure.lock_missing", i18n.Tvars{
-				Data: &i18n.TData{"name": item.Hits[0].Name},
-			})), logger.LogForce)
-			outcome.unresolved = true
-			continue
-		}
-
-		if !strings.EqualFold(input.lock[lockIndex].Hash, item.Sha1) {
-			input.deps.logger.Log(messageWithIcon(tui.ErrorIcon(colorMode), i18n.T("cmd.install.unsure.hash_mismatch", i18n.Tvars{
-				Data: &i18n.TData{"name": item.Hits[0].Name},
-			})), logger.LogForce)
-			outcome.unresolved = true
-		}
+		outcome.unmanagedFound = outcome.unmanagedFound || itemOutcome.unmanagedFound
+		outcome.unresolved = outcome.unresolved || itemOutcome.unresolved
 	}
 
 	return outcome, nil
+}
+
+func reportScanResult(input scanReportInputs, item scannedFile, colorMode tui.ColorMode) (scanReportOutcome, error) {
+	if len(item.Hits) == 0 {
+		return scanReportOutcome{}, nil
+	}
+
+	matchedModIndex := findConfiguredModIndex(input.cfg, item.Hits)
+	if matchedModIndex < 0 {
+		name := item.Hits[0].Name
+		if input.colorize {
+			name = tui.TitleStyle.Bold(true).Render(name)
+		}
+		if err := input.deps.output.Log(tui.SuccessIcon(colorMode)+i18n.T("cmd.install.unmanaged.found", i18n.Tvars{
+			Data: &i18n.TData{"name": name},
+		}), output.LogForce); err != nil {
+			return scanReportOutcome{}, err
+		}
+		return scanReportOutcome{unmanagedFound: true}, nil
+	}
+
+	mod := input.cfg.Mods[matchedModIndex]
+	lockIndex := models.LockIndexForMod(mod, input.lock)
+	if lockIndex < 0 {
+		if err := input.deps.output.Log(messageWithIcon(tui.ErrorIcon(colorMode), i18n.T("cmd.install.unsure.lock_missing", i18n.Tvars{
+			Data: &i18n.TData{"name": item.Hits[0].Name},
+		})), output.LogForce); err != nil {
+			return scanReportOutcome{}, err
+		}
+		return scanReportOutcome{unresolved: true}, nil
+	}
+
+	if !strings.EqualFold(input.lock[lockIndex].Hash, item.Sha1) {
+		if err := input.deps.output.Log(messageWithIcon(tui.ErrorIcon(colorMode), i18n.T("cmd.install.unsure.hash_mismatch", i18n.Tvars{
+			Data: &i18n.TData{"name": item.Hits[0].Name},
+		})), output.LogForce); err != nil {
+			return scanReportOutcome{}, err
+		}
+		return scanReportOutcome{unresolved: true}, nil
+	}
+
+	return scanReportOutcome{}, nil
 }
 
 func listModFiles(fs afero.Fs, meta config.Metadata, cfg models.ModsJSON) ([]string, error) {

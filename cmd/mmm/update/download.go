@@ -137,12 +137,14 @@ func replaceExistingFile(fs afero.Fs, log *logger.Logger, sourcePath string, des
 	}
 
 	if removeErr := fs.Remove(backupPath); removeErr != nil {
-		log.Debug(i18n.T("cmd.update.debug.backup_cleanup_failed", i18n.Tvars{
+		if logErr := log.Debug(i18n.T("cmd.update.debug.backup_cleanup_failed", i18n.Tvars{
 			Data: &i18n.TData{
 				"path": backupPath,
 				"err":  removeErr.Error(),
 			},
-		}))
+		})); logErr != nil {
+			return logErr
+		}
 	}
 	return nil
 }

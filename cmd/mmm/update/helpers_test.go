@@ -1,6 +1,7 @@
 package update
 
 import (
+	"bytes"
 	"context"
 	"crypto/sha1"
 	"encoding/hex"
@@ -14,13 +15,17 @@ import (
 	"testing"
 	"time"
 
+	"github.com/meza/minecraft-mod-manager/cmd/mmm/install"
+	"github.com/meza/minecraft-mod-manager/internal/config"
 	"github.com/meza/minecraft-mod-manager/internal/httpclient"
 	"github.com/meza/minecraft-mod-manager/internal/logger"
 	"github.com/meza/minecraft-mod-manager/internal/models"
 	"github.com/meza/minecraft-mod-manager/internal/modinstall"
+	"github.com/meza/minecraft-mod-manager/internal/output"
 	"github.com/meza/minecraft-mod-manager/internal/platform"
 	"github.com/meza/minecraft-mod-manager/internal/tui"
 	"github.com/spf13/afero"
+	"github.com/spf13/cobra"
 	"github.com/stretchr/testify/assert"
 )
 
@@ -222,6 +227,7 @@ func TestDownloadAndSwapCleansTempOnDownloaderFailure(t *testing.T) {
 			return errors.New("download failed")
 		},
 		logger: logger.New(io.Discard, io.Discard, false, false),
+		output: output.New(io.Discard, io.Discard, false),
 	}
 
 	assert.Error(t, downloadAndSwap(context.Background(), deps, path, path, filepath.FromSlash("/mods"), "https://example.invalid/same.jar", sha1Hex("new")))
@@ -247,6 +253,7 @@ func TestDownloadAndSwapCleansTempOnReplaceFailure(t *testing.T) {
 			return afero.WriteFile(filesystems[0], destination, []byte("new"), 0644)
 		},
 		logger: logger.New(io.Discard, io.Discard, false, false),
+		output: output.New(io.Discard, io.Discard, false),
 	}
 
 	assert.Error(t, downloadAndSwap(context.Background(), deps, path, path, filepath.FromSlash("/mods"), "https://example.invalid/same.jar", sha1Hex("new")))
@@ -282,6 +289,7 @@ func TestDownloadAndSwapReturnsErrorOnHashReadFailure(t *testing.T) {
 			return afero.WriteFile(filesystems[0], destination, []byte("data"), 0644)
 		},
 		logger: logger.New(io.Discard, io.Discard, false, false),
+		output: output.New(io.Discard, io.Discard, false),
 	}
 
 	err := downloadAndSwap(context.Background(), deps, filepath.FromSlash("/mods/old.jar"), newPath, filepath.FromSlash("/mods"), "https://example.invalid/new.jar", sha1Hex("data"))
@@ -549,4 +557,176 @@ type emptyError struct{}
 
 func (emptyError) Error() string {
 	return ""
+}
+
+func TestReplaceExistingFileReturnsLoggerErrorOnBackupCleanupFailure(t *testing.T) {
+	writeErr := errors.New("write failed")
+	baseFs := afero.NewMemMapFs()
+	source := filepath.FromSlash("/mods/source.jar")
+	destination := filepath.FromSlash("/mods/dest.jar")
+	assert.NoError(t, afero.WriteFile(baseFs, destination, []byte("old"), 0644))
+	assert.NoError(t, afero.WriteFile(baseFs, source, []byte("new"), 0644))
+
+	fs := removeErrorFs{
+		Fs:       baseFs,
+		failPath: destination + ".mmm.bak",
+		err:      errors.New("remove failed"),
+	}
+
+	err := replaceExistingFile(fs, logger.New(errorWriter{err: writeErr}, io.Discard, false, true), source, destination)
+	assert.ErrorIs(t, err, writeErr)
+}
+
+func TestEnsureInstallForUpdateReturnsOutputError(t *testing.T) {
+	writeErr := errors.New("write failed")
+	cmd := &cobra.Command{}
+
+	err := ensureInstallForUpdate(context.Background(), cmd, updateOptions{}, updateDeps{
+		output: output.New(io.Discard, errorWriter{err: writeErr}, false),
+		install: func(context.Context, *cobra.Command, string, bool, bool) (install.Result, error) {
+			return install.Result{UnmanagedFound: true}, nil
+		},
+	})
+	assert.ErrorIs(t, err, writeErr)
+}
+
+func TestLogUpdateEventsReturnsOutputError(t *testing.T) {
+	writeErr := errors.New("write failed")
+	err := logUpdateEvents(updateDeps{
+		output: output.New(errorWriter{err: writeErr}, io.Discard, false),
+	}, []logEvent{{Kind: logEventKindLog, Message: "boom"}})
+	assert.ErrorIs(t, err, writeErr)
+}
+
+func TestLogUpdateEventsReturnsErrorOutputError(t *testing.T) {
+	writeErr := errors.New("write failed")
+	err := logUpdateEvents(updateDeps{
+		output: output.New(io.Discard, errorWriter{err: writeErr}, false),
+	}, []logEvent{{Kind: logEventKindError, Message: "boom"}})
+	assert.ErrorIs(t, err, writeErr)
+}
+
+func TestLogUpdateEventsReturnsLoggerError(t *testing.T) {
+	writeErr := errors.New("write failed")
+	err := logUpdateEvents(updateDeps{
+		output: output.New(io.Discard, io.Discard, false),
+		logger: logger.New(errorWriter{err: writeErr}, io.Discard, false, true),
+	}, []logEvent{{Kind: logEventKindDebug, Message: "boom"}})
+	assert.ErrorIs(t, err, writeErr)
+}
+
+func TestApplyUpdateOutcomesReturnsErrorOnLogFailure(t *testing.T) {
+	writeErr := errors.New("write failed")
+	_, err := applyUpdateOutcomes(updateDeps{
+		output: output.New(errorWriter{err: writeErr}, io.Discard, false),
+	}, []modUpdateOutcome{{LogEvents: []logEvent{{Kind: logEventKindLog, Message: "boom"}}}}, &models.ModsJSON{}, nil)
+	assert.ErrorIs(t, err, writeErr)
+}
+
+func TestRunUpdateReturnsOutputErrorWhenNoUpdates(t *testing.T) {
+	writeErr := errors.New("write failed")
+	fs := afero.NewMemMapFs()
+	meta := config.NewMetadata(filepath.FromSlash("/cfg/modlist.json"))
+	cfg := models.ModsJSON{Mods: []models.Mod{}}
+	assert.NoError(t, fs.MkdirAll(meta.Dir(), 0755))
+	assert.NoError(t, config.WriteConfig(context.Background(), fs, meta, cfg))
+	assert.NoError(t, config.WriteLock(context.Background(), fs, meta, []models.ModInstall{}))
+
+	cmd := &cobra.Command{}
+	cmd.SetOut(&bytes.Buffer{})
+
+	_, err := runUpdate(context.Background(), cmd, updateOptions{ConfigPath: meta.ConfigPath}, updateDeps{
+		fs:     fs,
+		logger: logger.New(io.Discard, io.Discard, false, false),
+		output: output.New(errorWriter{err: writeErr}, io.Discard, false),
+		install: func(context.Context, *cobra.Command, string, bool, bool) (install.Result, error) {
+			return install.Result{}, nil
+		},
+	})
+	assert.ErrorIs(t, err, writeErr)
+}
+
+func TestRunUpdateReturnsErrorOnApplyUpdateOutcomesFailure(t *testing.T) {
+	writeErr := errors.New("write failed")
+	fs := afero.NewMemMapFs()
+	meta := config.NewMetadata(filepath.FromSlash("/cfg/modlist.json"))
+	cfg := models.ModsJSON{
+		Mods: []models.Mod{{ID: "abc", Name: "Example", Type: models.MODRINTH}},
+	}
+	assert.NoError(t, fs.MkdirAll(meta.Dir(), 0755))
+	assert.NoError(t, config.WriteConfig(context.Background(), fs, meta, cfg))
+	assert.NoError(t, config.WriteLock(context.Background(), fs, meta, []models.ModInstall{}))
+
+	cmd := &cobra.Command{}
+	cmd.SetOut(&bytes.Buffer{})
+
+	_, err := runUpdate(context.Background(), cmd, updateOptions{ConfigPath: meta.ConfigPath}, updateDeps{
+		fs:     fs,
+		logger: logger.New(io.Discard, io.Discard, false, false),
+		output: output.New(io.Discard, errorWriter{err: writeErr}, false),
+		install: func(context.Context, *cobra.Command, string, bool, bool) (install.Result, error) {
+			return install.Result{}, nil
+		},
+	})
+	assert.ErrorIs(t, err, writeErr)
+}
+
+func TestRunUpdateReturnsProcessErrorWhenContextCanceled(t *testing.T) {
+	ctx, cancel := context.WithCancel(context.Background())
+	cancel()
+
+	fs := afero.NewMemMapFs()
+	meta := config.NewMetadata(filepath.FromSlash("/cfg/modlist.json"))
+	cfg := models.ModsJSON{
+		Mods: []models.Mod{{ID: "abc", Name: "Example", Type: models.MODRINTH}},
+	}
+	lock := []models.ModInstall{{ID: "abc", Name: "Example", Type: models.MODRINTH, FileName: "mod.jar", Hash: "hash", DownloadURL: "https://example.invalid"}}
+	assert.NoError(t, fs.MkdirAll(meta.Dir(), 0755))
+	assert.NoError(t, config.WriteConfig(context.Background(), fs, meta, cfg))
+	assert.NoError(t, config.WriteLock(context.Background(), fs, meta, lock))
+
+	cmd := &cobra.Command{}
+	cmd.SetOut(&bytes.Buffer{})
+
+	_, err := runUpdate(ctx, cmd, updateOptions{ConfigPath: meta.ConfigPath}, updateDeps{
+		fs:     fs,
+		logger: logger.New(io.Discard, io.Discard, false, false),
+		output: output.New(io.Discard, io.Discard, false),
+		install: func(context.Context, *cobra.Command, string, bool, bool) (install.Result, error) {
+			return install.Result{}, nil
+		},
+	})
+	assert.ErrorIs(t, err, context.Canceled)
+}
+
+func TestRunUpdateReturnsErrorOnPersistFailure(t *testing.T) {
+	baseFs := afero.NewMemMapFs()
+	meta := config.NewMetadata(filepath.FromSlash("/cfg/modlist.json"))
+	cfg := models.ModsJSON{Mods: []models.Mod{}}
+	assert.NoError(t, baseFs.MkdirAll(meta.Dir(), 0755))
+	assert.NoError(t, config.WriteConfig(context.Background(), baseFs, meta, cfg))
+	assert.NoError(t, config.WriteLock(context.Background(), baseFs, meta, []models.ModInstall{}))
+
+	fs := openFileErrorFs{Fs: baseFs, err: errors.New("open failed")}
+
+	cmd := &cobra.Command{}
+	cmd.SetOut(&bytes.Buffer{})
+
+	_, err := runUpdate(context.Background(), cmd, updateOptions{ConfigPath: meta.ConfigPath}, updateDeps{
+		fs:     fs,
+		logger: logger.New(io.Discard, io.Discard, false, false),
+		output: output.New(io.Discard, io.Discard, false),
+		install: func(context.Context, *cobra.Command, string, bool, bool) (install.Result, error) {
+			return install.Result{}, nil
+		},
+	})
+	assert.ErrorContains(t, err, "open failed")
+}
+
+type errorWriter struct {
+	err error
+}
+
+func (writer errorWriter) Write([]byte) (int, error) {
+	return 0, writer.err
 }

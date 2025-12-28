@@ -22,6 +22,7 @@ import (
 	"github.com/meza/minecraft-mod-manager/internal/models"
 	"github.com/meza/minecraft-mod-manager/internal/modrinth"
 	"github.com/meza/minecraft-mod-manager/internal/modsetup"
+	"github.com/meza/minecraft-mod-manager/internal/output"
 	"github.com/meza/minecraft-mod-manager/internal/perf"
 	"github.com/meza/minecraft-mod-manager/internal/platform"
 	"github.com/meza/minecraft-mod-manager/internal/telemetry"
@@ -41,6 +42,7 @@ type scanDeps struct {
 	clients         platform.Clients
 	minecraftClient httpclient.Doer
 	logger          *logger.Logger
+	output          *output.Output
 	prompter        prompter
 	telemetry       func(telemetry.CommandTelemetry)
 
@@ -154,7 +156,9 @@ func scanOptionsFromFlags(cmd *cobra.Command) (scanOptions, error) {
 }
 
 func defaultScanDeps(cmd *cobra.Command, opts scanOptions) scanDeps {
-	log := logger.New(cmd.OutOrStdout(), cmd.ErrOrStderr(), opts.Quiet, opts.Debug)
+	quietForOutput := opts.Quiet && !opts.Debug
+	out := output.New(cmd.OutOrStdout(), cmd.ErrOrStderr(), quietForOutput)
+	log := logger.New(cmd.OutOrStdout(), cmd.ErrOrStderr(), false, opts.Debug)
 	limiter := httpclient.DefaultLimiter()
 
 	return scanDeps{
@@ -162,6 +166,7 @@ func defaultScanDeps(cmd *cobra.Command, opts scanOptions) scanDeps {
 		clients:         platform.DefaultClients(limiter),
 		minecraftClient: httpclient.NewRLClient(limiter),
 		logger:          log,
+		output:          out,
 		prompter:        terminalPrompter{in: cmd.InOrStdin(), out: cmd.OutOrStdout()},
 		telemetry:       telemetry.RecordCommand,
 
@@ -195,6 +200,18 @@ type scanUnsure struct {
 	Error error
 }
 
+type platformLookupOutcome struct {
+	matches []scanMatch
+	misses  []scanCandidate
+	unsure  map[string]error
+}
+
+type candidateIdentification struct {
+	matches []scanMatch
+	unknown []string
+	unsure  []scanUnsure
+}
+
 func runScan(ctx context.Context, cmd *cobra.Command, opts scanOptions, deps scanDeps) (telemetry.CommandTelemetry, error) {
 	meta := config.NewMetadata(opts.ConfigPath)
 	setupCoordinator := modsetup.NewSetupCoordinator(deps.fs, deps.minecraftClient, nil)
@@ -204,7 +221,7 @@ func runScan(ctx context.Context, cmd *cobra.Command, opts scanOptions, deps sca
 		return scanFailureTelemetry(err), err
 	}
 
-	preferPlatform, err := resolvePreferredPlatform(opts.Prefer, deps.logger)
+	preferPlatform, err := resolvePreferredPlatform(opts.Prefer, deps.output)
 	if err != nil {
 		return scanFailureTelemetry(err), err
 	}
@@ -218,8 +235,7 @@ func runScan(ctx context.Context, cmd *cobra.Command, opts scanOptions, deps sca
 	colorMode := colorModeForOutput(cmd.OutOrStdout())
 
 	if len(unmanaged) == 0 {
-		deps.logger.Log(messageWithIcon(tui.SuccessIcon(colorMode), i18n.T("cmd.scan.all_managed")), logger.LogQuiet)
-		return scanSuccessTelemetryWithoutArgs(), nil
+		return reportAllManaged(deps.output, colorMode)
 	}
 
 	candidates, err := sha1Candidates(ctx, deps.fs, unmanaged)
@@ -227,8 +243,10 @@ func runScan(ctx context.Context, cmd *cobra.Command, opts scanOptions, deps sca
 		return scanFailureTelemetry(err), err
 	}
 
-	matches, unknown, unsure := identifyCandidates(ctx, candidates, preferPlatform, deps)
-	printResults(deps.logger, cmd.OutOrStdout(), preferPlatform, matches, unknown, unsure)
+	identification, err := identifyAndPrintCandidates(ctx, deps.output, cmd.OutOrStdout(), preferPlatform, candidates, deps)
+	if err != nil {
+		return scanFailureTelemetry(err), err
+	}
 
 	return persistScanMatchesIfRequested(persistScanRequest{
 		Context:          ctx,
@@ -237,13 +255,31 @@ func runScan(ctx context.Context, cmd *cobra.Command, opts scanOptions, deps sca
 		Dependencies:     deps,
 		Metadata:         meta,
 		SetupCoordinator: setupCoordinator,
-		Matches:          matches,
-		Unsure:           unsure,
+		Matches:          identification.matches,
+		Unsure:           identification.unsure,
 		Config:           cfg,
 		Lock:             lock,
 		PreferPlatform:   preferPlatform,
 		ColorMode:        colorMode,
 	})
+}
+
+func reportAllManaged(out *output.Output, colorMode tui.ColorMode) (telemetry.CommandTelemetry, error) {
+	if outputErr := out.Log(messageWithIcon(tui.SuccessIcon(colorMode), i18n.T("cmd.scan.all_managed")), output.LogQuiet); outputErr != nil {
+		return scanFailureTelemetry(outputErr), outputErr
+	}
+	return scanSuccessTelemetryWithoutArgs(), nil
+}
+
+func identifyAndPrintCandidates(ctx context.Context, out *output.Output, writer io.Writer, preferPlatform models.Platform, candidates []scanCandidate, deps scanDeps) (candidateIdentification, error) {
+	identification, err := identifyCandidates(ctx, candidates, preferPlatform, deps)
+	if err != nil {
+		return candidateIdentification{}, err
+	}
+	if err := printResults(out, writer, preferPlatform, identification.matches, identification.unknown, identification.unsure); err != nil {
+		return candidateIdentification{}, err
+	}
+	return identification, nil
 }
 
 func persistScanMatches(ctx context.Context, cmd *cobra.Command, meta config.Metadata, setupCoordinator *modsetup.SetupCoordinator, deps scanDeps, matches []scanMatch, cfg models.ModsJSON, lock []models.ModInstall) (bool, error) {
@@ -263,9 +299,11 @@ func persistScanMatches(ctx context.Context, cmd *cobra.Command, meta config.Met
 			DownloadURL: match.DownloadURL,
 		}, modsetup.EnsurePersistOptions{})
 		if err != nil {
-			deps.logger.Log(tui.ErrorIcon(colorMode)+i18n.T("cmd.scan.persist_failed", i18n.Tvars{
+			if outputErr := deps.output.Log(tui.ErrorIcon(colorMode)+i18n.T("cmd.scan.persist_failed", i18n.Tvars{
 				Data: &i18n.TData{"file": match.FileName},
-			}), logger.LogQuiet)
+			}), output.LogQuiet); outputErr != nil {
+				return false, outputErr
+			}
 			continue
 		}
 
@@ -294,38 +332,74 @@ func persistScanMatches(ctx context.Context, cmd *cobra.Command, meta config.Met
 	return changedConfig || changedLock, nil
 }
 
-func identifyCandidates(ctx context.Context, candidates []scanCandidate, prefer models.Platform, deps scanDeps) ([]scanMatch, []string, []scanUnsure) {
-	preferredMatches, preferredMisses, preferUnsure := lookupOnPlatform(ctx, candidates, prefer, deps)
+func identifyCandidates(ctx context.Context, candidates []scanCandidate, prefer models.Platform, deps scanDeps) (candidateIdentification, error) {
+	preferredOutcome, err := lookupOnPlatform(ctx, candidates, prefer, deps)
+	if err != nil {
+		return candidateIdentification{}, err
+	}
 
 	fallback := alternatePlatform(prefer)
-	fallbackMatches, fallbackMisses, fallbackUnsure := lookupOnPlatform(ctx, preferredMisses, fallback, deps)
+	fallbackOutcome, err := lookupOnPlatform(ctx, preferredOutcome.misses, fallback, deps)
+	if err != nil {
+		return candidateIdentification{}, err
+	}
 
-	matches := make([]scanMatch, 0, len(preferredMatches)+len(fallbackMatches))
-	matches = append(matches, preferredMatches...)
-	matches = append(matches, fallbackMatches...)
+	matches := combineMatches(preferredOutcome.matches, fallbackOutcome.matches)
+	unsureByPath := mergeUnsure(preferredOutcome.unsure, fallbackOutcome.unsure, matches)
+	unknown := collectUnknownPaths(fallbackOutcome.misses, unsureByPath)
+	unsure := buildUnsureList(unsureByPath)
+	sortMatchesByPreference(matches, prefer)
 
-	for path, err := range fallbackUnsure {
-		preferUnsure[path] = err
+	return candidateIdentification{
+		matches: matches,
+		unknown: unknown,
+		unsure:  unsure,
+	}, nil
+}
+
+func combineMatches(preferred []scanMatch, fallback []scanMatch) []scanMatch {
+	matches := make([]scanMatch, 0, len(preferred)+len(fallback))
+	matches = append(matches, preferred...)
+	matches = append(matches, fallback...)
+	return matches
+}
+
+func mergeUnsure(preferred map[string]error, fallback map[string]error, matches []scanMatch) map[string]error {
+	unsureByPath := make(map[string]error, len(preferred)+len(fallback))
+	for path, outcomeErr := range preferred {
+		unsureByPath[path] = outcomeErr
+	}
+	for path, outcomeErr := range fallback {
+		unsureByPath[path] = outcomeErr
 	}
 	for _, match := range matches {
-		delete(preferUnsure, match.Path)
+		delete(unsureByPath, match.Path)
 	}
+	return unsureByPath
+}
 
-	unknown := make([]string, 0, len(fallbackMisses))
-	for _, miss := range fallbackMisses {
-		if _, isUnsure := preferUnsure[miss.Path]; isUnsure {
+func collectUnknownPaths(misses []scanCandidate, unsureByPath map[string]error) []string {
+	unknown := make([]string, 0, len(misses))
+	for _, miss := range misses {
+		if _, isUnsure := unsureByPath[miss.Path]; isUnsure {
 			continue
 		}
 		unknown = append(unknown, miss.Path)
 	}
 	sort.Strings(unknown)
+	return unknown
+}
 
-	unsure := make([]scanUnsure, 0, len(preferUnsure))
-	for path, err := range preferUnsure {
-		unsure = append(unsure, scanUnsure{Path: path, Error: err})
+func buildUnsureList(unsureByPath map[string]error) []scanUnsure {
+	unsure := make([]scanUnsure, 0, len(unsureByPath))
+	for path, outcomeErr := range unsureByPath {
+		unsure = append(unsure, scanUnsure{Path: path, Error: outcomeErr})
 	}
 	sort.SliceStable(unsure, func(i, j int) bool { return unsure[i].Path < unsure[j].Path })
+	return unsure
+}
 
+func sortMatchesByPreference(matches []scanMatch, prefer models.Platform) {
 	sort.SliceStable(matches, func(i, j int) bool {
 		if matches[i].Platform != matches[j].Platform {
 			return matches[i].Platform == prefer
@@ -335,18 +409,20 @@ func identifyCandidates(ctx context.Context, candidates []scanCandidate, prefer 
 		}
 		return matches[i].FileName < matches[j].FileName
 	})
-
-	return matches, unknown, unsure
 }
 
-func lookupOnPlatform(ctx context.Context, candidates []scanCandidate, platformValue models.Platform, deps scanDeps) ([]scanMatch, []scanCandidate, map[string]error) {
+func lookupOnPlatform(ctx context.Context, candidates []scanCandidate, platformValue models.Platform, deps scanDeps) (platformLookupOutcome, error) {
 	switch platformValue {
 	case models.MODRINTH:
 		return lookupModrinth(ctx, candidates, deps)
 	case models.CURSEFORGE:
 		return lookupCurseforge(ctx, candidates, deps)
 	default:
-		return nil, candidates, map[string]error{}
+		return platformLookupOutcome{
+			matches: nil,
+			misses:  candidates,
+			unsure:  map[string]error{},
+		}, nil
 	}
 }
 
@@ -381,55 +457,94 @@ func alternatePlatform(platform models.Platform) models.Platform {
 	return models.CURSEFORGE
 }
 
-func printResults(log *logger.Logger, out io.Writer, _ models.Platform, matches []scanMatch, unknown []string, unsure []scanUnsure) {
+func printResults(out *output.Output, writer io.Writer, _ models.Platform, matches []scanMatch, unknown []string, unsure []scanUnsure) error {
 	colorMode := tui.ColorDisabled
-	if tui.IsTerminalWriter(out) {
+	if tui.IsTerminalWriter(writer) {
 		colorMode = tui.ColorEnabled
 	}
 
 	if len(matches) > 0 {
-		log.Log(i18n.T("cmd.scan.recognized.header"), logger.LogQuiet)
-		for _, match := range matches {
-			name := tui.RenderIfColorEnabled(colorMode, tui.TitleStyle.Bold(true), match.Name)
-			log.Log(messageWithIcon(tui.SuccessIcon(colorMode), i18n.T("cmd.scan.recognized.entry", i18n.Tvars{
-				Data: &i18n.TData{
-					"name":     name,
-					"platform": match.Platform,
-					"id":       match.ProjectID,
-					"file":     match.FileName,
-				},
-			})), logger.LogQuiet)
+		if err := printMatchResults(out, colorMode, matches); err != nil {
+			return err
 		}
 	}
 
 	if len(unknown) > 0 {
-		log.Log(i18n.T("cmd.scan.unknown.header"), logger.LogQuiet)
-		for _, file := range unknown {
-			log.Log(messageWithIcon(tui.ErrorIcon(colorMode), i18n.T("cmd.scan.unknown.entry", i18n.Tvars{
-				Data: &i18n.TData{"file": filepath.Base(file)},
-			})), logger.LogQuiet)
+		if err := printUnknownResults(out, colorMode, unknown); err != nil {
+			return err
 		}
 	}
 
 	if len(unsure) > 0 {
-		log.Log(i18n.T("cmd.scan.unsure.header"), logger.LogQuiet)
-		for _, item := range unsure {
-			reason := "unknown error"
-			if item.Error != nil {
-				reason = item.Error.Error()
-			}
-			log.Log(messageWithIcon(tui.ErrorIcon(colorMode), i18n.T("cmd.scan.unsure.entry_with_reason", i18n.Tvars{
-				Data: &i18n.TData{
-					"file":   filepath.Base(item.Path),
-					"reason": reason,
-				},
-			})), logger.LogQuiet)
+		if err := printUnsureResults(out, colorMode, unsure); err != nil {
+			return err
 		}
 	}
 
 	if len(matches) == 0 && len(unknown) == 0 && len(unsure) == 0 {
-		log.Log(i18n.T("cmd.scan.no_results"), logger.LogQuiet)
+		if err := out.Log(i18n.T("cmd.scan.no_results"), output.LogQuiet); err != nil {
+			return err
+		}
 	}
+	return nil
+}
+
+func printMatchResults(out *output.Output, colorMode tui.ColorMode, matches []scanMatch) error {
+	if err := out.Log(i18n.T("cmd.scan.recognized.header"), output.LogQuiet); err != nil {
+		return err
+	}
+	for _, match := range matches {
+		name := tui.RenderIfColorEnabled(colorMode, tui.TitleStyle.Bold(true), match.Name)
+		if err := out.Log(messageWithIcon(tui.SuccessIcon(colorMode), i18n.T("cmd.scan.recognized.entry", i18n.Tvars{
+			Data: &i18n.TData{
+				"name":     name,
+				"platform": match.Platform,
+				"id":       match.ProjectID,
+				"file":     match.FileName,
+			},
+		})), output.LogQuiet); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+func printUnknownResults(out *output.Output, colorMode tui.ColorMode, unknown []string) error {
+	if err := out.Log(i18n.T("cmd.scan.unknown.header"), output.LogQuiet); err != nil {
+		return err
+	}
+	for _, file := range unknown {
+		if err := out.Log(messageWithIcon(tui.ErrorIcon(colorMode), i18n.T("cmd.scan.unknown.entry", i18n.Tvars{
+			Data: &i18n.TData{"file": filepath.Base(file)},
+		})), output.LogQuiet); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+func printUnsureResults(out *output.Output, colorMode tui.ColorMode, unsure []scanUnsure) error {
+	if err := out.Log(i18n.T("cmd.scan.unsure.header"), output.LogQuiet); err != nil {
+		return err
+	}
+	for _, item := range unsure {
+		if err := out.Log(messageWithIcon(tui.ErrorIcon(colorMode), i18n.T("cmd.scan.unsure.entry_with_reason", i18n.Tvars{
+			Data: &i18n.TData{
+				"file":   filepath.Base(item.Path),
+				"reason": unsureReason(item.Error),
+			},
+		})), output.LogQuiet); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+func unsureReason(err error) string {
+	if err != nil {
+		return err.Error()
+	}
+	return "unknown error"
 }
 
 func defaultModrinthVersionForSha(ctx context.Context, sha1 string, doer httpclient.Doer) (*modrinth.Version, error) {

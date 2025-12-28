@@ -8,9 +8,9 @@ import (
 
 	"github.com/meza/minecraft-mod-manager/internal/config"
 	"github.com/meza/minecraft-mod-manager/internal/i18n"
-	"github.com/meza/minecraft-mod-manager/internal/logger"
 	"github.com/meza/minecraft-mod-manager/internal/minecraft"
 	"github.com/meza/minecraft-mod-manager/internal/models"
+	"github.com/meza/minecraft-mod-manager/internal/output"
 	"github.com/spf13/afero"
 )
 
@@ -109,13 +109,20 @@ func initWithDeps(ctx context.Context, options initOptions, deps initDeps) (conf
 		return config.Metadata{}, err
 	}
 
-	if deps.logger != nil {
-		deps.logger.Log(i18n.T("cmd.init.success", i18n.Tvars{
-			Data: &i18n.TData{"configPath": meta.ConfigPath},
-		}), logger.LogQuiet)
+	if err := logInitSuccess(deps.output, meta); err != nil {
+		return config.Metadata{}, err
 	}
 
 	return meta, nil
+}
+
+func logInitSuccess(out *output.Output, meta config.Metadata) error {
+	if out == nil {
+		return nil
+	}
+	return out.Log(i18n.T("cmd.init.success", i18n.Tvars{
+		Data: &i18n.TData{"configPath": meta.ConfigPath},
+	}), output.LogQuiet)
 }
 
 func validateGameVersion(ctx context.Context, gameVersion string, deps initDeps) error {

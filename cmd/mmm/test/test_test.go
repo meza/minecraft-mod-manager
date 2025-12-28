@@ -16,6 +16,7 @@ import (
 	"github.com/meza/minecraft-mod-manager/internal/httpclient"
 	"github.com/meza/minecraft-mod-manager/internal/logger"
 	"github.com/meza/minecraft-mod-manager/internal/models"
+	"github.com/meza/minecraft-mod-manager/internal/output"
 	"github.com/meza/minecraft-mod-manager/internal/platform"
 	"github.com/meza/minecraft-mod-manager/internal/telemetry"
 	"github.com/meza/minecraft-mod-manager/internal/tui"
@@ -23,6 +24,7 @@ import (
 	"github.com/spf13/cobra"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+	"golang.org/x/time/rate"
 )
 
 type noopDoer struct{}
@@ -77,6 +79,7 @@ func TestExitCode0WhenAllModsSupported(t *testing.T) {
 	}, testDeps{
 		fs:     fs,
 		logger: logger.New(out, errOut, false, false),
+		output: output.New(out, errOut, false),
 		clients: platform.Clients{
 			Modrinth:   noopDoer{},
 			Curseforge: noopDoer{},
@@ -131,6 +134,7 @@ func TestExitCode1WhenSomeModsUnsupported(t *testing.T) {
 	}, testDeps{
 		fs:     fs,
 		logger: logger.New(out, errOut, false, false),
+		output: output.New(out, errOut, false),
 		clients: platform.Clients{
 			Modrinth: noopDoer{},
 		},
@@ -191,6 +195,7 @@ func TestExitCode2WhenVersionMatchesCurrent(t *testing.T) {
 	}, testDeps{
 		fs:     fs,
 		logger: logger.New(out, errOut, false, false),
+		output: output.New(out, errOut, false),
 		clients: platform.Clients{
 			Modrinth: noopDoer{},
 		},
@@ -249,6 +254,7 @@ func TestLatestVersionResolution(t *testing.T) {
 	}, testDeps{
 		fs:     fs,
 		logger: logger.New(out, errOut, false, false),
+		output: output.New(out, errOut, false),
 		clients: platform.Clients{
 			Modrinth: noopDoer{},
 		},
@@ -302,6 +308,7 @@ func TestInvalidVersionHandling(t *testing.T) {
 	}, testDeps{
 		fs:     fs,
 		logger: logger.New(out, errOut, false, false),
+		output: output.New(out, errOut, false),
 		clients: platform.Clients{
 			Modrinth: noopDoer{},
 		},
@@ -355,6 +362,7 @@ func TestVersionValidationFailureReturnsError(t *testing.T) {
 	}, testDeps{
 		fs:     fs,
 		logger: logger.New(out, errOut, false, false),
+		output: output.New(out, errOut, false),
 		clients: platform.Clients{
 			Modrinth: noopDoer{},
 		},
@@ -409,6 +417,7 @@ func TestQuietFlagBehavior(t *testing.T) {
 	}, testDeps{
 		fs:     fs,
 		logger: logger.New(out, errOut, true, false),
+		output: output.New(out, errOut, true),
 		clients: platform.Clients{
 			Modrinth: noopDoer{},
 		},
@@ -463,6 +472,7 @@ func TestDebugFlagBehavior(t *testing.T) {
 	}, testDeps{
 		fs:     fs,
 		logger: logger.New(out, errOut, false, true),
+		output: output.New(out, errOut, false),
 		clients: platform.Clients{
 			Modrinth: noopDoer{},
 		},
@@ -521,6 +531,7 @@ func TestAllowVersionFallbackHonored(t *testing.T) {
 	}, testDeps{
 		fs:     fs,
 		logger: logger.New(out, errOut, false, false),
+		output: output.New(out, errOut, false),
 		clients: platform.Clients{
 			Modrinth: noopDoer{},
 		},
@@ -582,6 +593,7 @@ func TestPinnedModsAreChecked(t *testing.T) {
 	}, testDeps{
 		fs:     fs,
 		logger: logger.New(out, errOut, false, false),
+		output: output.New(out, errOut, false),
 		clients: platform.Clients{
 			Modrinth: noopDoer{},
 		},
@@ -638,6 +650,7 @@ func TestModNotFoundError(t *testing.T) {
 	}, testDeps{
 		fs:     fs,
 		logger: logger.New(out, errOut, false, false),
+		output: output.New(out, errOut, false),
 		clients: platform.Clients{
 			Modrinth: noopDoer{},
 		},
@@ -680,6 +693,7 @@ func TestConfigFileNotFound(t *testing.T) {
 	}, testDeps{
 		fs:     fs,
 		logger: logger.New(out, errOut, false, false),
+		output: output.New(out, errOut, false),
 		clients: platform.Clients{
 			Modrinth: noopDoer{},
 		},
@@ -734,6 +748,7 @@ func TestLatestVersionResolutionError(t *testing.T) {
 	}, testDeps{
 		fs:     fs,
 		logger: logger.New(out, errOut, false, false),
+		output: output.New(out, errOut, false),
 		clients: platform.Clients{
 			Modrinth: noopDoer{},
 		},
@@ -786,6 +801,7 @@ func TestEmptyModListSuccess(t *testing.T) {
 	}, testDeps{
 		fs:     fs,
 		logger: logger.New(out, errOut, false, false),
+		output: output.New(out, errOut, false),
 		clients: platform.Clients{
 			Modrinth: noopDoer{},
 		},
@@ -839,6 +855,7 @@ func TestRunTestReturnsCorrectExitCodeForTelemetry(t *testing.T) {
 	}, testDeps{
 		fs:     fs,
 		logger: logger.New(out, errOut, false, false),
+		output: output.New(out, errOut, false),
 		clients: platform.Clients{
 			Modrinth: noopDoer{},
 		},
@@ -898,6 +915,7 @@ func TestParallelModChecks(t *testing.T) {
 	}, testDeps{
 		fs:     fs,
 		logger: logger.New(out, errOut, false, false),
+		output: output.New(out, errOut, false),
 		clients: platform.Clients{
 			Modrinth: noopDoer{},
 		},
@@ -956,6 +974,7 @@ func TestMixedPlatformMods(t *testing.T) {
 	}, testDeps{
 		fs:     fs,
 		logger: logger.New(out, errOut, false, false),
+		output: output.New(out, errOut, false),
 		clients: platform.Clients{
 			Modrinth:   noopDoer{},
 			Curseforge: noopDoer{},
@@ -1016,6 +1035,7 @@ func TestCustomAllowedReleaseTypes(t *testing.T) {
 	}, testDeps{
 		fs:     fs,
 		logger: logger.New(out, errOut, false, false),
+		output: output.New(out, errOut, false),
 		clients: platform.Clients{
 			Modrinth: noopDoer{},
 		},
@@ -1072,6 +1092,7 @@ func TestGenericFetchErrorLogsToErrorOutput(t *testing.T) {
 	}, testDeps{
 		fs:     fs,
 		logger: logger.New(out, errOut, false, false),
+		output: output.New(out, errOut, false),
 		clients: platform.Clients{
 			Modrinth: noopDoer{},
 		},
@@ -1188,6 +1209,7 @@ func TestRunTestReturnsContextErrorWhenCanceled(t *testing.T) {
 	deps := testDeps{
 		fs:     fs,
 		logger: logger.New(io.Discard, io.Discard, true, false),
+		output: output.New(io.Discard, io.Discard, true),
 		fetchMod: func(context.Context, models.Platform, string, platform.FetchOptions, platform.Clients) (platform.RemoteMod, error) {
 			t.Fatal("fetchMod should not be called after cancellation")
 			return platform.RemoteMod{}, errors.New("unexpected")
@@ -1327,4 +1349,187 @@ func TestCollectOutcomesReturnsErrorWhenCanceledDuringWork(t *testing.T) {
 	case <-time.After(time.Second):
 		t.Fatal("collectOutcomes did not finish")
 	}
+}
+
+func TestRunTestReturnsOutputErrorWhenNoMods(t *testing.T) {
+	writeErr := errors.New("write failed")
+	fs := afero.NewMemMapFs()
+	meta := config.NewMetadata(filepath.FromSlash("/cfg/modlist.json"))
+	assert.NoError(t, fs.MkdirAll(meta.Dir(), 0755))
+	assert.NoError(t, config.WriteConfig(context.Background(), fs, meta, models.ModsJSON{ModsFolder: "mods"}))
+
+	cmd := &cobra.Command{}
+	cmd.SetOut(&bytes.Buffer{})
+
+	_, err := runTest(context.Background(), cmd, testOptions{
+		ConfigPath:  meta.ConfigPath,
+		GameVersion: "1.20.1",
+	}, testDeps{
+		fs:     fs,
+		output: output.New(errorWriter{err: writeErr}, io.Discard, false),
+		isValidVersion: func(context.Context, string, httpclient.Doer) (bool, error) {
+			return true, nil
+		},
+		clients: platform.DefaultClients(rate.NewLimiter(rate.Inf, 0)),
+	})
+	assert.ErrorIs(t, err, writeErr)
+}
+
+func TestResolveTargetVersionReturnsOutputErrorOnValidationUnavailable(t *testing.T) {
+	writeErr := errors.New("write failed")
+
+	_, _, err := resolveTargetVersion(context.Background(), models.ModsJSON{}, testOptions{GameVersion: "1.20.1"}, testDeps{
+		output: output.New(io.Discard, errorWriter{err: writeErr}, false),
+		isValidVersion: func(context.Context, string, httpclient.Doer) (bool, error) {
+			return false, errors.New("boom")
+		},
+	})
+	assert.ErrorIs(t, err, writeErr)
+}
+
+func TestResolveTargetVersionReturnsOutputErrorOnInvalidVersion(t *testing.T) {
+	writeErr := errors.New("write failed")
+
+	_, _, err := resolveTargetVersion(context.Background(), models.ModsJSON{}, testOptions{GameVersion: "1.20.1"}, testDeps{
+		output: output.New(io.Discard, errorWriter{err: writeErr}, false),
+		isValidVersion: func(context.Context, string, httpclient.Doer) (bool, error) {
+			return false, nil
+		},
+	})
+	assert.ErrorIs(t, err, writeErr)
+}
+
+func TestResolveTargetVersionReturnsOutputErrorOnSameVersionLog(t *testing.T) {
+	writeErr := errors.New("write failed")
+
+	_, _, err := resolveTargetVersion(context.Background(), models.ModsJSON{GameVersion: "1.20.1"}, testOptions{GameVersion: "1.20.1"}, testDeps{
+		output: output.New(errorWriter{err: writeErr}, io.Discard, false),
+		isValidVersion: func(context.Context, string, httpclient.Doer) (bool, error) {
+			return true, nil
+		},
+	})
+	assert.ErrorIs(t, err, writeErr)
+}
+
+func TestResolveLatestVersionReturnsOutputError(t *testing.T) {
+	writeErr := errors.New("write failed")
+
+	_, err := resolveLatestVersion(context.Background(), testDeps{
+		output: output.New(io.Discard, errorWriter{err: writeErr}, false),
+		latestVersion: func(context.Context, httpclient.Doer) (string, error) {
+			return "", errors.New("boom")
+		},
+	})
+	assert.ErrorIs(t, err, writeErr)
+}
+
+func TestLogOutcomesReturnsOutputError(t *testing.T) {
+	writeErr := errors.New("write failed")
+
+	_, err := logOutcomes([]modCheckOutcome{
+		{LogEvents: []logEvent{{Kind: logEventKindError, Message: "boom"}}},
+	}, testDeps{
+		output: output.New(io.Discard, errorWriter{err: writeErr}, false),
+		logger: logger.New(io.Discard, io.Discard, false, false),
+	})
+	assert.ErrorIs(t, err, writeErr)
+}
+
+func TestLogOutcomesReturnsLoggerError(t *testing.T) {
+	writeErr := errors.New("write failed")
+
+	_, err := logOutcomes([]modCheckOutcome{
+		{LogEvents: []logEvent{{Kind: logEventKindDebug, Message: "boom"}}},
+	}, testDeps{
+		output: output.New(io.Discard, io.Discard, false),
+		logger: logger.New(errorWriter{err: writeErr}, io.Discard, false, true),
+	})
+	assert.ErrorIs(t, err, writeErr)
+}
+
+func TestEvaluateTestOutcomesReturnsOutputErrorOnSuccessLog(t *testing.T) {
+	writeErr := errors.New("write failed")
+
+	_, err := evaluateTestOutcomes("1.20.1", nil, testDeps{
+		output: output.New(errorWriter{err: writeErr}, io.Discard, false),
+		logger: logger.New(io.Discard, io.Discard, false, false),
+	}, tui.ColorDisabled)
+	assert.ErrorIs(t, err, writeErr)
+}
+
+func TestEvaluateTestOutcomesReturnsLogOutcomesError(t *testing.T) {
+	writeErr := errors.New("write failed")
+
+	_, err := evaluateTestOutcomes("1.20.1", []modCheckOutcome{
+		{LogEvents: []logEvent{{Kind: logEventKindError, Message: "boom"}}},
+	}, testDeps{
+		output: output.New(io.Discard, errorWriter{err: writeErr}, false),
+		logger: logger.New(io.Discard, io.Discard, false, false),
+	}, tui.ColorDisabled)
+	assert.ErrorIs(t, err, writeErr)
+}
+
+func TestReportUnsupportedModsReturnsOutputErrorOnEntry(t *testing.T) {
+	writeErr := errors.New("write failed")
+	writer := &errAfterWriter{remaining: 1, err: writeErr}
+
+	_, err := reportUnsupportedMods("1.20.1", []modCheckOutcome{
+		{Mod: models.Mod{Name: "Example", ID: "abc", Type: models.MODRINTH}},
+	}, testDeps{
+		output: output.New(writer, io.Discard, false),
+	}, tui.ColorDisabled)
+	assert.ErrorIs(t, err, writeErr)
+}
+
+func TestReportUnsupportedModsReturnsOutputErrorOnHeader(t *testing.T) {
+	writeErr := errors.New("write failed")
+
+	_, err := reportUnsupportedMods("1.20.1", []modCheckOutcome{
+		{Mod: models.Mod{Name: "Example", ID: "abc", Type: models.MODRINTH}},
+	}, testDeps{
+		output: output.New(errorWriter{err: writeErr}, io.Discard, false),
+	}, tui.ColorDisabled)
+	assert.ErrorIs(t, err, writeErr)
+}
+
+func TestReportUnsupportedModsReturnsOutputErrorOnFooter(t *testing.T) {
+	writeErr := errors.New("write failed")
+	writer := &errAfterWriter{remaining: 2, err: writeErr}
+
+	_, err := reportUnsupportedMods("1.20.1", []modCheckOutcome{
+		{Mod: models.Mod{Name: "Example", ID: "abc", Type: models.MODRINTH}},
+	}, testDeps{
+		output: output.New(writer, io.Discard, false),
+	}, tui.ColorDisabled)
+	assert.ErrorIs(t, err, writeErr)
+}
+
+func TestReportUnsupportedModsReturnsErrorWhenLogsSucceed(t *testing.T) {
+	_, err := reportUnsupportedMods("1.20.1", []modCheckOutcome{
+		{Mod: models.Mod{Name: "Example", ID: "abc", Type: models.MODRINTH}},
+	}, testDeps{
+		output: output.New(io.Discard, io.Discard, false),
+	}, tui.ColorDisabled)
+	assert.ErrorIs(t, err, errUnsupportedMods)
+}
+
+type errorWriter struct {
+	err error
+}
+
+func (writer errorWriter) Write([]byte) (int, error) {
+	return 0, writer.err
+}
+
+type errAfterWriter struct {
+	remaining int
+	err       error
+}
+
+func (writer *errAfterWriter) Write(value []byte) (int, error) {
+	if writer.remaining == 0 {
+		return 0, writer.err
+	}
+	writer.remaining--
+	return len(value), nil
 }

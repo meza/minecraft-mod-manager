@@ -16,6 +16,7 @@ import (
 	"github.com/meza/minecraft-mod-manager/internal/logger"
 	"github.com/meza/minecraft-mod-manager/internal/models"
 	"github.com/meza/minecraft-mod-manager/internal/modfilename"
+	"github.com/meza/minecraft-mod-manager/internal/output"
 	"github.com/meza/minecraft-mod-manager/internal/perf"
 	"github.com/meza/minecraft-mod-manager/internal/telemetry"
 	"github.com/meza/minecraft-mod-manager/internal/tui"
@@ -32,6 +33,7 @@ type removeOptions struct {
 type removeDeps struct {
 	fs        afero.Fs
 	logger    *logger.Logger
+	output    *output.Output
 	telemetry func(telemetry.CommandTelemetry)
 	colorMode tui.ColorMode
 }
@@ -61,12 +63,14 @@ func runRemoveCommand(cmd *cobra.Command, args []string) error {
 		return err
 	}
 
-	log := logger.New(cmd.OutOrStdout(), cmd.ErrOrStderr(), opts.Quiet, opts.Debug)
+	quietForOutput := opts.Quiet && !opts.Debug
+	out := output.New(cmd.OutOrStdout(), cmd.ErrOrStderr(), quietForOutput)
+	log := logger.New(cmd.OutOrStdout(), cmd.ErrOrStderr(), false, opts.Debug)
 	colorMode := tui.ColorDisabled
 	if tui.IsTerminalWriter(cmd.OutOrStdout()) {
 		colorMode = tui.ColorEnabled
 	}
-	deps := defaultRemoveDeps(log, colorMode)
+	deps := defaultRemoveDeps(log, out, colorMode)
 
 	removedCount, err := runRemove(ctx, opts, deps)
 	span.SetAttributes(attribute.Bool("success", err == nil))
@@ -103,10 +107,11 @@ func removeOptionsFromFlags(cmd *cobra.Command, args []string) (removeOptions, e
 	}, nil
 }
 
-func defaultRemoveDeps(log *logger.Logger, colorMode tui.ColorMode) removeDeps {
+func defaultRemoveDeps(log *logger.Logger, out *output.Output, colorMode tui.ColorMode) removeDeps {
 	return removeDeps{
 		fs:        afero.NewOsFs(),
 		logger:    log,
+		output:    out,
 		telemetry: telemetry.RecordCommand,
 		colorMode: colorMode,
 	}
@@ -153,7 +158,9 @@ func runRemove(ctx context.Context, opts removeOptions, deps removeDeps) (int, e
 	}
 
 	if opts.DryRun {
-		deps.logger.Log(i18n.T("cmd.remove.dry-run.notice", i18n.Tvars{}), logger.LogQuiet)
+		if err := deps.output.Log(i18n.T("cmd.remove.dry-run.notice", i18n.Tvars{}), output.LogQuiet); err != nil {
+			return 0, err
+		}
 	}
 
 	return removeMatchedMods(ctx, meta, &cfg, &lock, matches, opts, deps)
@@ -176,9 +183,11 @@ func removeMatchedMods(ctx context.Context, meta config.Metadata, cfg *models.Mo
 
 func removeMod(ctx context.Context, meta config.Metadata, cfg *models.ModsJSON, lock *[]models.ModInstall, mod models.Mod, opts removeOptions, deps removeDeps) (bool, error) {
 	if opts.DryRun {
-		deps.logger.Log(i18n.T("cmd.remove.dry-run.would-remove", i18n.Tvars{
+		if err := deps.output.Log(i18n.T("cmd.remove.dry-run.would-remove", i18n.Tvars{
 			Data: &i18n.TData{"name": mod.Name},
-		}), logger.LogQuiet)
+		}), output.LogQuiet); err != nil {
+			return false, err
+		}
 		return false, nil
 	}
 
@@ -189,9 +198,11 @@ func removeMod(ctx context.Context, meta config.Metadata, cfg *models.ModsJSON, 
 		return false, err
 	}
 
-	deps.logger.Log(fmt.Sprintf("%s %s", tui.SuccessIcon(deps.colorMode), i18n.T("cmd.remove.removed", i18n.Tvars{
+	if err := deps.output.Log(fmt.Sprintf("%s %s", tui.SuccessIcon(deps.colorMode), i18n.T("cmd.remove.removed", i18n.Tvars{
 		Data: &i18n.TData{"name": mod.Name},
-	})), logger.LogQuiet)
+	})), output.LogQuiet); err != nil {
+		return false, err
+	}
 	return true, nil
 }
 
@@ -203,21 +214,29 @@ func removeLockEntry(ctx context.Context, meta config.Metadata, cfg *models.Mods
 
 	normalizedFileName, err := modfilename.Normalize((*lock)[lockIndex].FileName)
 	if err != nil {
-		deps.logger.Error(i18n.T("cmd.remove.error.invalid_filename_lock", i18n.Tvars{
-			Data: &i18n.TData{
-				"name": mod.Name,
-				"file": modfilename.Display((*lock)[lockIndex].FileName),
-			},
-		}))
-	} else {
-		installedPath := filepath.Join(meta.ModsFolderPath(*cfg), normalizedFileName)
-		if err := removeFileForce(deps.fs, installedPath); err != nil {
+		if err := reportInvalidLockFileName(deps.output, mod, (*lock)[lockIndex].FileName); err != nil {
 			return err
 		}
+		*lock = append((*lock)[:lockIndex], (*lock)[lockIndex+1:]...)
+		return config.WriteLock(ctx, deps.fs, meta, *lock)
+	}
+
+	installedPath := filepath.Join(meta.ModsFolderPath(*cfg), normalizedFileName)
+	if err := removeFileForce(deps.fs, installedPath); err != nil {
+		return err
 	}
 
 	*lock = append((*lock)[:lockIndex], (*lock)[lockIndex+1:]...)
 	return config.WriteLock(ctx, deps.fs, meta, *lock)
+}
+
+func reportInvalidLockFileName(out *output.Output, mod models.Mod, fileName string) error {
+	return out.Error(i18n.T("cmd.remove.error.invalid_filename_lock", i18n.Tvars{
+		Data: &i18n.TData{
+			"name": mod.Name,
+			"file": modfilename.Display(fileName),
+		},
+	}))
 }
 
 func removeConfigEntry(ctx context.Context, meta config.Metadata, cfg *models.ModsJSON, mod models.Mod, deps removeDeps) error {

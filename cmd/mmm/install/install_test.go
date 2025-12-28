@@ -16,6 +16,7 @@ import (
 	"github.com/meza/minecraft-mod-manager/internal/models"
 	"github.com/meza/minecraft-mod-manager/internal/modpath"
 	"github.com/meza/minecraft-mod-manager/internal/modrinth"
+	"github.com/meza/minecraft-mod-manager/internal/output"
 	"github.com/meza/minecraft-mod-manager/internal/platform"
 	"github.com/meza/minecraft-mod-manager/internal/telemetry"
 	"github.com/meza/minecraft-mod-manager/internal/tui"
@@ -60,6 +61,7 @@ func TestRunInstallHaltsWhenPreflightFindsUnsureHashMismatch(t *testing.T) {
 	deps := installDeps{
 		fs:      fs,
 		logger:  logger.New(out, errOut, false, false),
+		output:  output.New(out, errOut, false),
 		clients: platform.Clients{},
 		downloader: func(context.Context, string, string, httpclient.Doer, httpclient.Sender, ...afero.Fs) error {
 			return nil
@@ -126,6 +128,7 @@ func TestRunInstallReportsUnmanagedButDoesNotHalt(t *testing.T) {
 	deps := installDeps{
 		fs:      fs,
 		logger:  logger.New(out, errOut, false, false),
+		output:  output.New(out, errOut, false),
 		clients: platform.Clients{},
 		downloader: func(context.Context, string, string, httpclient.Doer, httpclient.Sender, ...afero.Fs) error {
 			return nil
@@ -198,6 +201,7 @@ func TestRunInstallPreflightRespectsMmmignoreAndDisabledFiles(t *testing.T) {
 	deps := installDeps{
 		fs:     fs,
 		logger: logger.New(out, errOut, false, false),
+		output: output.New(out, errOut, false),
 		clients: platform.Clients{
 			Modrinth:   nil,
 			Curseforge: nil,
@@ -269,6 +273,7 @@ func TestRunInstallSilentlyIgnoresFilesWithNoPlatformHits(t *testing.T) {
 	deps := installDeps{
 		fs:      fs,
 		logger:  logger.New(out, errOut, false, false),
+		output:  output.New(out, errOut, false),
 		clients: platform.Clients{},
 		downloader: func(context.Context, string, string, httpclient.Doer, httpclient.Sender, ...afero.Fs) error {
 			return nil
@@ -336,6 +341,7 @@ func TestRunInstallDownloadsMissingManagedFileFromLock(t *testing.T) {
 	deps := installDeps{
 		fs:      fs,
 		logger:  logger.New(out, errOut, false, false),
+		output:  output.New(out, errOut, false),
 		clients: platform.Clients{},
 		downloader: func(_ context.Context, _ string, dest string, _ httpclient.Doer, _ httpclient.Sender, filesystem ...afero.Fs) error {
 			downloaded = true
@@ -411,6 +417,7 @@ func TestRunInstallDownloadsWhenHashMismatch(t *testing.T) {
 	deps := installDeps{
 		fs:      fs,
 		logger:  logger.New(out, errOut, false, false),
+		output:  output.New(out, errOut, false),
 		clients: platform.Clients{},
 		downloader: func(_ context.Context, _ string, dest string, _ httpclient.Doer, _ httpclient.Sender, filesystem ...afero.Fs) error {
 			downloaded = true
@@ -481,6 +488,7 @@ func TestRunInstallFetchesAndAppendsLockWhenMissing(t *testing.T) {
 	deps := installDeps{
 		fs:      fs,
 		logger:  logger.New(out, errOut, false, false),
+		output:  output.New(out, errOut, false),
 		clients: platform.Clients{},
 		downloader: func(_ context.Context, _ string, dest string, _ httpclient.Doer, _ httpclient.Sender, filesystem ...afero.Fs) error {
 			useFS := fs
@@ -565,6 +573,7 @@ func TestRunInstallReportsMissingHashWithoutHalting(t *testing.T) {
 	deps := installDeps{
 		fs:      fs,
 		logger:  logger.New(out, errOut, false, false),
+		output:  output.New(out, errOut, false),
 		clients: platform.Clients{},
 		fetchMod: func(_ context.Context, _ models.Platform, id string, _ platform.FetchOptions, _ platform.Clients) (platform.RemoteMod, error) {
 			if id == "bad" {
@@ -645,6 +654,7 @@ func TestRunInstallReportsHashMismatch(t *testing.T) {
 	deps := installDeps{
 		fs:      fs,
 		logger:  logger.New(out, errOut, false, false),
+		output:  output.New(out, errOut, false),
 		clients: platform.Clients{},
 		fetchMod: func(_ context.Context, _ models.Platform, _ string, _ platform.FetchOptions, _ platform.Clients) (platform.RemoteMod, error) {
 			return platform.RemoteMod{
@@ -724,6 +734,7 @@ func TestRunInstallReportsMissingHashForLockEntry(t *testing.T) {
 	deps := installDeps{
 		fs:      fs,
 		logger:  logger.New(out, errOut, false, false),
+		output:  output.New(out, errOut, false),
 		clients: platform.Clients{},
 		downloader: func(context.Context, string, string, httpclient.Doer, httpclient.Sender, ...afero.Fs) error {
 			t.Fatal("downloader should not be called when hash is missing")
@@ -795,6 +806,7 @@ func TestRunInstallReportsInvalidLockFileName(t *testing.T) {
 	deps := installDeps{
 		fs:      fs,
 		logger:  logger.New(out, errOut, false, false),
+		output:  output.New(out, errOut, false),
 		clients: platform.Clients{},
 		downloader: func(context.Context, string, string, httpclient.Doer, httpclient.Sender, ...afero.Fs) error {
 			t.Fatal("downloader should not be called for invalid lock filename")
@@ -857,6 +869,7 @@ func TestRunInstallReportsInvalidRemoteFileName(t *testing.T) {
 	deps := installDeps{
 		fs:      fs,
 		logger:  logger.New(out, errOut, false, false),
+		output:  output.New(out, errOut, false),
 		clients: platform.Clients{},
 		fetchMod: func(context.Context, models.Platform, string, platform.FetchOptions, platform.Clients) (platform.RemoteMod, error) {
 			return platform.RemoteMod{
@@ -926,6 +939,7 @@ func TestRunInstallContinuesWhenFetchReturnsExpectedErrors(t *testing.T) {
 	deps := installDeps{
 		fs:      fs,
 		logger:  logger.New(out, errOut, false, false),
+		output:  output.New(out, errOut, false),
 		clients: platform.Clients{},
 		downloader: func(context.Context, string, string, httpclient.Doer, httpclient.Sender, ...afero.Fs) error {
 			return nil
@@ -1012,6 +1026,7 @@ func TestRunInstallReportsSymlinkOutsideMods(t *testing.T) {
 	deps := installDeps{
 		fs:      fs,
 		logger:  logger.New(out, errOut, false, false),
+		output:  output.New(out, errOut, false),
 		clients: platform.Clients{},
 		downloader: func(context.Context, string, string, httpclient.Doer, httpclient.Sender, ...afero.Fs) error {
 			return errors.New("unexpected download")
@@ -1077,6 +1092,7 @@ func TestRunInstallReturnsErrorOnResolveFailure(t *testing.T) {
 	deps := installDeps{
 		fs:      lstatErrorFs{OsFs: &afero.OsFs{}, err: errors.New("lstat failed")},
 		logger:  logger.New(out, errOut, false, false),
+		output:  output.New(out, errOut, false),
 		clients: platform.Clients{},
 		downloader: func(context.Context, string, string, httpclient.Doer, httpclient.Sender, ...afero.Fs) error {
 			return errors.New("unexpected download")

@@ -16,6 +16,7 @@ import (
 	"github.com/meza/minecraft-mod-manager/internal/logger"
 	"github.com/meza/minecraft-mod-manager/internal/models"
 	"github.com/meza/minecraft-mod-manager/internal/modfilename"
+	"github.com/meza/minecraft-mod-manager/internal/output"
 	"github.com/meza/minecraft-mod-manager/internal/perf"
 	"github.com/meza/minecraft-mod-manager/internal/telemetry"
 	"github.com/meza/minecraft-mod-manager/internal/tui"
@@ -83,10 +84,13 @@ func listOptionsFromFlags(cmd *cobra.Command) (listCommandOptions, error) {
 }
 
 func defaultListDeps(cmd *cobra.Command, options listCommandOptions) listDeps {
-	log := logger.New(cmd.OutOrStdout(), cmd.ErrOrStderr(), options.quiet, options.debug)
+	quietForOutput := options.quiet && !options.debug
+	out := output.New(cmd.OutOrStdout(), cmd.ErrOrStderr(), quietForOutput)
+	log := logger.New(cmd.OutOrStdout(), cmd.ErrOrStderr(), false, options.debug)
 	return listDeps{
 		fs:            afero.NewOsFs(),
 		logger:        log,
+		output:        out,
 		telemetry:     telemetry.RecordCommand,
 		programRunner: defaultProgramRunner,
 	}
@@ -118,6 +122,7 @@ func recordListTelemetry(telemetryRecorder func(telemetry.CommandTelemetry), ent
 type listDeps struct {
 	fs            afero.Fs
 	logger        *logger.Logger
+	output        *output.Output
 	telemetry     func(telemetry.CommandTelemetry)
 	programRunner func(model tea.Model, options ...tea.ProgramOption) error
 }
@@ -162,7 +167,9 @@ func runList(ctx context.Context, cmd *cobra.Command, configPath string, options
 	if err != nil {
 		return 0, false, err
 	}
-	logInvalidLockEntries(lock, deps.logger)
+	if err := logInvalidLockEntries(lock, deps.output); err != nil {
+		return 0, false, err
+	}
 
 	entries := buildEntries(cfg, lock, meta, deps.fs)
 	quietMode := tui.QuietDisabled
@@ -250,21 +257,24 @@ func isInstalled(mod models.Mod, lock []models.ModInstall, meta config.Metadata,
 	return false
 }
 
-func logInvalidLockEntries(lock []models.ModInstall, log *logger.Logger) {
+func logInvalidLockEntries(lock []models.ModInstall, out *output.Output) error {
 	for _, install := range lock {
 		if _, err := modfilename.Normalize(install.FileName); err != nil {
 			name := strings.TrimSpace(install.Name)
 			if name == "" {
 				name = install.ID
 			}
-			log.Error(i18n.T("cmd.list.error.invalid_filename_lock", i18n.Tvars{
+			if err := out.Error(i18n.T("cmd.list.error.invalid_filename_lock", i18n.Tvars{
 				Data: &i18n.TData{
 					"name": name,
 					"file": modfilename.Display(install.FileName),
 				},
-			}))
+			})); err != nil {
+				return err
+			}
 		}
 	}
+	return nil
 }
 
 func renderListView(entries []listEntry, colorMode tui.ColorMode) string {
@@ -325,8 +335,7 @@ func renderEntry(entry listEntry, colorMode tui.ColorMode) string {
 
 func renderList(ctx context.Context, cmd *cobra.Command, entries []listEntry, view string, deps listDeps, displayMode listDisplayMode) error {
 	if !displayMode.UseTUI() {
-		deps.logger.Log(view, logger.LogForce)
-		return nil
+		return deps.output.Log(view, output.LogForce)
 	}
 
 	_, tuiSpan := perf.StartSpan(ctx, "tui.list.session")
@@ -339,7 +348,7 @@ func renderList(ctx context.Context, cmd *cobra.Command, entries []listEntry, vi
 	tuiSpan.SetAttributes(attribute.Bool("success", true))
 	tuiSpan.End()
 	if len(entries) == 0 {
-		deps.logger.Log(view, logger.LogForce)
+		return deps.output.Log(view, output.LogForce)
 	}
 	return nil
 }

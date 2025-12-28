@@ -19,6 +19,7 @@ import (
 	"github.com/meza/minecraft-mod-manager/internal/logger"
 	"github.com/meza/minecraft-mod-manager/internal/minecraft"
 	"github.com/meza/minecraft-mod-manager/internal/models"
+	"github.com/meza/minecraft-mod-manager/internal/output"
 	"github.com/meza/minecraft-mod-manager/internal/privacy"
 )
 
@@ -206,9 +207,24 @@ func TestInitWithDepsLogsWhenLoggerProvided(t *testing.T) {
 		fs:              fs,
 		minecraftClient: manifestDoer([]string{"1.21.1"}),
 		logger:          logger.New(logBuffer, io.Discard, false, false),
+		output:          output.New(logBuffer, io.Discard, false),
 	})
 	assert.NoError(t, err)
 	assert.Contains(t, logBuffer.String(), "Initialized configuration")
+}
+
+func TestLogInitSuccessSkipsNilOutput(t *testing.T) {
+	assert.NoError(t, logInitSuccess(nil, config.Metadata{ConfigPath: "modlist.json"}))
+}
+
+func TestLogInitSuccessReturnsOutputError(t *testing.T) {
+	t.Setenv("MMM_TEST", "true")
+
+	writeErr := errors.New("write failed")
+	out := output.New(errorWriter{err: writeErr}, errorWriter{err: writeErr}, false)
+
+	err := logInitSuccess(out, config.Metadata{ConfigPath: "modlist.json"})
+	assert.ErrorIs(t, err, writeErr)
 }
 
 func TestInitWithDepsLatestVersionError(t *testing.T) {
@@ -291,6 +307,27 @@ func TestInitWithDepsWriteLockError(t *testing.T) {
 		minecraftClient: manifestDoer([]string{"1.21.1"}),
 	})
 	assert.Error(t, err)
+}
+
+func TestInitWithDepsReturnsOutputError(t *testing.T) {
+	minecraft.ClearManifestCache()
+	fs := afero.NewMemMapFs()
+	meta := config.NewMetadata(filepath.FromSlash("/cfg/modlist.json"))
+	assert.NoError(t, fs.MkdirAll(filepath.FromSlash("/cfg/mods"), 0755))
+
+	writeErr := errors.New("write failed")
+	_, err := initWithDeps(context.Background(), initOptions{
+		ConfigPath:   meta.ConfigPath,
+		Loader:       models.FABRIC,
+		GameVersion:  "1.21.1",
+		ReleaseTypes: []models.ReleaseType{models.Release},
+		ModsFolder:   "mods",
+	}, initDeps{
+		fs:              fs,
+		minecraftClient: manifestDoer([]string{"1.21.1"}),
+		output:          output.New(errorWriter{err: writeErr}, errorWriter{err: writeErr}, false),
+	})
+	assert.ErrorIs(t, err, writeErr)
 }
 
 type statErrorFs struct {

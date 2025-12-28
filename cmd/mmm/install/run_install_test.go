@@ -20,6 +20,7 @@ import (
 	"github.com/meza/minecraft-mod-manager/internal/logger"
 	"github.com/meza/minecraft-mod-manager/internal/models"
 	"github.com/meza/minecraft-mod-manager/internal/modrinth"
+	"github.com/meza/minecraft-mod-manager/internal/output"
 	"github.com/meza/minecraft-mod-manager/internal/platform"
 )
 
@@ -35,6 +36,7 @@ func TestRunInstallReturnsErrorOnConfigReadFailure(t *testing.T) {
 	_, err := runInstall(context.Background(), cmd, installOptions{ConfigPath: meta.ConfigPath}, installDeps{
 		fs:     fs,
 		logger: logger.New(io.Discard, io.Discard, false, false),
+		output: output.New(io.Discard, io.Discard, false),
 	})
 	assert.Error(t, err)
 }
@@ -59,6 +61,7 @@ func TestRunInstallReturnsErrorOnEnsureLockFailure(t *testing.T) {
 	_, err := runInstall(context.Background(), cmd, installOptions{ConfigPath: meta.ConfigPath}, installDeps{
 		fs:     readOnlyFs,
 		logger: logger.New(io.Discard, io.Discard, false, false),
+		output: output.New(io.Discard, io.Discard, false),
 	})
 	assert.Error(t, err)
 }
@@ -89,6 +92,7 @@ func TestRunInstallReturnsErrorOnPreflightFailure(t *testing.T) {
 	_, err := runInstall(context.Background(), cmd, installOptions{ConfigPath: meta.ConfigPath}, installDeps{
 		fs:     fs,
 		logger: logger.New(io.Discard, io.Discard, false, false),
+		output: output.New(io.Discard, io.Discard, false),
 	})
 	assert.Error(t, err)
 }
@@ -119,6 +123,7 @@ func TestRunInstallReturnsUnresolvedFilesError(t *testing.T) {
 	_, err := runInstall(context.Background(), cmd, installOptions{ConfigPath: meta.ConfigPath}, installDeps{
 		fs:                    fs,
 		logger:                logger.New(io.Discard, io.Discard, false, false),
+		output:                output.New(io.Discard, io.Discard, false),
 		clients:               platform.DefaultClients(rate.NewLimiter(rate.Inf, 0)),
 		curseforgeFingerprint: func(string) uint32 { return 1 },
 		curseforgeFingerprintMatch: func(context.Context, []uint32, httpclient.Doer) (*curseforge.FingerprintResult, error) {
@@ -164,6 +169,7 @@ func TestRunInstallEnsuresExistingLockEntry(t *testing.T) {
 	_, err := runInstall(context.Background(), cmd, installOptions{ConfigPath: meta.ConfigPath}, installDeps{
 		fs:      fs,
 		logger:  logger.New(io.Discard, io.Discard, false, false),
+		output:  output.New(io.Discard, io.Discard, false),
 		clients: platform.DefaultClients(rate.NewLimiter(rate.Inf, 0)),
 		downloader: func(context.Context, string, string, httpclient.Doer, httpclient.Sender, ...afero.Fs) error {
 			t.Fatal("downloader should not be called")
@@ -208,6 +214,7 @@ func TestRunInstallFetchesWhenLockMissing(t *testing.T) {
 	result, err := runInstall(context.Background(), cmd, installOptions{ConfigPath: meta.ConfigPath}, installDeps{
 		fs:      fs,
 		logger:  logger.New(io.Discard, io.Discard, false, false),
+		output:  output.New(io.Discard, io.Discard, false),
 		clients: platform.DefaultClients(rate.NewLimiter(rate.Inf, 0)),
 		fetchMod: func(context.Context, models.Platform, string, platform.FetchOptions, platform.Clients) (platform.RemoteMod, error) {
 			return remote, nil
@@ -244,6 +251,7 @@ func TestRunInstallHandlesExpectedFetchError(t *testing.T) {
 	_, err := runInstall(context.Background(), cmd, installOptions{ConfigPath: meta.ConfigPath}, installDeps{
 		fs:      fs,
 		logger:  logger.New(io.Discard, io.Discard, false, false),
+		output:  output.New(io.Discard, io.Discard, false),
 		clients: platform.DefaultClients(rate.NewLimiter(rate.Inf, 0)),
 		fetchMod: func(context.Context, models.Platform, string, platform.FetchOptions, platform.Clients) (platform.RemoteMod, error) {
 			return platform.RemoteMod{}, &platform.ModNotFoundError{Platform: models.MODRINTH, ProjectID: "abc"}
@@ -275,6 +283,7 @@ func TestRunInstallReturnsErrorOnFetchFailure(t *testing.T) {
 	_, err := runInstall(context.Background(), cmd, installOptions{ConfigPath: meta.ConfigPath}, installDeps{
 		fs:      fs,
 		logger:  logger.New(io.Discard, io.Discard, false, false),
+		output:  output.New(io.Discard, io.Discard, false),
 		clients: platform.DefaultClients(rate.NewLimiter(rate.Inf, 0)),
 		fetchMod: func(context.Context, models.Platform, string, platform.FetchOptions, platform.Clients) (platform.RemoteMod, error) {
 			return platform.RemoteMod{}, errors.New("boom")
@@ -313,6 +322,7 @@ func TestRunInstallReturnsErrorOnDownloadFailureWithDefaultClients(t *testing.T)
 	_, err := runInstall(context.Background(), cmd, installOptions{ConfigPath: meta.ConfigPath}, installDeps{
 		fs:      fs,
 		logger:  logger.New(io.Discard, io.Discard, false, false),
+		output:  output.New(io.Discard, io.Discard, false),
 		clients: platform.DefaultClients(rate.NewLimiter(rate.Inf, 0)),
 		fetchMod: func(context.Context, models.Platform, string, platform.FetchOptions, platform.Clients) (platform.RemoteMod, error) {
 			return remote, nil
@@ -346,6 +356,7 @@ func TestRunInstallReturnsErrorOnWriteLockFailure(t *testing.T) {
 	_, err := runInstall(context.Background(), cmd, installOptions{ConfigPath: meta.ConfigPath}, installDeps{
 		fs:     fs,
 		logger: logger.New(io.Discard, io.Discard, false, false),
+		output: output.New(io.Discard, io.Discard, false),
 	})
 	assert.Error(t, err)
 }
@@ -373,6 +384,7 @@ func TestRunInstallReturnsErrorOnWriteConfigFailure(t *testing.T) {
 	_, err := runInstall(context.Background(), cmd, installOptions{ConfigPath: meta.ConfigPath}, installDeps{
 		fs:     fs,
 		logger: logger.New(io.Discard, io.Discard, false, false),
+		output: output.New(io.Discard, io.Discard, false),
 	})
 	assert.Error(t, err)
 }
@@ -400,6 +412,7 @@ func TestRunInstallReturnsErrorOnMkdirFailure(t *testing.T) {
 	_, err := runInstall(context.Background(), cmd, installOptions{ConfigPath: meta.ConfigPath}, installDeps{
 		fs:     fs,
 		logger: logger.New(io.Discard, io.Discard, false, false),
+		output: output.New(io.Discard, io.Discard, false),
 	})
 	assert.Error(t, err)
 }
@@ -431,6 +444,7 @@ func TestRunInstallReturnsErrorOnEnsureLockInstallFailure(t *testing.T) {
 	_, err := runInstall(context.Background(), cmd, installOptions{ConfigPath: meta.ConfigPath}, installDeps{
 		fs:      fs,
 		logger:  logger.New(io.Discard, io.Discard, false, false),
+		output:  output.New(io.Discard, io.Discard, false),
 		clients: platform.Clients{},
 	})
 	assert.Error(t, err)
@@ -460,6 +474,7 @@ func TestRunInstallReturnsErrorOnFetchUnexpected(t *testing.T) {
 	_, err := runInstall(context.Background(), cmd, installOptions{ConfigPath: meta.ConfigPath}, installDeps{
 		fs:      fs,
 		logger:  logger.New(io.Discard, io.Discard, false, false),
+		output:  output.New(io.Discard, io.Discard, false),
 		clients: platform.Clients{},
 		fetchMod: func(context.Context, models.Platform, string, platform.FetchOptions, platform.Clients) (platform.RemoteMod, error) {
 			return platform.RemoteMod{}, errors.New("boom")
@@ -492,6 +507,7 @@ func TestRunInstallReturnsErrorOnDownloadFailureWithCreatedModsFolder(t *testing
 	_, err := runInstall(context.Background(), cmd, installOptions{ConfigPath: meta.ConfigPath}, installDeps{
 		fs:      fs,
 		logger:  logger.New(io.Discard, io.Discard, false, false),
+		output:  output.New(io.Discard, io.Discard, false),
 		clients: platform.Clients{},
 		fetchMod: func(context.Context, models.Platform, string, platform.FetchOptions, platform.Clients) (platform.RemoteMod, error) {
 			return platform.RemoteMod{
@@ -533,6 +549,7 @@ func TestRunInstallReturnsErrorOnLockWriteFailure(t *testing.T) {
 	_, err := runInstall(context.Background(), cmd, installOptions{ConfigPath: meta.ConfigPath}, installDeps{
 		fs:     fs,
 		logger: logger.New(io.Discard, io.Discard, false, false),
+		output: output.New(io.Discard, io.Discard, false),
 	})
 	assert.Error(t, err)
 }
@@ -561,6 +578,7 @@ func TestRunInstallReportsUnmanagedFound(t *testing.T) {
 	result, err := runInstall(context.Background(), cmd, installOptions{ConfigPath: meta.ConfigPath}, installDeps{
 		fs:                    fs,
 		logger:                logger.New(io.Discard, io.Discard, false, false),
+		output:                output.New(io.Discard, io.Discard, false),
 		clients:               platform.DefaultClients(rate.NewLimiter(rate.Inf, 0)),
 		curseforgeFingerprint: func(string) uint32 { return 1 },
 		curseforgeFingerprintMatch: func(context.Context, []uint32, httpclient.Doer) (*curseforge.FingerprintResult, error) {

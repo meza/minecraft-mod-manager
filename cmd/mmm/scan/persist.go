@@ -7,9 +7,9 @@ import (
 
 	"github.com/meza/minecraft-mod-manager/internal/config"
 	"github.com/meza/minecraft-mod-manager/internal/i18n"
-	"github.com/meza/minecraft-mod-manager/internal/logger"
 	"github.com/meza/minecraft-mod-manager/internal/models"
 	"github.com/meza/minecraft-mod-manager/internal/modsetup"
+	"github.com/meza/minecraft-mod-manager/internal/output"
 	"github.com/meza/minecraft-mod-manager/internal/telemetry"
 	"github.com/meza/minecraft-mod-manager/internal/tui"
 	"github.com/spf13/cobra"
@@ -47,7 +47,9 @@ func persistScanMatchesIfRequested(request persistScanRequest) (telemetry.Comman
 	}
 
 	if len(request.Unsure) > 0 {
-		request.Dependencies.logger.Log(i18n.T("cmd.scan.persist_skipped_unsure"), logger.LogQuiet)
+		if outputErr := request.Dependencies.output.Log(i18n.T("cmd.scan.persist_skipped_unsure"), output.LogQuiet); outputErr != nil {
+			return scanFailureTelemetry(outputErr), outputErr
+		}
 		return scanSuccessTelemetry(request.PreferPlatform, request.Options.Add), nil
 	}
 
@@ -65,7 +67,9 @@ func persistScanMatchesIfRequested(request persistScanRequest) (telemetry.Comman
 		return scanFailureTelemetry(err), err
 	}
 	if persisted {
-		request.Dependencies.logger.Log(messageWithIcon(tui.SuccessIcon(request.ColorMode), i18n.T("cmd.scan.persisted")), logger.LogQuiet)
+		if outputErr := request.Dependencies.output.Log(messageWithIcon(tui.SuccessIcon(request.ColorMode), i18n.T("cmd.scan.persisted")), output.LogQuiet); outputErr != nil {
+			return scanFailureTelemetry(outputErr), outputErr
+		}
 	}
 
 	return scanSuccessTelemetry(request.PreferPlatform, request.Options.Add), nil
@@ -95,11 +99,13 @@ func scanSuccessTelemetryWithoutArgs() telemetry.CommandTelemetry {
 	}
 }
 
-func resolvePreferredPlatform(value string, log *logger.Logger) (models.Platform, error) {
+func resolvePreferredPlatform(value string, out *output.Output) (models.Platform, error) {
 	preferPlatform := normalizePlatform(value)
 	if preferPlatform != models.MODRINTH && preferPlatform != models.CURSEFORGE {
 		platformErr := fmt.Errorf("unknown platform: %s", value)
-		log.Error(platformErr.Error())
+		if err := out.Error(platformErr.Error()); err != nil {
+			return "", err
+		}
 		return "", platformErr
 	}
 	return preferPlatform, nil

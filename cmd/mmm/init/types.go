@@ -9,6 +9,7 @@ import (
 	"github.com/meza/minecraft-mod-manager/internal/httpclient"
 	"github.com/meza/minecraft-mod-manager/internal/logger"
 	"github.com/meza/minecraft-mod-manager/internal/models"
+	"github.com/meza/minecraft-mod-manager/internal/output"
 	"github.com/meza/minecraft-mod-manager/internal/telemetry"
 	"github.com/spf13/afero"
 	"github.com/spf13/cobra"
@@ -39,6 +40,7 @@ type initDeps struct {
 	minecraftClient httpclient.Doer
 	prompter        prompter
 	logger          *logger.Logger
+	output          *output.Output
 	telemetry       func(telemetry.CommandTelemetry)
 	runTea          func(model tea.Model, options ...tea.ProgramOption) (tea.Model, error)
 }

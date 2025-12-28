@@ -11,6 +11,7 @@ import (
 	"github.com/meza/minecraft-mod-manager/internal/logger"
 	"github.com/meza/minecraft-mod-manager/internal/models"
 	"github.com/meza/minecraft-mod-manager/internal/modsetup"
+	"github.com/meza/minecraft-mod-manager/internal/output"
 	"github.com/meza/minecraft-mod-manager/internal/perf"
 	"github.com/meza/minecraft-mod-manager/internal/platform"
 	"github.com/meza/minecraft-mod-manager/internal/telemetry"
@@ -34,6 +35,7 @@ type addDeps struct {
 	clients         platform.Clients
 	minecraftClient httpclient.Doer
 	logger          *logger.Logger
+	output          *output.Output
 	fetchMod        fetcher
 	downloader      downloader
 	runTea          func(model tea.Model, options ...tea.ProgramOption) (tea.Model, error)
@@ -123,6 +125,7 @@ type finalizeAddInput struct {
 	opts             addOptions
 	setupCoordinator *modsetup.SetupCoordinator
 	logger           *logger.Logger
+	output           *output.Output
 	useTUI           bool
 	colorMode        tui.ColorMode
 }

@@ -6,8 +6,8 @@ import (
 
 	"github.com/meza/minecraft-mod-manager/internal/config"
 	"github.com/meza/minecraft-mod-manager/internal/i18n"
-	"github.com/meza/minecraft-mod-manager/internal/logger"
 	"github.com/meza/minecraft-mod-manager/internal/models"
+	"github.com/meza/minecraft-mod-manager/internal/output"
 	"github.com/meza/minecraft-mod-manager/internal/tui"
 	"github.com/spf13/cobra"
 )
@@ -58,7 +58,9 @@ func runInstall(ctx context.Context, cmd *cobra.Command, opts installOptions, de
 		return Result{InstalledCount: len(configured.cfg.Mods), UnmanagedFound: preflight.unmanagedFound}, errInstallFailures
 	}
 
-	deps.logger.Log(messageWithIcon(tui.SuccessIcon(colorMode), i18n.T("cmd.install.success")), logger.LogForce)
+	if err := deps.output.Log(messageWithIcon(tui.SuccessIcon(colorMode), i18n.T("cmd.install.success")), output.LogForce); err != nil {
+		return Result{}, err
+	}
 	return Result{InstalledCount: len(configured.cfg.Mods), UnmanagedFound: preflight.unmanagedFound}, nil
 }
 
@@ -92,13 +94,15 @@ func installConfiguredMods(input installConfiguredInputs) (installConfiguredOutc
 	for i := range cfg.Mods {
 		mod := cfg.Mods[i]
 		version := modVersionLabel(mod)
-		input.deps.logger.Debug(i18n.T("cmd.install.debug.checking", i18n.Tvars{
+		if err := input.deps.logger.Debug(i18n.T("cmd.install.debug.checking", i18n.Tvars{
 			Data: &i18n.TData{
 				"name":     mod.Name,
 				"version":  version,
 				"platform": mod.Type,
 			},
-		}))
+		})); err != nil {
+			return installConfiguredOutcome{}, err
+		}
 
 		outcome, err := installMod(installModInputs{
 			ctx:      input.ctx,

@@ -8,6 +8,7 @@ import (
 	"github.com/meza/minecraft-mod-manager/internal/httpclient"
 	"github.com/meza/minecraft-mod-manager/internal/logger"
 	"github.com/meza/minecraft-mod-manager/internal/models"
+	"github.com/meza/minecraft-mod-manager/internal/output"
 	"github.com/meza/minecraft-mod-manager/internal/platform"
 	"github.com/meza/minecraft-mod-manager/internal/telemetry"
 	"github.com/meza/minecraft-mod-manager/internal/tui"
@@ -24,6 +25,7 @@ type updateOptions struct {
 type updateDeps struct {
 	fs         afero.Fs
 	logger     *logger.Logger
+	output     *output.Output
 	clients    platform.Clients
 	fetchMod   fetcher
 	downloader downloader

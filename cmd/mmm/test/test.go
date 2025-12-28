@@ -13,6 +13,7 @@ import (
 	"github.com/meza/minecraft-mod-manager/internal/logger"
 	"github.com/meza/minecraft-mod-manager/internal/minecraft"
 	"github.com/meza/minecraft-mod-manager/internal/models"
+	"github.com/meza/minecraft-mod-manager/internal/output"
 	"github.com/meza/minecraft-mod-manager/internal/perf"
 	"github.com/meza/minecraft-mod-manager/internal/platform"
 	"github.com/meza/minecraft-mod-manager/internal/telemetry"
@@ -35,6 +36,7 @@ type testOptions struct {
 type testDeps struct {
 	fs             afero.Fs
 	logger         *logger.Logger
+	output         *output.Output
 	clients        platform.Clients
 	fetchMod       fetcher
 	latestVersion  latestVersionFetcher
@@ -102,8 +104,10 @@ func runTestCommand(cmd *cobra.Command, args []string, runner testRunner) error 
 		return err
 	}
 
-	log := logger.New(cmd.OutOrStdout(), cmd.ErrOrStderr(), opts.Quiet, opts.Debug)
-	deps := defaultTestDeps(log)
+	quietForOutput := opts.Quiet && !opts.Debug
+	out := output.New(cmd.OutOrStdout(), cmd.ErrOrStderr(), quietForOutput)
+	log := logger.New(cmd.OutOrStdout(), cmd.ErrOrStderr(), false, opts.Debug)
+	deps := defaultTestDeps(log, out)
 
 	exitCode, err := runner(ctx, cmd, opts, deps)
 	span.SetAttributes(attribute.Bool("success", err == nil))
@@ -143,11 +147,12 @@ func resolveGameVersion(args []string) string {
 	return "latest"
 }
 
-func defaultTestDeps(log *logger.Logger) testDeps {
+func defaultTestDeps(log *logger.Logger, out *output.Output) testDeps {
 	limiter := httpclient.DefaultLimiter()
 	return testDeps{
 		fs:             afero.NewOsFs(),
 		logger:         log,
+		output:         out,
 		clients:        platform.DefaultClients(limiter),
 		fetchMod:       platform.FetchMod,
 		latestVersion:  minecraft.GetLatestVersion,
@@ -168,7 +173,7 @@ func handleTestCommandError(cmd *cobra.Command, err error) {
 		// Exit code errors (like same-version) are already logged; suppress cobra output
 		cmd.SilenceErrors = true
 	} else if errors.Is(err, errLatestVersionRequired) || errors.Is(err, errInvalidVersion) || errors.Is(err, errVersionValidationUnavailable) {
-		// These errors are already logged via deps.logger.Error(); suppress cobra output
+		// These errors are already logged via deps.output.Error(); suppress cobra output
 		cmd.SilenceErrors = true
 	}
 }
@@ -227,9 +232,11 @@ func runTest(ctx context.Context, cmd *cobra.Command, opts testOptions, deps tes
 	}
 
 	if len(cfg.Mods) == 0 {
-		deps.logger.Log(i18n.T("cmd.test.success", i18n.Tvars{
+		if outputErr := deps.output.Log(i18n.T("cmd.test.success", i18n.Tvars{
 			Data: &i18n.TData{"version": targetVersion},
-		}), logger.LogQuiet)
+		}), output.LogQuiet); outputErr != nil {
+			return 0, outputErr
+		}
 		return 0, nil
 	}
 
@@ -403,37 +410,53 @@ func resolveTargetVersion(ctx context.Context, cfg models.ModsJSON, opts testOpt
 	targetVersion := opts.GameVersion
 
 	if strings.EqualFold(targetVersion, "latest") {
-		latest, err := deps.latestVersion(ctx, deps.clients.Modrinth)
+		latest, err := resolveLatestVersion(ctx, deps)
 		if err != nil {
-			// Per ADR 0006: when manifest fails, we cannot determine "latest" in non-interactive mode.
-			// The user must provide an explicit version. Interactive prompting is for TUI only.
-			deps.logger.Error(i18n.T("cmd.test.error.latest_unavailable", i18n.Tvars{}))
-			return "", 0, errLatestVersionRequired
+			return "", 0, err
 		}
 		targetVersion = latest
 	}
 
 	valid, validationErr := deps.isValidVersion(ctx, targetVersion, deps.clients.Modrinth)
 	if validationErr != nil {
-		deps.logger.Error(i18n.T("cmd.test.error.version_unavailable", i18n.Tvars{}))
+		if outputErr := deps.output.Error(i18n.T("cmd.test.error.version_unavailable", i18n.Tvars{})); outputErr != nil {
+			return "", 0, outputErr
+		}
 		return "", 0, errVersionValidationUnavailable
 	}
 	if !valid {
-		deps.logger.Error(i18n.T("cmd.test.error.invalid_version", i18n.Tvars{
+		if outputErr := deps.output.Error(i18n.T("cmd.test.error.invalid_version", i18n.Tvars{
 			Data: &i18n.TData{"version": targetVersion},
-		}))
+		})); outputErr != nil {
+			return "", 0, outputErr
+		}
 		return "", 0, errInvalidVersion
 	}
 
 	if targetVersion == cfg.GameVersion {
-		deps.logger.Log(i18n.T("cmd.test.same_version", i18n.Tvars{
+		if outputErr := deps.output.Log(i18n.T("cmd.test.same_version", i18n.Tvars{
 			Data: &i18n.TData{"version": targetVersion},
-		}), logger.LogForce)
+		}), output.LogForce); outputErr != nil {
+			return "", 0, outputErr
+		}
 		// Return exit code 2 via errSameVersion so it propagates through main.go
 		return targetVersion, 2, errSameVersion
 	}
 
 	return targetVersion, 0, nil
+}
+
+func resolveLatestVersion(ctx context.Context, deps testDeps) (string, error) {
+	latest, err := deps.latestVersion(ctx, deps.clients.Modrinth)
+	if err != nil {
+		// Per ADR 0006: when manifest fails, we cannot determine "latest" in non-interactive mode.
+		// The user must provide an explicit version. Interactive prompting is for TUI only.
+		if outputErr := deps.output.Error(i18n.T("cmd.test.error.latest_unavailable", i18n.Tvars{})); outputErr != nil {
+			return "", outputErr
+		}
+		return "", errLatestVersionRequired
+	}
+	return latest, nil
 }
 
 func collectOutcomes(ctx context.Context, cfg models.ModsJSON, targetVersion string, deps testDeps) ([]modCheckOutcome, error) {
@@ -474,15 +497,19 @@ func collectOutcomes(ctx context.Context, cfg models.ModsJSON, targetVersion str
 	return outcomes, nil
 }
 
-func logOutcomes(outcomes []modCheckOutcome, deps testDeps) []modCheckOutcome {
+func logOutcomes(outcomes []modCheckOutcome, deps testDeps) ([]modCheckOutcome, error) {
 	unsupportedMods := make([]modCheckOutcome, 0)
 	for _, outcome := range outcomes {
 		for _, event := range outcome.LogEvents {
 			switch event.Kind {
 			case logEventKindError:
-				deps.logger.Error(event.Message)
+				if err := deps.output.Error(event.Message); err != nil {
+					return nil, err
+				}
 			case logEventKindDebug:
-				deps.logger.Debug(event.Message)
+				if err := deps.logger.Debug(event.Message); err != nil {
+					return nil, err
+				}
 			}
 		}
 
@@ -490,30 +517,45 @@ func logOutcomes(outcomes []modCheckOutcome, deps testDeps) []modCheckOutcome {
 			unsupportedMods = append(unsupportedMods, outcome)
 		}
 	}
-	return unsupportedMods
+	return unsupportedMods, nil
 }
 
 func evaluateTestOutcomes(targetVersion string, outcomes []modCheckOutcome, deps testDeps, colorMode tui.ColorMode) (int, error) {
-	unsupportedMods := logOutcomes(outcomes, deps)
+	unsupportedMods, err := logOutcomes(outcomes, deps)
+	if err != nil {
+		return 0, err
+	}
 	if len(unsupportedMods) > 0 {
-		deps.logger.Log(i18n.T("cmd.test.missing_support_header", i18n.Tvars{
-			Data: &i18n.TData{"version": targetVersion},
-		}), logger.LogForce)
-
-		for _, unsupported := range unsupportedMods {
-			modEntry := formatMissingModEntry(unsupported.Mod, colorMode)
-			deps.logger.Log(modEntry, logger.LogForce)
-		}
-
-		deps.logger.Log(i18n.T("cmd.test.cannot_upgrade", i18n.Tvars{
-			Data: &i18n.TData{"version": targetVersion},
-		}), logger.LogForce)
-
-		return 1, errUnsupportedMods
+		return reportUnsupportedMods(targetVersion, unsupportedMods, deps, colorMode)
 	}
 
-	deps.logger.Log(i18n.T("cmd.test.success", i18n.Tvars{
+	if outputErr := deps.output.Log(i18n.T("cmd.test.success", i18n.Tvars{
 		Data: &i18n.TData{"version": targetVersion},
-	}), logger.LogQuiet)
+	}), output.LogQuiet); outputErr != nil {
+		return 0, outputErr
+	}
 	return 0, nil
+}
+
+func reportUnsupportedMods(targetVersion string, unsupportedMods []modCheckOutcome, deps testDeps, colorMode tui.ColorMode) (int, error) {
+	if outputErr := deps.output.Log(i18n.T("cmd.test.missing_support_header", i18n.Tvars{
+		Data: &i18n.TData{"version": targetVersion},
+	}), output.LogForce); outputErr != nil {
+		return 0, outputErr
+	}
+
+	for _, unsupported := range unsupportedMods {
+		modEntry := formatMissingModEntry(unsupported.Mod, colorMode)
+		if outputErr := deps.output.Log(modEntry, output.LogForce); outputErr != nil {
+			return 0, outputErr
+		}
+	}
+
+	if outputErr := deps.output.Log(i18n.T("cmd.test.cannot_upgrade", i18n.Tvars{
+		Data: &i18n.TData{"version": targetVersion},
+	}), output.LogForce); outputErr != nil {
+		return 0, outputErr
+	}
+
+	return 1, errUnsupportedMods
 }

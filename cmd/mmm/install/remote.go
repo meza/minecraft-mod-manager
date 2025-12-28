@@ -8,11 +8,11 @@ import (
 
 	"github.com/meza/minecraft-mod-manager/internal/config"
 	"github.com/meza/minecraft-mod-manager/internal/i18n"
-	"github.com/meza/minecraft-mod-manager/internal/logger"
 	"github.com/meza/minecraft-mod-manager/internal/models"
 	"github.com/meza/minecraft-mod-manager/internal/modfilename"
 	"github.com/meza/minecraft-mod-manager/internal/modinstall"
 	"github.com/meza/minecraft-mod-manager/internal/modpath"
+	"github.com/meza/minecraft-mod-manager/internal/output"
 	"github.com/meza/minecraft-mod-manager/internal/platform"
 	"github.com/meza/minecraft-mod-manager/internal/tui"
 )
@@ -28,21 +28,19 @@ func installMod(input installModInputs) (modInstallOutcome, error) {
 func installFromLock(ctx context.Context, meta config.Metadata, cfg models.ModsJSON, mod models.Mod, installEntry models.ModInstall, deps installDeps) (modInstallOutcome, error) {
 	normalizedFileName, normalizeErr := modfilename.Normalize(installEntry.FileName)
 	if normalizeErr != nil {
-		deps.logger.Error(i18n.T("cmd.install.error.invalid_filename_lock", i18n.Tvars{
+		if err := deps.output.Error(i18n.T("cmd.install.error.invalid_filename_lock", i18n.Tvars{
 			Data: &i18n.TData{
 				"name": mod.Name,
 				"file": modfilename.Display(installEntry.FileName),
 			},
-		}))
-		return modInstallOutcome{failed: true}, nil //nolint:nilerr // Keep install flow running after logging invalid lock entry.
+		})); err != nil {
+			return modInstallOutcome{}, err
+		}
+		return modInstallOutcome{failed: true}, nil
 	}
 	installEntry.FileName = normalizedFileName
 	if err := ensureLockInstall(ctx, meta, cfg, mod, installEntry, deps); err != nil {
-		if message, handled := integrityErrorMessage(err, mod.Name); handled {
-			deps.logger.Error(message)
-			return modInstallOutcome{failed: true}, nil
-		}
-		return modInstallOutcome{}, err
+		return handleInstallIntegrityError(deps.output, err, mod.Name)
 	}
 	return modInstallOutcome{}, nil
 }
@@ -50,23 +48,32 @@ func installFromLock(ctx context.Context, meta config.Metadata, cfg models.ModsJ
 func installFromRemote(input installModInputs) (modInstallOutcome, error) {
 	remote, fetchErr := fetchRemoteModForInstall(input.ctx, input.mod, input.cfg, input.deps)
 	if fetchErr != nil {
-		if handleExpectedFetchError(fetchErr, input) {
+		handled, err := handleExpectedFetchError(fetchErr, input)
+		if err != nil {
+			return modInstallOutcome{}, err
+		}
+		if handled {
 			return modInstallOutcome{}, nil
 		}
 		return modInstallOutcome{}, fetchErr
 	}
 
-	normalizedRemote, outcome := normalizeRemoteForInstall(remote, input.mod, input.deps)
+	normalizedRemote, outcome, err := normalizeRemoteForInstall(remote, input.mod, input.deps)
+	if err != nil {
+		return modInstallOutcome{}, err
+	}
 	if outcome.failed {
 		return outcome, nil
 	}
 
-	input.deps.logger.Log(i18n.T("cmd.install.download.missing", i18n.Tvars{
+	if outputErr := input.deps.output.Log(i18n.T("cmd.install.download.missing", i18n.Tvars{
 		Data: &i18n.TData{
 			"name":     input.mod.Name,
 			"platform": input.mod.Type,
 		},
-	}), logger.LogForce)
+	}), output.LogForce); outputErr != nil {
+		return modInstallOutcome{}, outputErr
+	}
 
 	resolvedDestination, outcome, err := resolveRemoteDestination(input.meta, input.cfg, normalizedRemote, input.mod, input.deps)
 	if err != nil || outcome.failed {
@@ -96,13 +103,31 @@ func fetchRemoteModForInstall(ctx context.Context, mod models.Mod, cfg models.Mo
 func downloadRemoteMod(ctx context.Context, remote platform.RemoteMod, resolvedDestination string, mod models.Mod, deps installDeps) (bool, error) {
 	installer := modinstall.NewInstaller(deps.fs, modinstall.Downloader(deps.downloader))
 	if err := installer.DownloadAndVerify(ctx, remote.DownloadURL, resolvedDestination, remote.Hash, platform.PreferredDownloadClient(deps.clients), nil); err != nil {
-		if message, handled := integrityErrorMessage(err, mod.Name); handled {
-			deps.logger.Error(message)
-			return true, nil
-		}
-		return false, err
+		return handleDownloadIntegrityError(deps.output, err, mod.Name)
 	}
 	return false, nil
+}
+
+func handleInstallIntegrityError(out *output.Output, err error, modName string) (modInstallOutcome, error) {
+	message, handled := integrityErrorMessage(err, modName)
+	if !handled {
+		return modInstallOutcome{}, err
+	}
+	if outputErr := out.Error(message); outputErr != nil {
+		return modInstallOutcome{}, outputErr
+	}
+	return modInstallOutcome{failed: true}, nil
+}
+
+func handleDownloadIntegrityError(out *output.Output, err error, modName string) (bool, error) {
+	message, handled := integrityErrorMessage(err, modName)
+	if !handled {
+		return false, err
+	}
+	if outputErr := out.Error(message); outputErr != nil {
+		return false, outputErr
+	}
+	return true, nil
 }
 
 func buildLockEntry(mod models.Mod, remote platform.RemoteMod) models.ModInstall {
@@ -117,38 +142,42 @@ func buildLockEntry(mod models.Mod, remote platform.RemoteMod) models.ModInstall
 	}
 }
 
-func normalizeRemoteForInstall(remote platform.RemoteMod, mod models.Mod, deps installDeps) (platform.RemoteMod, modInstallOutcome) {
+func normalizeRemoteForInstall(remote platform.RemoteMod, mod models.Mod, deps installDeps) (platform.RemoteMod, modInstallOutcome, error) {
 	normalizedFileName, normalizeErr := modfilename.Normalize(remote.FileName)
 	if normalizeErr != nil {
-		deps.logger.Error(i18n.T("cmd.install.error.invalid_filename_remote", i18n.Tvars{
+		if err := deps.output.Error(i18n.T("cmd.install.error.invalid_filename_remote", i18n.Tvars{
 			Data: &i18n.TData{
 				"name": mod.Name,
 				"file": modfilename.Display(remote.FileName),
 			},
-		}))
-		return platform.RemoteMod{}, modInstallOutcome{failed: true}
+		})); err != nil {
+			return platform.RemoteMod{}, modInstallOutcome{}, err
+		}
+		return platform.RemoteMod{}, modInstallOutcome{failed: true}, nil
 	}
 	remote.FileName = normalizedFileName
 	if strings.TrimSpace(remote.Hash) == "" {
-		deps.logger.Error(i18n.T("cmd.install.error.missing_hash_remote", i18n.Tvars{
+		if err := deps.output.Error(i18n.T("cmd.install.error.missing_hash_remote", i18n.Tvars{
 			Data: &i18n.TData{
 				"name": mod.Name,
 			},
-		}))
-		return platform.RemoteMod{}, modInstallOutcome{failed: true}
+		})); err != nil {
+			return platform.RemoteMod{}, modInstallOutcome{}, err
+		}
+		return platform.RemoteMod{}, modInstallOutcome{failed: true}, nil
 	}
-	return remote, modInstallOutcome{}
+	return remote, modInstallOutcome{}, nil
 }
 
 func resolveRemoteDestination(meta config.Metadata, cfg models.ModsJSON, remote platform.RemoteMod, mod models.Mod, deps installDeps) (string, modInstallOutcome, error) {
 	destination := filepath.Join(meta.ModsFolderPath(cfg), remote.FileName)
 	resolvedDestination, err := modpath.ResolveWritablePath(deps.fs, meta.ModsFolderPath(cfg), destination)
 	if err != nil {
-		if message, handled := integrityErrorMessage(err, mod.Name); handled {
-			deps.logger.Error(message)
-			return "", modInstallOutcome{failed: true}, nil
+		outcome, outcomeErr := handleInstallIntegrityError(deps.output, err, mod.Name)
+		if outcomeErr != nil {
+			return "", modInstallOutcome{}, outcomeErr
 		}
-		return "", modInstallOutcome{}, err
+		return "", outcome, nil
 	}
 	return resolvedDestination, modInstallOutcome{}, nil
 }
@@ -162,16 +191,20 @@ func ensureLockInstall(ctx context.Context, meta config.Metadata, cfg models.Mod
 
 	switch result.Reason {
 	case modinstall.EnsureReasonMissing:
-		deps.logger.Log(i18n.T("cmd.install.download.missing", i18n.Tvars{
+		if err := deps.output.Log(i18n.T("cmd.install.download.missing", i18n.Tvars{
 			Data: &i18n.TData{
 				"name":     mod.Name,
 				"platform": install.Type,
 			},
-		}), logger.LogForce)
+		}), output.LogForce); err != nil {
+			return err
+		}
 	case modinstall.EnsureReasonHashMismatch:
-		deps.logger.Log(i18n.T("cmd.install.download.hash_mismatch", i18n.Tvars{
+		if err := deps.output.Log(i18n.T("cmd.install.download.hash_mismatch", i18n.Tvars{
 			Data: &i18n.TData{"name": mod.Name},
-		}), logger.LogForce)
+		}), output.LogForce); err != nil {
+			return err
+		}
 	}
 	return nil
 }
@@ -206,32 +239,36 @@ func integrityErrorMessage(err error, modName string) (string, bool) {
 	return "", false
 }
 
-func handleExpectedFetchError(err error, input installModInputs) bool {
+func handleExpectedFetchError(err error, input installModInputs) (bool, error) {
 	colorMode := tui.ColorDisabled
 	if input.colorize {
 		colorMode = tui.ColorEnabled
 	}
 	var notFound *platform.ModNotFoundError
 	if errors.As(err, &notFound) {
-		input.deps.logger.Log(messageWithIcon(tui.ErrorIcon(colorMode), i18n.T("cmd.install.error.mod_not_found", i18n.Tvars{
+		if outputErr := input.deps.output.Log(messageWithIcon(tui.ErrorIcon(colorMode), i18n.T("cmd.install.error.mod_not_found", i18n.Tvars{
 			Data: &i18n.TData{
 				"name":     input.mod.Name,
 				"id":       input.mod.ID,
 				"platform": input.mod.Type,
 			},
-		})), logger.LogForce)
-		return true
+		})), output.LogForce); outputErr != nil {
+			return false, outputErr
+		}
+		return true, nil
 	}
 	var noFile *platform.NoCompatibleFileError
 	if errors.As(err, &noFile) {
-		input.deps.logger.Log(messageWithIcon(tui.ErrorIcon(colorMode), i18n.T("cmd.install.error.no_file", i18n.Tvars{
+		if outputErr := input.deps.output.Log(messageWithIcon(tui.ErrorIcon(colorMode), i18n.T("cmd.install.error.no_file", i18n.Tvars{
 			Data: &i18n.TData{
 				"name":     input.mod.Name,
 				"id":       input.mod.ID,
 				"platform": input.mod.Type,
 			},
-		})), logger.LogForce)
-		return true
+		})), output.LogForce); outputErr != nil {
+			return false, outputErr
+		}
+		return true, nil
 	}
-	return false
+	return false, nil
 }

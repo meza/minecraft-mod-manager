@@ -20,6 +20,7 @@ import (
 	"github.com/meza/minecraft-mod-manager/internal/logger"
 	"github.com/meza/minecraft-mod-manager/internal/models"
 	"github.com/meza/minecraft-mod-manager/internal/modpath"
+	"github.com/meza/minecraft-mod-manager/internal/output"
 	"github.com/meza/minecraft-mod-manager/internal/platform"
 	"github.com/meza/minecraft-mod-manager/internal/telemetry"
 	"github.com/meza/minecraft-mod-manager/internal/tui"
@@ -190,6 +191,7 @@ func TestDownloadAndSwapInPlaceLogsBackupDeletionFailureAtDebugLevel(t *testing.
 	deps := updateDeps{
 		fs:     fs,
 		logger: log,
+		output: output.New(out, errOut, false),
 		clients: platform.Clients{
 			Modrinth: noopDoer{},
 		},
@@ -237,6 +239,7 @@ func TestRunUpdateAbortsWhenInstallReportsUnmanagedFiles(t *testing.T) {
 	_, err := runUpdate(context.Background(), cmd, updateOptions{ConfigPath: meta.ConfigPath}, updateDeps{
 		fs:     fs,
 		logger: logger.New(out, errOut, false, false),
+		output: output.New(out, errOut, false),
 		install: func(context.Context, *cobra.Command, string, bool, bool) (install.Result, error) {
 			return install.Result{UnmanagedFound: true}, nil
 		},
@@ -285,6 +288,7 @@ func TestRunUpdateReturnsErrorWhenInstallFails(t *testing.T) {
 	_, err := runUpdate(context.Background(), cmd, updateOptions{ConfigPath: meta.ConfigPath}, updateDeps{
 		fs:     fs,
 		logger: logger.New(out, errOut, false, false),
+		output: output.New(out, errOut, false),
 		install: func(context.Context, *cobra.Command, string, bool, bool) (install.Result, error) {
 			return install.Result{}, sentinel
 		},
@@ -348,6 +352,7 @@ func TestRunUpdateSkipsPinnedModsWithoutNetwork(t *testing.T) {
 	counts, err := runUpdate(context.Background(), cmd, updateOptions{ConfigPath: meta.ConfigPath}, updateDeps{
 		fs:     fs,
 		logger: logger.New(out, errOut, false, false),
+		output: output.New(out, errOut, false),
 		install: func(context.Context, *cobra.Command, string, bool, bool) (install.Result, error) {
 			return install.Result{}, nil
 		},
@@ -404,6 +409,7 @@ func TestRunUpdateFailsWhenLockEntryIsMissing(t *testing.T) {
 	counts, err := runUpdate(context.Background(), cmd, updateOptions{ConfigPath: meta.ConfigPath}, updateDeps{
 		fs:     fs,
 		logger: logger.New(out, errOut, false, false),
+		output: output.New(out, errOut, false),
 		install: func(context.Context, *cobra.Command, string, bool, bool) (install.Result, error) {
 			return install.Result{}, nil
 		},
@@ -463,6 +469,7 @@ func TestRunUpdateReturnsNonZeroWhenFetchReturnsExpectedErrors(t *testing.T) {
 	counts, err := runUpdate(context.Background(), cmd, updateOptions{ConfigPath: meta.ConfigPath}, updateDeps{
 		fs:     fs,
 		logger: logger.New(out, errOut, false, false),
+		output: output.New(out, errOut, false),
 		install: func(context.Context, *cobra.Command, string, bool, bool) (install.Result, error) {
 			return install.Result{}, nil
 		},
@@ -543,6 +550,7 @@ func TestRunUpdateFailsWhenLockedFileIsMissing(t *testing.T) {
 	counts, err := runUpdate(context.Background(), cmd, updateOptions{ConfigPath: meta.ConfigPath}, updateDeps{
 		fs:     fs,
 		logger: logger.New(out, errOut, false, false),
+		output: output.New(out, errOut, false),
 		install: func(context.Context, *cobra.Command, string, bool, bool) (install.Result, error) {
 			return install.Result{}, nil
 		},
@@ -615,6 +623,7 @@ func TestRunUpdateFailsWhenInstalledTimestampIsInvalid(t *testing.T) {
 	counts, err := runUpdate(context.Background(), cmd, updateOptions{ConfigPath: meta.ConfigPath}, updateDeps{
 		fs:     fs,
 		logger: logger.New(out, errOut, false, false),
+		output: output.New(out, errOut, false),
 		install: func(context.Context, *cobra.Command, string, bool, bool) (install.Result, error) {
 			return install.Result{}, nil
 		},
@@ -688,6 +697,7 @@ func TestRunUpdateDownloadsAndSwapsWhenNewerReleaseExists(t *testing.T) {
 	counts, err := runUpdate(context.Background(), cmd, updateOptions{ConfigPath: meta.ConfigPath}, updateDeps{
 		fs:     fs,
 		logger: logger.New(out, errOut, false, false),
+		output: output.New(out, errOut, false),
 		install: func(context.Context, *cobra.Command, string, bool, bool) (install.Result, error) {
 			return install.Result{}, nil
 		},
@@ -783,6 +793,7 @@ func TestRunUpdateKeepsPreviousFileAndLockWhenDownloadFails(t *testing.T) {
 	counts, err := runUpdate(context.Background(), cmd, updateOptions{ConfigPath: meta.ConfigPath}, updateDeps{
 		fs:     fs,
 		logger: logger.New(out, errOut, false, false),
+		output: output.New(out, errOut, false),
 		install: func(context.Context, *cobra.Command, string, bool, bool) (install.Result, error) {
 			return install.Result{}, nil
 		},
@@ -867,6 +878,7 @@ func TestRunUpdateReportsMissingHash(t *testing.T) {
 	counts, err := runUpdate(context.Background(), cmd, updateOptions{ConfigPath: meta.ConfigPath}, updateDeps{
 		fs:     fs,
 		logger: logger.New(out, errOut, false, false),
+		output: output.New(out, errOut, false),
 		install: func(context.Context, *cobra.Command, string, bool, bool) (install.Result, error) {
 			return install.Result{}, nil
 		},
@@ -938,6 +950,7 @@ func TestRunUpdateReportsInvalidRemoteFileName(t *testing.T) {
 	counts, err := runUpdate(context.Background(), cmd, updateOptions{ConfigPath: meta.ConfigPath}, updateDeps{
 		fs:     fs,
 		logger: logger.New(out, errOut, false, false),
+		output: output.New(out, errOut, false),
 		install: func(context.Context, *cobra.Command, string, bool, bool) (install.Result, error) {
 			return install.Result{}, nil
 		},
@@ -1009,6 +1022,7 @@ func TestRunUpdateReportsInvalidLockFileName(t *testing.T) {
 	counts, err := runUpdate(context.Background(), cmd, updateOptions{ConfigPath: meta.ConfigPath}, updateDeps{
 		fs:     fs,
 		logger: logger.New(out, errOut, false, false),
+		output: output.New(out, errOut, false),
 		install: func(context.Context, *cobra.Command, string, bool, bool) (install.Result, error) {
 			return install.Result{}, nil
 		},
@@ -1081,6 +1095,7 @@ func TestRunUpdateReportsMissingInstalledHash(t *testing.T) {
 	counts, err := runUpdate(context.Background(), cmd, updateOptions{ConfigPath: meta.ConfigPath}, updateDeps{
 		fs:     fs,
 		logger: logger.New(out, errOut, false, false),
+		output: output.New(out, errOut, false),
 		install: func(context.Context, *cobra.Command, string, bool, bool) (install.Result, error) {
 			return install.Result{}, nil
 		},
@@ -1154,6 +1169,7 @@ func TestRunUpdateReportsHashMismatch(t *testing.T) {
 	counts, err := runUpdate(context.Background(), cmd, updateOptions{ConfigPath: meta.ConfigPath}, updateDeps{
 		fs:     fs,
 		logger: logger.New(out, errOut, false, false),
+		output: output.New(out, errOut, false),
 		install: func(context.Context, *cobra.Command, string, bool, bool) (install.Result, error) {
 			return install.Result{}, nil
 		},
@@ -1246,6 +1262,7 @@ func TestDownloadAndSwapInPlaceDoesNotFailWhenBackupDeletionFails(t *testing.T) 
 	deps := updateDeps{
 		fs:      fs,
 		logger:  logger.New(&bytes.Buffer{}, &bytes.Buffer{}, false, false),
+		output:  output.New(&bytes.Buffer{}, &bytes.Buffer{}, false),
 		clients: platform.Clients{Modrinth: noopDoer{}},
 		downloader: func(_ context.Context, _ string, destination string, _ httpclient.Doer, _ httpclient.Sender, filesystems ...afero.Fs) error {
 			return afero.WriteFile(filesystems[0], destination, []byte("new"), 0644)
@@ -1494,6 +1511,7 @@ func TestDownloadAndSwapReturnsJoinedErrorOnOldFileCleanupFailure(t *testing.T) 
 			return afero.WriteFile(filesystems[0], destination, []byte("new"), 0644)
 		},
 		logger: logger.New(io.Discard, io.Discard, false, false),
+		output: output.New(io.Discard, io.Discard, false),
 	}
 
 	err := downloadAndSwap(context.Background(), deps, oldPath, newPath, meta.ModsFolderPath(cfg), "https://example.invalid/new.jar", sha1Hex("new"))
@@ -1573,6 +1591,7 @@ func TestRunUpdateLogsNoUpdatesWhenNothingChanges(t *testing.T) {
 	counts, err := runUpdate(context.Background(), cmd, updateOptions{ConfigPath: meta.ConfigPath}, updateDeps{
 		fs:     fs,
 		logger: logger.New(out, errOut, false, false),
+		output: output.New(out, errOut, false),
 		install: func(context.Context, *cobra.Command, string, bool, bool) (install.Result, error) {
 			return install.Result{}, nil
 		},
@@ -1633,6 +1652,7 @@ func TestRunUpdateReturnsErrorOnUnexpectedFetchError(t *testing.T) {
 	counts, err := runUpdate(context.Background(), cmd, updateOptions{ConfigPath: meta.ConfigPath}, updateDeps{
 		fs:     fs,
 		logger: logger.New(out, errOut, false, false),
+		output: output.New(out, errOut, false),
 		install: func(context.Context, *cobra.Command, string, bool, bool) (install.Result, error) {
 			return install.Result{}, nil
 		},
@@ -1702,6 +1722,7 @@ func TestRunUpdateReturnsErrorOnRemoteTimestampInvalid(t *testing.T) {
 	counts, err := runUpdate(context.Background(), cmd, updateOptions{ConfigPath: meta.ConfigPath}, updateDeps{
 		fs:     fs,
 		logger: logger.New(out, errOut, false, false),
+		output: output.New(out, errOut, false),
 		install: func(context.Context, *cobra.Command, string, bool, bool) (install.Result, error) {
 			return install.Result{}, nil
 		},
@@ -1772,6 +1793,7 @@ func TestRunUpdateReturnsErrorWhenLockWriteFails(t *testing.T) {
 	_, err := runUpdate(context.Background(), cmd, updateOptions{ConfigPath: meta.ConfigPath}, updateDeps{
 		fs:     fs,
 		logger: logger.New(out, errOut, false, false),
+		output: output.New(out, errOut, false),
 		install: func(context.Context, *cobra.Command, string, bool, bool) (install.Result, error) {
 			return install.Result{}, nil
 		},
@@ -1842,6 +1864,7 @@ func TestRunUpdateReturnsErrorWhenConfigWriteFails(t *testing.T) {
 	_, err := runUpdate(context.Background(), cmd, updateOptions{ConfigPath: meta.ConfigPath}, updateDeps{
 		fs:     fs,
 		logger: logger.New(out, errOut, false, false),
+		output: output.New(out, errOut, false),
 		install: func(context.Context, *cobra.Command, string, bool, bool) (install.Result, error) {
 			return install.Result{}, nil
 		},
@@ -1871,6 +1894,7 @@ func TestRunUpdateReturnsErrorWhenConfigMissing(t *testing.T) {
 	_, err := runUpdate(context.Background(), cmd, updateOptions{ConfigPath: "missing.json"}, updateDeps{
 		fs:     fs,
 		logger: logger.New(out, errOut, false, false),
+		output: output.New(out, errOut, false),
 		install: func(context.Context, *cobra.Command, string, bool, bool) (install.Result, error) {
 			return install.Result{}, nil
 		},
@@ -1903,6 +1927,7 @@ func TestRunUpdateReturnsErrorWhenLockMissing(t *testing.T) {
 	_, err := runUpdate(context.Background(), cmd, updateOptions{ConfigPath: meta.ConfigPath}, updateDeps{
 		fs:     fs,
 		logger: logger.New(out, errOut, false, false),
+		output: output.New(out, errOut, false),
 		install: func(context.Context, *cobra.Command, string, bool, bool) (install.Result, error) {
 			return install.Result{}, nil
 		},
@@ -1933,6 +1958,7 @@ func TestProcessModReturnsErrorOnExistsFailure(t *testing.T) {
 	outcome := processMod(context.Background(), meta, cfg, lock, modUpdateCandidate{ConfigIndex: 0, Mod: mod}, updateDeps{
 		fs:     fs,
 		logger: logger.New(io.Discard, io.Discard, false, false),
+		output: output.New(io.Discard, io.Discard, false),
 		fetchMod: func(context.Context, models.Platform, string, platform.FetchOptions, platform.Clients) (platform.RemoteMod, error) {
 			return platform.RemoteMod{
 				Name:        "Configured",
@@ -1971,6 +1997,7 @@ func TestProcessModReturnsUnchangedWhenHashMatches(t *testing.T) {
 	outcome := processMod(context.Background(), meta, cfg, lock, modUpdateCandidate{ConfigIndex: 0, Mod: mod}, updateDeps{
 		fs:     fs,
 		logger: logger.New(io.Discard, io.Discard, false, false),
+		output: output.New(io.Discard, io.Discard, false),
 		fetchMod: func(context.Context, models.Platform, string, platform.FetchOptions, platform.Clients) (platform.RemoteMod, error) {
 			return platform.RemoteMod{
 				Name:        "Remote",
@@ -2186,6 +2213,7 @@ func TestRunUpdateReturnsContextErrorWhenCanceled(t *testing.T) {
 	deps := updateDeps{
 		fs:     fs,
 		logger: logger.New(io.Discard, io.Discard, true, false),
+		output: output.New(io.Discard, io.Discard, true),
 		install: func(context.Context, *cobra.Command, string, bool, bool) (install.Result, error) {
 			return install.Result{}, nil
 		},
@@ -2260,6 +2288,7 @@ func TestRunUpdatePersistsCompletedUpdatesWhenCanceled(t *testing.T) {
 	deps := updateDeps{
 		fs:     fs,
 		logger: logger.New(io.Discard, io.Discard, true, false),
+		output: output.New(io.Discard, io.Discard, true),
 		install: func(context.Context, *cobra.Command, string, bool, bool) (install.Result, error) {
 			return install.Result{}, nil
 		},
