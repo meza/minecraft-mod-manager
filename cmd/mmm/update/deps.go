@@ -1,6 +1,8 @@
 package update
 
 import (
+	"context"
+
 	"github.com/meza/minecraft-mod-manager/cmd/mmm/install"
 	"github.com/meza/minecraft-mod-manager/internal/httpclient"
 	"github.com/meza/minecraft-mod-manager/internal/logger"
@@ -11,10 +13,7 @@ import (
 	"github.com/spf13/cobra"
 )
 
-func defaultUpdateDeps(cmd *cobra.Command, opts updateOptions) updateDeps {
-	quietForOutput := opts.Quiet && !opts.Debug
-	out := output.New(cmd.OutOrStdout(), cmd.ErrOrStderr(), quietForOutput)
-	log := logger.New(cmd.OutOrStdout(), cmd.ErrOrStderr(), false, opts.Debug)
+func defaultUpdateDeps(out *output.Output, log *logger.Logger, installCommand *cobra.Command) updateDeps {
 	limiter := httpclient.DefaultLimiter()
 
 	return updateDeps{
@@ -24,7 +23,9 @@ func defaultUpdateDeps(cmd *cobra.Command, opts updateOptions) updateDeps {
 		clients:    platform.DefaultClients(limiter),
 		fetchMod:   platform.FetchMod,
 		downloader: httpclient.DownloadFile,
-		install:    install.Run,
-		telemetry:  telemetry.RecordCommand,
+		install: func(ctx context.Context, _ *cobra.Command, configPath string, quiet bool, debug bool) (install.Result, error) {
+			return install.Run(ctx, installCommand, configPath, quiet, debug)
+		},
+		telemetry: telemetry.RecordCommand,
 	}
 }

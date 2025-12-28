@@ -9,6 +9,7 @@ import (
 	"github.com/meza/minecraft-mod-manager/internal/output"
 	"github.com/meza/minecraft-mod-manager/internal/perf"
 	"github.com/meza/minecraft-mod-manager/internal/telemetry"
+	"github.com/meza/minecraft-mod-manager/internal/tui"
 	"github.com/spf13/cobra"
 	"go.opentelemetry.io/otel/attribute"
 )
@@ -58,13 +59,30 @@ func runInstallCommand(cmd *cobra.Command, runner installRunner) error {
 		return err
 	}
 
+	quietMode := tui.QuietDisabled
+	if opts.Quiet {
+		quietMode = tui.QuietEnabled
+	}
+	useTUI := tui.ShouldUseTUI(quietMode, cmd.InOrStdin(), cmd.OutOrStdout())
+
+	outWriter := cmd.OutOrStdout()
+	errWriter := cmd.ErrOrStderr()
+	var logProgram *tui.LogProgram
+	if useTUI {
+		logProgram = tui.StartLogProgram(cmd.InOrStdin(), outWriter)
+		outWriter = logProgram.Writer()
+	}
+
 	quietForOutput := opts.Quiet && !opts.Debug
-	out := output.New(cmd.OutOrStdout(), cmd.ErrOrStderr(), quietForOutput)
-	log := logger.New(cmd.OutOrStdout(), cmd.ErrOrStderr(), false, opts.Debug)
+	out := output.New(outWriter, errWriter, quietForOutput)
+	log := logger.New(outWriter, errWriter, false, opts.Debug)
 	limiter := httpclient.DefaultLimiter()
 	deps := defaultInstallDeps(log, out, limiter, telemetry.RecordCommand)
 
 	result, err := runner(ctx, cmd, opts, deps)
+	if useTUI {
+		err = tui.MergeProgramError(err, logProgram.Stop())
+	}
 	span.SetAttributes(attribute.Bool("success", err == nil))
 	span.End()
 

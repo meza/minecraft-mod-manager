@@ -14,6 +14,7 @@ import (
 
 	"github.com/meza/minecraft-mod-manager/internal/config"
 	"github.com/meza/minecraft-mod-manager/internal/models"
+	"github.com/meza/minecraft-mod-manager/internal/tui"
 )
 
 func TestCommandMissingConfigFlagErrors(t *testing.T) {
@@ -91,6 +92,59 @@ func TestCommandSetsSilenceUsageOnError(t *testing.T) {
 	assert.True(t, cmd.SilenceUsage)
 }
 
+func TestCommandUsesTUIOutputWhenTerminal(t *testing.T) {
+	t.Setenv("MMM_TEST", "true")
+
+	restore := tui.SetIsTerminalFuncForTesting(func(_ int) bool { return true })
+	defer restore()
+
+	fs := afero.NewOsFs()
+	tempDir := t.TempDir()
+	configPath := filepath.Join(tempDir, "modlist.json")
+	meta := config.NewMetadata(configPath)
+
+	cfg := models.ModsJSON{
+		Loader:                     models.FABRIC,
+		GameVersion:                "1.20.1",
+		DefaultAllowedReleaseTypes: []models.ReleaseType{models.Release},
+		ModsFolder:                 "mods",
+		Mods:                       []models.Mod{},
+	}
+
+	require.NoError(t, fs.MkdirAll(meta.Dir(), 0755))
+	require.NoError(t, fs.MkdirAll(meta.ModsFolderPath(cfg), 0755))
+	require.NoError(t, config.WriteConfig(context.Background(), fs, meta, cfg))
+	require.NoError(t, config.WriteLock(context.Background(), fs, meta, []models.ModInstall{}))
+
+	cmd := Command()
+	addPersistentFlagsForTesting(cmd)
+	output := &terminalWriter{}
+	cmd.SetIn(terminalReader{Reader: bytes.NewBuffer(nil)})
+	cmd.SetOut(output)
+	cmd.SetErr(io.Discard)
+	cmd.SetArgs([]string{"--config", configPath})
+
+	assert.NoError(t, cmd.Execute())
+	assert.Contains(t, output.String(), "cmd.install.success")
+	assert.Contains(t, output.String(), "cmd.update.no_updates")
+}
+
+func TestWrapWriterWithFDReturnsOriginalWithoutFD(t *testing.T) {
+	output := &bytes.Buffer{}
+
+	wrapped := wrapWriterWithFD(output, io.Discard)
+	assert.Same(t, output, wrapped)
+}
+
+func TestWrapWriterWithFDReturnsFDWriter(t *testing.T) {
+	output := &bytes.Buffer{}
+
+	wrapped := wrapWriterWithFD(output, &terminalWriter{})
+	fdWriter, ok := wrapped.(interface{ Fd() uintptr })
+	assert.True(t, ok)
+	assert.Equal(t, uintptr(1), fdWriter.Fd())
+}
+
 func addPersistentFlagsForTesting(cmd *cobra.Command) {
 	cmd.PersistentFlags().StringP("config", "c", "./modlist.json", "An alternative JSON file containing the configuration")
 	cmd.PersistentFlags().BoolP("quiet", "q", false, "Suppress non-essential output (errors and required results still print)")
@@ -100,4 +154,20 @@ func addPersistentFlagsForTesting(cmd *cobra.Command) {
 func setCommandOutputForTesting(cmd *cobra.Command) {
 	cmd.SetOut(io.Discard)
 	cmd.SetErr(io.Discard)
+}
+
+type terminalReader struct {
+	io.Reader
+}
+
+func (terminalReader) Fd() uintptr {
+	return 0
+}
+
+type terminalWriter struct {
+	bytes.Buffer
+}
+
+func (writer *terminalWriter) Fd() uintptr {
+	return 1
 }

@@ -1,8 +1,13 @@
 package update
 
 import (
+	"io"
+
 	"github.com/meza/minecraft-mod-manager/internal/i18n"
+	"github.com/meza/minecraft-mod-manager/internal/logger"
+	"github.com/meza/minecraft-mod-manager/internal/output"
 	"github.com/meza/minecraft-mod-manager/internal/perf"
+	"github.com/meza/minecraft-mod-manager/internal/tui"
 	"github.com/spf13/cobra"
 	"go.opentelemetry.io/otel/attribute"
 )
@@ -33,8 +38,35 @@ func runUpdateCommand(cmd *cobra.Command) error {
 		return err
 	}
 
-	deps := defaultUpdateDeps(cmd, opts)
+	quietMode := tui.QuietDisabled
+	if opts.Quiet {
+		quietMode = tui.QuietEnabled
+	}
+	useTUI := tui.ShouldUseTUI(quietMode, cmd.InOrStdin(), cmd.OutOrStdout())
+
+	outWriter := cmd.OutOrStdout()
+	errWriter := cmd.ErrOrStderr()
+	var logProgram *tui.LogProgram
+	if useTUI {
+		logProgram = tui.StartLogProgram(cmd.InOrStdin(), outWriter)
+		outWriter = logProgram.Writer()
+	}
+
+	quietForOutput := opts.Quiet && !opts.Debug
+	out := output.New(outWriter, errWriter, quietForOutput)
+	log := logger.New(outWriter, errWriter, false, opts.Debug)
+	installCmd := cmd
+	if useTUI {
+		installCmd = &cobra.Command{}
+		installCmd.SetOut(wrapWriterWithFD(outWriter, cmd.OutOrStdout()))
+		installCmd.SetErr(errWriter)
+	}
+
+	deps := defaultUpdateDeps(out, log, installCmd)
 	counts, err := runUpdate(ctx, cmd, opts, deps)
+	if useTUI {
+		err = tui.MergeProgramError(err, logProgram.Stop())
+	}
 	span.SetAttributes(attribute.Bool("success", err == nil))
 	span.End()
 
@@ -44,6 +76,26 @@ func runUpdateCommand(cmd *cobra.Command) error {
 
 	recordUpdateTelemetry(deps.telemetry, counts.updated, counts.failed, err)
 	return err
+}
+
+type writerWithFD struct {
+	io.Writer
+	fd uintptr
+}
+
+func (writer writerWithFD) Fd() uintptr {
+	return writer.fd
+}
+
+func wrapWriterWithFD(outputWriter io.Writer, terminalWriter io.Writer) io.Writer {
+	fdWriter, ok := terminalWriter.(interface{ Fd() uintptr })
+	if !ok {
+		return outputWriter
+	}
+	return writerWithFD{
+		Writer: outputWriter,
+		fd:     fdWriter.Fd(),
+	}
 }
 
 func updateOptionsFromFlags(cmd *cobra.Command) (updateOptions, error) {

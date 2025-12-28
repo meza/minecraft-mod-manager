@@ -732,3 +732,8 @@ mmm-137 in progress: scanned exported decls missing GoDoc (454 missing across 87
 2025-12-28	19:06	mmm-138: fixed removeLockEntry to log invalid filename but still remove lock entry/write lock; added test to assert lock removal and output error path; reran make fmt-check/lint/vuln/coverage/build and Windows winhost checks (pass, PSReadLine warning).
 2025-12-28	19:26	mmm-138: restored quiet+debug output behavior by disabling output quiet when debug enabled across command entrypoints; make fmt-check/lint/vuln/coverage/build pass and Windows winhost checks pass (PSReadLine warning).
 2025-12-28	19:35	mmm-138: reviewer approved after quiet+debug output fix; code-review.md updated, all checks green, awaiting user sign-off/closure instructions.
+2025-12-28	19:53	Started mmm-138.1; reviewed specs (list/test/install/update) and TUI docs; planning Bubble Tea non-interactive output per issue note.
+2025-12-28	20:19	mmm-138.1: added Bubble Tea log output helper (internal/tui LogProgram, LogLineWriter), wired test/install/update to TTY-only log rendering, added command tests for TUI/quiet plus log_output tests; make fmt/lint/coverage/build pass.
+2025-12-28	20:25	Windows verification (winstructions) ran make lint/build/coverage/test-race on winhost; all passed with PSReadLine VT warning only.
+2025-12-28	20:45	mmm-138.1 follow-up: added GoDoc for internal/tui log helpers, added TUI snapshot tests for test/install/update with new snapshots, ran UPDATE_SNAPS=true make coverage, make lint/coverage/build, and Windows winhost checks (PSReadLine VT warning only).
+2025-12-28	20:54	Reviewer approved mmm-138.1; code-review.md updated with Approved verdict; Windows verification run (PSReadLine VT warning only).

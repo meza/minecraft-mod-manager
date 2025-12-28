@@ -1,6 +1,7 @@
 package test
 
 import (
+	"bytes"
 	"context"
 	"errors"
 	"io"
@@ -8,6 +9,9 @@ import (
 
 	"github.com/spf13/cobra"
 	"github.com/stretchr/testify/assert"
+
+	"github.com/meza/minecraft-mod-manager/internal/output"
+	"github.com/meza/minecraft-mod-manager/internal/tui"
 )
 
 func TestCommandWithRunnerMissingConfigFlagErrors(t *testing.T) {
@@ -108,6 +112,42 @@ func TestCommandWithRunnerGenericErrorDoesNotSilence(t *testing.T) {
 	assert.False(t, cmd.SilenceErrors)
 }
 
+func TestCommandWithRunnerUsesTUIOutputWhenTerminal(t *testing.T) {
+	restore := tui.SetIsTerminalFuncForTesting(func(_ int) bool { return true })
+	defer restore()
+
+	outputWriter := &terminalWriter{}
+	cmd := commandWithRunner(func(_ context.Context, _ *cobra.Command, _ testOptions, deps testDeps) (int, error) {
+		return 0, deps.output.Log("hello", output.LogForce)
+	})
+	addPersistentFlagsForTesting(cmd)
+	cmd.SetIn(terminalReader{Reader: bytes.NewBuffer(nil)})
+	cmd.SetOut(outputWriter)
+	cmd.SetErr(io.Discard)
+	cmd.SetArgs([]string{"1.20.1"})
+
+	assert.NoError(t, cmd.Execute())
+	assert.Contains(t, outputWriter.String(), "hello")
+}
+
+func TestCommandWithRunnerQuietSkipsTUI(t *testing.T) {
+	restore := tui.SetIsTerminalFuncForTesting(func(_ int) bool { return true })
+	defer restore()
+
+	outputWriter := &terminalWriter{}
+	cmd := commandWithRunner(func(_ context.Context, _ *cobra.Command, _ testOptions, deps testDeps) (int, error) {
+		return 0, deps.output.Log("quiet", output.LogQuiet)
+	})
+	addPersistentFlagsForTesting(cmd)
+	cmd.SetIn(terminalReader{Reader: bytes.NewBuffer(nil)})
+	cmd.SetOut(outputWriter)
+	cmd.SetErr(io.Discard)
+	cmd.SetArgs([]string{"--quiet", "1.20.1"})
+
+	assert.NoError(t, cmd.Execute())
+	assert.Empty(t, outputWriter.String())
+}
+
 func TestExitCodeErrorMessage(t *testing.T) {
 	err := &exitCodeError{code: 3}
 	assert.Equal(t, "exit code 3", err.Error())
@@ -122,4 +162,20 @@ func addPersistentFlagsForTesting(cmd *cobra.Command) {
 func setCommandOutputForTesting(cmd *cobra.Command) {
 	cmd.SetOut(io.Discard)
 	cmd.SetErr(io.Discard)
+}
+
+type terminalReader struct {
+	io.Reader
+}
+
+func (terminalReader) Fd() uintptr {
+	return 0
+}
+
+type terminalWriter struct {
+	bytes.Buffer
+}
+
+func (writer *terminalWriter) Fd() uintptr {
+	return 1
 }

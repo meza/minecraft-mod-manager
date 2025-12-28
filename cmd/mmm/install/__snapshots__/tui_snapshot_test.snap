@@ -1,0 +1,5 @@
+
+[TestInstallTUILogSnapshot - 1]
+cmd.install.download.missing, Arg 1: {Count: 0, Data: &map[name:Sodium platform:modrinth]}
+✅ cmd.install.success
+---

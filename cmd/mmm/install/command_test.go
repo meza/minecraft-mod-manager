@@ -1,6 +1,7 @@
 package install
 
 import (
+	"bytes"
 	"context"
 	"io"
 	"path/filepath"
@@ -12,6 +13,8 @@ import (
 
 	"github.com/meza/minecraft-mod-manager/internal/config"
 	"github.com/meza/minecraft-mod-manager/internal/models"
+	"github.com/meza/minecraft-mod-manager/internal/output"
+	"github.com/meza/minecraft-mod-manager/internal/tui"
 )
 
 func TestCommandWithRunner_ParsesFlags(t *testing.T) {
@@ -88,6 +91,42 @@ func TestCommandWithRunnerMissingDebugFlagErrors(t *testing.T) {
 	assert.Error(t, runE(cmd, nil))
 }
 
+func TestCommandWithRunnerUsesTUIOutputWhenTerminal(t *testing.T) {
+	restore := tui.SetIsTerminalFuncForTesting(func(_ int) bool { return true })
+	defer restore()
+
+	outputWriter := &terminalWriter{}
+	cmd := commandWithRunner(func(_ context.Context, _ *cobra.Command, _ installOptions, deps installDeps) (Result, error) {
+		return Result{InstalledCount: 1}, deps.output.Log("installed", output.LogForce)
+	})
+	addPersistentFlagsForTesting(cmd)
+	cmd.SetIn(terminalReader{Reader: bytes.NewBuffer(nil)})
+	cmd.SetOut(outputWriter)
+	cmd.SetErr(io.Discard)
+	cmd.SetArgs([]string{})
+
+	assert.NoError(t, cmd.Execute())
+	assert.Contains(t, outputWriter.String(), "installed")
+}
+
+func TestCommandWithRunnerQuietSkipsTUI(t *testing.T) {
+	restore := tui.SetIsTerminalFuncForTesting(func(_ int) bool { return true })
+	defer restore()
+
+	outputWriter := &terminalWriter{}
+	cmd := commandWithRunner(func(_ context.Context, _ *cobra.Command, _ installOptions, deps installDeps) (Result, error) {
+		return Result{InstalledCount: 1}, deps.output.Log("quiet", output.LogQuiet)
+	})
+	addPersistentFlagsForTesting(cmd)
+	cmd.SetIn(terminalReader{Reader: bytes.NewBuffer(nil)})
+	cmd.SetOut(outputWriter)
+	cmd.SetErr(io.Discard)
+	cmd.SetArgs([]string{"--quiet"})
+
+	assert.NoError(t, cmd.Execute())
+	assert.Empty(t, outputWriter.String())
+}
+
 func TestRun_ReturnsErrorWhenConfigMissing(t *testing.T) {
 	cmd := &cobra.Command{}
 	cmd.SetOut(io.Discard)
@@ -137,4 +176,20 @@ func addPersistentFlagsForTesting(cmd *cobra.Command) {
 func setCommandOutputForTesting(cmd *cobra.Command) {
 	cmd.SetOut(io.Discard)
 	cmd.SetErr(io.Discard)
+}
+
+type terminalReader struct {
+	io.Reader
+}
+
+func (terminalReader) Fd() uintptr {
+	return 0
+}
+
+type terminalWriter struct {
+	bytes.Buffer
+}
+
+func (writer *terminalWriter) Fd() uintptr {
+	return 1
 }
