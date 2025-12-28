@@ -7,3 +7,4 @@
 - [5. Using Renovate bot](0005-using-renovate-bot.md)
 - [6. Verifying Minecraft Versions Error Handling](0006-verifying-minecraft-versions-error-handling.md)
 - [7. Symlink-safe mod file writes](0007-symlink-safe-mod-file-writes.md)
+- [8. Command and internal package boundaries](0008-command-and-internal-package-boundaries.md)
