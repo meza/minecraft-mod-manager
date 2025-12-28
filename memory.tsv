@@ -717,3 +717,8 @@ mmm-137 in progress: scanned exported decls missing GoDoc (454 missing across 87
 2025-12-28	12:21	mmm-141 fixes complete: renamed mixed-case Go files to lowercase snake_case, standardized Modrinth/CurseForge headers to Header.Set with canonical casing, removed pkg/errors in favor of fmt.Errorf/%w, renamed GetAllMinecraftVersions and RateLimiter, documented naming rules in CONTRIBUTING. make fmt-check/lint/vuln/coverage/build pass; Windows winhost make lint/build/coverage/test-race pass with PSReadLine VT warning.
 2025-12-28	12:28	Reviewer approved mmm-141 changes; code-review.md updated with pass verdict and Windows verification (PSReadLine VT warning only).
 2025-12-28	12:29	Closed mmm-141 and children mmm-63.75/63.77/63.70/63.69/63.72 per user approval.
+2025-12-28	12:33	Started mmm-142 (perf/lifecycle robustness); loaded persona/guidelines and reviewed mmm-63.88/89/92/93/94 tickets plus perf/lifecycle/telemetry docs and README.
+2025-12-28	12:53	mmm-142 changes: perf StartSpan now panics on nil ctx; perf shutdown uses bounded timeout; MustGetSpans panics on error; lifecycle logs handler panics; main logs getwd error on perf/debug; updated docs/tests; ran make fmt, lint, vuln, coverage, build (all pass).
+2025-12-28	13:10	Actioned reviewer feedback: perf shutdown in main now uses bounded context; added deadline test; reran make fmt/lint/vuln/coverage/build and Windows winstructions (all pass, PSReadLine warning only).
+2025-12-28	13:16	Reviewer approved mmm-142 changes; code-review.md updated with pass verdict and Windows verification timestamp.
+2025-12-28	13:48	Closed mmm-142 and children mmm-63.88/89/92/93/94 per user request.

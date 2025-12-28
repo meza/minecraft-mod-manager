@@ -45,6 +45,32 @@ func TestPanicsAreSwallowed(t *testing.T) {
 	})
 }
 
+func TestPanicsAreLoggedAndHandlersContinue(t *testing.T) {
+	withSignalHarness(t, func(sigCh chan os.Signal, exitCh chan int) {
+		var called bool
+		var logged bool
+		var loggedValue interface{}
+		var loggedStack []byte
+
+		panicLogger = func(recovered interface{}, stack []byte) {
+			logged = true
+			loggedValue = recovered
+			loggedStack = stack
+		}
+
+		Register(func(os.Signal) { panic("boom") })
+		Register(func(os.Signal) { called = true })
+
+		sigCh <- syscall.SIGINT
+		waitExit(t, exitCh, syscall.SIGINT)
+
+		assert.True(t, called)
+		assert.True(t, logged)
+		assert.Equal(t, "boom", loggedValue)
+		assert.NotEmpty(t, loggedStack)
+	})
+}
+
 func TestRegisterIgnoresNil(t *testing.T) {
 	withSignalHarness(t, func(sigCh chan os.Signal, exitCh chan int) {
 		assert.Equal(t, HandlerID(0), Register(nil))

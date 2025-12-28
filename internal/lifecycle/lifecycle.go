@@ -2,8 +2,10 @@
 package lifecycle
 
 import (
+	"log"
 	"os"
 	"os/signal"
+	"runtime/debug"
 	"sync"
 	"sync/atomic"
 	"syscall"
@@ -37,9 +39,14 @@ var (
 	exitFunc        = os.Exit
 	timeAfterFunc   = time.After
 	listenerStopped = func() {}
+	panicLogger     = defaultPanicLogger
 
 	shutdownTimeout = defaultShutdownTimeout
 )
+
+var defaultPanicLogger = func(recovered interface{}, stack []byte) {
+	log.Printf("lifecycle handler panic: %v\n%s", recovered, stack)
+}
 
 // Register adds a handler that will run when a shutdown signal arrives.
 // Handlers execute in reverse registration order. The returned HandlerID can
@@ -140,8 +147,7 @@ func runHandlers(sig os.Signal) {
 func callHandler(handler Handler, sig os.Signal) {
 	defer func() {
 		if recovered := recover(); recovered != nil {
-			// swallow panics so remaining handlers run
-			_ = recovered
+			panicLogger(recovered, debug.Stack())
 		}
 	}()
 	handler(sig)
@@ -197,4 +203,5 @@ func restoreFactories() {
 	timeAfterFunc = time.After
 	listenerStopped = func() {}
 	shutdownTimeout = defaultShutdownTimeout
+	panicLogger = defaultPanicLogger
 }

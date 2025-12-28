@@ -47,7 +47,7 @@ func GetSpans() ([]SpanSnapshot, error) {
 func MustGetSpans() []SpanSnapshot {
 	spans, err := GetSpans()
 	if err != nil {
-		return nil
+		panic(err)
 	}
 	return spans
 }

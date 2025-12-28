@@ -9,12 +9,14 @@ import (
 	oteltrace "go.opentelemetry.io/otel/trace"
 )
 
-func TestMustGetSpans_ReturnsNilWhenDisabled(t *testing.T) {
+func TestMustGetSpans_PanicsWhenDisabled(t *testing.T) {
 	Reset()
 	t.Cleanup(Reset)
 	assert.NoError(t, Init(Config{Enabled: false}))
 
-	assert.Nil(t, MustGetSpans())
+	assert.Panics(t, func() {
+		MustGetSpans()
+	})
 }
 
 func TestAttributesFromStrings(t *testing.T) {

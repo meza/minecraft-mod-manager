@@ -24,6 +24,9 @@ When you run the CLI with `--perf`, MMM writes `mmm-perf.json` when the process 
 By default, MMM writes the file next to the resolved `--config` path so it stays adjacent to the `modlist.json` you were working with.
 Override the destination with `--perf-out-dir`. Relative output directories are resolved relative to the config directory.
 
+If the working directory cannot be resolved, MMM logs a warning when `--perf` or `--debug` is set and falls back to the
+config path as provided (relative paths stay relative).
+
 The exported JSON includes ended spans with correlation IDs:
 
 - `trace_id`, `span_id`, `parent_span_id` (tree)
@@ -169,6 +172,8 @@ Spans:
 - `(*Span).AddEvent(name string, opts ...EventOption)`
 - `WithEventAttributes(attrs ...attribute.KeyValue) EventOption`
 
+`StartSpan` requires a non-nil context. Passing `nil` is a programmer error and will panic.
+
 Context helpers:
 
 - `SpanFromContext(ctx context.Context) *Span`
@@ -179,7 +184,7 @@ Export and snapshots:
 - `ExportToFile(outDir, baseDir string) (string, error)`
 - `GetExportTree(baseDir string) ([]*ExportSpan, error)`
 - `GetSpans() ([]SpanSnapshot, error)`
-- `MustGetSpans() []SpanSnapshot`
+- `MustGetSpans() []SpanSnapshot` (panics if spans cannot be fetched)
 - `FindSpanByName(spans []SpanSnapshot, name string) (SpanSnapshot, bool)`
 - `GetSessionDurations() (SessionDurations, error)`
 

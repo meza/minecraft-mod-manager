@@ -9,6 +9,7 @@ import (
 	"path/filepath"
 	"sync"
 	"testing"
+	"time"
 
 	"github.com/meza/minecraft-mod-manager/internal/lifecycle"
 	"github.com/meza/minecraft-mod-manager/internal/perf"
@@ -315,7 +316,8 @@ func TestFirstCommandFromArgs_SkipsFlagsAndFindsCommand(t *testing.T) {
 }
 
 func TestPerfExportConfigFromArgsFallsBackOnAbsError(t *testing.T) {
-	cfg := perfExportConfigFromArgsWithAbs([]string{"--perf", "--config", "modlist.json"}, "", func(string) (string, error) {
+	parsedArgs := parsePerfExportArgs([]string{"--perf", "--config", "modlist.json"})
+	cfg := perfExportConfigFromParsedArgsWithAbs(parsedArgs, "", func(string) (string, error) {
 		return "", errors.New("abs failed")
 	})
 	assert.Equal(t, ".", cfg.baseDir)
@@ -351,6 +353,30 @@ func TestRunWithDepsLogsPerfFailuresWhenDebug(t *testing.T) {
 	assert.Contains(t, logs, "perf shutdown failed")
 }
 
+func TestRunWithDepsPerfShutdownHasDeadline(t *testing.T) {
+	perf.Reset()
+	t.Cleanup(perf.Reset)
+
+	var deadline time.Time
+	deps := runDeps{
+		execute:           func(context.Context) error { return nil },
+		telemetryInit:     func() {},
+		telemetryShutdown: func(context.Context) {},
+		register:          func(lifecycle.Handler) lifecycle.HandlerID { return 1 },
+		unregister:        func(lifecycle.HandlerID) {},
+		args:              []string{"--perf"},
+		perfShutdown: func(ctx context.Context) error {
+			var ok bool
+			deadline, ok = ctx.Deadline()
+			assert.True(t, ok)
+			return nil
+		},
+	}
+
+	assert.Equal(t, 0, runWithDeps(deps))
+	assert.True(t, deadline.After(time.Now()))
+}
+
 func TestRunWithDepsUsesProvidedGetwd(t *testing.T) {
 	perf.Reset()
 	t.Cleanup(perf.Reset)
@@ -372,9 +398,16 @@ func TestRunWithDepsUsesProvidedGetwd(t *testing.T) {
 	assert.True(t, called)
 }
 
-func TestRunWithDepsHandlesGetwdError(t *testing.T) {
+func TestRunWithDepsLogsGetwdErrorWhenPerfEnabled(t *testing.T) {
 	perf.Reset()
 	t.Cleanup(perf.Reset)
+
+	var logOutput bytes.Buffer
+	originalOutput := log.Writer()
+	log.SetOutput(&logOutput)
+	t.Cleanup(func() {
+		log.SetOutput(originalOutput)
+	})
 
 	var perfConfig perfExportConfig
 	var perfCalled bool
@@ -398,6 +431,7 @@ func TestRunWithDepsHandlesGetwdError(t *testing.T) {
 	assert.Equal(t, 0, runWithDeps(deps))
 	assert.True(t, perfCalled)
 	assert.NotEmpty(t, perfConfig.baseDir)
+	assert.Contains(t, logOutput.String(), "working directory unavailable")
 }
 
 func TestRunWritesPerfExportWhenEnabled(t *testing.T) {

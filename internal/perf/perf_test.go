@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"testing"
+	"time"
 
 	"github.com/stretchr/testify/assert"
 	"go.opentelemetry.io/otel/attribute"
@@ -40,7 +41,7 @@ func TestInitReturnsErrorWhenShutdownFails(t *testing.T) {
 	t.Cleanup(Reset)
 
 	originalShutdown := shutdownTracerProvider
-	shutdownTracerProvider = func(_ *trace.TracerProvider) error {
+	shutdownTracerProvider = func(_ context.Context, _ *trace.TracerProvider) error {
 		return errors.New("shutdown failed")
 	}
 	t.Cleanup(func() {
@@ -52,12 +53,66 @@ func TestInitReturnsErrorWhenShutdownFails(t *testing.T) {
 	assert.Error(t, err)
 }
 
+func TestInitUsesShutdownTimeout(t *testing.T) {
+	Reset()
+	t.Cleanup(Reset)
+
+	originalShutdown := shutdownTracerProvider
+	originalTimeout := shutdownTimeout
+	t.Cleanup(func() {
+		shutdownTracerProvider = originalShutdown
+		shutdownTimeout = originalTimeout
+	})
+
+	shutdownTimeout = 2 * time.Second
+	var deadline time.Time
+	shutdownTracerProvider = func(ctx context.Context, _ *trace.TracerProvider) error {
+		var ok bool
+		deadline, ok = ctx.Deadline()
+		assert.True(t, ok)
+		return nil
+	}
+
+	globalTP = trace.NewTracerProvider()
+	start := time.Now()
+	assert.NoError(t, Init(Config{Enabled: false}))
+	assert.True(t, deadline.After(start))
+	assert.WithinDuration(t, start.Add(shutdownTimeout), deadline, 250*time.Millisecond)
+}
+
+func TestInitUsesDefaultShutdownTimeoutWhenUnset(t *testing.T) {
+	Reset()
+	t.Cleanup(Reset)
+
+	originalShutdown := shutdownTracerProvider
+	originalTimeout := shutdownTimeout
+	t.Cleanup(func() {
+		shutdownTracerProvider = originalShutdown
+		shutdownTimeout = originalTimeout
+	})
+
+	shutdownTimeout = 0
+	var deadline time.Time
+	shutdownTracerProvider = func(ctx context.Context, _ *trace.TracerProvider) error {
+		var ok bool
+		deadline, ok = ctx.Deadline()
+		assert.True(t, ok)
+		return nil
+	}
+
+	globalTP = trace.NewTracerProvider()
+	start := time.Now()
+	assert.NoError(t, Init(Config{Enabled: false}))
+	assert.True(t, deadline.After(start))
+	assert.WithinDuration(t, start.Add(defaultShutdownTimeout), deadline, 250*time.Millisecond)
+}
+
 func TestResetContinuesWhenShutdownFails(t *testing.T) {
 	Reset()
 	t.Cleanup(Reset)
 
 	originalShutdown := shutdownTracerProvider
-	shutdownTracerProvider = func(_ *trace.TracerProvider) error {
+	shutdownTracerProvider = func(_ context.Context, _ *trace.TracerProvider) error {
 		return errors.New("shutdown failed")
 	}
 	t.Cleanup(func() {
@@ -69,16 +124,15 @@ func TestResetContinuesWhenShutdownFails(t *testing.T) {
 	assert.Nil(t, globalTP)
 }
 
-func TestStartSpan_NilContextAndNilOption(t *testing.T) {
+func TestStartSpan_PanicsOnNilContext(t *testing.T) {
 	Reset()
 	t.Cleanup(Reset)
 	assert.NoError(t, Init(Config{Enabled: true}))
 
-	//nolint:staticcheck // Validates nil context handling.
-	ctx, span := StartSpan(nil, "nil-context", nil)
-	assert.NotNil(t, ctx)
-	assert.NotNil(t, span)
-	span.End()
+	assert.Panics(t, func() {
+		//nolint:staticcheck // Intentional nil context to verify panic behavior.
+		StartSpan(nil, "nil-context", nil)
+	})
 }
 
 func TestStartSpan_RecordsSpanAndAttributes(t *testing.T) {

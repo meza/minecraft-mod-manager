@@ -5,6 +5,7 @@ import (
 	"errors"
 	"log"
 	"sync"
+	"time"
 
 	"go.opentelemetry.io/otel"
 	"go.opentelemetry.io/otel/attribute"
@@ -24,8 +25,13 @@ var (
 	globalExp     *spanExporter
 )
 
-var shutdownTracerProvider = func(provider *trace.TracerProvider) error {
-	return provider.Shutdown(context.Background())
+var (
+	defaultShutdownTimeout = 10 * time.Second
+	shutdownTimeout        = defaultShutdownTimeout
+)
+
+var shutdownTracerProvider = func(ctx context.Context, provider *trace.TracerProvider) error {
+	return provider.Shutdown(ctx)
 }
 
 // Init configures the global tracer provider and resets any previous provider.
@@ -40,7 +46,7 @@ func Init(cfg Config) error {
 	defer globalMu.Unlock()
 
 	if globalTP != nil {
-		if err := shutdownTracerProvider(globalTP); err != nil {
+		if err := shutdownTracerProviderWithTimeout(globalTP); err != nil {
 			return err
 		}
 		globalTP = nil
@@ -81,7 +87,7 @@ func Reset() {
 	globalEnabled = false
 	globalExp = nil
 	if globalTP != nil {
-		if err := shutdownTracerProvider(globalTP); err != nil {
+		if err := shutdownTracerProviderWithTimeout(globalTP); err != nil {
 			log.Printf("perf reset shutdown failed: %v", err)
 		}
 		globalTP = nil
@@ -116,7 +122,7 @@ func WithLinks(links ...oteltrace.Link) SpanOption {
 
 func StartSpan(ctx context.Context, name string, opts ...SpanOption) (context.Context, *Span) {
 	if ctx == nil {
-		ctx = context.Background()
+		panic("perf.StartSpan requires a non-nil context")
 	}
 
 	spanOpts := spanOptions{}
@@ -206,4 +212,14 @@ func LinkFromContext(ctx context.Context) (oteltrace.Link, error) {
 		return oteltrace.Link{}, errors.New("no span in context")
 	}
 	return oteltrace.Link{SpanContext: sc}, nil
+}
+
+func shutdownTracerProviderWithTimeout(provider *trace.TracerProvider) error {
+	timeout := shutdownTimeout
+	if timeout <= 0 {
+		timeout = defaultShutdownTimeout
+	}
+	ctx, cancel := context.WithTimeout(context.Background(), timeout)
+	defer cancel()
+	return shutdownTracerProvider(ctx, provider)
 }

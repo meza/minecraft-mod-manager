@@ -7,6 +7,7 @@ It guarantees:
 - handlers run at most once per process
 - handlers run in reverse registration order (last registered shuts down first)
 - a panic in one handler does not prevent others from running
+- panics from handlers are logged with a stack trace for diagnostics
 - the process exits with a conventional exit code for the signal
 
 ## Quick start

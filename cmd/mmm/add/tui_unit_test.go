@@ -96,6 +96,7 @@ func TestAddTUIModelInitReturnsNilForActiveState(t *testing.T) {
 
 func TestAddTUIModelUpdateHandlesWindowSize(t *testing.T) {
 	model := addTUIModel{
+		ctx:   context.Background(),
 		state: addTUIStateUnknownPlatformSelect,
 		list:  newPlatformListModel(platformListOptions{message: "question", defaultValue: "", includeCancel: false, width: 10}),
 	}
@@ -106,6 +107,7 @@ func TestAddTUIModelUpdateHandlesWindowSize(t *testing.T) {
 
 func TestAddTUIModelHandleListEnterIgnoresUnknownItem(t *testing.T) {
 	model := addTUIModel{
+		ctx:   context.Background(),
 		state: addTUIStateUnknownPlatformSelect,
 		list:  list.New([]list.Item{fakeListItem{}}, addTUIListDelegate{}, 10, 5),
 	}
@@ -120,6 +122,7 @@ func TestAddTUIModelHandleListEnterIgnoresUnhandledState(t *testing.T) {
 	listModel.Select(0)
 
 	model := addTUIModel{
+		ctx:   context.Background(),
 		state: addTUIStateFatalError,
 		list:  listModel,
 	}
@@ -130,7 +133,7 @@ func TestAddTUIModelHandleListEnterIgnoresUnhandledState(t *testing.T) {
 }
 
 func TestAddTUIModelUpdateCtrlCAborts(t *testing.T) {
-	model := addTUIModel{state: addTUIStateUnknownPlatformSelect}
+	model := addTUIModel{ctx: context.Background(), state: addTUIStateUnknownPlatformSelect}
 	updated, cmd := model.Update(tea.KeyMsg{Type: tea.KeyCtrlC})
 	typed := updated.(addTUIModel)
 	assert.Equal(t, addTUIStateAborted, typed.state)
@@ -174,7 +177,7 @@ func TestAddTUIModelUpdateEscAddsSpanEvent(t *testing.T) {
 }
 
 func TestAddTUIModelUpdateEscAbortsWhenNoHistory(t *testing.T) {
-	model := addTUIModel{state: addTUIStateUnknownPlatformSelect}
+	model := addTUIModel{ctx: context.Background(), state: addTUIStateUnknownPlatformSelect}
 	updated, cmd := model.Update(tea.KeyMsg{Type: tea.KeyEsc})
 	typed := updated.(addTUIModel)
 	assert.Equal(t, addTUIStateAborted, typed.state)
@@ -184,6 +187,7 @@ func TestAddTUIModelUpdateEscAbortsWhenNoHistory(t *testing.T) {
 func TestAddTUIModelUpdateEscGoesBackWithHistory(t *testing.T) {
 	initPerf(t)
 	model := addTUIModel{
+		ctx:               context.Background(),
 		state:             addTUIStateModNotFoundConfirm,
 		candidatePlatform: models.CURSEFORGE,
 		candidateProject:  "abc",
@@ -200,7 +204,7 @@ func TestAddTUIModelUpdateEscGoesBackWithHistory(t *testing.T) {
 }
 
 func TestAddTUIModelUpdateDefaultStateNoop(t *testing.T) {
-	model := addTUIModel{state: addTUIStateFatalError}
+	model := addTUIModel{ctx: context.Background(), state: addTUIStateFatalError}
 	updated, cmd := model.Update(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune{'x'}})
 	typed := updated.(addTUIModel)
 	assert.Equal(t, addTUIStateFatalError, typed.state)
@@ -210,6 +214,7 @@ func TestAddTUIModelUpdateDefaultStateNoop(t *testing.T) {
 func TestAddTUIModelUpdateListCancelAborts(t *testing.T) {
 	initPerf(t)
 	model := addTUIModel{
+		ctx:   context.Background(),
 		state: addTUIStateUnknownPlatformSelect,
 		list:  newPlatformListModel(platformListOptions{message: "question", defaultValue: "", includeCancel: true, width: 20}),
 		fetchCmd: func(models.Platform, string) tea.Cmd {
@@ -227,6 +232,7 @@ func TestAddTUIModelUpdateListSelectsPlatform(t *testing.T) {
 	initPerf(t)
 	var called bool
 	model := addTUIModel{
+		ctx:   context.Background(),
 		state: addTUIStateUnknownPlatformSelect,
 		list:  newPlatformListModel(platformListOptions{message: "question", defaultValue: "", includeCancel: false, width: 20}),
 		fetchCmd: func(models.Platform, string) tea.Cmd {
@@ -292,6 +298,7 @@ func TestAddTUIModelUpdateListCancelAddsSpanEvent(t *testing.T) {
 
 func TestAddTUIModelUpdateListIgnoresUnknownItem(t *testing.T) {
 	model := addTUIModel{
+		ctx:   context.Background(),
 		state: addTUIStateUnknownPlatformSelect,
 		list:  list.New([]list.Item{fakeListItem{}}, addTUIListDelegate{}, 10, 5),
 	}
@@ -304,6 +311,7 @@ func TestAddTUIModelUpdateListIgnoresUnknownItem(t *testing.T) {
 func TestAddTUIModelUpdateListSelectMovesToProjectEntry(t *testing.T) {
 	initPerf(t)
 	model := addTUIModel{
+		ctx:   context.Background(),
 		state: addTUIStateModNotFoundSelectPlatform,
 		list:  newPlatformListModel(platformListOptions{message: "question", defaultValue: "", includeCancel: false, width: 20}),
 	}
@@ -316,6 +324,7 @@ func TestAddTUIModelUpdateListSelectMovesToProjectEntry(t *testing.T) {
 
 func TestAddTUIModelUpdateListPassesThroughToList(t *testing.T) {
 	model := addTUIModel{
+		ctx:   context.Background(),
 		state: addTUIStateUnknownPlatformSelect,
 		list:  newPlatformListModel(platformListOptions{message: "question", defaultValue: "", includeCancel: false, width: 20}),
 	}
@@ -329,6 +338,7 @@ func TestAddTUIModelUpdateListPassesThroughToList(t *testing.T) {
 func TestAddTUIModelUpdateInputUsesPlaceholder(t *testing.T) {
 	initPerf(t)
 	model := addTUIModel{
+		ctx:              context.Background(),
 		state:            addTUIStateModNotFoundEnterProjectID,
 		candidateProject: "abc",
 		fetchCmd: func(models.Platform, string) tea.Cmd {
@@ -343,6 +353,7 @@ func TestAddTUIModelUpdateInputUsesPlaceholder(t *testing.T) {
 
 func TestAddTUIModelUpdateInputEmptyNoop(t *testing.T) {
 	model := addTUIModel{
+		ctx:   context.Background(),
 		state: addTUIStateModNotFoundEnterProjectID,
 		input: textinput.Model{},
 	}
@@ -356,6 +367,7 @@ func TestAddTUIModelUpdateInputPassesThroughToInput(t *testing.T) {
 	input := textinput.New()
 	input.Focus()
 	model := addTUIModel{
+		ctx:   context.Background(),
 		state: addTUIStateModNotFoundEnterProjectID,
 		input: input,
 	}
@@ -370,6 +382,7 @@ func TestAddTUIModelUpdateInputNonKeyMessageUpdatesInput(t *testing.T) {
 	input := textinput.New()
 	input.SetValue("initial")
 	model := addTUIModel{
+		ctx:   context.Background(),
 		state: addTUIStateModNotFoundEnterProjectID,
 		input: input,
 	}
@@ -409,6 +422,7 @@ func TestAddTUIModelUpdateInputAddsSpanEvent(t *testing.T) {
 func TestAddTUIModelUpdateInputNoFileSetsAlternatePlatform(t *testing.T) {
 	initPerf(t)
 	model := addTUIModel{
+		ctx:              context.Background(),
 		state:            addTUIStateNoFileEnterProjectID,
 		failurePlatform:  models.CURSEFORGE,
 		candidateProject: "abc",
@@ -425,7 +439,7 @@ func TestAddTUIModelUpdateInputNoFileSetsAlternatePlatform(t *testing.T) {
 
 func TestAddTUIModelUpdateConfirmYesMovesState(t *testing.T) {
 	initPerf(t)
-	model := addTUIModel{state: addTUIStateModNotFoundConfirm}
+	model := addTUIModel{ctx: context.Background(), state: addTUIStateModNotFoundConfirm}
 	updated, _ := model.Update(tea.KeyMsg{Type: tea.KeyEnter})
 	typed := updated.(addTUIModel)
 	assert.Equal(t, addTUIStateModNotFoundSelectPlatform, typed.state)
@@ -450,14 +464,14 @@ func TestAddTUIModelUpdateConfirmYesAddsSpanEvent(t *testing.T) {
 
 func TestAddTUIModelUpdateConfirmYesMovesStateForNoFile(t *testing.T) {
 	initPerf(t)
-	model := addTUIModel{state: addTUIStateNoFileConfirm}
+	model := addTUIModel{ctx: context.Background(), state: addTUIStateNoFileConfirm}
 	updated, _ := model.Update(tea.KeyMsg{Type: tea.KeyEnter})
 	typed := updated.(addTUIModel)
 	assert.Equal(t, addTUIStateNoFileEnterProjectID, typed.state)
 }
 
 func TestAddTUIModelUpdateConfirmNoAborts(t *testing.T) {
-	model := addTUIModel{state: addTUIStateModNotFoundConfirm}
+	model := addTUIModel{ctx: context.Background(), state: addTUIStateModNotFoundConfirm}
 	updated, cmd := model.Update(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune{'n'}})
 	typed := updated.(addTUIModel)
 	assert.Equal(t, addTUIStateAborted, typed.state)
@@ -501,7 +515,7 @@ func TestAddTUIModelUpdateConfirmNoDirectAddsSpanEvent(t *testing.T) {
 }
 
 func TestAddTUIModelUpdateConfirmNonKeyNoop(t *testing.T) {
-	model := addTUIModel{state: addTUIStateModNotFoundConfirm}
+	model := addTUIModel{ctx: context.Background(), state: addTUIStateModNotFoundConfirm}
 	updated, cmd := model.updateConfirm(struct{}{})
 	typed := updated.(addTUIModel)
 	assert.Equal(t, addTUIStateModNotFoundConfirm, typed.state)
@@ -509,7 +523,7 @@ func TestAddTUIModelUpdateConfirmNonKeyNoop(t *testing.T) {
 }
 
 func TestAddTUIModelHandleFetchResultSuccess(t *testing.T) {
-	model := addTUIModel{state: addTUIStateUnknownPlatformSelect}
+	model := addTUIModel{ctx: context.Background(), state: addTUIStateUnknownPlatformSelect}
 	updated, cmd := model.handleFetchResult(addTUIFetchResultMsg{
 		platform:  models.MODRINTH,
 		projectID: "abc",
@@ -524,7 +538,7 @@ func TestAddTUIModelHandleFetchResultSuccess(t *testing.T) {
 
 func TestAddTUIModelHandleFetchResultUnknownPlatform(t *testing.T) {
 	initPerf(t)
-	model := addTUIModel{}
+	model := addTUIModel{ctx: context.Background()}
 	updated, _ := model.handleFetchResult(addTUIFetchResultMsg{
 		platform:  models.MODRINTH,
 		projectID: "abc",
@@ -536,7 +550,7 @@ func TestAddTUIModelHandleFetchResultUnknownPlatform(t *testing.T) {
 
 func TestAddTUIModelHandleFetchResultModNotFound(t *testing.T) {
 	initPerf(t)
-	model := addTUIModel{}
+	model := addTUIModel{ctx: context.Background()}
 	updated, _ := model.handleFetchResult(addTUIFetchResultMsg{
 		platform:  models.MODRINTH,
 		projectID: "abc",
@@ -548,7 +562,7 @@ func TestAddTUIModelHandleFetchResultModNotFound(t *testing.T) {
 
 func TestAddTUIModelHandleFetchResultNoFile(t *testing.T) {
 	initPerf(t)
-	model := addTUIModel{}
+	model := addTUIModel{ctx: context.Background()}
 	updated, _ := model.handleFetchResult(addTUIFetchResultMsg{
 		platform:  models.MODRINTH,
 		projectID: "abc",
@@ -559,7 +573,7 @@ func TestAddTUIModelHandleFetchResultNoFile(t *testing.T) {
 }
 
 func TestAddTUIModelHandleFetchResultDefaultError(t *testing.T) {
-	model := addTUIModel{}
+	model := addTUIModel{ctx: context.Background()}
 	updated, cmd := model.handleFetchResult(addTUIFetchResultMsg{
 		platform:  models.MODRINTH,
 		projectID: "abc",

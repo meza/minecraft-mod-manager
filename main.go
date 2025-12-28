@@ -10,6 +10,7 @@ import (
 	"strings"
 	"sync"
 	"sync/atomic"
+	"time"
 
 	_ "github.com/joho/godotenv/autoload"
 	"github.com/meza/minecraft-mod-manager/cmd/mmm"
@@ -47,6 +48,8 @@ const (
 	perfLifecycleExecute  = "app.lifecycle.execute"
 	perfLifecycleShutdown = "app.lifecycle.shutdown"
 )
+
+const perfShutdownTimeout = 10 * time.Second
 
 // exitCodeError is a private error type that carries a specific exit code.
 // Commands can return this error to signal non-standard exit codes
@@ -122,8 +125,12 @@ type runDeps struct {
 }
 
 func runWithDeps(deps runDeps) int {
-	cwd := resolveWorkingDir(deps.getwd)
-	perfCfg := perfExportConfigFromArgs(deps.args, cwd)
+	parsedArgs := parsePerfExportArgs(deps.args)
+	cwd, cwdErr := resolveWorkingDir(deps.getwd)
+	if cwdErr != nil && (parsedArgs.perfEnabled || parsedArgs.debug) {
+		log.Printf("working directory unavailable: %v", cwdErr)
+	}
+	perfCfg := perfExportConfigFromParsedArgs(parsedArgs, cwd)
 	configureTelemetry(perfCfg, deps.args)
 
 	perfInit, perfShutdown := resolvePerfHooks(deps)
@@ -220,22 +227,24 @@ func (state *lifecycleState) shutdown(trigger shutdownTrigger, sig os.Signal) {
 				log.Printf("perf export failed: %v", exportErr)
 			}
 		}
-		shutdownErr := state.perfShutdown(context.Background())
+		shutdownCtx, cancel := context.WithTimeout(context.Background(), perfShutdownTimeout)
+		defer cancel()
+		shutdownErr := state.perfShutdown(shutdownCtx)
 		if shutdownErr != nil && state.perfCfg.debug {
 			log.Printf("perf shutdown failed: %v", shutdownErr)
 		}
 	})
 }
 
-func resolveWorkingDir(getwd func() (string, error)) string {
+func resolveWorkingDir(getwd func() (string, error)) (string, error) {
 	if getwd == nil {
 		getwd = os.Getwd
 	}
 	cwd, err := getwd()
 	if err != nil {
-		return ""
+		return "", err
 	}
-	return cwd
+	return cwd, nil
 }
 
 func configureTelemetry(perfCfg perfExportConfig, args []string) {
@@ -271,12 +280,15 @@ type perfExportConfig struct {
 }
 
 func perfExportConfigFromArgs(args []string, cwd string) perfExportConfig {
-	return perfExportConfigFromArgsWithAbs(args, cwd, filepath.Abs)
+	parsedArgs := parsePerfExportArgs(args)
+	return perfExportConfigFromParsedArgsWithAbs(parsedArgs, cwd, filepath.Abs)
 }
 
-func perfExportConfigFromArgsWithAbs(args []string, cwd string, absPath func(string) (string, error)) perfExportConfig {
-	parsedArgs := parsePerfExportArgs(args)
+func perfExportConfigFromParsedArgs(parsedArgs perfExportArgs, cwd string) perfExportConfig {
+	return perfExportConfigFromParsedArgsWithAbs(parsedArgs, cwd, filepath.Abs)
+}
 
+func perfExportConfigFromParsedArgsWithAbs(parsedArgs perfExportArgs, cwd string, absPath func(string) (string, error)) perfExportConfig {
 	resolvedConfig := resolvePerfConfigPath(parsedArgs, cwd, absPath)
 	baseDir := filepath.Dir(resolvedConfig)
 	outDir := resolvePerfOutDir(parsedArgs, baseDir)

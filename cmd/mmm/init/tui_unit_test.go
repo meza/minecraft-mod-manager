@@ -66,6 +66,7 @@ func TestGameVersionModelUpdateEnterEmptySetsError(t *testing.T) {
 
 func TestCommandModelHandleModsFolderSelectedReturnsQuitWhenDone(t *testing.T) {
 	model := CommandModel{
+		ctx:   context.Background(),
 		state: stateModsFolder,
 		result: initOptions{
 			Loader:       models.FABRIC,
@@ -91,6 +92,7 @@ func TestCommandModelHandleModsFolderSelectedReturnsQuitWhenDone(t *testing.T) {
 
 func TestCommandModelHandleModsFolderSelectedContinuesWhenNotDone(t *testing.T) {
 	model := CommandModel{
+		ctx:   context.Background(),
 		state: stateModsFolder,
 		result: initOptions{
 			Loader:       models.FABRIC,
@@ -679,6 +681,7 @@ func TestCommandModelInitAndView(t *testing.T) {
 func TestCommandModelUpdateSelectMessages(t *testing.T) {
 	initPerf(t)
 	model := CommandModel{
+		ctx:    context.Background(),
 		state:  stateLoader,
 		result: initOptions{Provided: providedFlags{}},
 	}
@@ -708,7 +711,7 @@ func TestCommandModelUpdateSelectAddsSpanEvent(t *testing.T) {
 }
 
 func TestCommandModelUpdateAbort(t *testing.T) {
-	model := CommandModel{state: stateLoader, loaderQuestion: NewLoaderModel("")}
+	model := CommandModel{ctx: context.Background(), state: stateLoader, loaderQuestion: NewLoaderModel("")}
 	updated, cmd := model.Update(tea.KeyMsg{Type: tea.KeyCtrlC})
 	typed := updated.(CommandModel)
 	assert.Error(t, typed.err)
@@ -736,6 +739,7 @@ func TestCommandModelUpdateAbortAddsSpanEvent(t *testing.T) {
 func TestCommandModelUpdateModsFolderCompletes(t *testing.T) {
 	initPerf(t)
 	model := CommandModel{
+		ctx:   context.Background(),
 		state: stateModsFolder,
 		result: initOptions{
 			Provided: providedFlags{
@@ -752,7 +756,7 @@ func TestCommandModelUpdateModsFolderCompletes(t *testing.T) {
 }
 
 func TestCommandModelUpdateDefaultStateQuits(t *testing.T) {
-	model := CommandModel{state: state(99)}
+	model := CommandModel{ctx: context.Background(), state: state(99)}
 	_, cmd := model.Update(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune{'a'}})
 	assert.NotNil(t, cmd)
 }
