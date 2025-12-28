@@ -914,8 +914,8 @@ func TestDefaultLimiter_UsesDefaults(t *testing.T) {
 
 func TestNewRLClient_UsesDefaultLimiterWhenNil(t *testing.T) {
 	client := NewRLClient(nil)
-	assert.NotNil(t, client.Ratelimiter)
-	assert.Equal(t, rate.Every(DefaultRateLimitInterval), client.Ratelimiter.Limit())
+	assert.NotNil(t, client.RateLimiter)
+	assert.Equal(t, rate.Every(DefaultRateLimitInterval), client.RateLimiter.Limit())
 }
 
 func TestValidateRequestForRetries(t *testing.T) {

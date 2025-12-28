@@ -2,8 +2,8 @@
 package curseforge
 
 import (
+	"errors"
 	"fmt"
-	"github.com/pkg/errors"
 	"reflect"
 )
 

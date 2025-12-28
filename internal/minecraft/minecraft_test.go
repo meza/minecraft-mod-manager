@@ -124,7 +124,7 @@ func TestMinecraft(t *testing.T) {
 		assert.True(t, valid)
 	})
 
-	t.Run("GetAllMineCraftVersions", func(t *testing.T) {
+	t.Run("GetAllMinecraftVersions", func(t *testing.T) {
 		ClearManifestCache()
 		mockServer, err := httpstest.NewServer([]string{
 			"launchermeta.mojang.com",
@@ -157,7 +157,7 @@ func TestMinecraft(t *testing.T) {
 		assert.NoError(t, err)
 		defer mockServer.Close()
 
-		assert.Equal(t, []string{"24w34a", "24w33a", "1.21.1"}, GetAllMineCraftVersions(context.Background(), mockServer.Client()))
+		assert.Equal(t, []string{"24w34a", "24w33a", "1.21.1"}, GetAllMinecraftVersions(context.Background(), mockServer.Client()))
 	})
 
 	t.Run("GetLatestVersion_Error", func(t *testing.T) {
@@ -208,7 +208,7 @@ func TestMinecraft(t *testing.T) {
 		assert.False(t, valid)
 	})
 
-	t.Run("GetAllMineCraftVersions_Error", func(t *testing.T) {
+	t.Run("GetAllMinecraftVersions_Error", func(t *testing.T) {
 		ClearManifestCache()
 		oldURL := versionManifestURL
 		versionManifestURL = "xxx"
@@ -217,7 +217,7 @@ func TestMinecraft(t *testing.T) {
 		defer mockServer.Close()
 		defer func() { versionManifestURL = oldURL }()
 
-		assert.Empty(t, GetAllMineCraftVersions(context.Background(), mockServer.Client()))
+		assert.Empty(t, GetAllMinecraftVersions(context.Background(), mockServer.Client()))
 	})
 
 	t.Run("Caching", func(t *testing.T) {

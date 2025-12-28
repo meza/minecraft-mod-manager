@@ -16,7 +16,6 @@ import (
 	"github.com/meza/minecraft-mod-manager/internal/httpclient"
 	"github.com/meza/minecraft-mod-manager/internal/models"
 	"github.com/meza/minecraft-mod-manager/testutil"
-	pkgErrors "github.com/pkg/errors"
 	"github.com/stretchr/testify/assert"
 )
 
@@ -355,7 +354,7 @@ func TestGetVersionsForProjectWhenProjectApiUnknownStatus(t *testing.T) {
 
 	// Assertions
 	assert.Error(t, err)
-	responseErr, ok := httpclient.ExtractResponseError(pkgErrors.Unwrap(err))
+	responseErr, ok := httpclient.ExtractResponseError(stdErrors.Unwrap(err))
 	assert.True(t, ok)
 	assert.Equal(t, http.StatusTeapot, responseErr.StatusCode)
 	assert.Nil(t, project)
@@ -371,7 +370,7 @@ func TestGetVersionsForProjectWhenApiCallFails(t *testing.T) {
 		Loaders:      []models.Loader{models.QUILT},
 		GameVersions: []string{"1.21.1"},
 	}
-	project, err := GetVersionsForProject(context.Background(), lookup, NewClient(errorDoer{err: pkgErrors.New("request failed")}))
+	project, err := GetVersionsForProject(context.Background(), lookup, NewClient(errorDoer{err: stdErrors.New("request failed")}))
 
 	// Assertions
 	//assert.Error(t, err)
@@ -379,7 +378,7 @@ func TestGetVersionsForProjectWhenApiCallFails(t *testing.T) {
 		ProjectID: "AABBCCD3",
 		Platform:  models.MODRINTH,
 	})
-	assert.Equal(t, "request failed", pkgErrors.Unwrap(err).Error())
+	assert.Equal(t, "request failed", stdErrors.Unwrap(err).Error())
 	assert.Nil(t, project)
 }
 
@@ -530,7 +529,7 @@ func TestGetVersionForHashWhenProjectApiUnknownStatus(t *testing.T) {
 
 	// Assertions
 	assert.Error(t, err)
-	responseErr, ok := httpclient.ExtractResponseError(pkgErrors.Unwrap(err))
+	responseErr, ok := httpclient.ExtractResponseError(stdErrors.Unwrap(err))
 	assert.True(t, ok)
 	assert.Equal(t, http.StatusTeapot, responseErr.StatusCode)
 	assert.Nil(t, project)
@@ -545,14 +544,14 @@ func TestGetVersionForHashWhenApiCallFails(t *testing.T) {
 		algorithm: SHA1,
 		hash:      "c84dd4b3580c02b79958a0590afd5783d80ef504",
 	}
-	project, err := GetVersionForHash(context.Background(), lookup, NewClient(errorDoer{err: pkgErrors.New("request failed")}))
+	project, err := GetVersionForHash(context.Background(), lookup, NewClient(errorDoer{err: stdErrors.New("request failed")}))
 
 	// Assertions
 	//assert.Error(t, err)
 	assert.ErrorIs(t, err, &VersionAPIError{
 		Lookup: *lookup,
 	})
-	assert.Equal(t, "request failed", pkgErrors.Unwrap(err).Error())
+	assert.Equal(t, "request failed", stdErrors.Unwrap(err).Error())
 	assert.Nil(t, project)
 }
 

@@ -146,7 +146,7 @@ func IsValidVersion(ctx context.Context, version string, client httpclient.Doer)
 	return false, nil
 }
 
-func GetAllMineCraftVersions(ctx context.Context, client httpclient.Doer) []string {
+func GetAllMinecraftVersions(ctx context.Context, client httpclient.Doer) []string {
 	manifest, err := getMinecraftVersionManifest(ctx, client)
 
 	if err != nil {

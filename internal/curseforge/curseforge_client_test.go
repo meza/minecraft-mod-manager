@@ -1,9 +1,8 @@
-package modrinth
+package curseforge
 
 import (
 	"io"
 	"net/http"
-	"os"
 	"strings"
 	"testing"
 
@@ -22,14 +21,7 @@ func (doer *mockDoer) Do(req *http.Request) (*http.Response, error) {
 
 func TestClient_Do(t *testing.T) {
 	// Mock the environment function
-	err1 := os.Setenv("MODRINTH_API_KEY", "test-api-key")
-	if err1 != nil {
-		t.Fatalf("Failed to set environment variable: %v", err1)
-		return
-	}
-	t.Cleanup(func() {
-		assert.NoError(t, os.Unsetenv("MODRINTH_API_KEY"))
-	})
+	t.Setenv("CURSEFORGE_API_KEY", "test-api-key")
 
 	// Create a mock Doer
 	mockDoer := new(mockDoer)
@@ -40,7 +32,7 @@ func TestClient_Do(t *testing.T) {
 
 	client := &Client{client: mockDoer}
 
-	req, err := http.NewRequest(http.MethodGet, "https://api.modrinth.com/v2/project/test-project-id", nil)
+	req, err := http.NewRequest(http.MethodGet, "https://api.curseforge.com/v1/mods/test-project-id", nil)
 	assert.NoError(t, err)
 
 	resp, err := client.Do(req)
@@ -51,9 +43,8 @@ func TestClient_Do(t *testing.T) {
 	}
 
 	// Verify headers
-	assert.Equal(t, "github_com/meza/minecraft-mod-manager/REPL_VERSION", req.Header.Get("user-agent"))
 	assert.Equal(t, "application/json", req.Header.Get("Accept"))
-	assert.Equal(t, "test-api-key", req.Header.Get("Authorization"))
+	assert.Equal(t, "test-api-key", req.Header.Get("X-API-Key"))
 
 	// Verify that the mock Doer was called with the correct request
 	mockDoer.AssertCalled(t, "Do", mock.MatchedBy(func(r *http.Request) bool {
@@ -62,16 +53,15 @@ func TestClient_Do(t *testing.T) {
 		}
 		return r.Method == req.Method &&
 			r.URL.String() == req.URL.String() &&
-			r.Header.Get("user-agent") == "github_com/meza/minecraft-mod-manager/REPL_VERSION" &&
 			r.Header.Get("Accept") == "application/json" &&
-			r.Header.Get("Authorization") == "test-api-key"
+			r.Header.Get("X-API-Key") == "test-api-key"
 	}))
 }
 
 func TestBaseURLIsConstant(t *testing.T) {
-	assert.Equal(t, "https://api.modrinth.com", GetBaseURL())
-	t.Setenv("MODRINTH_API_URL", "https://example.com/v2")
-	assert.Equal(t, "https://api.modrinth.com", GetBaseURL())
+	assert.Equal(t, "https://api.curseforge.com/v1", GetBaseURL())
+	t.Setenv("CURSEFORGE_API_URL", "https://example.com")
+	assert.Equal(t, "https://api.curseforge.com/v1", GetBaseURL())
 }
 
 func TestNewClient(t *testing.T) {

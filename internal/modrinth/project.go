@@ -3,6 +3,8 @@ package modrinth
 import (
 	"context"
 	"encoding/json"
+	"fmt"
+	"net/http"
 	"net/url"
 
 	"github.com/meza/minecraft-mod-manager/internal/globalerrors"
@@ -10,8 +12,6 @@ import (
 	"github.com/meza/minecraft-mod-manager/internal/models"
 	"github.com/meza/minecraft-mod-manager/internal/perf"
 	"github.com/meza/minecraft-mod-manager/internal/urlbuilder"
-	"github.com/pkg/errors"
-	"net/http"
 
 	"go.opentelemetry.io/otel/attribute"
 )
@@ -105,7 +105,7 @@ func GetProject(ctx context.Context, projectID string, client httpclient.Doer) (
 
 	project = &Project{}
 	if err := json.NewDecoder(response.Body).Decode(project); err != nil {
-		return nil, globalerrors.ProjectAPIErrorWrap(errors.Wrap(err, "failed to decode response body"), projectID, models.MODRINTH)
+		return nil, globalerrors.ProjectAPIErrorWrap(fmt.Errorf("failed to decode response body: %w", err), projectID, models.MODRINTH)
 	}
 	return project, nil
 }

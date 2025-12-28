@@ -28,7 +28,7 @@ type RetryConfig struct {
 
 type RLHTTPClient struct {
 	client         *http.Client
-	Ratelimiter    *rate.Limiter
+	RateLimiter    *rate.Limiter
 	RetryConfig    *RetryConfig
 	rateLimitMutex sync.Mutex
 	rateLimitUntil time.Time
@@ -217,7 +217,7 @@ func (client *RLHTTPClient) waitForRateLimit(ctx context.Context, attempt int, r
 		waitSpan.End()
 		return waitErr
 	}
-	waitErr = client.Ratelimiter.Wait(ctx) // This is a blocking call. Honors the rate limit
+	waitErr = client.RateLimiter.Wait(ctx) // This is a blocking call. Honors the rate limit
 	waitSpan.End()
 	return waitErr
 }
@@ -230,7 +230,7 @@ func NewRLClient(limiter *rate.Limiter) *RLHTTPClient {
 		client: &http.Client{
 			Transport: otelhttp.NewTransport(http.DefaultTransport),
 		},
-		Ratelimiter: limiter,
+		RateLimiter: limiter,
 	}
 	return client
 }

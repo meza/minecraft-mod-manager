@@ -40,6 +40,14 @@ changing behavior.
 - Prioritize correctness and testability over cleverness
 - The project is cross-platform (first-class support for Windows, macOS, Linux) for both users and developers.
 
+### Naming and file conventions
+
+We prefer descriptive names that stay clear outside Go-specific idioms.
+
+- Receiver names should be descriptive and derived from the type (for example, `client *Client`); avoid single-letter receivers.
+- Avoid single-letter identifiers except `t`, `err`, `cfg`, `cmd`, and `ctx` in narrow scopes.
+- Go source filenames must be lowercase; use `snake_case` for multiword names.
+
 ### Testing philosophy (cross-cutting)
 
 We treat automated tests as the primary contract for behavior and user experience.

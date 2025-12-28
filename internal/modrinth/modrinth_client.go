@@ -24,15 +24,9 @@ func NewClient(doer httpclient.Doer) *Client {
 func (modrinthClient *Client) Do(request *http.Request) (*http.Response, error) {
 	ctx, span := perf.StartSpan(request.Context(), "api.modrinth.http.request", perf.WithAttributes(attribute.String("url", request.URL.String())))
 	defer span.End()
-	headers := map[string]string{
-		"user-agent":    fmt.Sprintf("github_com/meza/minecraft-mod-manager/%s", environment.AppVersion()),
-		"Accept":        "application/json",
-		"Authorization": environment.ModrinthAPIKey(),
-	}
-
-	for key, value := range headers {
-		request.Header.Add(key, value)
-	}
+	request.Header.Set("User-Agent", fmt.Sprintf("github_com/meza/minecraft-mod-manager/%s", environment.AppVersion()))
+	request.Header.Set("Accept", "application/json")
+	request.Header.Set("Authorization", environment.ModrinthAPIKey())
 
 	return modrinthClient.client.Do(request.WithContext(ctx))
 }

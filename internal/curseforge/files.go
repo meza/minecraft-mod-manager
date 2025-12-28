@@ -14,7 +14,6 @@ import (
 	"github.com/meza/minecraft-mod-manager/internal/models"
 	"github.com/meza/minecraft-mod-manager/internal/perf"
 	"github.com/meza/minecraft-mod-manager/internal/urlbuilder"
-	"github.com/pkg/errors"
 
 	"go.opentelemetry.io/otel/attribute"
 )
@@ -104,7 +103,7 @@ func getPaginatedFilesForProject(ctx context.Context, projectID int, client http
 
 	decodedFilesResponse, err := decodeFilesResponse(response)
 	if err != nil {
-		return nil, globalerrors.ProjectAPIErrorWrap(errors.Wrap(err, "failed to decode response body"), strconv.Itoa(projectID), models.CURSEFORGE)
+		return nil, globalerrors.ProjectAPIErrorWrap(fmt.Errorf("failed to decode response body: %w", err), strconv.Itoa(projectID), models.CURSEFORGE)
 	}
 
 	return decodedFilesResponse, nil
@@ -151,7 +150,7 @@ func getPaginatedFilesForProjectWithFilters(ctx context.Context, projectID int, 
 
 	decodedFilesResponse, err := decodeFilesResponse(response)
 	if err != nil {
-		return nil, globalerrors.ProjectAPIErrorWrap(errors.Wrap(err, "failed to decode response body"), strconv.Itoa(projectID), models.CURSEFORGE)
+		return nil, globalerrors.ProjectAPIErrorWrap(fmt.Errorf("failed to decode response body: %w", err), strconv.Itoa(projectID), models.CURSEFORGE)
 	}
 
 	return decodedFilesResponse, nil
@@ -363,7 +362,7 @@ func decodeFingerprintMatchesResponse(response *http.Response, fingerprints []ui
 	if err := json.NewDecoder(response.Body).Decode(&fingerprintsResponse); err != nil {
 		return nil, &FingerprintAPIError{
 			Lookup: fingerprints,
-			Err:    errors.Wrap(err, "failed to decode response body"),
+			Err:    fmt.Errorf("failed to decode response body: %w", err),
 		}
 	}
 	return &fingerprintsResponse, nil
@@ -387,7 +386,7 @@ func buildFingerprintResult(response *getFingerprintsMatchesResponse, fingerprin
 	if decodeErr != nil {
 		return nil, &FingerprintAPIError{
 			Lookup: fingerprints,
-			Err:    errors.Wrap(decodeErr, "failed to decode unmatchedFingerprints"),
+			Err:    fmt.Errorf("failed to decode unmatchedFingerprints: %w", decodeErr),
 		}
 	}
 	result.Unmatched = append(result.Unmatched, unmatched...)
@@ -414,7 +413,7 @@ func decodeUnmatchedFingerprints(raw json.RawMessage) ([]uint32, error) {
 		return parseUnmatchedMapKeys(asAnyMap)
 	}
 
-	return nil, errors.Errorf("unsupported type: %s", string(raw))
+	return nil, fmt.Errorf("unsupported type: %s", string(raw))
 }
 
 func parseUnmatchedMapKeys[V any](m map[string]V) ([]uint32, error) {

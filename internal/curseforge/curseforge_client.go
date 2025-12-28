@@ -23,14 +23,8 @@ func NewClient(doer httpclient.Doer) *Client {
 func (curseforgeClient *Client) Do(request *http.Request) (*http.Response, error) {
 	ctx, span := perf.StartSpan(request.Context(), "api.curseforge.http.request", perf.WithAttributes(attribute.String("url", request.URL.String())))
 	defer span.End()
-	headers := map[string]string{
-		"Accept":    "application/json",
-		"x-api-key": environment.CurseforgeAPIKey(),
-	}
-
-	for key, value := range headers {
-		request.Header.Add(key, value)
-	}
+	request.Header.Set("Accept", "application/json")
+	request.Header.Set("X-API-Key", environment.CurseforgeAPIKey())
 
 	return curseforgeClient.client.Do(request.WithContext(ctx))
 }

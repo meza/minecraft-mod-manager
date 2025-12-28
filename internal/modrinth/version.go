@@ -3,16 +3,16 @@ package modrinth
 import (
 	"context"
 	"encoding/json"
+	"fmt"
+	"net/http"
+	"net/url"
+	"time"
 
 	"github.com/meza/minecraft-mod-manager/internal/globalerrors"
 	"github.com/meza/minecraft-mod-manager/internal/httpclient"
 	"github.com/meza/minecraft-mod-manager/internal/models"
 	"github.com/meza/minecraft-mod-manager/internal/perf"
 	"github.com/meza/minecraft-mod-manager/internal/urlbuilder"
-	"github.com/pkg/errors"
-	"net/http"
-	"net/url"
-	"time"
 
 	"go.opentelemetry.io/otel/attribute"
 )
@@ -148,7 +148,7 @@ func GetVersionsForProject(ctx context.Context, lookup *VersionLookup, client ht
 	}
 
 	if err := json.NewDecoder(response.Body).Decode(&versions); err != nil {
-		return nil, globalerrors.ProjectAPIErrorWrap(errors.Wrap(err, "failed to decode response body"), lookup.ProjectID, models.MODRINTH)
+		return nil, globalerrors.ProjectAPIErrorWrap(fmt.Errorf("failed to decode response body: %w", err), lookup.ProjectID, models.MODRINTH)
 	}
 	return versions, nil
 }
@@ -226,7 +226,7 @@ func GetVersionForHash(ctx context.Context, lookup *VersionHashLookup, client ht
 
 	version = &Version{}
 	if err := json.NewDecoder(response.Body).Decode(version); err != nil {
-		return nil, VersionAPIErrorWrap(errors.Wrap(err, "failed to decode response body"), *lookup)
+		return nil, VersionAPIErrorWrap(fmt.Errorf("failed to decode response body: %w", err), *lookup)
 	}
 	return version, nil
 }

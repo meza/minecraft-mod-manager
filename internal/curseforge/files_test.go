@@ -17,7 +17,6 @@ import (
 	"github.com/meza/minecraft-mod-manager/internal/httpclient"
 	"github.com/meza/minecraft-mod-manager/internal/models"
 	"github.com/meza/minecraft-mod-manager/testutil"
-	pkgErrors "github.com/pkg/errors"
 	"github.com/stretchr/testify/assert"
 	"golang.org/x/time/rate"
 )
@@ -447,7 +446,7 @@ func TestGetFilesForProjectWhenProjectApiUnknownStatus(t *testing.T) {
 
 	// Assertions
 	assert.Error(t, err)
-	responseErr, ok := httpclient.ExtractResponseError(pkgErrors.Unwrap(err))
+	responseErr, ok := httpclient.ExtractResponseError(stdErrors.Unwrap(err))
 	assert.True(t, ok)
 	assert.Equal(t, http.StatusTeapot, responseErr.StatusCode)
 	assert.Nil(t, project)
@@ -467,13 +466,13 @@ func TestGetFilesForProjectWhenProjectApiCorruptBody(t *testing.T) {
 
 	// Assertions
 	assert.Error(t, err)
-	assert.Equal(t, "failed to decode response body: unexpected EOF", pkgErrors.Unwrap(err).Error())
+	assert.Equal(t, "failed to decode response body: unexpected EOF", stdErrors.Unwrap(err).Error())
 	assert.Nil(t, project)
 }
 
 func TestGetFilesForProjectWhenApiCallFails(t *testing.T) {
 	// Call the function
-	project, err := GetFilesForProject(context.Background(), 123456, NewClient(errorDoer{err: pkgErrors.New("request failed")}))
+	project, err := GetFilesForProject(context.Background(), 123456, NewClient(errorDoer{err: stdErrors.New("request failed")}))
 
 	// Assertions
 	//assert.Error(t, err)
@@ -481,7 +480,7 @@ func TestGetFilesForProjectWhenApiCallFails(t *testing.T) {
 		ProjectID: "123456",
 		Platform:  models.CURSEFORGE,
 	})
-	assert.Equal(t, "request failed", pkgErrors.Unwrap(err).Error())
+	assert.Equal(t, "request failed", stdErrors.Unwrap(err).Error())
 	assert.Nil(t, project)
 }
 
@@ -894,7 +893,7 @@ func TestGetFingerprintsMatches_UnmatchedFingerprintsMapIsTolerated(t *testing.T
 func TestGetFingerprintsMatchesWithApiFailure(t *testing.T) {
 	fingerprints := []uint32{0, 1}
 
-	client := NewClient(errorDoer{err: pkgErrors.New("request failed")})
+	client := NewClient(errorDoer{err: stdErrors.New("request failed")})
 	result, err := GetFingerprintsMatches(context.Background(), fingerprints, client)
 	assert.ErrorContains(t, err, "request failed")
 	assert.Nil(t, result)

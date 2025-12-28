@@ -125,7 +125,7 @@ func NewGameVersionModel(ctx context.Context, minecraftClient httpclient.Doer, g
 	if err != nil {
 		latestVersion = ""
 	}
-	allVersions := minecraft.GetAllMineCraftVersions(ctx, minecraftClient)
+	allVersions := minecraft.GetAllMinecraftVersions(ctx, minecraftClient)
 
 	inputModel := textinput.New()
 	inputModel.Prompt = tui.QuestionStyle.Render("? ") + tui.TitleStyle.Render(i18n.T("cmd.init.tui.game-version.question")) + " "

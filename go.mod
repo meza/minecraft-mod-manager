@@ -19,7 +19,6 @@ require (
 	github.com/kaptinlin/go-i18n v0.2.0
 	github.com/meza/curseforge-fingerprint-go v1.1.2
 	github.com/muesli/termenv v0.16.0
-	github.com/pkg/errors v0.9.1
 	github.com/posthog/posthog-go v1.6.13
 	github.com/quasilyte/go-ruleguard/dsl v0.3.23
 	github.com/spf13/afero v1.15.0

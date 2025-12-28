@@ -15,7 +15,6 @@ import (
 	"github.com/meza/minecraft-mod-manager/internal/httpclient"
 	"github.com/meza/minecraft-mod-manager/internal/models"
 	"github.com/meza/minecraft-mod-manager/testutil"
-	pkgErrors "github.com/pkg/errors"
 	"github.com/stretchr/testify/assert"
 )
 
@@ -195,7 +194,7 @@ func TestGetProjectWhenProjectApiUnknownStatus(t *testing.T) {
 
 	// Assertions
 	assert.Error(t, err)
-	responseErr, ok := httpclient.ExtractResponseError(pkgErrors.Unwrap(err))
+	responseErr, ok := httpclient.ExtractResponseError(stdErrors.Unwrap(err))
 	assert.True(t, ok)
 	assert.Equal(t, http.StatusTeapot, responseErr.StatusCode)
 	assert.Nil(t, project)
@@ -203,7 +202,7 @@ func TestGetProjectWhenProjectApiUnknownStatus(t *testing.T) {
 
 func TestGetProjectWhenApiCallFails(t *testing.T) {
 	// Call the function
-	project, err := GetProject(context.Background(), "AABBCCDDEE", NewClient(errorDoer{err: pkgErrors.New("request failed")}))
+	project, err := GetProject(context.Background(), "AABBCCDDEE", NewClient(errorDoer{err: stdErrors.New("request failed")}))
 
 	// Assertions
 	//assert.Error(t, err)
@@ -211,7 +210,7 @@ func TestGetProjectWhenApiCallFails(t *testing.T) {
 		ProjectID: "AABBCCDDEE",
 		Platform:  models.MODRINTH,
 	})
-	assert.Equal(t, "request failed", pkgErrors.Unwrap(err).Error())
+	assert.Equal(t, "request failed", stdErrors.Unwrap(err).Error())
 	assert.Nil(t, project)
 }
 

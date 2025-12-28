@@ -12,7 +12,7 @@ The manifest is cached in-memory for the application lifecycle to keep repeated 
 
 - `GetLatestVersion(ctx context.Context, client httpclient.Doer) (string, error)`
 - `IsValidVersion(ctx context.Context, version string, client httpclient.Doer) (bool, error)`
-- `GetAllMineCraftVersions(ctx context.Context, client httpclient.Doer) []string`
+- `GetAllMinecraftVersions(ctx context.Context, client httpclient.Doer) []string`
 - `NextPatchDown(ctx context.Context, version string, client httpclient.Doer) (string, bool, error)`
 - `ClearManifestCache()` (test helper)
 
