@@ -61,9 +61,9 @@ The API key is read via `internal/environment.CurseforgeAPIKey()`.
 Most project-level failures use `internal/globalerrors`:
 
 - `*globalerrors.ProjectNotFoundError` for 404s
-- `*globalerrors.ProjectAPIError` for network failures, non-200 status codes, and JSON decode failures
+- `*globalerrors.ProjectAPIError` for request/URL build failures, network failures, non-200 status codes, and JSON decode failures
 
-Fingerprint lookups return `*FingerprintAPIError` (it includes the lookup input so callers can correlate failures).
+Fingerprint lookups return `*FingerprintAPIError` (it includes the lookup input so callers can correlate failures, including request/URL build failures).
 
 ## Related docs
 

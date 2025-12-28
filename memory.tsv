@@ -737,3 +737,6 @@ mmm-137 in progress: scanned exported decls missing GoDoc (454 missing across 87
 2025-12-28	20:25	Windows verification (winstructions) ran make lint/build/coverage/test-race on winhost; all passed with PSReadLine VT warning only.
 2025-12-28	20:45	mmm-138.1 follow-up: added GoDoc for internal/tui log helpers, added TUI snapshot tests for test/install/update with new snapshots, ran UPDATE_SNAPS=true make coverage, make lint/coverage/build, and Windows winhost checks (PSReadLine VT warning only).
 2025-12-28	20:54	Reviewer approved mmm-138.1; code-review.md updated with Approved verdict; Windows verification run (PSReadLine VT warning only).
+2025-12-28	21:17	Started mmm-63.68 (mmm-139). Reviewed requirements/spec docs; plan to wrap request/parse/marshal errors with typed errors, adjust tests/docs, and fix FileExists to surface afero.Exists errors.
+2025-12-28	21:26	mmm-63.68: wrapped Modrinth/CurseForge request/URL build failures in typed API errors, surfaced FileExists afero.Exists errors, updated tests and module READMEs; make fmt/lint/coverage/build/test pass.
+2025-12-28	21:36	Reviewer approved mmm-63.68 changes; Windows winhost make lint/build/coverage/test-race pass with PSReadLine VT warning.

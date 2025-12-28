@@ -75,12 +75,12 @@ The version comes from `internal/environment.AppVersion()`, which is replaced at
 Most project-level failures use `internal/globalerrors`:
 
 - `*globalerrors.ProjectNotFoundError` for 404s
-- `*globalerrors.ProjectAPIError` for network failures, non-200 status codes, and JSON decode failures
+- `*globalerrors.ProjectAPIError` for request/URL build failures, JSON marshal failures, network failures, non-200 status codes, and JSON decode failures
 
 Hash lookups return Modrinth-specific typed errors from `versionErrors.go`:
 
 - `*VersionNotFoundError`
-- `*VersionAPIError`
+- `*VersionAPIError` (includes request/URL build failures, network failures, non-200 status codes, and JSON decode failures)
 
 ## Tests
 

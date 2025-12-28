@@ -28,16 +28,22 @@ func TestFileExists(t *testing.T) {
 	t.Run("file exists", func(t *testing.T) {
 		err := afero.WriteFile(mockIO, "/somepath", []byte("test"), 0644)
 		assert.Nil(t, err)
-		assert.True(t, FileExists("/somepath", mockIO))
+		exists, err := FileExists("/somepath", mockIO)
+		assert.NoError(t, err)
+		assert.True(t, exists)
 	})
 
 	t.Run("file does not exist", func(t *testing.T) {
-		assert.False(t, FileExists("/somepath2", mockIO))
+		exists, err := FileExists("/somepath2", mockIO)
+		assert.NoError(t, err)
+		assert.False(t, exists)
 	})
 
 	t.Run("stat error returns false", func(t *testing.T) {
 		fs := statErrorFs{Fs: mockIO, err: errors.New("stat failed")}
-		assert.False(t, FileExists("/somepath3", fs))
+		exists, err := FileExists("/somepath3", fs)
+		assert.Error(t, err)
+		assert.False(t, exists)
 	})
 }
 

@@ -3,18 +3,19 @@ package fileutils
 
 import (
 	"fmt"
-	"github.com/spf13/afero"
 	"path/filepath"
+
+	"github.com/spf13/afero"
 )
 
-func FileExists(path string, filesystem ...afero.Fs) bool {
+func FileExists(path string, filesystem ...afero.Fs) (bool, error) {
 	fs := InitFilesystem(filesystem...)
 
 	exists, err := afero.Exists(fs, path)
 	if err != nil {
-		return false
+		return false, fmt.Errorf("failed to check if %q exists: %w", path, err)
 	}
-	return exists
+	return exists, nil
 }
 
 func InitFilesystem(filesystem ...afero.Fs) afero.Fs {

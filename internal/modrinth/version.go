@@ -114,14 +114,14 @@ func GetVersionsForProject(ctx context.Context, lookup *VersionLookup, client ht
 
 	baseURL, err := buildVersionListURL(lookup)
 	if err != nil {
-		return nil, err
+		return nil, globalerrors.ProjectAPIErrorWrap(fmt.Errorf("failed to build version list URL: %w", err), lookup.ProjectID, models.MODRINTH)
 	}
 
 	timeoutCtx, cancel := httpclient.WithMetadataTimeout(ctx)
 	defer cancel()
 	request, err := newRequestWithContext(timeoutCtx, "GET", baseURL.String(), nil)
 	if err != nil {
-		return nil, err
+		return nil, globalerrors.ProjectAPIErrorWrap(fmt.Errorf("failed to build version list request: %w", err), lookup.ProjectID, models.MODRINTH)
 	}
 	response, err := client.Do(request)
 	if err != nil {
@@ -192,14 +192,14 @@ func GetVersionForHash(ctx context.Context, lookup *VersionHashLookup, client ht
 
 	requestURL, err := buildVersionFileURL(lookup)
 	if err != nil {
-		return nil, err
+		return nil, VersionAPIErrorWrap(fmt.Errorf("failed to build version file URL: %w", err), *lookup)
 	}
 
 	timeoutCtx, cancel := httpclient.WithMetadataTimeout(ctx)
 	defer cancel()
 	request, err := newRequestWithContext(timeoutCtx, "GET", requestURL.String(), nil)
 	if err != nil {
-		return nil, err
+		return nil, VersionAPIErrorWrap(fmt.Errorf("failed to build version file request: %w", err), *lookup)
 	}
 	response, err := client.Do(request)
 	if err != nil {

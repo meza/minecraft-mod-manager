@@ -5,6 +5,7 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
+	"fmt"
 	"net/http"
 	"sync"
 	"time"
@@ -77,7 +78,7 @@ func getMinecraftVersionManifest(ctx context.Context, client httpclient.Doer) (*
 	defer cancel()
 	request, err := newRequestWithContext(timeoutCtx, "GET", versionManifestURL, nil)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("failed to build version manifest request: %w", err)
 	}
 
 	response, err := client.Do(request)

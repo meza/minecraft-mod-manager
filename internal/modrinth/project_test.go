@@ -151,6 +151,8 @@ func TestGetProjectReturnsErrorOnURLBuildFailure(t *testing.T) {
 
 	project, err := GetProject(context.Background(), "AABBCCDD", NewClient(errorDoer{err: stdErrors.New("unused")}))
 	assert.Error(t, err)
+	var apiErr *globalerrors.ProjectAPIError
+	assert.ErrorAs(t, err, &apiErr)
 	assert.Nil(t, project)
 }
 
@@ -248,6 +250,8 @@ func TestGetProjectReturnsErrorWhenRequestBuildFails(t *testing.T) {
 
 	project, err := GetProject(context.Background(), "AABBCCDD", NewClient(errorDoer{err: nil}))
 	assert.Error(t, err)
+	var apiErr *globalerrors.ProjectAPIError
+	assert.ErrorAs(t, err, &apiErr)
 	assert.Nil(t, project)
 }
 

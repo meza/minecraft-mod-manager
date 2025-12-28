@@ -69,14 +69,14 @@ func GetProject(ctx context.Context, projectID string, client httpclient.Doer) (
 
 	requestURL, err := buildProjectURL(projectID)
 	if err != nil {
-		return nil, err
+		return nil, globalerrors.ProjectAPIErrorWrap(fmt.Errorf("failed to build project URL: %w", err), projectID, models.MODRINTH)
 	}
 
 	timeoutCtx, cancel := httpclient.WithMetadataTimeout(ctx)
 	defer cancel()
 	request, err := newRequestWithContext(timeoutCtx, http.MethodGet, requestURL.String(), nil)
 	if err != nil {
-		return nil, err
+		return nil, globalerrors.ProjectAPIErrorWrap(fmt.Errorf("failed to build project request: %w", err), projectID, models.MODRINTH)
 	}
 
 	response, err := client.Do(request)

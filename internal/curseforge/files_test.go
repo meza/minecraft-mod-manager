@@ -997,6 +997,8 @@ func TestGetFingerprintsMatchesReturnsErrorOnMarshalFailure(t *testing.T) {
 
 	result, err := GetFingerprintsMatches(context.Background(), []uint32{1}, NewClient(errorDoer{}))
 	assert.Error(t, err)
+	var apiErr *FingerprintAPIError
+	assert.ErrorAs(t, err, &apiErr)
 	assert.Nil(t, result)
 }
 
@@ -1011,6 +1013,8 @@ func TestGetFingerprintsMatchesReturnsErrorOnRequestBuildFailure(t *testing.T) {
 
 	result, err := GetFingerprintsMatches(context.Background(), []uint32{1}, NewClient(errorDoer{}))
 	assert.Error(t, err)
+	var apiErr *FingerprintAPIError
+	assert.ErrorAs(t, err, &apiErr)
 	assert.Nil(t, result)
 }
 
@@ -1041,6 +1045,8 @@ func TestGetPaginatedFilesForProjectReturnsErrorOnRequestBuildFailure(t *testing
 
 	files, err := getPaginatedFilesForProject(context.Background(), 12345, errorDoer{}, 0)
 	assert.Error(t, err)
+	var apiErr *globalerrors.ProjectAPIError
+	assert.ErrorAs(t, err, &apiErr)
 	assert.Nil(t, files)
 }
 

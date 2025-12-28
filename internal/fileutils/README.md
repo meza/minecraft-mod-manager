@@ -7,7 +7,7 @@ It exists so command and HTTP code can be tested with an in-memory filesystem (`
 ## Public API
 
 - `InitFilesystem(filesystem ...afero.Fs) afero.Fs` (defaults to `afero.NewOsFs()` when no fs is passed)
-- `FileExists(path string, filesystem ...afero.Fs) bool`
+- `FileExists(path string, filesystem ...afero.Fs) (bool, error)`
 - `ListFilesInDir(path string, filesystem ...afero.Fs) ([]string, error)` (returns full paths, skips directories)
 
 ## Quick start

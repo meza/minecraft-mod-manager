@@ -175,6 +175,8 @@ func TestGetVersionForHashReturnsErrorOnURLBuildFailure(t *testing.T) {
 	lookup := NewVersionHashLookup("abc", SHA1)
 	version, err := GetVersionForHash(context.Background(), lookup, NewClient(errorDoer{}))
 	assert.Error(t, err)
+	var apiErr *VersionAPIError
+	assert.ErrorAs(t, err, &apiErr)
 	assert.Nil(t, version)
 }
 
@@ -585,6 +587,8 @@ func TestGetVersionsForProjectReturnsErrorOnMarshalFailure(t *testing.T) {
 
 	versions, err := GetVersionsForProject(context.Background(), lookup, NewClient(errorDoer{}))
 	assert.Error(t, err)
+	var apiErr *globalerrors.ProjectAPIError
+	assert.ErrorAs(t, err, &apiErr)
 	assert.Nil(t, versions)
 }
 
@@ -610,6 +614,8 @@ func TestGetVersionsForProjectReturnsErrorOnLoaderMarshalFailure(t *testing.T) {
 
 	versions, err := GetVersionsForProject(context.Background(), lookup, NewClient(errorDoer{}))
 	assert.Error(t, err)
+	var apiErr *globalerrors.ProjectAPIError
+	assert.ErrorAs(t, err, &apiErr)
 	assert.Nil(t, versions)
 }
 
@@ -630,6 +636,8 @@ func TestGetVersionsForProjectReturnsErrorOnURLParseFailure(t *testing.T) {
 
 	versions, err := GetVersionsForProject(context.Background(), lookup, NewClient(errorDoer{}))
 	assert.Error(t, err)
+	var apiErr *globalerrors.ProjectAPIError
+	assert.ErrorAs(t, err, &apiErr)
 	assert.Nil(t, versions)
 }
 
@@ -650,6 +658,8 @@ func TestGetVersionsForProjectReturnsErrorOnRequestBuildFailure(t *testing.T) {
 
 	versions, err := GetVersionsForProject(context.Background(), lookup, NewClient(errorDoer{}))
 	assert.Error(t, err)
+	var apiErr *globalerrors.ProjectAPIError
+	assert.ErrorAs(t, err, &apiErr)
 	assert.Nil(t, versions)
 }
 
@@ -707,6 +717,8 @@ func TestGetVersionForHashReturnsErrorOnRequestBuildFailure(t *testing.T) {
 	lookup := NewVersionHashLookup("abc", SHA1)
 	version, err := GetVersionForHash(context.Background(), lookup, NewClient(errorDoer{}))
 	assert.Error(t, err)
+	var apiErr *VersionAPIError
+	assert.ErrorAs(t, err, &apiErr)
 	assert.Nil(t, version)
 }
 

@@ -73,7 +73,7 @@ func getPaginatedFilesForProject(ctx context.Context, projectID int, client http
 
 	request, cancel, err := buildPaginatedFilesRequest(ctx, projectID, cursor)
 	if err != nil {
-		return nil, err
+		return nil, globalerrors.ProjectAPIErrorWrap(fmt.Errorf("failed to build files request: %w", err), strconv.Itoa(projectID), models.CURSEFORGE)
 	}
 	defer cancel()
 
@@ -120,7 +120,7 @@ func getPaginatedFilesForProjectWithFilters(ctx context.Context, projectID int, 
 
 	request, cancel, err := buildPaginatedFilesRequestWithFilters(ctx, projectID, cursor, filter)
 	if err != nil {
-		return nil, err
+		return nil, globalerrors.ProjectAPIErrorWrap(fmt.Errorf("failed to build files request: %w", err), strconv.Itoa(projectID), models.CURSEFORGE)
 	}
 	defer cancel()
 
@@ -248,7 +248,10 @@ func GetFingerprintsMatches(ctx context.Context, fingerprints []uint32, client h
 
 	request, cancel, err := newFingerprintMatchRequest(ctx, fingerprints)
 	if err != nil {
-		return nil, err
+		return nil, &FingerprintAPIError{
+			Lookup: fingerprints,
+			Err:    fmt.Errorf("failed to build fingerprint request: %w", err),
+		}
 	}
 	defer cancel()
 
