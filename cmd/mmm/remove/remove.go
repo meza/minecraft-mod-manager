@@ -196,7 +196,7 @@ func removeMod(ctx context.Context, meta config.Metadata, cfg *models.ModsJSON, 
 }
 
 func removeLockEntry(ctx context.Context, meta config.Metadata, cfg *models.ModsJSON, lock *[]models.ModInstall, mod models.Mod, deps removeDeps) error {
-	lockIndex := lockIndexFor(mod, *lock)
+	lockIndex := models.LockIndexForMod(mod, *lock)
 	if lockIndex < 0 {
 		return nil
 	}
@@ -295,15 +295,6 @@ func globMatches(pattern string, value string) bool {
 		return false
 	}
 	return ok
-}
-
-func lockIndexFor(mod models.Mod, lock []models.ModInstall) int {
-	for i := range lock {
-		if lock[i].Type == mod.Type && lock[i].ID == mod.ID {
-			return i
-		}
-	}
-	return -1
 }
 
 func configIndexFor(mod models.Mod, mods []models.Mod) int {

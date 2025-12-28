@@ -3,6 +3,7 @@ package platform
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"net/http"
 	"net/http/httptest"
 	"testing"
@@ -27,6 +28,34 @@ func TestFetchModRecordsPerfOnUnknownPlatform(t *testing.T) {
 	assertPerfAttrEquals(t, "platform.fetch_mod", "platform", "unknown")
 	assertPerfAttrEquals(t, "platform.fetch_mod", "success", false)
 	assertPerfAttrContains(t, "platform.fetch_mod", "error_type", "UnknownPlatformError")
+}
+
+type noopDoer struct{}
+
+func (noopDoer) Do(_ *http.Request) (*http.Response, error) {
+	return nil, errors.New("noop doer")
+}
+
+func TestPreferredDownloadClientPrefersCurseforge(t *testing.T) {
+	curseforgeClient := noopDoer{}
+	modrinthClient := noopDoer{}
+
+	chosen := PreferredDownloadClient(Clients{
+		Curseforge: curseforgeClient,
+		Modrinth:   modrinthClient,
+	})
+
+	assert.Equal(t, curseforgeClient, chosen)
+}
+
+func TestPreferredDownloadClientFallsBackToModrinth(t *testing.T) {
+	modrinthClient := noopDoer{}
+
+	chosen := PreferredDownloadClient(Clients{
+		Modrinth: modrinthClient,
+	})
+
+	assert.Equal(t, modrinthClient, chosen)
 }
 
 func TestFetchModUsesModrinthProvider(t *testing.T) {

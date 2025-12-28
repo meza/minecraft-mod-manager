@@ -10,6 +10,7 @@ import (
 	"github.com/meza/minecraft-mod-manager/internal/modinstall"
 	"github.com/meza/minecraft-mod-manager/internal/modsetup"
 	"github.com/meza/minecraft-mod-manager/internal/perf"
+	"github.com/meza/minecraft-mod-manager/internal/platform"
 	"github.com/meza/minecraft-mod-manager/internal/telemetry"
 	"go.opentelemetry.io/otel/attribute"
 )
@@ -77,7 +78,7 @@ func normalizeExistingInstallFileName(input existingInstallInput) (models.ModIns
 
 func ensureExistingInstall(input existingInstallInput, install models.ModInstall) (modinstall.EnsureResult, error) {
 	installer := modinstall.NewInstaller(input.deps.fs, modinstall.Downloader(input.deps.downloader))
-	return installer.EnsureLockedFile(input.ctx, input.meta, input.cfg, install, downloadClient(input.deps.clients), nil)
+	return installer.EnsureLockedFile(input.ctx, input.meta, input.cfg, install, platform.PreferredDownloadClient(input.deps.clients), nil)
 }
 
 func recordExistingInstallTelemetry(input existingInstallInput, reason modinstall.EnsureReason) telemetry.CommandTelemetry {

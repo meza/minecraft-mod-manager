@@ -286,7 +286,7 @@ func reportScanResults(input scanReportInputs) (scanReportOutcome, error) {
 		}
 
 		mod := input.cfg.Mods[matchedModIndex]
-		lockIndex := lockIndexFor(mod, input.lock)
+		lockIndex := models.LockIndexForMod(mod, input.lock)
 		if lockIndex < 0 {
 			input.deps.logger.Log(messageWithIcon(tui.ErrorIcon(colorMode), i18n.T("cmd.install.unsure.lock_missing", i18n.Tvars{
 				Data: &i18n.TData{"name": item.Hits[0].Name},

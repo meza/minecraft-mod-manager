@@ -3,23 +3,10 @@ package install
 import (
 	"context"
 
-	tea "github.com/charmbracelet/bubbletea"
 	"github.com/meza/minecraft-mod-manager/internal/curseforge"
 	"github.com/meza/minecraft-mod-manager/internal/httpclient"
 	"github.com/meza/minecraft-mod-manager/internal/modrinth"
-	"github.com/meza/minecraft-mod-manager/internal/platform"
 )
-
-type noopSender struct{}
-
-func (sender *noopSender) Send(msg tea.Msg) { _ = msg }
-
-func downloadClient(clients platform.Clients) httpclient.Doer {
-	if clients.Curseforge != nil {
-		return clients.Curseforge
-	}
-	return clients.Modrinth
-}
 
 func defaultModrinthVersionForSha(ctx context.Context, sha1 string, doer httpclient.Doer) (*modrinth.Version, error) {
 	client := modrinth.NewClient(doer)

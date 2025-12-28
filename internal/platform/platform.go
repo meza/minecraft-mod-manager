@@ -18,6 +18,15 @@ type Clients struct {
 	Curseforge httpclient.Doer
 }
 
+// PreferredDownloadClient selects the best available download client.
+// It favors the CurseForge client when available, otherwise it returns Modrinth.
+func PreferredDownloadClient(clients Clients) httpclient.Doer {
+	if clients.Curseforge != nil {
+		return clients.Curseforge
+	}
+	return clients.Modrinth
+}
+
 func DefaultClients(limiter *rate.Limiter) Clients {
 	if limiter == nil {
 		limiter = httpclient.DefaultLimiter()

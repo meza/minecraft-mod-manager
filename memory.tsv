@@ -711,3 +711,4 @@ mmm-137 in progress: scanned exported decls missing GoDoc (454 missing across 87
 2025-12-27	22:42	Closed mmm-63.21 per user request; dependency remains valid but issue is now closed since internal/packager is gone.
 2025-12-27	22:58	Added ADR 0008 defining cmd/* as frontend-only and internal/* as reused packages with at least two consumers; extracted only when shared.
 2025-12-28	00:07	mmm-63.60: split cmd/mmm/update, cmd/mmm/add, cmd/mmm/init into smaller files (types/deps/run/helpers/resolve); cleaned update.go; fixed lint in scan/install; ran make fmt/lint/test/coverage/build.
+2025-12-28	11:49	mmm-63.71: consolidated duplicate helpers via internal/models (EffectiveAllowedReleaseTypes, LockIndexForMod) and internal/platform PreferredDownloadClient; removed cmd/internal noopSender duplicates by using nil sender; updated callers/tests; make fmt/lint/test/coverage/build + Windows winstructions pass.

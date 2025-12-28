@@ -48,22 +48,6 @@ func isPinned(mod models.Mod) bool {
 	return strings.TrimSpace(*mod.Version) != ""
 }
 
-func effectiveAllowedReleaseTypes(mod models.Mod, cfg models.ModsJSON) []models.ReleaseType {
-	if len(mod.AllowedReleaseTypes) > 0 {
-		return mod.AllowedReleaseTypes
-	}
-	return cfg.DefaultAllowedReleaseTypes
-}
-
-func lockIndexFor(mod models.Mod, lock []models.ModInstall) int {
-	for i := range lock {
-		if lock[i].Type == mod.Type && lock[i].ID == mod.ID {
-			return i
-		}
-	}
-	return -1
-}
-
 func parseRFC3339(value string) (time.Time, error) {
 	value = strings.TrimSpace(value)
 	parsed, err := time.Parse(time.RFC3339, value)

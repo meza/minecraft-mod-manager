@@ -28,7 +28,7 @@ func TestDownloadClientPrefersCurseforge(t *testing.T) {
 	curseforgeClient := noopDoer{}
 	modrinthClient := noopDoer{}
 
-	chosen := downloadClient(platform.Clients{
+	chosen := platform.PreferredDownloadClient(platform.Clients{
 		Curseforge: curseforgeClient,
 		Modrinth:   modrinthClient,
 	})
@@ -38,7 +38,7 @@ func TestDownloadClientPrefersCurseforge(t *testing.T) {
 func TestDownloadClientFallsBackToModrinth(t *testing.T) {
 	modrinthClient := noopDoer{}
 
-	chosen := downloadClient(platform.Clients{
+	chosen := platform.PreferredDownloadClient(platform.Clients{
 		Modrinth: modrinthClient,
 	})
 	assert.Equal(t, modrinthClient, chosen)
@@ -48,12 +48,17 @@ func TestEffectiveAllowedReleaseTypesUsesOverrides(t *testing.T) {
 	mod := models.Mod{AllowedReleaseTypes: []models.ReleaseType{models.Beta}}
 	cfg := models.ModsJSON{DefaultAllowedReleaseTypes: []models.ReleaseType{models.Release}}
 
-	assert.Equal(t, mod.AllowedReleaseTypes, effectiveAllowedReleaseTypes(mod, cfg))
+	assert.Equal(t, mod.AllowedReleaseTypes, models.EffectiveAllowedReleaseTypes(mod, cfg))
 }
 
-func TestNoopSenderSendDoesNotPanic(t *testing.T) {
-	sender := &noopSender{}
-	sender.Send(nil)
+func TestLockIndexForModMatchesTypeAndID(t *testing.T) {
+	mod := models.Mod{Type: models.CURSEFORGE, ID: "123"}
+	lock := []models.ModInstall{
+		{Type: models.MODRINTH, ID: "abc"},
+		{Type: models.CURSEFORGE, ID: "123"},
+	}
+
+	assert.Equal(t, 1, models.LockIndexForMod(mod, lock))
 }
 
 func TestNextBackupPathSkipsExisting(t *testing.T) {

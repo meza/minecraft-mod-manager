@@ -37,23 +37,23 @@ func TestOptionalStringValue(t *testing.T) {
 func TestEffectiveAllowedReleaseTypes(t *testing.T) {
 	cfg := models.ModsJSON{DefaultAllowedReleaseTypes: []models.ReleaseType{models.Release}}
 	mod := models.Mod{AllowedReleaseTypes: []models.ReleaseType{models.Beta}}
-	assert.Equal(t, []models.ReleaseType{models.Beta}, effectiveAllowedReleaseTypes(mod, cfg))
+	assert.Equal(t, []models.ReleaseType{models.Beta}, models.EffectiveAllowedReleaseTypes(mod, cfg))
 
 	mod.AllowedReleaseTypes = nil
-	assert.Equal(t, []models.ReleaseType{models.Release}, effectiveAllowedReleaseTypes(mod, cfg))
+	assert.Equal(t, []models.ReleaseType{models.Release}, models.EffectiveAllowedReleaseTypes(mod, cfg))
 }
 
 func TestDownloadClientPrefersCurseforge(t *testing.T) {
 	clients := platform.DefaultClients(rate.NewLimiter(rate.Inf, 0))
-	assert.Equal(t, clients.Curseforge, downloadClient(clients))
+	assert.Equal(t, clients.Curseforge, platform.PreferredDownloadClient(clients))
 
 	clients.Curseforge = nil
-	assert.Equal(t, clients.Modrinth, downloadClient(clients))
+	assert.Equal(t, clients.Modrinth, platform.PreferredDownloadClient(clients))
 }
 
-func TestNoopSenderSend(t *testing.T) {
-	var sender noopSender
-	sender.Send(nil)
+func TestLockIndexForModReturnsMinusOne(t *testing.T) {
+	mod := models.Mod{Type: models.CURSEFORGE, ID: "missing"}
+	assert.Equal(t, -1, models.LockIndexForMod(mod, nil))
 }
 
 func TestUniqueUint32s(t *testing.T) {

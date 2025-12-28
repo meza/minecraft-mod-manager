@@ -5,12 +5,10 @@ import (
 	"io"
 	"strings"
 
-	"github.com/meza/minecraft-mod-manager/internal/httpclient"
 	"github.com/meza/minecraft-mod-manager/internal/i18n"
 	"github.com/meza/minecraft-mod-manager/internal/models"
 	"github.com/meza/minecraft-mod-manager/internal/modinstall"
 	"github.com/meza/minecraft-mod-manager/internal/modpath"
-	"github.com/meza/minecraft-mod-manager/internal/platform"
 	"github.com/meza/minecraft-mod-manager/internal/tui"
 )
 
@@ -50,13 +48,6 @@ func alternatePlatform(platformValue models.Platform) models.Platform {
 		return models.MODRINTH
 	}
 	return models.CURSEFORGE
-}
-
-func downloadClient(clients platform.Clients) httpclient.Doer {
-	if clients.Curseforge != nil {
-		return clients.Curseforge
-	}
-	return clients.Modrinth
 }
 
 func integrityErrorMessage(err error, modName string) (string, bool) {

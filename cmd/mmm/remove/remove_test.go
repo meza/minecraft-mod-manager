@@ -692,7 +692,7 @@ func TestReadLockForRemoveReadsExistingLockOnDryRun(t *testing.T) {
 
 func TestLockAndConfigIndexForReturnMinusOneWhenMissing(t *testing.T) {
 	mod := models.Mod{Type: models.MODRINTH, ID: "missing"}
-	assert.Equal(t, -1, lockIndexFor(mod, nil))
+	assert.Equal(t, -1, models.LockIndexForMod(mod, nil))
 	assert.Equal(t, -1, configIndexFor(mod, nil))
 }
 

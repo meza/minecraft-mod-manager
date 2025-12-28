@@ -15,6 +15,7 @@ import (
 	"github.com/meza/minecraft-mod-manager/internal/logger"
 	"github.com/meza/minecraft-mod-manager/internal/modinstall"
 	"github.com/meza/minecraft-mod-manager/internal/modpath"
+	"github.com/meza/minecraft-mod-manager/internal/platform"
 	"github.com/spf13/afero"
 )
 
@@ -58,7 +59,7 @@ func prepareDownloadPaths(fs afero.Fs, modsFolder string, newPath string) (resol
 }
 
 func downloadToTemp(ctx context.Context, deps updateDeps, downloadURL string, tempPath string) error {
-	return deps.downloader(ctx, downloadURL, tempPath, downloadClient(deps.clients), &noopSender{}, deps.fs)
+	return deps.downloader(ctx, downloadURL, tempPath, platform.PreferredDownloadClient(deps.clients), nil, deps.fs)
 }
 
 func removeOldInstall(fs afero.Fs, oldPath string, newPath string, resolvedNewPath string) error {

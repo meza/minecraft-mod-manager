@@ -22,22 +22,6 @@ func modVersionLabel(mod models.Mod) string {
 	return "latest"
 }
 
-func effectiveAllowedReleaseTypes(mod models.Mod, cfg models.ModsJSON) []models.ReleaseType {
-	if len(mod.AllowedReleaseTypes) > 0 {
-		return mod.AllowedReleaseTypes
-	}
-	return cfg.DefaultAllowedReleaseTypes
-}
-
-func lockIndexFor(mod models.Mod, lock []models.ModInstall) int {
-	for i := range lock {
-		if lock[i].Type == mod.Type && lock[i].ID == mod.ID {
-			return i
-		}
-	}
-	return -1
-}
-
 func messageWithIcon(icon string, message string) string {
 	return fmt.Sprintf("%s %s", icon, message)
 }

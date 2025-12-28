@@ -119,7 +119,7 @@ func ensureRemoteMod(ctx context.Context, meta config.Metadata, cfg models.ModsJ
 		FileName:    remoteMod.FileName,
 		Hash:        remoteMod.Hash,
 		DownloadURL: remoteMod.DownloadURL,
-	}, downloadClient(deps.clients), nil)
+	}, platform.PreferredDownloadClient(deps.clients), nil)
 	if err != nil {
 		if message, handled := integrityErrorMessage(err, remoteMod.Name); handled {
 			err = errors.New(message)

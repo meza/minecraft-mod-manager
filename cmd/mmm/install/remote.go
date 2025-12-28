@@ -18,7 +18,7 @@ import (
 )
 
 func installMod(input installModInputs) (modInstallOutcome, error) {
-	lockIndex := lockIndexFor(input.mod, input.lock)
+	lockIndex := models.LockIndexForMod(input.mod, input.lock)
 	if lockIndex >= 0 {
 		return installFromLock(input.ctx, input.meta, input.cfg, input.mod, input.lock[lockIndex], input.deps)
 	}
@@ -85,7 +85,7 @@ func installFromRemote(input installModInputs) (modInstallOutcome, error) {
 
 func fetchRemoteModForInstall(ctx context.Context, mod models.Mod, cfg models.ModsJSON, deps installDeps) (platform.RemoteMod, error) {
 	return deps.fetchMod(ctx, mod.Type, mod.ID, platform.FetchOptions{
-		AllowedReleaseTypes: effectiveAllowedReleaseTypes(mod, cfg),
+		AllowedReleaseTypes: models.EffectiveAllowedReleaseTypes(mod, cfg),
 		GameVersion:         cfg.GameVersion,
 		Loader:              cfg.Loader,
 		AllowFallback:       mod.AllowVersionFallback != nil && *mod.AllowVersionFallback,
@@ -95,7 +95,7 @@ func fetchRemoteModForInstall(ctx context.Context, mod models.Mod, cfg models.Mo
 
 func downloadRemoteMod(ctx context.Context, remote platform.RemoteMod, resolvedDestination string, mod models.Mod, deps installDeps) (bool, error) {
 	installer := modinstall.NewInstaller(deps.fs, modinstall.Downloader(deps.downloader))
-	if err := installer.DownloadAndVerify(ctx, remote.DownloadURL, resolvedDestination, remote.Hash, downloadClient(deps.clients), &noopSender{}); err != nil {
+	if err := installer.DownloadAndVerify(ctx, remote.DownloadURL, resolvedDestination, remote.Hash, platform.PreferredDownloadClient(deps.clients), nil); err != nil {
 		if message, handled := integrityErrorMessage(err, mod.Name); handled {
 			deps.logger.Error(message)
 			return true, nil
@@ -155,7 +155,7 @@ func resolveRemoteDestination(meta config.Metadata, cfg models.ModsJSON, remote 
 
 func ensureLockInstall(ctx context.Context, meta config.Metadata, cfg models.ModsJSON, mod models.Mod, install models.ModInstall, deps installDeps) error {
 	installer := modinstall.NewInstaller(deps.fs, modinstall.Downloader(deps.downloader))
-	result, err := installer.EnsureLockedFile(ctx, meta, cfg, install, downloadClient(deps.clients), &noopSender{})
+	result, err := installer.EnsureLockedFile(ctx, meta, cfg, install, platform.PreferredDownloadClient(deps.clients), nil)
 	if err != nil {
 		return err
 	}

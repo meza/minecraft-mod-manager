@@ -32,10 +32,10 @@ func TestDownloadClientPrefersCurseforge(t *testing.T) {
 	curseforgeClient := platform.DefaultClients(rate.NewLimiter(rate.Inf, 0)).Curseforge
 
 	clients := platform.Clients{Modrinth: modrinthClient}
-	assert.Equal(t, modrinthClient, downloadClient(clients))
+	assert.Equal(t, modrinthClient, platform.PreferredDownloadClient(clients))
 
 	clients.Curseforge = curseforgeClient
-	assert.Equal(t, curseforgeClient, downloadClient(clients))
+	assert.Equal(t, curseforgeClient, platform.PreferredDownloadClient(clients))
 }
 
 func TestResolveRemoteMod_WrappedErrorReturnsError(t *testing.T) {

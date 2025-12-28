@@ -77,7 +77,7 @@ func initializeUpdateOutcome(candidate modUpdateCandidate, lock []models.ModInst
 		ConfigIndex: candidate.ConfigIndex,
 	}
 
-	lockIndex := lockIndexFor(mod, lock)
+	lockIndex := models.LockIndexForMod(mod, lock)
 	if lockIndex < 0 {
 		outcome.LogEvents = append(outcome.LogEvents, logEvent{
 			Kind: logEventKindError,
@@ -122,7 +122,7 @@ func fetchRemoteForUpdate(
 	outcome *modUpdateOutcome,
 ) (platform.RemoteMod, bool) {
 	remote, err := deps.fetchMod(ctx, mod.Type, mod.ID, platform.FetchOptions{
-		AllowedReleaseTypes: effectiveAllowedReleaseTypes(mod, cfg),
+		AllowedReleaseTypes: models.EffectiveAllowedReleaseTypes(mod, cfg),
 		GameVersion:         cfg.GameVersion,
 		Loader:              cfg.Loader,
 		AllowFallback:       mod.AllowVersionFallback != nil && *mod.AllowVersionFallback,

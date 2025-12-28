@@ -7,7 +7,6 @@ import (
 	"path/filepath"
 	"strings"
 
-	tea "github.com/charmbracelet/bubbletea"
 	"github.com/spf13/afero"
 
 	"github.com/meza/minecraft-mod-manager/internal/config"
@@ -96,7 +95,7 @@ func (coordinator *SetupCoordinator) EnsureDownloaded(ctx context.Context, meta 
 		return "", errors.New("missing modsetup dependencies: downloader")
 	}
 	installer := modinstall.NewInstaller(coordinator.fs, modinstall.Downloader(coordinator.downloader))
-	downloadErr := installer.DownloadAndVerify(ctx, remote.DownloadURL, resolvedDestination, remote.Hash, downloadClient, &noopSender{})
+	downloadErr := installer.DownloadAndVerify(ctx, remote.DownloadURL, resolvedDestination, remote.Hash, downloadClient, nil)
 	if downloadErr != nil {
 		return "", downloadErr
 	}
@@ -370,7 +369,3 @@ func validateRemoteForLock(remote platform.RemoteMod) (string, error) {
 	}
 	return normalizedFileName, nil
 }
-
-type noopSender struct{}
-
-func (sender *noopSender) Send(msg tea.Msg) { _ = msg }

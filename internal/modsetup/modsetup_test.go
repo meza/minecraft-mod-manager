@@ -830,9 +830,11 @@ func TestOptionalString_EmptyReturnsNil(t *testing.T) {
 	assert.Nil(t, optionalString("   "))
 }
 
-func TestNoopSender_SendIsNoOp(t *testing.T) {
-	var sender noopSender
-	sender.Send(nil)
+func TestAllowVersionFallbackPointer_TrueReturnsPointer(t *testing.T) {
+	value := allowVersionFallbackPointer(EnsurePersistOptions{AllowVersionFallback: true})
+	if assert.NotNil(t, value) {
+		assert.True(t, *value)
+	}
 }
 
 type failingRenameFs struct {

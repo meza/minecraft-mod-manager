@@ -273,7 +273,7 @@ func checkMod(
 	})
 
 	fetchOpts := platform.FetchOptions{
-		AllowedReleaseTypes: effectiveAllowedReleaseTypes(mod, cfg),
+		AllowedReleaseTypes: models.EffectiveAllowedReleaseTypes(mod, cfg),
 		GameVersion:         targetVersion,
 		Loader:              cfg.Loader,
 		AllowFallback:       mod.AllowVersionFallback != nil && *mod.AllowVersionFallback,
@@ -294,13 +294,6 @@ func checkMod(
 	}
 
 	return outcome
-}
-
-func effectiveAllowedReleaseTypes(mod models.Mod, cfg models.ModsJSON) []models.ReleaseType {
-	if len(mod.AllowedReleaseTypes) > 0 {
-		return mod.AllowedReleaseTypes
-	}
-	return cfg.DefaultAllowedReleaseTypes
 }
 
 func fetchFailureDetails(mod models.Mod, cfg models.ModsJSON, targetVersion string, opts platform.FetchOptions) string {
