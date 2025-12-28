@@ -1,5 +1,8 @@
 blank_issues_enabled: true
 contact_links:
+  - name: Security vulnerability report (private)
+    url: https://discord.gg/dvg3tcQCPW
+    about: Please report security issues privately via Discord.
   - name: Questions, Sharing ideas, Other support
     url: https://github.com/meza/minecraft-mod-manager/discussions
     about: Check out the community discussions.

@@ -1,13 +1,14 @@
 # Security Policy
 
-The code is continuously scanned for known vulnerabilities and the dependencies are automatically kept up-to-date.
-To make sure that you have the latest security updates, please make sure to always use the latest version of the Minecraft Mod Manager.
+We run automated security checks in CI (including `make vuln`) on pull requests and pushes. Keep your copy of Minecraft Mod Manager up to date so you receive security fixes.
 
 There will be limited support for major versions going forward but please upgrade as soon as you can.
 
 ## Reporting a Vulnerability
 
-To report a vulnerability, please open an issue in the [issue tracker](https://github.com/meza/minecraft-mod-manager/issues).
+Please report security issues privately via our Discord server:
+https://discord.gg/dvg3tcQCPW
+Do not open a public GitHub issue for vulnerabilities.
 
 ## Configuration Trust Boundary
 
