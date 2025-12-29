@@ -26,13 +26,13 @@ func SummarizePlatformError(err error, platform models.Platform) (PlatformErrorS
 
 	if httpclient.IsTimeoutError(err) {
 		return PlatformErrorSummary{
-			Reason:       i18n.T("cmd.platform.error.reason.timeout"),
+			Reason:       i18n.T("cmd.platform.error.reason.timeout", nil),
 			DebugDetails: err.Error(),
 		}, true
 	}
 
 	return PlatformErrorSummary{
-		Reason:       i18n.T("cmd.platform.error.reason.unknown"),
+		Reason:       i18n.T("cmd.platform.error.reason.unknown", nil),
 		DebugDetails: err.Error(),
 	}, true
 }
@@ -40,19 +40,19 @@ func SummarizePlatformError(err error, platform models.Platform) (PlatformErrorS
 func reasonForStatusCode(statusCode int, platform models.Platform) string {
 	switch {
 	case statusCode == http.StatusUnauthorized || statusCode == http.StatusForbidden:
-		return i18n.T("cmd.platform.error.reason.auth", i18n.Tvars{
+		return i18n.T("cmd.platform.error.reason.auth", &i18n.Tvars{
 			Data: &i18n.TData{"token": apiTokenName(platform)},
 		})
 	case statusCode == http.StatusTooManyRequests:
-		return i18n.T("cmd.platform.error.reason.rate_limited")
+		return i18n.T("cmd.platform.error.reason.rate_limited", nil)
 	case statusCode == http.StatusNotFound:
-		return i18n.T("cmd.platform.error.reason.not_found")
+		return i18n.T("cmd.platform.error.reason.not_found", nil)
 	case statusCode >= http.StatusInternalServerError:
-		return i18n.T("cmd.platform.error.reason.server_error")
+		return i18n.T("cmd.platform.error.reason.server_error", nil)
 	case statusCode >= http.StatusBadRequest:
-		return i18n.T("cmd.platform.error.reason.bad_request")
+		return i18n.T("cmd.platform.error.reason.bad_request", nil)
 	default:
-		return i18n.T("cmd.platform.error.reason.unknown")
+		return i18n.T("cmd.platform.error.reason.unknown", nil)
 	}
 }
 

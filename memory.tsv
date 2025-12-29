@@ -772,3 +772,10 @@ mmm-137 in progress: scanned exported decls missing GoDoc (454 missing across 87
 2025-12-29	11:27	mmm-148: revised approach to keep VT by filtering WindowSizeMsg in StartLogProgram, avoiding renderer truncation without hiding output Fd.
 2025-12-29	11:38	mmm-148: reviewer approved after filtering WindowSizeMsg and adding log output tests; ready for user sign-off.
 2025-12-29	11:40	Closed mmm-148 per user request after reviewer approval.
+2025-12-29	11:42	Started mmm-145 discovery: issue says i18n.T should not fall back to key+args when multiple Tvars are provided; no dependencies per bd dep tree.
+2025-12-29	11:56	User approved changing i18n.T signature to avoid multiple Tvars; need to align fallback behavior with MMM_TEST-only raw key+args rule and update callers/tests/specs.
+2025-12-29	12:09	mmm-145: changed i18n.T signature to use *Tvars, MMM_TEST-only key+vars output; updated call sites/docs/tests and init snapshot; ran make fmt/lint/coverage/build (all pass).
+2025-12-29	12:12	Windows verification (winstructions): make lint/build/coverage/test-race via winhost completed; PSReadLine VT warning only.
+2025-12-29	12:24	mmm-145: added test for localizer nil with vars; reran make fmt/lint/coverage/build (pass) and winhost lint/build/coverage/test-race (pass; PSReadLine VT warning).
+2025-12-29	12:30	mmm-145: reviewer approved after adding localizer-nil vars test; code-review.md updated with pass verdict and Windows verification timestamp.
+2025-12-29	12:31	Closed mmm-145 per user request after reviewer approval.

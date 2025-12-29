@@ -90,7 +90,7 @@ func finalizeInteractiveResult(result tea.Model) (initOptions, error) {
 	case CommandModel:
 		finalModel = typed
 	default:
-		return initOptions{}, errors.New(i18n.T("cmd.init.error.interactive.failed", i18n.Tvars{}))
+		return initOptions{}, errors.New(i18n.T("cmd.init.error.interactive.failed", nil))
 	}
 
 	if finalModel.err != nil {
@@ -98,7 +98,7 @@ func finalizeInteractiveResult(result tea.Model) (initOptions, error) {
 	}
 
 	if finalModel.state != done {
-		return initOptions{}, errors.New(i18n.T("cmd.init.error.canceled", i18n.Tvars{}))
+		return initOptions{}, errors.New(i18n.T("cmd.init.error.canceled", nil))
 	}
 
 	return finalModel.result, nil

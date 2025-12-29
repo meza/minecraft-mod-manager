@@ -24,7 +24,7 @@ import (
 func Command() *cobra.Command {
 	rootCmd := &cobra.Command{
 		Use:     constants.CommandName,
-		Short:   i18n.T("app.description"),
+		Short:   i18n.T("app.description", nil),
 		Version: environment.AppVersion(),
 	}
 
@@ -61,7 +61,7 @@ func translateDefaultHelpFacilities(rootCmd *cobra.Command) {
 	for _, cmd := range allCommands {
 		cmd.InitDefaultHelpFlag()
 		flags := cmd.Flags()
-		flags.Lookup("help").Usage = i18n.T("cmd.help.template", i18n.Tvars{
+		flags.Lookup("help").Usage = i18n.T("cmd.help.template", &i18n.Tvars{
 			Data: &i18n.TData{"command": cmd.Name()},
 		})
 	}
@@ -70,14 +70,14 @@ func translateDefaultHelpFacilities(rootCmd *cobra.Command) {
 	helpCmd, _, e := rootCmd.Find([]string{"help"})
 
 	if e == nil {
-		helpCmd.Short = i18n.T("cmd.help.usage.short")
-		helpCmd.Long = i18n.T("cmd.help.usage.long", i18n.Tvars{
+		helpCmd.Short = i18n.T("cmd.help.usage.short", nil)
+		helpCmd.Long = i18n.T("cmd.help.usage.long", &i18n.Tvars{
 			Data: &i18n.TData{"appName": rootCmd.Name()},
 		})
 		helpCmd.Run = func(c *cobra.Command, args []string) {
 			cmd, _, e := c.Root().Find(args)
 			if cmd == nil || e != nil {
-				c.PrintErrln(i18n.T("cmd.help.error", i18n.Tvars{
+				c.PrintErrln(i18n.T("cmd.help.error", &i18n.Tvars{
 					Data: &i18n.TData{"topic": fmt.Sprintf("%#q", args)},
 				}) + "\n")
 				cobra.CheckErr(c.Root().Usage())
@@ -102,7 +102,7 @@ func fixFlagUsageAlignment(rootCmd *cobra.Command) {
 
 func appendHelpURLFooter(rootCmd *cobra.Command) {
 	template := strings.TrimRight(rootCmd.HelpTemplate(), "\n")
-	footer := i18n.T("cmd.help.more_info", i18n.Tvars{
+	footer := i18n.T("cmd.help.more_info", &i18n.Tvars{
 		Data: &i18n.TData{"helpUrl": environment.HelpURL()},
 	})
 

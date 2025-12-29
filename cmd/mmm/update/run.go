@@ -74,7 +74,7 @@ func ensureInstallForUpdate(ctx context.Context, cmd *cobra.Command, opts update
 		return err
 	}
 	if installResult.UnmanagedFound {
-		if outputErr := deps.output.Error(i18n.T("cmd.update.error.unmanaged_found")); outputErr != nil {
+		if outputErr := deps.output.Error(i18n.T("cmd.update.error.unmanaged_found", nil)); outputErr != nil {
 			return outputErr
 		}
 		return errUnmanagedFiles
@@ -110,7 +110,7 @@ func loadUpdateContext(ctx context.Context, cmd *cobra.Command, opts updateOptio
 
 func reportNoUpdatesIfNeeded(out *output.Output, counts updateCounts, colorMode tui.ColorMode) error {
 	if counts.updated == 0 && counts.failed == 0 {
-		return out.Log(messageWithIcon(tui.SuccessIcon(colorMode), i18n.T("cmd.update.no_updates")), output.LogForce)
+		return out.Log(messageWithIcon(tui.SuccessIcon(colorMode), i18n.T("cmd.update.no_updates", nil)), output.LogForce)
 	}
 	return nil
 }

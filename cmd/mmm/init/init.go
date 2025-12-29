@@ -35,7 +35,7 @@ func commandWithRunner(runner initRunner) *cobra.Command {
 
 	cmd := &cobra.Command{
 		Use:   "init",
-		Short: i18n.T("cmd.init.short"),
+		Short: i18n.T("cmd.init.short", nil),
 		RunE: func(cmd *cobra.Command, _ []string) (err error) {
 			ctx, span := perf.StartSpan(cmd.Context(), "app.command.init")
 			defer func() {
@@ -59,14 +59,14 @@ func commandWithRunner(runner initRunner) *cobra.Command {
 		},
 	}
 
-	cmd.Flags().VarP(&loader, "loader", "l", i18n.T("cmd.init.usage.loader", i18n.Tvars{
+	cmd.Flags().VarP(&loader, "loader", "l", i18n.T("cmd.init.usage.loader", &i18n.Tvars{
 		Data: &i18n.TData{"loaders": getAllLoaders()},
 	}))
-	cmd.Flags().StringSliceP("release-types", "r", []string{"release"}, i18n.T("cmd.init.usage.release-types", i18n.Tvars{
+	cmd.Flags().StringSliceP("release-types", "r", []string{"release"}, i18n.T("cmd.init.usage.release-types", &i18n.Tvars{
 		Data: &i18n.TData{"releaseTypes": getAllReleaseTypes()},
 	}))
-	cmd.Flags().StringP("game-version", "g", "latest", i18n.T("cmd.init.usage.game-version"))
-	cmd.Flags().StringP("mods-folder", "m", "mods", i18n.T("cmd.init.usage.mods-folder"))
+	cmd.Flags().StringP("game-version", "g", "latest", i18n.T("cmd.init.usage.game-version", nil))
+	cmd.Flags().StringP("mods-folder", "m", "mods", i18n.T("cmd.init.usage.mods-folder", nil))
 
 	if err := registerFlagCompletion(cmd, "loader", completeLoaders); err != nil {
 		if _, writeErr := fmt.Fprintf(completionWarnWriter, "warning: failed to register loader completion: %v\n", err); writeErr != nil {

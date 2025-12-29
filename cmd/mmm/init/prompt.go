@@ -11,7 +11,7 @@ import (
 )
 
 func (prompter terminalPrompter) ConfirmOverwrite(configPath string) (bool, error) {
-	if _, err := fmt.Fprint(prompter.out, i18n.T("cmd.init.prompt.config-overwrite.question", i18n.Tvars{
+	if _, err := fmt.Fprint(prompter.out, i18n.T("cmd.init.prompt.config-overwrite.question", &i18n.Tvars{
 		Data: &i18n.TData{"configPath": configPath},
 	})); err != nil {
 		return false, err
@@ -26,7 +26,7 @@ func (prompter terminalPrompter) ConfirmOverwrite(configPath string) (bool, erro
 }
 
 func (prompter terminalPrompter) RequestNewConfigPath(configPath string) (string, error) {
-	if _, err := fmt.Fprint(prompter.out, i18n.T("cmd.init.prompt.config-path.question", i18n.Tvars{
+	if _, err := fmt.Fprint(prompter.out, i18n.T("cmd.init.prompt.config-path.question", &i18n.Tvars{
 		Data: &i18n.TData{"configPath": configPath},
 	})); err != nil {
 		return "", err
@@ -38,7 +38,7 @@ func (prompter terminalPrompter) RequestNewConfigPath(configPath string) (string
 
 	answer = strings.TrimSpace(answer)
 	if answer == "" {
-		return "", errors.New(i18n.T("cmd.init.error.config-path.empty", i18n.Tvars{}))
+		return "", errors.New(i18n.T("cmd.init.error.config-path.empty", nil))
 	}
 	return answer, nil
 }

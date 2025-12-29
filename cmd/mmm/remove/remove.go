@@ -41,14 +41,14 @@ type removeDeps struct {
 func Command() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "remove <mods...>",
-		Short: i18n.T("cmd.remove.short"),
+		Short: i18n.T("cmd.remove.short", nil),
 		Args:  cobra.MinimumNArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			return runRemoveCommand(cmd, args)
 		},
 	}
 
-	cmd.Flags().BoolP("dry-run", "n", false, i18n.T("cmd.remove.flag.dry_run"))
+	cmd.Flags().BoolP("dry-run", "n", false, i18n.T("cmd.remove.flag.dry_run", nil))
 
 	return cmd
 }
@@ -158,7 +158,7 @@ func runRemove(ctx context.Context, opts removeOptions, deps removeDeps) (int, e
 	}
 
 	if opts.DryRun {
-		if err := deps.output.Log(i18n.T("cmd.remove.dry-run.notice", i18n.Tvars{}), output.LogQuiet); err != nil {
+		if err := deps.output.Log(i18n.T("cmd.remove.dry-run.notice", nil), output.LogQuiet); err != nil {
 			return 0, err
 		}
 	}
@@ -183,7 +183,7 @@ func removeMatchedMods(ctx context.Context, meta config.Metadata, cfg *models.Mo
 
 func removeMod(ctx context.Context, meta config.Metadata, cfg *models.ModsJSON, lock *[]models.ModInstall, mod models.Mod, opts removeOptions, deps removeDeps) (bool, error) {
 	if opts.DryRun {
-		if err := deps.output.Log(i18n.T("cmd.remove.dry-run.would-remove", i18n.Tvars{
+		if err := deps.output.Log(i18n.T("cmd.remove.dry-run.would-remove", &i18n.Tvars{
 			Data: &i18n.TData{"name": mod.Name},
 		}), output.LogQuiet); err != nil {
 			return false, err
@@ -198,7 +198,7 @@ func removeMod(ctx context.Context, meta config.Metadata, cfg *models.ModsJSON, 
 		return false, err
 	}
 
-	if err := deps.output.Log(fmt.Sprintf("%s %s", tui.SuccessIcon(deps.colorMode), i18n.T("cmd.remove.removed", i18n.Tvars{
+	if err := deps.output.Log(fmt.Sprintf("%s %s", tui.SuccessIcon(deps.colorMode), i18n.T("cmd.remove.removed", &i18n.Tvars{
 		Data: &i18n.TData{"name": mod.Name},
 	})), output.LogQuiet); err != nil {
 		return false, err
@@ -231,7 +231,7 @@ func removeLockEntry(ctx context.Context, meta config.Metadata, cfg *models.Mods
 }
 
 func reportInvalidLockFileName(out *output.Output, mod models.Mod, fileName string) error {
-	return out.Error(i18n.T("cmd.remove.error.invalid_filename_lock", i18n.Tvars{
+	return out.Error(i18n.T("cmd.remove.error.invalid_filename_lock", &i18n.Tvars{
 		Data: &i18n.TData{
 			"name": mod.Name,
 			"file": modfilename.Display(fileName),

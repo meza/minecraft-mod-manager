@@ -186,7 +186,7 @@ func finalizeAdd(input finalizeAddInput) (telemetry.CommandTelemetry, error) {
 }
 
 func logAddSuccess(out *output.Output, colorMode tui.ColorMode, modName string, resolvedID string, resolvedPlatform models.Platform) error {
-	return out.Log(fmt.Sprintf("%s %s", tui.SuccessIcon(colorMode), i18n.T("cmd.add.success", i18n.Tvars{
+	return out.Log(fmt.Sprintf("%s %s", tui.SuccessIcon(colorMode), i18n.T("cmd.add.success", &i18n.Tvars{
 		Data: &i18n.TData{
 			"name":     modName,
 			"id":       resolvedID,

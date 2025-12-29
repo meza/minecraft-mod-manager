@@ -69,7 +69,7 @@ func handleExistingInstall(input existingInstallInput) (telemetry.CommandTelemet
 func normalizeExistingInstallFileName(input existingInstallInput) (models.ModInstall, error) {
 	normalizedFileName, err := modfilename.Normalize(input.install.FileName)
 	if err != nil {
-		message := i18n.T("cmd.add.error.invalid_filename_lock", i18n.Tvars{
+		message := i18n.T("cmd.add.error.invalid_filename_lock", &i18n.Tvars{
 			Data: &i18n.TData{
 				"name": modNameForConfig(input.cfg, input.platformValue, input.projectID),
 				"file": modfilename.Display(input.install.FileName),
@@ -95,7 +95,7 @@ func recordExistingInstallTelemetry(input existingInstallInput, reason modinstal
 			attribute.String("project_id", input.projectID),
 		))
 	}
-	if err := input.deps.logger.Debug(i18n.T("cmd.add.debug.already_exists", i18n.Tvars{
+	if err := input.deps.logger.Debug(i18n.T("cmd.add.debug.already_exists", &i18n.Tvars{
 		Data: &i18n.TData{
 			"id":       input.projectID,
 			"platform": input.platformValue,
@@ -109,14 +109,14 @@ func recordExistingInstallTelemetry(input existingInstallInput, reason modinstal
 func logEnsureResult(out *output.Output, reason modinstall.EnsureReason, cfg models.ModsJSON, platformValue models.Platform, projectID string) error {
 	switch reason {
 	case modinstall.EnsureReasonMissing:
-		return out.Log(i18n.T("cmd.install.download.missing", i18n.Tvars{
+		return out.Log(i18n.T("cmd.install.download.missing", &i18n.Tvars{
 			Data: &i18n.TData{
 				"name":     modNameForConfig(cfg, platformValue, projectID),
 				"platform": platformValue,
 			},
 		}), output.LogForce)
 	case modinstall.EnsureReasonHashMismatch:
-		return out.Log(i18n.T("cmd.install.download.hash_mismatch", i18n.Tvars{
+		return out.Log(i18n.T("cmd.install.download.hash_mismatch", &i18n.Tvars{
 			Data: &i18n.TData{"name": modNameForConfig(cfg, platformValue, projectID)},
 		}), output.LogForce)
 	default:

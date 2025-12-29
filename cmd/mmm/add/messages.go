@@ -6,7 +6,7 @@ import (
 )
 
 func errorMessageForUnknownPlatform(platform string) string {
-	return i18n.T("cmd.add.error.unknown_platform", i18n.Tvars{
+	return i18n.T("cmd.add.error.unknown_platform", &i18n.Tvars{
 		Data: &i18n.TData{
 			"platform": platform,
 		},
@@ -14,7 +14,7 @@ func errorMessageForUnknownPlatform(platform string) string {
 }
 
 func errorMessageForModNotFound(projectID string, platform models.Platform) string {
-	return i18n.T("cmd.add.error.mod_not_found", i18n.Tvars{
+	return i18n.T("cmd.add.error.mod_not_found", &i18n.Tvars{
 		Data: &i18n.TData{
 			"id":       projectID,
 			"platform": platform,
@@ -23,7 +23,7 @@ func errorMessageForModNotFound(projectID string, platform models.Platform) stri
 }
 
 func errorMessageForNoFile(projectID string, platform models.Platform) string {
-	return i18n.T("cmd.add.error.no_file", i18n.Tvars{
+	return i18n.T("cmd.add.error.no_file", &i18n.Tvars{
 		Data: &i18n.TData{
 			"id":       projectID,
 			"platform": platform,

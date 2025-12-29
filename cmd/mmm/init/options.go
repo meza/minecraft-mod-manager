@@ -70,7 +70,7 @@ func (flag *loaderFlag) Set(value string) error {
 			return nil
 		}
 	}
-	return fmt.Errorf("%s", i18n.T("cmd.init.error.loader.invalid", i18n.Tvars{
+	return fmt.Errorf("%s", i18n.T("cmd.init.error.loader.invalid", &i18n.Tvars{
 		Data: &i18n.TData{"loader": value},
 	}))
 }
@@ -99,7 +99,7 @@ func parseReleaseTypes(raw []string) ([]models.ReleaseType, error) {
 
 		candidate := models.ReleaseType(part)
 		if !isValidReleaseType(candidate) {
-			return nil, fmt.Errorf("%s", i18n.T("cmd.init.error.release-types.invalid", i18n.Tvars{
+			return nil, fmt.Errorf("%s", i18n.T("cmd.init.error.release-types.invalid", &i18n.Tvars{
 				Data: &i18n.TData{"releaseType": part},
 			}))
 		}
@@ -107,7 +107,7 @@ func parseReleaseTypes(raw []string) ([]models.ReleaseType, error) {
 	}
 
 	if len(releaseTypes) == 0 {
-		return nil, errors.New(i18n.T("cmd.init.error.release-types.empty", i18n.Tvars{}))
+		return nil, errors.New(i18n.T("cmd.init.error.release-types.empty", nil))
 	}
 
 	return releaseTypes, nil

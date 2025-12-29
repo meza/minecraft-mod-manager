@@ -244,7 +244,7 @@ func (model *addTUIModel) applyState(state addTUIState) {
 }
 
 func (model *addTUIModel) applyUnknownPlatformState() {
-	message := i18n.T("cmd.add.tui.unknown_platform", i18n.Tvars{
+	message := i18n.T("cmd.add.tui.unknown_platform", &i18n.Tvars{
 		Data: &i18n.TData{"platform": string(model.failurePlatform)},
 	})
 	model.list = newPlatformListModel(platformListOptions{
@@ -256,7 +256,7 @@ func (model *addTUIModel) applyUnknownPlatformState() {
 }
 
 func (model *addTUIModel) applyModNotFoundConfirmState() {
-	model.confirmMessage = i18n.T("cmd.add.tui.mod_not_found", i18n.Tvars{
+	model.confirmMessage = i18n.T("cmd.add.tui.mod_not_found", &i18n.Tvars{
 		Data: &i18n.TData{
 			"id":       model.failureProject,
 			"platform": model.failurePlatform,
@@ -266,7 +266,7 @@ func (model *addTUIModel) applyModNotFoundConfirmState() {
 }
 
 func (model *addTUIModel) applyModNotFoundSelectPlatformState() {
-	message := i18n.T("cmd.add.tui.choose_platform")
+	message := i18n.T("cmd.add.tui.choose_platform", nil)
 	model.list = newPlatformListModel(platformListOptions{
 		message:       message,
 		defaultValue:  string(model.failurePlatform),
@@ -276,12 +276,12 @@ func (model *addTUIModel) applyModNotFoundSelectPlatformState() {
 }
 
 func (model *addTUIModel) applyModNotFoundEnterProjectIDState() {
-	message := i18n.T("cmd.add.tui.enter_project_id")
+	message := i18n.T("cmd.add.tui.enter_project_id", nil)
 	model.input = newProjectIDInputModel(message, model.failureProject)
 }
 
 func (model *addTUIModel) applyNoFileConfirmState() {
-	message := i18n.T("cmd.add.tui.no_file_found", i18n.Tvars{
+	message := i18n.T("cmd.add.tui.no_file_found", &i18n.Tvars{
 		Data: &i18n.TData{
 			"name":        model.failureProject,
 			"platform":    model.failurePlatform,
@@ -295,7 +295,7 @@ func (model *addTUIModel) applyNoFileConfirmState() {
 }
 
 func (model *addTUIModel) applyNoFileEnterProjectIDState() {
-	message := i18n.T("cmd.add.tui.enter_project_id_on", i18n.Tvars{
+	message := i18n.T("cmd.add.tui.enter_project_id_on", &i18n.Tvars{
 		Data: &i18n.TData{
 			"platform": alternatePlatform(model.failurePlatform),
 		},

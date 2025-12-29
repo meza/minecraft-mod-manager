@@ -116,7 +116,7 @@ func TestInitTUIErrorSnapshots(t *testing.T) {
 		model = applyWindowSize(t, model, 60)
 		model = selectLoader(t, model, models.FABRIC)
 		model.gameVersionQuestion.validate = func(string) error {
-			return fmt.Errorf("%s", i18n.T("cmd.init.tui.game-version.unavailable", i18n.Tvars{}))
+			return fmt.Errorf("%s", i18n.T("cmd.init.tui.game-version.unavailable", nil))
 		}
 
 		model.gameVersionQuestion.input.SetValue("1.21.1")

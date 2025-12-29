@@ -12,7 +12,7 @@ type InvalidDownloadURLError struct {
 }
 
 func (err InvalidDownloadURLError) Error() string {
-	return i18n.T("error.download_url_invalid", i18n.Tvars{
+	return i18n.T("error.download_url_invalid", &i18n.Tvars{
 		Data: &i18n.TData{
 			"url": err.URL,
 		},
@@ -24,7 +24,7 @@ type InsecureDownloadURLError struct {
 }
 
 func (err InsecureDownloadURLError) Error() string {
-	return i18n.T("error.download_url_insecure", i18n.Tvars{
+	return i18n.T("error.download_url_insecure", &i18n.Tvars{
 		Data: &i18n.TData{
 			"url": err.URL,
 		},
@@ -37,7 +37,7 @@ type UntrustedDownloadHostError struct {
 }
 
 func (err UntrustedDownloadHostError) Error() string {
-	return i18n.T("error.download_url_untrusted_host", i18n.Tvars{
+	return i18n.T("error.download_url_untrusted_host", &i18n.Tvars{
 		Data: &i18n.TData{
 			"host": err.Host,
 			"url":  err.URL,

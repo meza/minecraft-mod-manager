@@ -22,7 +22,7 @@ func commandWithRunner(runner installRunner) *cobra.Command {
 	cmd := &cobra.Command{
 		Use:     "install",
 		Aliases: []string{"i"},
-		Short:   i18n.T("cmd.install.short"),
+		Short:   i18n.T("cmd.install.short", nil),
 		RunE: func(cmd *cobra.Command, _ []string) error {
 			return runInstallCommand(cmd, runner)
 		},

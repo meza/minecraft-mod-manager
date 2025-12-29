@@ -81,7 +81,7 @@ func initializeUpdateOutcome(candidate modUpdateCandidate, lock []models.ModInst
 	if lockIndex < 0 {
 		outcome.LogEvents = append(outcome.LogEvents, logEvent{
 			Kind: logEventKindError,
-			Message: i18n.T("cmd.update.error.missing_lock_entry", i18n.Tvars{
+			Message: i18n.T("cmd.update.error.missing_lock_entry", &i18n.Tvars{
 				Data: &i18n.TData{
 					"name": mod.Name,
 					"id":   mod.ID,
@@ -104,7 +104,7 @@ func initializeUpdateOutcome(candidate modUpdateCandidate, lock []models.ModInst
 func appendUpdateCheckEvent(outcome *modUpdateOutcome, mod models.Mod) {
 	outcome.LogEvents = append(outcome.LogEvents, logEvent{
 		Kind: logEventKindDebug,
-		Message: i18n.T("cmd.update.debug.checking", i18n.Tvars{
+		Message: i18n.T("cmd.update.debug.checking", &i18n.Tvars{
 			Data: &i18n.TData{
 				"name":     mod.Name,
 				"platform": mod.Type,
@@ -141,7 +141,7 @@ func normalizeRemoteFileNameForUpdate(remote platform.RemoteMod, mod models.Mod,
 	if err != nil {
 		outcome.LogEvents = append(outcome.LogEvents, logEvent{
 			Kind: logEventKindError,
-			Message: i18n.T("cmd.update.error.invalid_filename_remote", i18n.Tvars{
+			Message: i18n.T("cmd.update.error.invalid_filename_remote", &i18n.Tvars{
 				Data: &i18n.TData{
 					"name": mod.Name,
 					"file": modfilename.Display(remote.FileName),
@@ -167,7 +167,7 @@ func resolveInstalledUpdatePath(
 	if err != nil {
 		outcome.LogEvents = append(outcome.LogEvents, logEvent{
 			Kind: logEventKindError,
-			Message: i18n.T("cmd.update.error.invalid_filename_lock", i18n.Tvars{
+			Message: i18n.T("cmd.update.error.invalid_filename_lock", &i18n.Tvars{
 				Data: &i18n.TData{
 					"name": mod.Name,
 					"file": modfilename.Display(installed.FileName),
@@ -188,7 +188,7 @@ func resolveInstalledUpdatePath(
 	if !exists {
 		outcome.LogEvents = append(outcome.LogEvents, logEvent{
 			Kind: logEventKindError,
-			Message: i18n.T("cmd.update.error.locked_file_missing", i18n.Tvars{
+			Message: i18n.T("cmd.update.error.locked_file_missing", &i18n.Tvars{
 				Data: &i18n.TData{
 					"name": mod.Name,
 					"id":   mod.ID,
@@ -222,7 +222,7 @@ func shouldUpdateMod(installed models.ModInstall, remote platform.RemoteMod, mod
 	if strings.TrimSpace(installed.Hash) == "" {
 		outcome.LogEvents = append(outcome.LogEvents, logEvent{
 			Kind: logEventKindError,
-			Message: i18n.T("cmd.update.error.missing_hash_lock", i18n.Tvars{
+			Message: i18n.T("cmd.update.error.missing_hash_lock", &i18n.Tvars{
 				Data: &i18n.TData{"name": mod.Name},
 			}),
 		})
@@ -232,7 +232,7 @@ func shouldUpdateMod(installed models.ModInstall, remote platform.RemoteMod, mod
 	if strings.TrimSpace(remote.Hash) == "" {
 		outcome.LogEvents = append(outcome.LogEvents, logEvent{
 			Kind: logEventKindError,
-			Message: i18n.T("cmd.update.error.missing_hash_remote", i18n.Tvars{
+			Message: i18n.T("cmd.update.error.missing_hash_remote", &i18n.Tvars{
 				Data: &i18n.TData{"name": mod.Name},
 			}),
 		})
@@ -249,7 +249,7 @@ func appendUpdateAvailableEvent(outcome *modUpdateOutcome, mod models.Mod) {
 	outcome.LogEvents = append(outcome.LogEvents, logEvent{
 		Kind:      logEventKindLog,
 		ForceShow: true,
-		Message: i18n.T("cmd.update.has_update", i18n.Tvars{
+		Message: i18n.T("cmd.update.has_update", &i18n.Tvars{
 			Data: &i18n.TData{"name": mod.Name},
 		}),
 	})
@@ -282,7 +282,7 @@ func expectedFetchErrorEvent(err error, mod models.Mod, colorMode tui.ColorMode)
 		return logEvent{
 			Kind:      logEventKindLog,
 			ForceShow: true,
-			Message: messageWithIcon(tui.ErrorIcon(colorMode), i18n.T("cmd.update.error.mod_not_found", i18n.Tvars{
+			Message: messageWithIcon(tui.ErrorIcon(colorMode), i18n.T("cmd.update.error.mod_not_found", &i18n.Tvars{
 				Data: &i18n.TData{
 					"name":     mod.Name,
 					"id":       mod.ID,
@@ -297,7 +297,7 @@ func expectedFetchErrorEvent(err error, mod models.Mod, colorMode tui.ColorMode)
 		return logEvent{
 			Kind:      logEventKindLog,
 			ForceShow: true,
-			Message: messageWithIcon(tui.ErrorIcon(colorMode), i18n.T("cmd.update.error.no_file", i18n.Tvars{
+			Message: messageWithIcon(tui.ErrorIcon(colorMode), i18n.T("cmd.update.error.no_file", &i18n.Tvars{
 				Data: &i18n.TData{
 					"name":     mod.Name,
 					"id":       mod.ID,
@@ -328,7 +328,7 @@ func fetchErrorEvents(fetchErr error, mod models.Mod, colorMode tui.ColorMode) [
 
 	events := []logEvent{{
 		Kind: logEventKindError,
-		Message: i18n.T("cmd.update.error.platform", i18n.Tvars{
+		Message: i18n.T("cmd.update.error.platform", &i18n.Tvars{
 			Data: &i18n.TData{
 				"name":     mod.Name,
 				"platform": mod.Type,
@@ -343,7 +343,7 @@ func fetchErrorEvents(fetchErr error, mod models.Mod, colorMode tui.ColorMode) [
 
 	events = append(events, logEvent{
 		Kind: logEventKindDebug,
-		Message: i18n.T("cmd.update.debug.platform_error", i18n.Tvars{
+		Message: i18n.T("cmd.update.debug.platform_error", &i18n.Tvars{
 			Data: &i18n.TData{
 				"name":     mod.Name,
 				"platform": mod.Type,

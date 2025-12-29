@@ -18,7 +18,7 @@ func Command() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:     "update",
 		Aliases: []string{"u"},
-		Short:   i18n.T("cmd.update.short"),
+		Short:   i18n.T("cmd.update.short", nil),
 		Args:    cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, _ []string) error {
 			return runUpdateCommand(cmd)

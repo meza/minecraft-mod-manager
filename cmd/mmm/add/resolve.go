@@ -70,7 +70,7 @@ func resolveAndEnsureRemoteMod(inputs resolveAndEnsureInputs) (resolvedRemoteMod
 func normalizeRemoteModFileName(remoteMod platform.RemoteMod) (platform.RemoteMod, error) {
 	normalizedFileName, err := modfilename.Normalize(remoteMod.FileName)
 	if err != nil {
-		message := i18n.T("cmd.add.error.invalid_filename_remote", i18n.Tvars{
+		message := i18n.T("cmd.add.error.invalid_filename_remote", &i18n.Tvars{
 			Data: &i18n.TData{
 				"name": remoteMod.Name,
 				"file": modfilename.Display(remoteMod.FileName),

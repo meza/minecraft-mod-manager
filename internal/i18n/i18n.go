@@ -123,63 +123,55 @@ func setup() error {
 //	"mods.added": "Added {{.count}} mods"
 //	"mods.remove.confirm": "Remove {{.name}}?"
 //
-// Tvars is the single optional argument:
+// vars is optional. When provided:
 // - Count becomes the template variable "count" (used for pluralization).
 // - Data is a map of template variables (keys map to {{.key}} in the template).
 //
-// If you pass more than one Tvars, T returns a stable key+args string instead of
-// guessing which variables to apply. The same fallback happens when i18n setup
-// fails, so tests can assert deterministically.
-//
-// MMM_TEST turns T into test mode: it always returns the key plus the provided
-// arguments, without attempting localization.
+// MMM_TEST turns T into test mode: it returns the key plus provided vars without
+// attempting localization. Outside of test mode, T never returns raw key+vars.
 //
 // Examples:
 //
-//	title := i18n.T("tui.title")
-//	added := i18n.T("mods.added", i18n.Tvars{Count: 2})
-//	prompt := i18n.T("mods.remove.confirm", i18n.Tvars{Data: &i18n.TData{
+//	title := i18n.T("tui.title", nil)
+//	added := i18n.T("mods.added", &i18n.Tvars{Count: 2})
+//	prompt := i18n.T("mods.remove.confirm", &i18n.Tvars{Data: &i18n.TData{
 //	  "name": modName,
 //	}})
-func T(key string, args ...Tvars) string {
+func T(key string, vars *Tvars) string {
 	if useTestMode() {
-		return formatKeyAndArgs(key, args...)
+		return formatKeyAndArgs(key, vars)
 	}
 
 	ensureInitialized()
 
 	if setupError != nil {
-		return formatKeyAndArgs(key, args...)
-	}
-
-	if len(args) > 1 {
-		return formatKeyAndArgs(key, args...)
+		return key
 	}
 
 	// Prepare vars before acquiring lock to minimize lock hold time
-	var vars map[string]interface{}
-	if len(args) > 0 {
-		vars = make(map[string]interface{})
-		if args[0].Data != nil {
-			for varKey, value := range *args[0].Data {
-				vars[varKey] = value
+	var translatedVars map[string]interface{}
+	if vars != nil {
+		translatedVars = make(map[string]interface{})
+		if vars.Data != nil {
+			for varKey, value := range *vars.Data {
+				translatedVars[varKey] = value
 			}
 		}
-		vars["count"] = args[0].Count
+		translatedVars["count"] = vars.Count
 	}
 
 	translationMutex.Lock()
 	defer translationMutex.Unlock()
 
 	if localizer == nil {
-		return formatKeyAndArgs(key, args...)
+		return key
 	}
 
-	if len(args) == 0 {
+	if vars == nil {
 		return localizer.Get(key)
 	}
 
-	return localizer.Get(key, i18nLib.Vars(vars))
+	return localizer.Get(key, i18nLib.Vars(translatedVars))
 }
 
 func getUserLocales() []string {
@@ -207,16 +199,18 @@ func getUserLocales() []string {
 	return locales
 }
 
-func formatKeyAndArgs(key string, args ...Tvars) string {
+func formatKeyAndArgs(key string, vars *Tvars) string {
 	var sb strings.Builder
 	if err := i18nWriteString(&sb, key); err != nil {
 		return ""
 	}
 
-	for i, arg := range args {
-		if err := i18nWriteString(&sb, fmt.Sprintf(", Arg %d: {Count: %d, Data: %v}", i+1, arg.Count, arg.Data)); err != nil {
-			return ""
-		}
+	if vars == nil {
+		return sb.String()
+	}
+
+	if err := i18nWriteString(&sb, fmt.Sprintf(", Arg 1: {Count: %d, Data: %v}", vars.Count, vars.Data)); err != nil {
+		return ""
 	}
 
 	return sb.String()

@@ -20,7 +20,7 @@ func TestSummarizePlatformErrorUsesResponseError(t *testing.T) {
 
 	summary, ok := SummarizePlatformError(responseErr, models.CURSEFORGE)
 	assert.True(t, ok)
-	assert.Equal(t, i18n.T("cmd.platform.error.reason.auth", i18n.Tvars{
+	assert.Equal(t, i18n.T("cmd.platform.error.reason.auth", &i18n.Tvars{
 		Data: &i18n.TData{"token": "CURSEFORGE_API_KEY"},
 	}), summary.Reason)
 	assert.Contains(t, summary.DebugDetails, "status=403")
@@ -31,7 +31,7 @@ func TestSummarizePlatformErrorTimeout(t *testing.T) {
 
 	summary, ok := SummarizePlatformError(timeoutErr, models.MODRINTH)
 	assert.True(t, ok)
-	assert.Equal(t, i18n.T("cmd.platform.error.reason.timeout"), summary.Reason)
+	assert.Equal(t, i18n.T("cmd.platform.error.reason.timeout", nil), summary.Reason)
 	assert.Contains(t, summary.DebugDetails, "timed out")
 }
 

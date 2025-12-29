@@ -48,7 +48,7 @@ func TestFormatKeyAndArgsReturnsEmptyOnWriteError(t *testing.T) {
 		return errors.New("write failed")
 	}
 
-	assert.Equal(t, "", formatKeyAndArgs("key", Tvars{Count: 1}))
+	assert.Equal(t, "", formatKeyAndArgs("key", &Tvars{Count: 1}))
 }
 
 func TestFormatKeyAndArgsReturnsEmptyOnArgWriteError(t *testing.T) {
@@ -65,7 +65,7 @@ func TestFormatKeyAndArgsReturnsEmptyOnArgWriteError(t *testing.T) {
 		return nil
 	}
 
-	assert.Equal(t, "", formatKeyAndArgs("key", Tvars{Count: 1}))
+	assert.Equal(t, "", formatKeyAndArgs("key", &Tvars{Count: 1}))
 }
 
 func TestNormalizeLocaleName(t *testing.T) {
@@ -88,7 +88,7 @@ func TestSimpleTranslations(t *testing.T) {
 		//Assuming that all systems running the tests have
 		//English as their default language
 
-		actual := T("test.simple")
+		actual := T("test.simple", nil)
 		assert.Equal(t, "Hello World", actual)
 	})
 
@@ -97,7 +97,7 @@ func TestSimpleTranslations(t *testing.T) {
 		//Assuming that all systems running the tests have
 		//English as their default language
 		t.Setenv("MMM_TEST", "true")
-		actual := T("test.simple")
+		actual := T("test.simple", nil)
 		assert.Equal(t, "test.simple", actual)
 	})
 
@@ -108,13 +108,13 @@ func TestSimpleTranslations(t *testing.T) {
 
 		t.Setenv("LANG", "de_DE")
 
-		actual := T("test.simple")
+		actual := T("test.simple", nil)
 		assert.Equal(t, "Hello World but in German", actual)
 	})
 
 	t.Run("custom type values are interpolated", func(t *testing.T) {
 		ResetForTesting()
-		actual := T("test.customType", Tvars{
+		actual := T("test.customType", &Tvars{
 			Data: &TData{"val": customString("XYZ")},
 		})
 		assert.Equal(t, "Value is XYZ", actual)
@@ -127,11 +127,11 @@ func TestPluralsTranslations(t *testing.T) {
 		//Assuming that all systems running the tests have
 		//English as their default language
 		ResetForTesting()
-		noPlural := T("test.multiple", Tvars{
+		noPlural := T("test.multiple", &Tvars{
 			Data: &TData{"injectedData": "in English"},
 		})
 		assert.Equal(t, "Other message in English", noPlural)
-		one := T("test.multiple", Tvars{
+		one := T("test.multiple", &Tvars{
 			Count: 1,
 			Data:  &TData{"injectedData": "in English"},
 		})
@@ -142,11 +142,11 @@ func TestPluralsTranslations(t *testing.T) {
 		//English as their default language
 		ResetForTesting()
 		t.Setenv("LANG", "de_DE")
-		noPlural := T("test.multiple", Tvars{
+		noPlural := T("test.multiple", &Tvars{
 			Data: &TData{"injectedData": "in English"},
 		})
 		assert.Equal(t, "Other message in English but in German", noPlural)
-		one := T("test.multiple", Tvars{
+		one := T("test.multiple", &Tvars{
 			Count: 1,
 			Data:  &TData{"injectedData": "in English"},
 		})
@@ -156,11 +156,11 @@ func TestPluralsTranslations(t *testing.T) {
 		//Assuming that all systems running the tests have
 		//English as their default language
 		t.Setenv("MMM_TEST", "true")
-		noPlural := T("test.multiple", Tvars{
+		noPlural := T("test.multiple", &Tvars{
 			Data: &TData{"injectedData": "in English"},
 		})
 		assert.Equal(t, "test.multiple, Arg 1: {Count: 0, Data: &map[injectedData:in English]}", noPlural)
-		one := T("test.multiple", Tvars{
+		one := T("test.multiple", &Tvars{
 			Count: 1,
 			Data:  &TData{"injectedData": "in English1"},
 		})
@@ -174,7 +174,7 @@ func TestMissingTranslation(t *testing.T) {
 	ResetForTesting()
 
 	t.Run("missing translation", func(t *testing.T) {
-		actual := T("test.missing")
+		actual := T("test.missing", nil)
 		assert.Equal(t, "test.missing", actual)
 	})
 }
@@ -186,7 +186,7 @@ func TestBadLangDir(t *testing.T) {
 	t.Run("bad lang dir", func(t *testing.T) {
 		ResetForTesting()
 		langDir = "badDir"
-		assert.Equal(t, "test.simple", T("test.simple"))
+		assert.Equal(t, "test.simple", T("test.simple", nil))
 	})
 }
 
@@ -195,7 +195,7 @@ func TestInvalidLocaleFiles(t *testing.T) {
 	langDir = "__fixtures_invalid__"
 	ResetForTesting()
 
-	assert.Equal(t, "test.simple", T("test.simple"))
+	assert.Equal(t, "test.simple", T("test.simple", nil))
 }
 
 func TestSetupKeepsDefaultFirst(t *testing.T) {
@@ -218,18 +218,42 @@ func TestSetupKeepsDefaultFirst(t *testing.T) {
 	assert.Equal(t, defaultLocale, supported[0].String())
 }
 
-func TestWrongNumberOfArguments(t *testing.T) {
+func TestSetupFailureDropsVarsOutsideTestMode(t *testing.T) {
+	enFS = testData
+	originalLangDir := langDir
+	langDir = "__fixtures__"
+	t.Cleanup(func() {
+		langDir = originalLangDir
+	})
+
+	t.Run("setup failure returns key only", func(t *testing.T) {
+		ResetForTesting()
+		langDir = "badDir"
+		result := T("test.multiple", &Tvars{
+			Count: 1,
+			Data:  &TData{"injectedData": "first"},
+		})
+		assert.Equal(t, "test.multiple", result)
+	})
+}
+
+func TestLocalizerNilDropsVarsOutsideTestMode(t *testing.T) {
 	enFS = testData
 	langDir = "__fixtures__"
+	ResetForTesting()
+	t.Cleanup(ResetForTesting)
 
-	t.Run("wrong number of arguments", func(t *testing.T) {
-		ResetForTesting()
-		result := T("test.multiple",
-			Tvars{Count: 1, Data: &TData{"injectedData": "first"}},
-			Tvars{Count: 2, Data: &TData{"injectedData": "second"}},
-		)
-		assert.Equal(t, "test.multiple, Arg 1: {Count: 1, Data: &map[injectedData:first]}, Arg 2: {Count: 2, Data: &map[injectedData:second]}", result)
+	_ = T("test.simple", nil)
+
+	translationMutex.Lock()
+	localizer = nil
+	translationMutex.Unlock()
+
+	result := T("test.multiple", &Tvars{
+		Count: 1,
+		Data:  &TData{"injectedData": "first"},
 	})
+	assert.Equal(t, "test.multiple", result)
 }
 
 func TestTestModeRequiresTestBinary(t *testing.T) {
@@ -243,7 +267,7 @@ func TestTestModeRequiresTestBinary(t *testing.T) {
 
 	t.Setenv("MMM_TEST", "true")
 
-	actual := T("test.simple")
+	actual := T("test.simple", nil)
 	assert.Equal(t, "Hello World", actual)
 }
 
@@ -255,7 +279,7 @@ func TestFallbackToEnglish(t *testing.T) {
 	t.Run("fallback to English", func(t *testing.T) {
 		ResetForTesting()
 
-		actual := T("test.simple")
+		actual := T("test.simple", nil)
 		assert.Equal(t, "Hello World", actual)
 	})
 }
@@ -325,13 +349,13 @@ func TestTHandlesMissingLocalizerAfterInit(t *testing.T) {
 	langDir = "__fixtures__"
 	ResetForTesting()
 
-	assert.Equal(t, "Hello World", T("test.simple"))
+	assert.Equal(t, "Hello World", T("test.simple", nil))
 
 	translationMutex.Lock()
 	localizer = nil
 	translationMutex.Unlock()
 
-	assert.Equal(t, "test.simple", T("test.simple"))
+	assert.Equal(t, "test.simple", T("test.simple", nil))
 }
 
 func TestConcurrentAccess(t *testing.T) {
@@ -361,19 +385,19 @@ func TestConcurrentAccess(t *testing.T) {
 				// Mix of different translation calls to exercise various code paths
 				switch iteration % 4 {
 				case 0:
-					result := T("test.simple")
+					result := T("test.simple", nil)
 					assert.NotEmpty(t, result)
 				case 1:
-					result := T("test.multiple", Tvars{
+					result := T("test.multiple", &Tvars{
 						Count: iteration,
 						Data:  &TData{"injectedData": "concurrent"},
 					})
 					assert.NotEmpty(t, result)
 				case 2:
-					result := T("test.missing")
+					result := T("test.missing", nil)
 					assert.Equal(t, "test.missing", result)
 				case 3:
-					result := T("test.customType", Tvars{
+					result := T("test.customType", &Tvars{
 						Data: &TData{"val": "test"},
 					})
 					assert.NotEmpty(t, result)
@@ -413,7 +437,7 @@ func TestConcurrentInitialization(t *testing.T) {
 
 			// All goroutines try to get a translation simultaneously
 			// This forces concurrent initialization if not already initialized
-			results[routineIndex] = T("test.simple")
+			results[routineIndex] = T("test.simple", nil)
 		}(index)
 	}
 

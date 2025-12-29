@@ -153,7 +153,7 @@ key.tab key.help.complete • key.enter key.help.accept • key.ctrl_c/key.esc k
 
 [TestInitTUIErrorSnapshots/game_version_unavailable - 1]
 ? cmd.init.tui.loader.question fabric
-? cmd.init.tui.game-version.question 1.21.1      <- cmd.init.tui.game-version.unavailable, Arg 1: {Count: 0, Data: <nil>}
+? cmd.init.tui.game-version.question 1.21.1      <- cmd.init.tui.game-version.unavailable
 
 key.tab key.help.complete • key.enter key.help.accept • key.ctrl_c/key.esc key.help.quit
 ---

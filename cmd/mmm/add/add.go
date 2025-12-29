@@ -22,7 +22,7 @@ func Command() *cobra.Command {
 func commandWithRunner(runner addRunner) *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "add <platform> <id>",
-		Short: i18n.T("cmd.add.short"),
+		Short: i18n.T("cmd.add.short", nil),
 		Args:  cobra.ExactArgs(2),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			return runAddCommand(cmd, args, runner)
@@ -32,8 +32,8 @@ func commandWithRunner(runner addRunner) *cobra.Command {
 		SilenceErrors: false,
 	}
 
-	cmd.Flags().String("version", "", i18n.T("cmd.add.flag.version"))
-	cmd.Flags().Bool("allow-version-fallback", false, i18n.T("cmd.add.flag.allow_version_fallback"))
+	cmd.Flags().String("version", "", i18n.T("cmd.add.flag.version", nil))
+	cmd.Flags().Bool("allow-version-fallback", false, i18n.T("cmd.add.flag.allow_version_fallback", nil))
 
 	cmd.ValidArgsFunction = func(_ *cobra.Command, args []string, _ string) ([]string, cobra.ShellCompDirective) {
 		if len(args) == 0 {

@@ -19,7 +19,7 @@ type TimeoutError struct {
 }
 
 func (timeoutError *TimeoutError) Error() string {
-	return i18n.T("error.network_timeout")
+	return i18n.T("error.network_timeout", nil)
 }
 
 func (timeoutError *TimeoutError) Unwrap() error {

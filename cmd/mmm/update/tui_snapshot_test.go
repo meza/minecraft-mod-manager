@@ -40,10 +40,10 @@ func TestUpdateTUILogSnapshot(t *testing.T) {
 	collector := newLogCollector()
 	out := output.New(collector.writer, io.Discard, false)
 
-	err := out.Log(messageWithIcon(tui.SuccessIcon(tui.ColorEnabled), i18n.T("cmd.install.success")), output.LogForce)
+	err := out.Log(messageWithIcon(tui.SuccessIcon(tui.ColorEnabled), i18n.T("cmd.install.success", nil)), output.LogForce)
 	assert.NoError(t, err)
 
-	err = out.Log(messageWithIcon(tui.SuccessIcon(tui.ColorEnabled), i18n.T("cmd.update.no_updates")), output.LogForce)
+	err = out.Log(messageWithIcon(tui.SuccessIcon(tui.ColorEnabled), i18n.T("cmd.update.no_updates", nil)), output.LogForce)
 	assert.NoError(t, err)
 
 	snaps.MatchSnapshot(t, collector.View())

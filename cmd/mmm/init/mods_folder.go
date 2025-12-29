@@ -40,7 +40,7 @@ type modsFolderModelInput struct {
 
 func NewModsFolderModel(input modsFolderModelInput) ModsFolderModel {
 	inputModel := textinput.New()
-	inputModel.Prompt = tui.QuestionStyle.Render("? ") + tui.TitleStyle.Render(i18n.T("cmd.init.tui.mods-folder.question")) + " "
+	inputModel.Prompt = tui.QuestionStyle.Render("? ") + tui.TitleStyle.Render(i18n.T("cmd.init.tui.mods-folder.question", nil)) + " "
 	resolvedModsFolder := input.meta.ModsFolderPath(models.ModsJSON{ModsFolder: input.modsFolder})
 	inputModel.Placeholder = input.modsFolder
 	// Ensure the placeholder fits so the full path is visible to the user.

@@ -108,7 +108,7 @@ func NewLoaderModel(loader string) LoaderModel {
 	}
 
 	listModel := list.New(items, itemDelegate{}, width, 14)
-	listModel.Title = tui.QuestionStyle.Render("? ") + tui.TitleStyle.Render(i18n.T("cmd.init.tui.loader.question"))
+	listModel.Title = tui.QuestionStyle.Render("? ") + tui.TitleStyle.Render(i18n.T("cmd.init.tui.loader.question", nil))
 	listModel.SetShowStatusBar(false)
 	listModel.SetShowTitle(true)
 	listModel.Styles.Title = tui.TitleStyle

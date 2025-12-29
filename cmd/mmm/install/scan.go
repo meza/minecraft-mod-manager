@@ -36,7 +36,7 @@ func preflightInstall(ctx context.Context, meta config.Metadata, cfg models.Mods
 		return scanReportOutcome{}, err
 	}
 	if preflight.unresolved {
-		if outputErr := deps.output.Error(i18n.T("cmd.install.error.unresolved")); outputErr != nil {
+		if outputErr := deps.output.Error(i18n.T("cmd.install.error.unresolved", nil)); outputErr != nil {
 			return scanReportOutcome{}, outputErr
 		}
 		return scanReportOutcome{}, errUnresolvedFiles
@@ -118,7 +118,7 @@ func newPlatformLookupFailure(platformValue models.Platform, files []string, err
 		return &platformLookupFailure{
 			Platform: platformValue,
 			Files:    files,
-			Reason:   i18n.T("cmd.platform.error.reason.unknown"),
+			Reason:   i18n.T("cmd.platform.error.reason.unknown", nil),
 		}
 	}
 
@@ -139,7 +139,7 @@ func logPlatformLookupFailure(out *output.Output, log *logger.Logger, failure *p
 		if log == nil {
 			return errors.New("missing logger for platform debug output")
 		}
-		if err := log.Debug(i18n.T("cmd.install.debug.platform_error", i18n.Tvars{
+		if err := log.Debug(i18n.T("cmd.install.debug.platform_error", &i18n.Tvars{
 			Data: &i18n.TData{
 				"platform": failure.Platform,
 				"details":  failure.DebugDetails,
@@ -149,7 +149,7 @@ func logPlatformLookupFailure(out *output.Output, log *logger.Logger, failure *p
 		}
 	}
 	for _, filePath := range failure.Files {
-		if err := out.Log(messageWithIcon(tui.ErrorIcon(colorMode), i18n.T("cmd.install.unsure.platform_error", i18n.Tvars{
+		if err := out.Log(messageWithIcon(tui.ErrorIcon(colorMode), i18n.T("cmd.install.unsure.platform_error", &i18n.Tvars{
 			Data: &i18n.TData{
 				"file":     filepath.Base(filePath),
 				"platform": failure.Platform,
@@ -303,7 +303,7 @@ func reportScanResult(input scanReportInputs, item scannedFile, colorMode tui.Co
 		if input.colorize {
 			name = tui.TitleStyle.Bold(true).Render(name)
 		}
-		if err := input.deps.output.Log(tui.SuccessIcon(colorMode)+i18n.T("cmd.install.unmanaged.found", i18n.Tvars{
+		if err := input.deps.output.Log(tui.SuccessIcon(colorMode)+i18n.T("cmd.install.unmanaged.found", &i18n.Tvars{
 			Data: &i18n.TData{"name": name},
 		}), output.LogForce); err != nil {
 			return scanReportOutcome{}, err
@@ -314,7 +314,7 @@ func reportScanResult(input scanReportInputs, item scannedFile, colorMode tui.Co
 	mod := input.cfg.Mods[matchedModIndex]
 	lockIndex := models.LockIndexForMod(mod, input.lock)
 	if lockIndex < 0 {
-		if err := input.deps.output.Log(messageWithIcon(tui.ErrorIcon(colorMode), i18n.T("cmd.install.unsure.lock_missing", i18n.Tvars{
+		if err := input.deps.output.Log(messageWithIcon(tui.ErrorIcon(colorMode), i18n.T("cmd.install.unsure.lock_missing", &i18n.Tvars{
 			Data: &i18n.TData{"name": item.Hits[0].Name},
 		})), output.LogForce); err != nil {
 			return scanReportOutcome{}, err
@@ -323,7 +323,7 @@ func reportScanResult(input scanReportInputs, item scannedFile, colorMode tui.Co
 	}
 
 	if !strings.EqualFold(input.lock[lockIndex].Hash, item.Sha1) {
-		if err := input.deps.output.Log(messageWithIcon(tui.ErrorIcon(colorMode), i18n.T("cmd.install.unsure.hash_mismatch", i18n.Tvars{
+		if err := input.deps.output.Log(messageWithIcon(tui.ErrorIcon(colorMode), i18n.T("cmd.install.unsure.hash_mismatch", &i18n.Tvars{
 			Data: &i18n.TData{"name": item.Hits[0].Name},
 		})), output.LogForce); err != nil {
 			return scanReportOutcome{}, err

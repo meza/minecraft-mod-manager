@@ -976,7 +976,7 @@ func TestLogPlatformLookupFailureOutputsMessages(t *testing.T) {
 	failure := &platformLookupFailure{
 		Platform:     models.CURSEFORGE,
 		Files:        []string{"/mods/a.jar"},
-		Reason:       i18n.T("cmd.platform.error.reason.unknown"),
+		Reason:       i18n.T("cmd.platform.error.reason.unknown", nil),
 		DebugDetails: "debug details",
 	}
 

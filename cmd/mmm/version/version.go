@@ -14,7 +14,7 @@ import (
 func Command() *cobra.Command {
 	versionCmd := &cobra.Command{
 		Use: "version",
-		Short: i18n.T("cmd.version.short", i18n.Tvars{
+		Short: i18n.T("cmd.version.short", &i18n.Tvars{
 			Data: &i18n.TData{"appName": constants.AppName},
 		}),
 		RunE: func(cmd *cobra.Command, _ []string) (err error) {

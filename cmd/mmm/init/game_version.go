@@ -97,7 +97,7 @@ func (model GameVersionModel) handleEnterKey() (GameVersionModel, tea.Cmd, bool)
 	}
 
 	if value == "" {
-		model.error = fmt.Errorf("%s", i18n.T("cmd.init.tui.game-version.error"))
+		model.error = fmt.Errorf("%s", i18n.T("cmd.init.tui.game-version.error", nil))
 		return model, nil, true
 	}
 
@@ -128,7 +128,7 @@ func NewGameVersionModel(ctx context.Context, minecraftClient httpclient.Doer, g
 	allVersions := minecraft.GetAllMinecraftVersions(ctx, minecraftClient)
 
 	inputModel := textinput.New()
-	inputModel.Prompt = tui.QuestionStyle.Render("? ") + tui.TitleStyle.Render(i18n.T("cmd.init.tui.game-version.question")) + " "
+	inputModel.Prompt = tui.QuestionStyle.Render("? ") + tui.TitleStyle.Render(i18n.T("cmd.init.tui.game-version.question", nil)) + " "
 	inputModel.Placeholder = latestVersion
 	inputModel.PlaceholderStyle = tui.PlaceholderStyle
 	width := len(inputModel.Placeholder)
@@ -167,15 +167,15 @@ func NewGameVersionModel(ctx context.Context, minecraftClient httpclient.Doer, g
 
 func validateMinecraftVersion(ctx context.Context, value string, client httpclient.Doer) error {
 	if value == "" {
-		return fmt.Errorf("%s", i18n.T("cmd.init.tui.game-version.error"))
+		return fmt.Errorf("%s", i18n.T("cmd.init.tui.game-version.error", nil))
 	}
 
 	valid, validationErr := minecraft.IsValidVersion(ctx, value, client)
 	if !valid && validationErr == nil {
-		return fmt.Errorf("%s", i18n.T("cmd.init.tui.game-version.invalid"))
+		return fmt.Errorf("%s", i18n.T("cmd.init.tui.game-version.invalid", nil))
 	}
 	if validationErr != nil {
-		return fmt.Errorf("%s", i18n.T("cmd.init.tui.game-version.unavailable"))
+		return fmt.Errorf("%s", i18n.T("cmd.init.tui.game-version.unavailable", nil))
 	}
 	return nil
 }

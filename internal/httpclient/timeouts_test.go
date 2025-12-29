@@ -25,7 +25,7 @@ func (nonTimeoutNetError) Temporary() bool { return false }
 
 func TestTimeoutErrorMessage(t *testing.T) {
 	err := &TimeoutError{Err: context.DeadlineExceeded}
-	assert.Equal(t, i18n.T("error.network_timeout"), err.Error())
+	assert.Equal(t, i18n.T("error.network_timeout", nil), err.Error())
 	assert.ErrorIs(t, err, context.DeadlineExceeded)
 }
 

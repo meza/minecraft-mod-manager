@@ -28,7 +28,7 @@ func installMod(input installModInputs) (modInstallOutcome, error) {
 func installFromLock(ctx context.Context, meta config.Metadata, cfg models.ModsJSON, mod models.Mod, installEntry models.ModInstall, deps installDeps) (modInstallOutcome, error) {
 	normalizedFileName, normalizeErr := modfilename.Normalize(installEntry.FileName)
 	if normalizeErr != nil {
-		if err := deps.output.Error(i18n.T("cmd.install.error.invalid_filename_lock", i18n.Tvars{
+		if err := deps.output.Error(i18n.T("cmd.install.error.invalid_filename_lock", &i18n.Tvars{
 			Data: &i18n.TData{
 				"name": mod.Name,
 				"file": modfilename.Display(installEntry.FileName),
@@ -66,7 +66,7 @@ func installFromRemote(input installModInputs) (modInstallOutcome, error) {
 		return outcome, nil
 	}
 
-	if outputErr := input.deps.output.Log(i18n.T("cmd.install.download.missing", i18n.Tvars{
+	if outputErr := input.deps.output.Log(i18n.T("cmd.install.download.missing", &i18n.Tvars{
 		Data: &i18n.TData{
 			"name":     input.mod.Name,
 			"platform": input.mod.Type,
@@ -145,7 +145,7 @@ func buildLockEntry(mod models.Mod, remote platform.RemoteMod) models.ModInstall
 func normalizeRemoteForInstall(remote platform.RemoteMod, mod models.Mod, deps installDeps) (platform.RemoteMod, modInstallOutcome, error) {
 	normalizedFileName, normalizeErr := modfilename.Normalize(remote.FileName)
 	if normalizeErr != nil {
-		if err := deps.output.Error(i18n.T("cmd.install.error.invalid_filename_remote", i18n.Tvars{
+		if err := deps.output.Error(i18n.T("cmd.install.error.invalid_filename_remote", &i18n.Tvars{
 			Data: &i18n.TData{
 				"name": mod.Name,
 				"file": modfilename.Display(remote.FileName),
@@ -157,7 +157,7 @@ func normalizeRemoteForInstall(remote platform.RemoteMod, mod models.Mod, deps i
 	}
 	remote.FileName = normalizedFileName
 	if strings.TrimSpace(remote.Hash) == "" {
-		if err := deps.output.Error(i18n.T("cmd.install.error.missing_hash_remote", i18n.Tvars{
+		if err := deps.output.Error(i18n.T("cmd.install.error.missing_hash_remote", &i18n.Tvars{
 			Data: &i18n.TData{
 				"name": mod.Name,
 			},
@@ -191,7 +191,7 @@ func ensureLockInstall(ctx context.Context, meta config.Metadata, cfg models.Mod
 
 	switch result.Reason {
 	case modinstall.EnsureReasonMissing:
-		if err := deps.output.Log(i18n.T("cmd.install.download.missing", i18n.Tvars{
+		if err := deps.output.Log(i18n.T("cmd.install.download.missing", &i18n.Tvars{
 			Data: &i18n.TData{
 				"name":     mod.Name,
 				"platform": install.Type,
@@ -200,7 +200,7 @@ func ensureLockInstall(ctx context.Context, meta config.Metadata, cfg models.Mod
 			return err
 		}
 	case modinstall.EnsureReasonHashMismatch:
-		if err := deps.output.Log(i18n.T("cmd.install.download.hash_mismatch", i18n.Tvars{
+		if err := deps.output.Log(i18n.T("cmd.install.download.hash_mismatch", &i18n.Tvars{
 			Data: &i18n.TData{"name": mod.Name},
 		}), output.LogForce); err != nil {
 			return err
@@ -212,14 +212,14 @@ func ensureLockInstall(ctx context.Context, meta config.Metadata, cfg models.Mod
 func integrityErrorMessage(err error, modName string) (string, bool) {
 	var missingHash modinstall.MissingHashError
 	if errors.As(err, &missingHash) {
-		return i18n.T("cmd.install.error.missing_hash_lock", i18n.Tvars{
+		return i18n.T("cmd.install.error.missing_hash_lock", &i18n.Tvars{
 			Data: &i18n.TData{"name": modName},
 		}), true
 	}
 
 	var hashMismatch modinstall.HashMismatchError
 	if errors.As(err, &hashMismatch) {
-		return i18n.T("cmd.install.error.hash_mismatch", i18n.Tvars{
+		return i18n.T("cmd.install.error.hash_mismatch", &i18n.Tvars{
 			Data: &i18n.TData{
 				"name": modName,
 			},
@@ -228,7 +228,7 @@ func integrityErrorMessage(err error, modName string) (string, bool) {
 
 	var outsideRoot modpath.OutsideRootError
 	if errors.As(err, &outsideRoot) {
-		return i18n.T("cmd.install.error.symlink_outside_mods", i18n.Tvars{
+		return i18n.T("cmd.install.error.symlink_outside_mods", &i18n.Tvars{
 			Data: &i18n.TData{
 				"name": modName,
 				"path": outsideRoot.ResolvedPath,
@@ -246,7 +246,7 @@ func handleExpectedFetchError(err error, input installModInputs) (bool, error) {
 	}
 	var notFound *platform.ModNotFoundError
 	if errors.As(err, &notFound) {
-		if outputErr := input.deps.output.Log(messageWithIcon(tui.ErrorIcon(colorMode), i18n.T("cmd.install.error.mod_not_found", i18n.Tvars{
+		if outputErr := input.deps.output.Log(messageWithIcon(tui.ErrorIcon(colorMode), i18n.T("cmd.install.error.mod_not_found", &i18n.Tvars{
 			Data: &i18n.TData{
 				"name":     input.mod.Name,
 				"id":       input.mod.ID,
@@ -259,7 +259,7 @@ func handleExpectedFetchError(err error, input installModInputs) (bool, error) {
 	}
 	var noFile *platform.NoCompatibleFileError
 	if errors.As(err, &noFile) {
-		if outputErr := input.deps.output.Log(messageWithIcon(tui.ErrorIcon(colorMode), i18n.T("cmd.install.error.no_file", i18n.Tvars{
+		if outputErr := input.deps.output.Log(messageWithIcon(tui.ErrorIcon(colorMode), i18n.T("cmd.install.error.no_file", &i18n.Tvars{
 			Data: &i18n.TData{
 				"name":     input.mod.Name,
 				"id":       input.mod.ID,

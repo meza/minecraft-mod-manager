@@ -63,7 +63,7 @@ type terminalPrompter struct {
 }
 
 func (prompter terminalPrompter) ConfirmAdd() (bool, error) {
-	if _, err := fmt.Fprintf(prompter.out, "%s (y/N): ", i18n.T("cmd.scan.confirm_add")); err != nil {
+	if _, err := fmt.Fprintf(prompter.out, "%s (y/N): ", i18n.T("cmd.scan.confirm_add", nil)); err != nil {
 		return false, err
 	}
 	answer, err := readLine(prompter.in)
@@ -92,14 +92,14 @@ func messageWithIcon(icon string, message string) string {
 func Command() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "scan",
-		Short: i18n.T("cmd.scan.short"),
+		Short: i18n.T("cmd.scan.short", nil),
 		RunE: func(cmd *cobra.Command, _ []string) error {
 			return runScanCommand(cmd)
 		},
 	}
 
-	cmd.Flags().StringP("prefer", "p", string(models.MODRINTH), i18n.T("cmd.scan.flag.prefer"))
-	cmd.Flags().BoolP("add", "a", false, i18n.T("cmd.scan.flag.add"))
+	cmd.Flags().StringP("prefer", "p", string(models.MODRINTH), i18n.T("cmd.scan.flag.prefer", nil))
+	cmd.Flags().BoolP("add", "a", false, i18n.T("cmd.scan.flag.add", nil))
 
 	return cmd
 }
@@ -265,7 +265,7 @@ func runScan(ctx context.Context, cmd *cobra.Command, opts scanOptions, deps sca
 }
 
 func reportAllManaged(out *output.Output, colorMode tui.ColorMode) (telemetry.CommandTelemetry, error) {
-	if outputErr := out.Log(messageWithIcon(tui.SuccessIcon(colorMode), i18n.T("cmd.scan.all_managed")), output.LogQuiet); outputErr != nil {
+	if outputErr := out.Log(messageWithIcon(tui.SuccessIcon(colorMode), i18n.T("cmd.scan.all_managed", nil)), output.LogQuiet); outputErr != nil {
 		return scanFailureTelemetry(outputErr), outputErr
 	}
 	return scanSuccessTelemetryWithoutArgs(), nil
@@ -299,7 +299,7 @@ func persistScanMatches(ctx context.Context, cmd *cobra.Command, meta config.Met
 			DownloadURL: match.DownloadURL,
 		}, modsetup.EnsurePersistOptions{})
 		if err != nil {
-			if outputErr := deps.output.Log(tui.ErrorIcon(colorMode)+i18n.T("cmd.scan.persist_failed", i18n.Tvars{
+			if outputErr := deps.output.Log(tui.ErrorIcon(colorMode)+i18n.T("cmd.scan.persist_failed", &i18n.Tvars{
 				Data: &i18n.TData{"file": match.FileName},
 			}), output.LogQuiet); outputErr != nil {
 				return false, outputErr
@@ -482,7 +482,7 @@ func printResults(out *output.Output, writer io.Writer, _ models.Platform, match
 	}
 
 	if len(matches) == 0 && len(unknown) == 0 && len(unsure) == 0 {
-		if err := out.Log(i18n.T("cmd.scan.no_results"), output.LogQuiet); err != nil {
+		if err := out.Log(i18n.T("cmd.scan.no_results", nil), output.LogQuiet); err != nil {
 			return err
 		}
 	}
@@ -490,12 +490,12 @@ func printResults(out *output.Output, writer io.Writer, _ models.Platform, match
 }
 
 func printMatchResults(out *output.Output, colorMode tui.ColorMode, matches []scanMatch) error {
-	if err := out.Log(i18n.T("cmd.scan.recognized.header"), output.LogQuiet); err != nil {
+	if err := out.Log(i18n.T("cmd.scan.recognized.header", nil), output.LogQuiet); err != nil {
 		return err
 	}
 	for _, match := range matches {
 		name := tui.RenderIfColorEnabled(colorMode, tui.TitleStyle.Bold(true), match.Name)
-		if err := out.Log(messageWithIcon(tui.SuccessIcon(colorMode), i18n.T("cmd.scan.recognized.entry", i18n.Tvars{
+		if err := out.Log(messageWithIcon(tui.SuccessIcon(colorMode), i18n.T("cmd.scan.recognized.entry", &i18n.Tvars{
 			Data: &i18n.TData{
 				"name":     name,
 				"platform": match.Platform,
@@ -510,11 +510,11 @@ func printMatchResults(out *output.Output, colorMode tui.ColorMode, matches []sc
 }
 
 func printUnknownResults(out *output.Output, colorMode tui.ColorMode, unknown []string) error {
-	if err := out.Log(i18n.T("cmd.scan.unknown.header"), output.LogQuiet); err != nil {
+	if err := out.Log(i18n.T("cmd.scan.unknown.header", nil), output.LogQuiet); err != nil {
 		return err
 	}
 	for _, file := range unknown {
-		if err := out.Log(messageWithIcon(tui.ErrorIcon(colorMode), i18n.T("cmd.scan.unknown.entry", i18n.Tvars{
+		if err := out.Log(messageWithIcon(tui.ErrorIcon(colorMode), i18n.T("cmd.scan.unknown.entry", &i18n.Tvars{
 			Data: &i18n.TData{"file": filepath.Base(file)},
 		})), output.LogQuiet); err != nil {
 			return err
@@ -524,11 +524,11 @@ func printUnknownResults(out *output.Output, colorMode tui.ColorMode, unknown []
 }
 
 func printUnsureResults(out *output.Output, colorMode tui.ColorMode, unsure []scanUnsure) error {
-	if err := out.Log(i18n.T("cmd.scan.unsure.header"), output.LogQuiet); err != nil {
+	if err := out.Log(i18n.T("cmd.scan.unsure.header", nil), output.LogQuiet); err != nil {
 		return err
 	}
 	for _, item := range unsure {
-		if err := out.Log(messageWithIcon(tui.ErrorIcon(colorMode), i18n.T("cmd.scan.unsure.entry_with_reason", i18n.Tvars{
+		if err := out.Log(messageWithIcon(tui.ErrorIcon(colorMode), i18n.T("cmd.scan.unsure.entry_with_reason", &i18n.Tvars{
 			Data: &i18n.TData{
 				"file":   filepath.Base(item.Path),
 				"reason": unsureReason(item.Error),

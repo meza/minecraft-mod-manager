@@ -41,7 +41,7 @@ func TestInstallTUILogSnapshot(t *testing.T) {
 	collector := newLogCollector()
 	out := output.New(collector.writer, io.Discard, false)
 
-	err := out.Log(i18n.T("cmd.install.download.missing", i18n.Tvars{
+	err := out.Log(i18n.T("cmd.install.download.missing", &i18n.Tvars{
 		Data: &i18n.TData{
 			"name":     "Sodium",
 			"platform": models.MODRINTH,
@@ -49,7 +49,7 @@ func TestInstallTUILogSnapshot(t *testing.T) {
 	}), output.LogForce)
 	assert.NoError(t, err)
 
-	err = out.Log(messageWithIcon(tui.SuccessIcon(tui.ColorEnabled), i18n.T("cmd.install.success")), output.LogForce)
+	err = out.Log(messageWithIcon(tui.SuccessIcon(tui.ColorEnabled), i18n.T("cmd.install.success", nil)), output.LogForce)
 	assert.NoError(t, err)
 
 	snaps.MatchSnapshot(t, collector.View())

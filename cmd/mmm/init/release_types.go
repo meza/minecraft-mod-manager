@@ -49,7 +49,7 @@ func NewReleaseTypesModel(defaults []models.ReleaseType) ReleaseTypesModel {
 	}
 
 	listModel := list.New(items, releaseTypeDelegate{}, width, 14)
-	listModel.Title = tui.QuestionStyle.Render("? ") + tui.TitleStyle.Render(i18n.T("cmd.init.tui.release-types.question"))
+	listModel.Title = tui.QuestionStyle.Render("? ") + tui.TitleStyle.Render(i18n.T("cmd.init.tui.release-types.question", nil))
 	listModel.SetShowStatusBar(false)
 	listModel.SetShowTitle(true)
 	listModel.Styles.Title = tui.TitleStyle

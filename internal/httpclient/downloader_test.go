@@ -216,7 +216,7 @@ func TestDownloadFile(t *testing.T) {
 			return nil, errors.New("unexpected request")
 		}), &mockProgram{}, afero.NewMemMapFs())
 		assert.Error(t, err)
-		assert.Equal(t, i18n.T("error.download_url_invalid", i18n.Tvars{
+		assert.Equal(t, i18n.T("error.download_url_invalid", &i18n.Tvars{
 			Data: &i18n.TData{"url": "invalid-url"},
 		}), err.Error())
 	})
@@ -228,7 +228,7 @@ func TestDownloadFile(t *testing.T) {
 			return nil, errors.New("unexpected request")
 		}), &mockProgram{}, afero.NewMemMapFs())
 		assert.Error(t, err)
-		assert.Equal(t, i18n.T("error.download_url_insecure", i18n.Tvars{
+		assert.Equal(t, i18n.T("error.download_url_insecure", &i18n.Tvars{
 			Data: &i18n.TData{"url": insecureURL},
 		}), err.Error())
 	})
@@ -240,7 +240,7 @@ func TestDownloadFile(t *testing.T) {
 			return nil, errors.New("unexpected request")
 		}), &mockProgram{}, afero.NewMemMapFs())
 		assert.Error(t, err)
-		assert.Equal(t, i18n.T("error.download_url_untrusted_host", i18n.Tvars{
+		assert.Equal(t, i18n.T("error.download_url_untrusted_host", &i18n.Tvars{
 			Data: &i18n.TData{"host": "example.com", "url": untrustedURL},
 		}), err.Error())
 	})
@@ -290,7 +290,7 @@ func TestDownloadFile(t *testing.T) {
 
 		err := DownloadFile(context.Background(), allowedURL("/file"), "testfile", timeoutDoer, program, fs)
 		assert.Error(t, err)
-		assert.Equal(t, i18n.T("error.network_timeout"), err.Error())
+		assert.Equal(t, i18n.T("error.network_timeout", nil), err.Error())
 	})
 
 	t.Run("file creation error", func(t *testing.T) {

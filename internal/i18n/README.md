@@ -32,24 +32,24 @@ Import the package and call `T()` with a translation key.
 
 ```go
 // example
-fmt.Println(i18n.T("app.description"))
+fmt.Println(i18n.T("app.description", nil))
 ```
 
 There is no explicit initialization step. The first call to `T()` lazily loads the embedded locale files and selects a locale.
 
 ## API
 
-### `T(key string, args ...Tvars) string`
+### `T(key string, vars *Tvars) string`
 
 `T()` resolves a translation key and returns a string.
 
 * If the key is missing, the key itself is returned (this is a deliberate, visible failure mode).
-* Only zero or one `Tvars` argument is supported. Passing more returns the key and arguments.
+* Pass `nil` when you do not need variables.
 
 Simple usage:
 
 ```go
-s := i18n.T("cmd.version.short")
+s := i18n.T("cmd.version.short", nil)
 ```
 
 With variables and plurals:
@@ -57,7 +57,7 @@ With variables and plurals:
 ```go
 s := i18n.T(
   "cmd.help.error",
-  i18n.Tvars{Data: &i18n.TData{"topic": "init"}},
+  &i18n.Tvars{Data: &i18n.TData{"topic": "init"}},
 )
 ```
 
@@ -66,7 +66,7 @@ Plural example (ICU MessageFormat):
 ```go
 s := i18n.T(
   "downloads.count",
-  i18n.Tvars{Count: 2, Data: &i18n.TData{"appName": "mmm"}},
+  &i18n.Tvars{Count: 2, Data: &i18n.TData{"appName": "mmm"}},
 )
 ```
 
@@ -74,6 +74,8 @@ Behavior notes:
 
 * `Count` is always injected as the variable `count`.
 * If `Data` is nil, only `count` is injected.
+* If `vars` is nil, no variables are injected.
+* Outside test mode, `T()` never returns key+vars output. Setup failures return the key only.
 
 ## Locale selection
 
@@ -118,7 +120,7 @@ Requirements:
 * filenames must match the locale code (example: `de-DE.json`).
 * files must be valid JSON.
 
-Setup failures fall back to returning the key (and any args), so user-facing commands do not crash if locale files are unavailable.
+Setup failures fall back to returning the key, so user-facing commands do not crash if locale files are unavailable.
 
 These are treated as developer/CI failures, not user-facing errors.
 
@@ -138,7 +140,7 @@ Example:
 
 ```go
 t.Setenv("MMM_TEST", "true")
-assert.Equal(t, "test.simple", i18n.T("test.simple"))
+assert.Equal(t, "test.simple", i18n.T("test.simple", nil))
 ```
 
 ## Translation key naming guidelines

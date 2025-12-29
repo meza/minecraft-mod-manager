@@ -47,7 +47,7 @@ func persistScanMatchesIfRequested(request persistScanRequest) (telemetry.Comman
 	}
 
 	if len(request.Unsure) > 0 {
-		if outputErr := request.Dependencies.output.Log(i18n.T("cmd.scan.persist_skipped_unsure"), output.LogQuiet); outputErr != nil {
+		if outputErr := request.Dependencies.output.Log(i18n.T("cmd.scan.persist_skipped_unsure", nil), output.LogQuiet); outputErr != nil {
 			return scanFailureTelemetry(outputErr), outputErr
 		}
 		return scanSuccessTelemetry(request.PreferPlatform, request.Options.Add), nil
@@ -67,7 +67,7 @@ func persistScanMatchesIfRequested(request persistScanRequest) (telemetry.Comman
 		return scanFailureTelemetry(err), err
 	}
 	if persisted {
-		if outputErr := request.Dependencies.output.Log(messageWithIcon(tui.SuccessIcon(request.ColorMode), i18n.T("cmd.scan.persisted")), output.LogQuiet); outputErr != nil {
+		if outputErr := request.Dependencies.output.Log(messageWithIcon(tui.SuccessIcon(request.ColorMode), i18n.T("cmd.scan.persisted", nil)), output.LogQuiet); outputErr != nil {
 			return scanFailureTelemetry(outputErr), outputErr
 		}
 	}

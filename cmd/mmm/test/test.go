@@ -84,7 +84,7 @@ func commandWithRunner(runner testRunner) *cobra.Command {
 	cmd := &cobra.Command{
 		Use:     "test [game_version]",
 		Aliases: []string{"t"},
-		Short:   i18n.T("cmd.test.short"),
+		Short:   i18n.T("cmd.test.short", nil),
 		Args:    cobra.MaximumNArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			return runTestCommand(cmd, args, runner)
@@ -249,7 +249,7 @@ func runTest(ctx context.Context, cmd *cobra.Command, opts testOptions, deps tes
 	}
 
 	if len(cfg.Mods) == 0 {
-		if outputErr := deps.output.Log(i18n.T("cmd.test.success", i18n.Tvars{
+		if outputErr := deps.output.Log(i18n.T("cmd.test.success", &i18n.Tvars{
 			Data: &i18n.TData{"version": targetVersion},
 		}), output.LogQuiet); outputErr != nil {
 			return 0, outputErr
@@ -287,7 +287,7 @@ func checkMod(
 
 	outcome.LogEvents = append(outcome.LogEvents, logEvent{
 		Kind: logEventKindDebug,
-		Message: i18n.T("cmd.test.debug.checking", i18n.Tvars{
+		Message: i18n.T("cmd.test.debug.checking", &i18n.Tvars{
 			Data: &i18n.TData{
 				"name":     mod.Name,
 				"platform": mod.Type,
@@ -351,7 +351,7 @@ func fetchFailureUserEvent(fetchErr error, mod models.Mod) logEvent {
 	if errors.As(fetchErr, &notFound) {
 		return logEvent{
 			Kind: logEventKindDebug,
-			Message: i18n.T("cmd.test.error.mod_not_found", i18n.Tvars{
+			Message: i18n.T("cmd.test.error.mod_not_found", &i18n.Tvars{
 				Data: &i18n.TData{
 					"name":     mod.Name,
 					"id":       mod.ID,
@@ -365,7 +365,7 @@ func fetchFailureUserEvent(fetchErr error, mod models.Mod) logEvent {
 	if errors.As(fetchErr, &noFile) {
 		return logEvent{
 			Kind: logEventKindDebug,
-			Message: i18n.T("cmd.test.error.no_file", i18n.Tvars{
+			Message: i18n.T("cmd.test.error.no_file", &i18n.Tvars{
 				Data: &i18n.TData{
 					"name":     mod.Name,
 					"id":       mod.ID,
@@ -376,14 +376,14 @@ func fetchFailureUserEvent(fetchErr error, mod models.Mod) logEvent {
 	}
 
 	summary, ok := clierrors.SummarizePlatformError(fetchErr, mod.Type)
-	reason := i18n.T("cmd.platform.error.reason.unknown")
+	reason := i18n.T("cmd.platform.error.reason.unknown", nil)
 	if ok && strings.TrimSpace(summary.Reason) != "" {
 		reason = summary.Reason
 	}
 
 	return logEvent{
 		Kind: logEventKindError,
-		Message: i18n.T("cmd.test.error.platform", i18n.Tvars{
+		Message: i18n.T("cmd.test.error.platform", &i18n.Tvars{
 			Data: &i18n.TData{
 				"name":     mod.Name,
 				"platform": mod.Type,
@@ -401,7 +401,7 @@ func fetchFailureDebugEvent(fetchErr error, mod models.Mod, cfg models.ModsJSON,
 	}
 	return logEvent{
 		Kind: logEventKindDebug,
-		Message: i18n.T("cmd.test.debug.platform_error", i18n.Tvars{
+		Message: i18n.T("cmd.test.debug.platform_error", &i18n.Tvars{
 			Data: &i18n.TData{
 				"name":     mod.Name,
 				"platform": mod.Type,
@@ -436,13 +436,13 @@ func resolveTargetVersion(ctx context.Context, cfg models.ModsJSON, opts testOpt
 
 	valid, validationErr := deps.isValidVersion(ctx, targetVersion, deps.clients.Modrinth)
 	if validationErr != nil {
-		if outputErr := deps.output.Error(i18n.T("cmd.test.error.version_unavailable", i18n.Tvars{})); outputErr != nil {
+		if outputErr := deps.output.Error(i18n.T("cmd.test.error.version_unavailable", nil)); outputErr != nil {
 			return "", 0, outputErr
 		}
 		return "", 0, errVersionValidationUnavailable
 	}
 	if !valid {
-		if outputErr := deps.output.Error(i18n.T("cmd.test.error.invalid_version", i18n.Tvars{
+		if outputErr := deps.output.Error(i18n.T("cmd.test.error.invalid_version", &i18n.Tvars{
 			Data: &i18n.TData{"version": targetVersion},
 		})); outputErr != nil {
 			return "", 0, outputErr
@@ -451,7 +451,7 @@ func resolveTargetVersion(ctx context.Context, cfg models.ModsJSON, opts testOpt
 	}
 
 	if targetVersion == cfg.GameVersion {
-		if outputErr := deps.output.Log(i18n.T("cmd.test.same_version", i18n.Tvars{
+		if outputErr := deps.output.Log(i18n.T("cmd.test.same_version", &i18n.Tvars{
 			Data: &i18n.TData{"version": targetVersion},
 		}), output.LogForce); outputErr != nil {
 			return "", 0, outputErr
@@ -468,7 +468,7 @@ func resolveLatestVersion(ctx context.Context, deps testDeps) (string, error) {
 	if err != nil {
 		// Per ADR 0006: when manifest fails, we cannot determine "latest" in non-interactive mode.
 		// The user must provide an explicit version. Interactive prompting is for TUI only.
-		if outputErr := deps.output.Error(i18n.T("cmd.test.error.latest_unavailable", i18n.Tvars{})); outputErr != nil {
+		if outputErr := deps.output.Error(i18n.T("cmd.test.error.latest_unavailable", nil)); outputErr != nil {
 			return "", outputErr
 		}
 		return "", errLatestVersionRequired
@@ -546,7 +546,7 @@ func evaluateTestOutcomes(targetVersion string, outcomes []modCheckOutcome, deps
 		return reportUnsupportedMods(targetVersion, unsupportedMods, deps, colorMode)
 	}
 
-	if outputErr := deps.output.Log(i18n.T("cmd.test.success", i18n.Tvars{
+	if outputErr := deps.output.Log(i18n.T("cmd.test.success", &i18n.Tvars{
 		Data: &i18n.TData{"version": targetVersion},
 	}), output.LogQuiet); outputErr != nil {
 		return 0, outputErr
@@ -555,7 +555,7 @@ func evaluateTestOutcomes(targetVersion string, outcomes []modCheckOutcome, deps
 }
 
 func reportUnsupportedMods(targetVersion string, unsupportedMods []modCheckOutcome, deps testDeps, colorMode tui.ColorMode) (int, error) {
-	if outputErr := deps.output.Log(i18n.T("cmd.test.missing_support_header", i18n.Tvars{
+	if outputErr := deps.output.Log(i18n.T("cmd.test.missing_support_header", &i18n.Tvars{
 		Data: &i18n.TData{"version": targetVersion},
 	}), output.LogForce); outputErr != nil {
 		return 0, outputErr
@@ -568,7 +568,7 @@ func reportUnsupportedMods(targetVersion string, unsupportedMods []modCheckOutco
 		}
 	}
 
-	if outputErr := deps.output.Log(i18n.T("cmd.test.cannot_upgrade", i18n.Tvars{
+	if outputErr := deps.output.Log(i18n.T("cmd.test.cannot_upgrade", &i18n.Tvars{
 		Data: &i18n.TData{"version": targetVersion},
 	}), output.LogForce); outputErr != nil {
 		return 0, outputErr

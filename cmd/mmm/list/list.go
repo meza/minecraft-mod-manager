@@ -32,7 +32,7 @@ func Command() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:     "list",
 		Aliases: []string{"ls", "l"},
-		Short:   i18n.T("cmd.list.short"),
+		Short:   i18n.T("cmd.list.short", nil),
 		RunE:    runListCommand,
 	}
 
@@ -264,7 +264,7 @@ func logInvalidLockEntries(lock []models.ModInstall, out *output.Output) error {
 			if name == "" {
 				name = install.ID
 			}
-			if err := out.Error(i18n.T("cmd.list.error.invalid_filename_lock", i18n.Tvars{
+			if err := out.Error(i18n.T("cmd.list.error.invalid_filename_lock", &i18n.Tvars{
 				Data: &i18n.TData{
 					"name": name,
 					"file": modfilename.Display(install.FileName),
@@ -281,12 +281,12 @@ func renderListView(entries []listEntry, colorMode tui.ColorMode) string {
 	var builder strings.Builder
 
 	if len(entries) == 0 {
-		empty := i18n.T("cmd.list.empty")
+		empty := i18n.T("cmd.list.empty", nil)
 		empty = tui.RenderIfColorEnabled(colorMode, tui.PlaceholderStyle, empty)
 		return empty
 	}
 
-	header := i18n.T("cmd.list.header")
+	header := i18n.T("cmd.list.header", nil)
 	header = tui.RenderIfColorEnabled(colorMode, tui.TitleStyle, header)
 	if err := listWriteString(&builder, header); err != nil {
 		return ""
@@ -323,7 +323,7 @@ func renderEntry(entry listEntry, colorMode tui.ColorMode) string {
 
 	id = tui.RenderIfColorEnabled(colorMode, tui.PlaceholderStyle.PaddingLeft(0), id)
 
-	message := i18n.T(key, i18n.Tvars{
+	message := i18n.T(key, &i18n.Tvars{
 		Data: &i18n.TData{
 			"name": name,
 			"id":   id,

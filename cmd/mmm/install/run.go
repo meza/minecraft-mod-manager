@@ -58,7 +58,7 @@ func runInstall(ctx context.Context, cmd *cobra.Command, opts installOptions, de
 		return Result{InstalledCount: len(configured.cfg.Mods), UnmanagedFound: preflight.unmanagedFound}, errInstallFailures
 	}
 
-	if err := deps.output.Log(messageWithIcon(tui.SuccessIcon(colorMode), i18n.T("cmd.install.success")), output.LogForce); err != nil {
+	if err := deps.output.Log(messageWithIcon(tui.SuccessIcon(colorMode), i18n.T("cmd.install.success", nil)), output.LogForce); err != nil {
 		return Result{}, err
 	}
 	return Result{InstalledCount: len(configured.cfg.Mods), UnmanagedFound: preflight.unmanagedFound}, nil
@@ -94,7 +94,7 @@ func installConfiguredMods(input installConfiguredInputs) (installConfiguredOutc
 	for i := range cfg.Mods {
 		mod := cfg.Mods[i]
 		version := modVersionLabel(mod)
-		if err := input.deps.logger.Debug(i18n.T("cmd.install.debug.checking", i18n.Tvars{
+		if err := input.deps.logger.Debug(i18n.T("cmd.install.debug.checking", &i18n.Tvars{
 			Data: &i18n.TData{
 				"name":     mod.Name,
 				"version":  version,
