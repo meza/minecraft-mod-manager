@@ -784,3 +784,11 @@ mmm-137 in progress: scanned exported decls missing GoDoc (454 missing across 87
 2025-12-29	12:52	mmm-74 fix in progress: install preflight now emits platform error details (including fingerprints + response info) via new i18n key; tests updated.
 2025-12-29	13:17	mmm-74: added platform error details line + snapshot coverage; make fmt/lint/coverage/build pass; Windows winhost checks pass; reviewer approved.
 2025-12-29	13:32	mmm-73 fix in progress: add non-debug platform error details line to test command output; snapshot updated; make fmt/lint/coverage/build pass; Windows checks pass.
+2025-12-29	14:01	Decision: prioritize mmm-70 VCR-style external API recordings (with child mmm-70.1 tooling) as next strategic work to lock API contracts and prevent regressions.
+2025-12-29	14:03	Started mmm-70.1 work: planning recordings tooling (make record + tools/recordings runner) for VCR fixtures.
+2025-12-29	14:07	Discussed proxy support (#1030) vs recordings: recommendation is VCR at transport layer; proxy-based recorder adds TLS MITM complexity and should not block mmm-70.1 unless user wants proxy first.
+2025-12-29	15:10	Implemented mmm-70.1 recording tool: go-vcr transport in internal/httpclient with host->cassette mapping, env MMM_RECORDINGS_MODE/MMM_RECORDINGS_DIR, make record tooling (tools/recordings) and CONTRIBUTING docs; recording disables telemetry and uses env IDs/keys.
+2025-12-29	15:26	Fixed runWithDeps to defer lifecycle shutdown before recording init; added test to assert telemetry shutdown on recording init failure.
+2025-12-29	15:42	Ensured startup span end is deferred before lifecycle shutdown so recording-init failures still close app.lifecycle.startup; updated test to assert startup+shutdown spans in that path.
+2025-12-29	15:51	mmm-70.1 recording tool + go-vcr transport complete; CONTRIBUTING updated; tests + Windows winstructions pass; reviewer approved.
+2025-12-29	16:10	[RESOLVED] Rolled back mmm-70.1 recordings changes per user; removed go-vcr tooling and recording transport work from repo.
