@@ -1,0 +1,11 @@
+
+[TestTestCommandDefaultOutputSnapshot - 1]
+stdout:
+cmd.test.missing_support_header, Arg 1: {Count: 0, Data: &map[version:1.22.0]}
+X MissingMod (proj-1)
+X NoFileMod (proj-2)
+X PlatformErrorMod (proj-3)
+cmd.test.cannot_upgrade, Arg 1: {Count: 0, Data: &map[version:1.22.0]}
+stderr:
+cmd.test.error.platform, Arg 1: {Count: 0, Data: &map[name:PlatformErrorMod platform:curseforge reason:cmd.platform.error.reason.unknown]}
+---

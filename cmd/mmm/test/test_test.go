@@ -160,7 +160,7 @@ func TestExitCode1WhenSomeModsUnsupported(t *testing.T) {
 	assert.Contains(t, out.String(), "cmd.test.missing_support_header")
 	assert.Contains(t, out.String(), "UnsupportedMod (proj-2)")
 	assert.Contains(t, out.String(), "cmd.test.cannot_upgrade")
-	assert.Contains(t, errOut.String(), "cmd.test.error.no_file")
+	assert.NotContains(t, errOut.String(), "cmd.test.error.no_file")
 }
 
 func TestExitCode2WhenVersionMatchesCurrent(t *testing.T) {
@@ -671,7 +671,7 @@ func TestModNotFoundError(t *testing.T) {
 	assert.Equal(t, 1, exitErr.ExitCode())
 	assert.Equal(t, 1, exitCode)
 	assert.Contains(t, out.String(), "MissingMod (proj-1)")
-	assert.Contains(t, errOut.String(), "cmd.test.error.mod_not_found")
+	assert.NotContains(t, errOut.String(), "cmd.test.error.mod_not_found")
 }
 
 func TestConfigFileNotFound(t *testing.T) {

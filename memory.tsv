@@ -763,3 +763,8 @@ mmm-137 in progress: scanned exported decls missing GoDoc (454 missing across 87
 2025-12-29	09:52	mmm-146: user reports CurseForge 403s still after lowercase header change; built via make build.
 2025-12-29	09:57	mmm-146: fixed build ldflags for embedded API keys (APIKeyDefault symbol casing), added ldflags test; make fmt/lint/vuln/coverage/build and Windows checks pass.
 2025-12-29	10:02	Closed mmm-146 per user request after fixing ldflags symbol casing for embedded API keys.
+2025-12-29	10:05	Created P0 bug mmm-148 for narrow terminal output truncation; added user-provided Windows example to description.
+2025-12-29	10:25	Started mmm-147: suppress test command per-mod no_file/mod_not_found lines in default output, update tests to assert absence.
+2025-12-29	10:40	mmm-147: added default output snapshot for mmm test (suppresses per-mod no_file/mod_not_found lines); reran make fmt/lint/coverage/build and Windows verification.
+2025-12-29	10:46	mmm-147: reviewer approved after adding output snapshot; ready for user sign-off/closure.
+2025-12-29	10:48	Closed mmm-147 per user request after reviewer approval.

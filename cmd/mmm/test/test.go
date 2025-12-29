@@ -350,7 +350,7 @@ func fetchFailureUserEvent(fetchErr error, mod models.Mod) logEvent {
 	var notFound *platform.ModNotFoundError
 	if errors.As(fetchErr, &notFound) {
 		return logEvent{
-			Kind: logEventKindError,
+			Kind: logEventKindDebug,
 			Message: i18n.T("cmd.test.error.mod_not_found", i18n.Tvars{
 				Data: &i18n.TData{
 					"name":     mod.Name,
@@ -364,7 +364,7 @@ func fetchFailureUserEvent(fetchErr error, mod models.Mod) logEvent {
 	var noFile *platform.NoCompatibleFileError
 	if errors.As(fetchErr, &noFile) {
 		return logEvent{
-			Kind: logEventKindError,
+			Kind: logEventKindDebug,
 			Message: i18n.T("cmd.test.error.no_file", i18n.Tvars{
 				Data: &i18n.TData{
 					"name":     mod.Name,
