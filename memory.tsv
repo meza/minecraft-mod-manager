@@ -779,3 +779,7 @@ mmm-137 in progress: scanned exported decls missing GoDoc (454 missing across 87
 2025-12-29	12:24	mmm-145: added test for localizer nil with vars; reran make fmt/lint/coverage/build (pass) and winhost lint/build/coverage/test-race (pass; PSReadLine VT warning).
 2025-12-29	12:30	mmm-145: reviewer approved after adding localizer-nil vars test; code-review.md updated with pass verdict and Windows verification timestamp.
 2025-12-29	12:31	Closed mmm-145 per user request after reviewer approval.
+2025-12-29	12:36	Checked open bd tickets; mmm-45, mmm-46, mmm-47, and mmm-61 appear resolved in code and likely obsolete (see modrinth/curseforge/config fixes).
+2025-12-29	12:41	Re-check open tickets: mmm-55 appears implemented via internal/mmmignore package, README updates, and install/scan integration; others still valid.
+2025-12-29	12:52	mmm-74 fix in progress: install preflight now emits platform error details (including fingerprints + response info) via new i18n key; tests updated.
+2025-12-29	13:17	mmm-74: added platform error details line + snapshot coverage; make fmt/lint/coverage/build pass; Windows winhost checks pass; reviewer approved.

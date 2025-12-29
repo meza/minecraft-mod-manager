@@ -965,6 +965,51 @@ func TestNewPlatformLookupFailureWithNilError(t *testing.T) {
 	assert.Equal(t, failure.Reason, failure.Error())
 }
 
+func TestPlatformErrorDetailsUsesResponseError(t *testing.T) {
+	details := platformErrorDetails(&httpclient.ResponseError{
+		Method:     http.MethodGet,
+		URL:        "https://example.invalid",
+		StatusCode: http.StatusForbidden,
+	})
+
+	assert.Contains(t, details, "status=403")
+	assert.Contains(t, details, "https://example.invalid")
+}
+
+func TestPlatformErrorDetailsReturnsEmptyForNil(t *testing.T) {
+	assert.Equal(t, "", platformErrorDetails(nil))
+}
+
+func TestPlatformErrorDetailsIncludesFingerprintLookup(t *testing.T) {
+	details := platformErrorDetails(&curseforge.FingerprintAPIError{
+		Lookup: []uint32{123},
+		Err: &httpclient.ResponseError{
+			Method:     http.MethodPost,
+			URL:        "https://example.invalid",
+			StatusCode: http.StatusForbidden,
+		},
+	})
+
+	assert.Contains(t, details, "fingerprints=[123]")
+	assert.Contains(t, details, "status=403")
+}
+
+func TestPlatformErrorDetailsHandlesFingerprintWithoutResponseError(t *testing.T) {
+	details := platformErrorDetails(&curseforge.FingerprintAPIError{
+		Lookup: []uint32{123, 456},
+		Err:    errors.New("boom"),
+	})
+
+	assert.Contains(t, details, "fingerprints=[123 456]")
+	assert.Contains(t, details, "boom")
+}
+
+func TestPlatformErrorDetailsFallsBackToErrorMessage(t *testing.T) {
+	details := platformErrorDetails(errors.New("boom"))
+
+	assert.Equal(t, "boom", details)
+}
+
 func TestLogPlatformLookupFailureOutputsMessages(t *testing.T) {
 	t.Setenv("MMM_TEST", "true")
 
@@ -984,11 +1029,78 @@ func TestLogPlatformLookupFailureOutputsMessages(t *testing.T) {
 	assert.NoError(t, err)
 	assert.Contains(t, out.String(), "cmd.install.debug.platform_error")
 	assert.Contains(t, out.String(), "cmd.install.unsure.platform_error")
+	assert.Contains(t, out.String(), "cmd.install.unsure.platform_error_details")
 	assert.Contains(t, out.String(), "a.jar")
 }
 
 func TestLogPlatformLookupFailureHandlesNil(t *testing.T) {
 	assert.NoError(t, logPlatformLookupFailure(nil, nil, nil, tui.ColorDisabled))
+}
+
+func TestLogPlatformLookupFailureErrorsWithoutLogger(t *testing.T) {
+	t.Setenv("MMM_TEST", "true")
+
+	out := &bytes.Buffer{}
+	errOut := &bytes.Buffer{}
+	outWriter := output.New(out, errOut, false)
+
+	failure := &platformLookupFailure{
+		Platform:     models.CURSEFORGE,
+		Files:        []string{"/mods/a.jar"},
+		Reason:       i18n.T("cmd.platform.error.reason.unknown", nil),
+		DebugDetails: "debug details",
+	}
+
+	err := logPlatformLookupFailure(outWriter, nil, failure, tui.ColorDisabled)
+	assert.ErrorContains(t, err, "missing logger for platform debug output")
+}
+
+func TestLogPlatformLookupFailureReturnsOutputError(t *testing.T) {
+	writeErr := errors.New("write failed")
+	outWriter := output.New(errorWriter{err: writeErr}, io.Discard, false)
+
+	failure := &platformLookupFailure{
+		Platform: models.CURSEFORGE,
+		Files:    []string{"/mods/a.jar"},
+		Reason:   "failure reason",
+	}
+
+	err := logPlatformLookupFailure(outWriter, logger.New(io.Discard, io.Discard, false, false), failure, tui.ColorDisabled)
+	assert.ErrorIs(t, err, writeErr)
+}
+
+func TestLogPlatformLookupFailureReturnsLoggerError(t *testing.T) {
+	writeErr := errors.New("write failed")
+	out := &bytes.Buffer{}
+	errOut := &bytes.Buffer{}
+	outWriter := output.New(out, errOut, false)
+	log := logger.New(errorWriter{err: writeErr}, io.Discard, false, true)
+
+	failure := &platformLookupFailure{
+		Platform:     models.CURSEFORGE,
+		Files:        []string{"/mods/a.jar"},
+		Reason:       "failure reason",
+		DebugDetails: "debug details",
+	}
+
+	err := logPlatformLookupFailure(outWriter, log, failure, tui.ColorDisabled)
+	assert.ErrorIs(t, err, writeErr)
+}
+
+func TestLogPlatformLookupFailureReturnsDetailsOutputError(t *testing.T) {
+	writeErr := errors.New("write failed")
+	limitedWriter := &limitedErrorWriter{remaining: 1, err: writeErr}
+	outWriter := output.New(limitedWriter, io.Discard, false)
+
+	failure := &platformLookupFailure{
+		Platform:     models.CURSEFORGE,
+		Files:        []string{"/mods/a.jar"},
+		Reason:       "failure reason",
+		DebugDetails: "debug details",
+	}
+
+	err := logPlatformLookupFailure(outWriter, logger.New(io.Discard, io.Discard, false, true), failure, tui.ColorDisabled)
+	assert.ErrorIs(t, err, writeErr)
 }
 
 func TestPreflightUnknownFilesLogsPlatformErrors(t *testing.T) {
@@ -1038,6 +1150,7 @@ func TestPreflightUnknownFilesLogsPlatformErrors(t *testing.T) {
 	assert.Contains(t, out.String(), "cmd.install.unsure.platform_error")
 	assert.Contains(t, out.String(), "cmd.platform.error.reason.auth")
 	assert.Contains(t, out.String(), "cmd.install.debug.platform_error")
+	assert.Contains(t, out.String(), "cmd.install.unsure.platform_error_details")
 	assert.Contains(t, out.String(), "bad.jar")
 }
 
@@ -1496,4 +1609,17 @@ type errorWriter struct {
 
 func (writer errorWriter) Write([]byte) (int, error) {
 	return 0, writer.err
+}
+
+type limitedErrorWriter struct {
+	remaining int
+	err       error
+}
+
+func (writer *limitedErrorWriter) Write(p []byte) (int, error) {
+	if writer.remaining <= 0 {
+		return 0, writer.err
+	}
+	writer.remaining--
+	return len(p), nil
 }

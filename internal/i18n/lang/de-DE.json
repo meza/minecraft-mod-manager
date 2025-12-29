@@ -69,6 +69,7 @@
   "cmd.install.unsure.hash_mismatch": "{name} hat lokal eine andere Version als im Lockfile",
   "cmd.install.unsure.lock_missing": "{name} hat eine lokale Datei, die nicht im Lockfile ist.",
   "cmd.install.unsure.platform_error": "Konnte {file} auf {platform} nicht prüfen. {reason}",
+  "cmd.install.unsure.platform_error_details": "Details zu {platform}: {details}",
   "cmd.install.debug.platform_error": "Debug: {platform}-Lookup fehlgeschlagen: {details}",
   "cmd.install.error.unresolved": "\nBitte behebe die ungelösten Probleme oben manuell oder mit mmm scan und versuche es dann erneut.",
   "cmd.install.error.missing_hash_lock": "Kann {name} nicht verifizieren, weil der erwartete Download-Hash im Lockfile fehlt. Bitte prüfe dein Lockfile und versuche es erneut.",

@@ -13,6 +13,8 @@ import (
 
 	"github.com/meza/minecraft-mod-manager/internal/clierrors"
 	"github.com/meza/minecraft-mod-manager/internal/config"
+	"github.com/meza/minecraft-mod-manager/internal/curseforge"
+	"github.com/meza/minecraft-mod-manager/internal/httpclient"
 	"github.com/meza/minecraft-mod-manager/internal/i18n"
 	"github.com/meza/minecraft-mod-manager/internal/logger"
 	"github.com/meza/minecraft-mod-manager/internal/mmmignore"
@@ -127,8 +129,32 @@ func newPlatformLookupFailure(platformValue models.Platform, files []string, err
 		Platform:     platformValue,
 		Files:        files,
 		Reason:       summary.Reason,
-		DebugDetails: summary.DebugDetails,
+		DebugDetails: platformErrorDetails(err),
 	}
+}
+
+func platformErrorDetails(err error) string {
+	if err == nil {
+		return ""
+	}
+
+	responseDetails := ""
+	if responseErr, ok := httpclient.ExtractResponseError(err); ok {
+		responseDetails = responseErr.Error()
+	}
+
+	var fingerprintAPIError *curseforge.FingerprintAPIError
+	if errors.As(err, &fingerprintAPIError) {
+		if responseDetails != "" {
+			return fmt.Sprintf("fingerprints=%v; %s", fingerprintAPIError.Lookup, responseDetails)
+		}
+		return fmt.Sprintf("fingerprints=%v; %s", fingerprintAPIError.Lookup, fingerprintAPIError.Err)
+	}
+
+	if responseDetails != "" {
+		return responseDetails
+	}
+	return err.Error()
 }
 
 func logPlatformLookupFailure(out *output.Output, log *logger.Logger, failure *platformLookupFailure, colorMode tui.ColorMode) error {
@@ -154,6 +180,16 @@ func logPlatformLookupFailure(out *output.Output, log *logger.Logger, failure *p
 				"file":     filepath.Base(filePath),
 				"platform": failure.Platform,
 				"reason":   failure.Reason,
+			},
+		})), output.LogForce); err != nil {
+			return err
+		}
+	}
+	if strings.TrimSpace(failure.DebugDetails) != "" {
+		if err := out.Log(messageWithIcon(tui.ErrorIcon(colorMode), i18n.T("cmd.install.unsure.platform_error_details", &i18n.Tvars{
+			Data: &i18n.TData{
+				"platform": failure.Platform,
+				"details":  failure.DebugDetails,
 			},
 		})), output.LogForce); err != nil {
 			return err

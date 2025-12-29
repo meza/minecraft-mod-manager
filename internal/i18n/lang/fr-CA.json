@@ -51,6 +51,7 @@
   "cmd.install.unsure.hash_mismatch": "{name} a une version différente localement que celle du fichier lock",
   "cmd.install.unsure.lock_missing": "{name} a un fichier local qui n'est pas dans le fichier lock.",
   "cmd.install.unsure.platform_error": "Impossible de vérifier {file} sur {platform}. {reason}",
+  "cmd.install.unsure.platform_error_details": "Details pour {platform} : {details}",
   "cmd.install.debug.platform_error": "Debug: la recherche {platform} a échoué: {details}",
   "cmd.install.error.unresolved": "\nVeuillez corriger les problèmes non résolus ci-dessus manuellement ou en exécutant mmm scan, puis réessayez.",
   "cmd.install.error.missing_hash_lock": "Impossible de vérifier {name} car le hash attendu est manquant dans votre fichier lock. Veuillez vérifier votre fichier lock et réessayer.",
