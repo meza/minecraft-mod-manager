@@ -74,9 +74,23 @@ type LogProgram struct {
 	errors  chan error
 }
 
+func logProgramFilter(_ tea.Model, msg tea.Msg) tea.Msg {
+	switch msg.(type) {
+	case tea.WindowSizeMsg:
+		return nil
+	default:
+		return msg
+	}
+}
+
 // StartLogProgram starts a Bubble Tea log program with the provided input/output.
 func StartLogProgram(input io.Reader, output io.Writer) *LogProgram {
-	program := tea.NewProgram(NewLogModel(), ProgramOptions(input, output)...)
+	options := []tea.ProgramOption{
+		tea.WithInput(input),
+		tea.WithOutput(output),
+		tea.WithFilter(logProgramFilter),
+	}
+	program := tea.NewProgram(NewLogModel(), options...)
 	writer := NewLogLineWriter(program)
 	errors := make(chan error, 1)
 	go func() {

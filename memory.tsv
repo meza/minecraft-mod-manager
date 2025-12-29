@@ -768,3 +768,7 @@ mmm-137 in progress: scanned exported decls missing GoDoc (454 missing across 87
 2025-12-29	10:40	mmm-147: added default output snapshot for mmm test (suppresses per-mod no_file/mod_not_found lines); reran make fmt/lint/coverage/build and Windows verification.
 2025-12-29	10:46	mmm-147: reviewer approved after adding output snapshot; ready for user sign-off/closure.
 2025-12-29	10:48	Closed mmm-147 per user request after reviewer approval.
+2025-12-29	11:12	mmm-148: log output truncation traced to Bubble Tea standard renderer width truncation; StartLogProgram now hides output Fd to keep width=0 and added long-line preservation test.
+2025-12-29	11:27	mmm-148: revised approach to keep VT by filtering WindowSizeMsg in StartLogProgram, avoiding renderer truncation without hiding output Fd.
+2025-12-29	11:38	mmm-148: reviewer approved after filtering WindowSizeMsg and adding log output tests; ready for user sign-off.
+2025-12-29	11:40	Closed mmm-148 per user request after reviewer approval.

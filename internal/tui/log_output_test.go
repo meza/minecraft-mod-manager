@@ -3,6 +3,7 @@ package tui
 import (
 	"bytes"
 	"errors"
+	"strings"
 	"testing"
 
 	tea "github.com/charmbracelet/bubbletea"
@@ -109,6 +110,18 @@ func TestLogProgramNilNoops(t *testing.T) {
 	assert.NoError(t, program.Stop())
 }
 
+func TestLogProgramPreservesLongLines(t *testing.T) {
+	output := &bytes.Buffer{}
+	program := StartLogProgram(bytes.NewBuffer(nil), output)
+	longLine := strings.Repeat("long-content-", 20)
+
+	_, err := program.Writer().Write([]byte(longLine + "\n"))
+	assert.NoError(t, err)
+
+	assert.NoError(t, program.Stop())
+	assert.Contains(t, output.String(), longLine)
+}
+
 func TestMergeProgramErrorPrefersProgramErrorWhenPrimaryNil(t *testing.T) {
 	programErr := errors.New("program")
 	assert.Equal(t, programErr, MergeProgramError(nil, programErr))
@@ -118,4 +131,15 @@ func TestMergeProgramErrorKeepsPrimary(t *testing.T) {
 	primary := errors.New("primary")
 	programErr := errors.New("program")
 	assert.Equal(t, primary, MergeProgramError(primary, programErr))
+}
+
+func TestLogProgramFilterDropsWindowSize(t *testing.T) {
+	msg := logProgramFilter(nil, tea.WindowSizeMsg{Width: 80, Height: 24})
+	assert.Nil(t, msg)
+}
+
+func TestLogProgramFilterKeepsOtherMessages(t *testing.T) {
+	expected := LogLineMsg{Line: "keep"}
+	msg := logProgramFilter(nil, expected)
+	assert.Equal(t, expected, msg)
 }
