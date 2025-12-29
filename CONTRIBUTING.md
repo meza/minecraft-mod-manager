@@ -32,10 +32,10 @@ changing behavior.
 
 - Simplicity first: implement the smallest change that satisfies the requirement.
 - Apply KISS. Seek smallest changes satisfying criteria
-- Treat YAGNI as active constraint; require justification for abstractions
+- Treat YAGNI as an active constraint. Require justification for abstractions.
 - Maintainability: prefer clear control flow and explicit dependencies over deep abstraction.
 - Testability: structure code so important behavior can be validated by fast, deterministic tests.
-- Consistency: follow existing patterns in this repo; do not introduce a new pattern unless it replaces an old one and is agreed
+- Consistency: follow existing patterns in this repo. Do not introduce a new pattern unless it replaces an old one and is agreed
   ahead of time.
 - Prioritize correctness and testability over cleverness
 - The project is cross-platform (first-class support for Windows, macOS, Linux) for both users and developers.
@@ -44,16 +44,16 @@ changing behavior.
 
 We prefer descriptive names that stay clear outside Go-specific idioms.
 
-- Receiver names should be descriptive and derived from the type (for example, `client *Client`); avoid single-letter receivers.
+- Receiver names should be descriptive and derived from the type (for example, `client *Client`). Avoid single-letter receivers.
 - Avoid single-letter identifiers except `t`, `err`, `cfg`, `cmd`, and `ctx` in narrow scopes.
-- Go source filenames must be lowercase; use `snake_case` for multiword names.
+- Go source filenames must be lowercase. Use `snake_case` for multiword names.
 
 ### Testing philosophy (cross-cutting)
 
 We treat automated tests as the primary contract for behavior and user experience.
 
 - Prefer tests that exercise real production wiring and code paths.
-- Use fakes/stubs only to control nondeterminism (time, random, network, filesystem, OS signals) or to force rare error paths; do
+- Use fakes/stubs only to control nondeterminism (time, random, network, filesystem, OS signals) or to force rare error paths. Do
   not stub core behavior to "make coverage green".
 - Snapshot tests are the primary guardrail against UX regressions:
   - For any user-visible output (TUI or non-TUI), add snapshot coverage of the rendered output.
@@ -72,7 +72,7 @@ Run the repo `make` targets (do not call go test/go build directly):
 
 ### Optional checks
 
-- `make test-race` (slower; use before larger concurrency changes)
+- `make test-race` (slower, use before larger concurrency changes)
 
 To update snapshots (when you change user-visible output), run:
 
@@ -112,7 +112,7 @@ This section explains how someone in a product capacity (Product Owner, product 
 
 ### State Management Philosophy
 
-Product state lives in documentation and the issue tracker—not in ephemeral conversation or separate tracking systems. This ensures:
+Product state lives in documentation and the issue tracker, not in ephemeral conversation or separate tracking systems. This ensures:
 
 - **Portability**: Product knowledge travels with the codebase
 - **Auditability**: Decisions are traceable and discoverable
@@ -172,7 +172,7 @@ Many product decisions can be captured in issue comments or documentation update
 
 ### The `docs/product/` Directory
 
-This directory is for product artifacts that don't fit elsewhere. Use it sparingly—most product work belongs in:
+This directory is for product artifacts that don't fit elsewhere. Use it sparingly as most product work belongs in:
 
 - **Issue tracker**: Requirements, success criteria, bugs, tasks
 - **`docs/specs/`**: Detailed behavioral specifications
@@ -186,4 +186,4 @@ Product Owners working on this project:
 
 - **May decide independently** when the decision is underpinned by existing documentation or recorded outcomes in tickets/issues
 - **Must surface for stakeholder input** any decision that lacks documented support or creates new precedent
-- **Should not** read source code to determine product state—if documentation is insufficient, surface that gap rather than deriving answers from implementation
+- **Should not** read source code to determine product state. If documentation is insufficient, surface that gap rather than deriving answers from implementation

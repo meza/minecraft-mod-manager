@@ -2,10 +2,10 @@
 
 This directory holds product artifacts that don't fit elsewhere. Most product work belongs in:
 
-- **Issue tracker** — Requirements, success criteria, bugs, tasks
-- **`docs/specs/`** — Detailed behavioral specifications
-- **`docs/commands/`** — User-facing documentation
-- **`doc/adr/`** — Decisions needing attribution and rationale
+- **Issue tracker**: Requirements, success criteria, bugs, tasks
+- **`docs/specs/`**: Detailed behavioral specifications
+- **`docs/commands/`**: User-facing documentation
+- **`doc/adr/`**: Decisions needing attribution and rationale
 
 Add to this directory sparingly. If something can live in the issue tracker or existing documentation, it should.
 

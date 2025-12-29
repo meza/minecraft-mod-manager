@@ -1,33 +1,33 @@
-# Minecraft Mod Manager — TUI Design Document
+# Minecraft Mod Manager - TUI Design Document
 
 ---
 
 ## 1  Purpose
 
-This document captures the visual wire‑frames and interaction model for the Minecraft Mod Manager (MMM) Terminal User Interface, along with the fallback CLI prompting behaviour. It is intended to guide both implementation and future maintenance.
+This document captures the visual wire-frames and interaction model for the Minecraft Mod Manager (MMM) Terminal User Interface, along with the fallback CLI prompting behaviour. It is intended to guide both implementation and future maintenance.
 
 ---
 
-## 2  Three‑Tier Execution Model
+## 2  Three-Tier Execution Model
 
 | Tier                | Detection                                                                                       | Behaviour                                                                                                     | Example                                                            |
 |---------------------|-------------------------------------------------------------------------------------------------|---------------------------------------------------------------------------------------------------------------|--------------------------------------------------------------------|
-| **Non‑interactive** | • All required flags present **and** `stdin` **not** a TTY• or `--yes / --force / --json` given | • Perform task silently• Return exit‑code, machine‑readable logs                                              | `mmm add --platform curseforge --id 438050 --version 1.20.1 --yes` |
-| **Prompted CLI**    | • TTY available **but** required info missing                                                   | • Ask only for missing input via simple line prompts (no Bubble Tea)• Honour `--abort-on-prompt` to fail fast | `mmm remove sodium` → disambiguation prompt                        |
-| **Full TUI**        | • No flags **or** `mmm tui` **or** `--tui` supplied                                             | • Launch Bubble Tea interface described in §3                                                                 | User types `mmm` with no args                                      |
+| **Non-interactive** | All required flags present and `stdin` not a TTY, or `--yes / --force / --json` given           | Perform task silently. Return exit code and machine-readable logs                                             | `mmm add --platform curseforge --id 438050 --version 1.20.1 --yes` |
+| **Prompted CLI**    | TTY available but required info missing                                                         | Ask only for missing input via simple line prompts (no Bubble Tea). Honour `--abort-on-prompt` to fail fast  | `mmm remove sodium` -> disambiguation prompt                       |
+| **Full TUI**        | No flags, or `mmm tui`, or `--tui` supplied                                                      | Launch Bubble Tea interface described in Section 3                                                            | User types `mmm` with no args                                      |
 
 ### 2.1  Flags & Environment variables
 
 | Switch/Var               | Effect                                           |
 |--------------------------|--------------------------------------------------|
 | `-y`, `--yes`, `--force` | Skip *all* confirmations                         |
-| `--pick-first`           | Auto‑select first match when multiple are found  |
+| `--pick-first`           | Auto-select first match when multiple are found  |
 | `--json`, `--quiet`      | Suppress progress lines, emit JSON               |
 | `MMM_NO_PROMPT=1`        | Fail if a prompt would be required (good for CI) |
 
 ---
 
-## 3  Wire‑frame Sketches
+## 3  Wire-frame Sketches
 
 **Legend:** `Sidebar ▸` indicates current menu focus.
 
@@ -71,7 +71,7 @@ This document captures the visual wire‑frames and interaction model for the Mi
 |   …                  |  ───────────────────────────────────────────────────────────   |
 |                      |  Fabric API      0.76.1       0.77.0      ● Ready             |
 |                      |  Sodium          0.5.5        0.5.6       ● Ready             |
-|                      |  Iris Shaders    1.6.2        1.6.2       ✓ Up‑to‑date        |
+|                      |  Iris Shaders    1.6.2        1.6.2       ✓ Up-to-date        |
 |                      |                                                               |
 |                      |  [u] Update selected   [U] Update all   [Esc] Cancel          |
 +----------------------+---------------------------------------------------------------+
@@ -85,7 +85,7 @@ This document captures the visual wire‑frames and interaction model for the Mi
 +----------------------+---------------------------------------------------------------+
 |   …                  |  Scan results (mods folder)                                   |
 | ▸ Scan               |                                                               |
-|                      |  ✓ worldedit‑7.2.12.jar  → WorldEdit (modrinth)               |
+|                      |  ✓ worldedit-7.2.12.jar  → WorldEdit (modrinth)               |
 |                      |  ? custom-hud.jar        → Unknown (no match)                |
 |                      |  ✓ jei-11.6.jar          → JEI (curseforge)                   |
 |                      |                                                               |
@@ -191,7 +191,7 @@ This document captures the visual wire‑frames and interaction model for the Mi
 ```go
 func ensureTTYOrAbort() {
     if !isatty.IsTerminal(os.Stdin.Fd()) {
-        fmt.Fprintln(os.Stderr, "Missing flag --yes in non‑interactive mode")
+        fmt.Fprintln(os.Stderr, "Missing flag --yes in non-interactive mode")
         os.Exit(4)
     }
 }
@@ -203,7 +203,7 @@ func ensureTTYOrAbort() {
 ### 4.1  Disambiguation Example
 
 ```
-Multiple hits for “sodium”:
+Multiple hits for "sodium":
   1) Sodium (modrinth)
   2) Sodium (curseforge)
 Choose [1-2]: _
@@ -223,7 +223,7 @@ Choose [1-2]: _
 | Area           | Tests                                | Tooling           |
 | -------------- | ------------------------------------ |-------------------|
 | Prompt helpers | Unit tests with fake `survey.Stdio`  | Go test + testify |
-| Flag matrix    | Table‑driven, asserting exit‑codes   | Go test           |
+| Flag matrix    | Table-driven, asserting exit codes   | Go test           |
 | TUI screens    | Snapshot tests via `tea.ProgramTest` | Bubble Tea        |
 
 All new code must keep **100 % coverage** per project policy.
@@ -232,21 +232,21 @@ All new code must keep **100 % coverage** per project policy.
 
 ## 7  Shared Implementation Notes
 
-* **Key bindings** live in a single map; footer reads from it to stay DRY.
-* Listen for `tea.WindowSizeMsg` to recompute widths → responsive layout.
-* Long‑running jobs issue `tea.Batch` with a `spinner` (quiet mode outputs simple log lines).
+* **Key bindings** live in a single map, and the footer reads from it to stay DRY.
+* Listen for `tea.WindowSizeMsg` to recompute widths -> responsive layout.
+* Long-running jobs issue `tea.Batch` with a `spinner` (quiet mode outputs simple log lines).
 * **Colour palette:**
 
   * Background `#262626` (charcoal)
-  * Text `#dadada` (off‑white)
-  * Accent `#5af3ff` (cyan) — keep accents ≤2 per view.
+  * Text `#dadada` (off-white)
+  * Accent `#5af3ff` (cyan) (keep accents to <=2 per view).
 
 ---
 
 ## 8  Glossary
 
-**MMM** – Minecraft Mod Manager, the CLI/TUI being designed.
+**MMM**: Minecraft Mod Manager, the CLI/TUI being designed.
 
-**Bubble Tea** – Go TUI framework by Charmbracelet.
+**Bubble Tea**: Go TUI framework by Charmbracelet.
 
-**TTY** – Teletype; a terminal capable of interactive input.
+**TTY**: Teletype, a terminal capable of interactive input.

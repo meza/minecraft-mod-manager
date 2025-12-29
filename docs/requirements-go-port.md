@@ -6,16 +6,16 @@ This document summarizes the features of the current TypeScript implementation a
 
 The CLI offers the following commands:
 
-- `init` – interactively creates `modlist.json` with loader, game version, release types and mods folder settings.
-- `add` – fetches a mod from CurseForge or Modrinth, downloads it and updates both configuration files. Supports version pinning and version fallback.
-- `install` – ensures every mod listed in `modlist.json` is downloaded according to `modlist-lock.json`, reusing hashed versions when present.
-- `update` – checks for new releases of configured mods and updates both the local files and lock file.
-- `list` – prints the configured mods and whether they are currently installed.
-- `change` – verifies if a different Minecraft version is supported, rewrites configuration and reinstalls mods.
-- `test` – tests if a target game version is viable without altering the configuration. Exit codes signal success or failure.
-- `prune` – removes unmanaged files in the mods folder. Honours `.mmmignore` patterns and supports a force option.
-- `scan` – searches the mods directory for manually added files, matches them against the supported platforms and optionally updates the config.
-- `remove` – deletes one or more mods from the config and filesystem. Supports glob patterns and a dry‑run mode.
+- `init`: interactively creates `modlist.json` with loader, game version, release types and mods folder settings.
+- `add`: fetches a mod from CurseForge or Modrinth, downloads it and updates both configuration files. Supports version pinning and version fallback.
+- `install`: ensures every mod listed in `modlist.json` is downloaded according to `modlist-lock.json`, reusing hashed versions when present.
+- `update`: checks for new releases of configured mods and updates both the local files and lock file.
+- `list`: prints the configured mods and whether they are currently installed.
+- `change`: verifies if a different Minecraft version is supported, rewrites configuration and reinstalls mods.
+- `test`: tests if a target game version is viable without altering the configuration. Exit codes signal success or failure.
+- `prune`: removes unmanaged files in the mods folder. Honours `.mmmignore` patterns and supports a force option.
+- `scan`: searches the mods directory for manually added files, matches them against the supported platforms and optionally updates the config.
+- `remove`: deletes one or more mods from the config and filesystem. Supports glob patterns and a dry-run mode.
 
 Detailed information about what each command does and how it behaves is captured in
 [the command reference specs](specs/README.md).
@@ -28,7 +28,7 @@ Environment variables include `CURSEFORGE_API_KEY`, `MODRINTH_API_KEY`, `POSTHOG
 
 ## Telemetry and Networking
 
-Telemetry events are sent through PostHog (`src/telemetry/telemetry.ts`). Network requests such as GitHub release checks and Minecraft version verification run through a custom rate‑limited fetch utility (`src/lib/rateLimiter`).
+Telemetry events are sent through PostHog (`src/telemetry/telemetry.ts`). Network requests such as GitHub release checks and Minecraft version verification run through a custom rate-limited fetch utility (`src/lib/rateLimiter`).
 
 ## Platform APIs
 
@@ -40,5 +40,4 @@ The project enforces 100% unit test coverage via Vitest (`vitest.config.ts`). An
 
 ## Bubbletea/Charm TUI Expectations
 
-The Go port will rely on the Bubbletea ecosystem for interactive consoles. Implementations should follow Charm’s recommended patterns: models must be testable, pure functions should return commands, and views should avoid side effects. Error messages and user prompts must match the current CLI behaviour.
-
+The Go port will rely on the Bubbletea ecosystem for interactive consoles. Implementations should follow Charm's recommended patterns: models must be testable, pure functions should return commands, and views should avoid side effects. Error messages and user prompts must match the current CLI behaviour.
