@@ -43,6 +43,12 @@ jobs:
           CURSEFORGE_API_KEY: ${{ secrets.CURSEFORGE_API_KEY }}
           POSTHOG_API_KEY: ${{ secrets.POSTHOG_API_KEY }}
 
+      - name: Generate third-party notices
+        run: make notices
+
+      - name: Generate SBOM
+        run: make sbom
+
 #      - name: Release
 #        if: ${{ steps.go.outputs.new-release-published == 'true'  }}
 #        env:

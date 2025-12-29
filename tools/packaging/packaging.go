@@ -14,7 +14,12 @@ import (
 	"strings"
 )
 
-const executableName = "mmm"
+const (
+	executableName  = "mmm"
+	metadataDirName = "metadata"
+	noticesFileName = "THIRD_PARTY_NOTICES.txt"
+	sbomFileName    = "mmm-sbom.json"
+)
 
 type buildArtifact struct {
 	goos   string
@@ -42,6 +47,10 @@ var zipCreateHeader = func(writer *zip.Writer, header *zip.FileHeader) (io.Write
 }
 var copyFile = io.Copy
 var openFile = os.Open
+var createFile = func(path string, mode os.FileMode) (*os.File, error) {
+	//nolint:gosec // output path is rooted in dist metadata dir with controlled filenames.
+	return os.OpenFile(path, os.O_WRONLY|os.O_CREATE|os.O_TRUNC, mode)
+}
 var closeInputFile = func(file *os.File) error { return file.Close() }
 var closeOutputFile = func(file *os.File) error { return file.Close() }
 var closeZipWriter = func(writer *zip.Writer) error { return writer.Close() }
@@ -100,8 +109,15 @@ func (tool *distTool) run(version string) error {
 	if err != nil {
 		return err
 	}
+	metadataFiles, err := findMetadataFiles(buildDir)
+	if err != nil {
+		return err
+	}
 
 	if err := resetDistDir(distDir); err != nil {
+		return err
+	}
+	if err := copyMetadataFiles(distDir, metadataFiles); err != nil {
 		return err
 	}
 
@@ -183,6 +199,78 @@ func findBuildArtifacts(buildDir string) ([]buildArtifact, error) {
 	return artifacts, nil
 }
 
+func findMetadataFiles(buildDir string) ([]string, error) {
+	metadataDir := filepath.Join(buildDir, metadataDirName)
+	metadataFiles := []string{
+		filepath.Join(metadataDir, noticesFileName),
+		filepath.Join(metadataDir, sbomFileName),
+	}
+
+	for _, metadataPath := range metadataFiles {
+		info, err := statFile(metadataPath)
+		if err != nil {
+			return nil, fmt.Errorf("error: stat metadata file %s: %w", metadataPath, err)
+		}
+		if !info.Mode().IsRegular() {
+			return nil, fmt.Errorf("error: metadata file is not a file: %s", metadataPath)
+		}
+	}
+
+	return metadataFiles, nil
+}
+
+func copyMetadataFiles(distDir string, metadataFiles []string) error {
+	metadataDistDir := filepath.Join(distDir, metadataDirName)
+	if err := mkdirAll(metadataDistDir, 0o755); err != nil {
+		return fmt.Errorf("error: create metadata dir: %w", err)
+	}
+
+	for _, metadataPath := range metadataFiles {
+		if err := copyMetadataFile(metadataDistDir, metadataPath); err != nil {
+			return err
+		}
+	}
+
+	return nil
+}
+
+func copyMetadataFile(distDir, inputPath string) (returnErr error) {
+	inputInfo, err := statFile(inputPath)
+	if err != nil {
+		return fmt.Errorf("error: stat metadata file %s: %w", inputPath, err)
+	}
+	if !inputInfo.Mode().IsRegular() {
+		return fmt.Errorf("error: metadata file is not a file: %s", inputPath)
+	}
+
+	inputFile, err := openFile(inputPath)
+	if err != nil {
+		return fmt.Errorf("error: open metadata file %s: %w", inputPath, err)
+	}
+	defer func() {
+		if closeErr := closeInputFile(inputFile); closeErr != nil {
+			returnErr = errors.Join(returnErr, fmt.Errorf("error: close metadata file %s: %w", inputPath, closeErr))
+		}
+	}()
+
+	outputPath := filepath.Join(distDir, filepath.Base(inputPath))
+	outputFile, err := createFile(outputPath, inputInfo.Mode())
+	if err != nil {
+		return fmt.Errorf("error: create metadata file %s: %w", outputPath, err)
+	}
+	defer func() {
+		if closeErr := closeOutputFile(outputFile); closeErr != nil {
+			returnErr = errors.Join(returnErr, fmt.Errorf("error: close metadata output %s: %w", outputPath, closeErr))
+		}
+	}()
+
+	if _, err := copyFile(outputFile, inputFile); err != nil {
+		return fmt.Errorf("error: copy metadata file %s: %w", inputPath, err)
+	}
+
+	return nil
+}
+
 func buildArtifactFromPath(path string) (buildArtifact, error) {
 	archDir := filepath.Base(filepath.Dir(path))
 	osDir := filepath.Base(filepath.Dir(filepath.Dir(path)))
@@ -230,14 +318,6 @@ func writeZipContents(zipEntryWriter io.Writer, inputPath string) (returnErr err
 }
 
 func writeZip(outputPath, inputPath string) (returnErr error) {
-	inputInfo, err := os.Stat(inputPath)
-	if err != nil {
-		return fmt.Errorf("error: stat build output %s: %w", inputPath, err)
-	}
-	if !inputInfo.Mode().IsRegular() {
-		return fmt.Errorf("error: build output is not a file: %s", inputPath)
-	}
-
 	//nolint:gosec // output path is rooted in dist dir with a sanitized version string.
 	outputFile, err := os.Create(outputPath)
 	if err != nil {
@@ -255,6 +335,14 @@ func writeZip(outputPath, inputPath string) (returnErr error) {
 			returnErr = errors.Join(returnErr, fmt.Errorf("error: close zip writer %s: %w", outputPath, closeErr))
 		}
 	}()
+
+	inputInfo, err := statFile(inputPath)
+	if err != nil {
+		return fmt.Errorf("error: stat build output %s: %w", inputPath, err)
+	}
+	if !inputInfo.Mode().IsRegular() {
+		return fmt.Errorf("error: build output is not a file: %s", inputPath)
+	}
 
 	header, err := buildZipHeader(inputInfo, inputPath)
 	if err != nil {

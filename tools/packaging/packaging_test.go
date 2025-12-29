@@ -9,6 +9,7 @@ import (
 	"log"
 	"os"
 	"path/filepath"
+	"reflect"
 	"strings"
 	"testing"
 )
@@ -49,6 +50,7 @@ func TestRunMainGetwdFailure(t *testing.T) {
 		stderrWriter = originalStderrWriter
 	})
 
+	setTestArgs(t)
 	flag.CommandLine = flag.NewFlagSet(os.Args[0], flag.ContinueOnError)
 
 	newDistToolFunc = func() (*distTool, error) {
@@ -68,6 +70,7 @@ func TestRunMainGetwdFailureWriteError(t *testing.T) {
 		stderrWriter = originalStderrWriter
 	})
 
+	setTestArgs(t)
 	flag.CommandLine = flag.NewFlagSet(os.Args[0], flag.ContinueOnError)
 
 	newDistToolFunc = func() (*distTool, error) {
@@ -88,6 +91,7 @@ func TestMainSuccessUsesExit(t *testing.T) {
 		exit = originalExit
 	})
 
+	setTestArgs(t)
 	flag.CommandLine = flag.NewFlagSet(os.Args[0], flag.ContinueOnError)
 
 	tempDir := t.TempDir()
@@ -99,6 +103,7 @@ func TestMainSuccessUsesExit(t *testing.T) {
 	if err := os.WriteFile(filepath.Join(buildDir, executableName), []byte("linux-binary"), 0o755); err != nil {
 		t.Fatalf("failed to write binary: %v", err)
 	}
+	writeMetadataFiles(t, tempDir)
 
 	newDistToolFunc = func() (*distTool, error) {
 		return &distTool{
@@ -125,6 +130,7 @@ func TestRunMainToolRunError(t *testing.T) {
 		newDistToolFunc = originalNewDistToolFunc
 	})
 
+	setTestArgs(t)
 	flag.CommandLine = flag.NewFlagSet(os.Args[0], flag.ContinueOnError)
 
 	newDistToolFunc = func() (*distTool, error) {
@@ -147,6 +153,7 @@ func TestRunMainToolRunErrorWriteError(t *testing.T) {
 		stderrWriter = originalStderrWriter
 	})
 
+	setTestArgs(t)
 	flag.CommandLine = flag.NewFlagSet(os.Args[0], flag.ContinueOnError)
 
 	newDistToolFunc = func() (*distTool, error) {
@@ -629,27 +636,12 @@ func TestWriteZipCloseOutputError(t *testing.T) {
 
 func TestDistToolRunCreatesZipsAndCleansDist(t *testing.T) {
 	tempDir := t.TempDir()
-	if err := os.WriteFile(filepath.Join(tempDir, "go.mod"), []byte("module example.com/test"), 0o644); err != nil {
-		t.Fatalf("failed to write go.mod: %v", err)
-	}
-
-	buildDir := filepath.Join(tempDir, "build", "linux", "amd64")
-	if err := os.MkdirAll(buildDir, 0o755); err != nil {
-		t.Fatalf("failed to create build dir: %v", err)
-	}
-	linuxBinary := filepath.Join(buildDir, executableName)
-	//nolint:gosec // test fixture requires executable perms for binary.
-	if err := os.WriteFile(linuxBinary, []byte("linux-binary"), 0o755); err != nil {
-		t.Fatalf("failed to write linux binary: %v", err)
-	}
+	writeGoMod(t, tempDir)
+	writeBuildArtifact(t, tempDir)
+	writeMetadataFiles(t, tempDir)
 
 	distDir := filepath.Join(tempDir, "dist")
-	if err := os.MkdirAll(distDir, 0o755); err != nil {
-		t.Fatalf("failed to create dist dir: %v", err)
-	}
-	if err := os.WriteFile(filepath.Join(distDir, "stale.txt"), []byte("stale"), 0o644); err != nil {
-		t.Fatalf("failed to write stale file: %v", err)
-	}
+	writeStaleDistFile(t, distDir)
 
 	logBuffer := &bytes.Buffer{}
 	tool := &distTool{
@@ -666,25 +658,183 @@ func TestDistToolRunCreatesZipsAndCleansDist(t *testing.T) {
 		t.Fatalf("expected zip to exist: %v", err)
 	}
 
-	if _, err := os.Stat(filepath.Join(distDir, "stale.txt")); !errors.Is(err, os.ErrNotExist) {
-		t.Fatalf("expected stale file removed, got %v", err)
+	assertStaleFileRemoved(t, distDir)
+	assertZipContainsBinary(t, expectedZip)
+	assertMetadataFilesInDist(t, distDir)
+}
+
+func TestCopyMetadataFilesCopiesToDistDir(t *testing.T) {
+	tempDir := t.TempDir()
+	sourceDir := filepath.Join(tempDir, "source")
+	if err := os.MkdirAll(sourceDir, 0o755); err != nil {
+		t.Fatalf("failed to create source dir: %v", err)
+	}
+	noticesPath := filepath.Join(sourceDir, noticesFileName)
+	sbomPath := filepath.Join(sourceDir, sbomFileName)
+	if err := os.WriteFile(noticesPath, []byte("notices"), 0o644); err != nil {
+		t.Fatalf("failed to write notices: %v", err)
+	}
+	if err := os.WriteFile(sbomPath, []byte("sbom"), 0o644); err != nil {
+		t.Fatalf("failed to write sbom: %v", err)
 	}
 
-	zipReader, err := zip.OpenReader(expectedZip)
-	if err != nil {
-		t.Fatalf("failed to open zip: %v", err)
+	distDir := filepath.Join(tempDir, "dist")
+	if err := copyMetadataFiles(distDir, []string{noticesPath, sbomPath}); err != nil {
+		t.Fatalf("expected no error, got %v", err)
 	}
-	t.Cleanup(func() {
-		if err := zipReader.Close(); err != nil {
-			t.Fatalf("failed to close zip reader: %v", err)
+
+	for _, fileName := range []string{noticesFileName, sbomFileName} {
+		metadataPath := filepath.Join(distDir, metadataDirName, fileName)
+		if _, err := os.Stat(metadataPath); err != nil {
+			t.Fatalf("expected metadata file %s: %v", metadataPath, err)
 		}
-	})
-
-	if len(zipReader.File) != 1 {
-		t.Fatalf("expected one file in zip, got %d", len(zipReader.File))
 	}
-	if zipReader.File[0].Name != executableName {
-		t.Fatalf("expected zip entry %q, got %q", executableName, zipReader.File[0].Name)
+}
+
+func TestCopyMetadataFilesMkdirError(t *testing.T) {
+	originalMkdirAll := mkdirAll
+	t.Cleanup(func() {
+		mkdirAll = originalMkdirAll
+	})
+	mkdirAll = func(string, os.FileMode) error {
+		return errors.New("mkdir failed")
+	}
+
+	if err := copyMetadataFiles(t.TempDir(), []string{"missing"}); err == nil {
+		t.Fatal("expected error, got nil")
+	}
+}
+
+func TestCopyMetadataFilesPropagatesCopyError(t *testing.T) {
+	tempDir := t.TempDir()
+	metadataDir := filepath.Join(tempDir, "metadata")
+	if err := os.MkdirAll(metadataDir, 0o755); err != nil {
+		t.Fatalf("failed to create metadata dir: %v", err)
+	}
+	if err := os.MkdirAll(filepath.Join(metadataDir, noticesFileName), 0o755); err != nil {
+		t.Fatalf("failed to create notices dir: %v", err)
+	}
+
+	if err := copyMetadataFiles(t.TempDir(), []string{filepath.Join(metadataDir, noticesFileName)}); err == nil {
+		t.Fatal("expected error, got nil")
+	}
+}
+
+func TestCopyMetadataFileOpenError(t *testing.T) {
+	originalOpenFile := openFile
+	t.Cleanup(func() {
+		openFile = originalOpenFile
+	})
+	openFile = func(string) (*os.File, error) {
+		return nil, errors.New("open failed")
+	}
+
+	tempDir := t.TempDir()
+	inputPath := filepath.Join(tempDir, noticesFileName)
+	if err := os.WriteFile(inputPath, []byte("notices"), 0o644); err != nil {
+		t.Fatalf("failed to write notices: %v", err)
+	}
+
+	if err := copyMetadataFile(tempDir, inputPath); err == nil {
+		t.Fatal("expected error, got nil")
+	}
+}
+
+func TestCopyMetadataFileCopyError(t *testing.T) {
+	originalCopyFile := copyFile
+	t.Cleanup(func() {
+		copyFile = originalCopyFile
+	})
+	copyFile = func(io.Writer, io.Reader) (int64, error) {
+		return 0, errors.New("copy failed")
+	}
+
+	tempDir := t.TempDir()
+	inputPath := filepath.Join(tempDir, noticesFileName)
+	if err := os.WriteFile(inputPath, []byte("notices"), 0o644); err != nil {
+		t.Fatalf("failed to write notices: %v", err)
+	}
+
+	if err := copyMetadataFile(tempDir, inputPath); err == nil {
+		t.Fatal("expected error, got nil")
+	}
+}
+
+func TestCopyMetadataFileStatError(t *testing.T) {
+	originalStatFile := statFile
+	t.Cleanup(func() {
+		statFile = originalStatFile
+	})
+	statFile = func(string) (os.FileInfo, error) {
+		return nil, errors.New("stat failed")
+	}
+
+	if err := copyMetadataFile(t.TempDir(), filepath.Join(t.TempDir(), noticesFileName)); err == nil {
+		t.Fatal("expected error, got nil")
+	}
+}
+
+func TestCopyMetadataFileCloseInputError(t *testing.T) {
+	originalCloseInputFile := closeInputFile
+	t.Cleanup(func() {
+		closeInputFile = originalCloseInputFile
+	})
+	closeErr := errors.New("close input failed")
+	closeInputFile = func(file *os.File) error {
+		if err := file.Close(); err != nil {
+			return errors.Join(err, closeErr)
+		}
+		return closeErr
+	}
+
+	tempDir := t.TempDir()
+	inputPath := filepath.Join(tempDir, noticesFileName)
+	if err := os.WriteFile(inputPath, []byte("notices"), 0o644); err != nil {
+		t.Fatalf("failed to write notices: %v", err)
+	}
+
+	if err := copyMetadataFile(tempDir, inputPath); err == nil {
+		t.Fatal("expected error, got nil")
+	} else if !errors.Is(err, closeErr) {
+		t.Fatalf("expected close input error, got %v", err)
+	}
+}
+
+func TestCopyMetadataFileCloseOutputError(t *testing.T) {
+	originalCloseOutputFile := closeOutputFile
+	t.Cleanup(func() {
+		closeOutputFile = originalCloseOutputFile
+	})
+	closeErr := errors.New("close output failed")
+	closeOutputFile = func(file *os.File) error {
+		if err := file.Close(); err != nil {
+			return errors.Join(err, closeErr)
+		}
+		return closeErr
+	}
+
+	tempDir := t.TempDir()
+	inputPath := filepath.Join(tempDir, noticesFileName)
+	if err := os.WriteFile(inputPath, []byte("notices"), 0o644); err != nil {
+		t.Fatalf("failed to write notices: %v", err)
+	}
+
+	if err := copyMetadataFile(tempDir, inputPath); err == nil {
+		t.Fatal("expected error, got nil")
+	} else if !errors.Is(err, closeErr) {
+		t.Fatalf("expected close output error, got %v", err)
+	}
+}
+
+func TestCopyMetadataFileRejectsNonFile(t *testing.T) {
+	tempDir := t.TempDir()
+	inputPath := filepath.Join(tempDir, noticesFileName)
+	if err := os.MkdirAll(inputPath, 0o755); err != nil {
+		t.Fatalf("failed to create notices dir: %v", err)
+	}
+
+	if err := copyMetadataFile(tempDir, inputPath); err == nil {
+		t.Fatal("expected error, got nil")
 	}
 }
 
@@ -718,6 +868,52 @@ func TestDistToolRunDoesNotCleanDistWhenNoArtifacts(t *testing.T) {
 	}
 }
 
+func TestDistToolRunDoesNotCleanDistWhenMetadataMissing(t *testing.T) {
+	tempDir := t.TempDir()
+	if err := os.WriteFile(filepath.Join(tempDir, "go.mod"), []byte("module example.com/test"), 0o644); err != nil {
+		t.Fatalf("failed to write go.mod: %v", err)
+	}
+
+	buildDir := filepath.Join(tempDir, "build", "linux", "amd64")
+	if err := os.MkdirAll(buildDir, 0o755); err != nil {
+		t.Fatalf("failed to create build dir: %v", err)
+	}
+	//nolint:gosec // test fixture requires executable perms for binary.
+	if err := os.WriteFile(filepath.Join(buildDir, executableName), []byte("linux-binary"), 0o755); err != nil {
+		t.Fatalf("failed to write binary: %v", err)
+	}
+
+	metadataDir := filepath.Join(tempDir, "build", metadataDirName)
+	if err := os.MkdirAll(metadataDir, 0o755); err != nil {
+		t.Fatalf("failed to create metadata dir: %v", err)
+	}
+	if err := os.WriteFile(filepath.Join(metadataDir, noticesFileName), []byte("notices"), 0o644); err != nil {
+		t.Fatalf("failed to write notices: %v", err)
+	}
+
+	distDir := filepath.Join(tempDir, "dist")
+	if err := os.MkdirAll(distDir, 0o755); err != nil {
+		t.Fatalf("failed to create dist dir: %v", err)
+	}
+	stalePath := filepath.Join(distDir, "stale.txt")
+	if err := os.WriteFile(stalePath, []byte("stale"), 0o644); err != nil {
+		t.Fatalf("failed to write stale file: %v", err)
+	}
+
+	tool := &distTool{
+		repoRoot: tempDir,
+		logger:   log.New(&bytes.Buffer{}, "dist: ", 0),
+	}
+
+	if err := tool.run("1.2.3"); err == nil {
+		t.Fatal("expected error, got nil")
+	}
+
+	if _, err := os.Stat(stalePath); err != nil {
+		t.Fatalf("expected dist contents to remain, got %v", err)
+	}
+}
+
 func TestDistToolRunResetDistDirError(t *testing.T) {
 	originalRemoveAll := removeAll
 	t.Cleanup(func() {
@@ -736,6 +932,7 @@ func TestDistToolRunResetDistDirError(t *testing.T) {
 	if err := os.WriteFile(filepath.Join(buildDir, executableName), []byte("linux-binary"), 0o755); err != nil {
 		t.Fatalf("failed to write binary: %v", err)
 	}
+	writeMetadataFiles(t, tempDir)
 
 	tool := &distTool{
 		repoRoot: tempDir,
@@ -766,6 +963,31 @@ func TestDistToolRunWriteZipError(t *testing.T) {
 	if err := os.WriteFile(filepath.Join(buildDir, executableName), []byte("linux-binary"), 0o755); err != nil {
 		t.Fatalf("failed to write binary: %v", err)
 	}
+	writeMetadataFiles(t, tempDir)
+
+	tool := &distTool{
+		repoRoot: tempDir,
+		logger:   log.New(&bytes.Buffer{}, "dist: ", 0),
+	}
+
+	if err := tool.run("dev"); err == nil {
+		t.Fatal("expected error, got nil")
+	}
+}
+
+func TestDistToolRunCopyMetadataError(t *testing.T) {
+	originalCreateFile := createFile
+	t.Cleanup(func() {
+		createFile = originalCreateFile
+	})
+	createFile = func(string, os.FileMode) (*os.File, error) {
+		return nil, errors.New("create failed")
+	}
+
+	tempDir := t.TempDir()
+	writeGoMod(t, tempDir)
+	writeBuildArtifact(t, tempDir)
+	writeMetadataFiles(t, tempDir)
 
 	tool := &distTool{
 		repoRoot: tempDir,
@@ -791,4 +1013,191 @@ func TestDistToolRunNoArtifactsReturnsError(t *testing.T) {
 	if err := tool.run("dev"); err == nil {
 		t.Fatal("expected error, got nil")
 	}
+}
+
+func TestFindMetadataFilesReturnsFiles(t *testing.T) {
+	tempDir := t.TempDir()
+	metadataDir := filepath.Join(tempDir, metadataDirName)
+	if err := os.MkdirAll(metadataDir, 0o755); err != nil {
+		t.Fatalf("failed to create metadata dir: %v", err)
+	}
+	noticesPath := filepath.Join(metadataDir, noticesFileName)
+	sbomPath := filepath.Join(metadataDir, sbomFileName)
+	if err := os.WriteFile(noticesPath, []byte("notices"), 0o644); err != nil {
+		t.Fatalf("failed to write notices: %v", err)
+	}
+	if err := os.WriteFile(sbomPath, []byte("sbom"), 0o644); err != nil {
+		t.Fatalf("failed to write sbom: %v", err)
+	}
+
+	metadataFiles, err := findMetadataFiles(tempDir)
+	if err != nil {
+		t.Fatalf("expected no error, got %v", err)
+	}
+	expectedFiles := []string{noticesPath, sbomPath}
+	if !reflect.DeepEqual(metadataFiles, expectedFiles) {
+		t.Fatalf("expected metadata files %v, got %v", expectedFiles, metadataFiles)
+	}
+}
+
+func TestFindMetadataFilesMissingFile(t *testing.T) {
+	tempDir := t.TempDir()
+	metadataDir := filepath.Join(tempDir, metadataDirName)
+	if err := os.MkdirAll(metadataDir, 0o755); err != nil {
+		t.Fatalf("failed to create metadata dir: %v", err)
+	}
+	if err := os.WriteFile(filepath.Join(metadataDir, noticesFileName), []byte("notices"), 0o644); err != nil {
+		t.Fatalf("failed to write notices: %v", err)
+	}
+
+	if _, err := findMetadataFiles(tempDir); err == nil {
+		t.Fatal("expected error, got nil")
+	}
+}
+
+func TestFindMetadataFilesRejectsNonFile(t *testing.T) {
+	tempDir := t.TempDir()
+	metadataDir := filepath.Join(tempDir, metadataDirName)
+	if err := os.MkdirAll(metadataDir, 0o755); err != nil {
+		t.Fatalf("failed to create metadata dir: %v", err)
+	}
+	if err := os.MkdirAll(filepath.Join(metadataDir, noticesFileName), 0o755); err != nil {
+		t.Fatalf("failed to create notices dir: %v", err)
+	}
+	if err := os.WriteFile(filepath.Join(metadataDir, sbomFileName), []byte("sbom"), 0o644); err != nil {
+		t.Fatalf("failed to write sbom: %v", err)
+	}
+
+	if _, err := findMetadataFiles(tempDir); err == nil {
+		t.Fatal("expected error, got nil")
+	}
+}
+
+func TestCopyMetadataFileCreateError(t *testing.T) {
+	originalCreateFile := createFile
+	t.Cleanup(func() {
+		createFile = originalCreateFile
+	})
+	createFile = func(string, os.FileMode) (*os.File, error) {
+		return nil, errors.New("create failed")
+	}
+
+	tempDir := t.TempDir()
+	inputPath := filepath.Join(tempDir, noticesFileName)
+	if err := os.WriteFile(inputPath, []byte("notices"), 0o644); err != nil {
+		t.Fatalf("failed to write notices: %v", err)
+	}
+
+	if err := copyMetadataFile(tempDir, inputPath); err == nil {
+		t.Fatal("expected error, got nil")
+	}
+}
+
+func writeMetadataFiles(t *testing.T, repoRoot string) {
+	t.Helper()
+
+	metadataDir := filepath.Join(repoRoot, "build", metadataDirName)
+	if err := os.MkdirAll(metadataDir, 0o755); err != nil {
+		t.Fatalf("failed to create metadata dir: %v", err)
+	}
+	if err := os.WriteFile(filepath.Join(metadataDir, noticesFileName), []byte("notices"), 0o644); err != nil {
+		t.Fatalf("failed to write notices: %v", err)
+	}
+	if err := os.WriteFile(filepath.Join(metadataDir, sbomFileName), []byte("sbom"), 0o644); err != nil {
+		t.Fatalf("failed to write sbom: %v", err)
+	}
+}
+
+func writeGoMod(t *testing.T, repoRoot string) {
+	t.Helper()
+
+	if err := os.WriteFile(filepath.Join(repoRoot, "go.mod"), []byte("module example.com/test"), 0o644); err != nil {
+		t.Fatalf("failed to write go.mod: %v", err)
+	}
+}
+
+func writeBuildArtifact(t *testing.T, repoRoot string) {
+	t.Helper()
+
+	buildDir := filepath.Join(repoRoot, "build", "linux", "amd64")
+	if err := os.MkdirAll(buildDir, 0o755); err != nil {
+		t.Fatalf("failed to create build dir: %v", err)
+	}
+	linuxBinary := filepath.Join(buildDir, executableName)
+	//nolint:gosec // test fixture requires executable perms for binary.
+	if err := os.WriteFile(linuxBinary, []byte("linux-binary"), 0o755); err != nil {
+		t.Fatalf("failed to write linux binary: %v", err)
+	}
+}
+
+func writeStaleDistFile(t *testing.T, distDir string) {
+	t.Helper()
+
+	if err := os.MkdirAll(distDir, 0o755); err != nil {
+		t.Fatalf("failed to create dist dir: %v", err)
+	}
+	if err := os.WriteFile(filepath.Join(distDir, "stale.txt"), []byte("stale"), 0o644); err != nil {
+		t.Fatalf("failed to write stale file: %v", err)
+	}
+}
+
+func assertStaleFileRemoved(t *testing.T, distDir string) {
+	t.Helper()
+
+	if _, err := os.Stat(filepath.Join(distDir, "stale.txt")); !errors.Is(err, os.ErrNotExist) {
+		t.Fatalf("expected stale file removed, got %v", err)
+	}
+}
+
+func assertZipContainsBinary(t *testing.T, zipPath string) {
+	t.Helper()
+
+	zipReader, err := zip.OpenReader(zipPath)
+	if err != nil {
+		t.Fatalf("failed to open zip: %v", err)
+	}
+	t.Cleanup(func() {
+		if closeErr := zipReader.Close(); closeErr != nil {
+			t.Fatalf("failed to close zip reader: %v", closeErr)
+		}
+	})
+
+	if len(zipReader.File) != 1 {
+		t.Fatalf("expected one file in zip, got %d", len(zipReader.File))
+	}
+	if zipReader.File[0].Name != executableName {
+		t.Fatalf("expected zip entry %q, got %q", executableName, zipReader.File[0].Name)
+	}
+}
+
+func assertMetadataFilesInDist(t *testing.T, distDir string) {
+	t.Helper()
+
+	metadataDir := filepath.Join(distDir, metadataDirName)
+	metadataEntries, err := os.ReadDir(metadataDir)
+	if err != nil {
+		t.Fatalf("expected metadata dir to exist: %v", err)
+	}
+	if len(metadataEntries) != 2 {
+		t.Fatalf("expected two metadata files, got %d", len(metadataEntries))
+	}
+	metadataNames := make(map[string]bool, len(metadataEntries))
+	for _, entry := range metadataEntries {
+		metadataNames[entry.Name()] = true
+	}
+	for _, expectedName := range []string{noticesFileName, sbomFileName} {
+		if !metadataNames[expectedName] {
+			t.Fatalf("expected metadata file %q in dist metadata dir", expectedName)
+		}
+	}
+}
+
+func setTestArgs(t *testing.T) {
+	t.Helper()
+
+	originalArgs := os.Args
+	t.Cleanup(func() {
+		os.Args = originalArgs
+	})
+	os.Args = []string{"packaging.test"}
 }

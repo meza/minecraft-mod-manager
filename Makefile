@@ -4,6 +4,9 @@
 APP_NAME := minecraft-mod-manager
 EXECUTABLE_NAME := mmm
 BUILD_DIR := build
+METADATA_DIR := $(BUILD_DIR)/metadata
+NOTICES_FILE := $(METADATA_DIR)/THIRD_PARTY_NOTICES.txt
+SBOM_FILE := $(METADATA_DIR)/mmm-sbom.json
 VERSION ?= dev
 GOLANGCI_LINT_TOOLCHAIN := go1.25.5
 GOVULNCHECK_TOOLCHAIN := go1.25.5
@@ -54,7 +57,7 @@ endef
 endif
 
 # Targets
-.PHONY: all clean fmt fmt-check lint lint-fix vuln build dist prepare test test-race coverage mod-download
+.PHONY: all clean fmt fmt-check lint lint-fix vuln build dist prepare test test-race coverage mod-download notices sbom
 
 # Build for all platforms
 all: clean build
@@ -109,7 +112,23 @@ endif
 build:
 	go run ./tools/build
 
-dist:
+notices:
+	$(call MKDIR_P,$(METADATA_DIR))
+ifeq ($(OSFAMILY), Windows)
+	@powershell -NoProfile -Command "$$env:GOTOOLCHAIN='$(GOVULNCHECK_TOOLCHAIN)'; go run github.com/google/go-licenses@v1.6.0 report ./... | Out-File -FilePath '$(NOTICES_FILE)' -Encoding utf8"
+else
+	@GOTOOLCHAIN=$(GOVULNCHECK_TOOLCHAIN) go run github.com/google/go-licenses@v1.6.0 report ./... > "$(NOTICES_FILE)"
+endif
+
+sbom:
+	$(call MKDIR_P,$(METADATA_DIR))
+ifeq ($(OSFAMILY), Windows)
+	@powershell -NoProfile -Command "$$env:GOTOOLCHAIN='$(GOVULNCHECK_TOOLCHAIN)'; go run github.com/CycloneDX/cyclonedx-gomod/cmd/cyclonedx-gomod@v1.9.0 mod -licenses -json -output '$(SBOM_FILE)'"
+else
+	@GOTOOLCHAIN=$(GOVULNCHECK_TOOLCHAIN) go run github.com/CycloneDX/cyclonedx-gomod/cmd/cyclonedx-gomod@v1.9.0 mod -licenses -json -output "$(SBOM_FILE)"
+endif
+
+dist: notices sbom
 	go run ./tools/packaging --version "$(VERSION)"
 
 prepare:

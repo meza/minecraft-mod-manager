@@ -742,3 +742,12 @@ mmm-137 in progress: scanned exported decls missing GoDoc (454 missing across 87
 2025-12-28	21:36	Reviewer approved mmm-63.68 changes; Windows winhost make lint/build/coverage/test-race pass with PSReadLine VT warning.
 2025-12-28	22:01	mmm-63.38: replaced localized pgup/pgdown key identifiers with canonical key strings in TUI bindings; updated keymap snapshots; make fmt/lint/coverage/build/test and Windows winhost checks pass.
 2025-12-28	22:05	mmm-63.38 review approved; updated keybindings to use canonical pgup/pgdown, snapshots updated; Windows winhost checks pass (PSReadLine VT warning).
+2025-12-28	22:42	mmm-129 updates: SECURITY.md now points to Discord for private security reports and references CI vuln checks; issue template config adds security contact link; bug report template adds required repro steps (no debug output field).
+2025-12-28	22:59	Started mmm-63.33 (SBOM/third-party notices); will add tooling targets, packaging, and CI wiring per ticket.
+2025-12-28	23:13	mmm-63.33 updates: added notices/SBOM generation (Makefile targets + CI), packaged metadata into dist zips with tests; make fmt-check/lint/vuln/coverage/build pass; Windows winhost lint/build/coverage/test-race pass with PSReadLine VT warning.
+2025-12-28	23:20	Reviewer approved mmm-63.33; code-review.md updated after local + Windows verification (winhost lint/build/coverage/test-race pass with PSReadLine warning).
+2025-12-28	23:29	Adjusted Makefile notices/sbom targets to use GOTOOLCHAIN and explicit module versions; verified make notices/make sbom, reran required make checks and Windows verification.
+2025-12-28	23:34	Reviewer re-approved mmm-63.33 after Makefile toolchain/version fixes; code-review.md updated with new timestamp and Windows verification.
+2025-12-28	23:50	Adjusted packaging to keep notices/SBOM out of zips, copy to dist/metadata; expanded tests; reran make fmt-check/lint/vuln/coverage/build, make notices/sbom, and Windows verification.
+2025-12-28	23:56	Reviewer approved mmm-63.33 after moving notices/SBOM out of zips; code-review.md updated with new timestamp and Windows verification.
+2025-12-29	00:02	Closed mmm-63.33 and mmm-127 per user request after review approval.
