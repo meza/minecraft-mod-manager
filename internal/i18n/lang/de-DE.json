@@ -131,6 +131,7 @@
   "cmd.test.debug.checking": "[test] Prüfe {name} für {platform} auf {version}",
   "cmd.test.error.fetch_details": "Fehler beim Prüfen von {name} auf {platform}: {error}. Details: {details}",
   "cmd.test.error.platform": "Konnte {name} auf {platform} nicht prüfen. {reason}",
+  "cmd.test.error.platform_details": "Details zu {name} auf {platform}: {details}",
   "cmd.test.error.mod_not_found": "{name} ({id}) ist auf {platform} nicht mehr verfügbar.",
   "cmd.test.error.no_file": "{platform} hat keine passende Datei für {name} ({id}).",
   "cmd.test.debug.platform_error": "Debug: {name} auf {platform} fehlgeschlagen: {error}. Details: {details}",

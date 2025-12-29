@@ -1177,11 +1177,72 @@ func TestFetchFailureDebugEventUsesResponseErrorDetails(t *testing.T) {
 	assert.Contains(t, event.Message, "status=403")
 }
 
+func TestFetchFailureDetailEventUsesResponseErrorDetails(t *testing.T) {
+	t.Setenv("MMM_TEST", "true")
+
+	mod := models.Mod{ID: "proj-1", Name: "Example", Type: models.MODRINTH}
+
+	event, ok := fetchFailureDetailEvent(&httpclient.ResponseError{
+		Method:     http.MethodGet,
+		URL:        "https://example.invalid",
+		StatusCode: http.StatusForbidden,
+	}, mod)
+
+	assert.True(t, ok)
+	assert.Equal(t, logEventKindError, event.Kind)
+	assert.Contains(t, event.Message, "cmd.test.error.platform_details")
+	assert.Contains(t, event.Message, "status=403")
+}
+
+func TestFetchFailureDetailEventReturnsFalseForNil(t *testing.T) {
+	event, ok := fetchFailureDetailEvent(nil, models.Mod{})
+
+	assert.False(t, ok)
+	assert.Equal(t, logEvent{}, event)
+}
+
+func TestFetchFailureDetailEventSkipsNotFound(t *testing.T) {
+	mod := models.Mod{ID: "proj-1", Name: "Example", Type: models.MODRINTH}
+
+	event, ok := fetchFailureDetailEvent(&platform.ModNotFoundError{
+		Platform:  models.MODRINTH,
+		ProjectID: "proj-1",
+	}, mod)
+
+	assert.False(t, ok)
+	assert.Equal(t, logEvent{}, event)
+}
+
+func TestFetchFailureDetailEventSkipsNoCompatibleFile(t *testing.T) {
+	mod := models.Mod{ID: "proj-1", Name: "Example", Type: models.MODRINTH}
+
+	event, ok := fetchFailureDetailEvent(&platform.NoCompatibleFileError{
+		Platform:  models.MODRINTH,
+		ProjectID: "proj-1",
+	}, mod)
+
+	assert.False(t, ok)
+	assert.Equal(t, logEvent{}, event)
+}
+
+func TestFetchFailureDetailEventReturnsFalseForEmptyDetails(t *testing.T) {
+	mod := models.Mod{ID: "proj-1", Name: "Example", Type: models.MODRINTH}
+
+	event, ok := fetchFailureDetailEvent(emptyError{}, mod)
+
+	assert.False(t, ok)
+	assert.Equal(t, logEvent{}, event)
+}
+
 type fakeTTYWriter struct {
 	*bytes.Buffer
 }
 
 func (writer fakeTTYWriter) Fd() uintptr { return 1 }
+
+type emptyError struct{}
+
+func (emptyError) Error() string { return "" }
 
 func TestRunTestReturnsContextErrorWhenCanceled(t *testing.T) {
 	ctx, cancel := context.WithCancel(context.Background())

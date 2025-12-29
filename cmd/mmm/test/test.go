@@ -311,6 +311,9 @@ func checkMod(
 	if fetchErr != nil {
 		outcome.Supported = false
 		outcome.LogEvents = append(outcome.LogEvents, fetchFailureUserEvent(fetchErr, mod))
+		if detailEvent, ok := fetchFailureDetailEvent(fetchErr, mod); ok {
+			outcome.LogEvents = append(outcome.LogEvents, detailEvent)
+		}
 
 		if debugEvent, ok := fetchFailureDebugEvent(fetchErr, mod, cfg, targetVersion, fetchOpts); ok {
 			outcome.LogEvents = append(outcome.LogEvents, debugEvent)
@@ -391,6 +394,43 @@ func fetchFailureUserEvent(fetchErr error, mod models.Mod) logEvent {
 			},
 		}),
 	}
+}
+
+func fetchFailureDetailEvent(fetchErr error, mod models.Mod) (logEvent, bool) {
+	if fetchErr == nil {
+		return logEvent{}, false
+	}
+
+	var notFound *platform.ModNotFoundError
+	if errors.As(fetchErr, &notFound) {
+		return logEvent{}, false
+	}
+
+	var noFile *platform.NoCompatibleFileError
+	if errors.As(fetchErr, &noFile) {
+		return logEvent{}, false
+	}
+
+	summary, _ := clierrors.SummarizePlatformError(fetchErr, mod.Type)
+
+	details := summary.DebugDetails
+	if strings.TrimSpace(details) == "" {
+		details = fetchErr.Error()
+	}
+	if strings.TrimSpace(details) == "" {
+		return logEvent{}, false
+	}
+
+	return logEvent{
+		Kind: logEventKindError,
+		Message: i18n.T("cmd.test.error.platform_details", &i18n.Tvars{
+			Data: &i18n.TData{
+				"name":     mod.Name,
+				"platform": mod.Type,
+				"details":  details,
+			},
+		}),
+	}, true
 }
 
 func fetchFailureDebugEvent(fetchErr error, mod models.Mod, cfg models.ModsJSON, targetVersion string, opts platform.FetchOptions) (logEvent, bool) {

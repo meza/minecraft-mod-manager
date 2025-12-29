@@ -145,6 +145,7 @@
   "cmd.test.debug.checking": "[test] Checking {name} for {platform} on {version}",
   "cmd.test.error.fetch_details": "Failed to check {name} on {platform}: {error}. Details: {details}",
   "cmd.test.error.platform": "Could not check {name} on {platform}. {reason}",
+  "cmd.test.error.platform_details": "Details for {name} on {platform}: {details}",
   "cmd.test.error.mod_not_found": "{name} ({id}) is no longer available on {platform}.",
   "cmd.test.error.no_file": "{platform} does not have a compatible file for {name} ({id}).",
   "cmd.test.debug.platform_error": "Debug: {name} on {platform} failed: {error}. Details: {details}",

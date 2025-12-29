@@ -783,3 +783,4 @@ mmm-137 in progress: scanned exported decls missing GoDoc (454 missing across 87
 2025-12-29	12:41	Re-check open tickets: mmm-55 appears implemented via internal/mmmignore package, README updates, and install/scan integration; others still valid.
 2025-12-29	12:52	mmm-74 fix in progress: install preflight now emits platform error details (including fingerprints + response info) via new i18n key; tests updated.
 2025-12-29	13:17	mmm-74: added platform error details line + snapshot coverage; make fmt/lint/coverage/build pass; Windows winhost checks pass; reviewer approved.
+2025-12-29	13:32	mmm-73 fix in progress: add non-debug platform error details line to test command output; snapshot updated; make fmt/lint/coverage/build pass; Windows checks pass.

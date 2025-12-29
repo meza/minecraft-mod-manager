@@ -113,6 +113,7 @@
   "cmd.test.debug.checking": "[test] Vérification de {name} pour {platform} sur {version}",
   "cmd.test.error.fetch_details": "Échec lors de la vérification de {name} sur {platform}: {error}. Détails: {details}",
   "cmd.test.error.platform": "Impossible de vérifier {name} sur {platform}. {reason}",
+  "cmd.test.error.platform_details": "Details pour {name} sur {platform} : {details}",
   "cmd.test.error.mod_not_found": "{name} ({id}) n'est plus disponible sur {platform}.",
   "cmd.test.error.no_file": "{platform} n'a pas de fichier compatible pour {name} ({id}).",
   "cmd.test.debug.platform_error": "Debug: {name} sur {platform} a échoué: {error}. Détails: {details}",
