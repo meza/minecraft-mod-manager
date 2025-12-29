@@ -192,14 +192,8 @@ func handleTestCommandError(cmd *cobra.Command, err error) {
 		return
 	}
 	cmd.SilenceUsage = true
-	// Suppress cobra's error printing for errors that we have already
-	// logged or that should not produce additional output.
-	var exitErr *exitCodeError
-	if errors.As(err, &exitErr) {
-		// Exit code errors (like same-version) are already logged; suppress cobra output
-		cmd.SilenceErrors = true
-	} else if errors.Is(err, errLatestVersionRequired) || errors.Is(err, errInvalidVersion) || errors.Is(err, errVersionValidationUnavailable) {
-		// These errors are already logged via deps.output.Error(); suppress cobra output
+	// Suppress cobra's error printing for errors that we have already logged.
+	if clierrors.IsHandled(err) {
 		cmd.SilenceErrors = true
 	}
 }
@@ -490,7 +484,7 @@ func resolveTargetVersion(ctx context.Context, cfg models.ModsJSON, opts testOpt
 		if outputErr := deps.output.Error(i18n.T("cmd.test.error.version_unavailable", nil)); outputErr != nil {
 			return "", 0, outputErr
 		}
-		return "", 0, errVersionValidationUnavailable
+		return "", 0, clierrors.MarkHandled(errVersionValidationUnavailable)
 	}
 	if !valid {
 		if outputErr := deps.output.Error(i18n.T("cmd.test.error.invalid_version", &i18n.Tvars{
@@ -498,7 +492,7 @@ func resolveTargetVersion(ctx context.Context, cfg models.ModsJSON, opts testOpt
 		})); outputErr != nil {
 			return "", 0, outputErr
 		}
-		return "", 0, errInvalidVersion
+		return "", 0, clierrors.MarkHandled(errInvalidVersion)
 	}
 
 	if targetVersion == cfg.GameVersion {
@@ -508,7 +502,7 @@ func resolveTargetVersion(ctx context.Context, cfg models.ModsJSON, opts testOpt
 			return "", 0, outputErr
 		}
 		// Return exit code 2 via errSameVersion so it propagates through main.go
-		return targetVersion, 2, errSameVersion
+		return targetVersion, 2, clierrors.MarkHandled(errSameVersion)
 	}
 
 	return targetVersion, 0, nil
@@ -522,7 +516,7 @@ func resolveLatestVersion(ctx context.Context, deps testDeps) (string, error) {
 		if outputErr := deps.output.Error(i18n.T("cmd.test.error.latest_unavailable", nil)); outputErr != nil {
 			return "", outputErr
 		}
-		return "", errLatestVersionRequired
+		return "", clierrors.MarkHandled(errLatestVersionRequired)
 	}
 	return latest, nil
 }
@@ -625,5 +619,5 @@ func reportUnsupportedMods(targetVersion string, unsupportedMods []modCheckOutco
 		return 0, outputErr
 	}
 
-	return 1, errUnsupportedMods
+	return 1, clierrors.MarkHandled(errUnsupportedMods)
 }

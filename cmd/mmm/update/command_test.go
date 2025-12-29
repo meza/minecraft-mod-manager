@@ -3,10 +3,12 @@ package update
 import (
 	"bytes"
 	"context"
+	"errors"
 	"io"
 	"path/filepath"
 	"testing"
 
+	"github.com/meza/minecraft-mod-manager/internal/clierrors"
 	"github.com/spf13/afero"
 	"github.com/spf13/cobra"
 	"github.com/stretchr/testify/assert"
@@ -57,6 +59,33 @@ func TestCommandMissingDebugFlagErrors(t *testing.T) {
 	setCommandOutputForTesting(cmd)
 
 	assert.Error(t, runE(cmd, []string{}))
+}
+
+func TestApplyUpdateCommandErrorPolicyHandledError(t *testing.T) {
+	cmd := &cobra.Command{}
+
+	applyUpdateCommandErrorPolicy(cmd, clierrors.MarkHandled(assert.AnError))
+
+	assert.True(t, cmd.SilenceErrors)
+	assert.True(t, cmd.SilenceUsage)
+}
+
+func TestApplyUpdateCommandErrorPolicyUnhandledError(t *testing.T) {
+	cmd := &cobra.Command{}
+
+	applyUpdateCommandErrorPolicy(cmd, errors.New("boom"))
+
+	assert.True(t, cmd.SilenceUsage)
+	assert.False(t, cmd.SilenceErrors)
+}
+
+func TestApplyUpdateCommandErrorPolicyNil(t *testing.T) {
+	cmd := &cobra.Command{}
+
+	applyUpdateCommandErrorPolicy(cmd, nil)
+
+	assert.False(t, cmd.SilenceUsage)
+	assert.False(t, cmd.SilenceErrors)
 }
 
 func TestCommandSuccess(t *testing.T) {

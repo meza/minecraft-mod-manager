@@ -5,6 +5,7 @@ import (
 	"errors"
 	"strings"
 
+	"github.com/meza/minecraft-mod-manager/internal/clierrors"
 	"github.com/meza/minecraft-mod-manager/internal/config"
 	"github.com/meza/minecraft-mod-manager/internal/i18n"
 	"github.com/meza/minecraft-mod-manager/internal/models"
@@ -62,7 +63,7 @@ func runUpdate(ctx context.Context, cmd *cobra.Command, opts updateOptions, deps
 	}
 
 	if counts.failed > 0 {
-		return counts, errUpdateFailures
+		return counts, clierrors.MarkHandled(errUpdateFailures)
 	}
 
 	return counts, nil
@@ -77,7 +78,7 @@ func ensureInstallForUpdate(ctx context.Context, cmd *cobra.Command, opts update
 		if outputErr := deps.output.Error(i18n.T("cmd.update.error.unmanaged_found", nil)); outputErr != nil {
 			return outputErr
 		}
-		return errUnmanagedFiles
+		return clierrors.MarkHandled(errUnmanagedFiles)
 	}
 	return nil
 }

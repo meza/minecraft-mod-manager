@@ -811,3 +811,5 @@ mmm-137 in progress: scanned exported decls missing GoDoc (454 missing across 87
 2025-12-29	21:04	mmm-53: updated docs/specs/test.md to match no-prompt latest version failure; reran make fmt/lint/coverage/build and Windows winhost lint/build/coverage/test-race (PSReadLine VT warning only).
 2025-12-29	21:22	mmm-53: aligned docs/tui-design-doc.md prompt policy table with implemented flags; reran make fmt/lint/coverage/build and Windows winhost lint/build/coverage/test-race (PSReadLine VT warning only).
 2025-12-29	21:32	mmm-53: reviewer approved after aligning docs/tui-design-doc.md with implemented prompt policy; code-review.md updated.
+2025-12-29	21:51	User confirmed policy for mmm-57: Cobra should surface input/argument errors; runtime errors should be printed by commands; errors must print even with --quiet. Pending implementation details.
+2025-12-29	22:09	mmm-57: implemented handled-error policy (clierrors.MarkHandled/IsHandled), updated commands/tests, added ADR 0011; make fmt/lint/coverage/build and Windows winhost lint/build/coverage/test-race pass (PSReadLine VT warning only).

@@ -3,6 +3,7 @@ package install
 import (
 	"context"
 
+	"github.com/meza/minecraft-mod-manager/internal/clierrors"
 	"github.com/meza/minecraft-mod-manager/internal/cmddeps"
 	"github.com/meza/minecraft-mod-manager/internal/i18n"
 	"github.com/meza/minecraft-mod-manager/internal/perf"
@@ -81,6 +82,10 @@ func runInstallCommand(cmd *cobra.Command, runner installRunner) error {
 	result, err := runner(ctx, cmd, opts, deps)
 	if useTUI {
 		err = tui.MergeProgramError(err, logProgram.Stop())
+	}
+	if clierrors.IsHandled(err) {
+		cmd.SilenceErrors = true
+		cmd.SilenceUsage = true
 	}
 	span.SetAttributes(attribute.Bool("success", err == nil))
 	span.End()

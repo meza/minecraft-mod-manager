@@ -10,3 +10,4 @@
 - [7. Symlink-safe mod file writes](0008-symlink-safe-mod-file-writes.md)
 - [8. Command and internal package boundaries](0009-command-and-internal-package-boundaries.md)
 - [10. Define non-interactive and quiet CLI flags](0010-define-non-interactive-and-quiet-cli-flags.md)
+- [11. Define CLI error reporting policy](0011-define-cli-error-reporting-policy.md)

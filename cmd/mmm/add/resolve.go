@@ -7,6 +7,7 @@ import (
 	"io"
 
 	tea "github.com/charmbracelet/bubbletea"
+	"github.com/meza/minecraft-mod-manager/internal/clierrors"
 	"github.com/meza/minecraft-mod-manager/internal/i18n"
 	"github.com/meza/minecraft-mod-manager/internal/logger"
 	"github.com/meza/minecraft-mod-manager/internal/models"
@@ -188,7 +189,7 @@ func resolveUnknownPlatform(ctx context.Context, inputs addResolveInputs, unknow
 		return resolvedRemoteMod{
 			platform:  inputs.platformValue,
 			projectID: inputs.projectID,
-		}, errors.New(message)
+		}, clierrors.MarkHandled(errors.New(message))
 	}
 	return resolveRemoteModWithTUI(ctx, inputs, addTUIStateUnknownPlatformSelect)
 }
@@ -204,7 +205,7 @@ func resolveModNotFound(ctx context.Context, inputs addResolveInputs, err error)
 		return resolvedRemoteMod{
 			platform:  inputs.platformValue,
 			projectID: inputs.projectID,
-		}, err
+		}, clierrors.MarkHandled(err)
 	}
 	return resolveRemoteModWithTUI(ctx, inputs, addTUIStateModNotFoundConfirm)
 }
@@ -220,7 +221,7 @@ func resolveNoCompatibleFile(ctx context.Context, inputs addResolveInputs, err e
 		return resolvedRemoteMod{
 			platform:  inputs.platformValue,
 			projectID: inputs.projectID,
-		}, err
+		}, clierrors.MarkHandled(err)
 	}
 	return resolveRemoteModWithTUI(ctx, inputs, addTUIStateNoFileConfirm)
 }

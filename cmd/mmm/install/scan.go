@@ -41,7 +41,7 @@ func preflightInstall(ctx context.Context, meta config.Metadata, cfg models.Mods
 		if outputErr := deps.output.Error(i18n.T("cmd.install.error.unresolved", nil)); outputErr != nil {
 			return scanReportOutcome{}, outputErr
 		}
-		return scanReportOutcome{}, errUnresolvedFiles
+		return scanReportOutcome{}, clierrors.MarkHandled(errUnresolvedFiles)
 	}
 	return preflight, nil
 }

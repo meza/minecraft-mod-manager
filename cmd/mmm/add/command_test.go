@@ -8,6 +8,7 @@ import (
 	"testing"
 
 	tea "github.com/charmbracelet/bubbletea"
+	"github.com/meza/minecraft-mod-manager/internal/clierrors"
 	"github.com/spf13/cobra"
 	"github.com/stretchr/testify/assert"
 
@@ -78,6 +79,21 @@ func TestCommandWithRunner_ErrorReturnsError(t *testing.T) {
 	cmd.SetArgs([]string{"modrinth", "abc"})
 
 	assert.Error(t, cmd.Execute())
+}
+
+func TestCommandWithRunner_HandledErrorSilencesCobra(t *testing.T) {
+	t.Setenv("MMM_TEST", "true")
+
+	cmd := commandWithRunner(func(_ context.Context, _ *perf.Span, _ *cobra.Command, _ addOptions, _ addDeps) (telemetry.CommandTelemetry, error) {
+		return telemetry.CommandTelemetry{Command: "add"}, clierrors.MarkHandled(errors.New("boom"))
+	})
+	addPersistentFlagsForTesting(cmd)
+	setCommandOutputForTesting(cmd)
+	cmd.SetArgs([]string{"modrinth", "abc"})
+
+	assert.Error(t, cmd.Execute())
+	assert.True(t, cmd.SilenceErrors)
+	assert.True(t, cmd.SilenceUsage)
 }
 
 func TestCommandWithRunnerMissingConfigFlagErrors(t *testing.T) {

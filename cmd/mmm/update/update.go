@@ -3,6 +3,7 @@ package update
 import (
 	"io"
 
+	"github.com/meza/minecraft-mod-manager/internal/clierrors"
 	"github.com/meza/minecraft-mod-manager/internal/cmddeps"
 	"github.com/meza/minecraft-mod-manager/internal/i18n"
 	"github.com/meza/minecraft-mod-manager/internal/perf"
@@ -69,15 +70,22 @@ func runUpdateCommand(cmd *cobra.Command) error {
 	if useTUI {
 		err = tui.MergeProgramError(err, logProgram.Stop())
 	}
+	applyUpdateCommandErrorPolicy(cmd, err)
 	span.SetAttributes(attribute.Bool("success", err == nil))
 	span.End()
 
-	if err != nil {
-		cmd.SilenceUsage = true
-	}
-
 	recordUpdateTelemetry(deps.telemetry, counts.updated, counts.failed, err)
 	return err
+}
+
+func applyUpdateCommandErrorPolicy(cmd *cobra.Command, err error) {
+	if err == nil {
+		return
+	}
+	if clierrors.IsHandled(err) {
+		cmd.SilenceErrors = true
+	}
+	cmd.SilenceUsage = true
 }
 
 type writerWithFD struct {

@@ -7,6 +7,7 @@ import (
 	"path/filepath"
 	"testing"
 
+	"github.com/meza/minecraft-mod-manager/internal/clierrors"
 	"github.com/spf13/afero"
 	"github.com/spf13/cobra"
 	"github.com/stretchr/testify/assert"
@@ -46,6 +47,21 @@ func TestCommandWithRunner_ErrorReturnsError(t *testing.T) {
 
 	cmd.SetArgs([]string{})
 	assert.Error(t, cmd.Execute())
+}
+
+func TestCommandWithRunner_HandledErrorSilencesCobra(t *testing.T) {
+	t.Setenv("MMM_TEST", "true")
+
+	cmd := commandWithRunner(func(_ context.Context, _ *cobra.Command, _ installOptions, _ installDeps) (Result, error) {
+		return Result{}, clierrors.MarkHandled(assert.AnError)
+	})
+	addPersistentFlagsForTesting(cmd)
+	setCommandOutputForTesting(cmd)
+
+	cmd.SetArgs([]string{})
+	assert.Error(t, cmd.Execute())
+	assert.True(t, cmd.SilenceErrors)
+	assert.True(t, cmd.SilenceUsage)
 }
 
 func TestCommandReturnsCommand(t *testing.T) {

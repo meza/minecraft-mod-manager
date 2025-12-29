@@ -4,6 +4,7 @@ package add
 import (
 	"context"
 
+	"github.com/meza/minecraft-mod-manager/internal/clierrors"
 	"github.com/meza/minecraft-mod-manager/internal/cmddeps"
 	"github.com/meza/minecraft-mod-manager/internal/i18n"
 	"github.com/meza/minecraft-mod-manager/internal/models"
@@ -61,6 +62,10 @@ func runAddCommand(cmd *cobra.Command, args []string, runner addRunner) error {
 
 	telemetryPayload, err := runner(ctx, span, cmd, options, deps)
 	errToReturn := normalizeAddError(err)
+	if clierrors.IsHandled(errToReturn) {
+		cmd.SilenceErrors = true
+		cmd.SilenceUsage = true
+	}
 	endAddSpan(span, errToReturn)
 	recordAddTelemetry(telemetryPayload, errToReturn)
 	return errToReturn

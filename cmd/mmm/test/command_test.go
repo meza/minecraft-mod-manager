@@ -7,6 +7,7 @@ import (
 	"io"
 	"testing"
 
+	"github.com/meza/minecraft-mod-manager/internal/clierrors"
 	"github.com/spf13/cobra"
 	"github.com/stretchr/testify/assert"
 
@@ -75,7 +76,7 @@ func TestCommandWithRunnerSuccess(t *testing.T) {
 
 func TestCommandWithRunnerExitCodeErrorSilencesErrors(t *testing.T) {
 	cmd := commandWithRunner(func(ctx context.Context, cmd *cobra.Command, opts testOptions, deps testDeps) (int, error) {
-		return 2, errSameVersion
+		return 2, clierrors.MarkHandled(errSameVersion)
 	})
 	addPersistentFlagsForTesting(cmd)
 	setCommandOutputForTesting(cmd)
@@ -88,7 +89,7 @@ func TestCommandWithRunnerExitCodeErrorSilencesErrors(t *testing.T) {
 
 func TestCommandWithRunnerInvalidVersionSilencesErrors(t *testing.T) {
 	cmd := commandWithRunner(func(ctx context.Context, cmd *cobra.Command, opts testOptions, deps testDeps) (int, error) {
-		return 1, errInvalidVersion
+		return 1, clierrors.MarkHandled(errInvalidVersion)
 	})
 	addPersistentFlagsForTesting(cmd)
 	setCommandOutputForTesting(cmd)
@@ -101,7 +102,7 @@ func TestCommandWithRunnerInvalidVersionSilencesErrors(t *testing.T) {
 
 func TestCommandWithRunnerLatestVersionRequiredSilencesErrors(t *testing.T) {
 	cmd := commandWithRunner(func(ctx context.Context, cmd *cobra.Command, opts testOptions, deps testDeps) (int, error) {
-		return 1, errLatestVersionRequired
+		return 1, clierrors.MarkHandled(errLatestVersionRequired)
 	})
 	addPersistentFlagsForTesting(cmd)
 	setCommandOutputForTesting(cmd)
