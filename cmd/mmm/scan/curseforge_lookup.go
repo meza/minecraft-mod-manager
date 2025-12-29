@@ -32,17 +32,23 @@ func lookupCurseforge(ctx context.Context, candidates []scanCandidate, deps scan
 		if logErr := logPlatformDebug(deps.logger, models.CURSEFORGE, summary.DebugDetails); logErr != nil {
 			return platformLookupOutcome{}, logErr
 		}
+		allowFallback := allowPlatformFallback(err)
+		misses := []scanCandidate(nil)
+		if allowFallback {
+			misses = candidates
+		}
 		return platformLookupOutcome{
 			matches: nil,
-			misses:  nil,
+			misses:  misses,
 			unsure:  buildCurseforgeErrors(candidates, platformUnsureReason(models.CURSEFORGE, summary.Reason)),
 		}, nil
 	}
 
-	if err := addCurseforgeMatchesWithCache(ctx, candidates, fingerprintIndex, result.Matches, deps, &outcome.matches, outcome.unsure); err != nil {
+	fallbackEligible, err := addCurseforgeMatchesWithCache(ctx, candidates, fingerprintIndex, result.Matches, deps, &outcome.matches, outcome.unsure)
+	if err != nil {
 		return platformLookupOutcome{}, err
 	}
-	outcome.misses = curseforgeMisses(candidates, outcome.matches, outcome.unsure)
+	outcome.misses = curseforgeMisses(candidates, outcome.matches, outcome.unsure, fallbackEligible)
 	return outcome, nil
 }
 
@@ -83,11 +89,12 @@ func addCurseforgeMatchesWithCache(
 	deps scanDeps,
 	scanMatches *[]scanMatch,
 	unsure map[string]error,
-) error {
+) (map[string]bool, error) {
 	nameCache := make(map[string]string)
 	var nameMu sync.Mutex
+	fallbackEligible := make(map[string]bool)
 
-	return addCurseforgeMatches(ctx, curseforgeMatchContext{
+	if err := addCurseforgeMatches(ctx, curseforgeMatchContext{
 		candidates:           candidates,
 		fingerprintToIndices: fingerprintIndex.fingerprintToIndices,
 		matches:              matches,
@@ -96,7 +103,11 @@ func addCurseforgeMatchesWithCache(
 		nameMu:               &nameMu,
 		scanMatches:          scanMatches,
 		unsure:               unsure,
-	})
+		fallbackEligible:     fallbackEligible,
+	}); err != nil {
+		return nil, err
+	}
+	return fallbackEligible, nil
 }
 
 type curseforgeMatchContext struct {
@@ -108,6 +119,7 @@ type curseforgeMatchContext struct {
 	nameMu               *sync.Mutex
 	scanMatches          *[]scanMatch
 	unsure               map[string]error
+	fallbackEligible     map[string]bool
 }
 
 func addCurseforgeMatches(ctx context.Context, matchContext curseforgeMatchContext) error {
@@ -157,8 +169,13 @@ func recordCurseforgeUnsure(matchContext curseforgeMatchContext, indices []int, 
 		return logErr
 	}
 	reason := platformUnsureReason(models.CURSEFORGE, summary.Reason)
+	allowFallback := allowPlatformFallback(err)
 	for _, index := range indices {
-		matchContext.unsure[matchContext.candidates[index].Path] = errors.New(reason)
+		path := matchContext.candidates[index].Path
+		matchContext.unsure[path] = errors.New(reason)
+		if allowFallback {
+			matchContext.fallbackEligible[path] = true
+		}
 	}
 	return nil
 }
@@ -182,7 +199,7 @@ func cachedCurseforgeProjectName(ctx context.Context, projectID string, deps sca
 	return name, nil
 }
 
-func curseforgeMisses(candidates []scanCandidate, matches []scanMatch, unsure map[string]error) []scanCandidate {
+func curseforgeMisses(candidates []scanCandidate, matches []scanMatch, unsure map[string]error, fallbackEligible map[string]bool) []scanCandidate {
 	matched := make(map[string]struct{}, len(matches))
 	for _, match := range matches {
 		matched[match.Path] = struct{}{}
@@ -194,6 +211,9 @@ func curseforgeMisses(candidates []scanCandidate, matches []scanMatch, unsure ma
 			continue
 		}
 		if _, ok := unsure[candidate.Path]; ok {
+			if fallbackEligible != nil && fallbackEligible[candidate.Path] {
+				misses = append(misses, candidate)
+			}
 			continue
 		}
 		misses = append(misses, candidate)

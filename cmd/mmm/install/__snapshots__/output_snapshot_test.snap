@@ -1,7 +1,7 @@
 
 [TestInstallPlatformErrorOutputSnapshot - 1]
 stdout:
-X cmd.install.unsure.platform_error, Arg 1: {Count: 0, Data: &map[file:bad.jar platform:curseforge reason:cmd.platform.error.reason.auth, Arg 1: {Count: 0, Data: &map[token:CURSEFORGE_API_KEY]}]}
+X cmd.install.unsure.platform_error, Arg 1: {Count: 0, Data: &map[file:bad.jar platform:curseforge reason:cmd.platform.error.reason.auth, Arg 1: {Count: 0, Data: &map[platform:curseforge token:CURSEFORGE_API_KEY]}]}
 X cmd.install.unsure.platform_error_details, Arg 1: {Count: 0, Data: &map[details:request failed: POST https://example.invalid status=403 platform:curseforge]}
 stderr:
 

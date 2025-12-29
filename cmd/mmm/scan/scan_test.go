@@ -297,7 +297,7 @@ func TestRunScan_PreferredLookupErrorDoesNotFallbackAndIsUnsure(t *testing.T) {
 		},
 		telemetry: func(telemetry.CommandTelemetry) {},
 		modrinthVersionForSha: func(context.Context, string, httpclient.Doer) (*modrinth.Version, error) {
-			return nil, &modrinth.VersionAPIError{}
+			return nil, httpclient.WrapTimeoutError(context.DeadlineExceeded)
 		},
 		curseforgeFingerprint: func(string) uint32 { return 999 },
 		curseforgeFingerprintMatch: func(context.Context, []uint32, httpclient.Doer) (*curseforge.FingerprintResult, error) {
@@ -432,7 +432,7 @@ func TestRunScan_AddDoesNotPersistWhenAnyFileIsUnsure(t *testing.T) {
 					},
 				}, nil
 			}
-			return nil, &modrinth.VersionAPIError{}
+			return nil, httpclient.WrapTimeoutError(context.DeadlineExceeded)
 		},
 		modrinthProjectTitle: func(context.Context, string, httpclient.Doer) (string, error) {
 			return "Example Mod", nil

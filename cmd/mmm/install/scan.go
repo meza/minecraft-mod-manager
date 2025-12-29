@@ -120,7 +120,9 @@ func newPlatformLookupFailure(platformValue models.Platform, files []string, err
 		return &platformLookupFailure{
 			Platform: platformValue,
 			Files:    files,
-			Reason:   i18n.T("cmd.platform.error.reason.unknown", nil),
+			Reason: i18n.T("cmd.platform.error.reason.unknown", &i18n.Tvars{
+				Data: &i18n.TData{"platform": platformValue},
+			}),
 		}
 	}
 

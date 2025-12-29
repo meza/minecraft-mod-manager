@@ -379,7 +379,9 @@ func fetchFailureUserEvent(fetchErr error, mod models.Mod) logEvent {
 	}
 
 	summary, ok := clierrors.SummarizePlatformError(fetchErr, mod.Type)
-	reason := i18n.T("cmd.platform.error.reason.unknown", nil)
+	reason := i18n.T("cmd.platform.error.reason.unknown", &i18n.Tvars{
+		Data: &i18n.TData{"platform": mod.Type},
+	})
 	if ok && strings.TrimSpace(summary.Reason) != "" {
 		reason = summary.Reason
 	}

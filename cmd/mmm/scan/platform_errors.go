@@ -4,6 +4,7 @@ import (
 	"strings"
 
 	"github.com/meza/minecraft-mod-manager/internal/clierrors"
+	"github.com/meza/minecraft-mod-manager/internal/httpclient"
 	"github.com/meza/minecraft-mod-manager/internal/i18n"
 	"github.com/meza/minecraft-mod-manager/internal/logger"
 	"github.com/meza/minecraft-mod-manager/internal/models"
@@ -12,7 +13,9 @@ import (
 func summarizePlatformFailure(err error, platform models.Platform) clierrors.PlatformErrorSummary {
 	if err == nil {
 		return clierrors.PlatformErrorSummary{
-			Reason: i18n.T("cmd.platform.error.reason.unknown", nil),
+			Reason: i18n.T("cmd.platform.error.reason.unknown", &i18n.Tvars{
+				Data: &i18n.TData{"platform": platform},
+			}),
 		}
 	}
 
@@ -42,4 +45,17 @@ func logPlatformDebug(log *logger.Logger, platform models.Platform, details stri
 		return err
 	}
 	return nil
+}
+
+func allowPlatformFallback(err error) bool {
+	if err == nil {
+		return true
+	}
+	if httpclient.IsTimeoutError(err) {
+		return false
+	}
+	if httpclient.IsConnectionError(err) {
+		return false
+	}
+	return true
 }

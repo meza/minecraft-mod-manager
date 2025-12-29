@@ -792,3 +792,8 @@ mmm-137 in progress: scanned exported decls missing GoDoc (454 missing across 87
 2025-12-29	15:42	Ensured startup span end is deferred before lifecycle shutdown so recording-init failures still close app.lifecycle.startup; updated test to assert startup+shutdown spans in that path.
 2025-12-29	15:51	mmm-70.1 recording tool + go-vcr transport complete; CONTRIBUTING updated; tests + Windows winstructions pass; reviewer approved.
 2025-12-29	16:10	[RESOLVED] Rolled back mmm-70.1 recordings changes per user; removed go-vcr tooling and recording transport work from repo.
+2025-12-29	16:26	Evaluated mmm-60 relevance: scan already marks platform errors as unsure (no fallback for errored candidates) and timeout handling exists, but connection/transient error classification + actionable messaging still missing in clierrors/httpclient, so ticket likely still relevant.
+2025-12-29	16:36	mmm-60 in progress: added connection error classification and platform-aware reason strings (i18n + SummarizePlatformError), updated tests and snapshots.
+2025-12-29	16:48	User clarified install has no cross-platform fallback; only scan should attempt fallback after preferred lookup.
+2025-12-29	17:28	Reviewer approved mmm-60 changes; code-review.md updated with verdict and verification evidence.
+2025-12-29	17:32	Closed mmm-60 per user request after reviewer approval.

@@ -328,12 +328,16 @@ func TestIdentifyCandidatesRemovesUnsureWhenMatchedPathExists(t *testing.T) {
 		},
 		modrinthVersionForSha: func(_ context.Context, sha string, _ httpclient.Doer) (*modrinth.Version, error) {
 			if sha == "a" {
-				return nil, &modrinth.VersionAPIError{}
+				return nil, httpclient.WrapTimeoutError(context.DeadlineExceeded)
 			}
 			return version, nil
 		},
 		modrinthProjectTitle: func(context.Context, string, httpclient.Doer) (string, error) {
 			return "Example", nil
+		},
+		curseforgeFingerprint: func(string) uint32 { return 101 },
+		curseforgeFingerprintMatch: func(context.Context, []uint32, httpclient.Doer) (*curseforge.FingerprintResult, error) {
+			return &curseforge.FingerprintResult{}, nil
 		},
 	}
 
@@ -794,7 +798,7 @@ func TestLookupModrinthProjectTitleErrorAddsUnsure(t *testing.T) {
 			return version, nil
 		},
 		modrinthProjectTitle: func(context.Context, string, httpclient.Doer) (string, error) {
-			return "", errors.New("boom")
+			return "", httpclient.WrapTimeoutError(context.DeadlineExceeded)
 		},
 	}
 
@@ -803,7 +807,7 @@ func TestLookupModrinthProjectTitleErrorAddsUnsure(t *testing.T) {
 	assert.Empty(t, outcome.matches)
 	assert.Empty(t, outcome.misses)
 	assert.Contains(t, outcome.unsure["/mods/a.jar"].Error(), "cmd.scan.unsure.platform_error")
-	assert.Contains(t, outcome.unsure["/mods/a.jar"].Error(), "cmd.platform.error.reason.unknown")
+	assert.Contains(t, outcome.unsure["/mods/a.jar"].Error(), "cmd.platform.error.reason.timeout")
 }
 
 func TestLookupModrinthDownloadDetailsErrorAddsUnsure(t *testing.T) {
@@ -829,7 +833,7 @@ func TestLookupModrinthDownloadDetailsErrorAddsUnsure(t *testing.T) {
 	outcome, err := lookupModrinth(context.Background(), candidates, deps)
 	assert.NoError(t, err)
 	assert.Empty(t, outcome.matches)
-	assert.Empty(t, outcome.misses)
+	assert.Len(t, outcome.misses, 1)
 	assert.Contains(t, outcome.unsure["/mods/a.jar"].Error(), "cmd.scan.unsure.platform_error")
 	assert.Contains(t, outcome.unsure["/mods/a.jar"].Error(), "cmd.platform.error.reason.unknown")
 }
@@ -864,7 +868,7 @@ func TestLookupCurseforgeMissingDownloadURLAddsUnsure(t *testing.T) {
 	outcome, err := lookupCurseforge(context.Background(), candidates, deps)
 	assert.NoError(t, err)
 	assert.Empty(t, outcome.matches)
-	assert.Empty(t, outcome.misses)
+	assert.Len(t, outcome.misses, 1)
 	assert.Contains(t, outcome.unsure["/mods/a.jar"].Error(), "cmd.scan.unsure.platform_error")
 	assert.Contains(t, outcome.unsure["/mods/a.jar"].Error(), "cmd.platform.error.reason.unknown")
 }
@@ -924,7 +928,7 @@ func TestLookupCurseforgeProjectNameErrorAddsUnsure(t *testing.T) {
 	outcome, err := lookupCurseforge(context.Background(), candidates, deps)
 	assert.NoError(t, err)
 	assert.Empty(t, outcome.matches)
-	assert.Empty(t, outcome.misses)
+	assert.Len(t, outcome.misses, 1)
 	assert.Contains(t, outcome.unsure["/mods/a.jar"].Error(), "cmd.scan.unsure.platform_error")
 	assert.Contains(t, outcome.unsure["/mods/a.jar"].Error(), "cmd.platform.error.reason.unknown")
 }
@@ -1133,7 +1137,7 @@ func TestLookupCurseforgeReturnsUnsureOnFingerprintError(t *testing.T) {
 	deps := scanDeps{
 		curseforgeFingerprint: func(string) uint32 { return 101 },
 		curseforgeFingerprintMatch: func(context.Context, []uint32, httpclient.Doer) (*curseforge.FingerprintResult, error) {
-			return nil, errors.New("boom")
+			return nil, httpclient.WrapTimeoutError(context.DeadlineExceeded)
 		},
 	}
 
@@ -1141,6 +1145,24 @@ func TestLookupCurseforgeReturnsUnsureOnFingerprintError(t *testing.T) {
 	assert.NoError(t, err)
 	assert.Empty(t, outcome.matches)
 	assert.Empty(t, outcome.misses)
+	assert.Contains(t, outcome.unsure["/mods/a.jar"].Error(), "cmd.scan.unsure.platform_error")
+}
+
+func TestLookupCurseforgeReturnsUnsureAndMissesOnFingerprintNonConnectionError(t *testing.T) {
+	t.Setenv("MMM_TEST", "true")
+
+	candidates := []scanCandidate{{Path: "/mods/a.jar", FileName: "a.jar", Sha1: "a"}}
+	deps := scanDeps{
+		curseforgeFingerprint: func(string) uint32 { return 101 },
+		curseforgeFingerprintMatch: func(context.Context, []uint32, httpclient.Doer) (*curseforge.FingerprintResult, error) {
+			return nil, errors.New("boom")
+		},
+	}
+
+	outcome, err := lookupCurseforge(context.Background(), candidates, deps)
+	assert.NoError(t, err)
+	assert.Empty(t, outcome.matches)
+	assert.Len(t, outcome.misses, 1)
 	assert.Contains(t, outcome.unsure["/mods/a.jar"].Error(), "cmd.scan.unsure.platform_error")
 }
 

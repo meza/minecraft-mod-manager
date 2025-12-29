@@ -73,9 +73,10 @@ func runModrinthLookups(ctx context.Context, candidates []scanCandidate, deps sc
 }
 
 type modrinthLookupResult struct {
-	match *scanMatch
-	err   error
-	miss  bool
+	match         *scanMatch
+	err           error
+	miss          bool
+	allowFallback bool
 }
 
 func lookupModrinthCandidate(ctx context.Context, candidate scanCandidate, deps scanDeps, titleCache *modrinthTitleCache) (modrinthLookupResult, error) {
@@ -85,30 +86,18 @@ func lookupModrinthCandidate(ctx context.Context, candidate scanCandidate, deps 
 		if errors.As(err, &notFound) {
 			return modrinthLookupResult{miss: true}, nil
 		}
-		summary := summarizePlatformFailure(err, models.MODRINTH)
-		if logErr := logPlatformDebug(deps.logger, models.MODRINTH, summary.DebugDetails); logErr != nil {
-			return modrinthLookupResult{}, logErr
-		}
-		return modrinthLookupResult{err: errors.New(platformUnsureReason(models.MODRINTH, summary.Reason))}, nil
+		return modrinthLookupFailure(err, deps)
 	}
 
 	projectID := version.ProjectID
 	name, err := cachedModrinthTitle(ctx, projectID, deps, titleCache)
 	if err != nil {
-		summary := summarizePlatformFailure(err, models.MODRINTH)
-		if logErr := logPlatformDebug(deps.logger, models.MODRINTH, summary.DebugDetails); logErr != nil {
-			return modrinthLookupResult{}, logErr
-		}
-		return modrinthLookupResult{err: errors.New(platformUnsureReason(models.MODRINTH, summary.Reason))}, nil
+		return modrinthLookupFailure(err, deps)
 	}
 
 	info, err := modrinthDownloadDetails(version)
 	if err != nil {
-		summary := summarizePlatformFailure(err, models.MODRINTH)
-		if logErr := logPlatformDebug(deps.logger, models.MODRINTH, summary.DebugDetails); logErr != nil {
-			return modrinthLookupResult{}, logErr
-		}
-		return modrinthLookupResult{err: errors.New(platformUnsureReason(models.MODRINTH, summary.Reason))}, nil
+		return modrinthLookupFailure(err, deps)
 	}
 
 	return modrinthLookupResult{match: &scanMatch{
@@ -121,6 +110,17 @@ func lookupModrinthCandidate(ctx context.Context, candidate scanCandidate, deps 
 		ReleaseDate: info.publishedAt,
 		DownloadURL: info.downloadURL,
 	}}, nil
+}
+
+func modrinthLookupFailure(err error, deps scanDeps) (modrinthLookupResult, error) {
+	summary := summarizePlatformFailure(err, models.MODRINTH)
+	if logErr := logPlatformDebug(deps.logger, models.MODRINTH, summary.DebugDetails); logErr != nil {
+		return modrinthLookupResult{}, logErr
+	}
+	return modrinthLookupResult{
+		err:           errors.New(platformUnsureReason(models.MODRINTH, summary.Reason)),
+		allowFallback: allowPlatformFallback(err),
+	}, nil
 }
 
 type modrinthTitleFetch struct {
@@ -200,6 +200,9 @@ func splitModrinthResults(candidates []scanCandidate, results []modrinthLookupRe
 		}
 		if res.err != nil {
 			unsure[candidate.Path] = res.err
+			if res.allowFallback {
+				misses = append(misses, candidate)
+			}
 		}
 	}
 
