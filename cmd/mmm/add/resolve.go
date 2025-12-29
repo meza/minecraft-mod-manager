@@ -248,10 +248,6 @@ func resolveRemoteModWithTUI(ctx context.Context, inputs addResolveInputs, initi
 	attempt := 0
 	model := newAddTUIModel(tuiCtx, tuiSpan, initialState, inputs.platformValue, inputs.projectID, inputs.cfg, buildAddTUIFetchCmd(tuiCtx, inputs, &attempt))
 
-	if inputs.deps.runTea == nil {
-		return baseResult, errors.New("missing add dependencies: runTea")
-	}
-
 	programResult, err := runAddTUIProgram(inputs.deps.runTea, model, tuiSpan, inputs.in, inputs.out)
 	if err != nil {
 		return baseResult, err

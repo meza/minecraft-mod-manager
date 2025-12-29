@@ -3,9 +3,8 @@ package update
 import (
 	"io"
 
+	"github.com/meza/minecraft-mod-manager/internal/cmddeps"
 	"github.com/meza/minecraft-mod-manager/internal/i18n"
-	"github.com/meza/minecraft-mod-manager/internal/logger"
-	"github.com/meza/minecraft-mod-manager/internal/output"
 	"github.com/meza/minecraft-mod-manager/internal/perf"
 	"github.com/meza/minecraft-mod-manager/internal/tui"
 	"github.com/spf13/cobra"
@@ -52,9 +51,6 @@ func runUpdateCommand(cmd *cobra.Command) error {
 		outWriter = logProgram.Writer()
 	}
 
-	quietForOutput := opts.Quiet && !opts.Debug
-	out := output.New(outWriter, errWriter, quietForOutput)
-	log := logger.New(outWriter, errWriter, false, opts.Debug)
 	installCmd := cmd
 	if useTUI {
 		installCmd = &cobra.Command{}
@@ -62,7 +58,13 @@ func runUpdateCommand(cmd *cobra.Command) error {
 		installCmd.SetErr(errWriter)
 	}
 
-	deps := defaultUpdateDeps(out, log, installCmd)
+	common := cmddeps.NewCommonDeps(cmd, cmddeps.CommonDepsOptions{
+		OutWriter: outWriter,
+		ErrWriter: errWriter,
+		Quiet:     opts.Quiet,
+		Debug:     opts.Debug,
+	})
+	deps := newUpdateDeps(common, installCmd)
 	counts, err := runUpdate(ctx, cmd, opts, deps)
 	if useTUI {
 		err = tui.MergeProgramError(err, logProgram.Stop())

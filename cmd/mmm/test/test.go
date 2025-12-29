@@ -7,6 +7,7 @@ import (
 	"strings"
 
 	"github.com/meza/minecraft-mod-manager/internal/clierrors"
+	"github.com/meza/minecraft-mod-manager/internal/cmddeps"
 	"github.com/meza/minecraft-mod-manager/internal/config"
 	"github.com/meza/minecraft-mod-manager/internal/httpclient"
 	"github.com/meza/minecraft-mod-manager/internal/i18n"
@@ -118,10 +119,13 @@ func runTestCommand(cmd *cobra.Command, args []string, runner testRunner) error 
 		outWriter = logProgram.Writer()
 	}
 
-	quietForOutput := opts.Quiet && !opts.Debug
-	out := output.New(outWriter, errWriter, quietForOutput)
-	log := logger.New(outWriter, errWriter, false, opts.Debug)
-	deps := defaultTestDeps(log, out)
+	common := cmddeps.NewCommonDeps(cmd, cmddeps.CommonDepsOptions{
+		OutWriter: outWriter,
+		ErrWriter: errWriter,
+		Quiet:     opts.Quiet,
+		Debug:     opts.Debug,
+	})
+	deps := newTestDeps(common)
 
 	exitCode, err := runner(ctx, cmd, opts, deps)
 	if useTUI {
@@ -164,13 +168,12 @@ func resolveGameVersion(args []string) string {
 	return "latest"
 }
 
-func defaultTestDeps(log *logger.Logger, out *output.Output) testDeps {
-	limiter := httpclient.DefaultLimiter()
+func newTestDeps(common cmddeps.CommonDeps) testDeps {
 	return testDeps{
-		fs:             afero.NewOsFs(),
-		logger:         log,
-		output:         out,
-		clients:        platform.DefaultClients(limiter),
+		fs:             common.FS,
+		logger:         common.Logger,
+		output:         common.Output,
+		clients:        common.Clients,
 		fetchMod:       platform.FetchMod,
 		latestVersion:  minecraft.GetLatestVersion,
 		isValidVersion: minecraft.IsValidVersion,

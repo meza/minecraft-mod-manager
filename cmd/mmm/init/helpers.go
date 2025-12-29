@@ -117,9 +117,6 @@ func initWithDeps(ctx context.Context, options initOptions, deps initDeps) (conf
 }
 
 func logInitSuccess(out *output.Output, meta config.Metadata) error {
-	if out == nil {
-		return nil
-	}
 	return out.Log(i18n.T("cmd.init.success", &i18n.Tvars{
 		Data: &i18n.TData{"configPath": meta.ConfigPath},
 	}), output.LogQuiet)

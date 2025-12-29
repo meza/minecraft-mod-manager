@@ -2,21 +2,18 @@ package add
 
 import (
 	tea "github.com/charmbracelet/bubbletea"
+	"github.com/meza/minecraft-mod-manager/internal/cmddeps"
 	"github.com/meza/minecraft-mod-manager/internal/httpclient"
-	"github.com/meza/minecraft-mod-manager/internal/logger"
-	"github.com/meza/minecraft-mod-manager/internal/output"
 	"github.com/meza/minecraft-mod-manager/internal/platform"
-	"github.com/spf13/afero"
-	"golang.org/x/time/rate"
 )
 
-func defaultAddDeps(log *logger.Logger, out *output.Output, limiter *rate.Limiter) addDeps {
+func newAddDeps(common cmddeps.CommonDeps) addDeps {
 	return addDeps{
-		fs:              afero.NewOsFs(),
-		clients:         platform.DefaultClients(limiter),
-		minecraftClient: httpclient.NewRLClient(limiter),
-		logger:          log,
-		output:          out,
+		fs:              common.FS,
+		clients:         common.Clients,
+		minecraftClient: common.MinecraftClient,
+		logger:          common.Logger,
+		output:          common.Output,
 		fetchMod:        platform.FetchMod,
 		downloader:      httpclient.DownloadFile,
 		runTea: func(model tea.Model, options ...tea.ProgramOption) (tea.Model, error) {

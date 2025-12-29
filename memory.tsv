@@ -797,3 +797,7 @@ mmm-137 in progress: scanned exported decls missing GoDoc (454 missing across 87
 2025-12-29	16:48	User clarified install has no cross-platform fallback; only scan should attempt fallback after preferred lookup.
 2025-12-29	17:28	Reviewer approved mmm-60 changes; code-review.md updated with verdict and verification evidence.
 2025-12-29	17:32	Closed mmm-60 per user request after reviewer approval.
+2025-12-29	17:34	Started mmm-33 planning; ticket is to standardize command dependency injection and remove ad-hoc deps/nil-guards. Need alignment on preferred DI pattern (constructor vs interfaces) before refactor.
+2025-12-29	17:57	mmm-33 in progress: added internal/cmddeps CommonDeps + README/tests; refactoring commands (add/init/install/list/remove/scan/test/update) to use common deps and removing nil-guard patterns (add runTea, scan prompter, init output). Updating scan/init tests accordingly.
+2025-12-29	18:20	mmm-33: local make fmt/lint/vuln/coverage/build pass; Windows winhost make lint/build/coverage/test-race pass (PSReadLine VT warning only). Ready to invoke reviewer.
+2025-12-29	18:29	mmm-33 reviewer approved; code-review.md updated with Approved verdict. Awaiting user sign-off to close.

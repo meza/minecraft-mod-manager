@@ -712,8 +712,9 @@ func TestAddTUIResultErrorsWhenNotFinished(t *testing.T) {
 	assert.EqualError(t, err, "add TUI did not finish")
 }
 
-func TestResolveRemoteModWithTUIMissingRunTea(t *testing.T) {
+func TestResolveRemoteModWithTUIUsesRunTea(t *testing.T) {
 	ctx := context.Background()
+	runTeaCalled := false
 	resolved, err := resolveRemoteModWithTUI(ctx, addResolveInputs{
 		ctx:           ctx,
 		commandSpan:   nil,
@@ -721,12 +722,18 @@ func TestResolveRemoteModWithTUIMissingRunTea(t *testing.T) {
 		opts:          addOptions{},
 		platformValue: models.MODRINTH,
 		projectID:     "abc",
-		deps:          addDeps{},
-		useTUI:        false,
-		in:            strings.NewReader(""),
-		out:           io.Discard,
+		deps: addDeps{
+			runTea: func(model tea.Model, _ ...tea.ProgramOption) (tea.Model, error) {
+				runTeaCalled = true
+				return addTUIModel{state: addTUIStateAborted}, nil
+			},
+		},
+		useTUI: false,
+		in:     strings.NewReader(""),
+		out:    io.Discard,
 	}, addTUIStateUnknownPlatformSelect)
-	assert.Error(t, err)
+	assert.ErrorIs(t, err, errAborted)
+	assert.True(t, runTeaCalled)
 	assert.Empty(t, resolved.remoteMod.FileName)
 	assert.Equal(t, models.MODRINTH, resolved.platform)
 	assert.Equal(t, "abc", resolved.projectID)

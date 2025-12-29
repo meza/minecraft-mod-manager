@@ -16,6 +16,7 @@ import (
 	"github.com/meza/minecraft-mod-manager/internal/config"
 	"github.com/meza/minecraft-mod-manager/internal/minecraft"
 	"github.com/meza/minecraft-mod-manager/internal/models"
+	"github.com/meza/minecraft-mod-manager/internal/output"
 	"github.com/meza/minecraft-mod-manager/internal/privacy"
 	"github.com/meza/minecraft-mod-manager/internal/telemetry"
 	"github.com/meza/minecraft-mod-manager/internal/tui"
@@ -91,6 +92,7 @@ func TestInitWithDeps(t *testing.T) {
 			ReleaseTypes: []models.ReleaseType{models.Release, models.Beta},
 			ModsFolder:   "mods",
 		}, initDeps{
+			output:          output.New(io.Discard, io.Discard, true),
 			fs:              fs,
 			minecraftClient: manifestDoer([]string{"1.21.1"}),
 		})
@@ -111,7 +113,11 @@ func TestInitWithDeps(t *testing.T) {
 
 	t.Run("missing required flags returns error", func(t *testing.T) {
 		minecraft.ClearManifestCache()
-		_, err := initWithDeps(context.Background(), initOptions{}, initDeps{fs: afero.NewMemMapFs(), minecraftClient: manifestDoer([]string{"1.21.1"})})
+		_, err := initWithDeps(context.Background(), initOptions{}, initDeps{
+			output:          output.New(io.Discard, io.Discard, true),
+			fs:              afero.NewMemMapFs(),
+			minecraftClient: manifestDoer([]string{"1.21.1"}),
+		})
 		assert.ErrorContains(t, err, "init requires flag")
 	})
 
@@ -125,7 +131,11 @@ func TestInitWithDeps(t *testing.T) {
 			GameVersion:  "1.21.1",
 			ReleaseTypes: []models.ReleaseType{models.Release},
 			ModsFolder:   "mods",
-		}, initDeps{fs: fs, minecraftClient: manifestDoer([]string{"1.21.1"})})
+		}, initDeps{
+			output:          output.New(io.Discard, io.Discard, true),
+			fs:              fs,
+			minecraftClient: manifestDoer([]string{"1.21.1"}),
+		})
 		assert.ErrorContains(t, err, "failed to check configuration file")
 		assert.ErrorContains(t, err, "stat failed")
 	})
@@ -142,7 +152,11 @@ func TestInitWithDeps(t *testing.T) {
 			GameVersion:  "",
 			ReleaseTypes: []models.ReleaseType{models.Release},
 			ModsFolder:   "mods",
-		}, initDeps{fs: fs, minecraftClient: manifestDoer([]string{"1.21.1"})})
+		}, initDeps{
+			output:          output.New(io.Discard, io.Discard, true),
+			fs:              fs,
+			minecraftClient: manifestDoer([]string{"1.21.1"}),
+		})
 		assert.NoError(t, err)
 
 		cfg, err := config.ReadConfig(context.Background(), fs, meta)
@@ -160,7 +174,11 @@ func TestInitWithDeps(t *testing.T) {
 			GameVersion:  "1.21.1",
 			ReleaseTypes: []models.ReleaseType{models.Release},
 			ModsFolder:   "mods",
-		}, initDeps{fs: fs, minecraftClient: manifestDoer([]string{"1.21.1"})})
+		}, initDeps{
+			output:          output.New(io.Discard, io.Discard, true),
+			fs:              fs,
+			minecraftClient: manifestDoer([]string{"1.21.1"}),
+		})
 		assert.ErrorContains(t, err, "mods folder does not exist")
 	})
 
@@ -176,7 +194,11 @@ func TestInitWithDeps(t *testing.T) {
 			GameVersion:  "1.21.1",
 			ReleaseTypes: []models.ReleaseType{models.Release},
 			ModsFolder:   "mods",
-		}, initDeps{fs: fs, minecraftClient: manifestDoer([]string{"1.21.1"})})
+		}, initDeps{
+			output:          output.New(io.Discard, io.Discard, true),
+			fs:              fs,
+			minecraftClient: manifestDoer([]string{"1.21.1"}),
+		})
 		assert.ErrorContains(t, err, "mods folder is not a directory")
 	})
 
@@ -191,7 +213,11 @@ func TestInitWithDeps(t *testing.T) {
 			GameVersion:  "1.21.9",
 			ReleaseTypes: []models.ReleaseType{models.Release},
 			ModsFolder:   "mods",
-		}, initDeps{fs: fs, minecraftClient: manifestDoer([]string{"1.21.1"})})
+		}, initDeps{
+			output:          output.New(io.Discard, io.Discard, true),
+			fs:              fs,
+			minecraftClient: manifestDoer([]string{"1.21.1"}),
+		})
 		assert.ErrorContains(t, err, "invalid minecraft version")
 	})
 
@@ -207,6 +233,7 @@ func TestInitWithDeps(t *testing.T) {
 			ReleaseTypes: []models.ReleaseType{models.Release},
 			ModsFolder:   "mods",
 		}, initDeps{
+			output:          output.New(io.Discard, io.Discard, true),
 			fs:              fs,
 			minecraftClient: doerFunc(func(*http.Request) (*http.Response, error) { return nil, errors.New("offline") }),
 		})
@@ -226,7 +253,12 @@ func TestInitWithDeps(t *testing.T) {
 			GameVersion:  "1.21.1",
 			ReleaseTypes: []models.ReleaseType{models.Release},
 			ModsFolder:   "mods",
-		}, initDeps{fs: fs, minecraftClient: manifestDoer([]string{"1.21.1"}), prompter: fakePrompter{overwrite: true}})
+		}, initDeps{
+			output:          output.New(io.Discard, io.Discard, true),
+			fs:              fs,
+			minecraftClient: manifestDoer([]string{"1.21.1"}),
+			prompter:        fakePrompter{overwrite: true},
+		})
 		assert.ErrorContains(t, err, "already exists")
 	})
 
@@ -243,6 +275,7 @@ func TestInitWithDeps(t *testing.T) {
 			ReleaseTypes: []models.ReleaseType{models.Release},
 			ModsFolder:   "mods",
 		}, initDeps{
+			output:          output.New(io.Discard, io.Discard, true),
 			fs:              fs,
 			minecraftClient: manifestDoer([]string{"1.21.1"}),
 			prompter:        fakePrompter{overwrite: true},
@@ -268,6 +301,7 @@ func TestInitWithDeps(t *testing.T) {
 			ReleaseTypes: []models.ReleaseType{models.Release},
 			ModsFolder:   "mods",
 		}, initDeps{
+			output:          output.New(io.Discard, io.Discard, true),
 			fs:              fs,
 			minecraftClient: manifestDoer([]string{"1.21.1"}),
 			prompter:        fakePrompter{overwrite: false, newPath: filepath.FromSlash("/cfg/alt.json")},
@@ -421,6 +455,7 @@ func TestRunInitCommandRecordsTelemetryUsingFinalOptions(t *testing.T) {
 
 	var payloads []telemetry.CommandTelemetry
 	deps := initDeps{
+		output:          output.New(io.Discard, io.Discard, true),
 		fs:              fs,
 		minecraftClient: manifestDoer([]string{"1.21.1"}),
 		telemetry: func(payload telemetry.CommandTelemetry) {
@@ -498,6 +533,7 @@ func TestRunInitCommandDoesNotMarkInteractiveWhenTUIWasNotLaunched(t *testing.T)
 
 	var payloads []telemetry.CommandTelemetry
 	deps := initDeps{
+		output:          output.New(io.Discard, io.Discard, true),
 		fs:              fs,
 		minecraftClient: manifestDoer([]string{"1.21.1"}),
 		telemetry: func(payload telemetry.CommandTelemetry) {
@@ -536,7 +572,8 @@ func TestRunInitNormalizeGameVersionError(t *testing.T) {
 	_, didUseTUI, err := runInit(context.Background(), cmd, initOptions{
 		GameVersion: "latest",
 	}, initDeps{
-		fs: afero.NewMemMapFs(),
+		output: output.New(io.Discard, io.Discard, true),
+		fs:     afero.NewMemMapFs(),
 		minecraftClient: doerFunc(func(_ *http.Request) (*http.Response, error) {
 			return nil, errors.New("offline")
 		}),
@@ -569,6 +606,7 @@ func TestRunInitInteractiveErrorPropagates(t *testing.T) {
 		ReleaseTypes: []models.ReleaseType{models.Release},
 		ModsFolder:   "mods",
 	}, initDeps{
+		output:          output.New(io.Discard, io.Discard, true),
 		fs:              fs,
 		minecraftClient: manifestDoer([]string{"1.21.1"}),
 		runTea: func(tea.Model, ...tea.ProgramOption) (tea.Model, error) {
@@ -610,6 +648,7 @@ func TestRunInitQuietSkipsInteractiveFlow(t *testing.T) {
 			ModsFolder:   true,
 		},
 	}, initDeps{
+		output:          output.New(io.Discard, io.Discard, true),
 		fs:              fs,
 		minecraftClient: manifestDoer([]string{"1.21.1"}),
 	}, meta)
@@ -627,6 +666,7 @@ func TestRunInteractiveInitWithLaunchFlagUsesDefaultProgram(t *testing.T) {
 
 	meta := config.NewMetadata(filepath.FromSlash("/cfg/modlist.json"))
 	_, launched, err := runInteractiveInitWithLaunchFlag(context.Background(), cmd, initOptions{}, initDeps{
+		output:          output.New(io.Discard, io.Discard, true),
 		fs:              afero.NewMemMapFs(),
 		minecraftClient: manifestDoer([]string{"1.21.1"}),
 		runTea:          defaultRunTea,
@@ -659,6 +699,7 @@ func TestRunInteractiveInitWithLaunchFlagUsesDefaultProgramSuccess(t *testing.T)
 			ReleaseTypes: true,
 		},
 	}, initDeps{
+		output:          output.New(io.Discard, io.Discard, true),
 		fs:              fs,
 		minecraftClient: manifestDoer([]string{"1.21.1"}),
 		runTea:          defaultRunTea,
@@ -764,6 +805,7 @@ func TestCommandModelProgression(t *testing.T) {
 		ModsFolder:   "mods",
 		ReleaseTypes: []models.ReleaseType{models.Release},
 	}, initDeps{
+		output:          output.New(io.Discard, io.Discard, true),
 		fs:              fs,
 		minecraftClient: manifestDoer([]string{"1.21.1"}),
 	}, meta)
@@ -827,6 +869,7 @@ func TestViewHidesProvidedQuestions(t *testing.T) {
 			ModsFolder:   true,
 		},
 	}, initDeps{
+		output:          output.New(io.Discard, io.Discard, true),
 		fs:              fs,
 		minecraftClient: manifestDoer([]string{"1.21.1"}),
 	}, meta)
@@ -840,7 +883,10 @@ func TestNormalizeGameVersion(t *testing.T) {
 		minecraft.ClearManifestCache()
 		opts, err := normalizeGameVersion(context.Background(), initOptions{
 			GameVersion: "1.21.1",
-		}, initDeps{minecraftClient: manifestDoer([]string{"1.21.1"})}, gameVersionInteractive)
+		}, initDeps{
+			output:          output.New(io.Discard, io.Discard, true),
+			minecraftClient: manifestDoer([]string{"1.21.1"}),
+		}, gameVersionInteractive)
 		assert.NoError(t, err)
 		assert.Equal(t, "1.21.1", opts.GameVersion)
 	})
@@ -850,7 +896,10 @@ func TestNormalizeGameVersion(t *testing.T) {
 		opts, err := normalizeGameVersion(context.Background(), initOptions{
 			GameVersion: "latest",
 			Provided:    providedFlags{GameVersion: true},
-		}, initDeps{minecraftClient: manifestDoer([]string{"2.0.0"})}, gameVersionNonInteractive)
+		}, initDeps{
+			output:          output.New(io.Discard, io.Discard, true),
+			minecraftClient: manifestDoer([]string{"2.0.0"}),
+		}, gameVersionNonInteractive)
 		assert.NoError(t, err)
 		assert.Equal(t, "2.0.0", opts.GameVersion)
 	})
@@ -862,7 +911,9 @@ func TestNormalizeGameVersion(t *testing.T) {
 			Provided:    providedFlags{GameVersion: false},
 		}, initDeps{minecraftClient: doerFunc(func(_ *http.Request) (*http.Response, error) {
 			return nil, errors.New("offline")
-		})}, gameVersionInteractive)
+		}),
+			output: output.New(io.Discard, io.Discard, true),
+		}, gameVersionInteractive)
 		assert.NoError(t, err)
 		assert.Equal(t, "", opts.GameVersion)
 	})
@@ -874,7 +925,9 @@ func TestNormalizeGameVersion(t *testing.T) {
 			Provided:    providedFlags{GameVersion: true},
 		}, initDeps{minecraftClient: doerFunc(func(_ *http.Request) (*http.Response, error) {
 			return nil, errors.New("offline")
-		})}, gameVersionInteractive)
+		}),
+			output: output.New(io.Discard, io.Discard, true),
+		}, gameVersionInteractive)
 		assert.Error(t, err)
 	})
 }

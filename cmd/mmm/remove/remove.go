@@ -11,6 +11,7 @@ import (
 	"github.com/spf13/cobra"
 	"go.opentelemetry.io/otel/attribute"
 
+	"github.com/meza/minecraft-mod-manager/internal/cmddeps"
 	"github.com/meza/minecraft-mod-manager/internal/config"
 	"github.com/meza/minecraft-mod-manager/internal/i18n"
 	"github.com/meza/minecraft-mod-manager/internal/logger"
@@ -63,14 +64,15 @@ func runRemoveCommand(cmd *cobra.Command, args []string) error {
 		return err
 	}
 
-	quietForOutput := opts.Quiet && !opts.Debug
-	out := output.New(cmd.OutOrStdout(), cmd.ErrOrStderr(), quietForOutput)
-	log := logger.New(cmd.OutOrStdout(), cmd.ErrOrStderr(), false, opts.Debug)
+	common := cmddeps.NewCommonDeps(cmd, cmddeps.CommonDepsOptions{
+		Quiet: opts.Quiet,
+		Debug: opts.Debug,
+	})
 	colorMode := tui.ColorDisabled
 	if tui.IsTerminalWriter(cmd.OutOrStdout()) {
 		colorMode = tui.ColorEnabled
 	}
-	deps := defaultRemoveDeps(log, out, colorMode)
+	deps := newRemoveDeps(common, colorMode)
 
 	removedCount, err := runRemove(ctx, opts, deps)
 	span.SetAttributes(attribute.Bool("success", err == nil))
@@ -107,11 +109,11 @@ func removeOptionsFromFlags(cmd *cobra.Command, args []string) (removeOptions, e
 	}, nil
 }
 
-func defaultRemoveDeps(log *logger.Logger, out *output.Output, colorMode tui.ColorMode) removeDeps {
+func newRemoveDeps(common cmddeps.CommonDeps, colorMode tui.ColorMode) removeDeps {
 	return removeDeps{
-		fs:        afero.NewOsFs(),
-		logger:    log,
-		output:    out,
+		fs:        common.FS,
+		logger:    common.Logger,
+		output:    common.Output,
 		telemetry: telemetry.RecordCommand,
 		colorMode: colorMode,
 	}

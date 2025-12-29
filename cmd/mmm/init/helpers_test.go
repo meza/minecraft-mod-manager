@@ -99,7 +99,7 @@ func TestBuildTelemetryPayloadExitCode(t *testing.T) {
 }
 
 func TestNormalizeGameVersionEmptyNoop(t *testing.T) {
-	opts, err := normalizeGameVersion(context.Background(), initOptions{}, initDeps{}, gameVersionNonInteractive)
+	opts, err := normalizeGameVersion(context.Background(), initOptions{}, initDeps{output: output.New(io.Discard, io.Discard, true)}, gameVersionNonInteractive)
 	assert.NoError(t, err)
 	assert.Equal(t, "", opts.GameVersion)
 }
@@ -170,6 +170,7 @@ func TestInitWithDepsPrompterErrors(t *testing.T) {
 		ReleaseTypes: []models.ReleaseType{models.Release},
 		ModsFolder:   "mods",
 	}, initDeps{
+		output:          output.New(io.Discard, io.Discard, true),
 		fs:              fs,
 		minecraftClient: manifestDoer([]string{"1.21.1"}),
 		prompter:        fakePrompter{confirmErr: errors.New("confirm failed")},
@@ -183,6 +184,7 @@ func TestInitWithDepsPrompterErrors(t *testing.T) {
 		ReleaseTypes: []models.ReleaseType{models.Release},
 		ModsFolder:   "mods",
 	}, initDeps{
+		output:          output.New(io.Discard, io.Discard, true),
 		fs:              fs,
 		minecraftClient: manifestDoer([]string{"1.21.1"}),
 		prompter:        fakePrompter{overwrite: false, newPathErr: errors.New("new path failed")},
@@ -214,7 +216,8 @@ func TestInitWithDepsLogsWhenLoggerProvided(t *testing.T) {
 }
 
 func TestLogInitSuccessSkipsNilOutput(t *testing.T) {
-	assert.NoError(t, logInitSuccess(nil, config.Metadata{ConfigPath: "modlist.json"}))
+	out := output.New(io.Discard, io.Discard, true)
+	assert.NoError(t, logInitSuccess(out, config.Metadata{ConfigPath: "modlist.json"}))
 }
 
 func TestLogInitSuccessReturnsOutputError(t *testing.T) {
@@ -239,7 +242,8 @@ func TestInitWithDepsLatestVersionError(t *testing.T) {
 		ReleaseTypes: []models.ReleaseType{models.Release},
 		ModsFolder:   "mods",
 	}, initDeps{
-		fs: fs,
+		output: output.New(io.Discard, io.Discard, true),
+		fs:     fs,
 		minecraftClient: doerFunc(func(_ *http.Request) (*http.Response, error) {
 			return nil, errors.New("offline")
 		}),
@@ -261,6 +265,7 @@ func TestInitWithDepsMkdirAllError(t *testing.T) {
 		ReleaseTypes: []models.ReleaseType{models.Release},
 		ModsFolder:   "mods",
 	}, initDeps{
+		output:          output.New(io.Discard, io.Discard, true),
 		fs:              fs,
 		minecraftClient: manifestDoer([]string{"1.21.1"}),
 	})
@@ -282,6 +287,7 @@ func TestInitWithDepsWriteConfigError(t *testing.T) {
 		ReleaseTypes: []models.ReleaseType{models.Release},
 		ModsFolder:   "mods",
 	}, initDeps{
+		output:          output.New(io.Discard, io.Discard, true),
 		fs:              fs,
 		minecraftClient: manifestDoer([]string{"1.21.1"}),
 	})
@@ -303,6 +309,7 @@ func TestInitWithDepsWriteLockError(t *testing.T) {
 		ReleaseTypes: []models.ReleaseType{models.Release},
 		ModsFolder:   "mods",
 	}, initDeps{
+		output:          output.New(io.Discard, io.Discard, true),
 		fs:              fs,
 		minecraftClient: manifestDoer([]string{"1.21.1"}),
 	})

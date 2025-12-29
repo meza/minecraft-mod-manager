@@ -3,13 +3,13 @@ package init
 import (
 	"fmt"
 	"io"
+	"net/http"
 	"os"
 
 	tea "github.com/charmbracelet/bubbletea"
+	"github.com/meza/minecraft-mod-manager/internal/cmddeps"
 	"github.com/meza/minecraft-mod-manager/internal/config"
 	"github.com/meza/minecraft-mod-manager/internal/i18n"
-	"github.com/meza/minecraft-mod-manager/internal/logger"
-	"github.com/meza/minecraft-mod-manager/internal/output"
 	"github.com/meza/minecraft-mod-manager/internal/perf"
 	"github.com/spf13/cobra"
 	"go.opentelemetry.io/otel/attribute"
@@ -48,10 +48,12 @@ func commandWithRunner(runner initRunner) *cobra.Command {
 				return err
 			}
 
-			quietForOutput := options.Quiet && !options.Debug
-			out := output.New(cmd.OutOrStdout(), cmd.ErrOrStderr(), quietForOutput)
-			log := logger.New(cmd.OutOrStdout(), cmd.ErrOrStderr(), false, options.Debug)
-			deps := defaultInitDeps(cmd, log, out)
+			common := cmddeps.NewCommonDeps(cmd, cmddeps.CommonDepsOptions{
+				Quiet:           options.Quiet,
+				Debug:           options.Debug,
+				MinecraftClient: http.DefaultClient,
+			})
+			deps := newInitDeps(cmd, common)
 			meta := config.NewMetadata(options.ConfigPath)
 
 			err = runner(ctx, cmd, options, deps, meta)
@@ -59,7 +61,16 @@ func commandWithRunner(runner initRunner) *cobra.Command {
 		},
 	}
 
-	cmd.Flags().VarP(&loader, "loader", "l", i18n.T("cmd.init.usage.loader", &i18n.Tvars{
+	addInitFlags(cmd, &loader)
+	if !registerInitCompletions(cmd) {
+		return cmd
+	}
+
+	return cmd
+}
+
+func addInitFlags(cmd *cobra.Command, loader *loaderFlag) {
+	cmd.Flags().VarP(loader, "loader", "l", i18n.T("cmd.init.usage.loader", &i18n.Tvars{
 		Data: &i18n.TData{"loaders": getAllLoaders()},
 	}))
 	cmd.Flags().StringSliceP("release-types", "r", []string{"release"}, i18n.T("cmd.init.usage.release-types", &i18n.Tvars{
@@ -67,17 +78,18 @@ func commandWithRunner(runner initRunner) *cobra.Command {
 	}))
 	cmd.Flags().StringP("game-version", "g", "latest", i18n.T("cmd.init.usage.game-version", nil))
 	cmd.Flags().StringP("mods-folder", "m", "mods", i18n.T("cmd.init.usage.mods-folder", nil))
+}
 
+func registerInitCompletions(cmd *cobra.Command) bool {
 	if err := registerFlagCompletion(cmd, "loader", completeLoaders); err != nil {
 		if _, writeErr := fmt.Fprintf(completionWarnWriter, "warning: failed to register loader completion: %v\n", err); writeErr != nil {
-			return cmd
+			return false
 		}
 	}
 	if err := registerFlagCompletion(cmd, "release-types", completeReleaseTypes); err != nil {
 		if _, writeErr := fmt.Fprintf(completionWarnWriter, "warning: failed to register release type completion: %v\n", err); writeErr != nil {
-			return cmd
+			return false
 		}
 	}
-
-	return cmd
+	return true
 }

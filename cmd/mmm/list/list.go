@@ -11,6 +11,7 @@ import (
 	"github.com/spf13/afero"
 	"github.com/spf13/cobra"
 
+	"github.com/meza/minecraft-mod-manager/internal/cmddeps"
 	"github.com/meza/minecraft-mod-manager/internal/config"
 	"github.com/meza/minecraft-mod-manager/internal/i18n"
 	"github.com/meza/minecraft-mod-manager/internal/logger"
@@ -84,13 +85,14 @@ func listOptionsFromFlags(cmd *cobra.Command) (listCommandOptions, error) {
 }
 
 func defaultListDeps(cmd *cobra.Command, options listCommandOptions) listDeps {
-	quietForOutput := options.quiet && !options.debug
-	out := output.New(cmd.OutOrStdout(), cmd.ErrOrStderr(), quietForOutput)
-	log := logger.New(cmd.OutOrStdout(), cmd.ErrOrStderr(), false, options.debug)
+	common := cmddeps.NewCommonDeps(cmd, cmddeps.CommonDepsOptions{
+		Quiet: options.quiet,
+		Debug: options.debug,
+	})
 	return listDeps{
-		fs:            afero.NewOsFs(),
-		logger:        log,
-		output:        out,
+		fs:            common.FS,
+		logger:        common.Logger,
+		output:        common.Output,
 		telemetry:     telemetry.RecordCommand,
 		programRunner: defaultProgramRunner,
 	}

@@ -14,6 +14,7 @@ import (
 	"github.com/spf13/cobra"
 	"go.opentelemetry.io/otel/attribute"
 
+	"github.com/meza/minecraft-mod-manager/internal/cmddeps"
 	"github.com/meza/minecraft-mod-manager/internal/config"
 	"github.com/meza/minecraft-mod-manager/internal/curseforge"
 	"github.com/meza/minecraft-mod-manager/internal/httpclient"
@@ -60,6 +61,12 @@ type prompter interface {
 type terminalPrompter struct {
 	in  io.Reader
 	out io.Writer
+}
+
+type noopPrompter struct{}
+
+func (prompter noopPrompter) ConfirmAdd() (bool, error) {
+	return false, nil
 }
 
 func (prompter terminalPrompter) ConfirmAdd() (bool, error) {
@@ -156,17 +163,17 @@ func scanOptionsFromFlags(cmd *cobra.Command) (scanOptions, error) {
 }
 
 func defaultScanDeps(cmd *cobra.Command, opts scanOptions) scanDeps {
-	quietForOutput := opts.Quiet && !opts.Debug
-	out := output.New(cmd.OutOrStdout(), cmd.ErrOrStderr(), quietForOutput)
-	log := logger.New(cmd.OutOrStdout(), cmd.ErrOrStderr(), false, opts.Debug)
-	limiter := httpclient.DefaultLimiter()
+	common := cmddeps.NewCommonDeps(cmd, cmddeps.CommonDepsOptions{
+		Quiet: opts.Quiet,
+		Debug: opts.Debug,
+	})
 
 	return scanDeps{
-		fs:              afero.NewOsFs(),
-		clients:         platform.DefaultClients(limiter),
-		minecraftClient: httpclient.NewRLClient(limiter),
-		logger:          log,
-		output:          out,
+		fs:              common.FS,
+		clients:         common.Clients,
+		minecraftClient: common.MinecraftClient,
+		logger:          common.Logger,
+		output:          common.Output,
 		prompter:        terminalPrompter{in: cmd.InOrStdin(), out: cmd.OutOrStdout()},
 		telemetry:       telemetry.RecordCommand,
 

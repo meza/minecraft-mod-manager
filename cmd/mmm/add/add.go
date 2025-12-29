@@ -4,11 +4,9 @@ package add
 import (
 	"context"
 
-	"github.com/meza/minecraft-mod-manager/internal/httpclient"
+	"github.com/meza/minecraft-mod-manager/internal/cmddeps"
 	"github.com/meza/minecraft-mod-manager/internal/i18n"
-	"github.com/meza/minecraft-mod-manager/internal/logger"
 	"github.com/meza/minecraft-mod-manager/internal/models"
-	"github.com/meza/minecraft-mod-manager/internal/output"
 	"github.com/meza/minecraft-mod-manager/internal/perf"
 	"github.com/spf13/cobra"
 	"go.opentelemetry.io/otel/attribute"
@@ -55,10 +53,11 @@ func runAddCommand(cmd *cobra.Command, args []string, runner addRunner) error {
 		return err
 	}
 
-	quietForOutput := options.Quiet && !options.Debug
-	out := output.New(cmd.OutOrStdout(), cmd.ErrOrStderr(), quietForOutput)
-	log := logger.New(cmd.OutOrStdout(), cmd.ErrOrStderr(), false, options.Debug)
-	deps := defaultAddDeps(log, out, httpclient.DefaultLimiter())
+	common := cmddeps.NewCommonDeps(cmd, cmddeps.CommonDepsOptions{
+		Quiet: options.Quiet,
+		Debug: options.Debug,
+	})
+	deps := newAddDeps(common)
 
 	telemetryPayload, err := runner(ctx, span, cmd, options, deps)
 	errToReturn := normalizeAddError(err)
