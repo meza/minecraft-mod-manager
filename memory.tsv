@@ -803,3 +803,11 @@ mmm-137 in progress: scanned exported decls missing GoDoc (454 missing across 87
 2025-12-29	18:29	mmm-33 reviewer approved; code-review.md updated with Approved verdict. Awaiting user sign-off to close.
 2025-12-29	18:44	mmm-34: TData is map[string]interface{} (internal/i18n); current usages appear flat with string or fmt.Stringer values (e.g., models.Platform); no nested TData usage found in code.
 2025-12-29	19:06	mmm-34: switched i18n.TData to map[string]string; updated call sites to explicit string conversions (platform/loader) and adjusted i18n docs/tests; make fmt-check/lint/vuln/coverage/build pass; Windows winhost lint/build/coverage/test-race pass (PSReadLine VT warning only).
+2025-12-29	19:25	Loaded mmm-53 ticket, reviewed specs/requirements/TUI docs and internal/tui helpers; preparing alignment on quiet vs non-interactive vs TTY behavior.
+2025-12-29	19:31	User alignment for mmm-53: in non-TTY, fail fast for any missing non-default inputs; defaults may be used. User unsure about value of --quiet and considering rename to --non-interactive.
+2025-12-29	19:38	Created ADR 0010 defining --non-interactive (prompt policy) and --quiet (output policy) with fail-fast non-TTY behavior and examples.
+2025-12-29	20:38	Loaded required persona/skill docs; continuing mmm-53 implementation with pending coverage/build verification.
+2025-12-29	20:43	mmm-53: make fmt/lint/coverage/build pass; Windows winhost lint/build/coverage/test-race pass (PSReadLine VT warning only).
+2025-12-29	21:04	mmm-53: updated docs/specs/test.md to match no-prompt latest version failure; reran make fmt/lint/coverage/build and Windows winhost lint/build/coverage/test-race (PSReadLine VT warning only).
+2025-12-29	21:22	mmm-53: aligned docs/tui-design-doc.md prompt policy table with implemented flags; reran make fmt/lint/coverage/build and Windows winhost lint/build/coverage/test-race (PSReadLine VT warning only).
+2025-12-29	21:32	mmm-53: reviewer approved after aligning docs/tui-design-doc.md with implemented prompt policy; code-review.md updated.

@@ -18,25 +18,51 @@ type fakeWriter struct{ io.Writer }
 func (reader fakeReader) Fd() uintptr { return 1 }
 func (writer fakeWriter) Fd() uintptr { return 1 }
 
-func TestShouldUseTUIHonorsQuiet(t *testing.T) {
+func TestShouldUseTUIDisablesWhenPromptDisabled(t *testing.T) {
 	restore := mockTerminalDetection(t, true)
 	defer restore()
 
-	assert.False(t, ShouldUseTUI(QuietEnabled, fakeReader{}, fakeWriter{}))
+	assert.False(t, ShouldUseTUI(PromptDisabled, fakeReader{}, fakeWriter{}))
 }
 
 func TestShouldUseTUIRequiresTerminal(t *testing.T) {
 	restore := mockTerminalDetection(t, false)
 	defer restore()
 
-	assert.False(t, ShouldUseTUI(QuietDisabled, fakeReader{}, fakeWriter{}))
+	assert.False(t, ShouldUseTUI(PromptEnabled, fakeReader{}, fakeWriter{}))
 }
 
 func TestShouldUseTUIWhenTerminal(t *testing.T) {
 	restore := mockTerminalDetection(t, true)
 	defer restore()
 
-	assert.True(t, ShouldUseTUI(QuietDisabled, fakeReader{}, fakeWriter{}))
+	assert.True(t, ShouldUseTUI(PromptEnabled, fakeReader{}, fakeWriter{}))
+}
+
+func TestShouldPromptDisablesWhenPromptDisabled(t *testing.T) {
+	restore := mockTerminalDetection(t, true)
+	defer restore()
+
+	assert.False(t, ShouldPrompt(PromptDisabled, fakeReader{}, fakeWriter{}))
+}
+
+func TestShouldPromptRequiresTerminal(t *testing.T) {
+	restore := mockTerminalDetection(t, false)
+	defer restore()
+
+	assert.False(t, ShouldPrompt(PromptEnabled, fakeReader{}, fakeWriter{}))
+}
+
+func TestShouldPromptWhenTerminal(t *testing.T) {
+	restore := mockTerminalDetection(t, true)
+	defer restore()
+
+	assert.True(t, ShouldPrompt(PromptEnabled, fakeReader{}, fakeWriter{}))
+}
+
+func TestQuietModeEnabled(t *testing.T) {
+	assert.False(t, QuietDisabled.Enabled())
+	assert.True(t, QuietEnabled.Enabled())
 }
 
 func TestProgramOptionsDisablesRendererWithoutTerminal(t *testing.T) {

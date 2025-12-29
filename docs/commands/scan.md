@@ -32,4 +32,4 @@ If a file cannot be looked up due to a platform error, it is reported as "unsure
 
 If a file is listed as "unknown", it means the file hash did not match anything on either platform.
 
-If you run with `--quiet`, the command does not prompt and does not print normal output.
+If you run with `--non-interactive`, the command does not prompt and skips writing changes unless you pass `--add`. If you run with `--quiet`, the command suppresses non-essential output.

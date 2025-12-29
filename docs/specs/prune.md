@@ -9,7 +9,7 @@ Deletes unmanaged files from the mods directory.
 4. Remove the selected files.
 
 ## Edge Cases
-- When run in `--quiet` mode without `--force`, the command prints a warning and aborts.
+- When run in `--non-interactive` mode without `--force`, the command prints a warning and aborts.
 - If no unmanaged files are found, a message is printed and no further action is taken.
 
 ## User Interaction

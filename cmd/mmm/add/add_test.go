@@ -263,7 +263,7 @@ func TestRunAdd_SkipsDownloadWhenFileAlreadyMatchesRemoteHash(t *testing.T) {
 	assert.False(t, downloaded)
 }
 
-func TestRunAdd_QuietMissingConfigReturnsError(t *testing.T) {
+func TestRunAdd_NonInteractiveMissingConfigReturnsError(t *testing.T) {
 	ctx, commandSpan := startAddPerf(t)
 	fs := afero.NewMemMapFs()
 	meta := config.NewMetadata(filepath.FromSlash("/cfg/modlist.json"))
@@ -274,10 +274,10 @@ func TestRunAdd_QuietMissingConfigReturnsError(t *testing.T) {
 	cmd.SetErr(bytes.NewBuffer(nil))
 
 	_, err := runAdd(ctx, commandSpan, cmd, addOptions{
-		Platform:   "modrinth",
-		ProjectID:  "abc",
-		ConfigPath: meta.ConfigPath,
-		Quiet:      true,
+		Platform:       "modrinth",
+		ProjectID:      "abc",
+		ConfigPath:     meta.ConfigPath,
+		NonInteractive: true,
 	}, addDeps{
 		fs:      fs,
 		clients: platform.DefaultClients(rate.NewLimiter(rate.Inf, 0)),
@@ -823,7 +823,7 @@ func TestAddCommand_MissingArgsShowsUsage(t *testing.T) {
 	assert.Contains(t, output, "add <platform> <id>")
 }
 
-func TestRunAdd_UnknownPlatformQuiet(t *testing.T) {
+func TestRunAdd_UnknownPlatformNonInteractive(t *testing.T) {
 	ctx, commandSpan := startAddPerf(t)
 	fs := afero.NewMemMapFs()
 	meta := config.NewMetadata(filepath.FromSlash("/cfg/modlist.json"))
@@ -844,10 +844,10 @@ func TestRunAdd_UnknownPlatformQuiet(t *testing.T) {
 	cmd.SetErr(errBuf)
 
 	_, err := runAdd(ctx, commandSpan, cmd, addOptions{
-		Platform:   "invalid",
-		ProjectID:  "abc",
-		ConfigPath: meta.ConfigPath,
-		Quiet:      true,
+		Platform:       "invalid",
+		ProjectID:      "abc",
+		ConfigPath:     meta.ConfigPath,
+		NonInteractive: true,
 	}, addDeps{
 		fs:      fs,
 		clients: platform.DefaultClients(rate.NewLimiter(rate.Inf, 0)),
@@ -1464,7 +1464,7 @@ func (filesystem renameFailFs) Rename(oldname, newname string) error {
 	return filesystem.Fs.Rename(oldname, newname)
 }
 
-func TestRunAdd_ModNotFoundQuiet(t *testing.T) {
+func TestRunAdd_ModNotFoundNonInteractive(t *testing.T) {
 	ctx, commandSpan := startAddPerf(t)
 	fs := afero.NewMemMapFs()
 	meta := config.NewMetadata(filepath.FromSlash("/cfg/modlist.json"))
@@ -1485,10 +1485,10 @@ func TestRunAdd_ModNotFoundQuiet(t *testing.T) {
 	cmd.SetErr(out)
 
 	_, err := runAdd(ctx, commandSpan, cmd, addOptions{
-		Platform:   "modrinth",
-		ProjectID:  "abc",
-		ConfigPath: meta.ConfigPath,
-		Quiet:      true,
+		Platform:       "modrinth",
+		ProjectID:      "abc",
+		ConfigPath:     meta.ConfigPath,
+		NonInteractive: true,
 	}, addDeps{
 		fs:      fs,
 		clients: platform.DefaultClients(rate.NewLimiter(rate.Inf, 0)),
@@ -1503,7 +1503,7 @@ func TestRunAdd_ModNotFoundQuiet(t *testing.T) {
 	assert.Contains(t, out.String(), "Mod \"abc\" for modrinth does not exist")
 }
 
-func TestResolveRemoteMod_NoFileQuiet(t *testing.T) {
+func TestResolveRemoteMod_NoFileNonInteractive(t *testing.T) {
 	ctx := context.Background()
 	out := &bytes.Buffer{}
 	cfg := models.ModsJSON{
@@ -1524,7 +1524,7 @@ func TestResolveRemoteMod_NoFileQuiet(t *testing.T) {
 		ctx:           ctx,
 		commandSpan:   nil,
 		cfg:           cfg,
-		opts:          addOptions{Quiet: true},
+		opts:          addOptions{NonInteractive: true},
 		platformValue: models.MODRINTH,
 		projectID:     "abc",
 		deps:          deps,

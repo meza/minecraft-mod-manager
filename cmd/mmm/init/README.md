@@ -31,7 +31,7 @@ After inputs are finalized, `initWithDeps`:
 
 ## Overwrite behavior (non-TUI prompt)
 
-Even when the TUI is not used, `initWithDeps` may prompt on stdout/stderr if the config file already exists and `--quiet` is not set:
+Even when the TUI is not used, `initWithDeps` may prompt on stdout/stderr if the config file already exists and `--non-interactive` is not set:
 
 - confirm overwrite, or
 - enter a new config path

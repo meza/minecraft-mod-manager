@@ -15,4 +15,4 @@ Adds a mod to the configuration and downloads the corresponding file.
 - Download failures terminate the command with an error.
 
 ## User Interaction
-Depending on flags and failures, the command may prompt the user to adjust the platform or project ID, or to confirm retrying on a different platform. Quiet mode skips prompts and fails immediately on errors.
+Depending on flags and failures, the command may prompt the user to adjust the platform or project ID, or to confirm retrying on a different platform. Non-interactive mode skips prompts and fails immediately on errors.

@@ -602,6 +602,46 @@ func TestRunListTuiLogsEmptyView(t *testing.T) {
 	assert.Contains(t, out.String(), "cmd.list.empty")
 }
 
+func TestRunListNonInteractiveDisablesTUI(t *testing.T) {
+	t.Setenv("MMM_TEST", "true")
+
+	restore := tui.SetIsTerminalFuncForTesting(func(int) bool { return true })
+	t.Cleanup(restore)
+
+	fs := afero.NewMemMapFs()
+	meta := config.NewMetadata(filepath.FromSlash("/cfg/modlist.json"))
+	cfg := models.ModsJSON{
+		Loader:                     models.FABRIC,
+		GameVersion:                "1.20.1",
+		DefaultAllowedReleaseTypes: []models.ReleaseType{models.Release},
+		ModsFolder:                 "mods",
+		Mods:                       []models.Mod{},
+	}
+	assert.NoError(t, fs.MkdirAll(meta.Dir(), 0755))
+	assert.NoError(t, config.WriteConfig(context.Background(), fs, meta, cfg))
+
+	out := &bytes.Buffer{}
+	errOut := &bytes.Buffer{}
+	cmd := &cobra.Command{}
+	cmd.SetIn(fakeTTY{Buffer: &bytes.Buffer{}})
+	cmd.SetOut(fakeTTY{Buffer: &bytes.Buffer{}})
+	cmd.SetErr(errOut)
+
+	_, usedTUI, err := runList(context.Background(), cmd, meta.ConfigPath, runListOptions{
+		nonInteractive: true,
+		quiet:          false,
+	}, listDeps{
+		fs:            fs,
+		logger:        logger.New(out, errOut, false, false),
+		output:        output.New(out, errOut, false),
+		telemetry:     func(telemetry.CommandTelemetry) {},
+		programRunner: defaultProgramRunner,
+	})
+
+	assert.NoError(t, err)
+	assert.False(t, usedTUI)
+}
+
 func TestRunListUsesDefaultProgramRunner(t *testing.T) {
 	t.Setenv("MMM_TEST", "true")
 

@@ -26,11 +26,22 @@ func TestCommandMissingConfigFlagErrors(t *testing.T) {
 	assert.Error(t, runE(cmd, []string{}))
 }
 
+func TestCommandMissingNonInteractiveFlagErrors(t *testing.T) {
+	runE := Command().RunE
+	cmd := &cobra.Command{}
+	cmd.SetContext(context.Background())
+	cmd.Flags().StringP("config", "c", "modlist.json", "config")
+	setCommandOutputForTesting(cmd)
+
+	assert.Error(t, runE(cmd, []string{}))
+}
+
 func TestCommandMissingQuietFlagErrors(t *testing.T) {
 	runE := Command().RunE
 	cmd := &cobra.Command{}
 	cmd.SetContext(context.Background())
 	cmd.Flags().StringP("config", "c", "modlist.json", "config")
+	cmd.Flags().Bool("non-interactive", false, "non-interactive")
 	setCommandOutputForTesting(cmd)
 
 	assert.Error(t, runE(cmd, []string{}))
@@ -41,6 +52,7 @@ func TestCommandMissingDebugFlagErrors(t *testing.T) {
 	cmd := &cobra.Command{}
 	cmd.SetContext(context.Background())
 	cmd.Flags().StringP("config", "c", "modlist.json", "config")
+	cmd.Flags().Bool("non-interactive", false, "non-interactive")
 	cmd.Flags().BoolP("quiet", "q", false, "quiet")
 	setCommandOutputForTesting(cmd)
 
@@ -76,6 +88,39 @@ func TestCommandSuccess(t *testing.T) {
 	cmd.SetOut(output)
 	cmd.SetErr(errOut)
 	cmd.SetArgs([]string{"--config", configPath, "--quiet"})
+
+	assert.NoError(t, cmd.Execute())
+}
+
+func TestCommandSuccessNonInteractive(t *testing.T) {
+	t.Setenv("MMM_TEST", "true")
+
+	fs := afero.NewOsFs()
+	tempDir := t.TempDir()
+	configPath := filepath.Join(tempDir, "modlist.json")
+	meta := config.NewMetadata(configPath)
+
+	cfg := models.ModsJSON{
+		Loader:                     models.FABRIC,
+		GameVersion:                "1.20.1",
+		DefaultAllowedReleaseTypes: []models.ReleaseType{models.Release},
+		ModsFolder:                 "mods",
+		Mods:                       []models.Mod{},
+	}
+
+	require.NoError(t, fs.MkdirAll(meta.Dir(), 0755))
+	require.NoError(t, fs.MkdirAll(meta.ModsFolderPath(cfg), 0755))
+	require.NoError(t, config.WriteConfig(context.Background(), fs, meta, cfg))
+	require.NoError(t, config.WriteLock(context.Background(), fs, meta, []models.ModInstall{}))
+
+	cmd := Command()
+	addPersistentFlagsForTesting(cmd)
+	output := &bytes.Buffer{}
+	errOut := &bytes.Buffer{}
+	cmd.SetIn(&bytes.Buffer{})
+	cmd.SetOut(output)
+	cmd.SetErr(errOut)
+	cmd.SetArgs([]string{"--config", configPath, "--non-interactive"})
 
 	assert.NoError(t, cmd.Execute())
 }
@@ -147,6 +192,7 @@ func TestWrapWriterWithFDReturnsFDWriter(t *testing.T) {
 
 func addPersistentFlagsForTesting(cmd *cobra.Command) {
 	cmd.PersistentFlags().StringP("config", "c", "./modlist.json", "An alternative JSON file containing the configuration")
+	cmd.PersistentFlags().Bool("non-interactive", false, "Disable prompts and fail fast when required inputs are missing")
 	cmd.PersistentFlags().BoolP("quiet", "q", false, "Suppress non-essential output (errors and required results still print)")
 	cmd.PersistentFlags().BoolP("debug", "d", false, "Enable debug messages")
 }

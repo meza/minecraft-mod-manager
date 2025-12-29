@@ -133,7 +133,7 @@ release types cannot be empty
 key.tab key.help.complete • key.enter key.help.accept • key.ctrl_c/key.esc key.help.quit
 ---
 
-[TestInitTUIQuietNoTTYSnapshot - 1]
+[TestInitTUINonInteractiveNoTTYSnapshot - 1]
                                                                                                                                                                                          
 ❯ bukkit                                                                                                                                                                                 
   bungeecord                                                                                                                                                                             

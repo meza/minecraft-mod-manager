@@ -8,7 +8,7 @@ Example:
 
 `mmm init -l fabric`
 
-If you run `mmm init` in a terminal, it opens a short TUI so you can pick the loader, game version, release types, and mods folder (it seeds any flags you already set). In scripts, pass the flags you need and `--quiet` to skip prompts.
+If you run `mmm init` in a terminal, it opens a short TUI so you can pick the loader, game version, release types, and mods folder (it seeds any flags you already set). In scripts, pass the flags you need and `--non-interactive` to skip prompts. Use `--quiet` when you want to suppress non-essential output.
 
 If you leave the default `--game-version=latest`, the command tries to look up the latest Minecraft release. If that lookup fails (for example, you're offline), run the command again with `-g/--game-version`. Make sure the mods folder you point at already exists; `init` stops if the path is missing or is a file.
 

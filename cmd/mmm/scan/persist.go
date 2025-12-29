@@ -124,7 +124,10 @@ func unmanagedFiles(files []string, lock []models.ModInstall) []string {
 
 func confirmPersist(opts scanOptions, deps scanDeps) (bool, error) {
 	shouldPersist := opts.Add
-	if !shouldPersist && !opts.Quiet {
+	if !shouldPersist {
+		if deps.prompter == nil {
+			return false, nil
+		}
 		return deps.prompter.ConfirmAdd()
 	}
 	return shouldPersist, nil

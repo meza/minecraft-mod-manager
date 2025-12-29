@@ -11,7 +11,7 @@ Checks if all configured mods have versions available for a target Minecraft rel
 
 ## Edge Cases
 - Invalid or unknown Minecraft versions cause an error message.
-- Network failures retrieving version information prompt the user for the latest version when running interactively.
+- Network failures retrieving version information fail fast and instruct the user to supply an explicit version.
 
 ## User Interaction
 Errors and missing mods are printed to the console. No further interaction is required.

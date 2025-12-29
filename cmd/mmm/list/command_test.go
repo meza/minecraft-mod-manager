@@ -24,9 +24,19 @@ func TestCommandMissingConfigFlagErrors(t *testing.T) {
 	assert.Error(t, cmd.Execute())
 }
 
+func TestCommandMissingNonInteractiveFlagErrors(t *testing.T) {
+	cmd := Command()
+	cmd.PersistentFlags().StringP("config", "c", "modlist.json", "config")
+	setCommandOutputForTesting(cmd)
+	cmd.SetArgs([]string{"--config", "modlist.json"})
+
+	assert.Error(t, cmd.Execute())
+}
+
 func TestCommandMissingQuietFlagErrors(t *testing.T) {
 	cmd := Command()
 	cmd.PersistentFlags().StringP("config", "c", "modlist.json", "config")
+	cmd.PersistentFlags().Bool("non-interactive", false, "non-interactive")
 	setCommandOutputForTesting(cmd)
 	cmd.SetArgs([]string{"--config", "modlist.json"})
 
@@ -36,6 +46,7 @@ func TestCommandMissingQuietFlagErrors(t *testing.T) {
 func TestCommandMissingDebugFlagErrors(t *testing.T) {
 	cmd := Command()
 	cmd.PersistentFlags().StringP("config", "c", "modlist.json", "config")
+	cmd.PersistentFlags().Bool("non-interactive", false, "non-interactive")
 	cmd.PersistentFlags().BoolP("quiet", "q", false, "quiet")
 	setCommandOutputForTesting(cmd)
 	cmd.SetArgs([]string{"--config", "modlist.json"})
@@ -99,6 +110,7 @@ func TestCommandErrorFromRunList(t *testing.T) {
 
 func addPersistentFlagsForTesting(cmd *cobra.Command) {
 	cmd.PersistentFlags().StringP("config", "c", "./modlist.json", "An alternative JSON file containing the configuration")
+	cmd.PersistentFlags().Bool("non-interactive", false, "Disable prompts and fail fast when required inputs are missing")
 	cmd.PersistentFlags().BoolP("quiet", "q", false, "Suppress non-essential output (errors and required results still print)")
 	cmd.PersistentFlags().BoolP("debug", "d", false, "Enable debug messages")
 }

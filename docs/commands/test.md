@@ -11,7 +11,7 @@ mmm test 1.20.4
 | Flag | Meaning | Allowed values | Example |
 | --- | --- | --- | --- |
 | `-c, --config` | Use a specific `modlist.json` path | File path | `mmm test -c ./modlist.json 1.20.4` |
-| `-q, --quiet` | Suppress normal output | `true` or `false` | `mmm test --quiet 1.20.4` |
+| `-q, --quiet` | Suppress non-essential output | `true` or `false` | `mmm test --quiet 1.20.4` |
 | `-d, --debug` | Print debug details | `true` or `false` | `mmm test --debug 1.20.4` |
 
 ## What it does
@@ -22,6 +22,8 @@ mmm test 1.20.4
 - Makes no changes to your configuration, lock file, or mods folder.
 
 If you are on 1.19.2 and want to see whether you could upgrade to 1.19.3, run `mmm test 1.19.3`. If you omit the game version, the command uses the latest stable Minecraft version automatically. If the command cannot fetch the latest version (for example, when offline), provide an explicit version instead.
+
+In non-interactive environments, MMM fails fast if it cannot determine the latest version, so you should supply an explicit version.
 
 ## Exit codes for automation
 

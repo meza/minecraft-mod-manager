@@ -22,7 +22,7 @@ Detailed information about what each command does and how it behaves is captured
 
 Configuration lives in `modlist.json` and `modlist-lock.json`. The lock file is entirely managed by the tool and should be committed alongside the main config. Ignored files can be listed in `.mmmignore`.
 
-Global CLI flags include `--config` for selecting an alternative config file, `--quiet` to suppress prompts and regular logging, and `--debug` for verbose output. The Node version loads environment variables via `dotenv`, allowing values to be stored in a local `.env` file.
+Global CLI flags include `--config` for selecting an alternative config file, `--non-interactive` to disable prompts and fail fast when required inputs are missing, `--quiet` to suppress non-essential output, and `--debug` for verbose output. The Node version loads environment variables via `dotenv`, allowing values to be stored in a local `.env` file.
 
 Environment variables include `CURSEFORGE_API_KEY`, `MODRINTH_API_KEY`, `POSTHOG_API_KEY` and `HELP_URL`. Defaults are provided in `src/env.ts`.
 

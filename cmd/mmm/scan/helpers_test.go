@@ -1731,6 +1731,45 @@ func (file readErrorFile) Read([]byte) (int, error) {
 	return 0, file.err
 }
 
+func TestPickPrompterReturnsNoopWhenPromptDisabled(t *testing.T) {
+	restore := tui.SetIsTerminalFuncForTesting(func(_ int) bool { return true })
+	t.Cleanup(restore)
+
+	tty := fakeTTY{Buffer: &bytes.Buffer{}}
+	prompter := pickPrompter(tui.PromptDisabled, tty, tty)
+	_, ok := prompter.(noopPrompter)
+	assert.True(t, ok)
+}
+
+func TestPickPrompterReturnsTerminalWhenPromptEnabled(t *testing.T) {
+	restore := tui.SetIsTerminalFuncForTesting(func(_ int) bool { return true })
+	t.Cleanup(restore)
+
+	tty := fakeTTY{Buffer: &bytes.Buffer{}}
+	prompter := pickPrompter(tui.PromptEnabled, tty, tty)
+	_, ok := prompter.(terminalPrompter)
+	assert.True(t, ok)
+}
+
+func TestDefaultScanDepsNonInteractiveUsesNoopPrompter(t *testing.T) {
+	restore := tui.SetIsTerminalFuncForTesting(func(_ int) bool { return true })
+	t.Cleanup(restore)
+
+	cmd := &cobra.Command{}
+	cmd.SetIn(fakeTTY{Buffer: &bytes.Buffer{}})
+	cmd.SetOut(fakeTTY{Buffer: &bytes.Buffer{}})
+
+	deps := defaultScanDeps(cmd, scanOptions{NonInteractive: true})
+	_, ok := deps.prompter.(noopPrompter)
+	assert.True(t, ok)
+}
+
+func TestConfirmPersistSkipsWhenNoPrompter(t *testing.T) {
+	confirmed, err := confirmPersist(scanOptions{}, scanDeps{})
+	assert.NoError(t, err)
+	assert.False(t, confirmed)
+}
+
 type fakeTTY struct {
 	*bytes.Buffer
 }

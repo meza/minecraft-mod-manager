@@ -77,7 +77,7 @@ func initWithDeps(ctx context.Context, options initOptions, deps initDeps) (conf
 	}
 
 	meta := config.NewMetadata(options.ConfigPath)
-	meta, err = resolveConfigPath(meta, options, deps)
+	meta, err = resolveConfigPath(meta, deps)
 	if err != nil {
 		return config.Metadata{}, err
 	}
@@ -155,7 +155,7 @@ func resolveLatestGameVersion(ctx context.Context, options initOptions, deps ini
 	return options, nil
 }
 
-func resolveConfigPath(meta config.Metadata, options initOptions, deps initDeps) (config.Metadata, error) {
+func resolveConfigPath(meta config.Metadata, deps initDeps) (config.Metadata, error) {
 	exists, err := afero.Exists(deps.fs, meta.ConfigPath)
 	if err != nil {
 		return config.Metadata{}, fmt.Errorf("%s: %w", i18n.T("cmd.init.error.config-file.check", nil), err)
@@ -163,7 +163,7 @@ func resolveConfigPath(meta config.Metadata, options initOptions, deps initDeps)
 	if !exists {
 		return meta, nil
 	}
-	if options.Quiet {
+	if !deps.promptAllowed {
 		return config.Metadata{}, fmt.Errorf("%s", i18n.T("cmd.init.error.config-file.exists", &i18n.Tvars{
 			Data: &i18n.TData{"configPath": meta.ConfigPath},
 		}))

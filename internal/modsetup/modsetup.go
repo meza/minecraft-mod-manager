@@ -35,7 +35,7 @@ func NewSetupCoordinator(fs afero.Fs, minecraftClient httpclient.Doer, downloade
 }
 
 type EnsureConfigOptions struct {
-	Quiet bool
+	NonInteractive bool
 }
 
 func (coordinator *SetupCoordinator) EnsureConfigAndLock(ctx context.Context, meta config.Metadata, options EnsureConfigOptions) (models.ModsJSON, []models.ModInstall, error) {
@@ -279,7 +279,7 @@ func (coordinator *SetupCoordinator) ensureConfig(ctx context.Context, meta conf
 	if !errors.As(err, &notFound) {
 		return models.ModsJSON{}, err
 	}
-	if options.Quiet {
+	if options.NonInteractive {
 		return models.ModsJSON{}, err
 	}
 	if coordinator.minecraftClient == nil {

@@ -6,7 +6,7 @@ import (
 	"github.com/spf13/cobra"
 )
 
-func newInitDeps(cmd *cobra.Command, common cmddeps.CommonDeps) initDeps {
+func newInitDeps(cmd *cobra.Command, common cmddeps.CommonDeps, promptAllowed bool) initDeps {
 	return initDeps{
 		fs:              common.FS,
 		minecraftClient: common.MinecraftClient,
@@ -14,9 +14,10 @@ func newInitDeps(cmd *cobra.Command, common cmddeps.CommonDeps) initDeps {
 			in:  cmd.InOrStdin(),
 			out: cmd.OutOrStdout(),
 		},
-		logger:    common.Logger,
-		output:    common.Output,
-		telemetry: telemetry.RecordCommand,
-		runTea:    defaultRunTea,
+		promptAllowed: promptAllowed,
+		logger:        common.Logger,
+		output:        common.Output,
+		telemetry:     telemetry.RecordCommand,
+		runTea:        defaultRunTea,
 	}
 }

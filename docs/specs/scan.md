@@ -15,7 +15,7 @@ Searches the mods directory for jar files that are not present in the configurat
 - Files already managed in the lock file are skipped.
 
 ## User Interaction
-Without `--add` and when not running in quiet mode, the user is asked whether to update the configuration after reviewing the results.
+Without `--add` and when running interactively, the user is asked whether to update the configuration after reviewing the results. Non-interactive mode skips the prompt and leaves the configuration unchanged unless `--add` is supplied.
 
 ## Existing bugs
 

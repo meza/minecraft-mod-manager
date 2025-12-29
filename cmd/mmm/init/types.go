@@ -18,14 +18,15 @@ import (
 type initRunner func(context.Context, *cobra.Command, initOptions, initDeps, config.Metadata) error
 
 type initOptions struct {
-	ConfigPath   string
-	Quiet        bool
-	Debug        bool
-	Loader       models.Loader
-	GameVersion  string
-	ReleaseTypes []models.ReleaseType
-	ModsFolder   string
-	Provided     providedFlags
+	ConfigPath     string
+	NonInteractive bool
+	Quiet          bool
+	Debug          bool
+	Loader         models.Loader
+	GameVersion    string
+	ReleaseTypes   []models.ReleaseType
+	ModsFolder     string
+	Provided       providedFlags
 }
 
 type providedFlags struct {
@@ -39,6 +40,7 @@ type initDeps struct {
 	fs              afero.Fs
 	minecraftClient httpclient.Doer
 	prompter        prompter
+	promptAllowed   bool
 	logger          *logger.Logger
 	output          *output.Output
 	telemetry       func(telemetry.CommandTelemetry)

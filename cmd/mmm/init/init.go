@@ -11,6 +11,7 @@ import (
 	"github.com/meza/minecraft-mod-manager/internal/config"
 	"github.com/meza/minecraft-mod-manager/internal/i18n"
 	"github.com/meza/minecraft-mod-manager/internal/perf"
+	"github.com/meza/minecraft-mod-manager/internal/tui"
 	"github.com/spf13/cobra"
 	"go.opentelemetry.io/otel/attribute"
 )
@@ -47,13 +48,18 @@ func commandWithRunner(runner initRunner) *cobra.Command {
 			if err != nil {
 				return err
 			}
+			promptMode := tui.PromptEnabled
+			if options.NonInteractive {
+				promptMode = tui.PromptDisabled
+			}
+			promptAllowed := tui.ShouldPrompt(promptMode, cmd.InOrStdin(), cmd.OutOrStdout())
 
 			common := cmddeps.NewCommonDeps(cmd, cmddeps.CommonDepsOptions{
 				Quiet:           options.Quiet,
 				Debug:           options.Debug,
 				MinecraftClient: http.DefaultClient,
 			})
-			deps := newInitDeps(cmd, common)
+			deps := newInitDeps(cmd, common, promptAllowed)
 			meta := config.NewMetadata(options.ConfigPath)
 
 			err = runner(ctx, cmd, options, deps, meta)

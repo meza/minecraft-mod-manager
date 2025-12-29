@@ -240,24 +240,25 @@ func TestInitWithDeps(t *testing.T) {
 		assert.ErrorContains(t, err, "Could not verify the Minecraft version.")
 	})
 
-	t.Run("config exists with --quiet returns error", func(t *testing.T) {
+	t.Run("config exists with --non-interactive returns error", func(t *testing.T) {
 		minecraft.ClearManifestCache()
 		fs := afero.NewMemMapFs()
 		assert.NoError(t, fs.MkdirAll(filepath.FromSlash("/cfg/mods"), 0755))
 		assert.NoError(t, afero.WriteFile(fs, filepath.FromSlash("/cfg/modlist.json"), []byte(`{"existing":true}`), 0644))
 
 		_, err := initWithDeps(context.Background(), initOptions{
-			ConfigPath:   filepath.FromSlash("/cfg/modlist.json"),
-			Quiet:        true,
-			Loader:       models.FABRIC,
-			GameVersion:  "1.21.1",
-			ReleaseTypes: []models.ReleaseType{models.Release},
-			ModsFolder:   "mods",
+			ConfigPath:     filepath.FromSlash("/cfg/modlist.json"),
+			NonInteractive: true,
+			Loader:         models.FABRIC,
+			GameVersion:    "1.21.1",
+			ReleaseTypes:   []models.ReleaseType{models.Release},
+			ModsFolder:     "mods",
 		}, initDeps{
 			output:          output.New(io.Discard, io.Discard, true),
 			fs:              fs,
 			minecraftClient: manifestDoer([]string{"1.21.1"}),
 			prompter:        fakePrompter{overwrite: true},
+			promptAllowed:   false,
 		})
 		assert.ErrorContains(t, err, "already exists")
 	})
@@ -279,6 +280,7 @@ func TestInitWithDeps(t *testing.T) {
 			fs:              fs,
 			minecraftClient: manifestDoer([]string{"1.21.1"}),
 			prompter:        fakePrompter{overwrite: true},
+			promptAllowed:   true,
 		})
 		assert.NoError(t, err)
 		assert.Equal(t, filepath.FromSlash("/cfg/modlist.json"), meta.ConfigPath)
@@ -305,6 +307,7 @@ func TestInitWithDeps(t *testing.T) {
 			fs:              fs,
 			minecraftClient: manifestDoer([]string{"1.21.1"}),
 			prompter:        fakePrompter{overwrite: false, newPath: filepath.FromSlash("/cfg/alt.json")},
+			promptAllowed:   true,
 		})
 		assert.NoError(t, err)
 		assert.Equal(t, filepath.FromSlash("/cfg/alt.json"), meta.ConfigPath)
@@ -617,7 +620,7 @@ func TestRunInitInteractiveErrorPropagates(t *testing.T) {
 	assert.True(t, didUseTUI)
 }
 
-func TestRunInitQuietSkipsInteractiveFlow(t *testing.T) {
+func TestRunInitNonInteractiveSkipsInteractiveFlow(t *testing.T) {
 	minecraft.ClearManifestCache()
 	restoreTTY := tui.SetIsTerminalFuncForTesting(func(int) bool { return true })
 	t.Cleanup(restoreTTY)
@@ -635,12 +638,12 @@ func TestRunInitQuietSkipsInteractiveFlow(t *testing.T) {
 	cmd.SetErr(out)
 
 	_, didUseTUI, err := runInit(context.Background(), cmd, initOptions{
-		ConfigPath:   meta.ConfigPath,
-		Loader:       models.FABRIC,
-		GameVersion:  "1.21.1",
-		ReleaseTypes: []models.ReleaseType{models.Release},
-		ModsFolder:   "mods",
-		Quiet:        true,
+		ConfigPath:     meta.ConfigPath,
+		Loader:         models.FABRIC,
+		GameVersion:    "1.21.1",
+		ReleaseTypes:   []models.ReleaseType{models.Release},
+		ModsFolder:     "mods",
+		NonInteractive: true,
 		Provided: providedFlags{
 			Loader:       true,
 			GameVersion:  true,

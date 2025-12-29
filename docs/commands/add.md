@@ -14,7 +14,7 @@ mmm add modrinth AANobbMI
 
 This adds a given mod to the configuration file and downloads the relevant mod file to the configured mods folder.
 
-If the mod cannot be found, the platform is invalid, or no compatible file exists, MMM prompts you to adjust the platform and/or project ID. Use `--quiet` to skip prompts and fail fast.
+If the mod cannot be found, the platform is invalid, or no compatible file exists, MMM prompts you to adjust the platform and/or project ID. Use `--non-interactive` to skip prompts and fail fast. Use `--quiet` when you want to suppress non-essential output.
 
 ## Flags
 

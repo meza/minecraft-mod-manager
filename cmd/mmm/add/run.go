@@ -80,20 +80,20 @@ func finalizeAddWithResolved(ctx context.Context, runState addRunState, resolved
 
 func prepareAddConfig(ctx context.Context, opts addOptions, meta config.Metadata, setupCoordinator *modsetup.SetupCoordinator) (models.ModsJSON, []models.ModInstall, error) {
 	prepareCtx, prepareSpan := perf.StartSpan(ctx, "app.command.add.stage.prepare", perf.WithAttributes(attribute.String("config_path", opts.ConfigPath)))
-	cfg, lock, err := setupCoordinator.EnsureConfigAndLock(prepareCtx, meta, modsetup.EnsureConfigOptions{Quiet: opts.Quiet})
+	cfg, lock, err := setupCoordinator.EnsureConfigAndLock(prepareCtx, meta, modsetup.EnsureConfigOptions{NonInteractive: opts.NonInteractive})
 	prepareSpan.SetAttributes(attribute.Bool("success", err == nil))
 	prepareSpan.End()
 	return cfg, lock, err
 }
 
 func prepareAddRunState(ctx context.Context, cmd *cobra.Command, opts addOptions, deps addDeps) (addRunState, error) {
-	quietMode := tui.QuietDisabled
-	if opts.Quiet {
-		quietMode = tui.QuietEnabled
+	promptMode := tui.PromptEnabled
+	if opts.NonInteractive {
+		promptMode = tui.PromptDisabled
 	}
 	runState := addRunState{
 		meta:             config.NewMetadata(opts.ConfigPath),
-		useTUI:           tui.ShouldUseTUI(quietMode, cmd.InOrStdin(), cmd.OutOrStdout()),
+		useTUI:           tui.ShouldUseTUI(promptMode, cmd.InOrStdin(), cmd.OutOrStdout()),
 		setupCoordinator: modsetup.NewSetupCoordinator(deps.fs, deps.minecraftClient, modsetup.Downloader(deps.downloader)),
 	}
 

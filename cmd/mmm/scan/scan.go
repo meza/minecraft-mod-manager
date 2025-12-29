@@ -31,11 +31,12 @@ import (
 )
 
 type scanOptions struct {
-	ConfigPath string
-	Quiet      bool
-	Debug      bool
-	Prefer     string
-	Add        bool
+	ConfigPath     string
+	NonInteractive bool
+	Quiet          bool
+	Debug          bool
+	Prefer         string
+	Add            bool
 }
 
 type scanDeps struct {
@@ -136,6 +137,10 @@ func scanOptionsFromFlags(cmd *cobra.Command) (scanOptions, error) {
 	if err != nil {
 		return scanOptions{}, err
 	}
+	nonInteractive, err := cmd.Flags().GetBool("non-interactive")
+	if err != nil {
+		return scanOptions{}, err
+	}
 	quiet, err := cmd.Flags().GetBool("quiet")
 	if err != nil {
 		return scanOptions{}, err
@@ -154,11 +159,12 @@ func scanOptionsFromFlags(cmd *cobra.Command) (scanOptions, error) {
 	}
 
 	return scanOptions{
-		ConfigPath: configPath,
-		Quiet:      quiet,
-		Debug:      debug,
-		Prefer:     prefer,
-		Add:        add,
+		ConfigPath:     configPath,
+		NonInteractive: nonInteractive,
+		Quiet:          quiet,
+		Debug:          debug,
+		Prefer:         prefer,
+		Add:            add,
 	}, nil
 }
 
@@ -167,6 +173,10 @@ func defaultScanDeps(cmd *cobra.Command, opts scanOptions) scanDeps {
 		Quiet: opts.Quiet,
 		Debug: opts.Debug,
 	})
+	promptMode := tui.PromptEnabled
+	if opts.NonInteractive {
+		promptMode = tui.PromptDisabled
+	}
 
 	return scanDeps{
 		fs:              common.FS,
@@ -174,7 +184,7 @@ func defaultScanDeps(cmd *cobra.Command, opts scanOptions) scanDeps {
 		minecraftClient: common.MinecraftClient,
 		logger:          common.Logger,
 		output:          common.Output,
-		prompter:        terminalPrompter{in: cmd.InOrStdin(), out: cmd.OutOrStdout()},
+		prompter:        pickPrompter(promptMode, cmd.InOrStdin(), cmd.OutOrStdout()),
 		telemetry:       telemetry.RecordCommand,
 
 		curseforgeFingerprint:      curseforgeFingerprint.GetFingerprintFor,
@@ -183,6 +193,13 @@ func defaultScanDeps(cmd *cobra.Command, opts scanOptions) scanDeps {
 		curseforgeFingerprintMatch: defaultCurseforgeFingerprintMatch,
 		curseforgeProjectName:      defaultCurseforgeProjectName,
 	}
+}
+
+func pickPrompter(promptMode tui.PromptMode, in io.Reader, out io.Writer) prompter {
+	if !tui.ShouldPrompt(promptMode, in, out) {
+		return noopPrompter{}
+	}
+	return terminalPrompter{in: in, out: out}
 }
 
 type scanCandidate struct {
@@ -223,7 +240,7 @@ func runScan(ctx context.Context, cmd *cobra.Command, opts scanOptions, deps sca
 	meta := config.NewMetadata(opts.ConfigPath)
 	setupCoordinator := modsetup.NewSetupCoordinator(deps.fs, deps.minecraftClient, nil)
 
-	cfg, lock, err := setupCoordinator.EnsureConfigAndLock(ctx, meta, modsetup.EnsureConfigOptions{Quiet: opts.Quiet})
+	cfg, lock, err := setupCoordinator.EnsureConfigAndLock(ctx, meta, modsetup.EnsureConfigOptions{NonInteractive: opts.NonInteractive})
 	if err != nil {
 		return scanFailureTelemetry(err), err
 	}

@@ -26,7 +26,7 @@ Hash verification is not performed here; the current check is "lock says it shou
 
 ## Interactive vs non-interactive behavior
 
-`list` will render through Bubble Tea only when stdin and stdout are terminals and `--quiet` is not set (see `internal/tui.ShouldUseTUI`).
+`list` will render through Bubble Tea only when stdin and stdout are terminals and `--non-interactive` is not set (see `internal/tui.ShouldUseTUI`).
 
 When it runs in TUI mode and the list is empty, it also logs the rendered view to stdout. This keeps the result visible even though Bubble Tea exits immediately.
 

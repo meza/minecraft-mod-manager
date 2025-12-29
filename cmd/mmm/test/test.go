@@ -28,10 +28,11 @@ import (
 const defaultTestMaxConcurrency = 4
 
 type testOptions struct {
-	ConfigPath  string
-	GameVersion string
-	Quiet       bool
-	Debug       bool
+	ConfigPath     string
+	GameVersion    string
+	NonInteractive bool
+	Quiet          bool
+	Debug          bool
 }
 
 type testDeps struct {
@@ -105,11 +106,11 @@ func runTestCommand(cmd *cobra.Command, args []string, runner testRunner) error 
 		return err
 	}
 
-	quietMode := tui.QuietDisabled
-	if opts.Quiet {
-		quietMode = tui.QuietEnabled
+	promptMode := tui.PromptEnabled
+	if opts.NonInteractive {
+		promptMode = tui.PromptDisabled
 	}
-	useTUI := tui.ShouldUseTUI(quietMode, cmd.InOrStdin(), cmd.OutOrStdout())
+	useTUI := tui.ShouldUseTUI(promptMode, cmd.InOrStdin(), cmd.OutOrStdout())
 
 	outWriter := cmd.OutOrStdout()
 	errWriter := cmd.ErrOrStderr()
@@ -144,6 +145,10 @@ func testOptionsFromFlags(cmd *cobra.Command, args []string) (testOptions, error
 	if err != nil {
 		return testOptions{}, err
 	}
+	nonInteractive, err := cmd.Flags().GetBool("non-interactive")
+	if err != nil {
+		return testOptions{}, err
+	}
 	quiet, err := cmd.Flags().GetBool("quiet")
 	if err != nil {
 		return testOptions{}, err
@@ -154,10 +159,11 @@ func testOptionsFromFlags(cmd *cobra.Command, args []string) (testOptions, error
 	}
 
 	return testOptions{
-		ConfigPath:  configPath,
-		GameVersion: resolveGameVersion(args),
-		Quiet:       quiet,
-		Debug:       debug,
+		ConfigPath:     configPath,
+		GameVersion:    resolveGameVersion(args),
+		NonInteractive: nonInteractive,
+		Quiet:          quiet,
+		Debug:          debug,
 	}, nil
 }
 

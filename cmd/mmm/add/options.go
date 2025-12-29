@@ -11,6 +11,10 @@ func readAddOptions(cmd *cobra.Command, args []string) (addOptions, error) {
 	if err != nil {
 		return addOptions{}, err
 	}
+	nonInteractive, err := cmd.Flags().GetBool("non-interactive")
+	if err != nil {
+		return addOptions{}, err
+	}
 	quiet, err := cmd.Flags().GetBool("quiet")
 	if err != nil {
 		return addOptions{}, err
@@ -32,6 +36,7 @@ func readAddOptions(cmd *cobra.Command, args []string) (addOptions, error) {
 		Platform:             args[0],
 		ProjectID:            args[1],
 		ConfigPath:           configPath,
+		NonInteractive:       nonInteractive,
 		Quiet:                quiet,
 		Debug:                debug,
 		Version:              version,

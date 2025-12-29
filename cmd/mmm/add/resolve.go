@@ -177,7 +177,7 @@ func resolveRemoteModFromError(ctx context.Context, inputs addResolveInputs, err
 }
 
 func resolveUnknownPlatform(ctx context.Context, inputs addResolveInputs, unknownPlatformError *platform.UnknownPlatformError) (resolvedRemoteMod, error) {
-	if inputs.opts.Quiet || !inputs.useTUI {
+	if !inputs.useTUI {
 		message := errorMessageForUnknownPlatform(unknownPlatformError.Platform)
 		if err := inputs.deps.output.Error(message); err != nil {
 			return resolvedRemoteMod{
@@ -194,7 +194,7 @@ func resolveUnknownPlatform(ctx context.Context, inputs addResolveInputs, unknow
 }
 
 func resolveModNotFound(ctx context.Context, inputs addResolveInputs, err error) (resolvedRemoteMod, error) {
-	if inputs.opts.Quiet || !inputs.useTUI {
+	if !inputs.useTUI {
 		if outputErr := inputs.deps.output.Error(errorMessageForModNotFound(inputs.projectID, inputs.platformValue)); outputErr != nil {
 			return resolvedRemoteMod{
 				platform:  inputs.platformValue,
@@ -210,7 +210,7 @@ func resolveModNotFound(ctx context.Context, inputs addResolveInputs, err error)
 }
 
 func resolveNoCompatibleFile(ctx context.Context, inputs addResolveInputs, err error) (resolvedRemoteMod, error) {
-	if inputs.opts.Quiet || !inputs.useTUI {
+	if !inputs.useTUI {
 		if outputErr := inputs.deps.output.Error(errorMessageForNoFile(inputs.projectID, inputs.platformValue)); outputErr != nil {
 			return resolvedRemoteMod{
 				platform:  inputs.platformValue,

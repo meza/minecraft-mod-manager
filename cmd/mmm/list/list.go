@@ -41,9 +41,10 @@ func Command() *cobra.Command {
 }
 
 type listCommandOptions struct {
-	configPath string
-	quiet      bool
-	debug      bool
+	configPath     string
+	nonInteractive bool
+	quiet          bool
+	debug          bool
 }
 
 func runListCommand(cmd *cobra.Command, _ []string) error {
@@ -56,7 +57,10 @@ func runListCommand(cmd *cobra.Command, _ []string) error {
 	}
 
 	deps := defaultListDeps(cmd, options)
-	entriesCount, usedTUI, runErr := runList(ctx, cmd, options.configPath, runListOptions{quiet: options.quiet}, deps)
+	entriesCount, usedTUI, runErr := runList(ctx, cmd, options.configPath, runListOptions{
+		nonInteractive: options.nonInteractive,
+		quiet:          options.quiet,
+	}, deps)
 	finishListSpan(span, runErr == nil)
 	recordListTelemetry(deps.telemetry, entriesCount, usedTUI, runErr)
 
@@ -65,6 +69,10 @@ func runListCommand(cmd *cobra.Command, _ []string) error {
 
 func listOptionsFromFlags(cmd *cobra.Command) (listCommandOptions, error) {
 	configPath, err := cmd.Flags().GetString("config")
+	if err != nil {
+		return listCommandOptions{}, err
+	}
+	nonInteractive, err := cmd.Flags().GetBool("non-interactive")
 	if err != nil {
 		return listCommandOptions{}, err
 	}
@@ -78,9 +86,10 @@ func listOptionsFromFlags(cmd *cobra.Command) (listCommandOptions, error) {
 	}
 
 	return listCommandOptions{
-		configPath: configPath,
-		quiet:      quiet,
-		debug:      debug,
+		configPath:     configPath,
+		nonInteractive: nonInteractive,
+		quiet:          quiet,
+		debug:          debug,
 	}, nil
 }
 
@@ -154,7 +163,8 @@ func (mode listDisplayMode) UseTUI() bool {
 }
 
 type runListOptions struct {
-	quiet bool
+	nonInteractive bool
+	quiet          bool
 }
 
 func runList(ctx context.Context, cmd *cobra.Command, configPath string, options runListOptions, deps listDeps) (int, bool, error) {
@@ -174,11 +184,11 @@ func runList(ctx context.Context, cmd *cobra.Command, configPath string, options
 	}
 
 	entries := buildEntries(cfg, lock, meta, deps.fs)
-	quietMode := tui.QuietDisabled
-	if options.quiet {
-		quietMode = tui.QuietEnabled
+	promptMode := tui.PromptEnabled
+	if options.nonInteractive {
+		promptMode = tui.PromptDisabled
 	}
-	useTUI := tui.ShouldUseTUI(quietMode, cmd.InOrStdin(), cmd.OutOrStdout())
+	useTUI := tui.ShouldUseTUI(promptMode, cmd.InOrStdin(), cmd.OutOrStdout())
 	colorize := useTUI || tui.IsTerminalWriter(cmd.OutOrStdout())
 	colorMode := tui.ColorDisabled
 	if colorize {

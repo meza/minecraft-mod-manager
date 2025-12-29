@@ -24,11 +24,11 @@ func runInitCommand(ctx context.Context, cmd *cobra.Command, options initOptions
 }
 
 func runInit(ctx context.Context, cmd *cobra.Command, options initOptions, deps initDeps, meta config.Metadata) (initOptions, bool, error) {
-	quietMode := tui.QuietDisabled
-	if options.Quiet {
-		quietMode = tui.QuietEnabled
+	promptMode := tui.PromptEnabled
+	if options.NonInteractive {
+		promptMode = tui.PromptDisabled
 	}
-	shouldUseTUI := tui.ShouldUseTUI(quietMode, cmd.InOrStdin(), cmd.OutOrStdout())
+	shouldUseTUI := tui.ShouldUseTUI(promptMode, cmd.InOrStdin(), cmd.OutOrStdout())
 	didUseTUI := false
 
 	gameVersionMode := gameVersionNonInteractive

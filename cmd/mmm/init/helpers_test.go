@@ -174,6 +174,7 @@ func TestInitWithDepsPrompterErrors(t *testing.T) {
 		fs:              fs,
 		minecraftClient: manifestDoer([]string{"1.21.1"}),
 		prompter:        fakePrompter{confirmErr: errors.New("confirm failed")},
+		promptAllowed:   true,
 	})
 	assert.ErrorContains(t, err, "confirm failed")
 
@@ -188,6 +189,7 @@ func TestInitWithDepsPrompterErrors(t *testing.T) {
 		fs:              fs,
 		minecraftClient: manifestDoer([]string{"1.21.1"}),
 		prompter:        fakePrompter{overwrite: false, newPathErr: errors.New("new path failed")},
+		promptAllowed:   true,
 	})
 	assert.ErrorContains(t, err, "new path failed")
 }

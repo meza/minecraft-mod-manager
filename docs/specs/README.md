@@ -18,7 +18,10 @@ This section documents how each CLI command operates. These guides are intended 
 Every command supports a few shared flags provided by the CLI parser:
 
 - `-c, --config <file>` - path to `modlist.json`. Defaults to `./modlist.json`.
-- `-q, --quiet` - suppresses prompts and normal log output.
+- `--non-interactive` - disables prompts and fails fast when required inputs are missing.
+- `-q, --quiet` - suppresses non-essential output; errors and required results still print.
 - `-d, --debug` - prints additional debug messages.
+
+Non-TTY usage is treated as non-interactive by default.
 
 These options must appear before the command name, e.g. `mmm --quiet install`.

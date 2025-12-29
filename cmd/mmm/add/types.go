@@ -24,6 +24,7 @@ type addOptions struct {
 	Platform             string
 	ProjectID            string
 	ConfigPath           string
+	NonInteractive       bool
 	Quiet                bool
 	Debug                bool
 	Version              string

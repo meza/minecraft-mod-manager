@@ -31,5 +31,5 @@ This command only uses the global options:
 | Flag | Meaning | Allowed values | Example |
 | --- | --- | --- | --- |
 | `-c, --config` | Path to `modlist.json` | file path | `mmm --config ./server/modlist.json update` |
-| `-q, --quiet` | Suppress normal output | `true/false` | `mmm --quiet update` |
+| `-q, --quiet` | Suppress non-essential output | `true/false` | `mmm --quiet update` |
 | `-d, --debug` | Print debug details | `true/false` | `mmm --debug update` |

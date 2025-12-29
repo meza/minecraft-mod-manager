@@ -23,7 +23,7 @@ They describe what each command should do. This package is where that behavior g
 
 `root.go` owns a few cross-cutting behaviors that affect every command:
 
-- Persistent flags: `--config`, `--quiet`, `--debug`
+- Persistent flags: `--config`, `--non-interactive`, `--quiet`, `--debug`
 - Help localization: overrides the default help flag text and help command text using `internal/i18n`
 - Help footer: appends a "more info" footer using `internal/environment.HelpURL()`
 - Usage formatting: wraps flag usage to terminal width so help output stays readable

@@ -37,11 +37,11 @@ func runUpdateCommand(cmd *cobra.Command) error {
 		return err
 	}
 
-	quietMode := tui.QuietDisabled
-	if opts.Quiet {
-		quietMode = tui.QuietEnabled
+	promptMode := tui.PromptEnabled
+	if opts.NonInteractive {
+		promptMode = tui.PromptDisabled
 	}
-	useTUI := tui.ShouldUseTUI(quietMode, cmd.InOrStdin(), cmd.OutOrStdout())
+	useTUI := tui.ShouldUseTUI(promptMode, cmd.InOrStdin(), cmd.OutOrStdout())
 
 	outWriter := cmd.OutOrStdout()
 	errWriter := cmd.ErrOrStderr()
@@ -105,6 +105,10 @@ func updateOptionsFromFlags(cmd *cobra.Command) (updateOptions, error) {
 	if err != nil {
 		return updateOptions{}, err
 	}
+	nonInteractive, err := cmd.Flags().GetBool("non-interactive")
+	if err != nil {
+		return updateOptions{}, err
+	}
 	quiet, err := cmd.Flags().GetBool("quiet")
 	if err != nil {
 		return updateOptions{}, err
@@ -115,8 +119,9 @@ func updateOptionsFromFlags(cmd *cobra.Command) (updateOptions, error) {
 	}
 
 	return updateOptions{
-		ConfigPath: configPath,
-		Quiet:      quiet,
-		Debug:      debug,
+		ConfigPath:     configPath,
+		NonInteractive: nonInteractive,
+		Quiet:          quiet,
+		Debug:          debug,
 	}, nil
 }

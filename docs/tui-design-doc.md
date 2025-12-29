@@ -12,18 +12,16 @@ This document captures the visual wire-frames and interaction model for the Mine
 
 | Tier                | Detection                                                                                       | Behaviour                                                                                                     | Example                                                            |
 |---------------------|-------------------------------------------------------------------------------------------------|---------------------------------------------------------------------------------------------------------------|--------------------------------------------------------------------|
-| **Non-interactive** | All required flags present and `stdin` not a TTY, or `--yes / --force / --json` given           | Perform task silently. Return exit code and machine-readable logs                                             | `mmm add --platform curseforge --id 438050 --version 1.20.1 --yes` |
-| **Prompted CLI**    | TTY available but required info missing                                                         | Ask only for missing input via simple line prompts (no Bubble Tea). Honour `--abort-on-prompt` to fail fast  | `mmm remove sodium` -> disambiguation prompt                       |
+| **Non-interactive** | `stdin` not a TTY, or `--non-interactive` given                                                  | Perform task without prompts. Defaults may be used; missing required inputs fail fast                        | `mmm --non-interactive add curseforge 438050 --version 1.20.1`     |
+| **Prompted CLI**    | TTY available but required info missing                                                         | Ask only for missing input via simple line prompts (no Bubble Tea)                                           | `mmm remove sodium` -> disambiguation prompt                       |
 | **Full TUI**        | No flags, or `mmm tui`, or `--tui` supplied                                                      | Launch Bubble Tea interface described in Section 3                                                            | User types `mmm` with no args                                      |
 
 ### 2.1  Flags & Environment variables
 
-| Switch/Var               | Effect                                           |
-|--------------------------|--------------------------------------------------|
-| `-y`, `--yes`, `--force` | Skip *all* confirmations                         |
-| `--pick-first`           | Auto-select first match when multiple are found  |
-| `--json`, `--quiet`      | Suppress progress lines, emit JSON               |
-| `MMM_NO_PROMPT=1`        | Fail if a prompt would be required (good for CI) |
+| Switch/Var          | Effect                                                     |
+|---------------------|------------------------------------------------------------|
+| `--non-interactive` | Disable prompts and fail fast on missing required inputs   |
+| `--quiet`           | Suppress non-essential output                              |
 
 ---
 
@@ -191,7 +189,7 @@ This document captures the visual wire-frames and interaction model for the Mine
 ```go
 func ensureTTYOrAbort() {
     if !isatty.IsTerminal(os.Stdin.Fd()) {
-        fmt.Fprintln(os.Stderr, "Missing flag --yes in non-interactive mode")
+        fmt.Fprintln(os.Stderr, "Missing required input in non-interactive mode")
         os.Exit(4)
     }
 }
@@ -234,7 +232,7 @@ All new code must keep **100 % coverage** per project policy.
 
 * **Key bindings** live in a single map, and the footer reads from it to stay DRY.
 * Listen for `tea.WindowSizeMsg` to recompute widths -> responsive layout.
-* Long-running jobs issue `tea.Batch` with a `spinner` (quiet mode outputs simple log lines).
+* Long-running jobs issue `tea.Batch` with a `spinner` (quiet mode suppresses non-essential output).
 * **Colour palette:**
 
   * Background `#262626` (charcoal)
