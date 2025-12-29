@@ -1022,7 +1022,7 @@ func TestLogPlatformLookupFailureOutputsMessages(t *testing.T) {
 		Platform: models.CURSEFORGE,
 		Files:    []string{"/mods/a.jar"},
 		Reason: i18n.T("cmd.platform.error.reason.unknown", &i18n.Tvars{
-			Data: &i18n.TData{"platform": models.CURSEFORGE},
+			Data: &i18n.TData{"platform": string(models.CURSEFORGE)},
 		}),
 		DebugDetails: "debug details",
 	}
@@ -1050,7 +1050,7 @@ func TestLogPlatformLookupFailureErrorsWithoutLogger(t *testing.T) {
 		Platform: models.CURSEFORGE,
 		Files:    []string{"/mods/a.jar"},
 		Reason: i18n.T("cmd.platform.error.reason.unknown", &i18n.Tvars{
-			Data: &i18n.TData{"platform": models.CURSEFORGE},
+			Data: &i18n.TData{"platform": string(models.CURSEFORGE)},
 		}),
 		DebugDetails: "debug details",
 	}

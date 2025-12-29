@@ -25,7 +25,7 @@ func TestSummarizePlatformErrorUsesResponseError(t *testing.T) {
 	assert.Equal(t, i18n.T("cmd.platform.error.reason.auth", &i18n.Tvars{
 		Data: &i18n.TData{
 			"token":    "CURSEFORGE_API_KEY",
-			"platform": models.CURSEFORGE,
+			"platform": string(models.CURSEFORGE),
 		},
 	}), summary.Reason)
 	assert.Contains(t, summary.DebugDetails, "status=403")
@@ -37,7 +37,7 @@ func TestSummarizePlatformErrorTimeout(t *testing.T) {
 	summary, ok := SummarizePlatformError(timeoutErr, models.MODRINTH)
 	assert.True(t, ok)
 	assert.Equal(t, i18n.T("cmd.platform.error.reason.timeout", &i18n.Tvars{
-		Data: &i18n.TData{"platform": models.MODRINTH},
+		Data: &i18n.TData{"platform": string(models.MODRINTH)},
 	}), summary.Reason)
 	assert.Contains(t, summary.DebugDetails, "timed out")
 }
@@ -48,7 +48,7 @@ func TestSummarizePlatformErrorConnection(t *testing.T) {
 	summary, ok := SummarizePlatformError(connErr, models.MODRINTH)
 	assert.True(t, ok)
 	assert.Equal(t, i18n.T("cmd.platform.error.reason.connection", &i18n.Tvars{
-		Data: &i18n.TData{"platform": models.MODRINTH},
+		Data: &i18n.TData{"platform": string(models.MODRINTH)},
 	}), summary.Reason)
 	assert.Contains(t, summary.DebugDetails, "connection refused")
 }

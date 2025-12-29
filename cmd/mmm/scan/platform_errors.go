@@ -14,7 +14,7 @@ func summarizePlatformFailure(err error, platform models.Platform) clierrors.Pla
 	if err == nil {
 		return clierrors.PlatformErrorSummary{
 			Reason: i18n.T("cmd.platform.error.reason.unknown", &i18n.Tvars{
-				Data: &i18n.TData{"platform": platform},
+				Data: &i18n.TData{"platform": string(platform)},
 			}),
 		}
 	}
@@ -26,7 +26,7 @@ func summarizePlatformFailure(err error, platform models.Platform) clierrors.Pla
 func platformUnsureReason(platform models.Platform, reason string) string {
 	return i18n.T("cmd.scan.unsure.platform_error", &i18n.Tvars{
 		Data: &i18n.TData{
-			"platform": platform,
+			"platform": string(platform),
 			"reason":   reason,
 		},
 	})
@@ -38,7 +38,7 @@ func logPlatformDebug(log *logger.Logger, platform models.Platform, details stri
 	}
 	if err := log.Debug(i18n.T("cmd.scan.debug.platform_error", &i18n.Tvars{
 		Data: &i18n.TData{
-			"platform": platform,
+			"platform": string(platform),
 			"details":  details,
 		},
 	})); err != nil {

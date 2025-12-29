@@ -293,7 +293,7 @@ func checkMod(
 		Message: i18n.T("cmd.test.debug.checking", &i18n.Tvars{
 			Data: &i18n.TData{
 				"name":     mod.Name,
-				"platform": mod.Type,
+				"platform": string(mod.Type),
 				"version":  targetVersion,
 			},
 		}),
@@ -361,7 +361,7 @@ func fetchFailureUserEvent(fetchErr error, mod models.Mod) logEvent {
 				Data: &i18n.TData{
 					"name":     mod.Name,
 					"id":       mod.ID,
-					"platform": mod.Type,
+					"platform": string(mod.Type),
 				},
 			}),
 		}
@@ -375,7 +375,7 @@ func fetchFailureUserEvent(fetchErr error, mod models.Mod) logEvent {
 				Data: &i18n.TData{
 					"name":     mod.Name,
 					"id":       mod.ID,
-					"platform": mod.Type,
+					"platform": string(mod.Type),
 				},
 			}),
 		}
@@ -383,7 +383,7 @@ func fetchFailureUserEvent(fetchErr error, mod models.Mod) logEvent {
 
 	summary, ok := clierrors.SummarizePlatformError(fetchErr, mod.Type)
 	reason := i18n.T("cmd.platform.error.reason.unknown", &i18n.Tvars{
-		Data: &i18n.TData{"platform": mod.Type},
+		Data: &i18n.TData{"platform": string(mod.Type)},
 	})
 	if ok && strings.TrimSpace(summary.Reason) != "" {
 		reason = summary.Reason
@@ -394,7 +394,7 @@ func fetchFailureUserEvent(fetchErr error, mod models.Mod) logEvent {
 		Message: i18n.T("cmd.test.error.platform", &i18n.Tvars{
 			Data: &i18n.TData{
 				"name":     mod.Name,
-				"platform": mod.Type,
+				"platform": string(mod.Type),
 				"reason":   reason,
 			},
 		}),
@@ -431,7 +431,7 @@ func fetchFailureDetailEvent(fetchErr error, mod models.Mod) (logEvent, bool) {
 		Message: i18n.T("cmd.test.error.platform_details", &i18n.Tvars{
 			Data: &i18n.TData{
 				"name":     mod.Name,
-				"platform": mod.Type,
+				"platform": string(mod.Type),
 				"details":  details,
 			},
 		}),
@@ -449,7 +449,7 @@ func fetchFailureDebugEvent(fetchErr error, mod models.Mod, cfg models.ModsJSON,
 		Message: i18n.T("cmd.test.debug.platform_error", &i18n.Tvars{
 			Data: &i18n.TData{
 				"name":     mod.Name,
-				"platform": mod.Type,
+				"platform": string(mod.Type),
 				"error":    debugError,
 				"details":  details,
 			},

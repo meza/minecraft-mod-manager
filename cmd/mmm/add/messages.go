@@ -17,7 +17,7 @@ func errorMessageForModNotFound(projectID string, platform models.Platform) stri
 	return i18n.T("cmd.add.error.mod_not_found", &i18n.Tvars{
 		Data: &i18n.TData{
 			"id":       projectID,
-			"platform": platform,
+			"platform": string(platform),
 		},
 	})
 }
@@ -26,7 +26,7 @@ func errorMessageForNoFile(projectID string, platform models.Platform) string {
 	return i18n.T("cmd.add.error.no_file", &i18n.Tvars{
 		Data: &i18n.TData{
 			"id":       projectID,
-			"platform": platform,
+			"platform": string(platform),
 		},
 	})
 }

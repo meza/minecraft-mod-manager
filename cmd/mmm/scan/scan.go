@@ -505,7 +505,7 @@ func printMatchResults(out *output.Output, colorMode tui.ColorMode, matches []sc
 		if err := out.Log(messageWithIcon(tui.SuccessIcon(colorMode), i18n.T("cmd.scan.recognized.entry", &i18n.Tvars{
 			Data: &i18n.TData{
 				"name":     name,
-				"platform": match.Platform,
+				"platform": string(match.Platform),
 				"id":       match.ProjectID,
 				"file":     match.FileName,
 			},

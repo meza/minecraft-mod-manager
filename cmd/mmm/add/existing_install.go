@@ -98,7 +98,7 @@ func recordExistingInstallTelemetry(input existingInstallInput, reason modinstal
 	if err := input.deps.logger.Debug(i18n.T("cmd.add.debug.already_exists", &i18n.Tvars{
 		Data: &i18n.TData{
 			"id":       input.projectID,
-			"platform": input.platformValue,
+			"platform": string(input.platformValue),
 		},
 	})); err != nil {
 		return telemetry.CommandTelemetry{}, err
@@ -112,7 +112,7 @@ func logEnsureResult(out *output.Output, reason modinstall.EnsureReason, cfg mod
 		return out.Log(i18n.T("cmd.install.download.missing", &i18n.Tvars{
 			Data: &i18n.TData{
 				"name":     modNameForConfig(cfg, platformValue, projectID),
-				"platform": platformValue,
+				"platform": string(platformValue),
 			},
 		}), output.LogForce)
 	case modinstall.EnsureReasonHashMismatch:

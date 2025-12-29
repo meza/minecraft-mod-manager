@@ -190,7 +190,7 @@ func logAddSuccess(out *output.Output, colorMode tui.ColorMode, modName string, 
 		Data: &i18n.TData{
 			"name":     modName,
 			"id":       resolvedID,
-			"platform": resolvedPlatform,
+			"platform": string(resolvedPlatform),
 		},
 	})), output.LogForce)
 }

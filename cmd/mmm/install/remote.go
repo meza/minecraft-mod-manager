@@ -69,7 +69,7 @@ func installFromRemote(input installModInputs) (modInstallOutcome, error) {
 	if outputErr := input.deps.output.Log(i18n.T("cmd.install.download.missing", &i18n.Tvars{
 		Data: &i18n.TData{
 			"name":     input.mod.Name,
-			"platform": input.mod.Type,
+			"platform": string(input.mod.Type),
 		},
 	}), output.LogForce); outputErr != nil {
 		return modInstallOutcome{}, outputErr
@@ -194,7 +194,7 @@ func ensureLockInstall(ctx context.Context, meta config.Metadata, cfg models.Mod
 		if err := deps.output.Log(i18n.T("cmd.install.download.missing", &i18n.Tvars{
 			Data: &i18n.TData{
 				"name":     mod.Name,
-				"platform": install.Type,
+				"platform": string(install.Type),
 			},
 		}), output.LogForce); err != nil {
 			return err
@@ -250,7 +250,7 @@ func handleExpectedFetchError(err error, input installModInputs) (bool, error) {
 			Data: &i18n.TData{
 				"name":     input.mod.Name,
 				"id":       input.mod.ID,
-				"platform": input.mod.Type,
+				"platform": string(input.mod.Type),
 			},
 		})), output.LogForce); outputErr != nil {
 			return false, outputErr
@@ -263,7 +263,7 @@ func handleExpectedFetchError(err error, input installModInputs) (bool, error) {
 			Data: &i18n.TData{
 				"name":     input.mod.Name,
 				"id":       input.mod.ID,
-				"platform": input.mod.Type,
+				"platform": string(input.mod.Type),
 			},
 		})), output.LogForce); outputErr != nil {
 			return false, outputErr

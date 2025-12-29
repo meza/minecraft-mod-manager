@@ -107,7 +107,7 @@ func appendUpdateCheckEvent(outcome *modUpdateOutcome, mod models.Mod) {
 		Message: i18n.T("cmd.update.debug.checking", &i18n.Tvars{
 			Data: &i18n.TData{
 				"name":     mod.Name,
-				"platform": mod.Type,
+				"platform": string(mod.Type),
 			},
 		}),
 	})
@@ -286,7 +286,7 @@ func expectedFetchErrorEvent(err error, mod models.Mod, colorMode tui.ColorMode)
 				Data: &i18n.TData{
 					"name":     mod.Name,
 					"id":       mod.ID,
-					"platform": mod.Type,
+					"platform": string(mod.Type),
 				},
 			})),
 		}, true
@@ -301,7 +301,7 @@ func expectedFetchErrorEvent(err error, mod models.Mod, colorMode tui.ColorMode)
 				Data: &i18n.TData{
 					"name":     mod.Name,
 					"id":       mod.ID,
-					"platform": mod.Type,
+					"platform": string(mod.Type),
 				},
 			})),
 		}, true
@@ -331,7 +331,7 @@ func fetchErrorEvents(fetchErr error, mod models.Mod, colorMode tui.ColorMode) [
 		Message: i18n.T("cmd.update.error.platform", &i18n.Tvars{
 			Data: &i18n.TData{
 				"name":     mod.Name,
-				"platform": mod.Type,
+				"platform": string(mod.Type),
 				"reason":   reason,
 			},
 		}),
@@ -346,7 +346,7 @@ func fetchErrorEvents(fetchErr error, mod models.Mod, colorMode tui.ColorMode) [
 		Message: i18n.T("cmd.update.debug.platform_error", &i18n.Tvars{
 			Data: &i18n.TData{
 				"name":     mod.Name,
-				"platform": mod.Type,
+				"platform": string(mod.Type),
 				"details":  debugDetails,
 			},
 		}),

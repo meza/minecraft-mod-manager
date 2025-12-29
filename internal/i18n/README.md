@@ -75,6 +75,7 @@ Behavior notes:
 * `Count` is always injected as the variable `count`.
 * If `Data` is nil, only `count` is injected.
 * If `vars` is nil, no variables are injected.
+* `Data` values must be strings. Convert non-string values before passing them.
 * Outside test mode, `T()` never returns key+vars output. Setup failures return the key only.
 
 ## Locale selection

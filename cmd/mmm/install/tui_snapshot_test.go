@@ -44,7 +44,7 @@ func TestInstallTUILogSnapshot(t *testing.T) {
 	err := out.Log(i18n.T("cmd.install.download.missing", &i18n.Tvars{
 		Data: &i18n.TData{
 			"name":     "Sodium",
-			"platform": models.MODRINTH,
+			"platform": string(models.MODRINTH),
 		},
 	}), output.LogForce)
 	assert.NoError(t, err)

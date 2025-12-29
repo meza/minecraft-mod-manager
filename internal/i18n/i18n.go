@@ -52,7 +52,7 @@ func ResetForTesting() {
 	setupError = nil
 }
 
-type TData map[string]interface{}
+type TData map[string]string
 
 type Tvars struct {
 	Count int
@@ -125,7 +125,7 @@ func setup() error {
 //
 // vars is optional. When provided:
 // - Count becomes the template variable "count" (used for pluralization).
-// - Data is a map of template variables (keys map to {{.key}} in the template).
+// - Data is a map of string template variables (keys map to {{.key}} in the template).
 //
 // MMM_TEST turns T into test mode: it returns the key plus provided vars without
 // attempting localization. Outside of test mode, T never returns raw key+vars.

@@ -121,7 +121,7 @@ func newPlatformLookupFailure(platformValue models.Platform, files []string, err
 			Platform: platformValue,
 			Files:    files,
 			Reason: i18n.T("cmd.platform.error.reason.unknown", &i18n.Tvars{
-				Data: &i18n.TData{"platform": platformValue},
+				Data: &i18n.TData{"platform": string(platformValue)},
 			}),
 		}
 	}
@@ -169,7 +169,7 @@ func logPlatformLookupFailure(out *output.Output, log *logger.Logger, failure *p
 		}
 		if err := log.Debug(i18n.T("cmd.install.debug.platform_error", &i18n.Tvars{
 			Data: &i18n.TData{
-				"platform": failure.Platform,
+				"platform": string(failure.Platform),
 				"details":  failure.DebugDetails,
 			},
 		})); err != nil {
@@ -180,7 +180,7 @@ func logPlatformLookupFailure(out *output.Output, log *logger.Logger, failure *p
 		if err := out.Log(messageWithIcon(tui.ErrorIcon(colorMode), i18n.T("cmd.install.unsure.platform_error", &i18n.Tvars{
 			Data: &i18n.TData{
 				"file":     filepath.Base(filePath),
-				"platform": failure.Platform,
+				"platform": string(failure.Platform),
 				"reason":   failure.Reason,
 			},
 		})), output.LogForce); err != nil {
@@ -190,7 +190,7 @@ func logPlatformLookupFailure(out *output.Output, log *logger.Logger, failure *p
 	if strings.TrimSpace(failure.DebugDetails) != "" {
 		if err := out.Log(messageWithIcon(tui.ErrorIcon(colorMode), i18n.T("cmd.install.unsure.platform_error_details", &i18n.Tvars{
 			Data: &i18n.TData{
-				"platform": failure.Platform,
+				"platform": string(failure.Platform),
 				"details":  failure.DebugDetails,
 			},
 		})), output.LogForce); err != nil {

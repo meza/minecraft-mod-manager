@@ -259,7 +259,7 @@ func (model *addTUIModel) applyModNotFoundConfirmState() {
 	model.confirmMessage = i18n.T("cmd.add.tui.mod_not_found", &i18n.Tvars{
 		Data: &i18n.TData{
 			"id":       model.failureProject,
-			"platform": model.failurePlatform,
+			"platform": string(model.failurePlatform),
 		},
 	})
 	model.confirmDefault = true
@@ -284,10 +284,10 @@ func (model *addTUIModel) applyNoFileConfirmState() {
 	message := i18n.T("cmd.add.tui.no_file_found", &i18n.Tvars{
 		Data: &i18n.TData{
 			"name":        model.failureProject,
-			"platform":    model.failurePlatform,
+			"platform":    string(model.failurePlatform),
 			"gameVersion": model.cfg.GameVersion,
-			"loader":      model.cfg.Loader,
-			"other":       alternatePlatform(model.failurePlatform),
+			"loader":      string(model.cfg.Loader),
+			"other":       string(alternatePlatform(model.failurePlatform)),
 		},
 	})
 	model.confirmMessage = message
@@ -297,7 +297,7 @@ func (model *addTUIModel) applyNoFileConfirmState() {
 func (model *addTUIModel) applyNoFileEnterProjectIDState() {
 	message := i18n.T("cmd.add.tui.enter_project_id_on", &i18n.Tvars{
 		Data: &i18n.TData{
-			"platform": alternatePlatform(model.failurePlatform),
+			"platform": string(alternatePlatform(model.failurePlatform)),
 		},
 	})
 	model.input = newProjectIDInputModel(message, "")

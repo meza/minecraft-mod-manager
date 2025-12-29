@@ -98,7 +98,7 @@ func installConfiguredMods(input installConfiguredInputs) (installConfiguredOutc
 			Data: &i18n.TData{
 				"name":     mod.Name,
 				"version":  version,
-				"platform": mod.Type,
+				"platform": string(mod.Type),
 			},
 		})); err != nil {
 			return installConfiguredOutcome{}, err
