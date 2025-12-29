@@ -751,3 +751,6 @@ mmm-137 in progress: scanned exported decls missing GoDoc (454 missing across 87
 2025-12-28	23:50	Adjusted packaging to keep notices/SBOM out of zips, copy to dist/metadata; expanded tests; reran make fmt-check/lint/vuln/coverage/build, make notices/sbom, and Windows verification.
 2025-12-28	23:56	Reviewer approved mmm-63.33 after moving notices/SBOM out of zips; code-review.md updated with new timestamp and Windows verification.
 2025-12-29	00:02	Closed mmm-63.33 and mmm-127 per user request after review approval.
+2025-12-29	00:05	Closed mmm-63.3 per user: out of sync due to parity work; new audit planned after parity.
+2025-12-29	00:09	Added ADR 0009 for Go port decision with 2024-08-30 date, based on 3.0 announcement; awaiting review.
+2025-12-29	00:11	Added ADR 0009 for Go port decision; ran required local checks and Windows verification; ready for reviewer.
