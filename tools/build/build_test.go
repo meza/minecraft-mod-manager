@@ -239,6 +239,25 @@ func TestReadEnvFileMissing(t *testing.T) {
 	}
 }
 
+func TestLdflagsFromTokensUsesExpectedLinkerSymbols(t *testing.T) {
+	envMap := map[string]string{
+		modrinthEnvVar:   "modrinth-token",
+		curseforgeEnvVar: "curseforge-token",
+		posthogEnvVar:    "posthog-token",
+	}
+
+	expected := strings.Join([]string{
+		"-X github.com/meza/minecraft-mod-manager/internal/environment.modrinthAPIKeyDefault=modrinth-token",
+		"-X github.com/meza/minecraft-mod-manager/internal/environment.curseforgeAPIKeyDefault=curseforge-token",
+		"-X github.com/meza/minecraft-mod-manager/internal/environment.posthogAPIKeyDefault=posthog-token",
+	}, " ")
+
+	actual := ldflagsFromTokens(envMap)
+	if actual != expected {
+		t.Fatalf("expected ldflags %q, got %q", expected, actual)
+	}
+}
+
 func TestReadEnvFileDirectoryError(t *testing.T) {
 	tempDir := t.TempDir()
 	_, err := readEnvFile(tempDir)

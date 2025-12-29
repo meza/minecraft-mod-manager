@@ -24,7 +24,7 @@ func (curseforgeClient *Client) Do(request *http.Request) (*http.Response, error
 	ctx, span := perf.StartSpan(request.Context(), "api.curseforge.http.request", perf.WithAttributes(attribute.String("url", request.URL.String())))
 	defer span.End()
 	request.Header.Set("Accept", "application/json")
-	request.Header.Set("X-API-Key", environment.CurseforgeAPIKey())
+	request.Header["x-api-key"] = []string{environment.CurseforgeAPIKey()}
 
 	return curseforgeClient.client.Do(request.WithContext(ctx))
 }

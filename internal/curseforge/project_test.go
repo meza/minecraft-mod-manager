@@ -126,8 +126,8 @@ func TestGetProject(t *testing.T) {
 			t.Errorf("Expected path '/v1/mods/12345', got '%s'", r.URL.Path)
 		}
 
-		if r.Header.Get("x-api-key") != "mock_curseforge_api_key" {
-			t.Errorf("Expected x-api-key header to be 'mock_curseforge_api_key', got '%s'", r.Header.Get("x-api-key"))
+		if values := headerValuesIgnoreCase(r.Header, "x-api-key"); len(values) != 1 || values[0] != "mock_curseforge_api_key" {
+			t.Errorf("Expected x-api-key header to be 'mock_curseforge_api_key', got '%v'", values)
 		}
 
 		w.Header().Set("Content-Type", "application/json")

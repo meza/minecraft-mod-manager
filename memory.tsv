@@ -756,3 +756,10 @@ mmm-137 in progress: scanned exported decls missing GoDoc (454 missing across 87
 2025-12-29	00:11	Added ADR 0009 for Go port decision; ran required local checks and Windows verification; ready for reviewer.
 2025-12-29	01:43	Created P0 bug mmm-146 for CurseForge auth tokens returning 403 (auth drift).
 2025-12-29	01:45	Created P0 bug mmm-147 for excessive output after logger/output refactor; noted test coverage gap.
+2025-12-29	09:11	Started mmm-146 investigation (CurseForge 403 auth regression); reviewed specs/platform-apis and CurseForge API skill.
+2025-12-29	09:21	mmm-146: compared Node vs Go CurseForge headers; Node/docs use lowercase x-api-key. Updated Go client/tests to send lower-case header directly (avoid canonicalization).
+2025-12-29	09:27	mmm-146: make fmt/lint/coverage/build all pass after x-api-key header change and test helper updates.
+2025-12-29	09:38	mmm-146: reviewer approved changes (code-review.md); Windows verification pass with PSReadLine warning.
+2025-12-29	09:52	mmm-146: user reports CurseForge 403s still after lowercase header change; built via make build.
+2025-12-29	09:57	mmm-146: fixed build ldflags for embedded API keys (APIKeyDefault symbol casing), added ldflags test; make fmt/lint/vuln/coverage/build and Windows checks pass.
+2025-12-29	10:02	Closed mmm-146 per user request after fixing ldflags symbol casing for embedded API keys.

@@ -44,7 +44,7 @@ func TestClient_Do(t *testing.T) {
 
 	// Verify headers
 	assert.Equal(t, "application/json", req.Header.Get("Accept"))
-	assert.Equal(t, "test-api-key", req.Header.Get("X-API-Key"))
+	assert.Equal(t, []string{"test-api-key"}, headerValuesIgnoreCase(req.Header, "x-api-key"))
 
 	// Verify that the mock Doer was called with the correct request
 	mockDoer.AssertCalled(t, "Do", mock.MatchedBy(func(r *http.Request) bool {
@@ -54,7 +54,8 @@ func TestClient_Do(t *testing.T) {
 		return r.Method == req.Method &&
 			r.URL.String() == req.URL.String() &&
 			r.Header.Get("Accept") == "application/json" &&
-			r.Header.Get("X-API-Key") == "test-api-key"
+			len(headerValuesIgnoreCase(r.Header, "x-api-key")) == 1 &&
+			headerValuesIgnoreCase(r.Header, "x-api-key")[0] == "test-api-key"
 	}))
 }
 

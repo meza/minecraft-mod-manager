@@ -23,9 +23,9 @@ const (
 	curseforgeEnvVar = "CURSEFORGE_API_KEY"
 	posthogEnvVar    = "POSTHOG_API_KEY"
 
-	modrinthLdflag   = "github.com/meza/minecraft-mod-manager/internal/environment.modrinthApiKeyDefault"
-	curseforgeLdflag = "github.com/meza/minecraft-mod-manager/internal/environment.curseforgeApiKeyDefault"
-	posthogLdflag    = "github.com/meza/minecraft-mod-manager/internal/environment.posthogApiKeyDefault"
+	modrinthLdflag   = "github.com/meza/minecraft-mod-manager/internal/environment.modrinthAPIKeyDefault"
+	curseforgeLdflag = "github.com/meza/minecraft-mod-manager/internal/environment.curseforgeAPIKeyDefault"
+	posthogLdflag    = "github.com/meza/minecraft-mod-manager/internal/environment.posthogAPIKeyDefault"
 )
 
 var buildTargets = []buildTarget{

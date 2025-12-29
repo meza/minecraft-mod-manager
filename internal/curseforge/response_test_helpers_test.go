@@ -21,6 +21,15 @@ func writeStringResponse(t *testing.T, writer http.ResponseWriter, payload strin
 	}
 }
 
+func headerValuesIgnoreCase(header http.Header, name string) []string {
+	for key, values := range header {
+		if strings.EqualFold(key, name) {
+			return values
+		}
+	}
+	return nil
+}
+
 type responseDoer struct {
 	response *http.Response
 	err      error
