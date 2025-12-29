@@ -813,3 +813,8 @@ mmm-137 in progress: scanned exported decls missing GoDoc (454 missing across 87
 2025-12-29	21:32	mmm-53: reviewer approved after aligning docs/tui-design-doc.md with implemented prompt policy; code-review.md updated.
 2025-12-29	21:51	User confirmed policy for mmm-57: Cobra should surface input/argument errors; runtime errors should be printed by commands; errors must print even with --quiet. Pending implementation details.
 2025-12-29	22:09	mmm-57: implemented handled-error policy (clierrors.MarkHandled/IsHandled), updated commands/tests, added ADR 0011; make fmt/lint/coverage/build and Windows winhost lint/build/coverage/test-race pass (PSReadLine VT warning only).
+2025-12-29	22:23	Created bug mmm-149 for scan behavior when config missing (prompt to init in interactive; fail non-interactive; no implicit config creation).
+2025-12-29	22:37	Started mmm-149 fix: scan now prompts to init on missing config, added init helper, tests, and doc updates pending verification.
+2025-12-29	22:54	mmm-149: scan now prompts to init when config missing, added init helper and tests/docs; make fmt/lint/coverage/build and Windows checks pass (PSReadLine VT warning).
+2025-12-29	23:42	mmm-149 reviewer approved after updating non-tty error messaging and FR/DE accents; reran local and Windows checks (PSReadLine VT warning).
+2025-12-29	23:44	Closed mmm-149 per user request after reviewer approval.

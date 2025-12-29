@@ -29,8 +29,9 @@ import (
 )
 
 type fakePrompter struct {
-	confirm bool
-	err     error
+	confirm     bool
+	confirmInit bool
+	err         error
 }
 
 type fakeTerminalWriter struct {
@@ -41,7 +42,341 @@ func (writer *fakeTerminalWriter) Fd() uintptr {
 	return 1
 }
 
+type fakeTerminalReader struct {
+	bytes.Buffer
+}
+
+func (reader *fakeTerminalReader) Fd() uintptr {
+	return 0
+}
+
 func (prompter fakePrompter) ConfirmAdd() (bool, error) { return prompter.confirm, prompter.err }
+
+func (prompter fakePrompter) ConfirmInit(string) (bool, error) {
+	return prompter.confirmInit, prompter.err
+}
+
+func TestRunScan_ConfigMissingNonInteractiveFails(t *testing.T) {
+	t.Setenv("MMM_TEST", "true")
+
+	fs := afero.NewMemMapFs()
+	meta := config.NewMetadata(filepath.FromSlash("/cfg/modlist.json"))
+
+	out := &bytes.Buffer{}
+	errOut := &bytes.Buffer{}
+	cmd := &cobra.Command{}
+	cmd.SetIn(&bytes.Buffer{})
+	cmd.SetOut(out)
+	cmd.SetErr(errOut)
+
+	_, err := runScan(context.Background(), cmd, scanOptions{
+		ConfigPath:     meta.ConfigPath,
+		NonInteractive: true,
+	}, scanDeps{
+		fs:       fs,
+		logger:   logger.New(out, errOut, false, false),
+		output:   output.New(out, errOut, false),
+		prompter: noopPrompter{},
+		telemetry: func(telemetry.CommandTelemetry) {
+		},
+	})
+
+	assert.ErrorContains(t, err, "cmd.scan.error.config_missing_noninteractive")
+	exists, existsErr := afero.Exists(fs, meta.ConfigPath)
+	assert.NoError(t, existsErr)
+	assert.False(t, exists)
+}
+
+func TestRunScan_ConfigMissingNoTTYFails(t *testing.T) {
+	t.Setenv("MMM_TEST", "true")
+
+	fs := afero.NewMemMapFs()
+	meta := config.NewMetadata(filepath.FromSlash("/cfg/modlist.json"))
+
+	out := &bytes.Buffer{}
+	errOut := &bytes.Buffer{}
+	cmd := &cobra.Command{}
+	cmd.SetIn(&bytes.Buffer{})
+	cmd.SetOut(out)
+	cmd.SetErr(errOut)
+
+	_, err := runScan(context.Background(), cmd, scanOptions{
+		ConfigPath: meta.ConfigPath,
+	}, scanDeps{
+		fs:       fs,
+		logger:   logger.New(out, errOut, false, false),
+		output:   output.New(out, errOut, false),
+		prompter: noopPrompter{},
+		telemetry: func(telemetry.CommandTelemetry) {
+		},
+	})
+
+	assert.ErrorContains(t, err, "cmd.scan.error.config_missing_no_tty")
+}
+
+func TestRunScan_ConfigMissingPromptDeclineExits(t *testing.T) {
+	t.Setenv("MMM_TEST", "true")
+	restoreTerminal := tui.SetIsTerminalFuncForTesting(func(int) bool { return true })
+	t.Cleanup(restoreTerminal)
+
+	fs := afero.NewMemMapFs()
+	meta := config.NewMetadata(filepath.FromSlash("/cfg/modlist.json"))
+
+	in := &fakeTerminalReader{}
+	out := &fakeTerminalWriter{}
+	errOut := &bytes.Buffer{}
+	cmd := &cobra.Command{}
+	cmd.SetIn(in)
+	cmd.SetOut(out)
+	cmd.SetErr(errOut)
+
+	initCalled := false
+	_, err := runScan(context.Background(), cmd, scanOptions{
+		ConfigPath: meta.ConfigPath,
+		Prefer:     "modrinth",
+	}, scanDeps{
+		fs:       fs,
+		logger:   logger.New(out, errOut, false, false),
+		output:   output.New(out, errOut, false),
+		prompter: fakePrompter{confirmInit: false},
+		runInit: func(context.Context, *cobra.Command, initRequest) error {
+			initCalled = true
+			return nil
+		},
+		telemetry: func(telemetry.CommandTelemetry) {
+		},
+	})
+
+	assert.NoError(t, err)
+	assert.False(t, initCalled)
+	exists, existsErr := afero.Exists(fs, meta.ConfigPath)
+	assert.NoError(t, existsErr)
+	assert.False(t, exists)
+}
+
+func TestRunScan_ConfigMissingPromptAcceptRunsInit(t *testing.T) {
+	t.Setenv("MMM_TEST", "true")
+	restoreTerminal := tui.SetIsTerminalFuncForTesting(func(int) bool { return true })
+	t.Cleanup(restoreTerminal)
+
+	fs := afero.NewMemMapFs()
+	meta := config.NewMetadata(filepath.FromSlash("/cfg/modlist.json"))
+
+	in := &fakeTerminalReader{}
+	out := &fakeTerminalWriter{}
+	errOut := &bytes.Buffer{}
+	cmd := &cobra.Command{}
+	cmd.SetIn(in)
+	cmd.SetOut(out)
+	cmd.SetErr(errOut)
+
+	initCalled := false
+	_, err := runScan(context.Background(), cmd, scanOptions{
+		ConfigPath: meta.ConfigPath,
+		Prefer:     "modrinth",
+	}, scanDeps{
+		fs:       fs,
+		logger:   logger.New(out, errOut, false, false),
+		output:   output.New(out, errOut, false),
+		prompter: fakePrompter{confirmInit: true},
+		runInit: func(ctx context.Context, _ *cobra.Command, request initRequest) error {
+			initCalled = true
+			cfg := models.ModsJSON{
+				ModsFolder:                 "mods",
+				Loader:                     models.FABRIC,
+				GameVersion:                "1.20.1",
+				DefaultAllowedReleaseTypes: []models.ReleaseType{models.Release},
+			}
+			createdMeta := config.NewMetadata(request.ConfigPath)
+			if err := fs.MkdirAll(createdMeta.Dir(), 0755); err != nil {
+				return err
+			}
+			if err := fs.MkdirAll(createdMeta.ModsFolderPath(cfg), 0755); err != nil {
+				return err
+			}
+			if err := config.WriteConfig(ctx, fs, createdMeta, cfg); err != nil {
+				return err
+			}
+			return config.WriteLock(ctx, fs, createdMeta, nil)
+		},
+		telemetry: func(telemetry.CommandTelemetry) {
+		},
+	})
+
+	assert.NoError(t, err)
+	assert.True(t, initCalled)
+	assert.Contains(t, out.String(), "cmd.scan.all_managed")
+}
+
+func TestEnsureScanConfigConfigReadError(t *testing.T) {
+	fs := afero.NewMemMapFs()
+	meta := config.NewMetadata(filepath.FromSlash("/cfg/modlist.json"))
+	assert.NoError(t, fs.MkdirAll(meta.ConfigPath, 0755))
+
+	cmd := &cobra.Command{}
+	cmd.SetIn(&bytes.Buffer{})
+	cmd.SetOut(&bytes.Buffer{})
+	cmd.SetErr(&bytes.Buffer{})
+
+	_, err := ensureScanConfig(context.Background(), cmd, scanOptions{}, scanDeps{
+		fs:       fs,
+		prompter: noopPrompter{},
+	}, meta)
+
+	assert.Error(t, err)
+}
+
+func TestEnsureScanConfigExistingConfigLockError(t *testing.T) {
+	fs := afero.NewMemMapFs()
+	meta := config.NewMetadata(filepath.FromSlash("/cfg/modlist.json"))
+	assert.NoError(t, fs.MkdirAll(meta.Dir(), 0755))
+	assert.NoError(t, config.WriteConfig(context.Background(), fs, meta, models.ModsJSON{
+		ModsFolder:                 "mods",
+		Loader:                     models.FABRIC,
+		GameVersion:                "1.20.1",
+		DefaultAllowedReleaseTypes: []models.ReleaseType{models.Release},
+	}))
+	assert.NoError(t, fs.MkdirAll(meta.LockPath(), 0755))
+
+	cmd := &cobra.Command{}
+	cmd.SetIn(&bytes.Buffer{})
+	cmd.SetOut(&bytes.Buffer{})
+	cmd.SetErr(&bytes.Buffer{})
+
+	_, err := ensureScanConfig(context.Background(), cmd, scanOptions{}, scanDeps{
+		fs:       fs,
+		prompter: noopPrompter{},
+	}, meta)
+
+	assert.Error(t, err)
+}
+
+func TestEnsureScanConfigConfirmInitError(t *testing.T) {
+	restoreTerminal := tui.SetIsTerminalFuncForTesting(func(int) bool { return true })
+	t.Cleanup(restoreTerminal)
+
+	fs := afero.NewMemMapFs()
+	meta := config.NewMetadata(filepath.FromSlash("/cfg/modlist.json"))
+
+	cmd := &cobra.Command{}
+	cmd.SetIn(&fakeTerminalReader{})
+	cmd.SetOut(&fakeTerminalWriter{})
+	cmd.SetErr(&fakeTerminalWriter{})
+
+	expectedErr := errors.New("prompt failed")
+	_, err := ensureScanConfig(context.Background(), cmd, scanOptions{}, scanDeps{
+		fs:       fs,
+		prompter: fakePrompter{err: expectedErr},
+	}, meta)
+
+	assert.ErrorIs(t, err, expectedErr)
+}
+
+func TestEnsureScanConfigRunInitNilReturnsError(t *testing.T) {
+	restoreTerminal := tui.SetIsTerminalFuncForTesting(func(int) bool { return true })
+	t.Cleanup(restoreTerminal)
+
+	fs := afero.NewMemMapFs()
+	meta := config.NewMetadata(filepath.FromSlash("/cfg/modlist.json"))
+
+	cmd := &cobra.Command{}
+	cmd.SetIn(&fakeTerminalReader{})
+	cmd.SetOut(&fakeTerminalWriter{})
+	cmd.SetErr(&fakeTerminalWriter{})
+
+	_, err := ensureScanConfig(context.Background(), cmd, scanOptions{}, scanDeps{
+		fs:       fs,
+		prompter: fakePrompter{confirmInit: true},
+	}, meta)
+
+	assert.ErrorContains(t, err, "missing init runner")
+}
+
+func TestEnsureScanConfigRunInitError(t *testing.T) {
+	restoreTerminal := tui.SetIsTerminalFuncForTesting(func(int) bool { return true })
+	t.Cleanup(restoreTerminal)
+
+	fs := afero.NewMemMapFs()
+	meta := config.NewMetadata(filepath.FromSlash("/cfg/modlist.json"))
+
+	cmd := &cobra.Command{}
+	cmd.SetIn(&fakeTerminalReader{})
+	cmd.SetOut(&fakeTerminalWriter{})
+	cmd.SetErr(&fakeTerminalWriter{})
+
+	runErr := errors.New("init failed")
+	_, err := ensureScanConfig(context.Background(), cmd, scanOptions{}, scanDeps{
+		fs:       fs,
+		prompter: fakePrompter{confirmInit: true},
+		runInit: func(context.Context, *cobra.Command, initRequest) error {
+			return runErr
+		},
+	}, meta)
+
+	assert.ErrorIs(t, err, runErr)
+}
+
+func TestEnsureScanConfigPostInitReadError(t *testing.T) {
+	restoreTerminal := tui.SetIsTerminalFuncForTesting(func(int) bool { return true })
+	t.Cleanup(restoreTerminal)
+
+	fs := afero.NewMemMapFs()
+	meta := config.NewMetadata(filepath.FromSlash("/cfg/modlist.json"))
+
+	cmd := &cobra.Command{}
+	cmd.SetIn(&fakeTerminalReader{})
+	cmd.SetOut(&fakeTerminalWriter{})
+	cmd.SetErr(&fakeTerminalWriter{})
+
+	_, err := ensureScanConfig(context.Background(), cmd, scanOptions{}, scanDeps{
+		fs:       fs,
+		prompter: fakePrompter{confirmInit: true},
+		runInit: func(context.Context, *cobra.Command, initRequest) error {
+			return nil
+		},
+	}, meta)
+
+	assert.Error(t, err)
+}
+
+func TestEnsureScanConfigPostInitLockError(t *testing.T) {
+	restoreTerminal := tui.SetIsTerminalFuncForTesting(func(int) bool { return true })
+	t.Cleanup(restoreTerminal)
+
+	fs := afero.NewMemMapFs()
+	meta := config.NewMetadata(filepath.FromSlash("/cfg/modlist.json"))
+
+	cmd := &cobra.Command{}
+	cmd.SetIn(&fakeTerminalReader{})
+	cmd.SetOut(&fakeTerminalWriter{})
+	cmd.SetErr(&fakeTerminalWriter{})
+
+	_, err := ensureScanConfig(context.Background(), cmd, scanOptions{}, scanDeps{
+		fs:       fs,
+		prompter: fakePrompter{confirmInit: true},
+		runInit: func(ctx context.Context, _ *cobra.Command, request initRequest) error {
+			cfg := models.ModsJSON{
+				ModsFolder:                 "mods",
+				Loader:                     models.FABRIC,
+				GameVersion:                "1.20.1",
+				DefaultAllowedReleaseTypes: []models.ReleaseType{models.Release},
+			}
+			createdMeta := config.NewMetadata(request.ConfigPath)
+			if err := fs.MkdirAll(createdMeta.Dir(), 0755); err != nil {
+				return err
+			}
+			if err := fs.MkdirAll(createdMeta.ModsFolderPath(cfg), 0755); err != nil {
+				return err
+			}
+			if err := config.WriteConfig(ctx, fs, createdMeta, cfg); err != nil {
+				return err
+			}
+			return fs.MkdirAll(createdMeta.LockPath(), 0755)
+		},
+	}, meta)
+
+	assert.Error(t, err)
+}
 
 func TestRunScan_PreferModrinthDoesNotCallCurseforgeWhenHit(t *testing.T) {
 	t.Setenv("MMM_TEST", "true")

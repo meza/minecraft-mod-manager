@@ -3,6 +3,7 @@ package scan
 import (
 	"bufio"
 	"context"
+	"errors"
 	"fmt"
 	"io"
 	"path/filepath"
@@ -14,6 +15,7 @@ import (
 	"github.com/spf13/cobra"
 	"go.opentelemetry.io/otel/attribute"
 
+	initCmd "github.com/meza/minecraft-mod-manager/cmd/mmm/init"
 	"github.com/meza/minecraft-mod-manager/internal/cmddeps"
 	"github.com/meza/minecraft-mod-manager/internal/config"
 	"github.com/meza/minecraft-mod-manager/internal/curseforge"
@@ -29,6 +31,8 @@ import (
 	"github.com/meza/minecraft-mod-manager/internal/telemetry"
 	"github.com/meza/minecraft-mod-manager/internal/tui"
 )
+
+var runInteractiveInit = initCmd.RunInteractiveInit
 
 type scanOptions struct {
 	ConfigPath     string
@@ -47,6 +51,7 @@ type scanDeps struct {
 	output          *output.Output
 	prompter        prompter
 	telemetry       func(telemetry.CommandTelemetry)
+	runInit         initRunner
 
 	curseforgeFingerprint      func(string) uint32
 	modrinthVersionForSha      func(context.Context, string, httpclient.Doer) (*modrinth.Version, error)
@@ -57,6 +62,7 @@ type scanDeps struct {
 
 type prompter interface {
 	ConfirmAdd() (bool, error)
+	ConfirmInit(configPath string) (bool, error)
 }
 
 type terminalPrompter struct {
@@ -70,8 +76,29 @@ func (prompter noopPrompter) ConfirmAdd() (bool, error) {
 	return false, nil
 }
 
+func (prompter noopPrompter) ConfirmInit(string) (bool, error) {
+	return false, nil
+}
+
 func (prompter terminalPrompter) ConfirmAdd() (bool, error) {
 	if _, err := fmt.Fprintf(prompter.out, "%s (y/N): ", i18n.T("cmd.scan.confirm_add", nil)); err != nil {
+		return false, err
+	}
+	answer, err := readLine(prompter.in)
+	if err != nil {
+		return false, err
+	}
+	answer = strings.TrimSpace(strings.ToLower(answer))
+	return answer == "y" || answer == "yes", nil
+}
+
+func (prompter terminalPrompter) ConfirmInit(configPath string) (bool, error) {
+	if _, err := fmt.Fprintln(prompter.out, i18n.T("cmd.scan.config_missing", &i18n.Tvars{
+		Data: &i18n.TData{"configPath": configPath},
+	})); err != nil {
+		return false, err
+	}
+	if _, err := fmt.Fprintf(prompter.out, "%s (y/N): ", i18n.T("cmd.scan.confirm_init", nil)); err != nil {
 		return false, err
 	}
 	answer, err := readLine(prompter.in)
@@ -186,6 +213,18 @@ func defaultScanDeps(cmd *cobra.Command, opts scanOptions) scanDeps {
 		output:          common.Output,
 		prompter:        pickPrompter(promptMode, cmd.InOrStdin(), cmd.OutOrStdout()),
 		telemetry:       telemetry.RecordCommand,
+		runInit: func(ctx context.Context, cmd *cobra.Command, request initRequest) error {
+			return runInteractiveInit(ctx, cmd, initCmd.InteractiveInitDeps{
+				FS:              common.FS,
+				Output:          common.Output,
+				Logger:          common.Logger,
+				MinecraftClient: common.MinecraftClient,
+			}, initCmd.InteractiveInitOptions{
+				ConfigPath: request.ConfigPath,
+				Quiet:      opts.Quiet,
+				Debug:      opts.Debug,
+			})
+		},
 
 		curseforgeFingerprint:      curseforgeFingerprint.GetFingerprintFor,
 		modrinthVersionForSha:      defaultModrinthVersionForSha,
@@ -240,11 +279,17 @@ func runScan(ctx context.Context, cmd *cobra.Command, opts scanOptions, deps sca
 	meta := config.NewMetadata(opts.ConfigPath)
 	setupCoordinator := modsetup.NewSetupCoordinator(deps.fs, deps.minecraftClient, nil)
 
-	cfg, lock, err := setupCoordinator.EnsureConfigAndLock(ctx, meta, modsetup.EnsureConfigOptions{NonInteractive: opts.NonInteractive})
+	configState, err := ensureScanConfig(ctx, cmd, opts, deps, meta)
 	if err != nil {
 		return scanFailureTelemetry(err), err
 	}
+	if !configState.ShouldContinue {
+		return scanSuccessTelemetryWithoutArgs(), nil
+	}
+	return runScanWithConfig(ctx, cmd, opts, deps, meta, setupCoordinator, configState.Config, configState.Lock)
+}
 
+func runScanWithConfig(ctx context.Context, cmd *cobra.Command, opts scanOptions, deps scanDeps, meta config.Metadata, setupCoordinator *modsetup.SetupCoordinator, cfg models.ModsJSON, lock []models.ModInstall) (telemetry.CommandTelemetry, error) {
 	preferPlatform, err := resolvePreferredPlatform(opts.Prefer, deps.output)
 	if err != nil {
 		return scanFailureTelemetry(err), err
@@ -286,6 +331,90 @@ func runScan(ctx context.Context, cmd *cobra.Command, opts scanOptions, deps sca
 		PreferPlatform:   preferPlatform,
 		ColorMode:        colorMode,
 	})
+}
+
+type initRequest struct {
+	ConfigPath string
+}
+
+type initRunner func(context.Context, *cobra.Command, initRequest) error
+
+type scanConfigState struct {
+	Config         models.ModsJSON
+	Lock           []models.ModInstall
+	ShouldContinue bool
+}
+
+func ensureScanConfig(ctx context.Context, cmd *cobra.Command, opts scanOptions, deps scanDeps, meta config.Metadata) (scanConfigState, error) {
+	cfg, err := config.ReadConfig(ctx, deps.fs, meta)
+	if err == nil {
+		lock, lockErr := config.EnsureLock(ctx, deps.fs, meta)
+		if lockErr != nil {
+			return scanConfigState{}, lockErr
+		}
+		return scanConfigState{Config: cfg, Lock: lock, ShouldContinue: true}, nil
+	}
+
+	var notFound *config.ConfigFileNotFoundException
+	if !errors.As(err, &notFound) {
+		return scanConfigState{}, err
+	}
+
+	if promptErr := configMissingPromptError(opts, cmd, meta); promptErr != nil {
+		return scanConfigState{}, promptErr
+	}
+
+	confirmInit, err := deps.prompter.ConfirmInit(meta.ConfigPath)
+	if err != nil {
+		return scanConfigState{}, err
+	}
+	if !confirmInit {
+		return scanConfigState{ShouldContinue: false}, nil
+	}
+	if deps.runInit == nil {
+		return scanConfigState{}, errors.New("missing init runner")
+	}
+	if runErr := deps.runInit(ctx, cmd, initRequest{ConfigPath: meta.ConfigPath}); runErr != nil {
+		return scanConfigState{}, runErr
+	}
+
+	cfg, err = config.ReadConfig(ctx, deps.fs, meta)
+	if err != nil {
+		return scanConfigState{}, err
+	}
+	lock, lockErr := config.EnsureLock(ctx, deps.fs, meta)
+	if lockErr != nil {
+		return scanConfigState{}, lockErr
+	}
+	return scanConfigState{Config: cfg, Lock: lock, ShouldContinue: true}, nil
+}
+
+func configMissingPromptError(opts scanOptions, cmd *cobra.Command, meta config.Metadata) error {
+	promptMode := tui.PromptEnabled
+	if opts.NonInteractive {
+		promptMode = tui.PromptDisabled
+	}
+	promptAllowed := tui.ShouldPrompt(promptMode, cmd.InOrStdin(), cmd.OutOrStdout())
+	tuiAllowed := tui.ShouldUseTUI(promptMode, cmd.InOrStdin(), cmd.OutOrStdout())
+	if promptAllowed && tuiAllowed {
+		return nil
+	}
+	if opts.NonInteractive {
+		return configMissingNonInteractiveError(meta)
+	}
+	return configMissingNoTTYError(meta)
+}
+
+func configMissingNonInteractiveError(meta config.Metadata) error {
+	return errors.New(i18n.T("cmd.scan.error.config_missing_noninteractive", &i18n.Tvars{
+		Data: &i18n.TData{"configPath": meta.ConfigPath},
+	}))
+}
+
+func configMissingNoTTYError(meta config.Metadata) error {
+	return errors.New(i18n.T("cmd.scan.error.config_missing_no_tty", &i18n.Tvars{
+		Data: &i18n.TData{"configPath": meta.ConfigPath},
+	}))
 }
 
 func reportAllManaged(out *output.Output, colorMode tui.ColorMode) (telemetry.CommandTelemetry, error) {

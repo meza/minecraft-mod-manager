@@ -16,6 +16,7 @@ import (
 	"testing"
 	"time"
 
+	initCmd "github.com/meza/minecraft-mod-manager/cmd/mmm/init"
 	"github.com/meza/minecraft-mod-manager/internal/config"
 	"github.com/meza/minecraft-mod-manager/internal/curseforge"
 	"github.com/meza/minecraft-mod-manager/internal/httpclient"
@@ -51,6 +52,17 @@ type errorWriter struct {
 
 func (writer errorWriter) Write([]byte) (int, error) {
 	return 0, writer.err
+}
+
+type selectErrorWriter struct {
+	err error
+}
+
+func (writer selectErrorWriter) Write(p []byte) (int, error) {
+	if strings.Contains(string(p), "cmd.scan.confirm_init") {
+		return 0, writer.err
+	}
+	return len(p), nil
 }
 
 type errorDoer struct {
@@ -131,6 +143,86 @@ func TestTerminalPrompterConfirmAddWriteError(t *testing.T) {
 	confirmed, err := prompter.ConfirmAdd()
 	assert.ErrorIs(t, err, writeErr)
 	assert.False(t, confirmed)
+}
+
+func TestTerminalPrompterConfirmInitYes(t *testing.T) {
+	t.Setenv("MMM_TEST", "true")
+
+	out := &bytes.Buffer{}
+	prompter := terminalPrompter{
+		in:  strings.NewReader("yes\n"),
+		out: out,
+	}
+
+	confirmed, err := prompter.ConfirmInit("modlist.json")
+	assert.NoError(t, err)
+	assert.True(t, confirmed)
+	assert.Contains(t, out.String(), "cmd.scan.config_missing")
+	assert.Contains(t, out.String(), "cmd.scan.confirm_init")
+}
+
+func TestTerminalPrompterConfirmInitWriteError(t *testing.T) {
+	writeErr := errors.New("write failed")
+	prompter := terminalPrompter{
+		in:  strings.NewReader("y\n"),
+		out: errorWriter{err: writeErr},
+	}
+
+	confirmed, err := prompter.ConfirmInit("modlist.json")
+	assert.ErrorIs(t, err, writeErr)
+	assert.False(t, confirmed)
+}
+
+func TestTerminalPrompterConfirmInitPromptWriteError(t *testing.T) {
+	t.Setenv("MMM_TEST", "true")
+
+	writeErr := errors.New("write failed")
+	prompter := terminalPrompter{
+		in:  strings.NewReader("y\n"),
+		out: selectErrorWriter{err: writeErr},
+	}
+
+	confirmed, err := prompter.ConfirmInit("modlist.json")
+	assert.ErrorIs(t, err, writeErr)
+	assert.False(t, confirmed)
+}
+
+func TestTerminalPrompterConfirmInitReadError(t *testing.T) {
+	prompter := terminalPrompter{
+		in:  errorReader{},
+		out: io.Discard,
+	}
+
+	confirmed, err := prompter.ConfirmInit("modlist.json")
+	assert.Error(t, err)
+	assert.False(t, confirmed)
+}
+
+func TestNoopPrompterConfirmInitReturnsFalse(t *testing.T) {
+	confirmed, err := noopPrompter{}.ConfirmInit("modlist.json")
+	assert.NoError(t, err)
+	assert.False(t, confirmed)
+}
+
+func TestDefaultScanDepsRunInitUsesRunner(t *testing.T) {
+	originalRunner := runInteractiveInit
+	t.Cleanup(func() {
+		runInteractiveInit = originalRunner
+	})
+
+	called := false
+	runInteractiveInit = func(_ context.Context, _ *cobra.Command, _ initCmd.InteractiveInitDeps, options initCmd.InteractiveInitOptions) error {
+		called = true
+		assert.Equal(t, "/cfg/modlist.json", options.ConfigPath)
+		return nil
+	}
+
+	cmd := &cobra.Command{}
+	deps := defaultScanDeps(cmd, scanOptions{ConfigPath: "/cfg/modlist.json"})
+	err := deps.runInit(context.Background(), cmd, initRequest{ConfigPath: "/cfg/modlist.json"})
+
+	assert.NoError(t, err)
+	assert.True(t, called)
 }
 
 func TestNormalizePlatform(t *testing.T) {
