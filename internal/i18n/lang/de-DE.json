@@ -48,6 +48,8 @@
   "cmd.init.error.canceled": "Initialisierung abgebrochen",
   "cmd.init.error.game-version.unavailable": "Minecraft-Version konnte nicht verifiziert werden. Bitte Verbindung prüfen und erneut versuchen.",
   "cmd.list.entry.installed": "{name} ({id}) ist installiert",
+  "cmd.list.entry.hash_mismatch": "Die Datei für {name} ({file}) ist vorhanden, aber es ist nicht die Datei, die {platform} erwartet ({fix})",
+  "cmd.list.entry.hash_mismatch.fix": "fuehre {fix_command} aus, um es zu beheben",
   "cmd.list.entry.missing": "{name} ({id}) ist nicht installiert",
   "cmd.list.empty": "Keine Mods sind konfiguriert",
   "cmd.list.header": "Konfigurierte Mods",

@@ -3,7 +3,9 @@ package list
 import (
 	"bytes"
 	"context"
+	"crypto/sha1"
 	"errors"
+	"fmt"
 	"io"
 	"os"
 	"path/filepath"
@@ -44,13 +46,16 @@ func TestRunListPrintsInstalledAndMissing(t *testing.T) {
 	assert.NoError(t, fs.MkdirAll(meta.ModsFolderPath(cfg), 0755))
 	assert.NoError(t, config.WriteConfig(context.Background(), fs, meta, cfg))
 
+	installedContents := []byte("installed")
+	installedHash := fmt.Sprintf("%x", sha1.Sum(installedContents))
+
 	lock := []models.ModInstall{
-		{ID: "mod-a", Type: models.MODRINTH, FileName: "mod-a.jar"},
-		{ID: "mod-b", Type: models.CURSEFORGE, FileName: "mod-b.jar"},
+		{ID: "mod-a", Type: models.MODRINTH, FileName: "mod-a.jar", Hash: installedHash},
+		{ID: "mod-b", Type: models.CURSEFORGE, FileName: "mod-b.jar", Hash: "missing"},
 	}
 	assert.NoError(t, config.WriteLock(context.Background(), fs, meta, lock))
 
-	assert.NoError(t, afero.WriteFile(fs, filepath.Join(meta.ModsFolderPath(cfg), "mod-a.jar"), []byte("installed"), 0644))
+	assert.NoError(t, afero.WriteFile(fs, filepath.Join(meta.ModsFolderPath(cfg), "mod-a.jar"), installedContents, 0644))
 
 	out := &bytes.Buffer{}
 	errOut := &bytes.Buffer{}
@@ -73,6 +78,138 @@ func TestRunListPrintsInstalledAndMissing(t *testing.T) {
 		"X cmd.list.entry.missing, Arg 1: {Count: 0, Data: &map[id:mod-b name:Mod B]}\n"
 	assert.Equal(t, expected, out.String())
 	assert.Empty(t, errOut.String())
+}
+
+func TestRunListShowsHashMismatch(t *testing.T) {
+	t.Setenv("MMM_TEST", "true")
+
+	fs := afero.NewMemMapFs()
+	meta := config.NewMetadata(filepath.FromSlash("/cfg/modlist.json"))
+
+	cfg := models.ModsJSON{
+		Loader:                     models.FABRIC,
+		GameVersion:                "1.20.1",
+		DefaultAllowedReleaseTypes: []models.ReleaseType{models.Release},
+		ModsFolder:                 "mods",
+		Mods: []models.Mod{
+			{ID: "mod-a", Name: "Mod A", Type: models.MODRINTH},
+		},
+	}
+
+	assert.NoError(t, fs.MkdirAll(meta.Dir(), 0755))
+	assert.NoError(t, fs.MkdirAll(meta.ModsFolderPath(cfg), 0755))
+	assert.NoError(t, config.WriteConfig(context.Background(), fs, meta, cfg))
+
+	installedContents := []byte("installed")
+	installedHash := fmt.Sprintf("%x", sha1.Sum(installedContents))
+	otherHash := fmt.Sprintf("%x", sha1.Sum([]byte("different")))
+
+	assert.NoError(t, afero.WriteFile(fs, filepath.Join(meta.ModsFolderPath(cfg), "mod-a.jar"), installedContents, 0644))
+	assert.NoError(t, config.WriteLock(context.Background(), fs, meta, []models.ModInstall{
+		{ID: "mod-a", Type: models.MODRINTH, FileName: "mod-a.jar", Hash: otherHash},
+	}))
+
+	out := &bytes.Buffer{}
+	errOut := &bytes.Buffer{}
+	cmd := &cobra.Command{}
+	cmd.SetIn(&bytes.Buffer{})
+	cmd.SetOut(out)
+	cmd.SetErr(errOut)
+
+	_, _, err := runList(context.Background(), cmd, meta.ConfigPath, runListOptions{quiet: false}, listDeps{
+		fs:        fs,
+		logger:    logger.New(out, errOut, false, false),
+		output:    output.New(out, errOut, false),
+		telemetry: func(telemetry.CommandTelemetry) {},
+	})
+
+	assert.NoError(t, err)
+	expected := "cmd.list.header\n" +
+		"X cmd.list.entry.hash_mismatch, Arg 1: {Count: 0, Data: &map[file:mod-a.jar fix:cmd.list.entry.hash_mismatch.fix, Arg 1: {Count: 0, Data: &map[fix_command:mmm install]} id:mod-a name:Mod A platform:modrinth]}\n"
+	assert.Equal(t, expected, out.String())
+	assert.Empty(t, errOut.String())
+	assert.NotEqual(t, installedHash, otherHash)
+}
+
+func TestEntryStatusReturnsMissingWhenHashEmpty(t *testing.T) {
+	fs := afero.NewMemMapFs()
+	meta := config.NewMetadata(filepath.FromSlash("/cfg/modlist.json"))
+	cfg := models.ModsJSON{ModsFolder: "mods"}
+	mod := models.Mod{ID: "mod-a", Type: models.MODRINTH}
+
+	assert.NoError(t, fs.MkdirAll(meta.ModsFolderPath(cfg), 0755))
+	assert.NoError(t, afero.WriteFile(fs, filepath.Join(meta.ModsFolderPath(cfg), "mod-a.jar"), []byte("installed"), 0644))
+
+	lock := []models.ModInstall{{ID: "mod-a", Type: models.MODRINTH, FileName: "mod-a.jar", Hash: ""}}
+	status := entryStatus(mod, lock, meta, cfg, fs)
+
+	assert.Equal(t, listEntryMissing, status.Status)
+}
+
+func TestEntryStatusReturnsMissingWhenHashReadFails(t *testing.T) {
+	meta := config.NewMetadata(filepath.FromSlash("/cfg/modlist.json"))
+	cfg := models.ModsJSON{ModsFolder: "mods"}
+	mod := models.Mod{ID: "mod-a", Type: models.MODRINTH}
+
+	fs := openErrorFs{
+		Fs:       afero.NewMemMapFs(),
+		failPath: filepath.Join(meta.ModsFolderPath(cfg), "mod-a.jar"),
+		err:      errors.New("open failed"),
+	}
+
+	assert.NoError(t, fs.MkdirAll(meta.ModsFolderPath(cfg), 0755))
+	assert.NoError(t, afero.WriteFile(fs, filepath.Join(meta.ModsFolderPath(cfg), "mod-a.jar"), []byte("installed"), 0644))
+
+	lock := []models.ModInstall{{ID: "mod-a", Type: models.MODRINTH, FileName: "mod-a.jar", Hash: "expected"}}
+	status := entryStatus(mod, lock, meta, cfg, fs)
+
+	assert.Equal(t, listEntryMissing, status.Status)
+}
+
+func TestSha1ForFileReturnsErrorOnOpenFailure(t *testing.T) {
+	fs := openErrorFs{
+		Fs:       afero.NewMemMapFs(),
+		failPath: filepath.FromSlash("/mods/mod-a.jar"),
+		err:      errors.New("open failed"),
+	}
+
+	assert.NoError(t, fs.MkdirAll(filepath.FromSlash("/mods"), 0755))
+	assert.NoError(t, afero.WriteFile(fs, filepath.FromSlash("/mods/mod-a.jar"), []byte("installed"), 0644))
+
+	_, err := sha1ForFile(fs, filepath.FromSlash("/mods/mod-a.jar"))
+	assert.Error(t, err)
+}
+
+func TestSha1ForFileReturnsErrorOnReadFailure(t *testing.T) {
+	baseFs := afero.NewMemMapFs()
+	filePath := filepath.FromSlash("/mods/mod-a.jar")
+	assert.NoError(t, baseFs.MkdirAll(filepath.FromSlash("/mods"), 0755))
+	assert.NoError(t, afero.WriteFile(baseFs, filePath, []byte("installed"), 0644))
+
+	fs := readErrorFs{
+		Fs:       baseFs,
+		failPath: filePath,
+		err:      errors.New("read failed"),
+	}
+
+	_, err := sha1ForFile(fs, filePath)
+	assert.Error(t, err)
+}
+
+func TestSha1ForFileReturnsErrorOnCloseFailure(t *testing.T) {
+	baseFs := afero.NewMemMapFs()
+	filePath := filepath.FromSlash("/mods/mod-a.jar")
+	assert.NoError(t, baseFs.MkdirAll(filepath.FromSlash("/mods"), 0755))
+	assert.NoError(t, afero.WriteFile(baseFs, filePath, []byte("installed"), 0644))
+
+	fs := closeErrorFs{
+		Fs:       baseFs,
+		failPath: filePath,
+		err:      errors.New("close failed"),
+	}
+
+	_, err := sha1ForFile(fs, filePath)
+	assert.Error(t, err)
 }
 
 func TestRunListLogsInvalidLockFileName(t *testing.T) {
@@ -686,6 +823,24 @@ type statErrorFs struct {
 	err      error
 }
 
+type openErrorFs struct {
+	afero.Fs
+	failPath string
+	err      error
+}
+
+type readErrorFs struct {
+	afero.Fs
+	failPath string
+	err      error
+}
+
+type closeErrorFs struct {
+	afero.Fs
+	failPath string
+	err      error
+}
+
 type errorWriter struct {
 	err error
 }
@@ -699,6 +854,53 @@ func (filesystem statErrorFs) Stat(name string) (os.FileInfo, error) {
 		return nil, filesystem.err
 	}
 	return filesystem.Fs.Stat(name)
+}
+
+func (filesystem openErrorFs) Open(name string) (afero.File, error) {
+	if filepath.Clean(name) == filepath.Clean(filesystem.failPath) {
+		return nil, filesystem.err
+	}
+	return filesystem.Fs.Open(name)
+}
+
+type readErrorFile struct {
+	afero.File
+	err error
+}
+
+func (file readErrorFile) Read([]byte) (int, error) {
+	return 0, file.err
+}
+
+func (filesystem readErrorFs) Open(name string) (afero.File, error) {
+	file, err := filesystem.Fs.Open(name)
+	if err != nil {
+		return nil, err
+	}
+	if filepath.Clean(name) == filepath.Clean(filesystem.failPath) {
+		return readErrorFile{File: file, err: filesystem.err}, nil
+	}
+	return file, nil
+}
+
+type closeErrorFile struct {
+	afero.File
+	err error
+}
+
+func (file closeErrorFile) Close() error {
+	return file.err
+}
+
+func (filesystem closeErrorFs) Open(name string) (afero.File, error) {
+	file, err := filesystem.Fs.Open(name)
+	if err != nil {
+		return nil, err
+	}
+	if filepath.Clean(name) == filepath.Clean(filesystem.failPath) {
+		return closeErrorFile{File: file, err: filesystem.err}, nil
+	}
+	return file, nil
 }
 
 type fakeTTY struct {

@@ -36,6 +36,8 @@
   "cmd.init.error.interactive.failed": "l'initialisation interactive a échoué",
   "cmd.init.error.canceled": "initialisation annulée",
   "cmd.list.entry.installed": "{name} ({id}) est installé",
+  "cmd.list.entry.hash_mismatch": "Le fichier pour {name} ({file}) existe, mais ce n'est pas celui que {platform} attend ({fix})",
+  "cmd.list.entry.hash_mismatch.fix": "exécute {fix_command} pour corriger",
   "cmd.list.entry.missing": "{name} ({id}) n'est pas installé",
   "cmd.list.empty": "Aucun mod n'est configuré pour le moment",
   "cmd.list.header": "Mods configurés",

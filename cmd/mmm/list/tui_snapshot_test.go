@@ -17,8 +17,9 @@ func TestListViewSnapshot(t *testing.T) {
 	t.Setenv("MMM_TEST", "true")
 
 	entries := []listEntry{
-		{DisplayName: "Alpha Mod", ID: "mod-a", Platform: models.MODRINTH, Installed: true},
-		{DisplayName: "Beta Mod", ID: "mod-b", Platform: models.CURSEFORGE, Installed: false},
+		{DisplayName: "Alpha Mod", ID: "mod-a", Platform: models.MODRINTH, Status: listEntryInstalled},
+		{DisplayName: "Beta Mod", ID: "mod-b", Platform: models.CURSEFORGE, Status: listEntryMissing},
+		{DisplayName: "Gamma Mod", ID: "mod-c", Platform: models.MODRINTH, Status: listEntryHashMismatch, FileName: "mod-c.jar"},
 	}
 
 	view := renderListView(entries, tui.ColorEnabled)

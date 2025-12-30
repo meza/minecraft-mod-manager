@@ -20,9 +20,10 @@ An entry is considered "installed" when:
 
 - there is a matching lock entry (same platform + ID), and
 - the lock entry has a `fileName`, and
-- that file exists in the configured mods folder
+- the lock entry has a `hash`, and
+- that file exists in the configured mods folder with a matching hash
 
-Hash verification is not performed here; the current check is "lock says it should exist and the file is present."
+If the file exists but the hash does not match, the entry is reported as not installed with a distinct hash mismatch message.
 
 ## Interactive vs non-interactive behavior
 

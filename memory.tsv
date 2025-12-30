@@ -828,3 +828,8 @@ mmm-137 in progress: scanned exported decls missing GoDoc (454 missing across 87
 2025-12-30	00:46	Adjusted init/scan cancel handling: introduced ErrInitCanceled, swallow cancel in init/scan, added cancel snapshots and tests; normalized scan snapshot paths; make fmt-check/lint/vuln/coverage/build pass; Windows winhost lint/build/coverage/test-race pass (PSReadLine VT warning).
 2025-12-30	00:57	Cleaned stale scan snapshot entry; reran UPDATE_SNAPS and required checks; Windows winhost lint/build/coverage/test-race pass (PSReadLine VT warning).
 2025-12-30	01:03	Reviewer approved mmm-57 cancel-as-non-error changes; code-review.md updated with Approved verdict.
+2025-12-30	09:03	Started mmm-30: plan to add hash-aware list installed detection with distinct hash mismatch output and update tests/docs.
+2025-12-30	09:12	mmm-30: list now uses hash-aware status with hash mismatch messaging including file+platform; updated i18n and snapshots/tests.
+2025-12-30	09:37	mmm-30: updated hash mismatch message to include fix hint '(run mmm install to fix)' with styled placeholder in list output.
+2025-12-30	09:56	mmm-30: moved hash mismatch fix guidance into translatable key with fix_command placeholder; updated docs/specs list behavior and snapshots/tests.
+2025-12-30	10:08	Closed mmm-30 per user request after reviewer approval and verification.

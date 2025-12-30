@@ -72,6 +72,8 @@
   "cmd.init.error.canceled": "init canceled",
   "cmd.init.error.game-version.unavailable": "Could not verify the Minecraft version. Check your connection and try again.",
   "cmd.list.entry.installed": "{name} ({id}) is installed",
+  "cmd.list.entry.hash_mismatch": "The file for {name} ({file}) exists but is not the same file {platform} expects ({fix})",
+  "cmd.list.entry.hash_mismatch.fix": "run {fix_command} to fix",
   "cmd.list.entry.missing": "{name} ({id}) is not installed",
   "cmd.list.empty": "No mods are configured yet",
   "cmd.list.header": "Configured mods",

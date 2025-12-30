@@ -2,7 +2,10 @@ package list
 
 import (
 	"context"
+	"crypto/sha1"
+	"encoding/hex"
 	"fmt"
+	"io"
 	"path/filepath"
 	"sort"
 	"strings"
@@ -148,7 +151,8 @@ type listEntry struct {
 	DisplayName string
 	ID          string
 	Platform    models.Platform
-	Installed   bool
+	Status      listEntryStatus
+	FileName    string
 }
 
 type listDisplayMode int
@@ -156,6 +160,14 @@ type listDisplayMode int
 const (
 	listDisplayCLI listDisplayMode = iota
 	listDisplayTUI
+)
+
+type listEntryStatus int
+
+const (
+	listEntryMissing listEntryStatus = iota
+	listEntryInstalled
+	listEntryHashMismatch
 )
 
 func (mode listDisplayMode) UseTUI() bool {
@@ -228,11 +240,13 @@ func buildEntries(cfg models.ModsJSON, lock []models.ModInstall, meta config.Met
 			displayName = mod.ID
 		}
 
+		status := entryStatus(mod, lock, meta, cfg, fs)
 		entry := listEntry{
 			DisplayName: displayName,
 			ID:          mod.ID,
 			Platform:    mod.Type,
-			Installed:   isInstalled(mod, lock, meta, cfg, fs),
+			Status:      status.Status,
+			FileName:    status.FileName,
 		}
 
 		entries = append(entries, entry)
@@ -246,6 +260,15 @@ func buildEntries(cfg models.ModsJSON, lock []models.ModInstall, meta config.Met
 }
 
 func isInstalled(mod models.Mod, lock []models.ModInstall, meta config.Metadata, cfg models.ModsJSON, fs afero.Fs) bool {
+	return entryStatus(mod, lock, meta, cfg, fs).Status == listEntryInstalled
+}
+
+type entryStatusResult struct {
+	Status   listEntryStatus
+	FileName string
+}
+
+func entryStatus(mod models.Mod, lock []models.ModInstall, meta config.Metadata, cfg models.ModsJSON, fs afero.Fs) entryStatusResult {
 	for _, install := range lock {
 		if install.ID != mod.ID || install.Type != mod.Type {
 			continue
@@ -253,20 +276,35 @@ func isInstalled(mod models.Mod, lock []models.ModInstall, meta config.Metadata,
 
 		normalizedFileName, err := modfilename.Normalize(install.FileName)
 		if err != nil {
-			return false
+			return entryStatusResult{Status: listEntryMissing}
 		}
 
 		path := filepath.Join(meta.ModsFolderPath(cfg), normalizedFileName)
 		exists, err := afero.Exists(fs, path)
 		if err != nil {
-			return false
+			return entryStatusResult{Status: listEntryMissing}
 		}
-		if exists {
-			return true
+		if !exists {
+			return entryStatusResult{Status: listEntryMissing}
 		}
+
+		expectedHash := strings.TrimSpace(install.Hash)
+		if expectedHash == "" {
+			return entryStatusResult{Status: listEntryMissing}
+		}
+
+		actualHash, err := sha1ForFile(fs, path)
+		if err != nil {
+			return entryStatusResult{Status: listEntryMissing}
+		}
+		if !strings.EqualFold(expectedHash, actualHash) {
+			return entryStatusResult{Status: listEntryHashMismatch, FileName: normalizedFileName}
+		}
+
+		return entryStatusResult{Status: listEntryInstalled, FileName: normalizedFileName}
 	}
 
-	return false
+	return entryStatusResult{Status: listEntryMissing}
 }
 
 func logInvalidLockEntries(lock []models.ModInstall, out *output.Output) error {
@@ -328,18 +366,33 @@ func renderEntry(entry listEntry, colorMode tui.ColorMode) string {
 	key := "cmd.list.entry.missing"
 	name := entry.DisplayName
 	id := entry.ID
-	if entry.Installed {
+	data := i18n.TData{
+		"name": name,
+		"id":   id,
+	}
+	switch entry.Status {
+	case listEntryInstalled:
 		icon = tui.SuccessIcon(colorMode)
 		key = "cmd.list.entry.installed"
+	case listEntryHashMismatch:
+		key = "cmd.list.entry.hash_mismatch"
+		fixCommand := "mmm install"
+		fix := i18n.T("cmd.list.entry.hash_mismatch.fix", &i18n.Tvars{
+			Data: &i18n.TData{
+				"fix_command": fixCommand,
+			},
+		})
+		fix = tui.RenderIfColorEnabled(colorMode, tui.PlaceholderStyle.PaddingLeft(0), fix)
+		data["file"] = modfilename.Display(entry.FileName)
+		data["platform"] = entry.Platform.String()
+		data["fix"] = fix
 	}
 
 	id = tui.RenderIfColorEnabled(colorMode, tui.PlaceholderStyle.PaddingLeft(0), id)
+	data["id"] = id
 
 	message := i18n.T(key, &i18n.Tvars{
-		Data: &i18n.TData{
-			"name": name,
-			"id":   id,
-		},
+		Data: &data,
 	})
 
 	return fmt.Sprintf("%s %s", icon, message)
@@ -363,4 +416,22 @@ func renderList(ctx context.Context, cmd *cobra.Command, entries []listEntry, vi
 		return deps.output.Log(view, output.LogForce)
 	}
 	return nil
+}
+
+func sha1ForFile(fs afero.Fs, path string) (hash string, returnErr error) {
+	file, err := fs.Open(path)
+	if err != nil {
+		return "", err
+	}
+	defer func() {
+		if closeErr := file.Close(); closeErr != nil && returnErr == nil {
+			returnErr = closeErr
+		}
+	}()
+
+	hasher := sha1.New()
+	if _, err := io.Copy(hasher, file); err != nil {
+		return "", err
+	}
+	return hex.EncodeToString(hasher.Sum(nil)), nil
 }
