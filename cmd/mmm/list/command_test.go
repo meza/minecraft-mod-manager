@@ -72,6 +72,7 @@ func TestCommandSuccess(t *testing.T) {
 
 	require.NoError(t, fs.MkdirAll(meta.Dir(), 0755))
 	require.NoError(t, config.WriteConfig(context.Background(), fs, meta, cfg))
+	require.NoError(t, config.WriteLock(context.Background(), fs, meta, []models.ModInstall{}))
 
 	cmd := Command()
 	addPersistentFlagsForTesting(cmd)
@@ -106,6 +107,42 @@ func TestCommandErrorFromRunList(t *testing.T) {
 	cmd.SetArgs([]string{"--config", configPath, "--quiet"})
 
 	assert.Error(t, cmd.Execute())
+}
+
+func TestCommandMissingLockDoesNotPrintUsage(t *testing.T) {
+	t.Setenv("MMM_TEST", "true")
+
+	fs := afero.NewOsFs()
+	tempDir := t.TempDir()
+	configPath := filepath.Join(tempDir, "modlist.json")
+	meta := config.NewMetadata(configPath)
+
+	cfg := models.ModsJSON{
+		Loader:                     models.FABRIC,
+		GameVersion:                "1.20.1",
+		DefaultAllowedReleaseTypes: []models.ReleaseType{models.Release},
+		ModsFolder:                 "mods",
+		Mods:                       []models.Mod{},
+	}
+
+	require.NoError(t, fs.MkdirAll(meta.Dir(), 0755))
+	require.NoError(t, config.WriteConfig(context.Background(), fs, meta, cfg))
+
+	cmd := Command()
+	addPersistentFlagsForTesting(cmd)
+
+	output := &bytes.Buffer{}
+	errOut := &bytes.Buffer{}
+	cmd.SetIn(&bytes.Buffer{})
+	cmd.SetOut(output)
+	cmd.SetErr(errOut)
+	cmd.SetArgs([]string{"--config", configPath})
+
+	assert.Error(t, cmd.Execute())
+	assert.Empty(t, output.String())
+	assert.Contains(t, errOut.String(), "cmd.list.error.lock_missing")
+	assert.NotContains(t, errOut.String(), "Usage:")
+	assert.NotContains(t, errOut.String(), "Error:")
 }
 
 func addPersistentFlagsForTesting(cmd *cobra.Command) {

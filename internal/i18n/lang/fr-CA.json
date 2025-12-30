@@ -42,6 +42,7 @@
   "cmd.list.empty": "Aucun mod n'est configuré pour le moment",
   "cmd.list.header": "Mods configurés",
   "cmd.list.short": "Lister les mods configurés",
+  "cmd.list.error.lock_missing": "Aucun fichier lock n'a été trouvé à {lock_path}. Exécute {install_command} pour le créer.",
   "cmd.list.error.invalid_filename_lock": "L'entrée du fichier lock pour {name} a un nom de fichier non sûr ({file}). mmm va l'ignorer jusqu'à ce que tu corriges modlist-lock.json.",
   "cmd.add.error.missing_hash_remote": "Impossible de vérifier {name} car la plateforme ne fournit pas de hash de téléchargement. Veuillez réessayer ou choisir une autre version.",
   "cmd.add.error.hash_mismatch": "Le fichier téléchargé pour {name} ne correspond pas au hash attendu. Vérifiez votre connexion et réessayez. Si le problème persiste, supprimez le fichier et relancez la commande.",

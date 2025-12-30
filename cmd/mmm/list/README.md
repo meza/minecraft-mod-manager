@@ -9,7 +9,7 @@ This package implements `mmm list`: render the configured mods and whether each 
 
 ## Code map
 
-- `cmd/mmm/list/list.go`: command implementation (read config, read lock if present, compute installed status, render view)
+- `cmd/mmm/list/list.go`: command implementation (read config, read lock, compute installed status, render view)
 - `cmd/mmm/list/tui.go`: minimal Bubble Tea wrapper used to keep output consistent in interactive mode
 - `cmd/mmm/list/tui_snapshot_test.go`: snapshot tests for the rendered list view
 - `cmd/mmm/list/list_test.go`: behavior tests for installed detection and lock handling

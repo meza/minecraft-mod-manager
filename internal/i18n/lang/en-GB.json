@@ -78,6 +78,7 @@
   "cmd.list.empty": "No mods are configured yet",
   "cmd.list.header": "Configured mods",
   "cmd.list.short": "List configured mods",
+  "cmd.list.error.lock_missing": "No lock file found at {lock_path}. Run {install_command} to create it.",
   "cmd.list.error.invalid_filename_lock": "Lock file entry for {name} has an unsafe filename ({file}). mmm will ignore it until you fix modlist-lock.json.",
   "cmd.install.short": "Install configured mods",
   "cmd.install.success": "all mods are installed!",

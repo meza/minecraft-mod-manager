@@ -54,6 +54,7 @@
   "cmd.list.empty": "Keine Mods sind konfiguriert",
   "cmd.list.header": "Konfigurierte Mods",
   "cmd.list.short": "Konfigurierte Mods auflisten",
+  "cmd.list.error.lock_missing": "Kein Lockfile unter {lock_path} gefunden. Fuehre {install_command} aus, um es zu erstellen.",
   "cmd.list.error.invalid_filename_lock": "Der Lockfile-Eintrag für {name} hat einen unsicheren Dateinamen ({file}). mmm ignoriert ihn, bis du modlist-lock.json korrigierst.",
   "cmd.add.error.missing_hash_remote": "Kann {name} nicht verifizieren, weil die Plattform keinen Download-Hash liefert. Bitte erneut versuchen oder eine andere Version wählen.",
   "cmd.add.error.hash_mismatch": "Die heruntergeladene Datei für {name} stimmt nicht mit dem erwarteten Hash überein. Bitte Verbindung prüfen und erneut versuchen. Wenn es weiterhin passiert, Datei löschen und den Befehl erneut ausführen.",

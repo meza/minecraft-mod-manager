@@ -4,8 +4,10 @@ import (
 	"context"
 	"crypto/sha1"
 	"encoding/hex"
+	"errors"
 	"fmt"
 	"io"
+	"os"
 	"path/filepath"
 	"sort"
 	"strings"
@@ -14,6 +16,7 @@ import (
 	"github.com/spf13/afero"
 	"github.com/spf13/cobra"
 
+	"github.com/meza/minecraft-mod-manager/internal/clierrors"
 	"github.com/meza/minecraft-mod-manager/internal/cmddeps"
 	"github.com/meza/minecraft-mod-manager/internal/config"
 	"github.com/meza/minecraft-mod-manager/internal/i18n"
@@ -66,8 +69,19 @@ func runListCommand(cmd *cobra.Command, _ []string) error {
 	}, deps)
 	finishListSpan(span, runErr == nil)
 	recordListTelemetry(deps.telemetry, entriesCount, usedTUI, runErr)
+	applyListCommandErrorPolicy(cmd, runErr)
 
 	return runErr
+}
+
+func applyListCommandErrorPolicy(cmd *cobra.Command, err error) {
+	if err == nil {
+		return
+	}
+	if clierrors.IsHandled(err) {
+		cmd.SilenceErrors = true
+	}
+	cmd.SilenceUsage = true
 }
 
 func listOptionsFromFlags(cmd *cobra.Command) (listCommandOptions, error) {
@@ -187,9 +201,9 @@ func runList(ctx context.Context, cmd *cobra.Command, configPath string, options
 		return 0, false, err
 	}
 
-	lock, err := readLockOrEmpty(ctx, deps.fs, meta)
+	lock, err := readLockRequired(ctx, deps.fs, meta)
 	if err != nil {
-		return 0, false, err
+		return 0, false, handleLockReadError(err, deps.output)
 	}
 	if err := logInvalidLockEntries(lock, deps.output); err != nil {
 		return 0, false, err
@@ -218,17 +232,41 @@ func runList(ctx context.Context, cmd *cobra.Command, configPath string, options
 	return len(entries), useTUI, nil
 }
 
-func readLockOrEmpty(ctx context.Context, fs afero.Fs, meta config.Metadata) ([]models.ModInstall, error) {
-	lockPath := meta.LockPath()
-	exists, err := afero.Exists(fs, lockPath)
-	if err != nil {
-		return nil, err
-	}
-	if !exists {
-		return []models.ModInstall{}, nil
-	}
+type lockMissingError struct {
+	message string
+}
 
-	return config.ReadLock(ctx, fs, meta)
+func (err *lockMissingError) Error() string {
+	return err.message
+}
+
+func handleLockReadError(err error, out *output.Output) error {
+	var lockMissing *lockMissingError
+	if !errors.As(err, &lockMissing) {
+		return err
+	}
+	if outputErr := out.Error(lockMissing.Error()); outputErr != nil {
+		return outputErr
+	}
+	return clierrors.MarkHandled(err)
+}
+
+func readLockRequired(ctx context.Context, fs afero.Fs, meta config.Metadata) ([]models.ModInstall, error) {
+	lock, err := config.ReadLock(ctx, fs, meta)
+	if err == nil {
+		return lock, nil
+	}
+	if errors.Is(err, os.ErrNotExist) {
+		return nil, &lockMissingError{
+			message: i18n.T("cmd.list.error.lock_missing", &i18n.Tvars{
+				Data: &i18n.TData{
+					"lock_path":       meta.LockPath(),
+					"install_command": "mmm install",
+				},
+			}),
+		}
+	}
+	return nil, err
 }
 
 func buildEntries(cfg models.ModsJSON, lock []models.ModInstall, meta config.Metadata, fs afero.Fs) []listEntry {

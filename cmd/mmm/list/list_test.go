@@ -21,6 +21,7 @@ import (
 	"github.com/spf13/cobra"
 	"github.com/stretchr/testify/assert"
 
+	"github.com/meza/minecraft-mod-manager/internal/clierrors"
 	"github.com/meza/minecraft-mod-manager/internal/config"
 	"github.com/meza/minecraft-mod-manager/internal/models"
 )
@@ -391,7 +392,7 @@ func TestRenderListViewReturnsEmptyOnEntryWriteError(t *testing.T) {
 	assert.Equal(t, "", output)
 }
 
-func TestRunListMissingLockTreatsAllAsNotInstalled(t *testing.T) {
+func TestRunListMissingLockErrors(t *testing.T) {
 	t.Setenv("MMM_TEST", "true")
 
 	fs := afero.NewMemMapFs()
@@ -425,10 +426,47 @@ func TestRunListMissingLockTreatsAllAsNotInstalled(t *testing.T) {
 		telemetry: func(telemetry.CommandTelemetry) {},
 	})
 
-	assert.NoError(t, err)
-	expected := "cmd.list.header\n" +
-		"X cmd.list.entry.missing, Arg 1: {Count: 0, Data: &map[id:mod-a name:Mod A]}\n"
-	assert.Equal(t, expected, out.String())
+	assert.Error(t, err)
+	assert.True(t, clierrors.IsHandled(err))
+	assert.ErrorContains(t, err, "cmd.list.error.lock_missing")
+	assert.Empty(t, out.String())
+	assert.Contains(t, errOut.String(), "cmd.list.error.lock_missing")
+}
+
+func TestRunListMissingLockReturnsOutputError(t *testing.T) {
+	t.Setenv("MMM_TEST", "true")
+
+	fs := afero.NewMemMapFs()
+	meta := config.NewMetadata(filepath.FromSlash("/cfg/modlist.json"))
+
+	cfg := models.ModsJSON{
+		Loader:                     models.FABRIC,
+		GameVersion:                "1.20.1",
+		DefaultAllowedReleaseTypes: []models.ReleaseType{models.Release},
+		ModsFolder:                 "mods",
+		Mods: []models.Mod{
+			{ID: "mod-a", Name: "Mod A", Type: models.MODRINTH},
+		},
+	}
+
+	assert.NoError(t, fs.MkdirAll(meta.Dir(), 0755))
+	assert.NoError(t, fs.MkdirAll(meta.ModsFolderPath(cfg), 0755))
+	assert.NoError(t, config.WriteConfig(context.Background(), fs, meta, cfg))
+
+	cmd := &cobra.Command{}
+	cmd.SetIn(&bytes.Buffer{})
+	cmd.SetOut(&bytes.Buffer{})
+	cmd.SetErr(&bytes.Buffer{})
+
+	writeErr := errors.New("write failed")
+	_, _, err := runList(context.Background(), cmd, meta.ConfigPath, runListOptions{quiet: false}, listDeps{
+		fs:        fs,
+		logger:    logger.New(io.Discard, io.Discard, false, false),
+		output:    output.New(io.Discard, errorWriter{err: writeErr}, false),
+		telemetry: func(telemetry.CommandTelemetry) {},
+	})
+
+	assert.ErrorIs(t, err, writeErr)
 }
 
 func TestRunListInvalidLockErrors(t *testing.T) {
@@ -546,6 +584,7 @@ func TestRunListShowsEmptyMessageWhenNoMods(t *testing.T) {
 
 	assert.NoError(t, fs.MkdirAll(meta.Dir(), 0755))
 	assert.NoError(t, config.WriteConfig(context.Background(), fs, meta, cfg))
+	assert.NoError(t, config.WriteLock(context.Background(), fs, meta, []models.ModInstall{}))
 
 	out := &bytes.Buffer{}
 	errOut := &bytes.Buffer{}
@@ -585,6 +624,7 @@ func TestRunListQuietStillPrints(t *testing.T) {
 	assert.NoError(t, fs.MkdirAll(meta.Dir(), 0755))
 	assert.NoError(t, fs.MkdirAll(meta.ModsFolderPath(cfg), 0755))
 	assert.NoError(t, config.WriteConfig(context.Background(), fs, meta, cfg))
+	assert.NoError(t, config.WriteLock(context.Background(), fs, meta, []models.ModInstall{}))
 
 	out := &bytes.Buffer{}
 	errOut := &bytes.Buffer{}
@@ -606,7 +646,7 @@ func TestRunListQuietStillPrints(t *testing.T) {
 	assert.Equal(t, expected, out.String())
 }
 
-func TestReadLockOrEmptyReturnsErrorOnStatFailure(t *testing.T) {
+func TestReadLockRequiredReturnsErrorOnStatFailure(t *testing.T) {
 	fs := statErrorFs{
 		Fs:       afero.NewMemMapFs(),
 		failPath: filepath.FromSlash("/cfg/modlist-lock.json"),
@@ -614,7 +654,7 @@ func TestReadLockOrEmptyReturnsErrorOnStatFailure(t *testing.T) {
 	}
 	meta := config.NewMetadata(filepath.FromSlash("/cfg/modlist.json"))
 
-	_, err := readLockOrEmpty(context.Background(), fs, meta)
+	_, err := readLockRequired(context.Background(), fs, meta)
 	assert.Error(t, err)
 }
 
@@ -678,6 +718,7 @@ func TestRunListTuiProgramRunnerError(t *testing.T) {
 	}
 	assert.NoError(t, fs.MkdirAll(meta.Dir(), 0755))
 	assert.NoError(t, config.WriteConfig(context.Background(), fs, meta, cfg))
+	assert.NoError(t, config.WriteLock(context.Background(), fs, meta, []models.ModInstall{}))
 
 	out := &bytes.Buffer{}
 	errOut := &bytes.Buffer{}
@@ -717,6 +758,7 @@ func TestRunListTuiLogsEmptyView(t *testing.T) {
 	}
 	assert.NoError(t, fs.MkdirAll(meta.Dir(), 0755))
 	assert.NoError(t, config.WriteConfig(context.Background(), fs, meta, cfg))
+	assert.NoError(t, config.WriteLock(context.Background(), fs, meta, []models.ModInstall{}))
 
 	out := &bytes.Buffer{}
 	errOut := &bytes.Buffer{}
@@ -756,6 +798,7 @@ func TestRunListNonInteractiveDisablesTUI(t *testing.T) {
 	}
 	assert.NoError(t, fs.MkdirAll(meta.Dir(), 0755))
 	assert.NoError(t, config.WriteConfig(context.Background(), fs, meta, cfg))
+	assert.NoError(t, config.WriteLock(context.Background(), fs, meta, []models.ModInstall{}))
 
 	out := &bytes.Buffer{}
 	errOut := &bytes.Buffer{}
@@ -796,6 +839,7 @@ func TestRunListUsesDefaultProgramRunner(t *testing.T) {
 	}
 	assert.NoError(t, fs.MkdirAll(meta.Dir(), 0755))
 	assert.NoError(t, config.WriteConfig(context.Background(), fs, meta, cfg))
+	assert.NoError(t, config.WriteLock(context.Background(), fs, meta, []models.ModInstall{}))
 
 	cmd := &cobra.Command{}
 	cmd.SetIn(fakeTTY{Buffer: &bytes.Buffer{}})

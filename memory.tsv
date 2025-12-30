@@ -833,3 +833,10 @@ mmm-137 in progress: scanned exported decls missing GoDoc (454 missing across 87
 2025-12-30	09:37	mmm-30: updated hash mismatch message to include fix hint '(run mmm install to fix)' with styled placeholder in list output.
 2025-12-30	09:56	mmm-30: moved hash mismatch fix guidance into translatable key with fix_command placeholder; updated docs/specs list behavior and snapshots/tests.
 2025-12-30	10:08	Closed mmm-30 per user request after reviewer approval and verification.
+2025-12-30	10:09	Started mmm-31: pulled bd issue; need UX decision for list when lock file missing.
+2025-12-30	10:11	mmm-31 decision: spec-aligned behavior; list should error when lock file missing and avoid status output; add tests + i18n guidance.
+2025-12-30	10:20	mmm-31: list now errors when lock missing with i18n guidance; tests/docs updated; make fmt/lint/coverage/build pass.
+2025-12-30	10:39	mmm-31 reviewer approved after removing redundant WriteLock calls; local + Windows checks rerun (PSReadLine warning only).
+2025-12-30	11:04	mmm-31: implemented handled missing-lock output (no cobra Error/Usage prefixes), added tests; reran local+Windows checks; reviewer approved.
+2025-12-30	11:14	Created mmm-150: install should heal missing lock from local mods (scan local, create lock from local files, report upstream differences).
+2025-12-30	11:20	Closed mmm-31 per user request.
