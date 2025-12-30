@@ -818,3 +818,13 @@ mmm-137 in progress: scanned exported decls missing GoDoc (454 missing across 87
 2025-12-29	22:54	mmm-149: scan now prompts to init when config missing, added init helper and tests/docs; make fmt/lint/coverage/build and Windows checks pass (PSReadLine VT warning).
 2025-12-29	23:42	mmm-149 reviewer approved after updating non-tty error messaging and FR/DE accents; reran local and Windows checks (PSReadLine VT warning).
 2025-12-29	23:44	Closed mmm-149 per user request after reviewer approval.
+2025-12-29	23:49	Investigating mmm-57: init TUI cancel shows cobra help; added plan to silence usage for runtime errors and add test.
+2025-12-29	23:54	mmm-57 fix: init command now silences usage on runtime errors (including TUI cancel); added tests; make fmt/lint/coverage/build pass; Windows winhost lint/build/coverage/test-race pass (PSReadLine VT warning).
+2025-12-30	00:05	Added init runtime error output snapshot test; updated snapshots; make fmt-check/lint/vuln/coverage/build pass; Windows winhost lint/build/coverage/test-race pass (PSReadLine VT warning).
+2025-12-30	00:09	Reviewer approved mmm-57 after adding init runtime error output snapshot test; code-review.md updated with Approved verdict.
+2025-12-30	00:13	Added scan snapshot test reproducing init cancel usage output via stubbed runInteractiveInit; updated snapshots with UPDATE_SNAPS=true make coverage.
+2025-12-30	00:26	Fixed scan init-cancel usage output: scan now silences usage on runtime errors; added handled-error test and normalized scan snapshot output; updated snapshots; make fmt-check/lint/vuln/coverage/build pass; Windows winhost lint/build/coverage/test-race pass (PSReadLine VT warning).
+2025-12-30	00:31	Reviewer approved mmm-57 scan init-cancel usage suppression; code-review.md updated with Approved verdict.
+2025-12-30	00:46	Adjusted init/scan cancel handling: introduced ErrInitCanceled, swallow cancel in init/scan, added cancel snapshots and tests; normalized scan snapshot paths; make fmt-check/lint/vuln/coverage/build pass; Windows winhost lint/build/coverage/test-race pass (PSReadLine VT warning).
+2025-12-30	00:57	Cleaned stale scan snapshot entry; reran UPDATE_SNAPS and required checks; Windows winhost lint/build/coverage/test-race pass (PSReadLine VT warning).
+2025-12-30	01:03	Reviewer approved mmm-57 cancel-as-non-error changes; code-review.md updated with Approved verdict.

@@ -2,12 +2,14 @@ package init
 
 import (
 	"context"
+	"errors"
 	"io"
 	"testing"
 
 	"github.com/spf13/cobra"
 	"github.com/stretchr/testify/assert"
 
+	"github.com/meza/minecraft-mod-manager/internal/clierrors"
 	"github.com/meza/minecraft-mod-manager/internal/config"
 	"github.com/meza/minecraft-mod-manager/internal/models"
 )
@@ -169,6 +171,27 @@ func TestCommandWithRunnerInvalidReleaseTypesErrors(t *testing.T) {
 	setCommandOutputForTesting(cmd)
 
 	assert.Error(t, runE(cmd, nil))
+}
+
+func TestCommandWithRunnerRuntimeErrorSilencesUsage(t *testing.T) {
+	t.Setenv("MMM_TEST", "true")
+
+	cmd := commandWithRunner(func(context.Context, *cobra.Command, initOptions, initDeps, config.Metadata) error {
+		return errors.New("boom")
+	})
+	addPersistentFlagsForTesting(cmd)
+	setCommandOutputForTesting(cmd)
+
+	err := cmd.Execute()
+	assert.ErrorContains(t, err, "boom")
+	assert.True(t, cmd.SilenceUsage)
+}
+
+func TestApplyInitCommandErrorPolicyHandledError(t *testing.T) {
+	cmd := &cobra.Command{}
+	applyInitCommandErrorPolicy(cmd, clierrors.MarkHandled(errors.New("boom")))
+	assert.True(t, cmd.SilenceErrors)
+	assert.True(t, cmd.SilenceUsage)
 }
 
 func TestGetAllReleaseTypesAndLoaders(t *testing.T) {

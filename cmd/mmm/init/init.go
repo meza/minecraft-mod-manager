@@ -1,12 +1,14 @@
 package init
 
 import (
+	"errors"
 	"fmt"
 	"io"
 	"net/http"
 	"os"
 
 	tea "github.com/charmbracelet/bubbletea"
+	"github.com/meza/minecraft-mod-manager/internal/clierrors"
 	"github.com/meza/minecraft-mod-manager/internal/cmddeps"
 	"github.com/meza/minecraft-mod-manager/internal/config"
 	"github.com/meza/minecraft-mod-manager/internal/i18n"
@@ -63,6 +65,10 @@ func commandWithRunner(runner initRunner) *cobra.Command {
 			meta := config.NewMetadata(options.ConfigPath)
 
 			err = runner(ctx, cmd, options, deps, meta)
+			if errors.Is(err, ErrInitCanceled) {
+				return nil
+			}
+			applyInitCommandErrorPolicy(cmd, err)
 			return err
 		},
 	}
@@ -73,6 +79,16 @@ func commandWithRunner(runner initRunner) *cobra.Command {
 	}
 
 	return cmd
+}
+
+func applyInitCommandErrorPolicy(cmd *cobra.Command, err error) {
+	if err == nil {
+		return
+	}
+	if clierrors.IsHandled(err) {
+		cmd.SilenceErrors = true
+	}
+	cmd.SilenceUsage = true
 }
 
 func addInitFlags(cmd *cobra.Command, loader *loaderFlag) {

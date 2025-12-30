@@ -1,0 +1,8 @@
+
+[TestScanInitCanceledOutputSnapshot - 1]
+stdout:
+cmd.scan.config_missing, Arg 1: {Count: 0, Data: &map[configPath:./modlist.json]}
+cmd.scan.confirm_init (y/N):
+stderr:
+
+---

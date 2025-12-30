@@ -1,0 +1,14 @@
+
+[TestInitCommandRuntimeErrorOutputSnapshot - 1]
+stdout:
+
+stderr:
+Error: boom
+---
+
+[TestInitCommandCanceledOutputSnapshot - 1]
+stdout:
+
+stderr:
+
+---

@@ -12,6 +12,7 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
+	"github.com/meza/minecraft-mod-manager/internal/clierrors"
 	"github.com/meza/minecraft-mod-manager/internal/config"
 	"github.com/meza/minecraft-mod-manager/internal/models"
 )
@@ -116,6 +117,13 @@ func TestCommandSuccessWithAllManagedFiles(t *testing.T) {
 	cmd.SetArgs([]string{"--config", configPath, "--quiet"})
 
 	assert.NoError(t, cmd.Execute())
+}
+
+func TestApplyScanCommandErrorPolicyHandledError(t *testing.T) {
+	cmd := &cobra.Command{}
+	applyScanCommandErrorPolicy(cmd, clierrors.MarkHandled(assert.AnError))
+	assert.True(t, cmd.SilenceErrors)
+	assert.True(t, cmd.SilenceUsage)
 }
 
 func addPersistentFlagsForTesting(cmd *cobra.Command) {

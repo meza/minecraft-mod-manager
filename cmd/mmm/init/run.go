@@ -15,6 +15,9 @@ import (
 
 func runInitCommand(ctx context.Context, cmd *cobra.Command, options initOptions, deps initDeps, meta config.Metadata) error {
 	finalOptions, didUseTUI, err := runInit(ctx, cmd, options, deps, meta)
+	if errors.Is(err, ErrInitCanceled) {
+		err = nil
+	}
 
 	if deps.telemetry != nil {
 		deps.telemetry(buildTelemetryPayload(finalOptions, didUseTUI, err))
@@ -43,7 +46,7 @@ func runInit(ctx context.Context, cmd *cobra.Command, options initOptions, deps 
 	if shouldUseTUI {
 		updated, launched, runErr := runInteractiveInitWithLaunchFlag(ctx, cmd, options, deps, meta)
 		if runErr != nil {
-			return options, launched, runErr
+			return options, launched, normalizeInitCancelError(runErr)
 		}
 		options = updated
 		didUseTUI = launched
@@ -98,8 +101,15 @@ func finalizeInteractiveResult(result tea.Model) (initOptions, error) {
 	}
 
 	if finalModel.state != done {
-		return initOptions{}, errors.New(i18n.T("cmd.init.error.canceled", nil))
+		return initOptions{}, ErrInitCanceled
 	}
 
 	return finalModel.result, nil
+}
+
+func normalizeInitCancelError(err error) error {
+	if errors.Is(err, ErrInitCanceled) {
+		return ErrInitCanceled
+	}
+	return err
 }

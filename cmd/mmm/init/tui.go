@@ -2,7 +2,6 @@ package init
 
 import (
 	"context"
-	"errors"
 	"strings"
 
 	tea "github.com/charmbracelet/bubbletea"
@@ -287,7 +286,7 @@ func (model CommandModel) handleAbort() CommandModel {
 	if model.sessionSpan != nil {
 		model.sessionSpan.AddEvent("tui.init.action.abort", perf.WithEventAttributes(attribute.String("state", model.stateName())))
 	}
-	model.err = errors.New("init canceled")
+	model.err = ErrInitCanceled
 	return model
 }
 

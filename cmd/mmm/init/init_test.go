@@ -564,6 +564,51 @@ func TestRunInitCommandDoesNotMarkInteractiveWhenTUIWasNotLaunched(t *testing.T)
 	}
 }
 
+func TestRunInitCommandSwallowsCanceledError(t *testing.T) {
+	minecraft.ClearManifestCache()
+	restoreTTY := tui.SetIsTerminalFuncForTesting(func(int) bool { return true })
+	t.Cleanup(restoreTTY)
+
+	fs := afero.NewMemMapFs()
+	meta := config.NewMetadata(filepath.FromSlash("/cfg/modlist.json"))
+
+	in := fakeTTYReader{Reader: bytes.NewReader(nil)}
+	out := &fakeTTYWriter{}
+
+	cmd := &cobra.Command{}
+	cmd.SetIn(in)
+	cmd.SetOut(out)
+
+	var payloads []telemetry.CommandTelemetry
+	deps := initDeps{
+		output:          output.New(io.Discard, io.Discard, true),
+		fs:              fs,
+		minecraftClient: manifestDoer([]string{"1.21.1"}),
+		runTea: func(tea.Model, ...tea.ProgramOption) (tea.Model, error) {
+			return CommandModel{state: stateLoader}, nil
+		},
+		telemetry: func(payload telemetry.CommandTelemetry) {
+			payloads = append(payloads, payload)
+		},
+	}
+
+	err := runInitCommand(context.Background(), cmd, initOptions{
+		ConfigPath:   meta.ConfigPath,
+		GameVersion:  "1.21.1",
+		ReleaseTypes: []models.ReleaseType{models.Release},
+		ModsFolder:   "mods",
+	}, deps, meta)
+	assert.NoError(t, err)
+
+	exists, existsErr := afero.Exists(fs, meta.ConfigPath)
+	assert.NoError(t, existsErr)
+	assert.False(t, exists)
+
+	if assert.Len(t, payloads, 1) {
+		assert.True(t, payloads[0].Success)
+	}
+}
+
 func TestRunInitNormalizeGameVersionError(t *testing.T) {
 	minecraft.ClearManifestCache()
 

@@ -16,6 +16,7 @@ import (
 	"go.opentelemetry.io/otel/attribute"
 
 	initCmd "github.com/meza/minecraft-mod-manager/cmd/mmm/init"
+	"github.com/meza/minecraft-mod-manager/internal/clierrors"
 	"github.com/meza/minecraft-mod-manager/internal/cmddeps"
 	"github.com/meza/minecraft-mod-manager/internal/config"
 	"github.com/meza/minecraft-mod-manager/internal/curseforge"
@@ -156,7 +157,18 @@ func runScanCommand(cmd *cobra.Command) error {
 	if deps.telemetry != nil {
 		deps.telemetry(payload)
 	}
+	applyScanCommandErrorPolicy(cmd, err)
 	return err
+}
+
+func applyScanCommandErrorPolicy(cmd *cobra.Command, err error) {
+	if err == nil {
+		return
+	}
+	if clierrors.IsHandled(err) {
+		cmd.SilenceErrors = true
+	}
+	cmd.SilenceUsage = true
 }
 
 func scanOptionsFromFlags(cmd *cobra.Command) (scanOptions, error) {
@@ -375,6 +387,9 @@ func ensureScanConfig(ctx context.Context, cmd *cobra.Command, opts scanOptions,
 		return scanConfigState{}, errors.New("missing init runner")
 	}
 	if runErr := deps.runInit(ctx, cmd, initRequest{ConfigPath: meta.ConfigPath}); runErr != nil {
+		if errors.Is(runErr, initCmd.ErrInitCanceled) {
+			return scanConfigState{ShouldContinue: false}, nil
+		}
 		return scanConfigState{}, runErr
 	}
 
