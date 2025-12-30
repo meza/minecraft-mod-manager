@@ -6,6 +6,9 @@
 
 This document captures the visual wire-frames and interaction model for the Minecraft Mod Manager (MMM) Terminal User Interface, along with the fallback CLI prompting behaviour. It is intended to guide both implementation and future maintenance.
 
+Related workspace:
+- `docs/interactions/README.md`
+
 ---
 
 ## 2  Three-Tier Execution Model
