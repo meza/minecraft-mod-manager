@@ -33,6 +33,7 @@ type testOptions struct {
 	NonInteractive bool
 	Quiet          bool
 	Debug          bool
+	Force          bool
 }
 
 type testDeps struct {
@@ -77,6 +78,15 @@ var errSameVersion = &exitCodeError{code: 2}
 var errUnsupportedMods = &exitCodeError{code: 1}
 
 type testRunner func(context.Context, *cobra.Command, testOptions, testDeps) (int, error)
+
+type Options = testOptions
+type Deps = testDeps
+
+type Result struct {
+	TargetVersion   string
+	ExitCode        int
+	UnsupportedMods []models.Mod
+}
 
 func Command() *cobra.Command {
 	return commandWithRunner(runTest)
@@ -187,6 +197,10 @@ func newTestDeps(common cmddeps.CommonDeps) testDeps {
 	}
 }
 
+func NewDeps(common cmddeps.CommonDeps) Deps {
+	return newTestDeps(common)
+}
+
 func handleTestCommandError(cmd *cobra.Command, err error) {
 	if err == nil {
 		return
@@ -239,38 +253,64 @@ type logEvent struct {
 }
 
 func runTest(ctx context.Context, cmd *cobra.Command, opts testOptions, deps testDeps) (int, error) {
+	colorMode := tui.ColorDisabled
+	if tui.IsTerminalWriter(cmd.OutOrStdout()) {
+		colorMode = tui.ColorEnabled
+	}
+
+	result, err := runTestWithResult(ctx, opts, deps, colorMode)
+	return result.ExitCode, err
+}
+
+func RunWithDeps(ctx context.Context, _ *cobra.Command, opts Options, deps Deps, colorMode tui.ColorMode) (Result, error) {
+	return runTestWithResult(ctx, opts, deps, colorMode)
+}
+
+func runTestWithResult(ctx context.Context, opts testOptions, deps testDeps, colorMode tui.ColorMode) (Result, error) {
 	meta := config.NewMetadata(opts.ConfigPath)
 
 	cfg, err := config.ReadConfig(ctx, deps.fs, meta)
 	if err != nil {
-		return 0, err
+		return Result{ExitCode: 1}, err
 	}
 
 	targetVersion, exitCode, err := resolveTargetVersion(ctx, cfg, opts, deps)
 	if err != nil {
-		return exitCode, err
+		return Result{ExitCode: exitCode, TargetVersion: targetVersion}, err
 	}
 
 	if len(cfg.Mods) == 0 {
-		if outputErr := deps.output.Log(i18n.T("cmd.test.success", &i18n.Tvars{
-			Data: &i18n.TData{"version": targetVersion},
-		}), output.LogQuiet); outputErr != nil {
-			return 0, outputErr
+		if outputErr := logTestSuccess(targetVersion, deps); outputErr != nil {
+			return Result{ExitCode: 0, TargetVersion: targetVersion}, outputErr
 		}
-		return 0, nil
-	}
-
-	colorize := tui.IsTerminalWriter(cmd.OutOrStdout())
-	colorMode := tui.ColorDisabled
-	if colorize {
-		colorMode = tui.ColorEnabled
+		return Result{ExitCode: 0, TargetVersion: targetVersion}, nil
 	}
 
 	outcomes, err := collectOutcomes(ctx, cfg, targetVersion, deps)
 	if err != nil {
-		return 0, err
+		return Result{ExitCode: 0, TargetVersion: targetVersion}, err
 	}
-	return evaluateTestOutcomes(targetVersion, outcomes, deps, colorMode)
+
+	unsupported, err := logOutcomes(outcomes, deps)
+	if err != nil {
+		return Result{ExitCode: 0, TargetVersion: targetVersion}, err
+	}
+
+	if opts.Force {
+		forcedResult, forceErr := handleForcedTestResult(targetVersion, unsupported, deps, colorMode)
+		if forceErr != nil {
+			return forcedResult, forceErr
+		}
+		return forcedResult, nil
+	}
+
+	exitCode, err = evaluateTestOutcomes(targetVersion, unsupported, deps, colorMode)
+
+	return Result{
+		TargetVersion:   targetVersion,
+		ExitCode:        exitCode,
+		UnsupportedMods: toUnsupportedMods(unsupported),
+	}, err
 }
 
 func checkMod(
@@ -582,35 +622,72 @@ func logOutcomes(outcomes []modCheckOutcome, deps testDeps) ([]modCheckOutcome, 
 	return unsupportedMods, nil
 }
 
-func evaluateTestOutcomes(targetVersion string, outcomes []modCheckOutcome, deps testDeps, colorMode tui.ColorMode) (int, error) {
-	unsupportedMods, err := logOutcomes(outcomes, deps)
-	if err != nil {
-		return 0, err
-	}
+func evaluateTestOutcomes(targetVersion string, unsupportedMods []modCheckOutcome, deps testDeps, colorMode tui.ColorMode) (int, error) {
 	if len(unsupportedMods) > 0 {
-		return reportUnsupportedMods(targetVersion, unsupportedMods, deps, colorMode)
+		exitCode, reportErr := reportUnsupportedMods(targetVersion, unsupportedMods, deps, colorMode)
+		return exitCode, reportErr
 	}
 
-	if outputErr := deps.output.Log(i18n.T("cmd.test.success", &i18n.Tvars{
-		Data: &i18n.TData{"version": targetVersion},
-	}), output.LogQuiet); outputErr != nil {
+	if outputErr := logTestSuccess(targetVersion, deps); outputErr != nil {
 		return 0, outputErr
 	}
 	return 0, nil
 }
 
-func reportUnsupportedMods(targetVersion string, unsupportedMods []modCheckOutcome, deps testDeps, colorMode tui.ColorMode) (int, error) {
+func handleForcedTestResult(targetVersion string, unsupported []modCheckOutcome, deps testDeps, colorMode tui.ColorMode) (Result, error) {
+	if len(unsupported) > 0 {
+		if err := reportUnsupportedModsForced(targetVersion, unsupported, deps, colorMode); err != nil {
+			return Result{ExitCode: 0, TargetVersion: targetVersion}, err
+		}
+	}
+
+	return Result{
+		TargetVersion:   targetVersion,
+		ExitCode:        0,
+		UnsupportedMods: toUnsupportedMods(unsupported),
+	}, nil
+}
+
+func logUnsupportedMods(targetVersion string, unsupportedMods []modCheckOutcome, deps testDeps, colorMode tui.ColorMode) error {
 	if outputErr := deps.output.Log(i18n.T("cmd.test.missing_support_header", &i18n.Tvars{
 		Data: &i18n.TData{"version": targetVersion},
 	}), output.LogForce); outputErr != nil {
-		return 0, outputErr
+		return outputErr
 	}
 
 	for _, unsupported := range unsupportedMods {
 		modEntry := formatMissingModEntry(unsupported.Mod, colorMode)
 		if outputErr := deps.output.Log(modEntry, output.LogForce); outputErr != nil {
-			return 0, outputErr
+			return outputErr
 		}
+	}
+
+	return nil
+}
+
+func reportUnsupportedModsForced(
+	targetVersion string,
+	unsupportedMods []modCheckOutcome,
+	deps testDeps,
+	colorMode tui.ColorMode,
+) error {
+	if err := logUnsupportedMods(targetVersion, unsupportedMods, deps, colorMode); err != nil {
+		return err
+	}
+
+	return deps.output.Log(i18n.T("cmd.change.force.skipping_missing_support", &i18n.Tvars{
+		Data: &i18n.TData{"version": targetVersion},
+	}), output.LogForce)
+}
+
+func reportUnsupportedMods(
+	targetVersion string,
+	unsupportedMods []modCheckOutcome,
+	deps testDeps,
+	colorMode tui.ColorMode,
+) (int, error) {
+	if err := logUnsupportedMods(targetVersion, unsupportedMods, deps, colorMode); err != nil {
+		return 0, err
 	}
 
 	if outputErr := deps.output.Log(i18n.T("cmd.test.cannot_upgrade", &i18n.Tvars{
@@ -620,4 +697,22 @@ func reportUnsupportedMods(targetVersion string, unsupportedMods []modCheckOutco
 	}
 
 	return 1, clierrors.MarkHandled(errUnsupportedMods)
+}
+
+func toUnsupportedMods(outcomes []modCheckOutcome) []models.Mod {
+	if len(outcomes) == 0 {
+		return nil
+	}
+
+	unsupported := make([]models.Mod, 0, len(outcomes))
+	for _, outcome := range outcomes {
+		unsupported = append(unsupported, outcome.Mod)
+	}
+	return unsupported
+}
+
+func logTestSuccess(targetVersion string, deps testDeps) error {
+	return deps.output.Log(i18n.T("cmd.test.success", &i18n.Tvars{
+		Data: &i18n.TData{"version": targetVersion},
+	}), output.LogQuiet)
 }

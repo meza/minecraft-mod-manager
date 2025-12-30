@@ -840,3 +840,5 @@ mmm-137 in progress: scanned exported decls missing GoDoc (454 missing across 87
 2025-12-30	11:04	mmm-31: implemented handled missing-lock output (no cobra Error/Usage prefixes), added tests; reran local+Windows checks; reviewer approved.
 2025-12-30	11:14	Created mmm-150: install should heal missing lock from local mods (scan local, create lock from local files, report upstream differences).
 2025-12-30	11:20	Closed mmm-31 per user request.
+2025-12-30	15:50	mmm-9: implemented change command with docs/i18n, expanded test deps (force handling) and new coverage fixes; make fmt/lint/coverage/build pass locally; winhost lint/build/coverage/test-race pass (PSReadLine VT warning).
+2025-12-30	16:19	mmm-9: updated change short description to 'update the mods' and refreshed --force message with empathetic wording + ellipsis per user feedback.

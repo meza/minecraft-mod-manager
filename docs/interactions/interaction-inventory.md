@@ -13,7 +13,7 @@ Root command and global flags:
 - User guide: `README.md`
 
 Subcommands:
-- `add`, `init`, `install`, `list`, `remove`, `scan`, `test`, `update`, `version`
+- `add`, `change`, `init`, `install`, `list`, `remove`, `scan`, `test`, `update`, `version`
 - Code: `cmd/mmm/*`
 - User docs: `docs/commands/`
 - Behavior specs: `docs/specs/`
@@ -50,6 +50,7 @@ Commands that can launch Bubble Tea flows:
 - `init` wizard: `cmd/mmm/init/tui.go`
 - `install` log wrapper when allowed: `cmd/mmm/install/install.go`
 - `list` wrapper when allowed: `cmd/mmm/list/tui.go`
+- `change` log wrapper when allowed: `cmd/mmm/change/change.go`
 - `test` log wrapper when allowed: `cmd/mmm/test/test.go`
 - `update` log wrapper when allowed: `cmd/mmm/update/update.go`
 
@@ -66,4 +67,3 @@ Commands that are currently non-interactive only:
 Full root-level TUI is a future requirement.
 The current implementation prints help when you run `mmm` with no arguments.
 See `docs/tui-design-doc.md` for the target model.
-

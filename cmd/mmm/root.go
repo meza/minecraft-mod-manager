@@ -4,6 +4,7 @@ package mmm
 import (
 	"fmt"
 	addCmd "github.com/meza/minecraft-mod-manager/cmd/mmm/add"
+	changeCmd "github.com/meza/minecraft-mod-manager/cmd/mmm/change"
 	initCmd "github.com/meza/minecraft-mod-manager/cmd/mmm/init"
 	installCmd "github.com/meza/minecraft-mod-manager/cmd/mmm/install"
 	listCmd "github.com/meza/minecraft-mod-manager/cmd/mmm/list"
@@ -43,6 +44,7 @@ func Command() *cobra.Command {
 	rootCmd.AddCommand(removeCmd.Command())
 	rootCmd.AddCommand(scanCmd.Command())
 	rootCmd.AddCommand(testCmd.Command())
+	rootCmd.AddCommand(changeCmd.Command())
 	rootCmd.AddCommand(updateCmd.Command())
 	rootCmd.AddCommand(version.Command())
 

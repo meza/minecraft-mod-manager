@@ -1518,16 +1518,24 @@ func TestEvaluateTestOutcomesReturnsOutputErrorOnSuccessLog(t *testing.T) {
 	assert.ErrorIs(t, err, writeErr)
 }
 
-func TestEvaluateTestOutcomesReturnsLogOutcomesError(t *testing.T) {
-	writeErr := errors.New("write failed")
-
-	_, err := evaluateTestOutcomes("1.20.1", []modCheckOutcome{
-		{LogEvents: []logEvent{{Kind: logEventKindError, Message: "boom"}}},
+func TestEvaluateTestOutcomesReportsUnsupported(t *testing.T) {
+	exitCode, err := evaluateTestOutcomes("1.20.1", []modCheckOutcome{
+		{Mod: models.Mod{Name: "Example", ID: "abc", Type: models.MODRINTH}},
 	}, testDeps{
-		output: output.New(io.Discard, errorWriter{err: writeErr}, false),
+		output: output.New(io.Discard, io.Discard, false),
 		logger: logger.New(io.Discard, io.Discard, false, false),
 	}, tui.ColorDisabled)
-	assert.ErrorIs(t, err, writeErr)
+	assert.ErrorIs(t, err, errUnsupportedMods)
+	assert.Equal(t, 1, exitCode)
+}
+
+func TestReportUnsupportedModsForced(t *testing.T) {
+	err := reportUnsupportedModsForced("1.20.1", []modCheckOutcome{
+		{Mod: models.Mod{Name: "Example", ID: "abc", Type: models.MODRINTH}},
+	}, testDeps{
+		output: output.New(io.Discard, io.Discard, false),
+	}, tui.ColorDisabled)
+	assert.NoError(t, err)
 }
 
 func TestReportUnsupportedModsReturnsOutputErrorOnEntry(t *testing.T) {
