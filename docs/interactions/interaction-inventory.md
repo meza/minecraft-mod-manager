@@ -17,7 +17,8 @@ Subcommands:
 - Built-in help: `help`
 - Code: `cmd/mmm/*`
 - User docs: `docs/commands/`
-- Behavior specs: `docs/specs/`
+- Interaction contract: `docs/interactions/interaction-guidelines.md` and `docs/interactions/interaction-consolidation.md`
+- Legacy behavior reference: `docs/specs/`
 
 ### Configuration files
 
@@ -36,7 +37,7 @@ Additional config surfaces:
 
 ## Interaction components in code
 
-### Execution tier gating
+### Terminal mode gating
 
 TTY and prompt gating:
 - `internal/tui/terminal.go`

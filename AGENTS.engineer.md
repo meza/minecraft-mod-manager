@@ -43,7 +43,7 @@ After any code/test/documentation change (including reviewer-requested fixes), p
 Use `codex -m gpt-5.2 --dangerously-bypass-approvals-and-sandbox e` to request a review.
 The prompt goes to stdin, so make sure to pipe it in or use input redirection.
 
-When running this command, **you MUST set the timeout to exactly 60 minutes** (or more if necessary).
+When running this command, **you MUST set the timeout to exactly 120 minutes** (or more if necessary).
 
 Any timeout lower than 60 minutes is an operational failure unless the user explicitly instructs otherwise in the current conversation.
 
@@ -134,13 +134,6 @@ Follow our established [Golang Coding Standards](https://raw.githubusercontent.c
 - ALWAYS read the documentation of the tooling and libraries used in the project. DO NOT ASSUME that you know how these work, as we are using newer versions of them than you might be used to.
 - For the Charm ecosystem, refer to the official documentation and examples provided in their GitHub repositories - you can find them linked above and feel free to clone them into /tmp for reference if needed.
 - ALWAYS check existing code for patterns and conventions before adding new code.
-
-## Specification Authority
-
-- Specifications in `docs/specs` and `docs/requirements-go-port.md` are the immovable source of truth for behaviour and constraints. If specs, code, docs, or tests ever disagree, the specs win 100% of the time.
-- Do not edit or reinterpret a spec unless the user explicitly orders the change in this conversation. If a spec is unclear or appears wrong, stop immediately and ask for direction instead of diverging or requesting to rewrite the spec.
-- Planning MUST start with the relevant spec sections. Call out which spec documents (and sections if applicable) govern the change, summarize the required behaviour, and ensure your plan accounts for them before touching code or tests.
-- During implementation and verification, continuously check your work against the cited spec passages. Documentation updates exist to explain spec-compliant behaviour; they never redefine it.
 
 ### Decision Records and historical context
 

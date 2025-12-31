@@ -1,5 +1,19 @@
 # Command Reference
 
+## DEPRECATION WARNING
+
+These specifications were used as a basis for the Node parity work.
+We have achieved parity and are now deprecating this documentation.
+These still serve as a useful reference for understanding the original design and behavior of the tool.
+
+## Overriding policy
+
+If any ticket or documentation you're reading contradicts this specification, your new requirements take precedence.
+
+
+
+## Command Reference
+
 This section documents how each CLI command operates. These guides are intended for the Go port and describe the logic without referring to implementation details of the original TypeScript code.
 
 - [init](init.md)

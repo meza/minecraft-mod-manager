@@ -2,13 +2,23 @@
 
 This document describes output-level interaction modes used across commands.
 
-## Quiet mode
+## Quiet flag
 
 When `--quiet` is set:
-- Suppress non-essential output
-- Errors and required results still print
+- Suppress non-actionable output
+- Errors still print
+- Actionable results still print
 
-Quiet mode is intended for scripts that want deterministic output.
+Quiet is intended for scripts and logs that want minimal noise.
+Quiet can be used with either non-interactive or interactive terminal (tui-lite).
+
+Actionable means one of:
+- The command failed
+- The user must take a follow up action
+- The command exists to display information as the primary output
+
+Exception:
+- `list --quiet` still prints the list. Quiet is not meaningful for list.
 
 ## Debug mode
 
@@ -29,4 +39,3 @@ These are not interactive features but they affect what users see.
 
 See:
 - `README.md` for `--perf` and telemetry
-

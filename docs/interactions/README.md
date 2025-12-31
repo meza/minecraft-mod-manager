@@ -3,19 +3,27 @@
 This folder is the interaction design workspace for Minecraft Mod Manager.
 
 It captures how people interact with the product today and what the system expects at the interaction level.
-It is not a spec authority.
-Behavior is defined by `docs/specs/` and the user guides in `docs/commands/`.
+
+Interaction authority:
+- The target interaction contract lives in `docs/interactions/interaction-guidelines.md` and `docs/interactions/interaction-consolidation.md`.
+- Legacy specs in `docs/specs/` are historical reference and may not match the target interaction contract.
 
 Start here when you want to understand:
 - What interaction surfaces exist
-- How the execution tiers work
+- How terminal mode selection works
 - How each command behaves in interactive and non-interactive environments
 
 ## Contents
 
 - `docs/interactions/interaction-inventory.md`
 - `docs/interactions/execution-tiers.md`
+- `docs/interactions/interaction-guidelines.md`
+- `docs/interactions/interaction-consolidation.md`
+- `docs/interactions/consolidation/README.md`
 - `docs/interactions/black-box-discovery.md`
+- `docs/interactions/discovery/README.md`
+- `docs/interactions/mmm-151-audit.md`
+- `docs/interactions/audit-artifacts/mmm-151/README.md`
 - `docs/interactions/patterns/README.md`
 - `docs/interactions/flows/README.md`
 

@@ -1,7 +1,21 @@
 # Execution tiers
 
-This document describes how MMM decides which interaction layer to use.
+This document describes how MMM decides which terminal interaction mode to use.
 It describes current behavior and notes future requirements when relevant.
+
+## Execution contexts
+
+MMM has two terminal execution contexts today:
+- Non-interactive terminal
+- Interactive terminal (tui-lite)
+
+A future full root-level TUI launched from `mmm` with no arguments is out of scope here.
+
+This document focuses on terminal mode selection and interactive UI style selection inside the terminal.
+The "Tier" terminology here is a historical internal model. The user-facing interaction contract is two terminal modes (non-interactive terminal and interactive terminal (tui-lite)), plus `--quiet` as a flag that can apply in either mode.
+Tiers 2 and 3 are both part of the interactive terminal (tui-lite) experience.
+
+`--quiet` is a flag that changes what MMM prints and can apply in any terminal mode.
 
 ## Tier 1: Non-interactive
 

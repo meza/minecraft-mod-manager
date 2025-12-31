@@ -10,6 +10,7 @@ build
 dist
 .claude
 winstructions.md
+docs/interactions/audit-artifacts
 
 ## GENERATED
 .idea

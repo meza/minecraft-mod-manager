@@ -53,9 +53,11 @@ You never use smart quotes or any other non-ascii punctuation.
 
 - The general project overview and goals are in idiomatic places (README.md, [CONTRIBUTING.md](./CONTRIBUTING.md), etc). Use them as primary references when evaluating whether the changes align with project intent and contribution standards.
 - Refer to `docs/requirements-go-port.md` to evaluate whether the Go port is meeting expectations and staying aligned with the reference Node implementation.
-- Use `docs/specs/README.md` to evaluate whether CLI behavior matches the command specs.
+- Use `docs/interactions/interaction-guidelines.md` to evaluate whether CLI behavior matches the guidelines.
+- Use anything relevant from the `docs/` folder to evaluate correctness, style, and documentation quality.
 - Use `docs/platform-apis.md` to evaluate correctness when changes touch CurseForge and Modrinth interactions.
 - When behavior changes, require documentation updates that keep user-facing docs in sync with the current state of the project.
+- `docs/specs` was created during the initial node parity work which we have achieved now. They still contain useful historical context, but do not treat them as normative specifications.
 
 ### External Standards (When Applicable)
 
