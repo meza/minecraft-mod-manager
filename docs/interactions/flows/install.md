@@ -18,7 +18,9 @@ Success looks like:
 
 1. You run `mmm install`.
 2. MMM reads config and lock.
-3. MMM downloads any missing or mismatched jars based on lock or resolved latest compatible files.
+3. MMM scans the mods folder for unmanaged jar files, applying `.mmmignore` rules.
+4. If unmanaged files exist and MMM cannot resolve them, MMM fails and suggests running `mmm scan`.
+5. MMM downloads any missing or mismatched jars based on lock or resolved latest compatible files.
 
 ## Interactive behavior
 
@@ -34,4 +36,3 @@ When `--non-interactive` is set:
 
 - Command implementation: `cmd/mmm/install/install.go`
 - TTY gating: `internal/tui/terminal.go`
-

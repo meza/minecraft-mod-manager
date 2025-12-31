@@ -13,7 +13,8 @@ Root command and global flags:
 - User guide: `README.md`
 
 Subcommands:
-- `add`, `change`, `init`, `install`, `list`, `remove`, `scan`, `test`, `update`, `version`
+- `add`, `change`, `init`, `install`, `list`, `prune`, `remove`, `scan`, `test`, `update`, `version`
+- Built-in help: `help`
 - Code: `cmd/mmm/*`
 - User docs: `docs/commands/`
 - Behavior specs: `docs/specs/`
@@ -23,6 +24,10 @@ Subcommands:
 - `modlist.json` and `modlist-lock.json`
 - User guide: `README.md`
 - Behavior specs: `docs/specs/`
+
+Additional config surfaces:
+- `.mmmignore` rules that affect `scan`, `install`, and `prune`
+- User guide: `README.md`
 
 ### Output and prompts
 
@@ -42,6 +47,12 @@ Global flags that affect interaction:
 - `--quiet`
 - `--debug`
 - `--config`
+- `--perf`
+- `--perf-out-dir`
+- `--help`
+
+Environment variables that affect what users see:
+- `MMM_DISABLE_TELEMETRY`
 
 ### Per-command interactive behavior
 
@@ -57,6 +68,7 @@ Commands that can launch Bubble Tea flows:
 Commands that use simple line prompts:
 - `scan` confirmation prompts: `cmd/mmm/scan/scan.go`
 - `init` overwrite prompt (non-TUI): `cmd/mmm/init/README.md`
+- `prune` deletion confirmation: `cmd/mmm/prune/prune.go`
 
 Commands that are currently non-interactive only:
 - `remove`: `cmd/mmm/remove/remove.go`

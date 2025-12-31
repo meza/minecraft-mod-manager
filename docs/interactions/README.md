@@ -15,6 +15,7 @@ Start here when you want to understand:
 
 - `docs/interactions/interaction-inventory.md`
 - `docs/interactions/execution-tiers.md`
+- `docs/interactions/black-box-discovery.md`
 - `docs/interactions/patterns/README.md`
 - `docs/interactions/flows/README.md`
 
@@ -30,4 +31,3 @@ This workspace focuses on:
 This workspace does not:
 - Redefine behavior or override specs
 - Propose improvements unless explicitly requested
-

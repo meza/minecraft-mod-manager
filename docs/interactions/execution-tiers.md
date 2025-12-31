@@ -30,6 +30,7 @@ What it means:
 Where it exists today:
 - `scan` confirmation prompts
 - `init` overwrite behavior when config already exists
+- `prune` deletion confirmation unless `--force` is set
 
 ## Tier 3: Per-command Bubble Tea TUI
 
@@ -45,7 +46,7 @@ What it means:
 Where it exists today:
 - `add` recovery flow
 - `init` wizard
-- `install`, `list`, `test`, `update` use Bubble Tea wrappers for interactive output
+- `install`, `list`, `test`, `update`, `change` use Bubble Tea wrappers for interactive output
 
 ## Future tier: Full root-level TUI
 
@@ -55,4 +56,3 @@ That is not implemented yet.
 Track this as a future requirement:
 - Target model: `docs/tui-design-doc.md`
 - Current behavior: prints help on `mmm` with no args
-

@@ -17,7 +17,7 @@ Success looks like:
 ## Primary flow
 
 1. You run `mmm scan`.
-2. MMM lists candidate jar files and filters out ignored and managed files.
+2. MMM lists candidate jar files and filters out ignored and managed files, applying `.mmmignore` rules.
 3. MMM tries to identify each candidate by hash.
 4. MMM prints matches, unknown files, and unsure files.
 
@@ -37,4 +37,3 @@ When `--non-interactive` is set:
 
 - Command implementation: `cmd/mmm/scan/scan.go`
 - Prompt gating: `internal/tui/terminal.go`
-
