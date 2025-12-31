@@ -842,3 +842,18 @@ mmm-137 in progress: scanned exported decls missing GoDoc (454 missing across 87
 2025-12-30	11:20	Closed mmm-31 per user request.
 2025-12-30	15:50	mmm-9: implemented change command with docs/i18n, expanded test deps (force handling) and new coverage fixes; make fmt/lint/coverage/build pass locally; winhost lint/build/coverage/test-race pass (PSReadLine VT warning).
 2025-12-30	16:19	mmm-9: updated change short description to 'update the mods' and refreshed --force message with empathetic wording + ellipsis per user feedback.
+2025-12-30	22:57
+Loaded persona and core guidance docs; ready to pull mmm-10 details and specs once aligned.	
+2025-12-30	23:01	Started mmm-10; cloned Node reference repo to /tmp/mmm for parity per mmm-1.
+2025-12-30	23:12	mmm-10: reviewed ticket, Go specs (docs/specs/prune.md, requirements) and Node reference (prune action + shouldPruneFiles); noted mismatches on non-interactive vs --quiet, jar-only scope, and lock-missing behavior for alignment.
+2025-12-30	23:19	mmm-10 alignment: ADR10 prompt policy holds (non-interactive overrides quiet); prune jar-only parity; missing lock should error like list; prompt is simple yes/no line prompt (scan-style). Open question: prune required output in quiet/force modes (list vs summary).
+2025-12-30	23:22	Updated mmm-10 notes with alignment: ADR10 prompt policy, jar-only, lock-missing error like list, simple y/N prompt, non-interactive/force/quiet behavior (quiet+force silent).
+2025-12-30	23:58	mmm-10: implemented prune command + tests/docs; local make fmt/lint/coverage/build pass; Windows winhost make lint/build/coverage/test-race pass (PSReadLine VT warning).
+2025-12-31	00:38	mmm-10: output parity requires red ❌ per unmanaged jar line with absolute path and green '?' prompt using text 'Do you want to delete these files?' (no (y/N)); quiet+force stays silent.
+2025-12-31	01:03	mmm-10: added prune output snapshot tests (prompt output + prompt-disabled warning) and README snapshot notes; reran make fmt/lint/coverage/build and Windows winhost checks.
+2025-12-31	01:12	mmm-10: reviewer approved after adding prune output snapshots; Windows winhost verification pass with PSReadLine VT warning.
+2025-12-31	01:23	mmm-10: --non-interactive now lists unmanaged files and skips prompt, assuming no deletion unless --force; prompt-disabled warning only when non-tty without --force. Added non-interactive and prompt-disabled snapshots, updated docs, reran local+Windows checks.
+2025-12-31	08:30	mmm-10: updated docs/specs/prune.md to match non-interactive list-only behavior and prompt-disabled warnings; reran make fmt/lint/coverage/build and Windows winhost checks.
+2025-12-31	08:44	mmm-10: fixed DE prune translations to use umlauts (Rückfrage, löschen, Möchtest, Gelöscht, Führe); reran make fmt/lint/coverage/build and Windows winhost checks.
+2025-12-31	09:19	mmm-10: non-interactive now prints warning line (cmd.prune.error.prompt_disabled) before listing unmanaged files; updated tests, snapshots, docs/specs, and added non-interactive warning error-path test; checks pass on Windows.
+2025-12-31	09:57	Closed mmm-10 per user request after review approval and verification.
