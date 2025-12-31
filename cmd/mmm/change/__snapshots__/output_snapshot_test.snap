@@ -1,0 +1,7 @@
+
+[TestChangeCommandPlainOutputSnapshot - 1]
+stdout:
+hello
+stderr:
+
+---

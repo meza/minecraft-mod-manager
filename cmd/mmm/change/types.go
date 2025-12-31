@@ -10,6 +10,7 @@ import (
 	"github.com/meza/minecraft-mod-manager/cmd/mmm/test"
 	"github.com/meza/minecraft-mod-manager/internal/config"
 	"github.com/meza/minecraft-mod-manager/internal/models"
+	"github.com/meza/minecraft-mod-manager/internal/output"
 	"github.com/meza/minecraft-mod-manager/internal/telemetry"
 	"github.com/meza/minecraft-mod-manager/internal/tui"
 )
@@ -38,6 +39,7 @@ type changeInstallRunner func(context.Context, *cobra.Command, string, bool, boo
 
 type changeDeps struct {
 	fs            afero.Fs
+	output        *output.Output
 	testDeps      test.Deps
 	testCmd       *cobra.Command
 	installCmd    *cobra.Command

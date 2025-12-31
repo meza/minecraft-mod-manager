@@ -126,7 +126,7 @@ func TestCommandWithRunnerGenericErrorDoesNotSilence(t *testing.T) {
 	assert.False(t, cmd.SilenceErrors)
 }
 
-func TestCommandWithRunnerUsesTUIOutputWhenTerminal(t *testing.T) {
+func TestCommandWithRunnerUsesPlainOutputWhenTerminal(t *testing.T) {
 	restore := tui.SetIsTerminalFuncForTesting(func(_ int) bool { return true })
 	defer restore()
 
@@ -141,7 +141,7 @@ func TestCommandWithRunnerUsesTUIOutputWhenTerminal(t *testing.T) {
 	cmd.SetArgs([]string{"1.20.1"})
 
 	assert.NoError(t, cmd.Execute())
-	assert.Contains(t, outputWriter.String(), "hello")
+	assert.Equal(t, "hello\n", outputWriter.String())
 }
 
 func TestCommandWithRunnerQuietSuppressesOutput(t *testing.T) {

@@ -14,6 +14,7 @@ import (
 	"github.com/meza/minecraft-mod-manager/internal/clierrors"
 	"github.com/meza/minecraft-mod-manager/internal/cmddeps"
 	"github.com/meza/minecraft-mod-manager/internal/models"
+	"github.com/meza/minecraft-mod-manager/internal/output"
 	"github.com/meza/minecraft-mod-manager/internal/telemetry"
 	"github.com/meza/minecraft-mod-manager/internal/tui"
 	"github.com/spf13/afero"
@@ -58,18 +59,6 @@ func TestApplyChangeCommandErrorPolicy(t *testing.T) {
 	applyChangeCommandErrorPolicy(cmd2, assert.AnError)
 	assert.False(t, cmd2.SilenceErrors)
 	assert.True(t, cmd2.SilenceUsage)
-}
-
-func TestWrapWriterWithFDPreservesFD(t *testing.T) {
-	buf := &bytes.Buffer{}
-	wrapped := wrapWriterWithFD(buf, fdWriter{fd: 42})
-
-	fdAware, ok := wrapped.(interface{ Fd() uintptr })
-	assert.True(t, ok)
-	assert.Equal(t, uintptr(42), fdAware.Fd())
-
-	wrappedFallback := wrapWriterWithFD(buf, buf)
-	assert.Equal(t, buf, wrappedFallback)
 }
 
 func TestRecordChangeTelemetry(t *testing.T) {
@@ -138,24 +127,6 @@ func TestCommandWithRunnerPassesOptions(t *testing.T) {
 	assert.True(t, received.Debug)
 	assert.Equal(t, "/tmp/modlist.json", received.ConfigPath)
 	assert.Equal(t, "1.20.4", received.GameVersion)
-}
-
-func TestSetupChangeIOTUI(t *testing.T) {
-	restore := tui.SetIsTerminalFuncForTesting(func(int) bool { return true })
-	defer restore()
-
-	cmd := &cobra.Command{}
-	reader := fdReader{fd: 1}
-	writer := fdWriter{fd: 1}
-	cmd.SetIn(reader)
-	cmd.SetOut(writer)
-	cmd.SetErr(writer)
-
-	ioConfig := setupChangeIO(cmd, changeOptions{})
-	assert.NotNil(t, ioConfig.logProgram)
-	assert.NotNil(t, ioConfig.testCmd)
-	assert.NotNil(t, ioConfig.installCmd)
-	assert.NoError(t, ioConfig.logProgram.Stop())
 }
 
 func TestChangeOptionsFromFlagsErrorsWithoutConfigFlag(t *testing.T) {
@@ -235,7 +206,31 @@ func TestChangeCommandConstructed(t *testing.T) {
 	assert.Equal(t, "change [game_version]", cmd.Use)
 }
 
-func TestRunChangeCommandWithTUI(t *testing.T) {
+func TestRunChangeCommandUsesPlainOutputWhenTerminal(t *testing.T) {
+	restore := tui.SetIsTerminalFuncForTesting(func(int) bool { return true })
+	defer restore()
+
+	outputWriter := &terminalWriter{}
+	cmd := commandWithRunner(func(_ context.Context, _ *cobra.Command, _ changeOptions, deps changeDeps) (changeResult, error) {
+		return changeResult{}, deps.output.Log("hello", output.LogForce)
+	})
+
+	cmd.Flags().String("config", "./modlist.json", "")
+	cmd.Flags().Bool("non-interactive", false, "")
+	cmd.Flags().Bool("quiet", false, "")
+	cmd.Flags().Bool("debug", false, "")
+
+	reader := fdReader{fd: 1}
+	cmd.SetIn(reader)
+	cmd.SetOut(outputWriter)
+	cmd.SetErr(io.Discard)
+	cmd.SetArgs([]string{"--config", "./modlist.json"})
+
+	assert.NoError(t, cmd.Execute())
+	assert.Equal(t, "hello\n", outputWriter.String())
+}
+
+func TestRunChangeCommandWithTerminal(t *testing.T) {
 	restore := tui.SetIsTerminalFuncForTesting(func(int) bool { return true })
 	defer restore()
 
@@ -258,7 +253,7 @@ func TestRunChangeCommandWithTUI(t *testing.T) {
 	assert.NoError(t, cmd.Execute())
 }
 
-func TestRunChangeCommandWithTUIError(t *testing.T) {
+func TestRunChangeCommandWithTerminalError(t *testing.T) {
 	restore := tui.SetIsTerminalFuncForTesting(func(int) bool { return true })
 	defer restore()
 
@@ -332,4 +327,12 @@ func (reader fdReader) Read(p []byte) (int, error) {
 
 func (reader fdReader) Fd() uintptr {
 	return reader.fd
+}
+
+type terminalWriter struct {
+	bytes.Buffer
+}
+
+func (writer *terminalWriter) Fd() uintptr {
+	return 1
 }

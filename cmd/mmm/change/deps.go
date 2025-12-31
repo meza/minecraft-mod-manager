@@ -20,6 +20,7 @@ func newChangeDeps(common cmddeps.CommonDeps, testCmd *cobra.Command, installCmd
 
 	return changeDeps{
 		fs:            common.FS,
+		output:        common.Output,
 		testDeps:      test.NewDeps(common),
 		testCmd:       testCmd,
 		installCmd:    installCmd,

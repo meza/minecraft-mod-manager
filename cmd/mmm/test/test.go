@@ -116,32 +116,13 @@ func runTestCommand(cmd *cobra.Command, args []string, runner testRunner) error 
 		return err
 	}
 
-	promptMode := tui.PromptEnabled
-	if opts.NonInteractive {
-		promptMode = tui.PromptDisabled
-	}
-	useTUI := tui.ShouldUseTUI(promptMode, cmd.InOrStdin(), cmd.OutOrStdout())
-
-	outWriter := cmd.OutOrStdout()
-	errWriter := cmd.ErrOrStderr()
-	var logProgram *tui.LogProgram
-	if useTUI {
-		logProgram = tui.StartLogProgram(cmd.InOrStdin(), outWriter)
-		outWriter = logProgram.Writer()
-	}
-
 	common := cmddeps.NewCommonDeps(cmd, cmddeps.CommonDepsOptions{
-		OutWriter: outWriter,
-		ErrWriter: errWriter,
-		Quiet:     opts.Quiet,
-		Debug:     opts.Debug,
+		Quiet: opts.Quiet,
+		Debug: opts.Debug,
 	})
 	deps := newTestDeps(common)
 
 	exitCode, err := runner(ctx, cmd, opts, deps)
-	if useTUI {
-		err = tui.MergeProgramError(err, logProgram.Stop())
-	}
 	span.SetAttributes(attribute.Bool("success", err == nil))
 	span.End()
 

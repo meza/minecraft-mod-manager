@@ -857,3 +857,9 @@ Loaded persona and core guidance docs; ready to pull mmm-10 details and specs on
 2025-12-31	08:44	mmm-10: fixed DE prune translations to use umlauts (Rückfrage, löschen, Möchtest, Gelöscht, Führe); reran make fmt/lint/coverage/build and Windows winhost checks.
 2025-12-31	09:19	mmm-10: non-interactive now prints warning line (cmd.prune.error.prompt_disabled) before listing unmanaged files; updated tests, snapshots, docs/specs, and added non-interactive warning error-path test; checks pass on Windows.
 2025-12-31	09:57	Closed mmm-10 per user request after review approval and verification.
+2025-12-31	10:51	Investigating test command TUI output issue; plan to add regression test and align output rendering with scan (no log program).
+2025-12-31	10:58	Updated test command to use plain output like scan, added regression test, ran make fmt/lint/coverage/build and Windows winhost lint/build/coverage/test-race (PSReadLine VT warning only).
+2025-12-31	11:03	Reviewer approved test command plain-output change; code-review.md updated after local and Windows verification.
+2025-12-31	11:09	Aligning change command output with scan/test by removing Bubble Tea log program; adding regression test for plain terminal output.
+2025-12-31	11:12	change output alignment: make fmt/lint/coverage/build pass; Windows winhost lint/build/coverage/test-race pass (PSReadLine VT warning only).
+2025-12-31	11:24	Added change output snapshot test and updated snapshots; make fmt/lint/coverage/build pass; Windows winhost lint/build/coverage/test-race pass (PSReadLine VT warning only).
