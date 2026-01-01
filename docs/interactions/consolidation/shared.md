@@ -234,3 +234,8 @@ Unmanaged files detected:
 - mods/unmanaged.jar
 Run `mmm scan` to adopt or resolve these files.
 ```
+
+## Cobra and Bubble Tea integration
+
+When there are idiomatic ways to integrate Cobra commands and Bubble Tea flows, MMM MUST use them consistently.
+Do not reinvent the wheel for behaviour that Cobra and Bubble Tea already support.
