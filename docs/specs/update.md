@@ -7,13 +7,18 @@ Checks for newer releases of each configured mod and downloads them when availab
 2. For every mod entry, query the remote platform for a newer file matching the configured Minecraft version and loader.
 3. When a new release is found, download it, remove the previous file and update the lock file entry.
 4. The configuration file is updated to keep mod names in sync.
-5. Processes mods in parallel to speed up the operation, but uses the rate limiter configured for the platforms.
-6. The UI/UX matches the node version's `update` command.
+5. Continue updating other mods even if a single mod fails to update.
+6. Report results grouped by outcome (already up to date, updated, skipped, failed).
+7. Processes mods in parallel to speed up the operation, but uses the rate limiter configured for the platforms.
+8. During execution, per-item status may update in place and output order is not deterministic due to parallel processing; final grouped results are stable.
 
 ## Edge Cases
 - If a download fails, the previous version remains on disk and the lock file is not altered.
 - When a mod is pinned to a specific `version`, it is skipped during updates.
 - The command aborts if unmanaged files are detected by the initial `install` phase.
+- If no mods are configured, the command exits successfully and reports that state.
+- If no updates are available, the command exits successfully with only the up-to-date (and skipped) results.
+- If writing lock updates fails, the command exits non-zero with an actionable error.
 
 ## User Interaction
-The command does not ask for input. Progress and potential errors are reported through log output.
+User interaction frames and message shapes are defined in `docs/interactions/flows/update.md`.

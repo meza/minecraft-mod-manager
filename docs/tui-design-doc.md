@@ -15,7 +15,7 @@ Related workspace:
 
 | Tier                | Detection                                                                                       | Behaviour                                                                                                     | Example                                                            |
 |---------------------|-------------------------------------------------------------------------------------------------|---------------------------------------------------------------------------------------------------------------|--------------------------------------------------------------------|
-| **Non-interactive** | `stdin` not a TTY, or `--non-interactive` given                                                  | Perform task without prompts. Defaults may be used; missing required inputs fail fast                        | `mmm --non-interactive add curseforge 438050 --version 1.20.1`     |
+| **Unattended** | `stdin` not a TTY, or `--unattended` given                                                  | Perform task without prompts. Defaults may be used; missing required inputs fail fast                        | `mmm --unattended add curseforge 438050 --version 1.20.1`     |
 | **Prompted CLI**    | TTY available but required info missing                                                         | Ask only for missing input via simple line prompts (no Bubble Tea)                                           | `mmm remove sodium` -> disambiguation prompt                       |
 | **Full TUI**        | No flags, or `mmm tui`, or `--tui` supplied                                                      | Launch Bubble Tea interface described in Section 3                                                            | User types `mmm` with no args                                      |
 
@@ -23,7 +23,7 @@ Related workspace:
 
 | Switch/Var          | Effect                                                     |
 |---------------------|------------------------------------------------------------|
-| `--non-interactive` | Disable prompts and fail fast on missing required inputs   |
+| `--unattended` | Disable prompts and fail fast on missing required inputs   |
 | `--quiet`           | Suppress non-essential output                              |
 
 ---
@@ -192,7 +192,7 @@ Related workspace:
 ```go
 func ensureTTYOrAbort() {
     if !isatty.IsTerminal(os.Stdin.Fd()) {
-        fmt.Fprintln(os.Stderr, "Missing required input in non-interactive mode")
+        fmt.Fprintln(os.Stderr, "Missing required input in unattended mode")
         os.Exit(4)
     }
 }

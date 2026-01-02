@@ -134,7 +134,7 @@ Every command has a few common options that you can use:
 
 | Option Short | Option Long | Description                                |
 |--------------|-------------|--------------------------------------------|
-|              | --non-interactive | Disable prompts and fail fast if required inputs are missing |
+|              | --unattended | Disable prompts and fail fast if required inputs are missing |
 | -q           | --quiet     | Suppress non-essential output (errors and required results still print) |
 | -c           | --config    | Set the config file to an alternative path |
 | -d           | --debug     | Enable verbose logging                     |
@@ -153,10 +153,10 @@ or
 mmm -c ./my-config.json install
 ```
 
-To avoid prompts in scripts, add `--non-interactive`:
+To avoid prompts in scripts, add `--unattended`:
 
 ```bash
-mmm --non-interactive init -l fabric -g 1.21.1 -m ./mods
+mmm --unattended init -l fabric -g 1.21.1 -m ./mods
 ```
 
 ### Performance logs

@@ -32,6 +32,6 @@ If a file cannot be looked up due to a platform error, it is reported as "unsure
 
 If a file is listed as "unknown", it means the file hash did not match anything on either platform.
 
-If no configuration file exists, the command tells you and asks if you want to initialize one. If you say yes, it launches the init TUI and then continues scanning. In `--non-interactive` mode, the command fails instead of creating a config.
+If no configuration file exists, the command tells you and asks if you want to initialize one. If you say yes, it launches the init TUI and then continues scanning. In `--unattended` mode, the command fails instead of creating a config.
 
-If you run with `--non-interactive`, the command does not prompt and skips writing changes unless you pass `--add`. If you run with `--quiet`, the command suppresses non-essential output.
+If you run with `--unattended`, the command does not prompt and skips writing changes unless you pass `--add`. If you run with `--quiet`, the command suppresses non-essential output.

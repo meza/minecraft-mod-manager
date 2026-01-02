@@ -1,16 +1,8 @@
 # Command Reference
 
-## DEPRECATION WARNING
+## Interaction source of truth
 
-These specifications were used as a basis for the Node parity work.
-We have achieved parity and are now deprecating this documentation.
-These still serve as a useful reference for understanding the original design and behavior of the tool.
-
-## Overriding policy
-
-If any ticket or documentation you're reading contradicts this specification, your new requirements take precedence.
-
-
+The interaction contract, frames, and output shapes live in `docs/interactions/interaction-guidelines.md` and `docs/interactions/flows/`.
 
 ## Command Reference
 
@@ -32,10 +24,10 @@ This section documents how each CLI command operates. These guides are intended 
 Every command supports a few shared flags provided by the CLI parser:
 
 - `-c, --config <file>` - path to `modlist.json`. Defaults to `./modlist.json`.
-- `--non-interactive` - disables prompts and fails fast when required inputs are missing.
+- `--unattended` - disables prompts and fails fast when required inputs are missing.
 - `-q, --quiet` - suppresses non-essential output; errors and required results still print.
 - `-d, --debug` - prints additional debug messages.
 
-Non-TTY usage is treated as non-interactive by default.
+Non-TTY usage is treated as unattended by default.
 
 These options must appear before the command name, e.g. `mmm --quiet install`.

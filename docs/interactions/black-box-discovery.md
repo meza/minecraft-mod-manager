@@ -2,7 +2,7 @@
 
 This document defines how we will validate MMM interactions by running the shipped binary and recording observable behavior.
 It is design documentation, not spec authority.
-Behavior authority for interaction design lives in `docs/interactions/interaction-guidelines.md` and `docs/interactions/interaction-consolidation.md`.
+Behavior authority for interaction design lives in `docs/interactions/interaction-guidelines.md`.
 Legacy specs in `docs/specs/` and user docs in `docs/commands/` may not match the target interaction contract.
 
 ## Goals
@@ -22,19 +22,17 @@ Legacy specs in `docs/specs/` and user docs in `docs/commands/` may not match th
 - Do not call Modrinth or CurseForge APIs directly.
 - Run each scenario in an isolated folder under `/tmp/mmm-interactions` so configs never leak across runs.
 - Capture both TTY and non TTY behavior:
-  - Non TTY validates the automation contract.
-  - Pseudo TTY validates TUI and prompted behavior using `expect` for discovery and capture.
+  - Non-interactive terminal (non TTY) validates transcript-only output without control sequences or interactive elements.
+  - Unattended terminal (TTY with `--unattended`) validates the automation contract with prompts disabled.
+  - Pseudo TTY validates interactive terminal behavior using `expect` for discovery and capture.
 
 ## Test matrix
 
 Each scenario runs in these modes.
 
 - Mode A: pseudo TTY with `expect` and prompts enabled
-- Mode B: non interactive CLI with `--non-interactive`
-- For both modes: rerun with `--quiet`
-
-Optional drift check:
-- Mode C: non TTY without `--non-interactive` by redirecting stdout to confirm prompt suppression and fail fast behavior
+- Mode B: unattended CLI with `--unattended`
+- Mode C: non-interactive terminal (non TTY) by redirecting stdout to confirm no control sequences and no interactive elements
 
 ## Folder layout
 
@@ -128,13 +126,13 @@ Flow:
 Capture:
 - Scan output for unmanaged files
 - Prune defaults and cancel behavior
-- Difference between `--non-interactive`, prompt disabled, and `--force`
+- Difference between `--unattended`, prompt disabled, and `--force`
 
 ### Scenario 5: Add recovery paths
 
 Goal:
 - Capture the `add` recovery experience in pseudo TTY
-- Confirm non interactive behavior is fail fast and actionable
+- Confirm non-interactive and unattended behavior is fail fast and actionable
 
 Cases to run in the same scenario folder layout:
 
@@ -150,7 +148,7 @@ Cases to run in the same scenario folder layout:
 Capture:
 - Whether the recovery TUI activates in Mode A
 - Cancel and back behavior, including `esc`, `q`, and `ctrl+c`
-- Non interactive error messages and exit codes
+- Non-interactive and unattended error messages and exit codes
 
 ### Scenario 6: Init when config already exists
 
@@ -229,7 +227,7 @@ For every run, record:
 
 For each command in each scenario and mode, summarize:
 
-- Tier selected: non interactive, prompted CLI, or Bubble Tea
+- Execution context selected: non-interactive, unattended, or interactive terminal
 - Prompt or TUI surfaced: yes or no
 - Default on destructive confirmation: safe or unsafe
 - Cancel and quit semantics observed
