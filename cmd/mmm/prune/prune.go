@@ -1,7 +1,6 @@
 package prune
 
 import (
-	"bufio"
 	"context"
 	"errors"
 	"fmt"
@@ -28,11 +27,11 @@ import (
 )
 
 type pruneOptions struct {
-	ConfigPath     string
-	NonInteractive bool
-	Quiet          bool
-	Debug          bool
-	Force          bool
+	ConfigPath string
+	Unattended bool
+	Quiet      bool
+	Debug      bool
+	Force      bool
 }
 
 type pruneDeps struct {
@@ -92,7 +91,7 @@ func pruneOptionsFromFlags(cmd *cobra.Command) (pruneOptions, error) {
 	if err != nil {
 		return pruneOptions{}, err
 	}
-	nonInteractive, err := cmd.Flags().GetBool("non-interactive")
+	unattended, err := cmd.Flags().GetBool("unattended")
 	if err != nil {
 		return pruneOptions{}, err
 	}
@@ -110,11 +109,11 @@ func pruneOptionsFromFlags(cmd *cobra.Command) (pruneOptions, error) {
 	}
 
 	return pruneOptions{
-		ConfigPath:     configPath,
-		NonInteractive: nonInteractive,
-		Quiet:          quiet,
-		Debug:          debug,
-		Force:          force,
+		ConfigPath: configPath,
+		Unattended: unattended,
+		Quiet:      quiet,
+		Debug:      debug,
+		Force:      force,
 	}, nil
 }
 
@@ -198,7 +197,7 @@ func shouldDeleteUnmanaged(cmd *cobra.Command, options pruneOptions, deps pruneD
 		return true, nil
 	}
 
-	if options.NonInteractive {
+	if options.Unattended {
 		if outputErr := deps.output.Error(i18n.T("cmd.prune.error.prompt_disabled", nil)); outputErr != nil {
 			return false, outputErr
 		}
@@ -344,26 +343,10 @@ func confirmDeletion(in io.Reader, out io.Writer, colorMode tui.ColorMode) (bool
 	if colorMode.Enabled() {
 		questionPrefix = tui.QuestionStyle.Render(questionPrefix)
 	}
-	if _, err := fmt.Fprintf(out, "%s %s ", questionPrefix, i18n.T("cmd.prune.confirm", nil)); err != nil {
-		return false, err
-	}
-	answer, err := readLine(in)
-	if err != nil {
-		return false, err
-	}
-	answer = strings.TrimSpace(strings.ToLower(answer))
-	return answer == "y" || answer == "yes", nil
-}
-
-func readLine(reader io.Reader) (string, error) {
-	scanner := bufio.NewScanner(reader)
-	if !scanner.Scan() {
-		if err := scanner.Err(); err != nil {
-			return "", err
-		}
-		return "", io.EOF
-	}
-	return scanner.Text(), nil
+	return tui.RunConfirmPrompt(in, out, tui.ConfirmPrompt{
+		Prefix:   questionPrefix,
+		Question: i18n.T("cmd.prune.confirm", nil),
+	})
 }
 
 func reportPromptDisabled(out *output.Output) error {

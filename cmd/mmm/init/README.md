@@ -19,7 +19,7 @@ This package implements `mmm init`: create a new `modlist.json` and `modlist-loc
 
 `init` is designed to be both scriptable and friendly:
 
-- If you provide all required flags, the command is non-interactive and writes the files.
+- If you provide all required flags, the command is unattended and writes the files.
 - If you omit required flags and stdout/stderr are terminals, it launches a TUI to collect the missing values.
 
 After inputs are finalized, `initWithDeps`:
@@ -31,7 +31,7 @@ After inputs are finalized, `initWithDeps`:
 
 ## Overwrite behavior (non-TUI prompt)
 
-Even when the TUI is not used, `initWithDeps` may prompt on stdout/stderr if the config file already exists and `--non-interactive` is not set:
+Even when the TUI is not used, `initWithDeps` may prompt on stdout/stderr if the config file already exists and `--unattended` is not set:
 
 - confirm overwrite, or
 - enter a new config path

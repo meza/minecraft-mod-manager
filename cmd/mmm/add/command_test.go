@@ -108,7 +108,7 @@ func TestCommandWithRunnerMissingConfigFlagErrors(t *testing.T) {
 	assert.Error(t, runE(cmd, []string{"modrinth", "abc"}))
 }
 
-func TestCommandWithRunnerMissingNonInteractiveFlagErrors(t *testing.T) {
+func TestCommandWithRunnerMissingUnattendedFlagErrors(t *testing.T) {
 	runE := commandWithRunner(func(_ context.Context, _ *perf.Span, _ *cobra.Command, _ addOptions, _ addDeps) (telemetry.CommandTelemetry, error) {
 		return telemetry.CommandTelemetry{Command: "add"}, nil
 	}).RunE
@@ -129,7 +129,7 @@ func TestCommandWithRunnerMissingQuietFlagErrors(t *testing.T) {
 	cmd := &cobra.Command{}
 	cmd.SetContext(context.Background())
 	cmd.Flags().StringP("config", "c", "modlist.json", "config")
-	cmd.Flags().Bool("non-interactive", false, "non-interactive")
+	cmd.Flags().Bool("unattended", false, "unattended")
 	setCommandOutputForTesting(cmd)
 
 	assert.Error(t, runE(cmd, []string{"modrinth", "abc"}))
@@ -143,7 +143,7 @@ func TestCommandWithRunnerMissingDebugFlagErrors(t *testing.T) {
 	cmd := &cobra.Command{}
 	cmd.SetContext(context.Background())
 	cmd.Flags().StringP("config", "c", "modlist.json", "config")
-	cmd.Flags().Bool("non-interactive", false, "non-interactive")
+	cmd.Flags().Bool("unattended", false, "unattended")
 	cmd.Flags().BoolP("quiet", "q", false, "quiet")
 	setCommandOutputForTesting(cmd)
 
@@ -158,7 +158,7 @@ func TestCommandWithRunnerMissingVersionFlagErrors(t *testing.T) {
 	cmd := &cobra.Command{}
 	cmd.SetContext(context.Background())
 	cmd.Flags().StringP("config", "c", "modlist.json", "config")
-	cmd.Flags().Bool("non-interactive", false, "non-interactive")
+	cmd.Flags().Bool("unattended", false, "unattended")
 	cmd.Flags().BoolP("quiet", "q", false, "quiet")
 	cmd.Flags().BoolP("debug", "d", false, "debug")
 	setCommandOutputForTesting(cmd)
@@ -174,7 +174,7 @@ func TestCommandWithRunnerMissingAllowFallbackFlagErrors(t *testing.T) {
 	cmd := &cobra.Command{}
 	cmd.SetContext(context.Background())
 	cmd.Flags().StringP("config", "c", "modlist.json", "config")
-	cmd.Flags().Bool("non-interactive", false, "non-interactive")
+	cmd.Flags().Bool("unattended", false, "unattended")
 	cmd.Flags().BoolP("quiet", "q", false, "quiet")
 	cmd.Flags().BoolP("debug", "d", false, "debug")
 	cmd.Flags().String("version", "", "version")
@@ -202,7 +202,7 @@ func TestCommand_ValidArgsFunctionSuggestsPlatforms(t *testing.T) {
 
 func addPersistentFlagsForTesting(cmd *cobra.Command) {
 	cmd.PersistentFlags().StringP("config", "c", "./modlist.json", "An alternative JSON file containing the configuration")
-	cmd.PersistentFlags().Bool("non-interactive", false, "Disable prompts and fail fast when required inputs are missing")
+	cmd.PersistentFlags().Bool("unattended", false, "Disable prompts and fail fast when required inputs are missing")
 	cmd.PersistentFlags().BoolP("quiet", "q", false, "Suppress non-essential output (errors and required results still print)")
 	cmd.PersistentFlags().BoolP("debug", "d", false, "Enable debug messages")
 }

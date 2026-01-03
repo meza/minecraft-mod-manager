@@ -16,12 +16,12 @@ import (
 )
 
 type changeOptions struct {
-	ConfigPath     string
-	GameVersion    string
-	NonInteractive bool
-	Quiet          bool
-	Debug          bool
-	Force          bool
+	ConfigPath  string
+	GameVersion string
+	Unattended  bool
+	Quiet       bool
+	Debug       bool
+	Force       bool
 }
 
 type changeResult struct {

@@ -13,7 +13,7 @@ The CLI tries hard to avoid "half a TUI" when input/output are not terminals (CI
 - `ProgramOptions(in io.Reader, out io.Writer) []tea.ProgramOption`
 
 `ProgramOptions` disables Bubble Tea's renderer when no terminal is present.
-Use `PromptDisabled` to block prompts and TUI selection when the command is running in non-interactive mode.
+Use `PromptDisabled` to block prompts and TUI selection when the command is running in unattended mode.
 
 For tests that need deterministic behavior across platforms:
 

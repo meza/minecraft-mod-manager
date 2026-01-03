@@ -7,8 +7,10 @@ import (
 	tea "github.com/charmbracelet/bubbletea"
 
 	"github.com/meza/minecraft-mod-manager/internal/config"
+	"github.com/meza/minecraft-mod-manager/internal/i18n"
 	"github.com/meza/minecraft-mod-manager/internal/models"
 	"github.com/meza/minecraft-mod-manager/internal/perf"
+	"github.com/meza/minecraft-mod-manager/internal/tui"
 	"go.opentelemetry.io/otel/attribute"
 )
 
@@ -87,6 +89,12 @@ func (model CommandModel) View() string {
 		return ""
 	}
 
+	if model.state == done && stringBuilder.Len() > 0 {
+		if err := writeString(&stringBuilder, "\n"); err != nil {
+			return ""
+		}
+	}
+
 	return stringBuilder.String()
 }
 
@@ -106,12 +114,39 @@ func buildViewSections(model CommandModel) viewSections {
 		sections.gameVersion = model.gameVersionQuestion.View()
 	}
 	if !model.initialProvided.ReleaseTypes {
-		sections.releaseTypes = model.releaseTypesQuestion.View()
+		sections.releaseTypes = releaseTypesSection(model)
 	}
 	if !model.initialProvided.ModsFolder {
-		sections.modsFolder = model.modsFolderQuestion.View()
+		sections.modsFolder = modsFolderSection(model)
 	}
 	return sections
+}
+
+func releaseTypesSection(model CommandModel) string {
+	if model.state == stateReleaseTypes || !model.result.Provided.ReleaseTypes {
+		return model.releaseTypesQuestion.View()
+	}
+
+	question := tui.QuestionStyle.Render("? ") + tui.TitleStyle.Render(i18n.T("cmd.init.tui.release-types.question", nil))
+	answer := tui.SelectedItemStyle.Render(formatReleaseTypes(model.result.ReleaseTypes))
+	return question + " " + answer
+}
+
+func modsFolderSection(model CommandModel) string {
+	if model.state == stateModsFolder {
+		return model.modsFolderQuestion.View()
+	}
+
+	value := strings.TrimSpace(model.result.ModsFolder)
+	if value == "" {
+		value = strings.TrimSpace(model.modsFolderQuestion.Value)
+	}
+	if value == "" {
+		return model.modsFolderQuestion.View()
+	}
+
+	question := tui.QuestionStyle.Render("? ") + tui.TitleStyle.Render(i18n.T("cmd.init.tui.mods-folder.question", nil))
+	return question + " " + tui.SelectedItemStyle.Render(value)
 }
 
 func (sections viewSections) forState(current state) []string {
@@ -130,13 +165,10 @@ func (sections viewSections) forState(current state) []string {
 func (model CommandModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	var cmds []tea.Cmd
 
-	updatedModel, cmd, shouldQuit := model.handleMessage(msg)
+	updatedModel, cmd := model.handleMessage(msg)
 	model = updatedModel
 	if cmd != nil {
 		cmds = append(cmds, cmd)
-	}
-	if shouldQuit {
-		return model, tea.Batch(cmds...)
 	}
 
 	updatedModel, cmd = model.updateCurrentState(msg)
@@ -190,22 +222,22 @@ func NewModel(ctx context.Context, sessionSpan *perf.Span, options initOptions, 
 	return model
 }
 
-func (model CommandModel) handleMessage(msg tea.Msg) (CommandModel, tea.Cmd, bool) {
+func (model CommandModel) handleMessage(msg tea.Msg) (CommandModel, tea.Cmd) {
 	switch typed := msg.(type) {
 	case LoaderSelectedMessage:
-		return model.handleLoaderSelected(typed), nil, false
+		return model.handleLoaderSelected(typed), nil
 	case GameVersionSelectedMessage:
-		return model.handleGameVersionSelected(typed), nil, false
+		return model.handleGameVersionSelected(typed), nil
 	case ReleaseTypesSelectedMessage:
-		return model.handleReleaseTypesSelected(typed), nil, false
+		return model.handleReleaseTypesSelected(typed), nil
 	case ModsFolderSelectedMessage:
 		return model.handleModsFolderSelected(typed)
 	case tea.KeyMsg:
 		if typed.String() == "ctrl+c" {
-			return model.handleAbort(), tea.Quit, false
+			return model.handleAbort(), tea.Quit
 		}
 	}
-	return model, nil, false
+	return model, nil
 }
 
 func (model CommandModel) updateCurrentState(msg tea.Msg) (CommandModel, tea.Cmd) {
@@ -264,7 +296,7 @@ func (model CommandModel) handleReleaseTypesSelected(msg ReleaseTypesSelectedMes
 	return model
 }
 
-func (model CommandModel) handleModsFolderSelected(msg ModsFolderSelectedMessage) (CommandModel, tea.Cmd, bool) {
+func (model CommandModel) handleModsFolderSelected(msg ModsFolderSelectedMessage) (CommandModel, tea.Cmd) {
 	model.endWait("select_mods_folder")
 	if model.sessionSpan != nil {
 		model.sessionSpan.AddEvent("tui.init.action.select_mods_folder", perf.WithEventAttributes(attribute.String("mods_folder", msg.ModsFolder)))
@@ -276,9 +308,9 @@ func (model CommandModel) handleModsFolderSelected(msg ModsFolderSelectedMessage
 		if model.sessionSpan != nil {
 			model.sessionSpan.AddEvent("tui.init.outcome.completed")
 		}
-		return model, tea.Quit, true
+		return model, nil
 	}
-	return model, nil, false
+	return model, nil
 }
 
 func (model CommandModel) handleAbort() CommandModel {

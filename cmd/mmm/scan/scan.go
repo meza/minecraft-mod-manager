@@ -1,7 +1,6 @@
 package scan
 
 import (
-	"bufio"
 	"context"
 	"errors"
 	"fmt"
@@ -22,6 +21,7 @@ import (
 	"github.com/meza/minecraft-mod-manager/internal/curseforge"
 	"github.com/meza/minecraft-mod-manager/internal/httpclient"
 	"github.com/meza/minecraft-mod-manager/internal/i18n"
+	"github.com/meza/minecraft-mod-manager/internal/interaction"
 	"github.com/meza/minecraft-mod-manager/internal/logger"
 	"github.com/meza/minecraft-mod-manager/internal/models"
 	"github.com/meza/minecraft-mod-manager/internal/modrinth"
@@ -36,12 +36,12 @@ import (
 var runInteractiveInit = initCmd.RunInteractiveInit
 
 type scanOptions struct {
-	ConfigPath     string
-	NonInteractive bool
-	Quiet          bool
-	Debug          bool
-	Prefer         string
-	Add            bool
+	ConfigPath string
+	Unattended bool
+	Quiet      bool
+	Debug      bool
+	Prefer     string
+	Add        bool
 }
 
 type scanDeps struct {
@@ -82,15 +82,10 @@ func (prompter noopPrompter) ConfirmInit(string) (bool, error) {
 }
 
 func (prompter terminalPrompter) ConfirmAdd() (bool, error) {
-	if _, err := fmt.Fprintf(prompter.out, "%s (y/N): ", i18n.T("cmd.scan.confirm_add", nil)); err != nil {
-		return false, err
-	}
-	answer, err := readLine(prompter.in)
-	if err != nil {
-		return false, err
-	}
-	answer = strings.TrimSpace(strings.ToLower(answer))
-	return answer == "y" || answer == "yes", nil
+	return tui.RunConfirmPrompt(prompter.in, prompter.out, tui.ConfirmPrompt{
+		Question:    i18n.T("cmd.scan.confirm_add", nil),
+		DefaultHint: "y/N",
+	})
 }
 
 func (prompter terminalPrompter) ConfirmInit(configPath string) (bool, error) {
@@ -99,26 +94,10 @@ func (prompter terminalPrompter) ConfirmInit(configPath string) (bool, error) {
 	})); err != nil {
 		return false, err
 	}
-	if _, err := fmt.Fprintf(prompter.out, "%s (y/N): ", i18n.T("cmd.scan.confirm_init", nil)); err != nil {
-		return false, err
-	}
-	answer, err := readLine(prompter.in)
-	if err != nil {
-		return false, err
-	}
-	answer = strings.TrimSpace(strings.ToLower(answer))
-	return answer == "y" || answer == "yes", nil
-}
-
-func readLine(reader io.Reader) (string, error) {
-	scanner := bufio.NewScanner(reader)
-	if !scanner.Scan() {
-		if err := scanner.Err(); err != nil {
-			return "", err
-		}
-		return "", io.EOF
-	}
-	return scanner.Text(), nil
+	return tui.RunConfirmPrompt(prompter.in, prompter.out, tui.ConfirmPrompt{
+		Question:    i18n.T("cmd.scan.confirm_init", nil),
+		DefaultHint: "y/N",
+	})
 }
 
 func messageWithIcon(icon string, message string) string {
@@ -176,7 +155,7 @@ func scanOptionsFromFlags(cmd *cobra.Command) (scanOptions, error) {
 	if err != nil {
 		return scanOptions{}, err
 	}
-	nonInteractive, err := cmd.Flags().GetBool("non-interactive")
+	unattended, err := cmd.Flags().GetBool("unattended")
 	if err != nil {
 		return scanOptions{}, err
 	}
@@ -198,12 +177,12 @@ func scanOptionsFromFlags(cmd *cobra.Command) (scanOptions, error) {
 	}
 
 	return scanOptions{
-		ConfigPath:     configPath,
-		NonInteractive: nonInteractive,
-		Quiet:          quiet,
-		Debug:          debug,
-		Prefer:         prefer,
-		Add:            add,
+		ConfigPath: configPath,
+		Unattended: unattended,
+		Quiet:      quiet,
+		Debug:      debug,
+		Prefer:     prefer,
+		Add:        add,
 	}, nil
 }
 
@@ -213,7 +192,7 @@ func defaultScanDeps(cmd *cobra.Command, opts scanOptions) scanDeps {
 		Debug: opts.Debug,
 	})
 	promptMode := tui.PromptEnabled
-	if opts.NonInteractive {
+	if opts.Unattended {
 		promptMode = tui.PromptDisabled
 	}
 
@@ -405,22 +384,20 @@ func ensureScanConfig(ctx context.Context, cmd *cobra.Command, opts scanOptions,
 }
 
 func configMissingPromptError(opts scanOptions, cmd *cobra.Command, meta config.Metadata) error {
-	promptMode := tui.PromptEnabled
-	if opts.NonInteractive {
-		promptMode = tui.PromptDisabled
-	}
-	promptAllowed := tui.ShouldPrompt(promptMode, cmd.InOrStdin(), cmd.OutOrStdout())
-	tuiAllowed := tui.ShouldUseTUI(promptMode, cmd.InOrStdin(), cmd.OutOrStdout())
-	if promptAllowed && tuiAllowed {
-		return nil
-	}
-	if opts.NonInteractive {
-		return configMissingNonInteractiveError(meta)
-	}
-	return configMissingNoTTYError(meta)
+	return interaction.CheckConfigInitGate(meta, interaction.ConfigInitGate{
+		Unattended: opts.Unattended,
+		In:         cmd.InOrStdin(),
+		Out:        cmd.OutOrStdout(),
+		UnattendedError: func(meta config.Metadata) error {
+			return configMissingUnattendedError(meta)
+		},
+		NoTTYError: func(meta config.Metadata) error {
+			return configMissingNoTTYError(meta)
+		},
+	})
 }
 
-func configMissingNonInteractiveError(meta config.Metadata) error {
+func configMissingUnattendedError(meta config.Metadata) error {
 	return errors.New(i18n.T("cmd.scan.error.config_missing_noninteractive", &i18n.Tvars{
 		Data: &i18n.TData{"configPath": meta.ConfigPath},
 	}))

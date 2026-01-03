@@ -125,7 +125,7 @@
   "cmd.scan.confirm_add": "Update modlist.json and modlist-lock.json with these results?",
   "cmd.scan.config_missing": "No configuration file found at {configPath}.",
   "cmd.scan.confirm_init": "Initialize a new configuration file now?",
-  "cmd.scan.error.config_missing_noninteractive": "No configuration file found at {configPath}. Run mmm init without --non-interactive to create one.",
+  "cmd.scan.error.config_missing_noninteractive": "No configuration file found at {configPath}. Run mmm init without --unattended to create one.",
   "cmd.scan.error.config_missing_no_tty": "No configuration file found at {configPath}. Run mmm init from a terminal to create one.",
   "cmd.scan.persisted": "Updated configuration files.",
   "cmd.scan.persist_failed": "Could not write an entry for {file}",

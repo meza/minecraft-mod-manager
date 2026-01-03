@@ -53,15 +53,15 @@ func RunInteractiveInit(ctx context.Context, cmd *cobra.Command, deps Interactiv
 	}
 
 	optionsForInit := initOptions{
-		ConfigPath:     options.ConfigPath,
-		NonInteractive: false,
-		Quiet:          options.Quiet,
-		Debug:          options.Debug,
-		Loader:         "",
-		GameVersion:    "latest",
-		ReleaseTypes:   []models.ReleaseType{models.Release},
-		ModsFolder:     "mods",
-		Provided:       providedFlags{},
+		ConfigPath:   options.ConfigPath,
+		Unattended:   false,
+		Quiet:        options.Quiet,
+		Debug:        options.Debug,
+		Loader:       "",
+		GameVersion:  "latest",
+		ReleaseTypes: []models.ReleaseType{models.Release},
+		ModsFolder:   "mods",
+		Provided:     providedFlags{},
 	}
 
 	_, _, err := runInit(ctx, cmd, optionsForInit, initDependencies, config.NewMetadata(options.ConfigPath))

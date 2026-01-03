@@ -173,12 +173,12 @@ func TestInitTUIErrorSnapshots(t *testing.T) {
 	})
 }
 
-func TestInitTUINonInteractiveNoTTYSnapshot(t *testing.T) {
+func TestInitTUIUnattendedNoTTYSnapshot(t *testing.T) {
 	t.Setenv("MMM_TEST", "true")
 
-	// Non-interactive mode should bypass TUI entirely.
+	// Unattended mode should bypass TUI entirely.
 	model := newSnapshotModelWithOptions(t, initOptions{
-		NonInteractive: true,
+		Unattended: true,
 	})
 
 	matchSnapshot(t, model.View())

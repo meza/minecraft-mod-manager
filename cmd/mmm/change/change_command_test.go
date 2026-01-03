@@ -23,13 +23,13 @@ import (
 func TestChangeOptionsFromFlags(t *testing.T) {
 	cmd := &cobra.Command{}
 	cmd.Flags().String("config", "./modlist.json", "")
-	cmd.Flags().Bool("non-interactive", false, "")
+	cmd.Flags().Bool("unattended", false, "")
 	cmd.Flags().Bool("quiet", false, "")
 	cmd.Flags().Bool("debug", false, "")
 	cmd.Flags().Bool("force", false, "")
 
 	assert.NoError(t, cmd.Flags().Set("config", "/custom/modlist.json"))
-	assert.NoError(t, cmd.Flags().Set("non-interactive", "true"))
+	assert.NoError(t, cmd.Flags().Set("unattended", "true"))
 	assert.NoError(t, cmd.Flags().Set("quiet", "true"))
 	assert.NoError(t, cmd.Flags().Set("debug", "true"))
 	assert.NoError(t, cmd.Flags().Set("force", "true"))
@@ -37,7 +37,7 @@ func TestChangeOptionsFromFlags(t *testing.T) {
 	opts, err := changeOptionsFromFlags(cmd, nil)
 	assert.NoError(t, err)
 	assert.Equal(t, "/custom/modlist.json", opts.ConfigPath)
-	assert.True(t, opts.NonInteractive)
+	assert.True(t, opts.Unattended)
 	assert.True(t, opts.Quiet)
 	assert.True(t, opts.Debug)
 	assert.True(t, opts.Force)
@@ -66,9 +66,9 @@ func TestRecordChangeTelemetry(t *testing.T) {
 	recordChangeTelemetry(func(payload telemetry.CommandTelemetry) {
 		captured = payload
 	}, changeOptions{
-		Force:          true,
-		GameVersion:    "1.21.1",
-		NonInteractive: true,
+		Force:       true,
+		GameVersion: "1.21.1",
+		Unattended:  true,
 	}, changeResult{
 		TargetVersion:   "1.21.1",
 		UnsupportedMods: []models.Mod{{ID: "a"}, {ID: "b"}},
@@ -114,15 +114,15 @@ func TestCommandWithRunnerPassesOptions(t *testing.T) {
 	})
 
 	cmd.Flags().String("config", "./modlist.json", "")
-	cmd.Flags().Bool("non-interactive", false, "")
+	cmd.Flags().Bool("unattended", false, "")
 	cmd.Flags().Bool("quiet", false, "")
 	cmd.Flags().Bool("debug", false, "")
 
-	cmd.SetArgs([]string{"--force", "--config", "/tmp/modlist.json", "--non-interactive", "--quiet", "--debug", "1.20.4"})
+	cmd.SetArgs([]string{"--force", "--config", "/tmp/modlist.json", "--unattended", "--quiet", "--debug", "1.20.4"})
 
 	assert.NoError(t, cmd.ExecuteContext(context.Background()))
 	assert.True(t, received.Force)
-	assert.True(t, received.NonInteractive)
+	assert.True(t, received.Unattended)
 	assert.True(t, received.Quiet)
 	assert.True(t, received.Debug)
 	assert.Equal(t, "/tmp/modlist.json", received.ConfigPath)
@@ -132,7 +132,7 @@ func TestCommandWithRunnerPassesOptions(t *testing.T) {
 func TestChangeOptionsFromFlagsErrorsWithoutConfigFlag(t *testing.T) {
 	cmd := &cobra.Command{}
 	cmd.Flags().Bool("force", false, "")
-	cmd.Flags().Bool("non-interactive", false, "")
+	cmd.Flags().Bool("unattended", false, "")
 	cmd.Flags().Bool("quiet", false, "")
 	cmd.Flags().Bool("debug", false, "")
 
@@ -140,7 +140,7 @@ func TestChangeOptionsFromFlagsErrorsWithoutConfigFlag(t *testing.T) {
 	assert.Error(t, err)
 }
 
-func TestChangeOptionsFromFlagsErrorsWithoutNonInteractiveFlag(t *testing.T) {
+func TestChangeOptionsFromFlagsErrorsWithoutUnattendedFlag(t *testing.T) {
 	cmd := &cobra.Command{}
 	cmd.Flags().String("config", "./modlist.json", "")
 	cmd.Flags().Bool("force", false, "")
@@ -155,7 +155,7 @@ func TestChangeOptionsFromFlagsErrorsWithoutQuietFlag(t *testing.T) {
 	cmd := &cobra.Command{}
 	cmd.Flags().String("config", "./modlist.json", "")
 	cmd.Flags().Bool("force", false, "")
-	cmd.Flags().Bool("non-interactive", false, "")
+	cmd.Flags().Bool("unattended", false, "")
 	cmd.Flags().Bool("debug", false, "")
 
 	_, err := changeOptionsFromFlags(cmd, nil)
@@ -166,7 +166,7 @@ func TestChangeOptionsFromFlagsErrorsWithoutDebugFlag(t *testing.T) {
 	cmd := &cobra.Command{}
 	cmd.Flags().String("config", "./modlist.json", "")
 	cmd.Flags().Bool("force", false, "")
-	cmd.Flags().Bool("non-interactive", false, "")
+	cmd.Flags().Bool("unattended", false, "")
 	cmd.Flags().Bool("quiet", false, "")
 
 	_, err := changeOptionsFromFlags(cmd, nil)
@@ -176,7 +176,7 @@ func TestChangeOptionsFromFlagsErrorsWithoutDebugFlag(t *testing.T) {
 func TestChangeOptionsFromFlagsErrorsWithoutForceFlag(t *testing.T) {
 	cmd := &cobra.Command{}
 	cmd.Flags().String("config", "./modlist.json", "")
-	cmd.Flags().Bool("non-interactive", false, "")
+	cmd.Flags().Bool("unattended", false, "")
 	cmd.Flags().Bool("quiet", false, "")
 	cmd.Flags().Bool("debug", false, "")
 
@@ -216,7 +216,7 @@ func TestRunChangeCommandUsesPlainOutputWhenTerminal(t *testing.T) {
 	})
 
 	cmd.Flags().String("config", "./modlist.json", "")
-	cmd.Flags().Bool("non-interactive", false, "")
+	cmd.Flags().Bool("unattended", false, "")
 	cmd.Flags().Bool("quiet", false, "")
 	cmd.Flags().Bool("debug", false, "")
 
@@ -239,7 +239,7 @@ func TestRunChangeCommandWithTerminal(t *testing.T) {
 	})
 
 	cmd.Flags().String("config", "./modlist.json", "")
-	cmd.Flags().Bool("non-interactive", false, "")
+	cmd.Flags().Bool("unattended", false, "")
 	cmd.Flags().Bool("quiet", false, "")
 	cmd.Flags().Bool("debug", false, "")
 
@@ -263,7 +263,7 @@ func TestRunChangeCommandWithTerminalError(t *testing.T) {
 	})
 
 	cmd.Flags().String("config", "./modlist.json", "")
-	cmd.Flags().Bool("non-interactive", false, "")
+	cmd.Flags().Bool("unattended", false, "")
 	cmd.Flags().Bool("quiet", false, "")
 	cmd.Flags().Bool("debug", false, "")
 
@@ -294,7 +294,7 @@ func TestRunChangeCommandHandlesRunnerError(t *testing.T) {
 	})
 
 	cmd.Flags().String("config", "./modlist.json", "")
-	cmd.Flags().Bool("non-interactive", false, "")
+	cmd.Flags().Bool("unattended", false, "")
 	cmd.Flags().Bool("quiet", false, "")
 	cmd.Flags().Bool("debug", false, "")
 	cmd.SetArgs([]string{"--config", "./modlist.json"})

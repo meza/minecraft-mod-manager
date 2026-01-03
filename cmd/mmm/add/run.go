@@ -80,7 +80,7 @@ func finalizeAddWithResolved(ctx context.Context, runState addRunState, resolved
 
 func prepareAddConfig(ctx context.Context, opts addOptions, meta config.Metadata, setupCoordinator *modsetup.SetupCoordinator) (models.ModsJSON, []models.ModInstall, error) {
 	prepareCtx, prepareSpan := perf.StartSpan(ctx, "app.command.add.stage.prepare", perf.WithAttributes(attribute.String("config_path", opts.ConfigPath)))
-	cfg, lock, err := setupCoordinator.EnsureConfigAndLock(prepareCtx, meta, modsetup.EnsureConfigOptions{NonInteractive: opts.NonInteractive})
+	cfg, lock, err := setupCoordinator.EnsureConfigAndLock(prepareCtx, meta, modsetup.EnsureConfigOptions{Unattended: opts.Unattended})
 	prepareSpan.SetAttributes(attribute.Bool("success", err == nil))
 	prepareSpan.End()
 	return cfg, lock, err
@@ -88,7 +88,7 @@ func prepareAddConfig(ctx context.Context, opts addOptions, meta config.Metadata
 
 func prepareAddRunState(ctx context.Context, cmd *cobra.Command, opts addOptions, deps addDeps) (addRunState, error) {
 	promptMode := tui.PromptEnabled
-	if opts.NonInteractive {
+	if opts.Unattended {
 		promptMode = tui.PromptDisabled
 	}
 	runState := addRunState{

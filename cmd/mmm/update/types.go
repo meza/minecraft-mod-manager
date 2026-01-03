@@ -17,10 +17,10 @@ import (
 )
 
 type updateOptions struct {
-	ConfigPath     string
-	NonInteractive bool
-	Quiet          bool
-	Debug          bool
+	ConfigPath string
+	Unattended bool
+	Quiet      bool
+	Debug      bool
 }
 
 type updateDeps struct {

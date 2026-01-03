@@ -79,7 +79,7 @@ func TestRunPruneNoUnmanagedLogsNotice(t *testing.T) {
 	assert.Empty(t, errOut.String())
 }
 
-func TestRunPruneNonInteractiveWithoutForceSkipsDeletion(t *testing.T) {
+func TestRunPruneUnattendedWithoutForceSkipsDeletion(t *testing.T) {
 	t.Setenv("MMM_TEST", "true")
 	restoreTerminal := tui.SetIsTerminalFuncForTesting(func(int) bool { return true })
 	t.Cleanup(restoreTerminal)
@@ -110,9 +110,9 @@ func TestRunPruneNonInteractiveWithoutForceSkipsDeletion(t *testing.T) {
 	cmd.SetErr(errOut)
 
 	deletedCount, err := runPrune(context.Background(), cmd, pruneOptions{
-		ConfigPath:     meta.ConfigPath,
-		NonInteractive: true,
-		Quiet:          true,
+		ConfigPath: meta.ConfigPath,
+		Unattended: true,
+		Quiet:      true,
 	}, pruneDeps{
 		fs:     fs,
 		logger: logger.New(out, errOut, true, false),
@@ -272,9 +272,9 @@ func TestRunPruneForceDeletesAndRespectsIgnore(t *testing.T) {
 	cmd.SetErr(errOut)
 
 	deletedCount, err := runPrune(context.Background(), cmd, pruneOptions{
-		ConfigPath:     meta.ConfigPath,
-		NonInteractive: true,
-		Force:          true,
+		ConfigPath: meta.ConfigPath,
+		Unattended: true,
+		Force:      true,
 	}, pruneDeps{
 		fs:     fs,
 		logger: logger.New(out, errOut, false, false),

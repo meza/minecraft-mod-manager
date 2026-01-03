@@ -18,15 +18,15 @@ import (
 type initRunner func(context.Context, *cobra.Command, initOptions, initDeps, config.Metadata) error
 
 type initOptions struct {
-	ConfigPath     string
-	NonInteractive bool
-	Quiet          bool
-	Debug          bool
-	Loader         models.Loader
-	GameVersion    string
-	ReleaseTypes   []models.ReleaseType
-	ModsFolder     string
-	Provided       providedFlags
+	ConfigPath   string
+	Unattended   bool
+	Quiet        bool
+	Debug        bool
+	Loader       models.Loader
+	GameVersion  string
+	ReleaseTypes []models.ReleaseType
+	ModsFolder   string
+	Provided     providedFlags
 }
 
 type providedFlags struct {
@@ -64,6 +64,6 @@ type loaderFlag struct {
 type gameVersionNormalizationMode int
 
 const (
-	gameVersionNonInteractive gameVersionNormalizationMode = iota
+	gameVersionUnattended gameVersionNormalizationMode = iota
 	gameVersionInteractive
 )

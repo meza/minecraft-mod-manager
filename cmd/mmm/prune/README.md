@@ -10,8 +10,8 @@ The implementation follows the command conventions used elsewhere in the CLI:
 
 ## Prompt behavior
 
-Prompts are allowed only when `--non-interactive` is not set and the command is running in a TTY.
-When `--non-interactive` is set, prune prints a warning, skips the prompt, and assumes no deletion unless `--force` is also set.
+Prompts are allowed only when `--unattended` is not set and the command is running in a TTY.
+When `--unattended` is set, prune prints a warning, skips the prompt, and assumes no deletion unless `--force` is also set.
 If prompts are disabled because the command is not running in a TTY and `--force` is not set, `mmm prune` prints a warning and exits without deleting files.
 
 ## Testing and snapshots

@@ -26,7 +26,7 @@ func TestCommandWithRunner_ParsesFlags(t *testing.T) {
 	setCommandOutputForTesting(cmd)
 
 	cmd.SetArgs([]string{
-		"--non-interactive",
+		"--unattended",
 		"--loader", "fabric",
 		"--game-version", "1.21.1",
 		"--release-types=release,beta",
@@ -34,7 +34,7 @@ func TestCommandWithRunner_ParsesFlags(t *testing.T) {
 	})
 
 	assert.NoError(t, cmd.Execute())
-	assert.True(t, gotOptions.NonInteractive)
+	assert.True(t, gotOptions.Unattended)
 	assert.Equal(t, models.FABRIC, gotOptions.Loader)
 	assert.Equal(t, "1.21.1", gotOptions.GameVersion)
 	assert.Equal(t, []models.ReleaseType{models.Release, models.Beta}, gotOptions.ReleaseTypes)
@@ -103,7 +103,7 @@ func TestCommandWithRunnerMissingConfigFlagErrors(t *testing.T) {
 	assert.Error(t, runE(cmd, nil))
 }
 
-func TestCommandWithRunnerMissingNonInteractiveFlagErrors(t *testing.T) {
+func TestCommandWithRunnerMissingUnattendedFlagErrors(t *testing.T) {
 	runE := commandWithRunner(func(context.Context, *cobra.Command, initOptions, initDeps, config.Metadata) error {
 		return nil
 	}).RunE
@@ -130,7 +130,7 @@ func TestCommandWithRunnerMissingQuietFlagErrors(t *testing.T) {
 	cmd.Flags().String("mods-folder", "mods", "mods folder")
 	cmd.Flags().StringSlice("release-types", []string{"release"}, "release types")
 	cmd.Flags().String("config", "modlist.json", "config")
-	cmd.Flags().Bool("non-interactive", false, "non-interactive")
+	cmd.Flags().Bool("unattended", false, "unattended")
 	setCommandOutputForTesting(cmd)
 
 	assert.Error(t, runE(cmd, nil))
@@ -147,7 +147,7 @@ func TestCommandWithRunnerMissingDebugFlagErrors(t *testing.T) {
 	cmd.Flags().String("mods-folder", "mods", "mods folder")
 	cmd.Flags().StringSlice("release-types", []string{"release"}, "release types")
 	cmd.Flags().String("config", "modlist.json", "config")
-	cmd.Flags().Bool("non-interactive", false, "non-interactive")
+	cmd.Flags().Bool("unattended", false, "unattended")
 	cmd.Flags().Bool("quiet", false, "quiet")
 	setCommandOutputForTesting(cmd)
 
@@ -165,7 +165,7 @@ func TestCommandWithRunnerInvalidReleaseTypesErrors(t *testing.T) {
 	cmd.Flags().String("mods-folder", "mods", "mods folder")
 	cmd.Flags().StringSlice("release-types", []string{"nope"}, "release types")
 	cmd.Flags().String("config", "modlist.json", "config")
-	cmd.Flags().Bool("non-interactive", false, "non-interactive")
+	cmd.Flags().Bool("unattended", false, "unattended")
 	cmd.Flags().Bool("quiet", false, "quiet")
 	cmd.Flags().Bool("debug", false, "debug")
 	setCommandOutputForTesting(cmd)
@@ -225,7 +225,7 @@ func TestParseReleaseTypesRejectsEmpty(t *testing.T) {
 
 func addPersistentFlagsForTesting(cmd *cobra.Command) {
 	cmd.PersistentFlags().StringP("config", "c", "./modlist.json", "An alternative JSON file containing the configuration")
-	cmd.PersistentFlags().Bool("non-interactive", false, "Disable prompts and fail fast when required inputs are missing")
+	cmd.PersistentFlags().Bool("unattended", false, "Disable prompts and fail fast when required inputs are missing")
 	cmd.PersistentFlags().BoolP("quiet", "q", false, "Suppress non-essential output (errors and required results still print)")
 	cmd.PersistentFlags().BoolP("debug", "d", false, "Enable debug messages")
 }

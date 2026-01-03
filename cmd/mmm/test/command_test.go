@@ -25,7 +25,7 @@ func TestCommandWithRunnerMissingConfigFlagErrors(t *testing.T) {
 	assert.Error(t, cmd.Execute())
 }
 
-func TestCommandWithRunnerMissingNonInteractiveFlagErrors(t *testing.T) {
+func TestCommandWithRunnerMissingUnattendedFlagErrors(t *testing.T) {
 	cmd := commandWithRunner(func(ctx context.Context, cmd *cobra.Command, opts testOptions, deps testDeps) (int, error) {
 		return 0, nil
 	})
@@ -41,7 +41,7 @@ func TestCommandWithRunnerMissingQuietFlagErrors(t *testing.T) {
 		return 0, nil
 	})
 	cmd.PersistentFlags().StringP("config", "c", "modlist.json", "config")
-	cmd.PersistentFlags().Bool("non-interactive", false, "non-interactive")
+	cmd.PersistentFlags().Bool("unattended", false, "unattended")
 	setCommandOutputForTesting(cmd)
 	cmd.SetArgs([]string{})
 
@@ -53,7 +53,7 @@ func TestCommandWithRunnerMissingDebugFlagErrors(t *testing.T) {
 		return 0, nil
 	})
 	cmd.PersistentFlags().StringP("config", "c", "modlist.json", "config")
-	cmd.PersistentFlags().Bool("non-interactive", false, "non-interactive")
+	cmd.PersistentFlags().Bool("unattended", false, "unattended")
 	cmd.PersistentFlags().BoolP("quiet", "q", false, "quiet")
 	setCommandOutputForTesting(cmd)
 	cmd.SetArgs([]string{})
@@ -156,7 +156,7 @@ func TestCommandWithRunnerQuietSuppressesOutput(t *testing.T) {
 	cmd.SetIn(terminalReader{Reader: bytes.NewBuffer(nil)})
 	cmd.SetOut(outputWriter)
 	cmd.SetErr(io.Discard)
-	cmd.SetArgs([]string{"--non-interactive", "--quiet", "1.20.1"})
+	cmd.SetArgs([]string{"--unattended", "--quiet", "1.20.1"})
 
 	assert.NoError(t, cmd.Execute())
 	assert.Empty(t, outputWriter.String())
@@ -169,7 +169,7 @@ func TestExitCodeErrorMessage(t *testing.T) {
 
 func addPersistentFlagsForTesting(cmd *cobra.Command) {
 	cmd.PersistentFlags().StringP("config", "c", "./modlist.json", "An alternative JSON file containing the configuration")
-	cmd.PersistentFlags().Bool("non-interactive", false, "Disable prompts and fail fast when required inputs are missing")
+	cmd.PersistentFlags().Bool("unattended", false, "Disable prompts and fail fast when required inputs are missing")
 	cmd.PersistentFlags().BoolP("quiet", "q", false, "Suppress non-essential output (errors and required results still print)")
 	cmd.PersistentFlags().BoolP("debug", "d", false, "Enable debug messages")
 }

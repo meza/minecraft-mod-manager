@@ -714,7 +714,7 @@ func TestConfigFileNotFound(t *testing.T) {
 }
 
 func TestLatestVersionResolutionError(t *testing.T) {
-	// Per ADR 0006: when latest version manifest is unavailable in non-interactive mode,
+	// Per ADR 0006: when latest version manifest is unavailable in unattended mode,
 	// we cannot determine "latest" and must prompt the user to provide an explicit version.
 	// This test verifies the command fails gracefully with an informative error.
 	t.Setenv("MMM_TEST", "true")

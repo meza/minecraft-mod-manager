@@ -51,7 +51,7 @@ func commandWithRunner(runner initRunner) *cobra.Command {
 				return err
 			}
 			promptMode := tui.PromptEnabled
-			if options.NonInteractive {
+			if options.Unattended {
 				promptMode = tui.PromptDisabled
 			}
 			promptAllowed := tui.ShouldPrompt(promptMode, cmd.InOrStdin(), cmd.OutOrStdout())

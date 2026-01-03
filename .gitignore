@@ -11,6 +11,9 @@ dist
 .claude
 winstructions.md
 docs/interactions/audit-artifacts
+.codex_*
+*.bak*
+.beads/last-touched
 
 ## GENERATED
 .idea

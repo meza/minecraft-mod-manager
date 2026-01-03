@@ -27,7 +27,7 @@ func readInitOptions(cmd *cobra.Command, loader models.Loader) (initOptions, err
 	if err != nil {
 		return initOptions{}, err
 	}
-	nonInteractive, err := cmd.Flags().GetBool("non-interactive")
+	unattended, err := cmd.Flags().GetBool("unattended")
 	if err != nil {
 		return initOptions{}, err
 	}
@@ -46,14 +46,14 @@ func readInitOptions(cmd *cobra.Command, loader models.Loader) (initOptions, err
 	}
 
 	return initOptions{
-		ConfigPath:     configPath,
-		NonInteractive: nonInteractive,
-		Quiet:          quiet,
-		Debug:          debug,
-		Loader:         loader,
-		GameVersion:    gameVersion,
-		ReleaseTypes:   releaseTypes,
-		ModsFolder:     modsFolder,
+		ConfigPath:   configPath,
+		Unattended:   unattended,
+		Quiet:        quiet,
+		Debug:        debug,
+		Loader:       loader,
+		GameVersion:  gameVersion,
+		ReleaseTypes: releaseTypes,
+		ModsFolder:   modsFolder,
 		Provided: providedFlags{
 			Loader:       cmd.Flags().Changed("loader"),
 			GameVersion:  cmd.Flags().Changed("game-version"),

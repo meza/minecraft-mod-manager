@@ -174,14 +174,14 @@ func TestShouldDeleteUnmanagedReturnsListError(t *testing.T) {
 	assert.ErrorIs(t, err, outErr)
 }
 
-func TestShouldDeleteUnmanagedNonInteractiveReturnsListError(t *testing.T) {
+func TestShouldDeleteUnmanagedUnattendedReturnsListError(t *testing.T) {
 	cmd := &cobra.Command{}
 	cmd.SetIn(&bytes.Buffer{})
 	cmd.SetOut(&bytes.Buffer{})
 	cmd.SetErr(io.Discard)
 
 	outErr := errors.New("list failed")
-	result, err := shouldDeleteUnmanaged(cmd, pruneOptions{NonInteractive: true}, pruneDeps{
+	result, err := shouldDeleteUnmanaged(cmd, pruneOptions{Unattended: true}, pruneDeps{
 		output: output.New(errorWriter{err: outErr}, io.Discard, false),
 	}, tui.ColorDisabled, []string{"/mods/unmanaged.jar"})
 
@@ -189,14 +189,14 @@ func TestShouldDeleteUnmanagedNonInteractiveReturnsListError(t *testing.T) {
 	assert.ErrorIs(t, err, outErr)
 }
 
-func TestShouldDeleteUnmanagedNonInteractiveReturnsWarningError(t *testing.T) {
+func TestShouldDeleteUnmanagedUnattendedReturnsWarningError(t *testing.T) {
 	cmd := &cobra.Command{}
 	cmd.SetIn(&bytes.Buffer{})
 	cmd.SetOut(&bytes.Buffer{})
 	cmd.SetErr(io.Discard)
 
 	outErr := errors.New("warn failed")
-	result, err := shouldDeleteUnmanaged(cmd, pruneOptions{NonInteractive: true}, pruneDeps{
+	result, err := shouldDeleteUnmanaged(cmd, pruneOptions{Unattended: true}, pruneDeps{
 		output: output.New(io.Discard, errorWriter{err: outErr}, false),
 	}, tui.ColorDisabled, []string{"/mods/unmanaged.jar"})
 
@@ -407,17 +407,6 @@ func TestConfirmDeletionWriteError(t *testing.T) {
 func TestConfirmDeletionReadError(t *testing.T) {
 	readErr := errors.New("read failed")
 	_, err := confirmDeletion(errorReader{err: readErr}, io.Discard, tui.ColorDisabled)
-	assert.ErrorIs(t, err, readErr)
-}
-
-func TestReadLineEOF(t *testing.T) {
-	_, err := readLine(strings.NewReader(""))
-	assert.ErrorIs(t, err, io.EOF)
-}
-
-func TestReadLineError(t *testing.T) {
-	readErr := errors.New("read failed")
-	_, err := readLine(errorReader{err: readErr})
 	assert.ErrorIs(t, err, readErr)
 }
 

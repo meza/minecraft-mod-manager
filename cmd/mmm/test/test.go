@@ -28,12 +28,12 @@ import (
 const defaultTestMaxConcurrency = 4
 
 type testOptions struct {
-	ConfigPath     string
-	GameVersion    string
-	NonInteractive bool
-	Quiet          bool
-	Debug          bool
-	Force          bool
+	ConfigPath  string
+	GameVersion string
+	Unattended  bool
+	Quiet       bool
+	Debug       bool
+	Force       bool
 }
 
 type testDeps struct {
@@ -136,7 +136,7 @@ func testOptionsFromFlags(cmd *cobra.Command, args []string) (testOptions, error
 	if err != nil {
 		return testOptions{}, err
 	}
-	nonInteractive, err := cmd.Flags().GetBool("non-interactive")
+	unattended, err := cmd.Flags().GetBool("unattended")
 	if err != nil {
 		return testOptions{}, err
 	}
@@ -150,11 +150,11 @@ func testOptionsFromFlags(cmd *cobra.Command, args []string) (testOptions, error
 	}
 
 	return testOptions{
-		ConfigPath:     configPath,
-		GameVersion:    resolveGameVersion(args),
-		NonInteractive: nonInteractive,
-		Quiet:          quiet,
-		Debug:          debug,
+		ConfigPath:  configPath,
+		GameVersion: resolveGameVersion(args),
+		Unattended:  unattended,
+		Quiet:       quiet,
+		Debug:       debug,
 	}, nil
 }
 
@@ -532,7 +532,7 @@ func resolveTargetVersion(ctx context.Context, cfg models.ModsJSON, opts testOpt
 func resolveLatestVersion(ctx context.Context, deps testDeps) (string, error) {
 	latest, err := deps.latestVersion(ctx, deps.clients.Modrinth)
 	if err != nil {
-		// Per ADR 0006: when manifest fails, we cannot determine "latest" in non-interactive mode.
+		// Per ADR 0006: when manifest fails, we cannot determine "latest" in unattended mode.
 		// The user must provide an explicit version. Interactive prompting is for TUI only.
 		if outputErr := deps.output.Error(i18n.T("cmd.test.error.latest_unavailable", nil)); outputErr != nil {
 			return "", outputErr

@@ -12,9 +12,9 @@ func recordChangeTelemetry(recorder func(telemetry.CommandTelemetry), opts chang
 		ExitCode:    result.ExitCode,
 		Interactive: false,
 		Arguments: map[string]interface{}{
-			"force":          opts.Force,
-			"gameVersion":    opts.GameVersion,
-			"nonInteractive": opts.NonInteractive,
+			"force":       opts.Force,
+			"gameVersion": opts.GameVersion,
+			"unattended":  opts.Unattended,
 		},
 		Extra: map[string]interface{}{
 			"targetVersion":   result.TargetVersion,

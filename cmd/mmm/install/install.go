@@ -58,7 +58,7 @@ func runInstallCommand(cmd *cobra.Command, runner installRunner) error {
 	}
 
 	promptMode := tui.PromptEnabled
-	if opts.NonInteractive {
+	if opts.Unattended {
 		promptMode = tui.PromptDisabled
 	}
 	useTUI := tui.ShouldUseTUI(promptMode, cmd.InOrStdin(), cmd.OutOrStdout())
@@ -99,7 +99,7 @@ func installOptionsFromFlags(cmd *cobra.Command) (installOptions, error) {
 	if err != nil {
 		return installOptions{}, err
 	}
-	nonInteractive, err := cmd.Flags().GetBool("non-interactive")
+	unattended, err := cmd.Flags().GetBool("unattended")
 	if err != nil {
 		return installOptions{}, err
 	}
@@ -113,9 +113,9 @@ func installOptionsFromFlags(cmd *cobra.Command) (installOptions, error) {
 	}
 
 	return installOptions{
-		ConfigPath:     configPath,
-		NonInteractive: nonInteractive,
-		Quiet:          quiet,
-		Debug:          debug,
+		ConfigPath: configPath,
+		Unattended: unattended,
+		Quiet:      quiet,
+		Debug:      debug,
 	}, nil
 }

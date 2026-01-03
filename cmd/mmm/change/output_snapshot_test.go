@@ -28,7 +28,7 @@ func TestChangeCommandPlainOutputSnapshot(t *testing.T) {
 	})
 
 	cmd.Flags().String("config", "./modlist.json", "")
-	cmd.Flags().Bool("non-interactive", false, "")
+	cmd.Flags().Bool("unattended", false, "")
 	cmd.Flags().Bool("quiet", false, "")
 	cmd.Flags().Bool("debug", false, "")
 

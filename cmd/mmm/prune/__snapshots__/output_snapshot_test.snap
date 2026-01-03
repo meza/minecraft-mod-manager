@@ -21,3 +21,10 @@ stdout:
 stderr:
 cmd.prune.error.prompt_disabled
 ---
+
+[TestPruneUnattendedOutputSnapshot - 1]
+stdout:
+❌ cmd.prune.unmanaged.entry, Arg 1: {Count: 0, Data: &map[file:/cfg/mods/extra.jar]}
+stderr:
+cmd.prune.error.prompt_disabled
+---

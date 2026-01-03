@@ -47,10 +47,10 @@ func Command() *cobra.Command {
 }
 
 type listCommandOptions struct {
-	configPath     string
-	nonInteractive bool
-	quiet          bool
-	debug          bool
+	configPath string
+	unattended bool
+	quiet      bool
+	debug      bool
 }
 
 func runListCommand(cmd *cobra.Command, _ []string) error {
@@ -64,8 +64,8 @@ func runListCommand(cmd *cobra.Command, _ []string) error {
 
 	deps := defaultListDeps(cmd, options)
 	entriesCount, usedTUI, runErr := runList(ctx, cmd, options.configPath, runListOptions{
-		nonInteractive: options.nonInteractive,
-		quiet:          options.quiet,
+		unattended: options.unattended,
+		quiet:      options.quiet,
 	}, deps)
 	finishListSpan(span, runErr == nil)
 	recordListTelemetry(deps.telemetry, entriesCount, usedTUI, runErr)
@@ -89,7 +89,7 @@ func listOptionsFromFlags(cmd *cobra.Command) (listCommandOptions, error) {
 	if err != nil {
 		return listCommandOptions{}, err
 	}
-	nonInteractive, err := cmd.Flags().GetBool("non-interactive")
+	unattended, err := cmd.Flags().GetBool("unattended")
 	if err != nil {
 		return listCommandOptions{}, err
 	}
@@ -103,10 +103,10 @@ func listOptionsFromFlags(cmd *cobra.Command) (listCommandOptions, error) {
 	}
 
 	return listCommandOptions{
-		configPath:     configPath,
-		nonInteractive: nonInteractive,
-		quiet:          quiet,
-		debug:          debug,
+		configPath: configPath,
+		unattended: unattended,
+		quiet:      quiet,
+		debug:      debug,
 	}, nil
 }
 
@@ -189,8 +189,8 @@ func (mode listDisplayMode) UseTUI() bool {
 }
 
 type runListOptions struct {
-	nonInteractive bool
-	quiet          bool
+	unattended bool
+	quiet      bool
 }
 
 func runList(ctx context.Context, cmd *cobra.Command, configPath string, options runListOptions, deps listDeps) (int, bool, error) {
@@ -211,7 +211,7 @@ func runList(ctx context.Context, cmd *cobra.Command, configPath string, options
 
 	entries := buildEntries(cfg, lock, meta, deps.fs)
 	promptMode := tui.PromptEnabled
-	if options.nonInteractive {
+	if options.unattended {
 		promptMode = tui.PromptDisabled
 	}
 	useTUI := tui.ShouldUseTUI(promptMode, cmd.InOrStdin(), cmd.OutOrStdout())
@@ -426,7 +426,7 @@ func renderEntry(entry listEntry, colorMode tui.ColorMode) string {
 		data["fix"] = fix
 	}
 
-	id = tui.RenderIfColorEnabled(colorMode, tui.PlaceholderStyle.PaddingLeft(0), id)
+	id = tui.RenderIfColorEnabled(colorMode, tui.ParenStyle, id)
 	data["id"] = id
 
 	message := i18n.T(key, &i18n.Tvars{

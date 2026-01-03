@@ -12,17 +12,17 @@ These files describe what the command must do. If you change behavior, update th
 ## Code map
 
 - `cmd/mmm/add/add.go`: cobra wiring + `runAdd` implementation
-- `cmd/mmm/add/messages.go`: i18n-backed error message helpers used in non-interactive paths
+- `cmd/mmm/add/messages.go`: i18n-backed error message helpers used in unattended paths
 - `cmd/mmm/add/tui.go`: Bubble Tea state machine used to recover from expected errors interactively
 - `cmd/mmm/add/tui_test.go`: black-box TUI state snapshots (teatest + go-snaps)
-- `cmd/mmm/add/add_test.go`: command behavior tests (config/lock writes, non-interactive vs interactive, telemetry)
+- `cmd/mmm/add/add_test.go`: command behavior tests (config/lock writes, unattended vs interactive, telemetry)
 
 ## Execution flow (what happens at runtime)
 
 At a high level, `runAdd` does:
 
 1. Load or initialize config and lock:
-   - if `modlist.json` is missing and `--non-interactive` is not set, create it via `internal/config.InitConfig` (calls `internal/minecraft.GetLatestVersion`)
+   - if `modlist.json` is missing and `--unattended` is not set, create it via `internal/config.InitConfig` (calls `internal/minecraft.GetLatestVersion`)
    - ensure the lock exists via `internal/config.EnsureLock` (creates an empty lock file if missing)
 2. Refuse to add duplicates (same platform + ID already in `modlist.json`).
 3. Resolve a `platform.RemoteMod` via `internal/platform.FetchMod`:
@@ -36,14 +36,14 @@ At a high level, `runAdd` does:
    - a `models.ModInstall` entry to `modlist-lock.json`
 6. Record telemetry via `internal/telemetry.RecordCommand` (emitted once per session at shutdown).
 
-## Interactive vs non-interactive behavior
+## Interactive vs unattended behavior
 
 The command only launches the interactive recovery flow when all of these are true:
 
-- `--non-interactive` is not set
+- `--unattended` is not set
 - stdin and stdout are terminals (checked via `internal/tui.ShouldUseTUI`)
 
-If the user is piping/redirecting output, or running in CI, we intentionally stay non-interactive even if `--non-interactive` is false. `--quiet` only suppresses non-essential output.
+If the user is piping/redirecting output, or running in CI, we intentionally stay unattended even if `--unattended` is false. `--quiet` only suppresses non-essential output.
 
 ### Add TUI state machine
 

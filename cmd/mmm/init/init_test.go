@@ -240,19 +240,19 @@ func TestInitWithDeps(t *testing.T) {
 		assert.ErrorContains(t, err, "Could not verify the Minecraft version.")
 	})
 
-	t.Run("config exists with --non-interactive returns error", func(t *testing.T) {
+	t.Run("config exists with --unattended returns error", func(t *testing.T) {
 		minecraft.ClearManifestCache()
 		fs := afero.NewMemMapFs()
 		assert.NoError(t, fs.MkdirAll(filepath.FromSlash("/cfg/mods"), 0755))
 		assert.NoError(t, afero.WriteFile(fs, filepath.FromSlash("/cfg/modlist.json"), []byte(`{"existing":true}`), 0644))
 
 		_, err := initWithDeps(context.Background(), initOptions{
-			ConfigPath:     filepath.FromSlash("/cfg/modlist.json"),
-			NonInteractive: true,
-			Loader:         models.FABRIC,
-			GameVersion:    "1.21.1",
-			ReleaseTypes:   []models.ReleaseType{models.Release},
-			ModsFolder:     "mods",
+			ConfigPath:   filepath.FromSlash("/cfg/modlist.json"),
+			Unattended:   true,
+			Loader:       models.FABRIC,
+			GameVersion:  "1.21.1",
+			ReleaseTypes: []models.ReleaseType{models.Release},
+			ModsFolder:   "mods",
 		}, initDeps{
 			output:          output.New(io.Discard, io.Discard, true),
 			fs:              fs,
@@ -665,7 +665,7 @@ func TestRunInitInteractiveErrorPropagates(t *testing.T) {
 	assert.True(t, didUseTUI)
 }
 
-func TestRunInitNonInteractiveSkipsInteractiveFlow(t *testing.T) {
+func TestRunInitUnattendedSkipsInteractiveFlow(t *testing.T) {
 	minecraft.ClearManifestCache()
 	restoreTTY := tui.SetIsTerminalFuncForTesting(func(int) bool { return true })
 	t.Cleanup(restoreTTY)
@@ -683,12 +683,12 @@ func TestRunInitNonInteractiveSkipsInteractiveFlow(t *testing.T) {
 	cmd.SetErr(out)
 
 	_, didUseTUI, err := runInit(context.Background(), cmd, initOptions{
-		ConfigPath:     meta.ConfigPath,
-		Loader:         models.FABRIC,
-		GameVersion:    "1.21.1",
-		ReleaseTypes:   []models.ReleaseType{models.Release},
-		ModsFolder:     "mods",
-		NonInteractive: true,
+		ConfigPath:   meta.ConfigPath,
+		Loader:       models.FABRIC,
+		GameVersion:  "1.21.1",
+		ReleaseTypes: []models.ReleaseType{models.Release},
+		ModsFolder:   "mods",
+		Unattended:   true,
 		Provided: providedFlags{
 			Loader:       true,
 			GameVersion:  true,
@@ -947,7 +947,7 @@ func TestNormalizeGameVersion(t *testing.T) {
 		}, initDeps{
 			output:          output.New(io.Discard, io.Discard, true),
 			minecraftClient: manifestDoer([]string{"2.0.0"}),
-		}, gameVersionNonInteractive)
+		}, gameVersionUnattended)
 		assert.NoError(t, err)
 		assert.Equal(t, "2.0.0", opts.GameVersion)
 	})

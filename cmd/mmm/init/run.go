@@ -28,13 +28,13 @@ func runInitCommand(ctx context.Context, cmd *cobra.Command, options initOptions
 
 func runInit(ctx context.Context, cmd *cobra.Command, options initOptions, deps initDeps, meta config.Metadata) (initOptions, bool, error) {
 	promptMode := tui.PromptEnabled
-	if options.NonInteractive {
+	if options.Unattended {
 		promptMode = tui.PromptDisabled
 	}
 	shouldUseTUI := tui.ShouldUseTUI(promptMode, cmd.InOrStdin(), cmd.OutOrStdout())
 	didUseTUI := false
 
-	gameVersionMode := gameVersionNonInteractive
+	gameVersionMode := gameVersionUnattended
 	if shouldUseTUI {
 		gameVersionMode = gameVersionInteractive
 	}

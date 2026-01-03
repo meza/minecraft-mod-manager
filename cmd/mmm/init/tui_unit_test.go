@@ -64,7 +64,7 @@ func TestGameVersionModelUpdateEnterEmptySetsError(t *testing.T) {
 	assert.NotNil(t, updated.error)
 }
 
-func TestCommandModelHandleModsFolderSelectedReturnsQuitWhenDone(t *testing.T) {
+func TestCommandModelHandleModsFolderSelectedDoesNotQuitImmediatelyWhenDone(t *testing.T) {
 	model := CommandModel{
 		ctx:   context.Background(),
 		state: stateModsFolder,
@@ -80,14 +80,10 @@ func TestCommandModelHandleModsFolderSelectedReturnsQuitWhenDone(t *testing.T) {
 		},
 	}
 
-	updated, cmd, shouldQuit := model.handleModsFolderSelected(ModsFolderSelectedMessage{ModsFolder: "mods"})
+	updated, cmd := model.handleModsFolderSelected(ModsFolderSelectedMessage{ModsFolder: "mods"})
 
 	assert.Equal(t, done, updated.state)
-	assert.True(t, shouldQuit)
-	if assert.NotNil(t, cmd) {
-		_, isQuit := cmd().(tea.QuitMsg)
-		assert.True(t, isQuit)
-	}
+	assert.Nil(t, cmd)
 }
 
 func TestCommandModelHandleModsFolderSelectedContinuesWhenNotDone(t *testing.T) {
@@ -105,10 +101,9 @@ func TestCommandModelHandleModsFolderSelectedContinuesWhenNotDone(t *testing.T) 
 		},
 	}
 
-	updated, cmd, shouldQuit := model.handleModsFolderSelected(ModsFolderSelectedMessage{ModsFolder: "mods"})
+	updated, cmd := model.handleModsFolderSelected(ModsFolderSelectedMessage{ModsFolder: "mods"})
 
 	assert.Equal(t, stateReleaseTypes, updated.state)
-	assert.False(t, shouldQuit)
 	assert.Nil(t, cmd)
 }
 
@@ -182,6 +177,48 @@ func TestCommandModelViewReturnsEmptyOnSecondaryWriteError(t *testing.T) {
 	model.gameVersionQuestion.Value = "1.21.1"
 	model.modsFolderQuestion.Value = "mods"
 	model.state = stateModsFolder
+
+	assert.Equal(t, "", model.View())
+}
+
+func TestCommandModelViewReturnsEmptyOnTrailingNewlineError(t *testing.T) {
+	originalWriteString := writeString
+	t.Cleanup(func() {
+		writeString = originalWriteString
+	})
+	writeString = func(builder *strings.Builder, value string) error {
+		if value == "\n" {
+			return errors.New("write failed")
+		}
+		_, err := builder.WriteString(value)
+		return err
+	}
+
+	fs := afero.NewMemMapFs()
+	meta := config.NewMetadata(filepath.FromSlash("/cfg/modlist.json"))
+	assert.NoError(t, fs.MkdirAll(filepath.Dir(meta.ConfigPath), 0755))
+	assert.NoError(t, fs.MkdirAll(meta.ModsFolderPath(models.ModsJSON{ModsFolder: "mods"}), 0755))
+
+	model := CommandModel{
+		state: done,
+		modsFolderQuestion: NewModsFolderModel(modsFolderModelInput{
+			modsFolder: "mods",
+			meta:       meta,
+			fs:         fs,
+			prefill:    true,
+		}),
+		result: initOptions{
+			ModsFolder: "mods",
+			Provided: providedFlags{
+				ModsFolder: true,
+			},
+		},
+		initialProvided: providedFlags{
+			Loader:       true,
+			GameVersion:  true,
+			ReleaseTypes: true,
+		},
+	}
 
 	assert.Equal(t, "", model.View())
 }

@@ -39,7 +39,7 @@ func runUpdateCommand(cmd *cobra.Command) error {
 	}
 
 	promptMode := tui.PromptEnabled
-	if opts.NonInteractive {
+	if opts.Unattended {
 		promptMode = tui.PromptDisabled
 	}
 	useTUI := tui.ShouldUseTUI(promptMode, cmd.InOrStdin(), cmd.OutOrStdout())
@@ -113,7 +113,7 @@ func updateOptionsFromFlags(cmd *cobra.Command) (updateOptions, error) {
 	if err != nil {
 		return updateOptions{}, err
 	}
-	nonInteractive, err := cmd.Flags().GetBool("non-interactive")
+	unattended, err := cmd.Flags().GetBool("unattended")
 	if err != nil {
 		return updateOptions{}, err
 	}
@@ -127,9 +127,9 @@ func updateOptionsFromFlags(cmd *cobra.Command) (updateOptions, error) {
 	}
 
 	return updateOptions{
-		ConfigPath:     configPath,
-		NonInteractive: nonInteractive,
-		Quiet:          quiet,
-		Debug:          debug,
+		ConfigPath: configPath,
+		Unattended: unattended,
+		Quiet:      quiet,
+		Debug:      debug,
 	}, nil
 }

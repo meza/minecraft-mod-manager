@@ -37,10 +37,10 @@ type fetcher func(context.Context, models.Platform, string, platform.FetchOption
 type downloader func(context.Context, string, string, httpclient.Doer, httpclient.Sender, ...afero.Fs) error
 
 type installOptions struct {
-	ConfigPath     string
-	NonInteractive bool
-	Quiet          bool
-	Debug          bool
+	ConfigPath string
+	Unattended bool
+	Quiet      bool
+	Debug      bool
 }
 
 type Result struct {

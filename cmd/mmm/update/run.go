@@ -8,6 +8,7 @@ import (
 	"github.com/meza/minecraft-mod-manager/internal/clierrors"
 	"github.com/meza/minecraft-mod-manager/internal/config"
 	"github.com/meza/minecraft-mod-manager/internal/i18n"
+	"github.com/meza/minecraft-mod-manager/internal/interaction"
 	"github.com/meza/minecraft-mod-manager/internal/models"
 	"github.com/meza/minecraft-mod-manager/internal/output"
 	"github.com/meza/minecraft-mod-manager/internal/tui"
@@ -75,7 +76,11 @@ func ensureInstallForUpdate(ctx context.Context, cmd *cobra.Command, opts update
 		return err
 	}
 	if installResult.UnmanagedFound {
-		if outputErr := deps.output.Error(i18n.T("cmd.update.error.unmanaged_found", nil)); outputErr != nil {
+		if outputErr := interaction.LogUnmanagedNotice(interaction.UnmanagedNoticeOptions{
+			Output:   deps.output,
+			Message:  i18n.T("cmd.update.error.unmanaged_found", nil),
+			UseError: true,
+		}); outputErr != nil {
 			return outputErr
 		}
 		return clierrors.MarkHandled(errUnmanagedFiles)

@@ -808,8 +808,8 @@ func TestRunListNonInteractiveDisablesTUI(t *testing.T) {
 	cmd.SetErr(errOut)
 
 	_, usedTUI, err := runList(context.Background(), cmd, meta.ConfigPath, runListOptions{
-		nonInteractive: true,
-		quiet:          false,
+		unattended: true,
+		quiet:      false,
 	}, listDeps{
 		fs:            fs,
 		logger:        logger.New(out, errOut, false, false),

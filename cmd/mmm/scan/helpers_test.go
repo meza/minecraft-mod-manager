@@ -84,22 +84,6 @@ func (doer responseDoer) Do(*http.Request) (*http.Response, error) {
 	}, nil
 }
 
-func TestReadLineReturnsLine(t *testing.T) {
-	line, err := readLine(strings.NewReader("yes\n"))
-	assert.NoError(t, err)
-	assert.Equal(t, "yes", line)
-}
-
-func TestReadLineReturnsEOFOnEmptyInput(t *testing.T) {
-	_, err := readLine(strings.NewReader(""))
-	assert.ErrorIs(t, err, io.EOF)
-}
-
-func TestReadLineReturnsErrorOnReadFailure(t *testing.T) {
-	_, err := readLine(errorReader{})
-	assert.Error(t, err)
-}
-
 func TestTerminalPrompterConfirmAddYes(t *testing.T) {
 	prompter := terminalPrompter{
 		in:  strings.NewReader("Y\n"),
@@ -1843,7 +1827,7 @@ func TestPickPrompterReturnsTerminalWhenPromptEnabled(t *testing.T) {
 	assert.True(t, ok)
 }
 
-func TestDefaultScanDepsNonInteractiveUsesNoopPrompter(t *testing.T) {
+func TestDefaultScanDepsUnattendedUsesNoopPrompter(t *testing.T) {
 	restore := tui.SetIsTerminalFuncForTesting(func(_ int) bool { return true })
 	t.Cleanup(restore)
 
@@ -1851,7 +1835,7 @@ func TestDefaultScanDepsNonInteractiveUsesNoopPrompter(t *testing.T) {
 	cmd.SetIn(fakeTTY{Buffer: &bytes.Buffer{}})
 	cmd.SetOut(fakeTTY{Buffer: &bytes.Buffer{}})
 
-	deps := defaultScanDeps(cmd, scanOptions{NonInteractive: true})
+	deps := defaultScanDeps(cmd, scanOptions{Unattended: true})
 	_, ok := deps.prompter.(noopPrompter)
 	assert.True(t, ok)
 }

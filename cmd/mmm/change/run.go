@@ -19,7 +19,7 @@ func changeOptionsFromFlags(cmd *cobra.Command, args []string) (changeOptions, e
 	if err != nil {
 		return changeOptions{}, err
 	}
-	nonInteractive, err := cmd.Flags().GetBool("non-interactive")
+	unattended, err := cmd.Flags().GetBool("unattended")
 	if err != nil {
 		return changeOptions{}, err
 	}
@@ -37,12 +37,12 @@ func changeOptionsFromFlags(cmd *cobra.Command, args []string) (changeOptions, e
 	}
 
 	return changeOptions{
-		ConfigPath:     configPath,
-		GameVersion:    resolveGameVersion(args),
-		NonInteractive: nonInteractive,
-		Quiet:          quiet,
-		Debug:          debug,
-		Force:          force,
+		ConfigPath:  configPath,
+		GameVersion: resolveGameVersion(args),
+		Unattended:  unattended,
+		Quiet:       quiet,
+		Debug:       debug,
+		Force:       force,
 	}, nil
 }
 
@@ -147,12 +147,12 @@ func exitCodeForError(err error) int {
 
 func runVersionCheck(ctx context.Context, opts changeOptions, deps changeDeps) (test.Result, error) {
 	testOpts := test.Options{
-		ConfigPath:     opts.ConfigPath,
-		GameVersion:    opts.GameVersion,
-		NonInteractive: opts.NonInteractive,
-		Quiet:          opts.Quiet,
-		Debug:          opts.Debug,
-		Force:          opts.Force,
+		ConfigPath:  opts.ConfigPath,
+		GameVersion: opts.GameVersion,
+		Unattended:  opts.Unattended,
+		Quiet:       opts.Quiet,
+		Debug:       opts.Debug,
+		Force:       opts.Force,
 	}
 
 	testResult, err := deps.testRunner(ctx, deps.testCmd, testOpts, deps.testDeps, deps.colorMode)

@@ -51,13 +51,13 @@ func TestRunInteractiveInitRunsInitFlow(t *testing.T) {
 		return CommandModel{
 			state: done,
 			result: initOptions{
-				ConfigPath:     meta.ConfigPath,
-				Loader:         models.FABRIC,
-				GameVersion:    "1.21.1",
-				ReleaseTypes:   []models.ReleaseType{models.Release},
-				ModsFolder:     "mods",
-				Provided:       providedFlags{Loader: true, GameVersion: true, ReleaseTypes: true, ModsFolder: true},
-				NonInteractive: false,
+				ConfigPath:   meta.ConfigPath,
+				Loader:       models.FABRIC,
+				GameVersion:  "1.21.1",
+				ReleaseTypes: []models.ReleaseType{models.Release},
+				ModsFolder:   "mods",
+				Provided:     providedFlags{Loader: true, GameVersion: true, ReleaseTypes: true, ModsFolder: true},
+				Unattended:   false,
 			},
 		}, nil
 	}

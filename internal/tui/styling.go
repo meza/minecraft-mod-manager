@@ -14,5 +14,6 @@ var (
 	PaginationStyle   = list.DefaultStyles().PaginationStyle.PaddingLeft(2)
 	HelpStyle         = list.DefaultStyles().HelpStyle.PaddingLeft(2).PaddingBottom(1)
 	PlaceholderStyle  = lipgloss.NewStyle().Foreground(lipgloss.Color("#767676")).PaddingLeft(1)
+	ParenStyle        = lipgloss.NewStyle().Foreground(lipgloss.Color("#767676")).PaddingLeft(0)
 	ErrorStyle        = lipgloss.NewStyle().Foreground(lipgloss.Color("#ff0000")).Bold(true)
 )

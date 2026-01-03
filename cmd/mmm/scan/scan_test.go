@@ -56,7 +56,7 @@ func (prompter fakePrompter) ConfirmInit(string) (bool, error) {
 	return prompter.confirmInit, prompter.err
 }
 
-func TestRunScan_ConfigMissingNonInteractiveFails(t *testing.T) {
+func TestRunScan_ConfigMissingUnattendedFails(t *testing.T) {
 	t.Setenv("MMM_TEST", "true")
 
 	fs := afero.NewMemMapFs()
@@ -70,8 +70,8 @@ func TestRunScan_ConfigMissingNonInteractiveFails(t *testing.T) {
 	cmd.SetErr(errOut)
 
 	_, err := runScan(context.Background(), cmd, scanOptions{
-		ConfigPath:     meta.ConfigPath,
-		NonInteractive: true,
+		ConfigPath: meta.ConfigPath,
+		Unattended: true,
 	}, scanDeps{
 		fs:       fs,
 		logger:   logger.New(out, errOut, false, false),
