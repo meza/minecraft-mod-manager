@@ -87,9 +87,9 @@ There is no such thing as time pressure or scope pressure. The only expectation 
 
 When you invoke the reviewer, you MUST explicitly define the active changeset under review. Do not make the reviewer guess the scope.
 
-## Issue Tracking
+## Issue Tracking / Ticketing
 
-Instructions for issue tracking [here](https://raw.githubusercontent.com/meza/agent-docs/refs/heads/main/Beads.md).
+Instructions for issue tracking / ticketing [here](https://raw.githubusercontent.com/meza/agent-docs/refs/heads/main/Beads.md).
 You MUST read and adhere to these instructions.
 
 ### Issue Closure Authority (Non-Negotiable)

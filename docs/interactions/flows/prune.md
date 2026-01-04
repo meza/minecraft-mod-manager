@@ -62,7 +62,6 @@ States:
 
 ```
 Unmanaged files:
-
 ❌ old-mod.jar
 ❌ unmanaged.jar
 
@@ -78,7 +77,6 @@ enter accept • ctrl+c/esc quit
 
 ```
 Unmanaged files:
-
 ❌ old-mod.jar
 ❌ unmanaged.jar
 

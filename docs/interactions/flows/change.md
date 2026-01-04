@@ -64,7 +64,7 @@ As mod status changes, MMM updates the icons in place.
 If a segment has no mods, MMM does not render that segment.
 
 ```
-⏳ Change Minecraft version -> 1.19.4
+Change Minecraft version to 1.19.4
 Your current setup will not be modified until all downloads succeed.
 
 Compatibility:
@@ -180,7 +180,7 @@ Remove blockers, or rerun with `mmm change --force 1.19.4`.
 `change 1.19.4`
 
 ```
-⏳ Change Minecraft version -> 1.19.4
+Change Minecraft version to 1.19.4
 Your current setup will not be modified until all downloads succeed.
 
 Downloading:
