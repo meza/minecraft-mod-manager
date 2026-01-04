@@ -27,7 +27,8 @@ Helpers like `AllLoaders()` and `AllReleaseTypes()` exist for UI selection flows
 
 ## Related docs
 
-For the user-facing explanation of `modlist.json` and `modlist-lock.json`, see the root `README.md` and `docs/requirements-go-port.md`.
+For the user-facing explanation of `modlist.json` and `modlist-lock.json`, see the root `README.md`.
+For behavior and interaction requirements, see `docs/specs/` and `docs/interactions/`.
 
 ## Tests
 

@@ -10,7 +10,7 @@ Accepted
 
 We need a clear boundary between the frontend command layer and reusable domain packages to avoid unplanned structural changes, reduce churn, and keep code ownership obvious. Recent refactoring discussions showed that the absence of an explicit rule leads to ambiguity about when code can move out of command packages into internal packages.
 
-Existing guidance already assumes command packages own their UI concerns (see docs/tui-guidelines.md) and cmd/mmm/README.md positions cmd/mmm/<command> as the place where command behavior is implemented. We need to make the reuse boundary explicit so future refactors do not shift command-specific logic into internal packages unless it is truly shared.
+Existing guidance already assumes command packages own their terminal interaction concerns (see docs/guide-to-working-with-the-terminal.md) and cmd/mmm/README.md positions cmd/mmm/<command> as the place where command behavior is implemented. We need to make the reuse boundary explicit so future refactors do not shift command-specific logic into internal packages unless it is truly shared.
 
 ## Decision
 

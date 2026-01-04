@@ -105,8 +105,8 @@ You MUST read and adhere to these instructions, and you MUST update `memory.tsv`
 
 ## Project Overview
 
-- Refer to `docs/requirements-go-port.md` for an overview of the current Node implementation and expectations for the Go port.
-- See `docs/specs/README.md` for detailed behaviour of each CLI command.
+- See `docs/specs/README.md` for engineering specs for each CLI command.
+- See `docs/interactions/interaction-guidelines.md` and `docs/interactions/flows/` for the authoritative terminal interaction contract and per-command flows.
 - Review `docs/platform-apis.md` for specifics on interacting with CurseForge and Modrinth.
 - Keep documentation in sync with features.
 
@@ -121,7 +121,7 @@ Follow our established [Golang Coding Standards](https://raw.githubusercontent.c
 
 ### Tooling
 
-- The Go port will use the Bubble Tea ecosystem for [TUI functionality](./docs/tui-design-doc.md). Familiarize yourself with [Bubble Tea](https://github.com/charmbracelet/bubbletea), [Lip Gloss](https://github.com/charmbracelet/lipgloss), [Bubbles](https://github.com/charmbracelet/bubbles) and optionally [Huh](https://github.com/charmbracelet/huh) where relevant.
+- The Go port uses the Bubble Tea ecosystem for interactive terminal flows. Follow `docs/interactions/interaction-guidelines.md` for the behavior contract and `docs/guide-to-working-with-the-terminal.md` for implementation guidance. Familiarize yourself with [Bubble Tea](https://github.com/charmbracelet/bubbletea), [Lip Gloss](https://github.com/charmbracelet/lipgloss), [Bubbles](https://github.com/charmbracelet/bubbles) and optionally [Huh](https://github.com/charmbracelet/huh) where relevant.
 - Testing will be done using Go's built-in testing framework along with any necessary libraries to ensure 100% coverage.
 - We use makefiles for build automation. Refer to the existing `Makefile` for commands related to building, testing, and coverage enforcement, and **always invoke the documented `make` targets (e.g., `make coverage`, `make test-race`, `make build`) instead of calling toolchain binaries directly**. This ensures we honor repo-specific flags and hooks.
 
@@ -130,7 +130,7 @@ Follow our established [Golang Coding Standards](https://raw.githubusercontent.c
 - Keep the CONTRIBUTING.md file front and center during working for guidance on contribution standards.
 - ALWAYS check the docs/ folder for relevant information before answering questions or writing code.
 - The `docs/specs` folder contains design specifications for various components of the project. You MUST read and adhere to these specifications when working on related components.
-- You must NOT change any design specification files in the `docs/specs` folder or the [requirements-go-port.md](/docs/requirements-go-port.md) file without explicit permission.
+- You must NOT change any design specification files in the `docs/specs` folder, `docs/interactions` folder or the [interaction-guidelines.md.md](/docs/interactions/requirements-go-port.md) file without explicit permission.
 - ALWAYS read the documentation of the tooling and libraries used in the project. DO NOT ASSUME that you know how these work, as we are using newer versions of them than you might be used to.
 - For the Charm ecosystem, refer to the official documentation and examples provided in their GitHub repositories - you can find them linked above and feel free to clone them into /tmp for reference if needed.
 - ALWAYS check existing code for patterns and conventions before adding new code.

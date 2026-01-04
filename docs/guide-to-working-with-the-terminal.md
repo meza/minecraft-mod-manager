@@ -1,0 +1,144 @@
+# Guide to working with the terminal
+
+This is a developer guide for implementing and maintaining MMM terminal interactions.
+
+The user-visible behavior contract lives in `docs/interactions/interaction-guidelines.md`.
+This document focuses on implementation practices that keep behavior consistent and testable across execution contexts.
+
+The `cmd/mmm/init` package is the reference implementation for the patterns described here.
+
+## Execution contexts
+
+MMM has multiple execution contexts with different interaction constraints.
+Definitions and requirements are owned by `docs/interactions/interaction-guidelines.md`.
+
+When you are implementing a command, ensure behavior is correct in:
+- non-interactive terminal
+- unattended terminal
+- interactive terminal
+
+See:
+- `docs/interactions/interaction-guidelines.md#execution-contexts`
+- `docs/interactions/interaction-guidelines.md#non-interactive-terminal`
+- `docs/interactions/interaction-guidelines.md#unattended-terminal-tui-lite`
+- `docs/interactions/interaction-guidelines.md#interactive-terminal-tui-lite`
+
+## Decide when prompting is allowed
+
+Use execution context detection to decide whether the command can run an interactive flow.
+
+Use `internal/tui` as the shared helper for terminal detection and Bubble Tea program options:
+- `internal/tui.ShouldUseTUI(...)` to decide whether prompts are allowed
+- `internal/tui.ProgramOptions(in, out)` to ensure Bubble Tea does not emit terminal control sequences when stdout is not a TTY
+
+See `cmd/mmm/init/run.go` for the execution mode selection pattern.
+
+This section implements the interaction contract rules that ban prompting outside interactive contexts and require safe degradation:
+- `docs/interactions/interaction-guidelines.md#no-hidden-prompts`
+- `docs/interactions/interaction-guidelines.md#unattended-and-non-interactive-contract`
+- `docs/interactions/interaction-guidelines.md#output-streams`
+
+## Build interactive terminal flows as command apps
+
+When an interactive flow is allowed, build one Bubble Tea app per command and make it purpose-built for that command.
+Avoid a reusable prompt framework.
+Model the flow as a finite state machine (FSM) and lock behavior down with snapshot tests.
+
+These patterns exist to keep terminal interaction consistent with the transcript-first requirements:
+- `docs/interactions/interaction-guidelines.md#rendering-model`
+- `docs/interactions/interaction-guidelines.md#tui-lite-only`
+- `docs/interactions/interaction-guidelines.md#bubble-tea-only`
+
+### Keep the model in the command package
+
+- Keep the Bubble Tea model in the command package (example: `cmd/mmm/init/interactive_flow.go`).
+- Avoid generalized abstractions (generic wizards, generic prompts, generic screens). This project is an application, not a terminal UI library.
+- Keep interaction concerns (state, layout, key handling) separate from business logic (API calls, config, file system changes) by injecting the command functions the model needs to call.
+
+See `docs/interactions/interaction-guidelines.md#cobra-validation-vs-runtime-recovery` for how argv validation and interactive recovery flows are expected to relate.
+
+### Model the flow as an explicit FSM
+
+- Define an enum-like state type (example: `type state int`) and a constant per step.
+- Centralize transitions so each state owns its prompt, defaults, and bubble configuration.
+- Keep state transitions explicit and easy to snapshot.
+
+The `cmd/mmm/init/interactive_flow.go` model uses `nextMissingState(...)` as the single place that decides what step comes next.
+
+### Compose prompt models
+
+Compose a single command-level model from smaller prompt models.
+Each prompt model owns its own input behavior and returns a typed `tea.Msg` when the user confirms a choice.
+
+This keeps each question small and testable, and it keeps the command-level FSM focused on:
+- which step is current
+- how to apply a selected value to the result
+- what the next missing step is
+
+See `cmd/mmm/init/*Model*.go` and `cmd/mmm/init/confirm_prompt.go` for concrete examples.
+
+See `docs/interactions/interaction-guidelines.md#selection-list-rendering` for the selection list collapse and transcript persistence requirements.
+
+### Cancellation behavior
+
+Follow the behavior contract in `docs/interactions/interaction-guidelines.md`.
+
+The `cmd/mmm/init` interactive flow uses these defaults:
+- `ctrl+c` cancels the flow safely (handled at the command model level)
+- `esc` cancels the current prompt and exits the flow (handled by prompt models)
+
+If a flow needs back navigation, implement it explicitly and snapshot it.
+
+See `docs/interactions/interaction-guidelines.md#cancel-behavior`.
+
+## Render as a transcript
+
+Interactive output should remain readable as a line-oriented transcript.
+
+The `cmd/mmm/init/interactive_flow.go` model shows a durable approach:
+- build sections for each step
+- render completed steps as answered prompt lines
+- render only the current prompt as an interactive control
+- avoid clearing the screen or hiding previous lines
+
+See:
+- `docs/interactions/interaction-guidelines.md#interactive-terminal-tui-lite`
+- `docs/interactions/interaction-guidelines.md#tui-lite-only`
+- `docs/interactions/interaction-guidelines.md#selection-list-rendering`
+
+## Language dependent option initials
+
+Some prompts accept a short token (often a single character) that depends on locale.
+Do not hardcode English tokens like `y/N`.
+
+The `cmd/mmm/init/confirm_prompt.go` model shows the preferred pattern:
+- each option has a stable meaning in code, plus localized `label` and `short` values from i18n
+- defaults are owned by code, not translations
+- the parser accepts both localized short token and localized full label
+- invalid input is handled by re-prompting in interactive context, and by safe fallback in non-interactive contexts
+
+See `docs/interactions/interaction-guidelines.md#language-dependent-prompts-option-initials`.
+
+## Snapshot tests
+
+Snapshot tests are the regression harness for terminal UX.
+
+The `cmd/mmm/init/interactive_flow_snapshot_test.go` tests show the preferred structure:
+- set `MMM_TEST=true` so i18n output is stable
+- apply `tea.WindowSizeMsg` so lists render predictably
+- drive the model forward by sending key messages or applying typed selection messages
+- snapshot `View()` output for each state using go-snaps
+- assert key telemetry events if the flow records them
+
+For command wrapper behavior, use output snapshots that capture stdout and stderr, see `cmd/mmm/init/output_snapshot_test.go`.
+
+See `docs/interactions/interaction-guidelines.md#validation-plan` for how to validate behavior across execution contexts.
+
+## TTY behavior
+
+Use `internal/tui.ProgramOptions(in, out)` when you construct a Bubble Tea program so it disables the renderer when stdin or stdout are not TTYs.
+For tests that need deterministic behavior across platforms, override terminal detection via `tui.SetIsTerminalFuncForTesting(...)` and restore it afterwards.
+
+This is the implementation of:
+- `docs/interactions/interaction-guidelines.md#non-interactive-terminal`
+- `docs/interactions/interaction-guidelines.md#output-streams`

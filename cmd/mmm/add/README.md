@@ -8,6 +8,7 @@ These files describe what the command must do. If you change behavior, update th
 
 - User guide: `docs/commands/add.md` (what users see and copy/paste)
 - Command spec: `docs/specs/add.md` (behavior rules and edge cases)
+- Interaction contract: `docs/interactions/interaction-guidelines.md` and `docs/interactions/flows/add.md`
 
 ## Code map
 

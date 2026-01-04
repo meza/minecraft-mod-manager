@@ -1,3 +1,8 @@
+This document is implementation notes.
+
+Behavior authority for non-interactive output lives in `docs/interactions/interaction-guidelines.md#non-interactive-terminal`.
+Preferred implementation patterns live in `docs/guide-to-working-with-the-terminal.md`.
+
 If you only care about **output** (no input in non-TTY), Bubble Tea already has the knobs you want:
 
 * `tea.WithInput(nil)` **disables input entirely** ([Go Packages][1])

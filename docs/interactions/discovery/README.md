@@ -3,7 +3,7 @@
 This folder holds the black box discovery harness for MMM interactions.
 
 It is designed for repeatable runs against the shipped binary.
-It does not replace behavior authority in `docs/specs/`.
+It does not replace behavior authority in `docs/interactions/interaction-guidelines.md` and `docs/interactions/flows/`.
 
 ## What is here
 

@@ -34,7 +34,9 @@ These are intentionally thin wrappers so key help stays consistent and localizab
 
 ## Related docs
 
-For the architectural expectations of TUIs in this repo, see `docs/tui-design-doc.md` and `docs/tui-guidelines.md`.
+For terminal interaction expectations and implementation guidance, see:
+- `docs/interactions/interaction-guidelines.md`
+- `docs/guide-to-working-with-the-terminal.md`
 
 ## Tests
 

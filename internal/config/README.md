@@ -60,7 +60,8 @@ Other failures (read/write permissions, etc) are returned as wrapped `error` val
 
 ## Related docs
 
-For the user-facing shape of these files, see the root `README.md` and `docs/requirements-go-port.md`.
+For the user-facing shape of these files, see the root `README.md`.
+For behavior and interaction requirements, see `docs/specs/` and `docs/interactions/`.
 
 ## Tests
 

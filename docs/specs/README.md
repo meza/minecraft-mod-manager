@@ -3,6 +3,7 @@
 ## Interaction source of truth
 
 The interaction contract, frames, and output shapes live in `docs/interactions/interaction-guidelines.md` and `docs/interactions/flows/`.
+Implementation guidance for interactive terminal flows lives in `docs/guide-to-working-with-the-terminal.md`.
 
 ## Command Reference
 

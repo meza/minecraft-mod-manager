@@ -524,6 +524,10 @@ run into rate limiting issues or are using private projects, you can set these v
 Feel free to contribute to the project but please read the [contribution guidelines](CONTRIBUTING.md) first before
 making any changes.
 
+Developer docs for terminal interactions:
+- `docs/interactions/interaction-guidelines.md`
+- `docs/guide-to-working-with-the-terminal.md`
+
 ### Setup
 
 #### Prerequisites

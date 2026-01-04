@@ -33,6 +33,11 @@ If you are adding a command that talks to an external API, start here.
 
 `DownloadFile` validates that download URLs use https and point at trusted hosts (`cdn.modrinth.com`, `edge.forgecdn.net`, `media.forgecdn.net`), writes the response body to `filepath`, and sends progress updates to `program.Send(...)`. It requires a successful 2xx response and returns an error for non-2xx statuses. It is used by interactive commands that want to surface download progress in the TUI.
 
+See progress and non-tty rules in:
+- `docs/interactions/interaction-guidelines.md#progress-bars`
+- `docs/interactions/interaction-guidelines.md#non-interactive-terminal`
+- `docs/guide-to-working-with-the-terminal.md`
+
 ### Timeout policy
 
 Per-request timeouts are applied via helpers in this package:

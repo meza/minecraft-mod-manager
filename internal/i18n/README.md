@@ -25,7 +25,7 @@ Rule of thumb: translations supply words; the UI layer supplies icons.
 Use this module anywhere a human user will see text:
 
 * CLI output
-* TUI prompts and labels
+* interactive terminal prompts and labels
 * errors shown directly to users
 
 **Logs must be English-only.**
@@ -206,7 +206,7 @@ Use sub-namespaces to keep concerns separated:
 
 #### `key.*`
 
-Key labels shown to users (especially in the TUI).
+Key labels shown to users (especially in interactive terminal flows).
 
 Use `key.help.*` for the "help bar" / legend verbs.
 

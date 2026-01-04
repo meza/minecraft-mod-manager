@@ -6,7 +6,8 @@ It captures how people interact with the product today and what the system expec
 
 Interaction authority:
 - The target interaction contract lives in `docs/interactions/interaction-guidelines.md`.
-- Legacy specs in `docs/specs/` are historical reference and may not match the target interaction contract.
+- Per-command terminal flows live in `docs/interactions/flows/*.md`.
+- Engineering specs live in `docs/specs/` and should be kept aligned with the interaction contract.
 
 Start here when you want to understand:
 - What interaction surfaces exist
@@ -16,6 +17,7 @@ Start here when you want to understand:
 ## Contents
 
 - `docs/interactions/interaction-guidelines.md`
+- `docs/guide-to-working-with-the-terminal.md`
 - `docs/interactions/black-box-discovery.md`
 - `docs/interactions/discovery/README.md`
 - `docs/interactions/audit-artifacts/mmm-151/README.md`

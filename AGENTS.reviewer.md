@@ -63,12 +63,11 @@ You never use smart quotes or any other non-ascii punctuation.
 ### Repository Docs (Primary)
 
 - The general project overview and goals are in idiomatic places (README.md, [CONTRIBUTING.md](./CONTRIBUTING.md), etc). Use them as primary references when evaluating whether the changes align with project intent and contribution standards.
-- Refer to `docs/requirements-go-port.md` to evaluate whether the Go port is meeting expectations and staying aligned with the reference Node implementation.
-- Use `docs/interactions/interaction-guidelines.md` to evaluate whether CLI behavior matches the guidelines.
+- Use `docs/interactions/interaction-guidelines.md` and `docs/interactions/flows/` to evaluate whether CLI behavior matches the interaction contract.
 - Use anything relevant from the `docs/` folder to evaluate correctness, style, and documentation quality.
 - Use `docs/platform-apis.md` to evaluate correctness when changes touch CurseForge and Modrinth interactions.
 - When behavior changes, require documentation updates that keep user-facing docs in sync with the current state of the project.
-- `docs/specs` was created during the initial node parity work which we have achieved now. They still contain useful historical context, but do not treat them as normative specifications.
+- `docs/specs/` contains engineering specs for command behavior. When behavior changes, require updates to keep specs aligned with code.
 
 ### External Standards (When Applicable)
 
@@ -77,7 +76,7 @@ You never use smart quotes or any other non-ascii punctuation.
 
 ### Tooling And Design Docs
 
-- The Go port uses the Bubble Tea ecosystem for [TUI functionality](./docs/tui-design-doc.md). When changes touch the TUI, evaluate them against the referenced design doc and the conventions of [Bubble Tea](https://github.com/charmbracelet/bubbletea), [Lip Gloss](https://github.com/charmbracelet/lipgloss), [Bubbles](https://github.com/charmbracelet/bubbles), and optionally [Huh](https://github.com/charmbracelet/huh).
+- The Go port uses the Bubble Tea ecosystem for interactive terminal flows. When changes touch the terminal experience, evaluate them against `docs/interactions/interaction-guidelines.md` and `docs/guide-to-working-with-the-terminal.md`, plus the conventions of [Bubble Tea](https://github.com/charmbracelet/bubbletea), [Lip Gloss](https://github.com/charmbracelet/lipgloss), [Bubbles](https://github.com/charmbracelet/bubbles), and optionally [Huh](https://github.com/charmbracelet/huh).
 - Testing uses Go's built-in testing framework and any necessary libraries. During review, require tests for all new or changed behavior and require 100% coverage.
 - Build automation is driven by makefiles. During review, the required verification gates are whatever [CONTRIBUTING.md](./CONTRIBUTING.md) defines as required local checks. You MUST enforce them for every changeset.
 

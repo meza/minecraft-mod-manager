@@ -4,6 +4,7 @@ This directory holds product artifacts that don't fit elsewhere. Most product wo
 
 - **Issue tracker**: Requirements, success criteria, bugs, tasks
 - **`docs/specs/`**: Detailed behavioral specifications
+- **`docs/interactions/`**: Interaction contract and per-command terminal flows
 - **`docs/commands/`**: User-facing documentation
 - **`doc/adr/`**: Decisions needing attribution and rationale
 

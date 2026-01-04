@@ -14,7 +14,7 @@ The app entrypoint (`main.go`) records top-level lifecycle regions so we can cor
 Lifecycle span names are namespaced under `app.lifecycle.*`:
 
 - `app.lifecycle.startup`: process start -> ready to begin command execution (wires telemetry + signal handlers)
-- `app.lifecycle.execute`: command execution (CLI args or the interactive TUI session)
+- `app.lifecycle.execute`: command execution (CLI args or the interactive terminal session)
 - `app.lifecycle.shutdown`: graceful or signal-triggered shutdown (records the shutdown trigger; telemetry flush happens after spans are ended so the exported tree is complete)
 
 ## Exporting perf logs
@@ -67,8 +67,10 @@ We intentionally cover the whole path from process start to user-visible complet
   - Shared HTTP behavior: `net.http.*` (request, attempt, rate limit wait).
 - Local I/O: `io.config.*`, `io.config.lock.*`, `io.download.*` (and `io.fs.*` when the filesystem is the bottleneck).
 - Interactive sessions:
-  - User actions and state transitions: `tui.<cmd>.state.*` and `tui.<cmd>.action.*`.
-  - Thinking time: `tui.<cmd>.wait.<state>` so we can separate user dwell time from system latency.
+  - User actions and state transitions (examples): `tui.<cmd>.state.*`, `tui.<cmd>.action.*`, `interactive.<cmd>.state.*`, `interactive.<cmd>.action.*`.
+  - Thinking time (examples): `tui.<cmd>.wait.<state>`, `interactive.<cmd>.wait.<state>`.
+
+See terminal interaction definitions in `docs/interactions/interaction-guidelines.md#execution-contexts`.
 
 ### When to add markers
 

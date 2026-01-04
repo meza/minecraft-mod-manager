@@ -60,6 +60,10 @@ We treat automated tests as the primary contract for behavior and user experienc
   - When possible, drive TUIs with `teatest` and snapshot the output/view so we catch regressions in interaction and presentation.
 - Every user-facing behavior change must be backed by at least one automated test that would fail if the behavior regressed.
 
+Terminal interaction docs:
+- Behavior contract: `docs/interactions/interaction-guidelines.md`
+- Implementation guide: `docs/guide-to-working-with-the-terminal.md`
+
 ### Required local checks
 
 Run the repo `make` targets (do not call go test/go build directly):

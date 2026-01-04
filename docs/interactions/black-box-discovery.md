@@ -3,7 +3,8 @@
 This document defines how we will validate MMM interactions by running the shipped binary and recording observable behavior.
 It is design documentation, not spec authority.
 Behavior authority for interaction design lives in `docs/interactions/interaction-guidelines.md`.
-Legacy specs in `docs/specs/` and user docs in `docs/commands/` may not match the target interaction contract.
+Per-command flow authority lives in `docs/interactions/flows/*.md`.
+Engineering specs in `docs/specs/` and user docs in `docs/commands/` should be kept aligned with the interaction contract.
 
 ## Goals
 
