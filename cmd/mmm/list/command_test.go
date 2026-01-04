@@ -71,6 +71,7 @@ func TestCommandSuccess(t *testing.T) {
 	}
 
 	require.NoError(t, fs.MkdirAll(meta.Dir(), 0755))
+	require.NoError(t, fs.MkdirAll(meta.ModsFolderPath(cfg), 0755))
 	require.NoError(t, config.WriteConfig(context.Background(), fs, meta, cfg))
 	require.NoError(t, config.WriteLock(context.Background(), fs, meta, []models.ModInstall{}))
 
@@ -139,8 +140,9 @@ func TestCommandMissingLockDoesNotPrintUsage(t *testing.T) {
 	cmd.SetArgs([]string{"--config", configPath})
 
 	assert.Error(t, cmd.Execute())
-	assert.Empty(t, output.String())
-	assert.Contains(t, errOut.String(), "cmd.list.error.lock_missing")
+	assert.Contains(t, output.String(), "cmd.list.error.failed")
+	assert.Contains(t, output.String(), "cmd.list.error.lock_missing")
+	assert.Empty(t, errOut.String())
 	assert.NotContains(t, errOut.String(), "Usage:")
 	assert.NotContains(t, errOut.String(), "Error:")
 }

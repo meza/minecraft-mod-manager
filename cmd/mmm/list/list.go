@@ -15,25 +15,30 @@ import (
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/spf13/afero"
 	"github.com/spf13/cobra"
+	"go.opentelemetry.io/otel/attribute"
 
+	initCmd "github.com/meza/minecraft-mod-manager/cmd/mmm/init"
 	"github.com/meza/minecraft-mod-manager/internal/clierrors"
 	"github.com/meza/minecraft-mod-manager/internal/cmddeps"
 	"github.com/meza/minecraft-mod-manager/internal/config"
 	"github.com/meza/minecraft-mod-manager/internal/i18n"
+	"github.com/meza/minecraft-mod-manager/internal/interaction"
 	"github.com/meza/minecraft-mod-manager/internal/logger"
+	"github.com/meza/minecraft-mod-manager/internal/mmmignore"
 	"github.com/meza/minecraft-mod-manager/internal/models"
 	"github.com/meza/minecraft-mod-manager/internal/modfilename"
 	"github.com/meza/minecraft-mod-manager/internal/output"
 	"github.com/meza/minecraft-mod-manager/internal/perf"
 	"github.com/meza/minecraft-mod-manager/internal/telemetry"
-	tui "github.com/meza/minecraft-mod-manager/internal/view"
-	"go.opentelemetry.io/otel/attribute"
+	"github.com/meza/minecraft-mod-manager/internal/view"
 )
 
 var listWriteString = func(builder *strings.Builder, value string) error {
 	_, err := builder.WriteString(value)
 	return err
 }
+
+var runInteractiveInit = initCmd.RunInteractiveInit
 
 func Command() *cobra.Command {
 	cmd := &cobra.Command{
@@ -63,12 +68,12 @@ func runListCommand(cmd *cobra.Command, _ []string) error {
 	}
 
 	deps := defaultListDeps(cmd, options)
-	entriesCount, usedTUI, runErr := runList(ctx, cmd, options.configPath, runListOptions{
+	entriesCount, usedInteractive, runErr := runList(ctx, cmd, options.configPath, runListOptions{
 		unattended: options.unattended,
 		quiet:      options.quiet,
 	}, deps)
 	finishListSpan(span, runErr == nil)
-	recordListTelemetry(deps.telemetry, entriesCount, usedTUI, runErr)
+	recordListTelemetry(deps.telemetry, entriesCount, usedInteractive, runErr)
 	applyListCommandErrorPolicy(cmd, runErr)
 
 	return runErr
@@ -110,32 +115,67 @@ func listOptionsFromFlags(cmd *cobra.Command) (listCommandOptions, error) {
 	}, nil
 }
 
+type initRequest struct {
+	configPath string
+}
+
+type initRunner func(context.Context, *cobra.Command, initRequest) error
+
+type listDeps struct {
+	fs        afero.Fs
+	output    *output.Output
+	logger    *logger.Logger
+	telemetry func(telemetry.CommandTelemetry)
+	runTea    func(model tea.Model, options ...tea.ProgramOption) (tea.Model, error)
+	runInit   initRunner
+}
+
 func defaultListDeps(cmd *cobra.Command, options listCommandOptions) listDeps {
 	common := cmddeps.NewCommonDeps(cmd, cmddeps.CommonDepsOptions{
 		Quiet: options.quiet,
 		Debug: options.debug,
 	})
 	return listDeps{
-		fs:            common.FS,
-		logger:        common.Logger,
-		output:        common.Output,
-		telemetry:     telemetry.RecordCommand,
-		programRunner: defaultProgramRunner,
+		fs:        common.FS,
+		output:    common.Output,
+		logger:    common.Logger,
+		telemetry: telemetry.RecordCommand,
+		runTea:    defaultRunTea,
+		runInit: func(ctx context.Context, command *cobra.Command, request initRequest) error {
+			return runInteractiveInit(ctx, command, initCmd.InteractiveInitDeps{
+				FS:              common.FS,
+				Output:          common.Output,
+				Logger:          common.Logger,
+				MinecraftClient: common.MinecraftClient,
+				RunTea:          defaultRunTea,
+			}, initCmd.InteractiveInitOptions{
+				ConfigPath: request.configPath,
+				Quiet:      options.quiet,
+				Debug:      options.debug,
+			})
+		},
 	}
 }
+
+func defaultRunTea(model tea.Model, options ...tea.ProgramOption) (tea.Model, error) {
+	program := tea.NewProgram(model, options...)
+	return program.Run()
+}
+
+var runTeaProgram = defaultRunTea
 
 func finishListSpan(span *perf.Span, success bool) {
 	span.SetAttributes(attribute.Bool("success", success))
 	span.End()
 }
 
-func recordListTelemetry(telemetryRecorder func(telemetry.CommandTelemetry), entriesCount int, usedTUI bool, err error) {
+func recordListTelemetry(telemetryRecorder func(telemetry.CommandTelemetry), entriesCount int, usedInteractive bool, err error) {
 	payload := telemetry.CommandTelemetry{
 		Command:     "list",
 		Success:     err == nil,
 		Error:       err,
 		ExitCode:    0,
-		Interactive: usedTUI,
+		Interactive: usedInteractive,
 	}
 	if err != nil {
 		payload.ExitCode = 1
@@ -147,20 +187,6 @@ func recordListTelemetry(telemetryRecorder func(telemetry.CommandTelemetry), ent
 	telemetryRecorder(payload)
 }
 
-type listDeps struct {
-	fs            afero.Fs
-	logger        *logger.Logger
-	output        *output.Output
-	telemetry     func(telemetry.CommandTelemetry)
-	programRunner func(model tea.Model, options ...tea.ProgramOption) error
-}
-
-func defaultProgramRunner(model tea.Model, options ...tea.ProgramOption) error {
-	program := tea.NewProgram(model, options...)
-	_, err := program.Run()
-	return err
-}
-
 type listEntry struct {
 	DisplayName string
 	ID          string
@@ -168,13 +194,6 @@ type listEntry struct {
 	Status      listEntryStatus
 	FileName    string
 }
-
-type listDisplayMode int
-
-const (
-	listDisplayCLI listDisplayMode = iota
-	listDisplayTUI
-)
 
 type listEntryStatus int
 
@@ -184,8 +203,17 @@ const (
 	listEntryHashMismatch
 )
 
-func (mode listDisplayMode) UseTUI() bool {
-	return mode == listDisplayTUI
+type modsFolderReadError struct {
+	path string
+	err  error
+}
+
+func (err *modsFolderReadError) Error() string {
+	return fmt.Sprintf("could not read %s: %s", err.path, err.err)
+}
+
+func (err *modsFolderReadError) Unwrap() error {
+	return err.err
 }
 
 type runListOptions struct {
@@ -193,39 +221,140 @@ type runListOptions struct {
 	quiet      bool
 }
 
+type executionMode int
+
+const (
+	executionModeInteractive executionMode = iota
+	executionModeUnattended
+	executionModeNonTTY
+)
+
+func resolveExecutionMode(options runListOptions, cmd *cobra.Command) executionMode {
+	if options.unattended {
+		return executionModeUnattended
+	}
+	if view.SupportsPrompting(cmd.InOrStdin(), cmd.OutOrStdout()) {
+		return executionModeInteractive
+	}
+	return executionModeNonTTY
+}
+
+type listConfigState struct {
+	Config         models.ModsJSON
+	Lock           []models.ModInstall
+	ShouldContinue bool
+}
+
 func runList(ctx context.Context, cmd *cobra.Command, configPath string, options runListOptions, deps listDeps) (int, bool, error) {
 	meta := config.NewMetadata(configPath)
+	mode := resolveExecutionMode(options, cmd)
 
+	configState, usedInteractive, err := ensureListConfig(ctx, cmd, options, deps, meta, mode)
+	if err != nil {
+		return 0, usedInteractive, err
+	}
+	if !configState.ShouldContinue {
+		return 0, usedInteractive, nil
+	}
+
+	invalidLockWarnings := invalidLockEntries(configState.Lock)
+	if warningErr := writeInvalidLockWarnings(cmd, deps, invalidLockWarnings); warningErr != nil {
+		return 0, usedInteractive, warningErr
+	}
+
+	entries, entriesErr := buildEntries(configState.Config, configState.Lock, meta, deps.fs)
+	if entriesErr != nil {
+		return 0, usedInteractive, handleListModsFolderFailure(cmd, deps, entriesErr)
+	}
+	colorMode := colorModeForWriter(cmd)
+	listView := renderListView(entries, colorMode)
+	if outputErr := runOutputLines(cmd, deps, cmd.OutOrStdout(), []string{listView}); outputErr != nil {
+		return 0, usedInteractive, outputErr
+	}
+
+	unmanagedFiles, unmanagedErr := listUnmanagedFiles(deps.fs, meta, configState.Config, configState.Lock)
+	if unmanagedErr != nil {
+		return 0, usedInteractive, handleListModsFolderPartialFailure(cmd, deps, unmanagedErr)
+	}
+	if len(unmanagedFiles) > 0 {
+		noticeView := renderUnmanagedNotice(unmanagedFiles, colorMode)
+		if noticeErr := runOutputLines(cmd, deps, cmd.OutOrStdout(), []string{"\n" + noticeView}); noticeErr != nil {
+			return 0, usedInteractive, noticeErr
+		}
+	}
+
+	return len(entries), usedInteractive, nil
+}
+
+func ensureListConfig(ctx context.Context, cmd *cobra.Command, options runListOptions, deps listDeps, meta config.Metadata, mode executionMode) (listConfigState, bool, error) {
 	cfg, err := config.ReadConfig(ctx, deps.fs, meta)
+	if err == nil {
+		lock, lockErr := readLockRequired(ctx, deps.fs, meta)
+		if lockErr != nil {
+			return listConfigState{}, mode == executionModeInteractive, handleListFailure(cmd, deps, lockErr)
+		}
+		return listConfigState{Config: cfg, Lock: lock, ShouldContinue: true}, mode == executionModeInteractive, nil
+	}
+
+	var notFound *config.ConfigFileNotFoundException
+	if !errors.As(err, &notFound) {
+		return listConfigState{}, mode == executionModeInteractive, handleListFailure(cmd, deps, err)
+	}
+
+	promptErr := configMissingPromptError(options, cmd, meta)
+	if promptErr != nil {
+		if outputErr := writeConfigMissingOutput(cmd, deps, meta); outputErr != nil {
+			return listConfigState{}, mode == executionModeInteractive, outputErr
+		}
+		return listConfigState{}, mode == executionModeInteractive, clierrors.MarkHandled(promptErr)
+	}
+
+	confirmed, canceled, err := runConfigInitPrompt(cmd, deps, meta)
 	if err != nil {
-		return 0, false, err
+		return listConfigState{}, true, err
+	}
+	if canceled || !confirmed {
+		return listConfigState{ShouldContinue: false}, true, nil
 	}
 
-	lock, err := readLockRequired(ctx, deps.fs, meta)
+	if deps.runInit == nil {
+		return listConfigState{}, true, errors.New("missing init runner")
+	}
+	if runErr := deps.runInit(ctx, cmd, initRequest{configPath: meta.ConfigPath}); runErr != nil {
+		if errors.Is(runErr, initCmd.ErrInitCanceled) {
+			return listConfigState{ShouldContinue: false}, true, nil
+		}
+		return listConfigState{}, true, runErr
+	}
+
+	cfg, err = config.ReadConfig(ctx, deps.fs, meta)
 	if err != nil {
-		return 0, false, handleLockReadError(err, deps.output)
+		return listConfigState{}, true, handleListFailure(cmd, deps, err)
 	}
-	if err := logInvalidLockEntries(lock, deps.output); err != nil {
-		return 0, false, err
-	}
-
-	entries := buildEntries(cfg, lock, meta, deps.fs)
-	useTUI := tui.SupportsPrompting(cmd.InOrStdin(), cmd.OutOrStdout()) && !options.unattended
-	colorize := useTUI || tui.IsTerminalWriter(cmd.OutOrStdout())
-	colorMode := tui.ColorDisabled
-	if colorize {
-		colorMode = tui.ColorEnabled
-	}
-	view := renderListView(entries, colorMode)
-	displayMode := listDisplayCLI
-	if useTUI {
-		displayMode = listDisplayTUI
+	lock, lockErr := readLockRequired(ctx, deps.fs, meta)
+	if lockErr != nil {
+		return listConfigState{}, true, handleListFailure(cmd, deps, lockErr)
 	}
 
-	if err := renderList(ctx, cmd, entries, view, deps, displayMode); err != nil {
-		return 0, useTUI, err
-	}
-	return len(entries), useTUI, nil
+	return listConfigState{Config: cfg, Lock: lock, ShouldContinue: true}, true, nil
+}
+
+func configMissingPromptError(options runListOptions, cmd *cobra.Command, meta config.Metadata) error {
+	return interaction.CheckConfigInitGate(meta, interaction.ConfigInitGate{
+		Unattended: options.unattended,
+		In:         cmd.InOrStdin(),
+		Out:        cmd.OutOrStdout(),
+		UnattendedError: func(meta config.Metadata) error {
+			return errors.New(i18n.T("cmd.list.error.config_missing", &i18n.Tvars{
+				Data: &i18n.TData{"configPath": meta.ConfigPath},
+			}))
+		},
+		NoTTYError: func(meta config.Metadata) error {
+			return errors.New(i18n.T("cmd.list.error.config_missing", &i18n.Tvars{
+				Data: &i18n.TData{"configPath": meta.ConfigPath},
+			}))
+		},
+	})
 }
 
 type lockMissingError struct {
@@ -236,12 +365,8 @@ func (err *lockMissingError) Error() string {
 	return err.message
 }
 
-func handleLockReadError(err error, out *output.Output) error {
-	var lockMissing *lockMissingError
-	if !errors.As(err, &lockMissing) {
-		return err
-	}
-	if outputErr := out.Error(lockMissing.Error()); outputErr != nil {
+func handleListFailure(cmd *cobra.Command, deps listDeps, err error) error {
+	if outputErr := writeListFailureOutput(cmd, deps, err); outputErr != nil {
 		return outputErr
 	}
 	return clierrors.MarkHandled(err)
@@ -265,7 +390,7 @@ func readLockRequired(ctx context.Context, fs afero.Fs, meta config.Metadata) ([
 	return nil, err
 }
 
-func buildEntries(cfg models.ModsJSON, lock []models.ModInstall, meta config.Metadata, fs afero.Fs) []listEntry {
+func buildEntries(cfg models.ModsJSON, lock []models.ModInstall, meta config.Metadata, fs afero.Fs) ([]listEntry, error) {
 	entries := make([]listEntry, 0, len(cfg.Mods))
 
 	for _, mod := range cfg.Mods {
@@ -274,7 +399,10 @@ func buildEntries(cfg models.ModsJSON, lock []models.ModInstall, meta config.Met
 			displayName = mod.ID
 		}
 
-		status := entryStatus(mod, lock, meta, cfg, fs)
+		status, statusErr := entryStatus(mod, lock, meta, cfg, fs)
+		if statusErr != nil {
+			return nil, statusErr
+		}
 		entry := listEntry{
 			DisplayName: displayName,
 			ID:          mod.ID,
@@ -286,15 +414,19 @@ func buildEntries(cfg models.ModsJSON, lock []models.ModInstall, meta config.Met
 		entries = append(entries, entry)
 	}
 
-	sort.Slice(entries, func(i, j int) bool {
+	sort.Slice(entries, func(i int, j int) bool {
 		return strings.ToLower(entries[i].DisplayName) < strings.ToLower(entries[j].DisplayName)
 	})
 
-	return entries
+	return entries, nil
 }
 
 func isInstalled(mod models.Mod, lock []models.ModInstall, meta config.Metadata, cfg models.ModsJSON, fs afero.Fs) bool {
-	return entryStatus(mod, lock, meta, cfg, fs).Status == listEntryInstalled
+	status, err := entryStatus(mod, lock, meta, cfg, fs)
+	if err != nil {
+		return false
+	}
+	return status.Status == listEntryInstalled
 }
 
 type entryStatusResult struct {
@@ -302,82 +434,104 @@ type entryStatusResult struct {
 	FileName string
 }
 
-func entryStatus(mod models.Mod, lock []models.ModInstall, meta config.Metadata, cfg models.ModsJSON, fs afero.Fs) entryStatusResult {
+func entryStatus(mod models.Mod, lock []models.ModInstall, meta config.Metadata, cfg models.ModsJSON, fs afero.Fs) (entryStatusResult, error) {
 	for _, install := range lock {
 		if install.ID != mod.ID || install.Type != mod.Type {
 			continue
 		}
 
-		normalizedFileName, err := modfilename.Normalize(install.FileName)
-		if err != nil {
-			return entryStatusResult{Status: listEntryMissing}
+		normalizedFileName, ok := normalizeLockFileName(install.FileName)
+		if !ok {
+			return entryStatusResult{Status: listEntryMissing}, nil
 		}
 
 		path := filepath.Join(meta.ModsFolderPath(cfg), normalizedFileName)
 		exists, err := afero.Exists(fs, path)
 		if err != nil {
-			return entryStatusResult{Status: listEntryMissing}
+			return entryStatusResult{}, &modsFolderReadError{path: meta.ModsFolderPath(cfg), err: err}
 		}
 		if !exists {
-			return entryStatusResult{Status: listEntryMissing}
+			return entryStatusResult{Status: listEntryMissing}, nil
 		}
 
 		expectedHash := strings.TrimSpace(install.Hash)
 		if expectedHash == "" {
-			return entryStatusResult{Status: listEntryMissing}
+			return entryStatusResult{Status: listEntryMissing}, nil
 		}
 
 		actualHash, err := sha1ForFile(fs, path)
 		if err != nil {
-			return entryStatusResult{Status: listEntryMissing}
+			return entryStatusResult{}, &modsFolderReadError{path: meta.ModsFolderPath(cfg), err: err}
 		}
 		if !strings.EqualFold(expectedHash, actualHash) {
-			return entryStatusResult{Status: listEntryHashMismatch, FileName: normalizedFileName}
+			return entryStatusResult{Status: listEntryHashMismatch, FileName: normalizedFileName}, nil
 		}
 
-		return entryStatusResult{Status: listEntryInstalled, FileName: normalizedFileName}
+		return entryStatusResult{Status: listEntryInstalled, FileName: normalizedFileName}, nil
 	}
 
-	return entryStatusResult{Status: listEntryMissing}
+	return entryStatusResult{Status: listEntryMissing}, nil
 }
 
-func logInvalidLockEntries(lock []models.ModInstall, out *output.Output) error {
+func normalizeLockFileName(fileName string) (string, bool) {
+	normalizedFileName, err := modfilename.Normalize(fileName)
+	if err != nil {
+		return "", false
+	}
+	return normalizedFileName, true
+}
+
+func invalidLockEntries(lock []models.ModInstall) []string {
+	warnings := []string{}
 	for _, install := range lock {
 		if _, err := modfilename.Normalize(install.FileName); err != nil {
 			name := strings.TrimSpace(install.Name)
 			if name == "" {
 				name = install.ID
 			}
-			if err := out.Error(i18n.T("cmd.list.error.invalid_filename_lock", &i18n.Tvars{
+			warnings = append(warnings, i18n.T("cmd.list.error.invalid_filename_lock", &i18n.Tvars{
 				Data: &i18n.TData{
 					"name": name,
 					"file": modfilename.Display(install.FileName),
 				},
-			})); err != nil {
-				return err
-			}
+			}))
 		}
 	}
-	return nil
+	return warnings
 }
 
-func renderListView(entries []listEntry, colorMode tui.ColorMode) string {
+func writeInvalidLockWarnings(cmd *cobra.Command, deps listDeps, warnings []string) error {
+	if len(warnings) == 0 {
+		return nil
+	}
+	return runOutputLines(cmd, deps, cmd.OutOrStdout(), warnings)
+}
+
+func renderListView(entries []listEntry, colorMode view.ColorMode) string {
 	var builder strings.Builder
 
 	if len(entries) == 0 {
 		empty := i18n.T("cmd.list.empty", nil)
-		empty = tui.RenderIfColorEnabled(colorMode, tui.PlaceholderStyle, empty)
+		empty = view.RenderIfColorEnabled(colorMode, view.PlaceholderStyle, empty)
 		return empty
 	}
 
 	header := i18n.T("cmd.list.header", nil)
-	header = tui.RenderIfColorEnabled(colorMode, tui.TitleStyle, header)
+	header = view.RenderIfColorEnabled(colorMode, view.TitleStyle, header)
 	if err := listWriteString(&builder, header); err != nil {
 		return ""
 	}
+	if err := listWriteString(&builder, "\n"); err != nil {
+		return ""
+	}
 
-	for _, entry := range entries {
-		if err := appendListEntry(&builder, entry, colorMode); err != nil {
+	for index, entry := range entries {
+		if index > 0 {
+			if err := listWriteString(&builder, "\n"); err != nil {
+				return ""
+			}
+		}
+		if err := listWriteString(&builder, renderEntry(entry, colorMode)); err != nil {
 			return ""
 		}
 	}
@@ -385,45 +539,26 @@ func renderListView(entries []listEntry, colorMode tui.ColorMode) string {
 	return builder.String()
 }
 
-func appendListEntry(builder *strings.Builder, entry listEntry, colorMode tui.ColorMode) error {
-	if err := listWriteString(builder, "\n"); err != nil {
-		return err
-	}
-	if err := listWriteString(builder, renderEntry(entry, colorMode)); err != nil {
-		return err
-	}
-	return nil
-}
-
-func renderEntry(entry listEntry, colorMode tui.ColorMode) string {
-	icon := tui.ErrorIcon(colorMode)
+func renderEntry(entry listEntry, colorMode view.ColorMode) string {
+	icon := view.ErrorIcon(colorMode)
 	key := "cmd.list.entry.missing"
-	name := entry.DisplayName
-	id := entry.ID
+
+	id := view.RenderIfColorEnabled(colorMode, view.ParenStyle, entry.ID)
+	platform := view.RenderIfColorEnabled(colorMode, view.ParenStyle, entry.Platform.String())
 	data := i18n.TData{
-		"name": name,
-		"id":   id,
+		"name":     entry.DisplayName,
+		"id":       id,
+		"platform": platform,
 	}
+
 	switch entry.Status {
 	case listEntryInstalled:
-		icon = tui.SuccessIcon(colorMode)
+		icon = view.SuccessIcon(colorMode)
 		key = "cmd.list.entry.installed"
 	case listEntryHashMismatch:
 		key = "cmd.list.entry.hash_mismatch"
-		fixCommand := "mmm install"
-		fix := i18n.T("cmd.list.entry.hash_mismatch.fix", &i18n.Tvars{
-			Data: &i18n.TData{
-				"fix_command": fixCommand,
-			},
-		})
-		fix = tui.RenderIfColorEnabled(colorMode, tui.PlaceholderStyle.PaddingLeft(0), fix)
-		data["file"] = modfilename.Display(entry.FileName)
-		data["platform"] = entry.Platform.String()
-		data["fix"] = fix
+		data["fix_command"] = "mmm install"
 	}
-
-	id = tui.RenderIfColorEnabled(colorMode, tui.ParenStyle, id)
-	data["id"] = id
 
 	message := i18n.T(key, &i18n.Tvars{
 		Data: &data,
@@ -432,24 +567,229 @@ func renderEntry(entry listEntry, colorMode tui.ColorMode) string {
 	return fmt.Sprintf("%s %s", icon, message)
 }
 
-func renderList(ctx context.Context, cmd *cobra.Command, entries []listEntry, view string, deps listDeps, displayMode listDisplayMode) error {
-	if !displayMode.UseTUI() {
-		return deps.output.Log(view, output.LogForce)
+func listUnmanagedFiles(fs afero.Fs, meta config.Metadata, cfg models.ModsJSON, lock []models.ModInstall) ([]string, error) {
+	candidates, err := listJarFiles(fs, meta, cfg)
+	if err != nil {
+		return nil, err
 	}
 
-	_, tuiSpan := perf.StartSpan(ctx, "interaction.list.session")
-	model := newModel(view, tuiSpan)
-	if err := deps.programRunner(model, tui.ProgramOptions(cmd.InOrStdin(), cmd.OutOrStdout())...); err != nil {
-		tuiSpan.SetAttributes(attribute.Bool("success", false))
-		tuiSpan.End()
-		return err
+	unmanaged := make([]string, 0, len(candidates))
+	for _, candidate := range candidates {
+		if fileIsManaged(candidate, lock) {
+			continue
+		}
+		unmanaged = append(unmanaged, candidate)
 	}
-	tuiSpan.SetAttributes(attribute.Bool("success", true))
-	tuiSpan.End()
-	if len(entries) == 0 {
-		return deps.output.Log(view, output.LogForce)
+	return unmanaged, nil
+}
+
+func listJarFiles(fs afero.Fs, meta config.Metadata, cfg models.ModsJSON) ([]string, error) {
+	allEntries, err := afero.ReadDir(fs, meta.ModsFolderPath(cfg))
+	if err != nil {
+		return nil, &modsFolderReadError{path: meta.ModsFolderPath(cfg), err: err}
 	}
-	return nil
+
+	candidates := make([]string, 0, len(allEntries))
+	for _, entry := range allEntries {
+		if entry.IsDir() {
+			continue
+		}
+		if !strings.HasSuffix(strings.ToLower(entry.Name()), ".jar") {
+			continue
+		}
+		candidates = append(candidates, filepath.Join(meta.ModsFolderPath(cfg), entry.Name()))
+	}
+
+	patterns, err := mmmignore.ListPatterns(fs, meta.Dir())
+	if err != nil {
+		return nil, &modsFolderReadError{path: filepath.Join(meta.Dir(), ".mmmignore"), err: err}
+	}
+
+	filtered := make([]string, 0, len(candidates))
+	for _, candidate := range candidates {
+		if mmmignore.IsIgnored(meta.ModsFolderPath(cfg), candidate, patterns) {
+			continue
+		}
+		filtered = append(filtered, candidate)
+	}
+	return filtered, nil
+}
+
+func fileIsManaged(filePath string, lock []models.ModInstall) bool {
+	fileName := filepath.Base(filePath)
+	for _, install := range lock {
+		if install.FileName == fileName {
+			return true
+		}
+	}
+	return false
+}
+
+func renderUnmanagedNotice(files []string, colorMode view.ColorMode) string {
+	if len(files) == 0 {
+		return ""
+	}
+
+	var builder strings.Builder
+
+	header := i18n.T("cmd.list.unmanaged.header", nil)
+	header = view.RenderIfColorEnabled(colorMode, view.TitleStyle, header)
+	if err := listWriteString(&builder, header); err != nil {
+		return ""
+	}
+	if err := listWriteString(&builder, "\n"); err != nil {
+		return ""
+	}
+
+	icon := view.ErrorIcon(colorMode)
+	for index, file := range files {
+		if index > 0 {
+			if err := listWriteString(&builder, "\n"); err != nil {
+				return ""
+			}
+		}
+		entry := fmt.Sprintf("%s %s", icon, filepath.Base(file))
+		if err := listWriteString(&builder, entry); err != nil {
+			return ""
+		}
+	}
+
+	if err := listWriteString(&builder, "\n\n"); err != nil {
+		return ""
+	}
+
+	description := i18n.T("cmd.list.unmanaged.description", nil)
+	if err := listWriteString(&builder, description); err != nil {
+		return ""
+	}
+	if err := listWriteString(&builder, "\n"); err != nil {
+		return ""
+	}
+
+	cta := i18n.T("cmd.list.unmanaged.cta", nil)
+	if colorMode.Enabled() {
+		cta = view.CtaStyle.Render(cta)
+	}
+	if err := listWriteString(&builder, cta); err != nil {
+		return ""
+	}
+
+	return builder.String()
+}
+
+func writeListFailureOutput(cmd *cobra.Command, deps listDeps, err error) error {
+	colorMode := colorModeForWriter(cmd)
+	headline := messageWithIcon(view.FinalErrorIcon(colorMode), i18n.T("cmd.list.error.failed", &i18n.Tvars{
+		Data: &i18n.TData{"reason": err.Error()},
+	}))
+	if colorMode.Enabled() {
+		headline = view.ErrorStyle.Render(headline)
+	}
+
+	hint := i18n.T("cmd.list.error.failed_hint", nil)
+	if colorMode.Enabled() {
+		hint = view.CtaStyle.Render(hint)
+	}
+
+	return runOutputLines(cmd, deps, cmd.OutOrStdout(), []string{headline, hint})
+}
+
+func handleListModsFolderFailure(cmd *cobra.Command, deps listDeps, err error) error {
+	var readErr *modsFolderReadError
+	if !errors.As(err, &readErr) {
+		return handleListFailure(cmd, deps, err)
+	}
+	if outputErr := writeListModsFolderFailure(cmd, deps, readErr.path, readErr.err); outputErr != nil {
+		return outputErr
+	}
+	return clierrors.MarkHandled(err)
+}
+
+func handleListModsFolderPartialFailure(cmd *cobra.Command, deps listDeps, err error) error {
+	var readErr *modsFolderReadError
+	if !errors.As(err, &readErr) {
+		return handleListFailure(cmd, deps, err)
+	}
+	if outputErr := writeListModsFolderPartialFailure(cmd, deps, readErr.path, readErr.err); outputErr != nil {
+		return outputErr
+	}
+	return clierrors.MarkHandled(err)
+}
+
+func writeListModsFolderFailure(cmd *cobra.Command, deps listDeps, path string, readErr error) error {
+	colorMode := colorModeForWriter(cmd)
+	headline := messageWithIcon(view.FinalErrorIcon(colorMode), i18n.T("cmd.list.error.mods_folder", &i18n.Tvars{
+		Data: &i18n.TData{
+			"modsFolder": path,
+			"reason":     readErr.Error(),
+		},
+	}))
+	if colorMode.Enabled() {
+		headline = view.ErrorStyle.Render(headline)
+	}
+
+	hint := i18n.T("cmd.list.error.mods_folder_hint", nil)
+	hintSecondary := i18n.T("cmd.list.error.mods_folder_hint_secondary", nil)
+	if colorMode.Enabled() {
+		hint = view.CtaStyle.Render(hint)
+		hintSecondary = view.CtaStyle.Render(hintSecondary)
+	}
+
+	combinedHint := hint + "\n" + hintSecondary
+	return runOutputLines(cmd, deps, cmd.OutOrStdout(), []string{headline, combinedHint})
+}
+
+func writeListModsFolderPartialFailure(cmd *cobra.Command, deps listDeps, path string, readErr error) error {
+	colorMode := colorModeForWriter(cmd)
+	headline := messageWithIcon(view.FinalErrorIcon(colorMode), i18n.T("cmd.list.error.mods_folder_partial", &i18n.Tvars{
+		Data: &i18n.TData{
+			"path":   path,
+			"reason": readErr.Error(),
+		},
+	}))
+	if colorMode.Enabled() {
+		headline = view.ErrorStyle.Render(headline)
+	}
+
+	notice := i18n.T("cmd.list.error.mods_folder_partial_notice", nil)
+	hint := i18n.T("cmd.list.error.mods_folder_partial_hint", nil)
+	if colorMode.Enabled() {
+		hint = view.CtaStyle.Render(hint)
+	}
+
+	combinedHeadline := headline + "\n" + notice
+	return runOutputLines(cmd, deps, cmd.OutOrStdout(), []string{combinedHeadline, hint})
+}
+
+func writeConfigMissingOutput(cmd *cobra.Command, deps listDeps, meta config.Metadata) error {
+	colorMode := colorModeForWriter(cmd)
+	headline := messageWithIcon(view.FinalErrorIcon(colorMode), i18n.T("cmd.list.error.config_missing", &i18n.Tvars{
+		Data: &i18n.TData{"configPath": meta.ConfigPath},
+	}))
+	if colorMode.Enabled() {
+		headline = view.ErrorStyle.Render(headline)
+	}
+
+	hint := i18n.T("cmd.list.error.config_missing_hint", nil)
+	if colorMode.Enabled() {
+		hint = view.CtaStyle.Render(hint)
+	}
+
+	return runOutputLines(cmd, deps, cmd.OutOrStdout(), []string{headline, hint})
+}
+
+func messageWithIcon(icon string, message string) string {
+	return fmt.Sprintf("%s %s", icon, message)
+}
+
+func colorModeForWriter(cmd *cobra.Command) view.ColorMode {
+	if cmd == nil {
+		return view.ColorDisabled
+	}
+	if !view.SupportsColor(cmd.OutOrStdout()) {
+		return view.ColorDisabled
+	}
+	return view.ColorEnabled
 }
 
 func sha1ForFile(fs afero.Fs, path string) (hash string, returnErr error) {

@@ -974,3 +974,14 @@ Loaded persona and core guidance docs; ready to pull mmm-10 details and specs on
 2026-01-04	11:20	mmm-168: renamed internal/tui to internal/view; removed PromptMode/ShouldUseTUI/ShouldPrompt in favor of SupportsPrompting/SupportsColor/SupportsUnicode; perf spans migrated from tui.* to interaction.*; updated docs (terminal guide, perf, telemetry, add/list READMEs).
 2026-01-04	11:56	mmm-153 children updated with notes + acceptance: remove 'tui' vocabulary, rename tui*.go files, use init as reference, keep flows alignment.
 2026-01-04	11:58	mmm-153 parent updated: completion requires all children done and zero 'tui' mentions across codebase.
+2026-01-04	12:02 mmm-158 alignment prep: read ticket/docs (interaction-guidelines, list flow, list spec/guide/command README) and list command code; no children; gaps noted (missing unmanaged notice, output formatting, missing-config gate, replace tui naming, Bubble Tea rendering per ticket).
+2026-01-04	13:05 User directive: when unsure about list UX requirements, consult cmd/mmm/init reference implementation first; only ask user if still unclear.
+2026-01-04	13:26	mmm-158: added list tests to restore 100% coverage; make fmt/lint/coverage/build pass; Windows winhost lint/build/coverage/test-race pass (PSReadLine VT warning).
+2026-01-04	13:47	mmm-158: added cmd.list.confirm_init translations, routed invalid lock warnings to stdout; make fmt/lint/coverage/build pass; Windows winhost lint/build/coverage/test-race pass (PSReadLine VT warning).
+2026-01-04	14:23	mmm-158: aligned list mods-folder errors with new flow frames (full vs partial), added i18n and tests; make fmt/lint/coverage/build pass; Windows winhost lint/build/coverage/test-race pass (PSReadLine VT warning).
+2026-01-04	14:53	mmm-158: updated list frames spacing/header/description per flow; make fmt/lint/coverage/build pass; Windows winhost lint/build/coverage/test-race pass (PSReadLine VT warning).
+2026-01-04	15:09	mmm-158: fixed mods-folder error frame spacing (combined sections) per updated flow; make fmt/lint/coverage/build pass; Windows winhost lint/build/coverage/test-race pass (PSReadLine VT warning).
+2026-01-04	15:26	Updated open mmm-153 child tickets (154/155/157/160/161/162/163/164) with primary references, frame-first acceptance, Bubble Tea-only rule, and removed tui parenthetical examples.
+2026-01-04	15:28	Updated mmm-153 parent with primary references, frame-first acceptance, and Bubble Tea-only rule; removed tui parenthetical examples.
+2026-01-04	15:30	Closed mmm-158 per user request.
+2026-01-04	15:30	Created mmm-170 to define UX for init-on-demand flows when config is created during a command run.

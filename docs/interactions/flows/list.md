@@ -28,6 +28,8 @@ Success looks like (for the user):
 
 - If no config is found, MMM follows the missing-config gate as defined in the [guidelines](../interaction-guidelines.md#missing-config).
 - If a mod has a hash mismatch, MMM reports it as not installed and suggests running `mmm install`.
+- If MMM cannot read the mods folder (or a required jar within it) at any point, MMM prints an actionable error and exits non-zero.
+  - If failure happens after output started, MMM MUST state that output may be incomplete.
 
 ---
 
@@ -42,6 +44,8 @@ States:
 - LIST-02: empty list
 - LIST-03: unmanaged files detected notice (after list)
 - LIST-ERR: failure
+- LIST-ERR-MODS-FOLDER: mods folder cannot be read
+- LIST-ERR-MODS-FOLDER-PARTIAL: mods folder read fails after output started
 
 ### Frame snapshots
 
@@ -51,8 +55,7 @@ States:
 `list`
 
 ```
-Mods:
-
+Installed Mods:
 ✅ Inventory Sorting (inventory-sorting) [modrinth]
 ❌ Some Mod (some-mod) [curseforge] not installed
 ❌ Gamma Mod (mod-c) [modrinth] hash mismatch (run mmm install)
@@ -74,18 +77,15 @@ No mods configured.
 `list`
 
 ```
-Mods:
-
+Installed Mods:
 ✅ Inventory Sorting (inventory-sorting) [modrinth]
 ... (one row per mod, all mods shown)
 
 Unmanaged files detected:
-
-There are jar files in your mods folder that are not in your lock file.
-
 ❌ unmanaged-A.jar
 ❌ unmanaged-B.jar
 
+There are jar files in your mods folder that are not managed by MMM.
 Run mmm scan to adopt or resolve these files.
 ```
 
@@ -100,6 +100,34 @@ Run mmm scan to adopt or resolve these files.
 ‼️ Could not show mod list: <reason>
 
 Fix the configuration and rerun mmm list.
+```
+
+#### LIST-ERR-MODS-FOLDER Mods folder cannot be read
+
+##### Command used
+`list`
+
+```
+‼️ Could not show mod list: could not read mods folder at <modsFolder>: <reason>
+
+Check that the folder exists and that you have read access.
+If this path is wrong, update modsFolder in ./modlist.json.
+```
+
+#### LIST-ERR-MODS-FOLDER-PARTIAL Mods folder read fails after output started
+
+##### Command used
+`list`
+
+```
+Installed Mods:
+✅ Inventory Sorting (inventory-sorting) [modrinth]
+... (one row per mod, output stops early)
+
+‼️ Could not finish mod list: could not read <path>: <reason>
+Output may be incomplete.
+
+Fix the folder access and rerun mmm list.
 ```
 
 ### Unattended behavior
