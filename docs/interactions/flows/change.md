@@ -216,7 +216,7 @@ Switching:
 
 ### Unattended behavior
 
-Unattended mode MUST NOT prompt and MUST NOT launch Bubble Tea.
+Unattended mode MUST NOT prompt.
 This applies when `--unattended` is set.
 
 In unattended mode:
