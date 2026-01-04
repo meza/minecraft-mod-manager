@@ -11,7 +11,7 @@ import (
 
 	"github.com/meza/minecraft-mod-manager/internal/config"
 	"github.com/meza/minecraft-mod-manager/internal/i18n"
-	termui "github.com/meza/minecraft-mod-manager/internal/tui"
+	"github.com/meza/minecraft-mod-manager/internal/view"
 	"github.com/spf13/afero"
 )
 
@@ -22,7 +22,7 @@ type ConfigPathSelectedMessage struct {
 type ConfigPathModel struct {
 	input  textinput.Model
 	help   help.Model
-	keymap termui.TranslatedInputKeyMap
+	keymap view.TranslatedInputKeyMap
 	error  error
 	Value  string
 
@@ -31,14 +31,14 @@ type ConfigPathModel struct {
 
 func NewConfigPathModel(fs afero.Fs) ConfigPathModel {
 	inputModel := textinput.New()
-	inputModel.Prompt = termui.QuestionStyle.Render("? ") + termui.TitleStyle.Render(i18n.T("cmd.init.prompt.config-path.question", nil)) + " "
+	inputModel.Prompt = view.QuestionStyle.Render("? ") + view.TitleStyle.Render(i18n.T("cmd.init.prompt.config-path.question", nil)) + " "
 	inputModel.Width = 10
 	inputModel.Focus()
 
 	return ConfigPathModel{
 		input:  inputModel,
 		help:   help.New(),
-		keymap: termui.TranslatedInputKeyMap{},
+		keymap: view.TranslatedInputKeyMap{},
 		validate: func(value string) error {
 			configPath := config.NewMetadata(value).ConfigPath
 			exists, err := afero.Exists(fs, configPath)
@@ -75,12 +75,12 @@ func (model ConfigPathModel) Update(msg tea.Msg) (ConfigPathModel, tea.Cmd) {
 
 func (model ConfigPathModel) View() string {
 	if model.Value != "" {
-		return fmt.Sprintf("%s%s", model.input.Prompt, termui.SelectedItemStyle.Render(model.Value))
+		return fmt.Sprintf("%s%s", model.input.Prompt, view.SelectedItemStyle.Render(model.Value))
 	}
 
 	errorString := ""
 	if model.error != nil {
-		errorString = termui.ErrorStyle.Render(" <- " + model.error.Error())
+		errorString = view.ErrorStyle.Render(" <- " + model.error.Error())
 	}
 
 	return fmt.Sprintf("%s%s\n\n%s", model.input.View(), errorString, model.help.View(model.keymap))

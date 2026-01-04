@@ -67,8 +67,8 @@ We intentionally cover the whole path from process start to user-visible complet
   - Shared HTTP behavior: `net.http.*` (request, attempt, rate limit wait).
 - Local I/O: `io.config.*`, `io.config.lock.*`, `io.download.*` (and `io.fs.*` when the filesystem is the bottleneck).
 - Interactive sessions:
-  - User actions and state transitions (examples): `tui.<cmd>.state.*`, `tui.<cmd>.action.*`, `interactive.<cmd>.state.*`, `interactive.<cmd>.action.*`.
-  - Thinking time (examples): `tui.<cmd>.wait.<state>`, `interactive.<cmd>.wait.<state>`.
+  - User actions and state transitions (examples): `interaction.<cmd>.state.*`, `interaction.<cmd>.action.*`, `interactive.<cmd>.state.*`, `interactive.<cmd>.action.*`.
+  - Thinking time (examples): `interaction.<cmd>.wait.<state>`, `interactive.<cmd>.wait.<state>`.
 
 See terminal interaction definitions in `docs/interactions/interaction-guidelines.md#execution-contexts`.
 
@@ -126,9 +126,9 @@ If you touch instrumentation, add or update tests using the in-memory span expor
   - Examples: `app.command.add`, `app.command.init`, `app.command.list`, `app.command.version`, `app.command.tui`
 - `platform.*`: orchestration over upstream providers (a stable place to measure public entrypoints like `platform.FetchMod`).
   - Examples: `platform.fetch_mod`
-- `tui.*`: interactive UI work that is not a direct command execution.
-  - Examples: `tui.render`, `tui.model.update`, `tui.prompt`
-  - For user "thinking time", prefer `tui.<command>.wait.<state>` (for example `tui.add.wait.mod_not_found_confirm`).
+- `interaction.*`: interactive UI work that is not a direct command execution.
+  - Examples: `interaction.render`, `interaction.model.update`, `interaction.prompt`
+  - For user "thinking time", prefer `interaction.<command>.wait.<state>` (for example `interaction.add.wait.mod_not_found_confirm`).
 - `api.<provider>.*`: outbound API calls grouped by platform provider.
   - Examples: `api.modrinth.project.get`, `api.modrinth.version.search`, `api.curseforge.project.get`, `api.curseforge.fingerprints.get`
 - `net.http.*`: generic HTTP client behavior that is not provider-specific.

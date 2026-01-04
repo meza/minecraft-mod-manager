@@ -58,12 +58,12 @@ func TestSessionDurationsFromSpans_UsesLifecycleSpanAndSubtractsThinking(t *test
 			EndTime:   base.Add(2 * time.Second),
 		},
 		{
-			Name:      "tui.add.wait.enter_id",
+			Name:      "interaction.add.wait.enter_id",
 			StartTime: base.Add(1 * time.Second),
 			EndTime:   base.Add(1100 * time.Millisecond),
 		},
 		{
-			Name:      "tui.add.wait.confirm",
+			Name:      "interaction.add.wait.confirm",
 			StartTime: base.Add(1050 * time.Millisecond),
 			EndTime:   base.Add(1200 * time.Millisecond),
 		},
@@ -85,12 +85,12 @@ func TestSessionDurationsFromSpans_ThinkingUsesUnionWhenSpansOverlap(t *testing.
 			EndTime:   base.Add(1 * time.Second),
 		},
 		{
-			Name:      "tui.add.wait.one",
+			Name:      "interaction.add.wait.one",
 			StartTime: base.Add(200 * time.Millisecond),
 			EndTime:   base.Add(400 * time.Millisecond),
 		},
 		{
-			Name:      "tui.add.wait.two",
+			Name:      "interaction.add.wait.two",
 			StartTime: base.Add(300 * time.Millisecond),
 			EndTime:   base.Add(500 * time.Millisecond),
 		},
@@ -130,8 +130,8 @@ func TestTotalDurationFromSpanBounds_ReturnsErrorWhenNoValidTimestamps(t *testin
 }
 
 func TestIsThinkingSpanName_MatchesWaitSpans(t *testing.T) {
-	assert.True(t, isThinkingSpanName("tui.add.wait.enter_id"))
-	assert.False(t, isThinkingSpanName("tui.add.session"))
+	assert.True(t, isThinkingSpanName("interaction.add.wait.enter_id"))
+	assert.False(t, isThinkingSpanName("interaction.add.session"))
 	assert.False(t, isThinkingSpanName("app.command.add"))
 }
 
@@ -169,8 +169,8 @@ func TestTotalDurationFromLifecycle_SkipsZeroTimestamps(t *testing.T) {
 func TestThinkingDurationFromSpans_IgnoresInvalidAndNonWaitSpans(t *testing.T) {
 	base := time.Now()
 	thinking := thinkingDurationFromSpans([]SpanSnapshot{
-		{Name: "tui.add.wait.one", StartTime: base.Add(2 * time.Second), EndTime: base.Add(1 * time.Second)},
-		{Name: "tui.add.session", StartTime: base, EndTime: base.Add(1 * time.Second)},
+		{Name: "interaction.add.wait.one", StartTime: base.Add(2 * time.Second), EndTime: base.Add(1 * time.Second)},
+		{Name: "interaction.add.session", StartTime: base, EndTime: base.Add(1 * time.Second)},
 	})
 	assert.Equal(t, time.Duration(0), thinking)
 }
@@ -184,7 +184,7 @@ func TestSessionDurationsFromSpans_ClampsNegativeWorkToZero(t *testing.T) {
 	base := time.Now()
 	durations, err := sessionDurationsFromSpans([]SpanSnapshot{
 		{Name: "app.lifecycle", StartTime: base, EndTime: base.Add(1 * time.Second)},
-		{Name: "tui.add.wait.one", StartTime: base, EndTime: base.Add(2 * time.Second)},
+		{Name: "interaction.add.wait.one", StartTime: base, EndTime: base.Add(2 * time.Second)},
 	})
 	assert.NoError(t, err)
 	assert.Equal(t, time.Duration(0), durations.Work)
@@ -205,8 +205,8 @@ func TestThinkingDurationFromSpans_ReturnsZeroWhenNoWaitSpansPresent(t *testing.
 func TestThinkingDurationFromSpans_SkipsZeroTimestamps(t *testing.T) {
 	base := time.Now()
 	thinking := thinkingDurationFromSpans([]SpanSnapshot{
-		{Name: "tui.add.wait.one", StartTime: time.Time{}, EndTime: base.Add(1 * time.Second)},
-		{Name: "tui.add.wait.two", StartTime: base, EndTime: time.Time{}},
+		{Name: "interaction.add.wait.one", StartTime: time.Time{}, EndTime: base.Add(1 * time.Second)},
+		{Name: "interaction.add.wait.two", StartTime: base, EndTime: time.Time{}},
 	})
 	assert.Equal(t, time.Duration(0), thinking)
 }

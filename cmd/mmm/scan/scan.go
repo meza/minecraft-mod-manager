@@ -30,7 +30,7 @@ import (
 	"github.com/meza/minecraft-mod-manager/internal/perf"
 	"github.com/meza/minecraft-mod-manager/internal/platform"
 	"github.com/meza/minecraft-mod-manager/internal/telemetry"
-	"github.com/meza/minecraft-mod-manager/internal/tui"
+	tui "github.com/meza/minecraft-mod-manager/internal/view"
 )
 
 var runInteractiveInit = initCmd.RunInteractiveInit
@@ -191,18 +191,13 @@ func defaultScanDeps(cmd *cobra.Command, opts scanOptions) scanDeps {
 		Quiet: opts.Quiet,
 		Debug: opts.Debug,
 	})
-	promptMode := tui.PromptEnabled
-	if opts.Unattended {
-		promptMode = tui.PromptDisabled
-	}
-
 	return scanDeps{
 		fs:              common.FS,
 		clients:         common.Clients,
 		minecraftClient: common.MinecraftClient,
 		logger:          common.Logger,
 		output:          common.Output,
-		prompter:        pickPrompter(promptMode, cmd.InOrStdin(), cmd.OutOrStdout()),
+		prompter:        pickPrompter(opts, cmd.InOrStdin(), cmd.OutOrStdout()),
 		telemetry:       telemetry.RecordCommand,
 		runInit: func(ctx context.Context, cmd *cobra.Command, request initRequest) error {
 			return runInteractiveInit(ctx, cmd, initCmd.InteractiveInitDeps{
@@ -225,8 +220,8 @@ func defaultScanDeps(cmd *cobra.Command, opts scanOptions) scanDeps {
 	}
 }
 
-func pickPrompter(promptMode tui.PromptMode, in io.Reader, out io.Writer) prompter {
-	if !tui.ShouldPrompt(promptMode, in, out) {
+func pickPrompter(options scanOptions, in io.Reader, out io.Writer) prompter {
+	if options.Unattended || !tui.SupportsPrompting(in, out) {
 		return noopPrompter{}
 	}
 	return terminalPrompter{in: in, out: out}

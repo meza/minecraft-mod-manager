@@ -14,7 +14,7 @@ import (
 	"github.com/meza/minecraft-mod-manager/internal/modfilename"
 	"github.com/meza/minecraft-mod-manager/internal/perf"
 	"github.com/meza/minecraft-mod-manager/internal/platform"
-	"github.com/meza/minecraft-mod-manager/internal/tui"
+	tui "github.com/meza/minecraft-mod-manager/internal/view"
 	"go.opentelemetry.io/otel/attribute"
 )
 
@@ -232,14 +232,14 @@ func resolveRemoteModWithTUI(ctx context.Context, inputs addResolveInputs, initi
 		projectID: inputs.projectID,
 	}
 	if inputs.commandSpan != nil {
-		inputs.commandSpan.AddEvent("app.command.add.tui.open", perf.WithEventAttributes(
+		inputs.commandSpan.AddEvent("app.command.add.interaction.open", perf.WithEventAttributes(
 			attribute.Int("initial_state", int(initialState)),
 			attribute.String("platform", string(inputs.platformValue)),
 			attribute.String("project_id", inputs.projectID),
 		))
 	}
 
-	tuiCtx, tuiSpan := perf.StartSpan(ctx, "tui.add.session",
+	tuiCtx, tuiSpan := perf.StartSpan(ctx, "interaction.add.session",
 		perf.WithAttributes(
 			attribute.String("platform", string(inputs.platformValue)),
 			attribute.String("project_id", inputs.projectID),

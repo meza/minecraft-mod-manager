@@ -16,7 +16,7 @@ import (
 	"github.com/meza/minecraft-mod-manager/cmd/mmm/test"
 	"github.com/meza/minecraft-mod-manager/internal/config"
 	"github.com/meza/minecraft-mod-manager/internal/models"
-	"github.com/meza/minecraft-mod-manager/internal/tui"
+	tui "github.com/meza/minecraft-mod-manager/internal/view"
 )
 
 func TestRunChangeUpdatesConfigAndRunsInstall(t *testing.T) {

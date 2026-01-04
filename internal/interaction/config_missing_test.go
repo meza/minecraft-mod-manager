@@ -9,7 +9,7 @@ import (
 	"github.com/stretchr/testify/assert"
 
 	"github.com/meza/minecraft-mod-manager/internal/config"
-	"github.com/meza/minecraft-mod-manager/internal/tui"
+	tui "github.com/meza/minecraft-mod-manager/internal/view"
 )
 
 type fakeTerminal struct {

@@ -26,7 +26,7 @@ import (
 	"github.com/meza/minecraft-mod-manager/internal/output"
 	"github.com/meza/minecraft-mod-manager/internal/perf"
 	"github.com/meza/minecraft-mod-manager/internal/telemetry"
-	"github.com/meza/minecraft-mod-manager/internal/tui"
+	tui "github.com/meza/minecraft-mod-manager/internal/view"
 	"go.opentelemetry.io/otel/attribute"
 )
 
@@ -210,11 +210,7 @@ func runList(ctx context.Context, cmd *cobra.Command, configPath string, options
 	}
 
 	entries := buildEntries(cfg, lock, meta, deps.fs)
-	promptMode := tui.PromptEnabled
-	if options.unattended {
-		promptMode = tui.PromptDisabled
-	}
-	useTUI := tui.ShouldUseTUI(promptMode, cmd.InOrStdin(), cmd.OutOrStdout())
+	useTUI := tui.SupportsPrompting(cmd.InOrStdin(), cmd.OutOrStdout()) && !options.unattended
 	colorize := useTUI || tui.IsTerminalWriter(cmd.OutOrStdout())
 	colorMode := tui.ColorDisabled
 	if colorize {
@@ -441,7 +437,7 @@ func renderList(ctx context.Context, cmd *cobra.Command, entries []listEntry, vi
 		return deps.output.Log(view, output.LogForce)
 	}
 
-	_, tuiSpan := perf.StartSpan(ctx, "tui.list.session")
+	_, tuiSpan := perf.StartSpan(ctx, "interaction.list.session")
 	model := newModel(view, tuiSpan)
 	if err := deps.programRunner(model, tui.ProgramOptions(cmd.InOrStdin(), cmd.OutOrStdout())...); err != nil {
 		tuiSpan.SetAttributes(attribute.Bool("success", false))

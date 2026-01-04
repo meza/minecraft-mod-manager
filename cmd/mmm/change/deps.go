@@ -9,7 +9,7 @@ import (
 	"github.com/meza/minecraft-mod-manager/internal/cmddeps"
 	"github.com/meza/minecraft-mod-manager/internal/config"
 	"github.com/meza/minecraft-mod-manager/internal/telemetry"
-	"github.com/meza/minecraft-mod-manager/internal/tui"
+	tui "github.com/meza/minecraft-mod-manager/internal/view"
 )
 
 func newChangeDeps(common cmddeps.CommonDeps, testCmd *cobra.Command, installCmd *cobra.Command) changeDeps {

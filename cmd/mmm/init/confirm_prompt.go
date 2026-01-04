@@ -9,7 +9,7 @@ import (
 	tea "github.com/charmbracelet/bubbletea"
 
 	"github.com/meza/minecraft-mod-manager/internal/i18n"
-	termui "github.com/meza/minecraft-mod-manager/internal/tui"
+	"github.com/meza/minecraft-mod-manager/internal/view"
 )
 
 type confirmOption struct {
@@ -20,7 +20,7 @@ type confirmOption struct {
 type confirmPromptModel struct {
 	input  textinput.Model
 	help   help.Model
-	keymap termui.TranslatedInputKeyMap
+	keymap view.TranslatedInputKeyMap
 	error  error
 	Value  string
 
@@ -69,7 +69,7 @@ func newConfirmPromptModel(question string, messageBuilder func(bool) tea.Msg) c
 	return confirmPromptModel{
 		input:          inputModel,
 		help:           help.New(),
-		keymap:         termui.TranslatedInputKeyMap{},
+		keymap:         view.TranslatedInputKeyMap{},
 		yesOption:      yesOption,
 		noOption:       noOption,
 		messageBuilder: messageBuilder,
@@ -77,8 +77,8 @@ func newConfirmPromptModel(question string, messageBuilder func(bool) tea.Msg) c
 }
 
 func buildConfirmPrompt(question string, yesShort string, noShort string) string {
-	questionPrefix := termui.QuestionStyle.Render("? ")
-	questionText := termui.TitleStyle.Render(question)
+	questionPrefix := view.QuestionStyle.Render("? ")
+	questionText := view.TitleStyle.Render(question)
 	suffixTemplate := i18n.T("cmd.init.prompt.confirm.suffix", nil)
 	suffix := suffixTemplate
 	if strings.Contains(suffixTemplate, "%") {
@@ -112,12 +112,12 @@ func (model confirmPromptModel) Update(msg tea.Msg) (confirmPromptModel, tea.Cmd
 
 func (model confirmPromptModel) View() string {
 	if model.Value != "" {
-		return fmt.Sprintf("%s%s", model.input.Prompt, termui.SelectedItemStyle.Render(model.Value))
+		return fmt.Sprintf("%s%s", model.input.Prompt, view.SelectedItemStyle.Render(model.Value))
 	}
 
 	errorString := ""
 	if model.error != nil {
-		errorString = termui.ErrorStyle.Render(" <- " + model.error.Error())
+		errorString = view.ErrorStyle.Render(" <- " + model.error.Error())
 	}
 
 	return fmt.Sprintf("%s%s\n\n%s", model.input.View(), errorString, model.help.View(model.keymap))

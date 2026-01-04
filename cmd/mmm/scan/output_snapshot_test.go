@@ -12,7 +12,7 @@ import (
 	"github.com/stretchr/testify/assert"
 
 	initCmd "github.com/meza/minecraft-mod-manager/cmd/mmm/init"
-	"github.com/meza/minecraft-mod-manager/internal/tui"
+	tui "github.com/meza/minecraft-mod-manager/internal/view"
 )
 
 func TestScanInitCanceledOutputSnapshot(t *testing.T) {

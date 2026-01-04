@@ -1,19 +1,20 @@
-# internal/tui
+# internal/view
 
-This package is the shared toolbox for Bubble Tea based TUIs in this repo. It does not implement a command's UI by itself; it provides the building blocks so each command can stay consistent.
+This package is the shared toolbox for Bubble Tea based views in this repo. It does not implement a command's UI by itself; it provides the building blocks so each command can stay consistent.
 
 If you are implementing or changing an interactive command, this package is usually where the shared pieces belong (styles, keymaps, terminal detection).
 
-## Terminal detection (when to launch TUI)
+## View capabilities
 
-The CLI tries hard to avoid "half a TUI" when input/output are not terminals (CI, pipes, redirected output).
+The CLI tries hard to avoid "half a view" when input/output are not terminals (CI, pipes, redirected output).
 
-- `ShouldUseTUI(promptMode PromptMode, in io.Reader, out io.Writer) bool`
-- `ShouldPrompt(promptMode PromptMode, in io.Reader, out io.Writer) bool`
+- `SupportsPrompting(in io.Reader, out io.Writer) bool`
+- `SupportsColor(writer io.Writer) bool`
+- `SupportsUnicode() bool`
 - `ProgramOptions(in io.Reader, out io.Writer) []tea.ProgramOption`
 
 `ProgramOptions` disables Bubble Tea's renderer when no terminal is present.
-Use `PromptDisabled` to block prompts and TUI selection when the command is running in unattended mode.
+Commands decide how `--unattended` affects prompting; the view package only reports capabilities.
 
 For tests that need deterministic behavior across platforms:
 

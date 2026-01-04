@@ -28,7 +28,7 @@ import (
 	"github.com/meza/minecraft-mod-manager/internal/output"
 	"github.com/meza/minecraft-mod-manager/internal/perf"
 	"github.com/meza/minecraft-mod-manager/internal/platform"
-	tuiinternal "github.com/meza/minecraft-mod-manager/internal/tui"
+	tuiinternal "github.com/meza/minecraft-mod-manager/internal/view"
 )
 
 func TestRunAdd_Success(t *testing.T) {
@@ -975,7 +975,7 @@ func TestRunAdd_ModNotFoundRetry(t *testing.T) {
 
 	commandSpan.End()
 	assertPerfSpanExists(t, "app.command.add.resolve.attempt")
-	assertPerfEventExists(t, "app.command.add", "app.command.add.tui.open")
+	assertPerfEventExists(t, "app.command.add", "app.command.add.interaction.open")
 }
 
 func TestRunAdd_NoFileRetryAlternate(t *testing.T) {
@@ -1043,7 +1043,7 @@ func TestRunAdd_NoFileRetryAlternate(t *testing.T) {
 
 	commandSpan.End()
 	assertPerfSpanExists(t, "app.command.add.resolve.attempt")
-	assertPerfEventExists(t, "app.command.add", "app.command.add.tui.open")
+	assertPerfEventExists(t, "app.command.add", "app.command.add.interaction.open")
 }
 
 func TestRunAdd_DownloadFailure(t *testing.T) {
@@ -1432,7 +1432,7 @@ func TestRunAdd_UnknownPlatformInteractiveRetry(t *testing.T) {
 
 	commandSpan.End()
 	assertPerfSpanExists(t, "app.command.add.resolve.attempt")
-	assertPerfEventExists(t, "app.command.add", "app.command.add.tui.open")
+	assertPerfEventExists(t, "app.command.add", "app.command.add.interaction.open")
 }
 
 type fakeTTYReader struct {

@@ -12,7 +12,7 @@ import (
 	"github.com/meza/minecraft-mod-manager/internal/httpclient"
 	"github.com/meza/minecraft-mod-manager/internal/i18n"
 	"github.com/meza/minecraft-mod-manager/internal/minecraft"
-	termui "github.com/meza/minecraft-mod-manager/internal/tui"
+	"github.com/meza/minecraft-mod-manager/internal/view"
 )
 
 // GameVersionSelectedMessage signals a selected game version.
@@ -25,7 +25,7 @@ type GameVersionModel struct {
 	tea.Model
 	input  textinput.Model
 	help   help.Model
-	keymap termui.TranslatedInputKeyMap
+	keymap view.TranslatedInputKeyMap
 	error  error
 	Value  string
 
@@ -56,12 +56,12 @@ func (model GameVersionModel) Update(msg tea.Msg) (GameVersionModel, tea.Cmd) {
 // View renders the game version prompt.
 func (model GameVersionModel) View() string {
 	if model.Value != "" {
-		return fmt.Sprintf("%s%s", model.input.Prompt, termui.SelectedItemStyle.Render(model.Value))
+		return fmt.Sprintf("%s%s", model.input.Prompt, view.SelectedItemStyle.Render(model.Value))
 	}
 
 	errorString := ""
 	if model.error != nil {
-		errorString = termui.ErrorStyle.Render(" <- " + model.error.Error())
+		errorString = view.ErrorStyle.Render(" <- " + model.error.Error())
 	}
 
 	return fmt.Sprintf("%s%s\n\n%s", model.input.View(), errorString, model.help.View(model.keymap))
@@ -134,9 +134,9 @@ func NewGameVersionModel(ctx context.Context, minecraftClient httpclient.Doer, g
 	allVersions := minecraft.GetAllMinecraftVersions(ctx, minecraftClient)
 
 	inputModel := textinput.New()
-	inputModel.Prompt = termui.QuestionStyle.Render("? ") + termui.TitleStyle.Render(i18n.T("cmd.init.prompt.game-version.question", nil)) + " "
+	inputModel.Prompt = view.QuestionStyle.Render("? ") + view.TitleStyle.Render(i18n.T("cmd.init.prompt.game-version.question", nil)) + " "
 	inputModel.Placeholder = latestVersion
-	inputModel.PlaceholderStyle = termui.PlaceholderStyle
+	inputModel.PlaceholderStyle = view.PlaceholderStyle
 	width := len(inputModel.Placeholder)
 	if len(gameVersion) > width {
 		width = len(gameVersion)
@@ -158,7 +158,7 @@ func NewGameVersionModel(ctx context.Context, minecraftClient httpclient.Doer, g
 	model := GameVersionModel{
 		input:  inputModel,
 		help:   help.New(),
-		keymap: termui.TranslatedInputKeyMap{},
+		keymap: view.TranslatedInputKeyMap{},
 		validate: func(value string) error {
 			return validateMinecraftVersion(ctx, value, minecraftClient)
 		},

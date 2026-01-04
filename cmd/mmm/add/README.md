@@ -42,7 +42,7 @@ At a high level, `runAdd` does:
 The command only launches the interactive recovery flow when all of these are true:
 
 - `--unattended` is not set
-- stdin and stdout are terminals (checked via `internal/tui.ShouldUseTUI`)
+- stdin and stdout are terminals (checked via `internal/view.SupportsPrompting`)
 
 If the user is piping/redirecting output, or running in CI, we intentionally stay unattended even if `--unattended` is false. `--quiet` only suppresses non-essential output.
 

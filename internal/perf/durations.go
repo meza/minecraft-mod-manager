@@ -105,7 +105,7 @@ func thinkingDurationFromSpans(spans []SpanSnapshot) time.Duration {
 
 func isThinkingSpanName(name string) bool {
 	name = strings.TrimSpace(name)
-	return strings.HasPrefix(name, "tui.") && strings.Contains(name, ".wait.")
+	return strings.HasPrefix(name, "interaction.") && strings.Contains(name, ".wait.")
 }
 
 type timeInterval struct {

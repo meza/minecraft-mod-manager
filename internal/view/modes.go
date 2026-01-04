@@ -1,4 +1,4 @@
-package tui
+package view
 
 type ColorMode int
 
@@ -20,15 +20,4 @@ const (
 
 func (mode QuietMode) Enabled() bool {
 	return mode == QuietEnabled
-}
-
-type PromptMode int
-
-const (
-	PromptDisabled PromptMode = iota
-	PromptEnabled
-)
-
-func (mode PromptMode) Enabled() bool {
-	return mode == PromptEnabled
 }

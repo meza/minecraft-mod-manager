@@ -12,7 +12,7 @@ import (
 
 	"github.com/meza/minecraft-mod-manager/internal/i18n"
 	"github.com/meza/minecraft-mod-manager/internal/models"
-	termui "github.com/meza/minecraft-mod-manager/internal/tui"
+	"github.com/meza/minecraft-mod-manager/internal/view"
 )
 
 type ReleaseTypesSelectedMessage struct {
@@ -42,19 +42,19 @@ func NewReleaseTypesModel(defaults []models.ReleaseType) ReleaseTypesModel {
 	}
 
 	listModel := list.New(items, releaseTypeDelegate{}, 0, 14)
-	listModel.Title = termui.QuestionStyle.Render("? ") + termui.TitleStyle.Render(i18n.T("cmd.init.prompt.release-types.question", nil))
+	listModel.Title = view.QuestionStyle.Render("? ") + view.TitleStyle.Render(i18n.T("cmd.init.prompt.release-types.question", nil))
 	listModel.SetShowStatusBar(false)
 	listModel.SetShowTitle(true)
-	listModel.Styles.Title = termui.TitleStyle
-	listModel.Styles.TitleBar = termui.TitleStyle
-	listModel.Styles.PaginationStyle = termui.PaginationStyle
-	listModel.Styles.HelpStyle = termui.HelpStyle
-	listModel.KeyMap = termui.TranslatedListKeyMap()
+	listModel.Styles.Title = view.TitleStyle
+	listModel.Styles.TitleBar = view.TitleStyle
+	listModel.Styles.PaginationStyle = view.PaginationStyle
+	listModel.Styles.HelpStyle = view.HelpStyle
+	listModel.KeyMap = view.TranslatedListKeyMap()
 	listModel.AdditionalShortHelpKeys = func() []key.Binding {
-		return []key.Binding{termui.Toggle(), termui.Accept(), termui.QuitWithEsc()}
+		return []key.Binding{view.Toggle(), view.Accept(), view.QuitWithEsc()}
 	}
 	listModel.AdditionalFullHelpKeys = func() []key.Binding {
-		return []key.Binding{termui.Toggle(), termui.Accept(), termui.QuitWithEsc()}
+		return []key.Binding{view.Toggle(), view.Accept(), view.QuitWithEsc()}
 	}
 
 	return ReleaseTypesModel{
@@ -94,7 +94,7 @@ func (model ReleaseTypesModel) Update(msg tea.Msg) (ReleaseTypesModel, tea.Cmd) 
 
 func (model ReleaseTypesModel) View() string {
 	if model.error != nil {
-		return model.list.View() + "\n" + termui.ErrorStyle.Render(model.error.Error())
+		return model.list.View() + "\n" + view.ErrorStyle.Render(model.error.Error())
 	}
 
 	return model.list.View()
@@ -154,13 +154,13 @@ func (delegate releaseTypeDelegate) Render(w io.Writer, listModel list.Model, it
 	itemLine := fmt.Sprintf("%s %s", icon, item.value)
 
 	if itemIndex == listModel.Index() {
-		if _, err := fmt.Fprint(w, termui.SelectedItemStyle.Render(focusedReleaseTypePrefix()+itemLine)); err != nil {
+		if _, err := fmt.Fprint(w, view.SelectedItemStyle.Render(focusedReleaseTypePrefix()+itemLine)); err != nil {
 			return
 		}
 		return
 	}
 
-	if _, err := fmt.Fprint(w, termui.ItemStyle.Render(itemLine)); err != nil {
+	if _, err := fmt.Fprint(w, view.ItemStyle.Render(itemLine)); err != nil {
 		return
 	}
 }
@@ -174,14 +174,14 @@ func (item releaseTypeItem) FilterValue() string { return string(item.value) }
 
 func focusedReleaseTypePrefix() string {
 	prefix := "> "
-	if termui.SupportsUnicode() {
+	if view.SupportsUnicode() {
 		prefix = "\u276F "
 	}
 	return prefix
 }
 
 func selectedReleaseTypeIcon() string {
-	if termui.SupportsUnicode() {
+	if view.SupportsUnicode() {
 		return "\u2713"
 	}
 	return "*"

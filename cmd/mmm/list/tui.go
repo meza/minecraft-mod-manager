@@ -13,7 +13,7 @@ type model struct {
 
 func newModel(view string, span *perf.Span) model {
 	if span != nil {
-		span.AddEvent("tui.list.open")
+		span.AddEvent("interaction.list.open")
 	}
 	return model{view: view, span: span}
 }
@@ -26,12 +26,12 @@ func (listModel model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	switch msg.(type) {
 	case tea.KeyMsg:
 		if listModel.span != nil {
-			listModel.span.AddEvent("tui.list.action.exit")
+			listModel.span.AddEvent("interaction.list.action.exit")
 		}
 		return listModel, tea.Quit
 	default:
 		if listModel.span != nil {
-			listModel.span.AddEvent("tui.list.action.exit")
+			listModel.span.AddEvent("interaction.list.action.exit")
 		}
 		return listModel, tea.Quit
 	}

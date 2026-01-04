@@ -10,7 +10,7 @@ import (
 
 	"github.com/meza/minecraft-mod-manager/internal/models"
 	"github.com/meza/minecraft-mod-manager/internal/perf"
-	"github.com/meza/minecraft-mod-manager/internal/tui"
+	tui "github.com/meza/minecraft-mod-manager/internal/view"
 )
 
 func TestListViewSnapshot(t *testing.T) {
@@ -33,7 +33,7 @@ func TestModelView(t *testing.T) {
 	t.Cleanup(perf.Reset)
 	assert.NoError(t, perf.Init(perf.Config{Enabled: true}))
 
-	_, span := perf.StartSpan(context.Background(), "tui.list.session")
+	_, span := perf.StartSpan(context.Background(), "interaction.list.session")
 	m := newModel("example", span)
 	assert.Equal(t, "example", m.View())
 
@@ -43,13 +43,13 @@ func TestModelView(t *testing.T) {
 	spans, err := perf.GetSpans()
 	assert.NoError(t, err)
 
-	s, ok := perf.FindSpanByName(spans, "tui.list.session")
+	s, ok := perf.FindSpanByName(spans, "interaction.list.session")
 	assert.True(t, ok)
 
 	var eventNames []string
 	for _, event := range s.Events {
 		eventNames = append(eventNames, event.Name)
 	}
-	assert.Contains(t, eventNames, "tui.list.open")
-	assert.Contains(t, eventNames, "tui.list.action.exit")
+	assert.Contains(t, eventNames, "interaction.list.open")
+	assert.Contains(t, eventNames, "interaction.list.action.exit")
 }

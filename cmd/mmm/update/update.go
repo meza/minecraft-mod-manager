@@ -7,7 +7,7 @@ import (
 	"github.com/meza/minecraft-mod-manager/internal/cmddeps"
 	"github.com/meza/minecraft-mod-manager/internal/i18n"
 	"github.com/meza/minecraft-mod-manager/internal/perf"
-	"github.com/meza/minecraft-mod-manager/internal/tui"
+	"github.com/meza/minecraft-mod-manager/internal/view"
 	"github.com/spf13/cobra"
 	"go.opentelemetry.io/otel/attribute"
 )
@@ -38,22 +38,18 @@ func runUpdateCommand(cmd *cobra.Command) error {
 		return err
 	}
 
-	promptMode := tui.PromptEnabled
-	if opts.Unattended {
-		promptMode = tui.PromptDisabled
-	}
-	useTUI := tui.ShouldUseTUI(promptMode, cmd.InOrStdin(), cmd.OutOrStdout())
+	useView := view.SupportsPrompting(cmd.InOrStdin(), cmd.OutOrStdout()) && !opts.Unattended
 
 	outWriter := cmd.OutOrStdout()
 	errWriter := cmd.ErrOrStderr()
-	var logProgram *tui.LogProgram
-	if useTUI {
-		logProgram = tui.StartLogProgram(cmd.InOrStdin(), outWriter)
+	var logProgram *view.LogProgram
+	if useView {
+		logProgram = view.StartLogProgram(cmd.InOrStdin(), outWriter)
 		outWriter = logProgram.Writer()
 	}
 
 	installCmd := cmd
-	if useTUI {
+	if useView {
 		installCmd = &cobra.Command{}
 		installCmd.SetOut(wrapWriterWithFD(outWriter, cmd.OutOrStdout()))
 		installCmd.SetErr(errWriter)
@@ -67,8 +63,8 @@ func runUpdateCommand(cmd *cobra.Command) error {
 	})
 	deps := newUpdateDeps(common, installCmd)
 	counts, err := runUpdate(ctx, cmd, opts, deps)
-	if useTUI {
-		err = tui.MergeProgramError(err, logProgram.Stop())
+	if useView {
+		err = view.MergeProgramError(err, logProgram.Stop())
 	}
 	applyUpdateCommandErrorPolicy(cmd, err)
 	span.SetAttributes(attribute.Bool("success", err == nil))

@@ -16,14 +16,14 @@ import (
 	"github.com/meza/minecraft-mod-manager/internal/i18n"
 	"github.com/meza/minecraft-mod-manager/internal/models"
 	"github.com/meza/minecraft-mod-manager/internal/perf"
-	termui "github.com/meza/minecraft-mod-manager/internal/tui"
+	"github.com/meza/minecraft-mod-manager/internal/view"
 )
 
 const mockLatestVersion = "1.21.1"
 
 func TestInitInteractiveFlowStateSnapshots(t *testing.T) {
 	t.Setenv("MMM_TEST", "true")
-	restoreUnicode := termui.SetUnicodeSupportFuncForTesting(func() bool { return true })
+	restoreUnicode := view.SetUnicodeSupportFuncForTesting(func() bool { return true })
 	t.Cleanup(restoreUnicode)
 
 	t.Run("loader", func(t *testing.T) {
@@ -112,7 +112,7 @@ func TestInitInteractiveFlowStateSnapshots(t *testing.T) {
 
 func TestInitInteractiveFlowErrorSnapshots(t *testing.T) {
 	t.Setenv("MMM_TEST", "true")
-	restoreUnicode := termui.SetUnicodeSupportFuncForTesting(func() bool { return true })
+	restoreUnicode := view.SetUnicodeSupportFuncForTesting(func() bool { return true })
 	t.Cleanup(restoreUnicode)
 
 	t.Run("game_version_invalid", func(t *testing.T) {
@@ -196,7 +196,7 @@ func TestInitInteractiveFlowErrorSnapshots(t *testing.T) {
 
 func TestInitInteractiveFlowUnattendedNoTTYSnapshot(t *testing.T) {
 	t.Setenv("MMM_TEST", "true")
-	restoreUnicode := termui.SetUnicodeSupportFuncForTesting(func() bool { return true })
+	restoreUnicode := view.SetUnicodeSupportFuncForTesting(func() bool { return true })
 	t.Cleanup(restoreUnicode)
 
 	// Unattended mode should bypass InteractiveFlow entirely.

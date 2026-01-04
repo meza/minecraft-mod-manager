@@ -27,9 +27,9 @@ See:
 
 Use execution context detection to decide whether the command can run an interactive flow.
 
-Use `internal/tui` as the shared helper for terminal detection and Bubble Tea program options:
-- `internal/tui.ShouldUseTUI(...)` to decide whether prompts are allowed
-- `internal/tui.ProgramOptions(in, out)` to ensure Bubble Tea does not emit terminal control sequences when stdout is not a TTY
+Use `internal/view` as the shared helper for view capabilities and Bubble Tea program options:
+- `internal/view.SupportsPrompting(in, out)` to decide whether prompts are allowed
+- `internal/view.ProgramOptions(in, out)` to ensure Bubble Tea does not emit terminal control sequences when stdout is not a TTY
 
 See `cmd/mmm/init/run.go` for the execution mode selection pattern.
 
@@ -136,8 +136,8 @@ See `docs/interactions/interaction-guidelines.md#validation-plan` for how to val
 
 ## TTY behavior
 
-Use `internal/tui.ProgramOptions(in, out)` when you construct a Bubble Tea program so it disables the renderer when stdin or stdout are not TTYs.
-For tests that need deterministic behavior across platforms, override terminal detection via `tui.SetIsTerminalFuncForTesting(...)` and restore it afterwards.
+Use `internal/view.ProgramOptions(in, out)` when you construct a Bubble Tea program so it disables the renderer when stdin or stdout are not TTYs.
+For tests that need deterministic behavior across platforms, override terminal detection via `view.SetIsTerminalFuncForTesting(...)` and restore it afterwards.
 
 This is the implementation of:
 - `docs/interactions/interaction-guidelines.md#non-interactive-terminal`

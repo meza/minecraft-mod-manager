@@ -39,7 +39,7 @@ func TestModelUpdateKeyMessageQuitsWithSpan(t *testing.T) {
 	t.Cleanup(perf.Reset)
 
 	ctx := context.Background()
-	_, span := perf.StartSpan(ctx, "tui.list.test")
+	_, span := perf.StartSpan(ctx, "interaction.list.test")
 	t.Cleanup(span.End)
 
 	model := newModel("view", span)
@@ -54,7 +54,7 @@ func TestModelUpdateNonKeyMessageQuitsWithSpan(t *testing.T) {
 	t.Cleanup(perf.Reset)
 
 	ctx := context.Background()
-	_, span := perf.StartSpan(ctx, "tui.list.test")
+	_, span := perf.StartSpan(ctx, "interaction.list.test")
 	t.Cleanup(span.End)
 
 	model := newModel("view", span)

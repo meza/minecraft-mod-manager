@@ -26,7 +26,7 @@ import (
 	"github.com/meza/minecraft-mod-manager/internal/modsetup"
 	"github.com/meza/minecraft-mod-manager/internal/output"
 	"github.com/meza/minecraft-mod-manager/internal/platform"
-	"github.com/meza/minecraft-mod-manager/internal/tui"
+	tui "github.com/meza/minecraft-mod-manager/internal/view"
 	"github.com/spf13/afero"
 	"github.com/spf13/cobra"
 	"github.com/stretchr/testify/assert"
@@ -1812,7 +1812,7 @@ func TestPickPrompterReturnsNoopWhenPromptDisabled(t *testing.T) {
 	t.Cleanup(restore)
 
 	tty := fakeTTY{Buffer: &bytes.Buffer{}}
-	prompter := pickPrompter(tui.PromptDisabled, tty, tty)
+	prompter := pickPrompter(scanOptions{Unattended: true}, tty, tty)
 	_, ok := prompter.(noopPrompter)
 	assert.True(t, ok)
 }
@@ -1822,7 +1822,7 @@ func TestPickPrompterReturnsTerminalWhenPromptEnabled(t *testing.T) {
 	t.Cleanup(restore)
 
 	tty := fakeTTY{Buffer: &bytes.Buffer{}}
-	prompter := pickPrompter(tui.PromptEnabled, tty, tty)
+	prompter := pickPrompter(scanOptions{}, tty, tty)
 	_, ok := prompter.(terminalPrompter)
 	assert.True(t, ok)
 }

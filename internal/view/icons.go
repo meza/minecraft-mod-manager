@@ -1,5 +1,4 @@
-// Package tui provides shared terminal UI helpers.
-package tui
+package view
 
 func SuccessIcon(colorMode ColorMode) string {
 	asciiIcon := "V"

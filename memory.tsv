@@ -969,3 +969,8 @@ Loaded persona and core guidance docs; ready to pull mmm-10 details and specs on
 2026-01-04	00:15	Aligned docs/specs/init.md with interactive vs unattended/non-tty behavior; removed q/esc/ctrl+c line from docs/tui-guidelines.md and simplified footer example.
 2026-01-04	00:20	Applied CtaStyle to init success next-steps line and added test to verify CTA styling in init success output.
 2026-01-04	00:40	Closed mmm-156 per user request after CTA styling and doc updates.
+2026-01-04	10:17	mmm-168 alignment: read ticket thread (no details) and reviewed interaction guidelines + terminal guide + bubbletea non-tty + internal/perf + internal/tui + init run flow for execution-mode naming context.
+2026-01-04	10:24	mmm-168 scope: refactor shared space terminology (not cmd/mmm/*). Need domain term to replace 'tui'; perf span taxonomy should align. Must ask user per-doc change; user prefers guide-to-working-with-the-terminal.md updates, avoid interaction-guidelines unless needed.
+2026-01-04	11:20	mmm-168: renamed internal/tui to internal/view; removed PromptMode/ShouldUseTUI/ShouldPrompt in favor of SupportsPrompting/SupportsColor/SupportsUnicode; perf spans migrated from tui.* to interaction.*; updated docs (terminal guide, perf, telemetry, add/list READMEs).
+2026-01-04	11:56	mmm-153 children updated with notes + acceptance: remove 'tui' vocabulary, rename tui*.go files, use init as reference, keep flows alignment.
+2026-01-04	11:58	mmm-153 parent updated: completion requires all children done and zero 'tui' mentions across codebase.

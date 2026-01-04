@@ -33,7 +33,7 @@ Call `Init` once when the process starts, record command outcomes via `RecordCom
 - `app.lifecycle.startup` includes `telemetry.Init()`
 - `app.lifecycle.shutdown` ends before the telemetry flush, so the perf export tree is complete when `telemetry.Shutdown(...)` uploads it
 
-Session telemetry includes the full `internal/perf` span tree under the `performance` property, plus top-level `total_time_ms` and `work_time_ms` (total runtime minus `tui.*.wait.*` thinking time). Perf span attributes can include URLs and filesystem paths; query strings are stripped and usernames in paths are redacted.
+Session telemetry includes the full `internal/perf` span tree under the `performance` property, plus top-level `total_time_ms` and `work_time_ms` (total runtime minus `interaction.*.wait.*` thinking time). Perf span attributes can include URLs and filesystem paths; query strings are stripped and usernames in paths are redacted.
 Some interactive flows use `interactive.*.wait.*` spans for thinking time as well.
 
 ## Runtime lifecycle

@@ -23,7 +23,7 @@ import (
 	"github.com/meza/minecraft-mod-manager/internal/output"
 	"github.com/meza/minecraft-mod-manager/internal/perf"
 	"github.com/meza/minecraft-mod-manager/internal/telemetry"
-	"github.com/meza/minecraft-mod-manager/internal/tui"
+	tui "github.com/meza/minecraft-mod-manager/internal/view"
 )
 
 type pruneOptions struct {
@@ -207,7 +207,7 @@ func shouldDeleteUnmanaged(cmd *cobra.Command, options pruneOptions, deps pruneD
 		return false, nil
 	}
 
-	if !tui.ShouldPrompt(tui.PromptEnabled, cmd.InOrStdin(), cmd.OutOrStdout()) {
+	if !tui.SupportsPrompting(cmd.InOrStdin(), cmd.OutOrStdout()) {
 		return false, reportPromptDisabled(deps.output)
 	}
 	if outputErr := printUnmanagedList(deps.output, colorMode, unmanagedFiles); outputErr != nil {

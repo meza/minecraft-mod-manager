@@ -21,7 +21,7 @@ import (
 	"github.com/meza/minecraft-mod-manager/internal/output"
 	"github.com/meza/minecraft-mod-manager/internal/privacy"
 	"github.com/meza/minecraft-mod-manager/internal/telemetry"
-	termui "github.com/meza/minecraft-mod-manager/internal/tui"
+	"github.com/meza/minecraft-mod-manager/internal/view"
 	"github.com/spf13/afero"
 	"github.com/spf13/cobra"
 	"github.com/stretchr/testify/assert"
@@ -277,7 +277,7 @@ func TestBuildTelemetryPayloadRedactsModsFolderUsername(t *testing.T) {
 
 func TestRunInitCommandDoesNotMarkInteractiveWhenInteractiveFlowWasNotLaunched(t *testing.T) {
 	minecraft.ClearManifestCache()
-	restoreTTY := termui.SetIsTerminalFuncForTesting(func(int) bool { return true })
+	restoreTTY := view.SetIsTerminalFuncForTesting(func(int) bool { return true })
 	t.Cleanup(restoreTTY)
 
 	fs := afero.NewMemMapFs()
@@ -324,7 +324,7 @@ func TestRunInitCommandDoesNotMarkInteractiveWhenInteractiveFlowWasNotLaunched(t
 
 func TestRunInitCommandSwallowsCanceledError(t *testing.T) {
 	minecraft.ClearManifestCache()
-	restoreTTY := termui.SetIsTerminalFuncForTesting(func(int) bool { return true })
+	restoreTTY := view.SetIsTerminalFuncForTesting(func(int) bool { return true })
 	t.Cleanup(restoreTTY)
 
 	fs := afero.NewMemMapFs()
@@ -700,7 +700,7 @@ func TestRunInitUnattendedModsFolderNotDirectoryReportsError(t *testing.T) {
 
 func TestRunInitInteractiveSuccessUsesInteractiveFlow(t *testing.T) {
 	minecraft.ClearManifestCache()
-	restoreTTY := termui.SetIsTerminalFuncForTesting(func(int) bool { return true })
+	restoreTTY := view.SetIsTerminalFuncForTesting(func(int) bool { return true })
 	t.Cleanup(restoreTTY)
 
 	fs := afero.NewMemMapFs()
@@ -750,7 +750,7 @@ func TestRunInitInteractiveSuccessUsesInteractiveFlow(t *testing.T) {
 
 func TestRunInitWithDefaultsSkipsPromptsWhenValuesProvided(t *testing.T) {
 	minecraft.ClearManifestCache()
-	restoreTTY := termui.SetIsTerminalFuncForTesting(func(int) bool { return true })
+	restoreTTY := view.SetIsTerminalFuncForTesting(func(int) bool { return true })
 	t.Cleanup(restoreTTY)
 
 	fs := afero.NewMemMapFs()
@@ -798,7 +798,7 @@ func TestRunInitWithDefaultsSkipsPromptsWhenValuesProvided(t *testing.T) {
 
 func TestRunInitQuietSkipsSuccessOutput(t *testing.T) {
 	minecraft.ClearManifestCache()
-	restoreTTY := termui.SetIsTerminalFuncForTesting(func(int) bool { return true })
+	restoreTTY := view.SetIsTerminalFuncForTesting(func(int) bool { return true })
 	t.Cleanup(restoreTTY)
 
 	fs := afero.NewMemMapFs()
@@ -841,7 +841,7 @@ func TestRunInitQuietSkipsSuccessOutput(t *testing.T) {
 
 func TestRunInitConfigExistsCheckErrorReturns(t *testing.T) {
 	minecraft.ClearManifestCache()
-	restoreTTY := termui.SetIsTerminalFuncForTesting(func(int) bool { return true })
+	restoreTTY := view.SetIsTerminalFuncForTesting(func(int) bool { return true })
 	t.Cleanup(restoreTTY)
 
 	cmd := &cobra.Command{}
@@ -902,7 +902,7 @@ func TestRunInitUnattendedConfigExistsCheckErrorReturns(t *testing.T) {
 
 func TestValidateUnattendedInputsConfigExistsWithForceSucceeds(t *testing.T) {
 	minecraft.ClearManifestCache()
-	restoreTTY := termui.SetIsTerminalFuncForTesting(func(int) bool { return true })
+	restoreTTY := view.SetIsTerminalFuncForTesting(func(int) bool { return true })
 	t.Cleanup(restoreTTY)
 
 	fs := afero.NewMemMapFs()
@@ -1036,7 +1036,7 @@ func TestMarkModsFolderProvided(t *testing.T) {
 }
 
 func TestResolveExecutionMode(t *testing.T) {
-	restoreTerminal := termui.SetIsTerminalFuncForTesting(func(int) bool { return true })
+	restoreTerminal := view.SetIsTerminalFuncForTesting(func(int) bool { return true })
 	t.Cleanup(restoreTerminal)
 
 	cmd := &cobra.Command{}
@@ -1239,7 +1239,7 @@ func TestRunInitWithoutPromptReturnsSuccessOutputError(t *testing.T) {
 
 func TestRunInitInteractiveReturnsOutputError(t *testing.T) {
 	minecraft.ClearManifestCache()
-	restoreTerminal := termui.SetIsTerminalFuncForTesting(func(int) bool { return true })
+	restoreTerminal := view.SetIsTerminalFuncForTesting(func(int) bool { return true })
 	t.Cleanup(restoreTerminal)
 
 	fs := afero.NewMemMapFs()
@@ -1291,7 +1291,7 @@ func TestRunInitInteractiveReturnsOutputError(t *testing.T) {
 
 func TestRunInitInteractiveReturnsInitError(t *testing.T) {
 	minecraft.ClearManifestCache()
-	restoreTerminal := termui.SetIsTerminalFuncForTesting(func(int) bool { return true })
+	restoreTerminal := view.SetIsTerminalFuncForTesting(func(int) bool { return true })
 	t.Cleanup(restoreTerminal)
 
 	fs := afero.NewMemMapFs()
@@ -1337,7 +1337,7 @@ func TestRunInitInteractiveReturnsInitError(t *testing.T) {
 
 func TestRunInitInteractiveReturnsLaunchError(t *testing.T) {
 	minecraft.ClearManifestCache()
-	restoreTerminal := termui.SetIsTerminalFuncForTesting(func(int) bool { return true })
+	restoreTerminal := view.SetIsTerminalFuncForTesting(func(int) bool { return true })
 	t.Cleanup(restoreTerminal)
 
 	cmd := &cobra.Command{}
@@ -1357,7 +1357,7 @@ func TestRunInitInteractiveReturnsLaunchError(t *testing.T) {
 }
 
 func TestRunInitInteractiveReturnsCanceled(t *testing.T) {
-	restoreTerminal := termui.SetIsTerminalFuncForTesting(func(int) bool { return true })
+	restoreTerminal := view.SetIsTerminalFuncForTesting(func(int) bool { return true })
 	t.Cleanup(restoreTerminal)
 
 	cmd := &cobra.Command{}
@@ -1390,9 +1390,9 @@ func TestRunOutputLinesReturnsRunTeaError(t *testing.T) {
 }
 
 func TestWriteUnattendedOutputStylesWhenColorEnabled(t *testing.T) {
-	restoreTerminal := termui.SetIsTerminalFuncForTesting(func(int) bool { return true })
+	restoreTerminal := view.SetIsTerminalFuncForTesting(func(int) bool { return true })
 	t.Cleanup(restoreTerminal)
-	restoreProfile := termui.SetColorProfileFuncForTesting(func() termenv.Profile { return termenv.TrueColor })
+	restoreProfile := view.SetColorProfileFuncForTesting(func() termenv.Profile { return termenv.TrueColor })
 	t.Cleanup(restoreProfile)
 
 	cmd := &cobra.Command{}
@@ -1407,16 +1407,16 @@ func TestWriteUnattendedOutputStylesWhenColorEnabled(t *testing.T) {
 			assert.True(t, ok)
 
 			icon := "!!"
-			if termui.SupportsUnicode() {
+			if view.SupportsUnicode() {
 				icon = "\u203c\ufe0f"
 			}
-			expectedHeadline := termui.ErrorStyle.Render(messageWithIcon(
+			expectedHeadline := view.ErrorStyle.Render(messageWithIcon(
 				icon,
 				i18n.T("cmd.init.error.unattended.config_exists", &i18n.Tvars{
 					Data: &i18n.TData{"configPath": meta.ConfigPath},
 				}),
 			))
-			expectedHint := termui.CtaStyle.Render(
+			expectedHint := view.CtaStyle.Render(
 				i18n.T("cmd.init.error.unattended.config_exists_hint", nil),
 			)
 			assert.Equal(t, []string{expectedHeadline, expectedHint}, outputModel.lines)
@@ -1433,9 +1433,9 @@ func TestWriteUnattendedOutputStylesWhenColorEnabled(t *testing.T) {
 }
 
 func TestWriteInitSuccessStylesCtaWhenColorEnabled(t *testing.T) {
-	restoreTerminal := termui.SetIsTerminalFuncForTesting(func(int) bool { return true })
+	restoreTerminal := view.SetIsTerminalFuncForTesting(func(int) bool { return true })
 	t.Cleanup(restoreTerminal)
-	restoreProfile := termui.SetColorProfileFuncForTesting(func() termenv.Profile { return termenv.TrueColor })
+	restoreProfile := view.SetColorProfileFuncForTesting(func() termenv.Profile { return termenv.TrueColor })
 	t.Cleanup(restoreProfile)
 
 	cmd := &cobra.Command{}
@@ -1462,7 +1462,7 @@ func TestWriteInitSuccessStylesCtaWhenColorEnabled(t *testing.T) {
 					"gameVersion": options.GameVersion,
 				},
 			})
-			expectedHint := termui.CtaStyle.Render(
+			expectedHint := view.CtaStyle.Render(
 				i18n.T("cmd.init.success.next_steps", nil),
 			)
 			assert.Equal(t, []string{expectedHeadline, expectedHint}, outputModel.lines)
@@ -1474,7 +1474,7 @@ func TestWriteInitSuccessStylesCtaWhenColorEnabled(t *testing.T) {
 
 func TestRunInitWithForceSkipsInteractive(t *testing.T) {
 	minecraft.ClearManifestCache()
-	restoreTerminal := termui.SetIsTerminalFuncForTesting(func(int) bool { return true })
+	restoreTerminal := view.SetIsTerminalFuncForTesting(func(int) bool { return true })
 	t.Cleanup(restoreTerminal)
 
 	fs := afero.NewMemMapFs()
@@ -1515,7 +1515,7 @@ func TestRunInitWithForceSkipsInteractive(t *testing.T) {
 }
 
 func TestRunInitInteractiveUsesUpdatedConfigPathInSuccess(t *testing.T) {
-	restoreTerminal := termui.SetIsTerminalFuncForTesting(func(int) bool { return true })
+	restoreTerminal := view.SetIsTerminalFuncForTesting(func(int) bool { return true })
 	t.Cleanup(restoreTerminal)
 
 	fs := afero.NewMemMapFs()
@@ -1573,30 +1573,30 @@ func TestConfigFileExistsReturnsError(t *testing.T) {
 }
 
 func TestColorModeForWriter(t *testing.T) {
-	restoreTerminal := termui.SetIsTerminalFuncForTesting(func(int) bool { return true })
+	restoreTerminal := view.SetIsTerminalFuncForTesting(func(int) bool { return true })
 	t.Cleanup(restoreTerminal)
-	restoreProfile := termui.SetColorProfileFuncForTesting(func() termenv.Profile { return termenv.TrueColor })
+	restoreProfile := view.SetColorProfileFuncForTesting(func() termenv.Profile { return termenv.TrueColor })
 	t.Cleanup(restoreProfile)
 
-	assert.Equal(t, termui.ColorDisabled, colorModeForWriter(nil))
+	assert.Equal(t, view.ColorDisabled, colorModeForWriter(nil))
 
 	cmd := &cobra.Command{}
 	cmd.SetIn(&fakeTTYReader{Reader: bytes.NewReader(nil)})
 	cmd.SetOut(&fakeTTYWriter{})
-	assert.Equal(t, termui.ColorEnabled, colorModeForWriter(cmd))
+	assert.Equal(t, view.ColorEnabled, colorModeForWriter(cmd))
 
 	cmd.SetIn(bytes.NewReader(nil))
 	cmd.SetOut(&fakeTTYWriter{})
-	assert.Equal(t, termui.ColorEnabled, colorModeForWriter(cmd))
+	assert.Equal(t, view.ColorEnabled, colorModeForWriter(cmd))
 
 	cmd.SetIn(&fakeTTYReader{Reader: bytes.NewReader(nil)})
 	cmd.SetOut(io.Discard)
-	assert.Equal(t, termui.ColorDisabled, colorModeForWriter(cmd))
+	assert.Equal(t, view.ColorDisabled, colorModeForWriter(cmd))
 }
 
 func TestRunInitInteractiveErrorPropagates(t *testing.T) {
 	minecraft.ClearManifestCache()
-	restoreTTY := termui.SetIsTerminalFuncForTesting(func(int) bool { return true })
+	restoreTTY := view.SetIsTerminalFuncForTesting(func(int) bool { return true })
 	t.Cleanup(restoreTTY)
 
 	fs := afero.NewMemMapFs()
@@ -1631,7 +1631,7 @@ func TestRunInitInteractiveErrorPropagates(t *testing.T) {
 
 func TestRunInitUnattendedSkipsInteractiveFlow(t *testing.T) {
 	minecraft.ClearManifestCache()
-	restoreTTY := termui.SetIsTerminalFuncForTesting(func(int) bool { return true })
+	restoreTTY := view.SetIsTerminalFuncForTesting(func(int) bool { return true })
 	t.Cleanup(restoreTTY)
 
 	fs := afero.NewMemMapFs()

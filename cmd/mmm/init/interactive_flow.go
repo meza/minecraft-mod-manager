@@ -10,7 +10,7 @@ import (
 	"github.com/meza/minecraft-mod-manager/internal/i18n"
 	"github.com/meza/minecraft-mod-manager/internal/models"
 	"github.com/meza/minecraft-mod-manager/internal/perf"
-	termui "github.com/meza/minecraft-mod-manager/internal/tui"
+	"github.com/meza/minecraft-mod-manager/internal/view"
 	"github.com/spf13/afero"
 	"go.opentelemetry.io/otel/attribute"
 )
@@ -186,8 +186,8 @@ func releaseTypesSection(model CommandModel) string {
 		return model.releaseTypesQuestion.View()
 	}
 
-	question := termui.QuestionStyle.Render("? ") + termui.TitleStyle.Render(i18n.T("cmd.init.prompt.release-types.question", nil))
-	answer := termui.SelectedItemStyle.Render(formatReleaseTypes(model.result.ReleaseTypes))
+	question := view.QuestionStyle.Render("? ") + view.TitleStyle.Render(i18n.T("cmd.init.prompt.release-types.question", nil))
+	answer := view.SelectedItemStyle.Render(formatReleaseTypes(model.result.ReleaseTypes))
 	return question + " " + answer
 }
 
@@ -204,8 +204,8 @@ func modsFolderSection(model CommandModel) string {
 		return model.modsFolderQuestion.View()
 	}
 
-	question := termui.QuestionStyle.Render("? ") + termui.TitleStyle.Render(i18n.T("cmd.init.prompt.mods-folder.question", nil))
-	return question + " " + termui.SelectedItemStyle.Render(value)
+	question := view.QuestionStyle.Render("? ") + view.TitleStyle.Render(i18n.T("cmd.init.prompt.mods-folder.question", nil))
+	return question + " " + view.SelectedItemStyle.Render(value)
 }
 
 func (sections viewSections) forState(current state) []string {

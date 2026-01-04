@@ -1,4 +1,4 @@
-package tui
+package view
 
 import (
 	"io"
@@ -19,46 +19,18 @@ type fakeWriter struct{ io.Writer }
 func (reader fakeReader) Fd() uintptr { return 1 }
 func (writer fakeWriter) Fd() uintptr { return 1 }
 
-func TestShouldUseTUIDisablesWhenPromptDisabled(t *testing.T) {
-	restore := mockTerminalDetection(t, true)
-	defer restore()
-
-	assert.False(t, ShouldUseTUI(PromptDisabled, fakeReader{}, fakeWriter{}))
-}
-
-func TestShouldUseTUIRequiresTerminal(t *testing.T) {
+func TestSupportsPromptingRequiresTerminal(t *testing.T) {
 	restore := mockTerminalDetection(t, false)
 	defer restore()
 
-	assert.False(t, ShouldUseTUI(PromptEnabled, fakeReader{}, fakeWriter{}))
+	assert.False(t, SupportsPrompting(fakeReader{}, fakeWriter{}))
 }
 
-func TestShouldUseTUIWhenTerminal(t *testing.T) {
+func TestSupportsPromptingWhenTerminal(t *testing.T) {
 	restore := mockTerminalDetection(t, true)
 	defer restore()
 
-	assert.True(t, ShouldUseTUI(PromptEnabled, fakeReader{}, fakeWriter{}))
-}
-
-func TestShouldPromptDisablesWhenPromptDisabled(t *testing.T) {
-	restore := mockTerminalDetection(t, true)
-	defer restore()
-
-	assert.False(t, ShouldPrompt(PromptDisabled, fakeReader{}, fakeWriter{}))
-}
-
-func TestShouldPromptRequiresTerminal(t *testing.T) {
-	restore := mockTerminalDetection(t, false)
-	defer restore()
-
-	assert.False(t, ShouldPrompt(PromptEnabled, fakeReader{}, fakeWriter{}))
-}
-
-func TestShouldPromptWhenTerminal(t *testing.T) {
-	restore := mockTerminalDetection(t, true)
-	defer restore()
-
-	assert.True(t, ShouldPrompt(PromptEnabled, fakeReader{}, fakeWriter{}))
+	assert.True(t, SupportsPrompting(fakeReader{}, fakeWriter{}))
 }
 
 func TestQuietModeEnabled(t *testing.T) {

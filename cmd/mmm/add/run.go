@@ -15,7 +15,7 @@ import (
 	"github.com/meza/minecraft-mod-manager/internal/perf"
 	"github.com/meza/minecraft-mod-manager/internal/platform"
 	"github.com/meza/minecraft-mod-manager/internal/telemetry"
-	"github.com/meza/minecraft-mod-manager/internal/tui"
+	tui "github.com/meza/minecraft-mod-manager/internal/view"
 	"github.com/spf13/cobra"
 	"go.opentelemetry.io/otel/attribute"
 )
@@ -87,13 +87,10 @@ func prepareAddConfig(ctx context.Context, opts addOptions, meta config.Metadata
 }
 
 func prepareAddRunState(ctx context.Context, cmd *cobra.Command, opts addOptions, deps addDeps) (addRunState, error) {
-	promptMode := tui.PromptEnabled
-	if opts.Unattended {
-		promptMode = tui.PromptDisabled
-	}
+	useView := tui.SupportsPrompting(cmd.InOrStdin(), cmd.OutOrStdout()) && !opts.Unattended
 	runState := addRunState{
 		meta:             config.NewMetadata(opts.ConfigPath),
-		useTUI:           tui.ShouldUseTUI(promptMode, cmd.InOrStdin(), cmd.OutOrStdout()),
+		useTUI:           useView,
 		setupCoordinator: modsetup.NewSetupCoordinator(deps.fs, deps.minecraftClient, modsetup.Downloader(deps.downloader)),
 	}
 

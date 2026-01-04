@@ -144,7 +144,7 @@ func TestAddTUIModelUpdateCtrlCAddsSpanEvent(t *testing.T) {
 	initPerf(t)
 
 	ctx := context.Background()
-	_, span := perf.StartSpan(ctx, "tui.add.session")
+	_, span := perf.StartSpan(ctx, "interaction.add.session")
 	t.Cleanup(span.End)
 
 	model := addTUIModel{
@@ -162,7 +162,7 @@ func TestAddTUIModelUpdateEscAddsSpanEvent(t *testing.T) {
 	initPerf(t)
 
 	ctx := context.Background()
-	_, span := perf.StartSpan(ctx, "tui.add.session")
+	_, span := perf.StartSpan(ctx, "interaction.add.session")
 	t.Cleanup(span.End)
 
 	model := addTUIModel{
@@ -251,7 +251,7 @@ func TestAddTUIModelUpdateListSelectsPlatformWithSpan(t *testing.T) {
 	initPerf(t)
 
 	ctx := context.Background()
-	_, span := perf.StartSpan(ctx, "tui.add.session")
+	_, span := perf.StartSpan(ctx, "interaction.add.session")
 	t.Cleanup(span.End)
 
 	var called bool
@@ -277,7 +277,7 @@ func TestAddTUIModelUpdateListCancelAddsSpanEvent(t *testing.T) {
 	initPerf(t)
 
 	ctx := context.Background()
-	_, span := perf.StartSpan(ctx, "tui.add.session")
+	_, span := perf.StartSpan(ctx, "interaction.add.session")
 	t.Cleanup(span.End)
 
 	model := addTUIModel{
@@ -397,7 +397,7 @@ func TestAddTUIModelUpdateInputAddsSpanEvent(t *testing.T) {
 	initPerf(t)
 
 	ctx := context.Background()
-	_, span := perf.StartSpan(ctx, "tui.add.session")
+	_, span := perf.StartSpan(ctx, "interaction.add.session")
 	t.Cleanup(span.End)
 
 	var called bool
@@ -449,7 +449,7 @@ func TestAddTUIModelUpdateConfirmYesAddsSpanEvent(t *testing.T) {
 	initPerf(t)
 
 	ctx := context.Background()
-	_, span := perf.StartSpan(ctx, "tui.add.session")
+	_, span := perf.StartSpan(ctx, "interaction.add.session")
 	t.Cleanup(span.End)
 
 	model := addTUIModel{
@@ -482,7 +482,7 @@ func TestAddTUIModelUpdateConfirmNoAddsSpanEvent(t *testing.T) {
 	initPerf(t)
 
 	ctx := context.Background()
-	_, span := perf.StartSpan(ctx, "tui.add.session")
+	_, span := perf.StartSpan(ctx, "interaction.add.session")
 	t.Cleanup(span.End)
 
 	model := addTUIModel{
@@ -500,7 +500,7 @@ func TestAddTUIModelUpdateConfirmNoDirectAddsSpanEvent(t *testing.T) {
 	initPerf(t)
 
 	ctx := context.Background()
-	_, span := perf.StartSpan(ctx, "tui.add.session")
+	_, span := perf.StartSpan(ctx, "interaction.add.session")
 	t.Cleanup(span.End)
 
 	model := addTUIModel{
@@ -638,7 +638,7 @@ func TestAddTUIStartWaitSkipsDone(t *testing.T) {
 func TestAddTUIBeginFetchEndsOverlappingSpan(t *testing.T) {
 	initPerf(t)
 	model := addTUIModel{ctx: context.Background()}
-	_, span := perf.StartSpan(context.Background(), "tui.add.fetch")
+	_, span := perf.StartSpan(context.Background(), "interaction.add.fetch")
 	model.fetchSpan = span
 	model.beginFetch("action", models.MODRINTH, "abc")
 	assert.NotNil(t, model.fetchSpan)

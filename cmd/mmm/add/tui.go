@@ -15,7 +15,7 @@ import (
 	"github.com/meza/minecraft-mod-manager/internal/models"
 	"github.com/meza/minecraft-mod-manager/internal/perf"
 	"github.com/meza/minecraft-mod-manager/internal/platform"
-	"github.com/meza/minecraft-mod-manager/internal/tui"
+	tui "github.com/meza/minecraft-mod-manager/internal/view"
 	"go.opentelemetry.io/otel/attribute"
 )
 
@@ -157,14 +157,14 @@ func (model addTUIModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		case "ctrl+c":
 			model.endWait("abort")
 			if model.sessionSpan != nil {
-				model.sessionSpan.AddEvent("tui.add.action.abort", perf.WithEventAttributes(attribute.String("state", model.stateName())))
+				model.sessionSpan.AddEvent("interaction.add.action.abort", perf.WithEventAttributes(attribute.String("state", model.stateName())))
 			}
 			model.state = addTUIStateAborted
 			return model, tea.Quit
 		case "esc":
 			model.endWait("back")
 			if model.sessionSpan != nil {
-				model.sessionSpan.AddEvent("tui.add.action.back", perf.WithEventAttributes(attribute.String("state", model.stateName())))
+				model.sessionSpan.AddEvent("interaction.add.action.back", perf.WithEventAttributes(attribute.String("state", model.stateName())))
 			}
 			if model.goBack() {
 				return model, nil
@@ -213,7 +213,7 @@ func (model addTUIModel) View() string {
 
 func (model *addTUIModel) enterState(state addTUIState) {
 	if model.sessionSpan != nil {
-		model.sessionSpan.AddEvent("tui.add.state.enter", perf.WithEventAttributes(
+		model.sessionSpan.AddEvent("interaction.add.state.enter", perf.WithEventAttributes(
 			attribute.String("state", model.stateNameFor(state)),
 			attribute.String("failure_platform", string(model.failurePlatform)),
 			attribute.String("failure_project", model.failureProject),
@@ -383,7 +383,7 @@ func (model addTUIModel) handleUnknownPlatformSelection(item addTUIListItem) (te
 	if item.value == "cancel" {
 		model.endWait("cancel")
 		if model.sessionSpan != nil {
-			model.sessionSpan.AddEvent("tui.add.action.cancel", perf.WithEventAttributes(attribute.String("state", model.stateName())))
+			model.sessionSpan.AddEvent("interaction.add.action.cancel", perf.WithEventAttributes(attribute.String("state", model.stateName())))
 		}
 		model.state = addTUIStateAborted
 		return model, tea.Quit
@@ -391,7 +391,7 @@ func (model addTUIModel) handleUnknownPlatformSelection(item addTUIListItem) (te
 
 	model.endWait("select_platform")
 	if model.sessionSpan != nil {
-		model.sessionSpan.AddEvent("tui.add.action.select_platform", perf.WithEventAttributes(
+		model.sessionSpan.AddEvent("interaction.add.action.select_platform", perf.WithEventAttributes(
 			attribute.String("state", model.stateName()),
 			attribute.String("platform", item.value),
 		))
@@ -405,7 +405,7 @@ func (model addTUIModel) handleUnknownPlatformSelection(item addTUIListItem) (te
 func (model addTUIModel) handleModNotFoundPlatformSelection(item addTUIListItem) (tea.Model, tea.Cmd) {
 	model.endWait("select_platform")
 	if model.sessionSpan != nil {
-		model.sessionSpan.AddEvent("tui.add.action.select_platform", perf.WithEventAttributes(
+		model.sessionSpan.AddEvent("interaction.add.action.select_platform", perf.WithEventAttributes(
 			attribute.String("state", model.stateName()),
 			attribute.String("platform", item.value),
 		))
@@ -447,7 +447,7 @@ func (model addTUIModel) handleInputKey(_ tea.KeyMsg) (tea.Model, tea.Cmd) {
 
 	model.endWait("submit_project_id")
 	if model.sessionSpan != nil {
-		model.sessionSpan.AddEvent("tui.add.action.submit_project_id", perf.WithEventAttributes(
+		model.sessionSpan.AddEvent("interaction.add.action.submit_project_id", perf.WithEventAttributes(
 			attribute.String("state", model.stateName()),
 			attribute.String("project_id", value),
 		))
@@ -466,7 +466,7 @@ func (model addTUIModel) updateConfirm(msg tea.Msg) (tea.Model, tea.Cmd) {
 		case "enter", "y", "Y":
 			model.endWait("confirm_yes")
 			if model.sessionSpan != nil {
-				model.sessionSpan.AddEvent("tui.add.action.confirm_yes", perf.WithEventAttributes(attribute.String("state", model.stateName())))
+				model.sessionSpan.AddEvent("interaction.add.action.confirm_yes", perf.WithEventAttributes(attribute.String("state", model.stateName())))
 			}
 			switch model.state {
 			case addTUIStateModNotFoundConfirm:
@@ -483,7 +483,7 @@ func (model addTUIModel) updateConfirm(msg tea.Msg) (tea.Model, tea.Cmd) {
 		case "n", "N":
 			model.endWait("confirm_no")
 			if model.sessionSpan != nil {
-				model.sessionSpan.AddEvent("tui.add.action.confirm_no", perf.WithEventAttributes(attribute.String("state", model.stateName())))
+				model.sessionSpan.AddEvent("interaction.add.action.confirm_no", perf.WithEventAttributes(attribute.String("state", model.stateName())))
 			}
 			model.state = addTUIStateAborted
 			return model, tea.Quit
@@ -500,7 +500,7 @@ func (model addTUIModel) handleFetchResult(msg addTUIFetchResultMsg) (tea.Model,
 		model.resolvedPlatform = msg.platform
 		model.resolvedProject = msg.projectID
 		if model.sessionSpan != nil {
-			model.sessionSpan.AddEvent("tui.add.outcome.resolved", perf.WithEventAttributes(
+			model.sessionSpan.AddEvent("interaction.add.outcome.resolved", perf.WithEventAttributes(
 				attribute.String("platform", string(msg.platform)),
 				attribute.String("project_id", msg.projectID),
 			))
@@ -549,7 +549,7 @@ func (model *addTUIModel) startWait(state addTUIState) {
 		return
 	}
 
-	_, model.waitSpan = perf.StartSpan(model.ctx, "tui.add.wait."+stateName, perf.WithAttributes(attribute.String("state", stateName)))
+	_, model.waitSpan = perf.StartSpan(model.ctx, "interaction.add.wait."+stateName, perf.WithAttributes(attribute.String("state", stateName)))
 }
 
 func (model *addTUIModel) endWait(action string) {
@@ -576,7 +576,7 @@ func (model *addTUIModel) beginFetch(action string, platformValue models.Platfor
 		model.fetchSpan = nil
 	}
 
-	_, model.fetchSpan = perf.StartSpan(model.ctx, "tui.add.fetch",
+	_, model.fetchSpan = perf.StartSpan(model.ctx, "interaction.add.fetch",
 		perf.WithAttributes(
 			attribute.String("action", action),
 			attribute.String("platform", string(platformValue)),

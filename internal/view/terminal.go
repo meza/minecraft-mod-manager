@@ -1,4 +1,4 @@
-package tui
+package view
 
 import (
 	"io"
@@ -68,19 +68,8 @@ func SetColorProfileFuncForTesting(fn func() termenv.Profile) func() {
 	}
 }
 
-// ShouldUseTUI decides if interactive TUI should be launched.
-func ShouldUseTUI(promptMode PromptMode, in io.Reader, out io.Writer) bool {
-	if !promptMode.Enabled() {
-		return false
-	}
-	return IsTerminalReader(in) && IsTerminalWriter(out)
-}
-
-// ShouldPrompt decides if line prompts are allowed.
-func ShouldPrompt(promptMode PromptMode, in io.Reader, out io.Writer) bool {
-	if !promptMode.Enabled() {
-		return false
-	}
+// SupportsPrompting reports whether the provided I/O supports interactive prompting.
+func SupportsPrompting(in io.Reader, out io.Writer) bool {
 	return IsTerminalReader(in) && IsTerminalWriter(out)
 }
 

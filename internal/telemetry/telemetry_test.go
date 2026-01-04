@@ -135,7 +135,7 @@ func TestShutdownEmitsSingleSessionEvent(t *testing.T) {
 	rootCtx, rootSpan := perf.StartSpan(context.Background(), "app.lifecycle")
 	_, cmdSpan := perf.StartSpan(rootCtx, "app.command.list")
 	cmdSpan.End()
-	_, waitSpan := perf.StartSpan(rootCtx, "tui.list.wait.view")
+	_, waitSpan := perf.StartSpan(rootCtx, "interaction.list.wait.view")
 	waitSpan.End()
 	rootSpan.End()
 

@@ -27,7 +27,7 @@ If the file exists but the hash does not match, the entry is reported as not ins
 
 ## Interactive vs unattended behavior
 
-`list` will render through Bubble Tea only when stdin and stdout are terminals and `--unattended` is not set (see `internal/tui.ShouldUseTUI`).
+`list` will render through Bubble Tea only when stdin and stdout are terminals and `--unattended` is not set (see `internal/view.SupportsPrompting`).
 
 When it runs in TUI mode and the list is empty, it also logs the rendered view to stdout. This keeps the result visible even though Bubble Tea exits immediately.
 

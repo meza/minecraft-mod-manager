@@ -15,7 +15,7 @@ import (
 	"github.com/meza/minecraft-mod-manager/internal/minecraft"
 	"github.com/meza/minecraft-mod-manager/internal/models"
 	"github.com/meza/minecraft-mod-manager/internal/perf"
-	termui "github.com/meza/minecraft-mod-manager/internal/tui"
+	"github.com/meza/minecraft-mod-manager/internal/view"
 	"github.com/meza/minecraft-mod-manager/internal/writeerrors"
 	"github.com/spf13/afero"
 	"github.com/spf13/cobra"
@@ -76,7 +76,7 @@ func resolveExecutionMode(options initOptions, cmd *cobra.Command) executionMode
 	if options.Unattended {
 		return executionModeUnattended
 	}
-	if termui.ShouldUseTUI(termui.PromptEnabled, cmd.InOrStdin(), cmd.OutOrStdout()) {
+	if view.SupportsPrompting(cmd.InOrStdin(), cmd.OutOrStdout()) {
 		return executionModeInteractive
 	}
 	return executionModeNonTTY
@@ -183,7 +183,7 @@ func runInteractiveInitWithLaunchFlag(ctx context.Context, cmd *cobra.Command, o
 
 	model := NewModel(sessionCtx, sessionSpan, options, deps, meta, configExists)
 
-	result, err := deps.runTea(model, termui.ProgramOptions(cmd.InOrStdin(), cmd.OutOrStdout())...)
+	result, err := deps.runTea(model, view.ProgramOptions(cmd.InOrStdin(), cmd.OutOrStdout())...)
 	if err != nil {
 		return options, true, err
 	}
@@ -405,14 +405,14 @@ func messageWithIcon(icon string, message string) string {
 	return fmt.Sprintf("%s %s", icon, message)
 }
 
-func colorModeForWriter(cmd *cobra.Command) termui.ColorMode {
+func colorModeForWriter(cmd *cobra.Command) view.ColorMode {
 	if cmd == nil {
-		return termui.ColorDisabled
+		return view.ColorDisabled
 	}
-	if !termui.SupportsColor(cmd.OutOrStdout()) {
-		return termui.ColorDisabled
+	if !view.SupportsColor(cmd.OutOrStdout()) {
+		return view.ColorDisabled
 	}
-	return termui.ColorEnabled
+	return view.ColorEnabled
 }
 
 type unattendedOutputError struct {
@@ -437,7 +437,7 @@ func writeUnattendedOutput(cmd *cobra.Command, deps initDeps, err error) error {
 	}
 	colorMode := colorModeForWriter(cmd)
 	icon := "!!"
-	if colorMode.Enabled() && termui.SupportsUnicode() {
+	if colorMode.Enabled() && view.SupportsUnicode() {
 		icon = "\u203c\ufe0f"
 	}
 	headline := messageWithIcon(
@@ -445,7 +445,7 @@ func writeUnattendedOutput(cmd *cobra.Command, deps initDeps, err error) error {
 		i18n.T(outputErr.messageKey, outputErr.messageVars),
 	)
 	if colorMode.Enabled() {
-		headline = termui.ErrorStyle.Render(headline)
+		headline = view.ErrorStyle.Render(headline)
 	}
 	lines := []string{
 		headline,
@@ -453,7 +453,7 @@ func writeUnattendedOutput(cmd *cobra.Command, deps initDeps, err error) error {
 	if outputErr.hintKey != "" {
 		hint := i18n.T(outputErr.hintKey, nil)
 		if colorMode.Enabled() {
-			hint = termui.CtaStyle.Render(hint)
+			hint = view.CtaStyle.Render(hint)
 		}
 		lines = append(lines, hint)
 	}
@@ -467,7 +467,7 @@ func writeInitSuccess(cmd *cobra.Command, deps initDeps, options initOptions, me
 	colorMode := colorModeForWriter(cmd)
 	nextSteps := i18n.T("cmd.init.success.next_steps", nil)
 	if colorMode.Enabled() {
-		nextSteps = termui.CtaStyle.Render(nextSteps)
+		nextSteps = view.CtaStyle.Render(nextSteps)
 	}
 	lines := []string{
 		i18n.T("cmd.init.success", &i18n.Tvars{

@@ -37,7 +37,7 @@ func TestAddTUIStateSnapshots(t *testing.T) {
 		final := ensureAddTUIModel(t, tm.FinalModel(t))
 		matchSnapshot(t, final.View())
 		spans := finalizeAddTUIPerf(t, &final)
-		assertPerfEventExistsInTUI(t, spans, "tui.add.session", "tui.add.state.enter")
+		assertPerfEventExistsInTUI(t, spans, "interaction.add.session", "interaction.add.state.enter")
 	})
 
 	t.Run("mod_not_found_confirm", func(t *testing.T) {
@@ -51,7 +51,7 @@ func TestAddTUIStateSnapshots(t *testing.T) {
 		final := ensureAddTUIModel(t, tm.FinalModel(t))
 		matchSnapshot(t, final.View())
 		spans := finalizeAddTUIPerf(t, &final)
-		assertPerfEventExistsInTUI(t, spans, "tui.add.session", "tui.add.state.enter")
+		assertPerfEventExistsInTUI(t, spans, "interaction.add.session", "interaction.add.state.enter")
 	})
 
 	t.Run("mod_not_found_select_platform", func(t *testing.T) {
@@ -66,8 +66,8 @@ func TestAddTUIStateSnapshots(t *testing.T) {
 		final := ensureAddTUIModel(t, tm.FinalModel(t))
 		matchSnapshot(t, final.View())
 		spans := finalizeAddTUIPerf(t, &final)
-		assertPerfEventExistsInTUI(t, spans, "tui.add.session", "tui.add.action.confirm_yes")
-		assertPerfEventExistsInTUI(t, spans, "tui.add.session", "tui.add.state.enter")
+		assertPerfEventExistsInTUI(t, spans, "interaction.add.session", "interaction.add.action.confirm_yes")
+		assertPerfEventExistsInTUI(t, spans, "interaction.add.session", "interaction.add.state.enter")
 	})
 
 	t.Run("mod_not_found_enter_project_id", func(t *testing.T) {
@@ -84,8 +84,8 @@ func TestAddTUIStateSnapshots(t *testing.T) {
 		final := ensureAddTUIModel(t, tm.FinalModel(t))
 		matchSnapshot(t, final.View())
 		spans := finalizeAddTUIPerf(t, &final)
-		assertPerfEventExistsInTUI(t, spans, "tui.add.session", "tui.add.action.confirm_yes")
-		assertPerfEventExistsInTUI(t, spans, "tui.add.session", "tui.add.action.select_platform")
+		assertPerfEventExistsInTUI(t, spans, "interaction.add.session", "interaction.add.action.confirm_yes")
+		assertPerfEventExistsInTUI(t, spans, "interaction.add.session", "interaction.add.action.select_platform")
 	})
 
 	t.Run("no_file_confirm", func(t *testing.T) {
@@ -99,7 +99,7 @@ func TestAddTUIStateSnapshots(t *testing.T) {
 		final := ensureAddTUIModel(t, tm.FinalModel(t))
 		matchSnapshot(t, final.View())
 		spans := finalizeAddTUIPerf(t, &final)
-		assertPerfEventExistsInTUI(t, spans, "tui.add.session", "tui.add.state.enter")
+		assertPerfEventExistsInTUI(t, spans, "interaction.add.session", "interaction.add.state.enter")
 	})
 
 	t.Run("no_file_enter_project_id", func(t *testing.T) {
@@ -114,7 +114,7 @@ func TestAddTUIStateSnapshots(t *testing.T) {
 		final := ensureAddTUIModel(t, tm.FinalModel(t))
 		matchSnapshot(t, final.View())
 		spans := finalizeAddTUIPerf(t, &final)
-		assertPerfEventExistsInTUI(t, spans, "tui.add.session", "tui.add.action.confirm_yes")
+		assertPerfEventExistsInTUI(t, spans, "interaction.add.session", "interaction.add.action.confirm_yes")
 	})
 
 	t.Run("fatal_error", func(t *testing.T) {
@@ -136,8 +136,8 @@ func TestAddTUIStateSnapshots(t *testing.T) {
 		final := ensureAddTUIModel(t, tm.FinalModel(t))
 		matchSnapshot(t, final.View())
 		spans := finalizeAddTUIPerf(t, &final)
-		assertPerfEventExistsInTUI(t, spans, "tui.add.session", "tui.add.action.select_platform")
-		assertPerfSpanExistsInTUI(t, spans, "tui.add.fetch")
+		assertPerfEventExistsInTUI(t, spans, "interaction.add.session", "interaction.add.action.select_platform")
+		assertPerfSpanExistsInTUI(t, spans, "interaction.add.fetch")
 	})
 
 	t.Run("done", func(t *testing.T) {
@@ -164,8 +164,8 @@ func TestAddTUIStateSnapshots(t *testing.T) {
 		final := ensureAddTUIModel(t, tm.FinalModel(t))
 		matchSnapshot(t, final.View())
 		spans := finalizeAddTUIPerf(t, &final)
-		assertPerfEventExistsInTUI(t, spans, "tui.add.session", "tui.add.outcome.resolved")
-		assertPerfSpanExistsInTUI(t, spans, "tui.add.fetch")
+		assertPerfEventExistsInTUI(t, spans, "interaction.add.session", "interaction.add.outcome.resolved")
+		assertPerfSpanExistsInTUI(t, spans, "interaction.add.fetch")
 	})
 
 	t.Run("aborted", func(t *testing.T) {
@@ -177,7 +177,7 @@ func TestAddTUIStateSnapshots(t *testing.T) {
 		final := ensureAddTUIModel(t, tm.FinalModel(t))
 		matchSnapshot(t, final.View())
 		spans := finalizeAddTUIPerf(t, &final)
-		assertPerfEventExistsInTUI(t, spans, "tui.add.session", "tui.add.action.abort")
+		assertPerfEventExistsInTUI(t, spans, "interaction.add.session", "interaction.add.action.abort")
 	})
 }
 
@@ -213,7 +213,7 @@ func TestAddTUIThinkingTime_RecordsWaitRegions(t *testing.T) {
 
 	final := ensureAddTUIModel(t, tm.FinalModel(t))
 	spans := finalizeAddTUIPerf(t, &final)
-	assertPerfSpanExistsInTUI(t, spans, "tui.add.wait.unknown_platform_select")
+	assertPerfSpanExistsInTUI(t, spans, "interaction.add.wait.unknown_platform_select")
 }
 
 func waitForOutput(t *testing.T, tm *teatest.TestModel, contains string) {
@@ -248,7 +248,7 @@ func startAddTUIPerf(t *testing.T) (context.Context, *perf.Span) {
 	perf.Reset()
 	t.Cleanup(perf.Reset)
 	assert.NoError(t, perf.Init(perf.Config{Enabled: true}))
-	ctx, span := perf.StartSpan(context.Background(), "tui.add.session")
+	ctx, span := perf.StartSpan(context.Background(), "interaction.add.session")
 	return ctx, span
 }
 
