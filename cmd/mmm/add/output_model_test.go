@@ -1,4 +1,4 @@
-package list
+package add
 
 import (
 	"bytes"
@@ -14,6 +14,14 @@ import (
 
 	"github.com/meza/minecraft-mod-manager/internal/view"
 )
+
+type outputErrorWriter struct {
+	err error
+}
+
+func (writer outputErrorWriter) Write([]byte) (int, error) {
+	return 0, writer.err
+}
 
 func TestOutputLinesModelInitWithEmptyLinesQuits(t *testing.T) {
 	model := outputLinesModel{Lines: []string{}}
@@ -35,7 +43,7 @@ func TestOutputLineCmdReturnsErrorOnNilWriter(t *testing.T) {
 
 func TestOutputLineCmdReturnsErrorOnWriteFailure(t *testing.T) {
 	writeErr := errors.New("write failed")
-	cmd := outputLineCmd(errorWriter{err: writeErr}, "line")
+	cmd := outputLineCmd(outputErrorWriter{err: writeErr}, "line")
 	msg := cmd()
 	typed, ok := msg.(outputLineErrorMsg)
 	if !assert.True(t, ok) {
@@ -73,7 +81,7 @@ func TestRunOutputLinesWritesToWriter(t *testing.T) {
 	command.SetOut(buffer)
 	command.SetErr(io.Discard)
 
-	deps := listDeps{runTea: defaultRunTea}
+	deps := addDeps{runTea: defaultRunTea}
 	err := runOutputLines(command, deps, buffer, []string{"hello"})
 	require.NoError(t, err)
 	assert.Equal(t, "hello\n", buffer.String())
@@ -85,7 +93,7 @@ func TestRunOutputLinesUsesDefaultRunnerWhenNil(t *testing.T) {
 	command.SetOut(buffer)
 	command.SetErr(io.Discard)
 
-	err := runOutputLines(command, listDeps{}, buffer, []string{"hello"})
+	err := runOutputLines(command, addDeps{}, buffer, []string{"hello"})
 	require.NoError(t, err)
 	assert.Equal(t, "hello\n", buffer.String())
 }
@@ -96,7 +104,7 @@ func TestRunOutputLinesReturnsRunTeaError(t *testing.T) {
 	command.SetErr(io.Discard)
 
 	runErr := errors.New("run tea failed")
-	deps := listDeps{
+	deps := addDeps{
 		runTea: func(model tea.Model, options ...tea.ProgramOption) (tea.Model, error) {
 			return nil, runErr
 		},

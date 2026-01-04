@@ -186,7 +186,7 @@ func TestDownloadFile(t *testing.T) {
 		assert.Equal(t, 1, len(program.SentMessages()))
 
 		// Verify the progress message
-		_, ok := program.SentMessages()[0].(progressMsg)
+		_, ok := program.SentMessages()[0].(DownloadProgressMsg)
 		assert.True(t, ok)
 	})
 
@@ -400,15 +400,15 @@ func (program valueProgram) Send(_ tea.Msg) {}
 
 func TestSendProgressWithProgram(t *testing.T) {
 	program := &mockProgram{}
-	sendProgress(program, progressMsg(0.5))
+	sendProgress(program, DownloadProgressMsg{Ratio: 0.5})
 	assert.Len(t, program.SentMessages(), 1)
-	_, ok := program.SentMessages()[0].(progressMsg)
+	_, ok := program.SentMessages()[0].(DownloadProgressMsg)
 	assert.True(t, ok)
 }
 
 func TestSendProgressWithNilProgram(t *testing.T) {
 	assert.NotPanics(t, func() {
-		sendProgress(nil, progressMsg(0.5))
+		sendProgress(nil, DownloadProgressMsg{Ratio: 0.5})
 	})
 }
 

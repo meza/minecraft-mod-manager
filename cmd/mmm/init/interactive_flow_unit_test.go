@@ -20,6 +20,7 @@ import (
 	"github.com/meza/minecraft-mod-manager/internal/minecraft"
 	"github.com/meza/minecraft-mod-manager/internal/models"
 	"github.com/meza/minecraft-mod-manager/internal/perf"
+	"github.com/meza/minecraft-mod-manager/internal/view"
 )
 
 func TestGameVersionModelInitReturnsNil(t *testing.T) {
@@ -664,11 +665,11 @@ func TestCommandModelUpdateConfigPathMessage(t *testing.T) {
 }
 
 func TestCommandModelViewReturnsEmptyOnWriteError(t *testing.T) {
-	originalWriteString := writeString
+	originalWriteString := view.WriteString
 	t.Cleanup(func() {
-		writeString = originalWriteString
+		view.WriteString = originalWriteString
 	})
-	writeString = func(builder *strings.Builder, value string) error {
+	view.WriteString = func(writer io.Writer, value string) error {
 		return errors.New("write failed")
 	}
 
@@ -692,11 +693,11 @@ func TestCommandModelViewReturnsEmptyOnWriteError(t *testing.T) {
 }
 
 func TestCommandModelViewReturnsEmptyOnConfigExistsWriteError(t *testing.T) {
-	originalWriteString := writeString
+	originalWriteString := view.WriteString
 	t.Cleanup(func() {
-		writeString = originalWriteString
+		view.WriteString = originalWriteString
 	})
-	writeString = func(builder *strings.Builder, value string) error {
+	view.WriteString = func(writer io.Writer, value string) error {
 		return errors.New("write failed")
 	}
 
@@ -710,11 +711,11 @@ func TestCommandModelViewReturnsEmptyOnConfigExistsWriteError(t *testing.T) {
 }
 
 func TestCommandModelViewReturnsEmptyOnConfigPathWriteError(t *testing.T) {
-	originalWriteString := writeString
+	originalWriteString := view.WriteString
 	t.Cleanup(func() {
-		writeString = originalWriteString
+		view.WriteString = originalWriteString
 	})
-	writeString = func(builder *strings.Builder, value string) error {
+	view.WriteString = func(writer io.Writer, value string) error {
 		return errors.New("write failed")
 	}
 
@@ -728,87 +729,83 @@ func TestCommandModelViewReturnsEmptyOnConfigPathWriteError(t *testing.T) {
 }
 
 func TestRenderViewSectionsWithTrailingNewlineError(t *testing.T) {
-	originalWriteString := writeString
+	originalWriteString := view.WriteString
 	t.Cleanup(func() {
-		writeString = originalWriteString
+		view.WriteString = originalWriteString
 	})
-	writeString = func(builder *strings.Builder, value string) error {
+	view.WriteString = func(writer io.Writer, value string) error {
 		if value == "\n" {
 			return errors.New("write failed")
 		}
-		_, err := builder.WriteString(value)
-		return err
+		return writeStringToBuilder(writer, value)
 	}
 
-	result := renderViewSectionsWithTrailingNewline([]string{"section"})
+	result := view.RenderViewSectionsWithTrailingNewline([]string{"section"}, view.SectionSeparatorLine)
 	assert.Equal(t, "", result)
 }
 
 func TestRenderViewSectionsBuilderError(t *testing.T) {
-	originalWriteString := writeString
+	originalWriteString := view.WriteString
 	t.Cleanup(func() {
-		writeString = originalWriteString
+		view.WriteString = originalWriteString
 	})
-	writeString = func(builder *strings.Builder, value string) error {
+	view.WriteString = func(writer io.Writer, value string) error {
 		if value == "boom" {
 			return errors.New("write failed")
 		}
-		_, err := builder.WriteString(value)
-		return err
+		return writeStringToBuilder(writer, value)
 	}
 
-	builder, ok := renderViewSectionsBuilder([]string{"boom"})
+	builder, ok := view.RenderViewSectionsBuilder([]string{"boom"}, view.SectionSeparatorLine)
 	assert.False(t, ok)
 	assert.Equal(t, "", builder.String())
 }
 
 func TestRenderViewSectionsBuilderSuccess(t *testing.T) {
-	builder, ok := renderViewSectionsBuilder([]string{"one", "two"})
+	builder, ok := view.RenderViewSectionsBuilder([]string{"one", "two"}, view.SectionSeparatorLine)
 	assert.True(t, ok)
 	assert.Contains(t, builder.String(), "one")
 	assert.Contains(t, builder.String(), "two")
 }
 
 func TestRenderViewSectionsBuilderSkipsEmptySection(t *testing.T) {
-	builder, ok := renderViewSectionsBuilder([]string{"", "one"})
+	builder, ok := view.RenderViewSectionsBuilder([]string{"", "one"}, view.SectionSeparatorLine)
 	assert.True(t, ok)
 	assert.Equal(t, "one", builder.String())
 }
 
 func TestRenderViewSectionsWithTrailingNewlineSuccess(t *testing.T) {
-	result := renderViewSectionsWithTrailingNewline([]string{"one"})
+	result := view.RenderViewSectionsWithTrailingNewline([]string{"one"}, view.SectionSeparatorLine)
 	assert.Contains(t, result, "one")
 	assert.Equal(t, "\n", result[len(result)-1:])
 }
 
 func TestRenderViewSectionsWithTrailingNewlineBuilderError(t *testing.T) {
-	originalWriteString := writeString
+	originalWriteString := view.WriteString
 	t.Cleanup(func() {
-		writeString = originalWriteString
+		view.WriteString = originalWriteString
 	})
-	writeString = func(builder *strings.Builder, value string) error {
+	view.WriteString = func(writer io.Writer, value string) error {
 		if value == "boom" {
 			return errors.New("write failed")
 		}
-		_, err := builder.WriteString(value)
-		return err
+		return writeStringToBuilder(writer, value)
 	}
 
-	result := renderViewSectionsWithTrailingNewline([]string{"boom"})
+	result := view.RenderViewSectionsWithTrailingNewline([]string{"boom"}, view.SectionSeparatorLine)
 	assert.Equal(t, "", result)
 }
 
 func TestCommandModelViewReturnsEmptyOnSecondaryWriteError(t *testing.T) {
-	originalWriteString := writeString
+	originalWriteString := view.WriteString
 	t.Cleanup(func() {
-		writeString = originalWriteString
+		view.WriteString = originalWriteString
 	})
-	writeString = func(builder *strings.Builder, value string) error {
+	view.WriteString = func(writer io.Writer, value string) error {
 		if value == "\n" {
 			return errors.New("write failed")
 		}
-		_, err := builder.WriteString(value)
-		return err
+		return writeStringToBuilder(writer, value)
 	}
 
 	fs := afero.NewMemMapFs()
@@ -833,16 +830,15 @@ func TestCommandModelViewReturnsEmptyOnSecondaryWriteError(t *testing.T) {
 }
 
 func TestCommandModelViewReturnsEmptyOnTrailingNewlineError(t *testing.T) {
-	originalWriteString := writeString
+	originalWriteString := view.WriteString
 	t.Cleanup(func() {
-		writeString = originalWriteString
+		view.WriteString = originalWriteString
 	})
-	writeString = func(builder *strings.Builder, value string) error {
+	view.WriteString = func(writer io.Writer, value string) error {
 		if value == "\n" {
 			return errors.New("write failed")
 		}
-		_, err := builder.WriteString(value)
-		return err
+		return writeStringToBuilder(writer, value)
 	}
 
 	fs := afero.NewMemMapFs()
@@ -875,12 +871,12 @@ func TestCommandModelViewReturnsEmptyOnTrailingNewlineError(t *testing.T) {
 }
 
 func TestCommandModelViewReturnsEmptyOnReleaseTypesWriteError(t *testing.T) {
-	originalWriteString := writeString
+	originalWriteString := view.WriteString
 	t.Cleanup(func() {
-		writeString = originalWriteString
+		view.WriteString = originalWriteString
 	})
 	callCount := 0
-	writeString = func(builder *strings.Builder, value string) error {
+	view.WriteString = func(writer io.Writer, value string) error {
 		callCount++
 		if callCount == 3 {
 			return errors.New("write failed")
@@ -907,12 +903,12 @@ func TestCommandModelViewReturnsEmptyOnReleaseTypesWriteError(t *testing.T) {
 }
 
 func TestCommandModelViewReturnsEmptyOnModsFolderWriteError(t *testing.T) {
-	originalWriteString := writeString
+	originalWriteString := view.WriteString
 	t.Cleanup(func() {
-		writeString = originalWriteString
+		view.WriteString = originalWriteString
 	})
 	callCount := 0
-	writeString = func(builder *strings.Builder, value string) error {
+	view.WriteString = func(writer io.Writer, value string) error {
 		callCount++
 		if callCount == 4 {
 			return errors.New("write failed")
@@ -1781,6 +1777,15 @@ func TestNextMissingState(t *testing.T) {
 
 	model.result.Provided.ModsFolder = true
 	assert.Equal(t, done, nextMissingState(model))
+}
+
+func writeStringToBuilder(writer io.Writer, value string) error {
+	builder, ok := writer.(*strings.Builder)
+	if !ok {
+		return errors.New("unexpected writer")
+	}
+	_, err := builder.WriteString(value)
+	return err
 }
 
 type fakeListItem struct{}

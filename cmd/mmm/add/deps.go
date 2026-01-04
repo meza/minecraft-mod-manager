@@ -16,8 +16,12 @@ func newAddDeps(common cmddeps.CommonDeps) addDeps {
 		output:          common.Output,
 		fetchMod:        platform.FetchMod,
 		downloader:      httpclient.DownloadFile,
-		runTea: func(model tea.Model, options ...tea.ProgramOption) (tea.Model, error) {
-			return tea.NewProgram(model, options...).Run()
-		},
+		runTea:          defaultRunTea,
 	}
 }
+
+func defaultRunTea(model tea.Model, options ...tea.ProgramOption) (tea.Model, error) {
+	return tea.NewProgram(model, options...).Run()
+}
+
+var runTeaProgram = defaultRunTea

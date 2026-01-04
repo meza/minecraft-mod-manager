@@ -33,11 +33,6 @@ import (
 	"github.com/meza/minecraft-mod-manager/internal/view"
 )
 
-var listWriteString = func(builder *strings.Builder, value string) error {
-	_, err := builder.WriteString(value)
-	return err
-}
-
 var runInteractiveInit = initCmd.RunInteractiveInit
 
 func Command() *cobra.Command {
@@ -221,24 +216,6 @@ type runListOptions struct {
 	quiet      bool
 }
 
-type executionMode int
-
-const (
-	executionModeInteractive executionMode = iota
-	executionModeUnattended
-	executionModeNonTTY
-)
-
-func resolveExecutionMode(options runListOptions, cmd *cobra.Command) executionMode {
-	if options.unattended {
-		return executionModeUnattended
-	}
-	if view.SupportsPrompting(cmd.InOrStdin(), cmd.OutOrStdout()) {
-		return executionModeInteractive
-	}
-	return executionModeNonTTY
-}
-
 type listConfigState struct {
 	Config         models.ModsJSON
 	Lock           []models.ModInstall
@@ -247,7 +224,11 @@ type listConfigState struct {
 
 func runList(ctx context.Context, cmd *cobra.Command, configPath string, options runListOptions, deps listDeps) (int, bool, error) {
 	meta := config.NewMetadata(configPath)
-	mode := resolveExecutionMode(options, cmd)
+	mode := interaction.ResolveExecutionMode(interaction.ExecutionModeInput{
+		Unattended: options.unattended,
+		In:         cmd.InOrStdin(),
+		Out:        cmd.OutOrStdout(),
+	})
 
 	configState, usedInteractive, err := ensureListConfig(ctx, cmd, options, deps, meta, mode)
 	if err != nil {
@@ -286,27 +267,27 @@ func runList(ctx context.Context, cmd *cobra.Command, configPath string, options
 	return len(entries), usedInteractive, nil
 }
 
-func ensureListConfig(ctx context.Context, cmd *cobra.Command, options runListOptions, deps listDeps, meta config.Metadata, mode executionMode) (listConfigState, bool, error) {
+func ensureListConfig(ctx context.Context, cmd *cobra.Command, options runListOptions, deps listDeps, meta config.Metadata, mode interaction.ExecutionMode) (listConfigState, bool, error) {
 	cfg, err := config.ReadConfig(ctx, deps.fs, meta)
 	if err == nil {
 		lock, lockErr := readLockRequired(ctx, deps.fs, meta)
 		if lockErr != nil {
-			return listConfigState{}, mode == executionModeInteractive, handleListFailure(cmd, deps, lockErr)
+			return listConfigState{}, mode == interaction.ExecutionModeInteractive, handleListFailure(cmd, deps, lockErr)
 		}
-		return listConfigState{Config: cfg, Lock: lock, ShouldContinue: true}, mode == executionModeInteractive, nil
+		return listConfigState{Config: cfg, Lock: lock, ShouldContinue: true}, mode == interaction.ExecutionModeInteractive, nil
 	}
 
 	var notFound *config.ConfigFileNotFoundException
 	if !errors.As(err, &notFound) {
-		return listConfigState{}, mode == executionModeInteractive, handleListFailure(cmd, deps, err)
+		return listConfigState{}, mode == interaction.ExecutionModeInteractive, handleListFailure(cmd, deps, err)
 	}
 
 	promptErr := configMissingPromptError(options, cmd, meta)
 	if promptErr != nil {
 		if outputErr := writeConfigMissingOutput(cmd, deps, meta); outputErr != nil {
-			return listConfigState{}, mode == executionModeInteractive, outputErr
+			return listConfigState{}, mode == interaction.ExecutionModeInteractive, outputErr
 		}
-		return listConfigState{}, mode == executionModeInteractive, clierrors.MarkHandled(promptErr)
+		return listConfigState{}, mode == interaction.ExecutionModeInteractive, clierrors.MarkHandled(promptErr)
 	}
 
 	confirmed, canceled, err := runConfigInitPrompt(cmd, deps, meta)
@@ -518,20 +499,20 @@ func renderListView(entries []listEntry, colorMode view.ColorMode) string {
 
 	header := i18n.T("cmd.list.header", nil)
 	header = view.RenderIfColorEnabled(colorMode, view.TitleStyle, header)
-	if err := listWriteString(&builder, header); err != nil {
+	if err := view.WriteString(&builder, header); err != nil {
 		return ""
 	}
-	if err := listWriteString(&builder, "\n"); err != nil {
+	if err := view.WriteString(&builder, "\n"); err != nil {
 		return ""
 	}
 
 	for index, entry := range entries {
 		if index > 0 {
-			if err := listWriteString(&builder, "\n"); err != nil {
+			if err := view.WriteString(&builder, "\n"); err != nil {
 				return ""
 			}
 		}
-		if err := listWriteString(&builder, renderEntry(entry, colorMode)); err != nil {
+		if err := view.WriteString(&builder, renderEntry(entry, colorMode)); err != nil {
 			return ""
 		}
 	}
@@ -634,35 +615,35 @@ func renderUnmanagedNotice(files []string, colorMode view.ColorMode) string {
 
 	header := i18n.T("cmd.list.unmanaged.header", nil)
 	header = view.RenderIfColorEnabled(colorMode, view.TitleStyle, header)
-	if err := listWriteString(&builder, header); err != nil {
+	if err := view.WriteString(&builder, header); err != nil {
 		return ""
 	}
-	if err := listWriteString(&builder, "\n"); err != nil {
+	if err := view.WriteString(&builder, "\n"); err != nil {
 		return ""
 	}
 
 	icon := view.ErrorIcon(colorMode)
 	for index, file := range files {
 		if index > 0 {
-			if err := listWriteString(&builder, "\n"); err != nil {
+			if err := view.WriteString(&builder, "\n"); err != nil {
 				return ""
 			}
 		}
 		entry := fmt.Sprintf("%s %s", icon, filepath.Base(file))
-		if err := listWriteString(&builder, entry); err != nil {
+		if err := view.WriteString(&builder, entry); err != nil {
 			return ""
 		}
 	}
 
-	if err := listWriteString(&builder, "\n\n"); err != nil {
+	if err := view.WriteString(&builder, "\n\n"); err != nil {
 		return ""
 	}
 
 	description := i18n.T("cmd.list.unmanaged.description", nil)
-	if err := listWriteString(&builder, description); err != nil {
+	if err := view.WriteString(&builder, description); err != nil {
 		return ""
 	}
-	if err := listWriteString(&builder, "\n"); err != nil {
+	if err := view.WriteString(&builder, "\n"); err != nil {
 		return ""
 	}
 
@@ -670,7 +651,7 @@ func renderUnmanagedNotice(files []string, colorMode view.ColorMode) string {
 	if colorMode.Enabled() {
 		cta = view.CtaStyle.Render(cta)
 	}
-	if err := listWriteString(&builder, cta); err != nil {
+	if err := view.WriteString(&builder, cta); err != nil {
 		return ""
 	}
 

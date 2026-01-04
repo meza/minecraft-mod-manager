@@ -9,7 +9,6 @@ import (
 	"io"
 	"os"
 	"path/filepath"
-	"strings"
 	"testing"
 
 	tea "github.com/charmbracelet/bubbletea"
@@ -22,6 +21,7 @@ import (
 	initCmd "github.com/meza/minecraft-mod-manager/cmd/mmm/init"
 	"github.com/meza/minecraft-mod-manager/internal/clierrors"
 	"github.com/meza/minecraft-mod-manager/internal/config"
+	"github.com/meza/minecraft-mod-manager/internal/interaction"
 	"github.com/meza/minecraft-mod-manager/internal/logger"
 	"github.com/meza/minecraft-mod-manager/internal/models"
 	"github.com/meza/minecraft-mod-manager/internal/output"
@@ -292,7 +292,7 @@ func TestRunListInvalidLockWarningWriteFails(t *testing.T) {
 		telemetry: func(telemetry.CommandTelemetry) {},
 		runTea: func(model tea.Model, options ...tea.ProgramOption) (tea.Model, error) {
 			if _, ok := model.(outputLinesModel); ok {
-				return outputLinesModel{err: writeErr}, nil
+				return outputLinesModel{Err: writeErr}, nil
 			}
 			return model, nil
 		},
@@ -374,7 +374,7 @@ func TestRunListMissingLockReturnsOutputError(t *testing.T) {
 		logger:    logger.New(io.Discard, io.Discard, false, false),
 		telemetry: func(telemetry.CommandTelemetry) {},
 		runTea: func(model tea.Model, options ...tea.ProgramOption) (tea.Model, error) {
-			return outputLinesModel{err: writeErr}, nil
+			return outputLinesModel{Err: writeErr}, nil
 		},
 	})
 
@@ -451,7 +451,7 @@ func TestRunListMissingConfigOutputWriteFails(t *testing.T) {
 		fs:        fileSystem,
 		telemetry: func(telemetry.CommandTelemetry) {},
 		runTea: func(model tea.Model, options ...tea.ProgramOption) (tea.Model, error) {
-			return outputLinesModel{err: writeErr}, nil
+			return outputLinesModel{Err: writeErr}, nil
 		},
 	})
 
@@ -820,7 +820,7 @@ func TestRunListUnmanagedNoticeOutputWriteFails(t *testing.T) {
 			if _, ok := model.(outputLinesModel); ok {
 				callCount++
 				if callCount == 2 {
-					return outputLinesModel{err: writeErr}, nil
+					return outputLinesModel{Err: writeErr}, nil
 				}
 			}
 			return model, nil
@@ -862,7 +862,7 @@ func TestRunListReturnsListOutputError(t *testing.T) {
 		telemetry: func(telemetry.CommandTelemetry) {},
 		runTea: func(model tea.Model, options ...tea.ProgramOption) (tea.Model, error) {
 			if _, ok := model.(outputLinesModel); ok {
-				return outputLinesModel{err: writeErr}, nil
+				return outputLinesModel{Err: writeErr}, nil
 			}
 			return model, nil
 		},
@@ -1045,11 +1045,11 @@ func TestSha1ForFileReturnsErrorOnCloseFailure(t *testing.T) {
 }
 
 func TestRenderListViewReturnsEmptyOnWriteError(t *testing.T) {
-	originalWriteString := listWriteString
+	originalWriteString := view.WriteString
 	t.Cleanup(func() {
-		listWriteString = originalWriteString
+		view.WriteString = originalWriteString
 	})
-	listWriteString = func(*strings.Builder, string) error {
+	view.WriteString = func(io.Writer, string) error {
 		return errors.New("write failed")
 	}
 
@@ -1061,12 +1061,12 @@ func TestRenderListViewReturnsEmptyOnWriteError(t *testing.T) {
 }
 
 func TestRenderListViewReturnsEmptyOnNewlineWriteError(t *testing.T) {
-	originalWriteString := listWriteString
+	originalWriteString := view.WriteString
 	t.Cleanup(func() {
-		listWriteString = originalWriteString
+		view.WriteString = originalWriteString
 	})
 	callCount := 0
-	listWriteString = func(*strings.Builder, string) error {
+	view.WriteString = func(io.Writer, string) error {
 		callCount++
 		if callCount == 2 {
 			return errors.New("write failed")
@@ -1082,12 +1082,12 @@ func TestRenderListViewReturnsEmptyOnNewlineWriteError(t *testing.T) {
 }
 
 func TestRenderListViewReturnsEmptyOnEntryWriteError(t *testing.T) {
-	originalWriteString := listWriteString
+	originalWriteString := view.WriteString
 	t.Cleanup(func() {
-		listWriteString = originalWriteString
+		view.WriteString = originalWriteString
 	})
 	callCount := 0
-	listWriteString = func(*strings.Builder, string) error {
+	view.WriteString = func(io.Writer, string) error {
 		callCount++
 		if callCount == 3 {
 			return errors.New("write failed")
@@ -1103,12 +1103,12 @@ func TestRenderListViewReturnsEmptyOnEntryWriteError(t *testing.T) {
 }
 
 func TestRenderListViewReturnsEmptyOnEntrySeparatorWriteError(t *testing.T) {
-	originalWriteString := listWriteString
+	originalWriteString := view.WriteString
 	t.Cleanup(func() {
-		listWriteString = originalWriteString
+		view.WriteString = originalWriteString
 	})
 	callCount := 0
-	listWriteString = func(*strings.Builder, string) error {
+	view.WriteString = func(io.Writer, string) error {
 		callCount++
 		if callCount == 4 {
 			return errors.New("write failed")
@@ -1319,14 +1319,14 @@ func TestRenderUnmanagedNoticeReturnsEmptyForNoFiles(t *testing.T) {
 }
 
 func TestRenderUnmanagedNoticeReturnsEmptyOnWriteErrors(t *testing.T) {
-	originalWriteString := listWriteString
+	originalWriteString := view.WriteString
 	t.Cleanup(func() {
-		listWriteString = originalWriteString
+		view.WriteString = originalWriteString
 	})
 
 	for failAt := 1; failAt <= 7; failAt++ {
 		callCount := 0
-		listWriteString = func(*strings.Builder, string) error {
+		view.WriteString = func(io.Writer, string) error {
 			callCount++
 			if callCount == failAt {
 				return errors.New("write failed")
@@ -1340,13 +1340,13 @@ func TestRenderUnmanagedNoticeReturnsEmptyOnWriteErrors(t *testing.T) {
 }
 
 func TestRenderUnmanagedNoticeReturnsEmptyOnSeparatorWriteError(t *testing.T) {
-	originalWriteString := listWriteString
+	originalWriteString := view.WriteString
 	t.Cleanup(func() {
-		listWriteString = originalWriteString
+		view.WriteString = originalWriteString
 	})
 
 	callCount := 0
-	listWriteString = func(*strings.Builder, string) error {
+	view.WriteString = func(io.Writer, string) error {
 		callCount++
 		if callCount == 4 {
 			return errors.New("write failed")
@@ -1413,8 +1413,12 @@ func TestResolveExecutionModeUsesPromptingSupport(t *testing.T) {
 	command.SetIn(fakeTTY{Buffer: &bytes.Buffer{}})
 	command.SetOut(fakeTTY{Buffer: &bytes.Buffer{}})
 
-	mode := resolveExecutionMode(runListOptions{unattended: false}, command)
-	assert.Equal(t, executionModeInteractive, mode)
+	mode := interaction.ResolveExecutionMode(interaction.ExecutionModeInput{
+		Unattended: false,
+		In:         command.InOrStdin(),
+		Out:        command.OutOrStdout(),
+	})
+	assert.Equal(t, interaction.ExecutionModeInteractive, mode)
 }
 
 func TestModsFolderReadErrorFormatsMessage(t *testing.T) {
@@ -1458,7 +1462,7 @@ func TestHandleListModsFolderFailureReturnsOutputError(t *testing.T) {
 	writeErr := errors.New("write failed")
 	err := handleListModsFolderFailure(command, listDeps{
 		runTea: func(model tea.Model, options ...tea.ProgramOption) (tea.Model, error) {
-			return outputLinesModel{err: writeErr}, nil
+			return outputLinesModel{Err: writeErr}, nil
 		},
 	}, &modsFolderReadError{path: filepath.FromSlash("/mods"), err: errors.New("read failed")})
 	assert.ErrorIs(t, err, writeErr)
@@ -1488,7 +1492,7 @@ func TestHandleListModsFolderPartialFailureReturnsOutputError(t *testing.T) {
 	writeErr := errors.New("write failed")
 	err := handleListModsFolderPartialFailure(command, listDeps{
 		runTea: func(model tea.Model, options ...tea.ProgramOption) (tea.Model, error) {
-			return outputLinesModel{err: writeErr}, nil
+			return outputLinesModel{Err: writeErr}, nil
 		},
 	}, &modsFolderReadError{path: filepath.FromSlash("/mods/mod.jar"), err: errors.New("read failed")})
 	assert.ErrorIs(t, err, writeErr)
@@ -1603,8 +1607,12 @@ func TestWriteConfigMissingOutputWritesHint(t *testing.T) {
 
 func TestResolveExecutionModeUnattended(t *testing.T) {
 	command := &cobra.Command{}
-	mode := resolveExecutionMode(runListOptions{unattended: true}, command)
-	assert.Equal(t, executionModeUnattended, mode)
+	mode := interaction.ResolveExecutionMode(interaction.ExecutionModeInput{
+		Unattended: true,
+		In:         command.InOrStdin(),
+		Out:        command.OutOrStdout(),
+	})
+	assert.Equal(t, interaction.ExecutionModeUnattended, mode)
 }
 
 type statErrorFs struct {

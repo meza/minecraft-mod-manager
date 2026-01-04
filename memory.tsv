@@ -985,3 +985,17 @@ Loaded persona and core guidance docs; ready to pull mmm-10 details and specs on
 2026-01-04	15:28	Updated mmm-153 parent with primary references, frame-first acceptance, and Bubble Tea-only rule; removed tui parenthetical examples.
 2026-01-04	15:30	Closed mmm-158 per user request.
 2026-01-04	15:30	Created mmm-170 to define UX for init-on-demand flows when config is created during a command run.
+2026-01-04	15:43	Read mmm-154 ticket (no children) plus add flow/spec/command docs, interaction guidelines, add command code, and init interactive flow reference for alignment.
+2026-01-04	15:53	User guidance for mmm-154: use cmd/mmm/list as reference for missing bits; prefer existing bubbles progress widget; stop and ask rather than assume.
+2026-01-04	16:28	Read persona + mandatory docs; reviewed mmm-154 ticket, add flow/spec/command docs, interaction guidelines, terminal guide, and add/list/init code for alignment; ready to confirm frames-first UX requirements.
+2026-01-04	17:21	Updated mmm-154 notes with alignment: frames as acceptance, Bubble Tea-only output, non-tty=unattended, use bubbles progress, remove tui naming, existing install no distinct message, start state = preparing.
+2026-01-04	17:25	User preference: do not include alignment summaries after context compaction; proceed with work without restating alignment.
+2026-01-04	18:32	mmm-154: added coverage tests for resolveRemoteMod log failure and handleMissingAddConfig cancel/load error; simplified resolveAddMod return; make fmt/lint/coverage/build pass; Windows verification pass with PSReadLine VT warning.
+2026-01-04	18:57	mmm-154: fixed unattended not-found summary (new i18n key) and ASCII progress bar brackets; updated tests/translations; make fmt/lint/coverage/build pass; Windows verification pass with PSReadLine VT warning.
+2026-01-04	19:14	mmm-154: corrected de-DE add strings to use umlauts/eszett for translation consistency; make fmt/lint/coverage/build pass; Windows verification pass with PSReadLine VT warning.
+2026-01-04	20:38	Extracted shared execution mode (internal/interaction) and output-lines/section rendering (internal/view); updated add/init/list and tests; added view tests; make fmt/lint/coverage/build pass; Windows verification pass with PSReadLine VT warning.
+2026-01-04	21:14	mmm-154: fixed add existing-install interactive success output by always emitting success line when not quiet; added test for interactive existing-install output; make fmt/lint/vuln/coverage/build pass; Windows lint/build/coverage/test-race pass (PSReadLine VT warning).
+2026-01-04	21:33	mmm-154: removed progress completion render to avoid duplicate success lines; progress model now renders start/progress only and success line comes from output lines; updated progress model test; reran make fmt/lint/vuln/coverage/build and Windows verification (PSReadLine VT warning).
+2026-01-04	21:42	mmm-154: reviewer approved after removing progress completion output and adding interactive existing-install success output; code-review.md updated with Approved verdict.
+2026-01-04	21:45	mmm-154 set to in_progress per user request.
+2026-01-04	21:45	Closed mmm-154 per user request.

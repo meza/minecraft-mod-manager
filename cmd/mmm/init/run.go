@@ -12,11 +12,11 @@ import (
 	"github.com/meza/minecraft-mod-manager/internal/clierrors"
 	"github.com/meza/minecraft-mod-manager/internal/config"
 	"github.com/meza/minecraft-mod-manager/internal/i18n"
+	"github.com/meza/minecraft-mod-manager/internal/interaction"
 	"github.com/meza/minecraft-mod-manager/internal/minecraft"
 	"github.com/meza/minecraft-mod-manager/internal/models"
 	"github.com/meza/minecraft-mod-manager/internal/perf"
 	"github.com/meza/minecraft-mod-manager/internal/view"
-	"github.com/meza/minecraft-mod-manager/internal/writeerrors"
 	"github.com/spf13/afero"
 	"github.com/spf13/cobra"
 	"go.opentelemetry.io/otel/attribute"
@@ -36,9 +36,13 @@ func runInitCommand(ctx context.Context, cmd *cobra.Command, options initOptions
 }
 
 func runInit(ctx context.Context, cmd *cobra.Command, options initOptions, deps initDeps, meta config.Metadata) (initOptions, bool, error) {
-	executionMode := resolveExecutionMode(options, cmd)
+	executionMode := interaction.ResolveExecutionMode(interaction.ExecutionModeInput{
+		Unattended: options.Unattended,
+		In:         cmd.InOrStdin(),
+		Out:        cmd.OutOrStdout(),
+	})
 	options = markModsFolderProvided(executionMode, options)
-	useInteractiveFlow := executionMode == executionModeInteractive
+	useInteractiveFlow := executionMode == interaction.ExecutionModeInteractive
 	didUseInteractiveFlow := false
 
 	if !useInteractiveFlow {
@@ -64,26 +68,8 @@ func runInit(ctx context.Context, cmd *cobra.Command, options initOptions, deps 
 	return options, didUseInteractiveFlow, err
 }
 
-type executionMode int
-
-const (
-	executionModeInteractive executionMode = iota
-	executionModeUnattended
-	executionModeNonTTY
-)
-
-func resolveExecutionMode(options initOptions, cmd *cobra.Command) executionMode {
-	if options.Unattended {
-		return executionModeUnattended
-	}
-	if view.SupportsPrompting(cmd.InOrStdin(), cmd.OutOrStdout()) {
-		return executionModeInteractive
-	}
-	return executionModeNonTTY
-}
-
-func markModsFolderProvided(mode executionMode, options initOptions) initOptions {
-	if mode != executionModeInteractive {
+func markModsFolderProvided(mode interaction.ExecutionMode, options initOptions) initOptions {
+	if mode != interaction.ExecutionModeInteractive {
 		return options
 	}
 	if options.Provided.ModsFolder {
@@ -487,14 +473,11 @@ func runOutputLines(cmd *cobra.Command, deps initDeps, lines []string) error {
 	if runTea == nil {
 		runTea = defaultRunTea
 	}
-	result, err := runTea(outputLinesModel{
-		lines:  lines,
-		output: cmd.OutOrStdout(),
+	return view.RunOutputLines(runTea, view.OutputLinesModel{
+		Lines:     lines,
+		Output:    cmd.OutOrStdout(),
+		Separator: view.SectionSeparatorLine,
 	}, outputProgramOptions(cmd)...)
-	if err != nil {
-		return err
-	}
-	return outputLinesModelError(result)
 }
 
 func outputProgramOptions(cmd *cobra.Command) []tea.ProgramOption {
@@ -505,57 +488,13 @@ func outputProgramOptions(cmd *cobra.Command) []tea.ProgramOption {
 	}
 }
 
-type outputLinesModel struct {
-	lines  []string
-	output io.Writer
-	err    error
-}
-
-func (model outputLinesModel) Init() tea.Cmd {
-	output := model.View()
-	if strings.TrimSpace(output) == "" {
-		return tea.Quit
-	}
-	return tea.Sequence(outputLineCmd(model.output, output), tea.Quit)
-}
-
-func (model outputLinesModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
-	switch typed := msg.(type) {
-	case outputLineErrorMsg:
-		model.err = typed.err
-		return model, tea.Quit
-	default:
-		return model, nil
-	}
-}
-
-func (model outputLinesModel) View() string {
-	return renderViewSections(model.lines)
-}
-
-type outputLineErrorMsg struct {
-	err error
-}
+type outputLinesModel = view.OutputLinesModel
+type outputLineErrorMsg = view.OutputLineErrorMsg
 
 func outputLineCmd(out io.Writer, line string) tea.Cmd {
-	return func() tea.Msg {
-		if out == nil {
-			return outputLineErrorMsg{err: errors.New("output writer is nil")}
-		}
-		if _, err := fmt.Fprintln(out, line); err != nil && !writeerrors.IsBrokenPipe(err) {
-			return outputLineErrorMsg{err: err}
-		}
-		return nil
-	}
+	return view.OutputLineCmd(out, line)
 }
 
 func outputLinesModelError(result tea.Model) error {
-	switch typed := result.(type) {
-	case *outputLinesModel:
-		return typed.err
-	case outputLinesModel:
-		return typed.err
-	default:
-		return nil
-	}
+	return view.OutputLinesModelError(result)
 }

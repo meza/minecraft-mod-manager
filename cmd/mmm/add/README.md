@@ -14,8 +14,12 @@ These files describe what the command must do. If you change behavior, update th
 
 - `cmd/mmm/add/add.go`: cobra wiring + `runAdd` implementation
 - `cmd/mmm/add/messages.go`: i18n-backed error message helpers used in unattended paths
-- `cmd/mmm/add/tui.go`: Bubble Tea state machine used to recover from expected errors interactively
-- `cmd/mmm/add/tui_test.go`: black-box TUI state snapshots (teatest + go-snaps)
+- `cmd/mmm/add/interactive_flow.go`: Bubble Tea recovery flow for expected errors
+- `cmd/mmm/add/prompt_models.go`: confirmation and text input prompt models used in the flow
+- `cmd/mmm/add/config_prompt.go`: Bubble Tea prompt for missing-config recovery
+- `cmd/mmm/add/output_model.go`: Bubble Tea output-only renderer for transcript output
+- `cmd/mmm/add/progress_model.go`: Bubble Tea progress model for downloads
+- `cmd/mmm/add/interactive_flow_test.go`: recovery flow snapshot tests (go-snaps)
 - `cmd/mmm/add/add_test.go`: command behavior tests (config/lock writes, unattended vs interactive, telemetry)
 
 ## Execution flow (what happens at runtime)
@@ -23,14 +27,10 @@ These files describe what the command must do. If you change behavior, update th
 At a high level, `runAdd` does:
 
 1. Load or initialize config and lock:
-   - if `modlist.json` is missing and `--unattended` is not set, create it via `internal/config.InitConfig` (calls `internal/minecraft.GetLatestVersion`)
+   - when `modlist.json` is missing, follow the shared missing-config gate and run the interactive init flow on confirmation
    - ensure the lock exists via `internal/config.EnsureLock` (creates an empty lock file if missing)
 2. Refuse to add duplicates (same platform + ID already in `modlist.json`).
-3. Resolve a `platform.RemoteMod` via `internal/platform.FetchMod`:
-   - expected typed errors map to UX flows:
-     - `platform.UnknownPlatformError`
-     - `platform.ModNotFoundError`
-     - `platform.NoCompatibleFileError`
+3. Resolve a `platform.RemoteMod` via `internal/platform.FetchMod`.
 4. Download the resolved jar into the mods directory via `internal/httpclient.DownloadFile`.
 5. Append:
    - a `models.Mod` entry to `modlist.json`
@@ -46,16 +46,16 @@ The command only launches the interactive recovery flow when all of these are tr
 
 If the user is piping/redirecting output, or running in CI, we intentionally stay unattended even if `--unattended` is false. `--quiet` only suppresses non-essential output.
 
-### Add TUI state machine
+### Add recovery flow
 
-`tui.go` is a small finite state machine that exists to recover from the expected typed errors. A few rules are important when editing it:
+`interactive_flow.go` is a small finite state machine that exists to recover from the expected typed errors. A few rules are important when editing it:
 
 - `esc` goes back one step; at the top-level it aborts.
 - `ctrl+c` always aborts.
-- When the state machine finishes successfully it returns the selected `platform.RemoteMod` plus the resolved platform + project ID.
+- When the state machine finishes successfully it returns the selected platform + project ID.
 
 ## Testing and snapshots
 
 See `CONTRIBUTING.md` for required test/coverage checks and snapshot update instructions.
 
-Snapshots for this command live at `cmd/mmm/add/__snapshots__/tui_test.snap`. Tests set `MMM_TEST=true` so i18n renders stable translation keys in snapshots.
+Snapshots for this command live at `cmd/mmm/add/__snapshots__/interactive_flow_test.snap`. Tests set `MMM_TEST=true` so i18n renders stable translation keys in snapshots.

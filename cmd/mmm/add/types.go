@@ -8,14 +8,16 @@ import (
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/meza/minecraft-mod-manager/internal/config"
 	"github.com/meza/minecraft-mod-manager/internal/httpclient"
+	"github.com/meza/minecraft-mod-manager/internal/interaction"
 	"github.com/meza/minecraft-mod-manager/internal/logger"
 	"github.com/meza/minecraft-mod-manager/internal/models"
+	"github.com/meza/minecraft-mod-manager/internal/modinstall"
 	"github.com/meza/minecraft-mod-manager/internal/modsetup"
 	"github.com/meza/minecraft-mod-manager/internal/output"
 	"github.com/meza/minecraft-mod-manager/internal/perf"
 	"github.com/meza/minecraft-mod-manager/internal/platform"
 	"github.com/meza/minecraft-mod-manager/internal/telemetry"
-	tui "github.com/meza/minecraft-mod-manager/internal/view"
+	"github.com/meza/minecraft-mod-manager/internal/view"
 	"github.com/spf13/afero"
 	"github.com/spf13/cobra"
 )
@@ -58,7 +60,7 @@ type addResolveInputs struct {
 	platformValue models.Platform
 	projectID     string
 	deps          addDeps
-	useTUI        bool
+	mode          interaction.ExecutionMode
 	in            io.Reader
 	out           io.Writer
 }
@@ -91,7 +93,9 @@ type existingInstallInput struct {
 	projectID     string
 	opts          addOptions
 	deps          addDeps
-	useTUI        bool
+	mode          interaction.ExecutionMode
+	in            io.Reader
+	out           io.Writer
 }
 
 type existingInstallCheckInput struct {
@@ -104,43 +108,78 @@ type existingInstallCheckInput struct {
 	projectID     string
 	opts          addOptions
 	deps          addDeps
-	useTUI        bool
+	mode          interaction.ExecutionMode
+	in            io.Reader
+	out           io.Writer
 }
 
 type addRunState struct {
 	meta             config.Metadata
 	cfg              models.ModsJSON
 	lock             []models.ModInstall
-	useTUI           bool
+	mode             interaction.ExecutionMode
+	shouldContinue   bool
 	setupCoordinator *modsetup.SetupCoordinator
 }
 
-type finalizeAddInput struct {
+type addConfigState struct {
+	cfg            models.ModsJSON
+	lock           []models.ModInstall
+	shouldContinue bool
+}
+
+type addIdentifiers struct {
+	platformValue models.Platform
+	projectID     string
+}
+
+type addAttemptOutcome struct {
+	platformValue models.Platform
+	projectID     string
+	recovered     bool
+	telemetry     telemetry.CommandTelemetry
+}
+
+type recoveryOutcome struct {
+	platformValue models.Platform
+	projectID     string
+	recovered     bool
+	err           error
+}
+
+type resolveStepOutcome struct {
+	resolved      resolvedRemoteMod
+	remoteMod     platform.RemoteMod
+	recovered     bool
+	platformValue models.Platform
+	projectID     string
+}
+
+type ensureRemoteModInput struct {
 	ctx              context.Context
 	meta             config.Metadata
 	cfg              models.ModsJSON
-	lock             []models.ModInstall
 	remoteMod        platform.RemoteMod
 	resolvedPlatform models.Platform
 	resolvedID       string
-	opts             addOptions
-	setupCoordinator *modsetup.SetupCoordinator
-	logger           *logger.Logger
-	output           *output.Output
-	useTUI           bool
-	colorMode        tui.ColorMode
+	deps             addDeps
+	mode             interaction.ExecutionMode
+	colorMode        view.ColorMode
+	input            io.Reader
+	output           io.Writer
+	quiet            bool
 }
 
-type resolveAndEnsureInputs struct {
-	ctx           context.Context
-	commandSpan   *perf.Span
-	meta          config.Metadata
-	cfg           models.ModsJSON
-	opts          addOptions
-	platformValue models.Platform
-	projectID     string
-	deps          addDeps
-	useTUI        bool
-	in            io.Reader
-	out           io.Writer
+type ensureRemoteFileInput struct {
+	ctx              context.Context
+	installer        *modinstall.Installer
+	meta             config.Metadata
+	cfg              models.ModsJSON
+	remoteMod        platform.RemoteMod
+	resolvedPlatform models.Platform
+	resolvedID       string
+	deps             addDeps
+	colorMode        view.ColorMode
+	input            io.Reader
+	output           io.Writer
 }

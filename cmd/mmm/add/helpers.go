@@ -9,14 +9,14 @@ import (
 	"github.com/meza/minecraft-mod-manager/internal/models"
 	"github.com/meza/minecraft-mod-manager/internal/modinstall"
 	"github.com/meza/minecraft-mod-manager/internal/modpath"
-	tui "github.com/meza/minecraft-mod-manager/internal/view"
+	"github.com/meza/minecraft-mod-manager/internal/view"
 )
 
-func colorModeForOutput(out io.Writer) tui.ColorMode {
-	if tui.IsTerminalWriter(out) {
-		return tui.ColorEnabled
+func colorModeForOutput(out io.Writer) view.ColorMode {
+	if view.SupportsColor(out) {
+		return view.ColorEnabled
 	}
-	return tui.ColorDisabled
+	return view.ColorDisabled
 }
 
 func modNameForConfig(cfg models.ModsJSON, platformValue models.Platform, projectID string) string {
@@ -41,13 +41,6 @@ func normalizePlatform(value string) models.Platform {
 
 func normalizedAddIdentifiers(opts addOptions) (models.Platform, string) {
 	return normalizePlatform(opts.Platform), opts.ProjectID
-}
-
-func alternatePlatform(platformValue models.Platform) models.Platform {
-	if platformValue == models.CURSEFORGE {
-		return models.MODRINTH
-	}
-	return models.CURSEFORGE
 }
 
 func integrityErrorMessage(err error, modName string) (string, bool) {

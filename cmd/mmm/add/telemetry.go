@@ -17,33 +17,33 @@ func recordAddTelemetry(telemetryPayload telemetry.CommandTelemetry, err error) 
 	telemetry.RecordCommand(telemetryPayload)
 }
 
-func addFailureTelemetry(platformValue models.Platform, projectID string, opts addOptions, useTUI bool, err error) telemetry.CommandTelemetry {
+func addFailureTelemetry(platformValue models.Platform, projectID string, opts addOptions, interactive bool, err error) telemetry.CommandTelemetry {
 	return telemetry.CommandTelemetry{
 		Command:     "add",
 		Success:     false,
 		Error:       err,
 		ExitCode:    1,
-		Interactive: useTUI,
+		Interactive: interactive,
 		Arguments:   addTelemetryArgs(platformValue, projectID, opts),
 	}
 }
 
-func addFailureTelemetryWithoutArgs(useTUI bool, err error) telemetry.CommandTelemetry {
+func addFailureTelemetryWithoutArgs(interactive bool, err error) telemetry.CommandTelemetry {
 	return telemetry.CommandTelemetry{
 		Command:     "add",
 		Success:     false,
 		Error:       err,
 		ExitCode:    1,
-		Interactive: useTUI,
+		Interactive: interactive,
 	}
 }
 
-func addExistingInstallTelemetry(platformValue models.Platform, projectID string, opts addOptions, useTUI bool, reason modinstall.EnsureReason) telemetry.CommandTelemetry {
+func addExistingInstallTelemetry(platformValue models.Platform, projectID string, opts addOptions, interactive bool, reason modinstall.EnsureReason) telemetry.CommandTelemetry {
 	return telemetry.CommandTelemetry{
 		Command:     "add",
 		Success:     true,
 		ExitCode:    0,
-		Interactive: useTUI,
+		Interactive: interactive,
 		Arguments:   addTelemetryArgs(platformValue, projectID, opts),
 		Extra: map[string]interface{}{
 			"flag":               "already-exists",
@@ -52,12 +52,12 @@ func addExistingInstallTelemetry(platformValue models.Platform, projectID string
 	}
 }
 
-func addSuccessTelemetry(platformValue models.Platform, projectID string, opts addOptions, useTUI bool) telemetry.CommandTelemetry {
+func addSuccessTelemetry(platformValue models.Platform, projectID string, opts addOptions, interactive bool) telemetry.CommandTelemetry {
 	return telemetry.CommandTelemetry{
 		Command:     "add",
 		Success:     true,
 		ExitCode:    0,
-		Interactive: useTUI,
+		Interactive: interactive,
 		Arguments:   addTelemetryArgs(platformValue, projectID, opts),
 	}
 }

@@ -7,28 +7,29 @@ import (
 	"errors"
 	"fmt"
 	"io"
-	"net/http"
 	"os"
 	"path/filepath"
 	"strings"
 	"testing"
 
 	tea "github.com/charmbracelet/bubbletea"
+	"github.com/muesli/termenv"
 	"github.com/spf13/afero"
 	"github.com/spf13/cobra"
 	"github.com/stretchr/testify/assert"
 	"golang.org/x/time/rate"
 
+	initCmd "github.com/meza/minecraft-mod-manager/cmd/mmm/init"
 	"github.com/meza/minecraft-mod-manager/internal/config"
 	"github.com/meza/minecraft-mod-manager/internal/httpclient"
+	"github.com/meza/minecraft-mod-manager/internal/interaction"
 	"github.com/meza/minecraft-mod-manager/internal/logger"
-	"github.com/meza/minecraft-mod-manager/internal/minecraft"
 	"github.com/meza/minecraft-mod-manager/internal/models"
 	"github.com/meza/minecraft-mod-manager/internal/modpath"
 	"github.com/meza/minecraft-mod-manager/internal/output"
 	"github.com/meza/minecraft-mod-manager/internal/perf"
 	"github.com/meza/minecraft-mod-manager/internal/platform"
-	tuiinternal "github.com/meza/minecraft-mod-manager/internal/view"
+	viewinternal "github.com/meza/minecraft-mod-manager/internal/view"
 )
 
 func TestRunAdd_Success(t *testing.T) {
@@ -96,7 +97,6 @@ func TestRunAdd_Success(t *testing.T) {
 	assert.True(t, telemetryCalled.Success)
 	assert.Equal(t, "add", telemetryCalled.Command)
 
-	assertPerfSpanExists(t, "app.command.add.stage.prepare")
 	assertPerfSpanExists(t, "app.command.add.stage.resolve")
 	assertPerfSpanExists(t, "app.command.add.resolve.attempt")
 	assertPerfSpanExists(t, "app.command.add.stage.download")
@@ -170,8 +170,12 @@ func TestRunAdd_SuccessLogsEmojiIconWhenTerminal(t *testing.T) {
 	assert.NoError(t, config.WriteConfig(context.Background(), fs, meta, cfg))
 	assert.NoError(t, config.WriteLock(context.Background(), fs, meta, nil))
 
-	restoreTTY := tuiinternal.SetIsTerminalFuncForTesting(func(int) bool { return true })
+	restoreTTY := viewinternal.SetIsTerminalFuncForTesting(func(int) bool { return true })
 	t.Cleanup(restoreTTY)
+	restoreColor := viewinternal.SetColorProfileFuncForTesting(func() termenv.Profile {
+		return termenv.ANSI256
+	})
+	t.Cleanup(restoreColor)
 
 	out := &fakeTerminalWriter{}
 	cmd := &cobra.Command{}
@@ -352,6 +356,7 @@ func TestRunAdd_DuplicateSkipsWorkWhenFilePresent(t *testing.T) {
 }
 
 func TestRunAdd_DuplicateDownloadsWhenFileMissing(t *testing.T) {
+	t.Setenv("MMM_TEST", "true")
 	ctx, commandSpan := startAddPerf(t)
 	fs := afero.NewMemMapFs()
 	meta := config.NewMetadata(filepath.FromSlash("/cfg/modlist.json"))
@@ -399,7 +404,7 @@ func TestRunAdd_DuplicateDownloadsWhenFileMissing(t *testing.T) {
 	})
 
 	assert.NoError(t, err)
-	assert.Contains(t, cmd.OutOrStdout().(*bytes.Buffer).String(), "downloading from modrinth")
+	assert.Contains(t, cmd.OutOrStdout().(*bytes.Buffer).String(), "cmd.add.success")
 }
 
 func TestRunAdd_PersistFailureReturnsError(t *testing.T) {
@@ -823,47 +828,8 @@ func TestAddCommand_MissingArgsShowsUsage(t *testing.T) {
 	assert.Contains(t, output, "add <platform> <id>")
 }
 
-func TestRunAdd_UnknownPlatformUnattended(t *testing.T) {
-	ctx, commandSpan := startAddPerf(t)
-	fs := afero.NewMemMapFs()
-	meta := config.NewMetadata(filepath.FromSlash("/cfg/modlist.json"))
-	assert.NoError(t, fs.MkdirAll(filepath.Dir(meta.ConfigPath), 0755))
-	cfg := models.ModsJSON{
-		Loader:                     models.FABRIC,
-		GameVersion:                "1.20.1",
-		DefaultAllowedReleaseTypes: []models.ReleaseType{models.Release},
-		ModsFolder:                 "mods",
-	}
-	assert.NoError(t, config.WriteConfig(context.Background(), fs, meta, cfg))
-	assert.NoError(t, config.WriteLock(context.Background(), fs, meta, nil))
-
-	cmd := &cobra.Command{}
-	cmd.SetIn(bytes.NewBuffer(nil))
-	cmd.SetOut(bytes.NewBuffer(nil))
-	errBuf := bytes.NewBuffer(nil)
-	cmd.SetErr(errBuf)
-
-	_, err := runAdd(ctx, commandSpan, cmd, addOptions{
-		Platform:   "invalid",
-		ProjectID:  "abc",
-		ConfigPath: meta.ConfigPath,
-		Unattended: true,
-	}, addDeps{
-		fs:      fs,
-		clients: platform.DefaultClients(rate.NewLimiter(rate.Inf, 0)),
-		logger:  logger.New(cmd.OutOrStdout(), cmd.ErrOrStderr(), true, false),
-		output:  output.New(cmd.OutOrStdout(), cmd.ErrOrStderr(), true),
-		fetchMod: func(_ context.Context, _ models.Platform, _ string, _ platform.FetchOptions, _ platform.Clients) (platform.RemoteMod, error) {
-			return platform.RemoteMod{}, &platform.UnknownPlatformError{Platform: "invalid"}
-		},
-	})
-
-	assert.Error(t, err)
-	assert.Contains(t, errBuf.String(), "Unknown platform")
-}
-
 func TestRunAdd_ModNotFoundCancelled(t *testing.T) {
-	restoreTTY := tuiinternal.SetIsTerminalFuncForTesting(func(int) bool { return true })
+	restoreTTY := viewinternal.SetIsTerminalFuncForTesting(func(int) bool { return true })
 	defer restoreTTY()
 
 	ctx, commandSpan := startAddPerf(t)
@@ -898,12 +864,11 @@ func TestRunAdd_ModNotFoundCancelled(t *testing.T) {
 			return platform.RemoteMod{}, &platform.ModNotFoundError{Platform: models.MODRINTH, ProjectID: "abc"}
 		},
 		runTea: func(tea.Model, ...tea.ProgramOption) (tea.Model, error) {
-			return addTUIModel{state: addTUIStateAborted}, nil
+			return recoveryFlowModel{aborted: true}, nil
 		},
 	})
 
 	assert.Error(t, err)
-	assert.True(t, errors.Is(err, errAborted))
 	configAfter, readErr := config.ReadConfig(context.Background(), fs, meta)
 	if !assert.NoError(t, readErr) {
 		return
@@ -912,7 +877,7 @@ func TestRunAdd_ModNotFoundCancelled(t *testing.T) {
 }
 
 func TestRunAdd_ModNotFoundRetry(t *testing.T) {
-	restoreTTY := tuiinternal.SetIsTerminalFuncForTesting(func(int) bool { return true })
+	restoreTTY := viewinternal.SetIsTerminalFuncForTesting(func(int) bool { return true })
 	defer restoreTTY()
 
 	ctx, commandSpan := startAddPerf(t)
@@ -933,6 +898,7 @@ func TestRunAdd_ModNotFoundRetry(t *testing.T) {
 	cmd.SetOut(fakeTTYWriter{Buffer: bytes.NewBuffer(nil)})
 	cmd.SetErr(bytes.NewBuffer(nil))
 
+	var fetchCalls int
 	_, err := runAdd(ctx, commandSpan, cmd, addOptions{
 		Platform:   "modrinth",
 		ProjectID:  "abc",
@@ -943,20 +909,22 @@ func TestRunAdd_ModNotFoundRetry(t *testing.T) {
 		logger:  logger.New(cmd.OutOrStdout(), cmd.ErrOrStderr(), false, false),
 		output:  output.New(cmd.OutOrStdout(), cmd.ErrOrStderr(), false),
 		fetchMod: func(_ context.Context, p models.Platform, id string, _ platform.FetchOptions, _ platform.Clients) (platform.RemoteMod, error) {
-			return platform.RemoteMod{}, &platform.ModNotFoundError{Platform: p, ProjectID: id}
+			fetchCalls++
+			if fetchCalls == 1 {
+				return platform.RemoteMod{}, &platform.ModNotFoundError{Platform: p, ProjectID: id}
+			}
+			return platform.RemoteMod{
+				Name:        "Retry",
+				FileName:    "retry.jar",
+				Hash:        sha1Hex("data"),
+				ReleaseDate: "2024-01-01T00:00:00Z",
+				DownloadURL: "https://example.com/retry.jar",
+			}, nil
 		},
 		runTea: func(tea.Model, ...tea.ProgramOption) (tea.Model, error) {
-			return addTUIModel{
-				state:            addTUIStateDone,
-				resolvedPlatform: models.CURSEFORGE,
-				resolvedProject:  "def",
-				remoteMod: platform.RemoteMod{
-					Name:        "Retry",
-					FileName:    "retry.jar",
-					Hash:        sha1Hex("data"),
-					ReleaseDate: "2024-01-01T00:00:00Z",
-					DownloadURL: "https://example.com/retry.jar",
-				},
+			return recoveryFlowModel{
+				selectedPlatform: models.CURSEFORGE,
+				selectedProject:  "def",
 			}, nil
 		},
 		downloader: func(_ context.Context, _ string, path string, _ httpclient.Doer, _ httpclient.Sender, _ ...afero.Fs) error {
@@ -972,14 +940,10 @@ func TestRunAdd_ModNotFoundRetry(t *testing.T) {
 	assert.Len(t, configAfter.Mods, 1)
 	assert.Equal(t, "def", configAfter.Mods[0].ID)
 	assert.Equal(t, models.CURSEFORGE, configAfter.Mods[0].Type)
-
-	commandSpan.End()
-	assertPerfSpanExists(t, "app.command.add.resolve.attempt")
-	assertPerfEventExists(t, "app.command.add", "app.command.add.interaction.open")
 }
 
 func TestRunAdd_NoFileRetryAlternate(t *testing.T) {
-	restoreTTY := tuiinternal.SetIsTerminalFuncForTesting(func(int) bool { return true })
+	restoreTTY := viewinternal.SetIsTerminalFuncForTesting(func(int) bool { return true })
 	defer restoreTTY()
 
 	ctx, commandSpan := startAddPerf(t)
@@ -1001,6 +965,7 @@ func TestRunAdd_NoFileRetryAlternate(t *testing.T) {
 	cmd.SetOut(fakeTTYWriter{Buffer: bytes.NewBuffer(nil)})
 	cmd.SetErr(bytes.NewBuffer(nil))
 
+	var fetchCalls int
 	_, err := runAdd(ctx, commandSpan, cmd, addOptions{
 		Platform:   "curseforge",
 		ProjectID:  "abc",
@@ -1011,20 +976,22 @@ func TestRunAdd_NoFileRetryAlternate(t *testing.T) {
 		logger:  logger.New(cmd.OutOrStdout(), cmd.ErrOrStderr(), false, false),
 		output:  output.New(cmd.OutOrStdout(), cmd.ErrOrStderr(), false),
 		fetchMod: func(_ context.Context, p models.Platform, id string, _ platform.FetchOptions, _ platform.Clients) (platform.RemoteMod, error) {
-			return platform.RemoteMod{}, &platform.NoCompatibleFileError{Platform: p, ProjectID: id}
+			fetchCalls++
+			if fetchCalls == 1 {
+				return platform.RemoteMod{}, &platform.NoCompatibleFileError{Platform: p, ProjectID: id}
+			}
+			return platform.RemoteMod{
+				Name:        "Retry",
+				FileName:    "retry.jar",
+				Hash:        sha1Hex("data"),
+				ReleaseDate: "2024-01-01T00:00:00Z",
+				DownloadURL: "https://example.com/retry.jar",
+			}, nil
 		},
 		runTea: func(tea.Model, ...tea.ProgramOption) (tea.Model, error) {
-			return addTUIModel{
-				state:            addTUIStateDone,
-				resolvedPlatform: models.MODRINTH,
-				resolvedProject:  "zzz",
-				remoteMod: platform.RemoteMod{
-					Name:        "Retry",
-					FileName:    "retry.jar",
-					Hash:        sha1Hex("data"),
-					ReleaseDate: "2024-01-01T00:00:00Z",
-					DownloadURL: "https://example.com/retry.jar",
-				},
+			return recoveryFlowModel{
+				selectedPlatform: models.MODRINTH,
+				selectedProject:  "zzz",
 			}, nil
 		},
 		downloader: func(_ context.Context, _ string, path string, _ httpclient.Doer, _ httpclient.Sender, _ ...afero.Fs) error {
@@ -1040,10 +1007,6 @@ func TestRunAdd_NoFileRetryAlternate(t *testing.T) {
 	assert.Len(t, configAfter.Mods, 1)
 	assert.Equal(t, models.MODRINTH, configAfter.Mods[0].Type)
 	assert.Equal(t, "zzz", configAfter.Mods[0].ID)
-
-	commandSpan.End()
-	assertPerfSpanExists(t, "app.command.add.resolve.attempt")
-	assertPerfEventExists(t, "app.command.add", "app.command.add.interaction.open")
 }
 
 func TestRunAdd_DownloadFailure(t *testing.T) {
@@ -1312,6 +1275,14 @@ func TestRunAdd_PersistErrorReturnsError(t *testing.T) {
 }
 
 func TestRunAdd_CreatesConfigWhenMissing(t *testing.T) {
+	restoreTTY := viewinternal.SetIsTerminalFuncForTesting(func(int) bool { return true })
+	t.Cleanup(restoreTTY)
+
+	originalRunInit := runInitInteractive
+	t.Cleanup(func() {
+		runInitInteractive = originalRunInit
+	})
+
 	ctx, commandSpan := startAddPerf(t)
 	fs := afero.NewMemMapFs()
 	meta := config.NewMetadata(filepath.FromSlash("/cfg/modlist.json"))
@@ -1319,11 +1290,20 @@ func TestRunAdd_CreatesConfigWhenMissing(t *testing.T) {
 	assert.NoError(t, fs.RemoveAll(meta.ConfigPath))
 
 	cmd := &cobra.Command{}
-	cmd.SetIn(bytes.NewBuffer(nil))
-	cmd.SetOut(bytes.NewBuffer(nil))
+	cmd.SetIn(fakeTTYReader{Buffer: bytes.NewBuffer(nil)})
+	cmd.SetOut(fakeTTYWriter{Buffer: bytes.NewBuffer(nil)})
 	cmd.SetErr(bytes.NewBuffer(nil))
 
-	minecraft.ClearManifestCache()
+	runInitInteractive = func(ctx context.Context, _ *cobra.Command, deps initCmd.InteractiveInitDeps, options initCmd.InteractiveInitOptions) error {
+		cfg := models.ModsJSON{
+			Loader:                     models.FABRIC,
+			GameVersion:                "1.21.1",
+			DefaultAllowedReleaseTypes: []models.ReleaseType{models.Release},
+			ModsFolder:                 "mods",
+		}
+		initMeta := config.NewMetadata(options.ConfigPath)
+		return config.WriteConfig(ctx, deps.FS, initMeta, cfg)
+	}
 
 	_, err := runAdd(ctx, commandSpan, cmd, addOptions{
 		Platform:             "modrinth",
@@ -1331,11 +1311,22 @@ func TestRunAdd_CreatesConfigWhenMissing(t *testing.T) {
 		ConfigPath:           meta.ConfigPath,
 		AllowVersionFallback: true,
 	}, addDeps{
-		fs:              fs,
-		clients:         platform.DefaultClients(rate.NewLimiter(rate.Inf, 0)),
-		minecraftClient: manifestDoer{body: `{"latest":{"release":"1.21.1","snapshot":""},"versions":[]}`},
-		logger:          logger.New(cmd.OutOrStdout(), cmd.ErrOrStderr(), false, false),
-		output:          output.New(cmd.OutOrStdout(), cmd.ErrOrStderr(), false),
+		fs:      fs,
+		clients: platform.DefaultClients(rate.NewLimiter(rate.Inf, 0)),
+		logger:  logger.New(cmd.OutOrStdout(), cmd.ErrOrStderr(), false, false),
+		output:  output.New(cmd.OutOrStdout(), cmd.ErrOrStderr(), false),
+		runTea: func(model tea.Model, options ...tea.ProgramOption) (tea.Model, error) {
+			switch typed := model.(type) {
+			case configInitModel:
+				typed.confirmed = true
+				return typed, nil
+			case *configInitModel:
+				typed.confirmed = true
+				return typed, nil
+			default:
+				return runTeaProgram(model, options...)
+			}
+		},
 		fetchMod: func(_ context.Context, _ models.Platform, _ string, _ platform.FetchOptions, _ platform.Clients) (platform.RemoteMod, error) {
 			return platform.RemoteMod{
 				Name:        "Example",
@@ -1354,85 +1345,6 @@ func TestRunAdd_CreatesConfigWhenMissing(t *testing.T) {
 	configAfter, err := config.ReadConfig(context.Background(), fs, meta)
 	assert.NoError(t, err)
 	assert.Equal(t, "1.21.1", configAfter.GameVersion)
-}
-
-type manifestDoer struct {
-	body string
-}
-
-func (doer manifestDoer) Do(_ *http.Request) (*http.Response, error) {
-	return &http.Response{
-		StatusCode: http.StatusOK,
-		Body:       io.NopCloser(strings.NewReader(doer.body)),
-		Header:     make(http.Header),
-	}, nil
-}
-
-func TestRunAdd_UnknownPlatformInteractiveRetry(t *testing.T) {
-	restoreTTY := tuiinternal.SetIsTerminalFuncForTesting(func(int) bool { return true })
-	defer restoreTTY()
-
-	ctx, commandSpan := startAddPerf(t)
-	fs := afero.NewMemMapFs()
-	meta := config.NewMetadata(filepath.FromSlash("/cfg/modlist.json"))
-	assert.NoError(t, fs.MkdirAll(filepath.Dir(meta.ConfigPath), 0755))
-
-	cfg := models.ModsJSON{
-		Loader:                     models.FABRIC,
-		GameVersion:                "1.20.1",
-		DefaultAllowedReleaseTypes: []models.ReleaseType{models.Release},
-		ModsFolder:                 "mods",
-	}
-	assert.NoError(t, config.WriteConfig(context.Background(), fs, meta, cfg))
-	assert.NoError(t, config.WriteLock(context.Background(), fs, meta, nil))
-
-	cmd := &cobra.Command{}
-	cmd.SetIn(fakeTTYReader{Buffer: bytes.NewBuffer(nil)})
-	cmd.SetOut(fakeTTYWriter{Buffer: bytes.NewBuffer(nil)})
-	cmd.SetErr(bytes.NewBuffer(nil))
-
-	_, err := runAdd(ctx, commandSpan, cmd, addOptions{
-		Platform:   "invalid",
-		ProjectID:  "abc",
-		ConfigPath: meta.ConfigPath,
-	}, addDeps{
-		fs:      fs,
-		clients: platform.DefaultClients(rate.NewLimiter(rate.Inf, 0)),
-		logger:  logger.New(cmd.OutOrStdout(), cmd.ErrOrStderr(), false, false),
-		output:  output.New(cmd.OutOrStdout(), cmd.ErrOrStderr(), false),
-		fetchMod: func(_ context.Context, p models.Platform, id string, _ platform.FetchOptions, _ platform.Clients) (platform.RemoteMod, error) {
-			return platform.RemoteMod{}, &platform.UnknownPlatformError{Platform: "invalid"}
-		},
-		runTea: func(tea.Model, ...tea.ProgramOption) (tea.Model, error) {
-			return addTUIModel{
-				state:            addTUIStateDone,
-				resolvedPlatform: models.CURSEFORGE,
-				resolvedProject:  "abc",
-				remoteMod: platform.RemoteMod{
-					Name:        "Retry",
-					FileName:    "retry.jar",
-					Hash:        sha1Hex("data"),
-					ReleaseDate: "2024-01-01T00:00:00Z",
-					DownloadURL: "https://example.com/retry.jar",
-				},
-			}, nil
-		},
-		downloader: func(_ context.Context, _ string, path string, _ httpclient.Doer, _ httpclient.Sender, _ ...afero.Fs) error {
-			return afero.WriteFile(fs, path, []byte("data"), 0644)
-		},
-	})
-
-	assert.NoError(t, err)
-	configAfter, readErr := config.ReadConfig(context.Background(), fs, meta)
-	if !assert.NoError(t, readErr) {
-		return
-	}
-	assert.Len(t, configAfter.Mods, 1)
-	assert.Equal(t, models.CURSEFORGE, configAfter.Mods[0].Type)
-
-	commandSpan.End()
-	assertPerfSpanExists(t, "app.command.add.resolve.attempt")
-	assertPerfEventExists(t, "app.command.add", "app.command.add.interaction.open")
 }
 
 type fakeTTYReader struct {
@@ -1465,6 +1377,7 @@ func (filesystem renameFailFs) Rename(oldname, newname string) error {
 }
 
 func TestRunAdd_ModNotFoundUnattended(t *testing.T) {
+	t.Setenv("MMM_TEST", "true")
 	ctx, commandSpan := startAddPerf(t)
 	fs := afero.NewMemMapFs()
 	meta := config.NewMetadata(filepath.FromSlash("/cfg/modlist.json"))
@@ -1500,7 +1413,8 @@ func TestRunAdd_ModNotFoundUnattended(t *testing.T) {
 	})
 
 	assert.Error(t, err)
-	assert.Contains(t, out.String(), "Mod \"abc\" for modrinth does not exist")
+	assert.Contains(t, out.String(), "cmd.add.error.not_found_unattended")
+	assert.Contains(t, out.String(), "cmd.add.error.not_found_hint")
 }
 
 func TestResolveRemoteMod_NoFileUnattended(t *testing.T) {
@@ -1528,7 +1442,7 @@ func TestResolveRemoteMod_NoFileUnattended(t *testing.T) {
 		platformValue: models.MODRINTH,
 		projectID:     "abc",
 		deps:          deps,
-		useTUI:        false,
+		mode:          interaction.ExecutionModeNonTTY,
 		in:            strings.NewReader(""),
 		out:           io.Discard,
 	})
@@ -1624,94 +1538,6 @@ func TestRunAdd_TelemetryOnFailure(t *testing.T) {
 	assert.Error(t, err)
 	assert.False(t, telemetryCalled.Success)
 	assert.Equal(t, "add", telemetryCalled.Command)
-}
-
-func TestResolveRemoteModWithTUI_RecordsAttempt(t *testing.T) {
-	ctx, commandSpan := startAddPerf(t)
-
-	cfg := models.ModsJSON{
-		Loader:                     models.FABRIC,
-		GameVersion:                "1.20.1",
-		DefaultAllowedReleaseTypes: []models.ReleaseType{models.Release},
-	}
-
-	var fetchCalls int
-	deps := addDeps{
-		clients: platform.DefaultClients(rate.NewLimiter(rate.Inf, 0)),
-		logger:  logger.New(io.Discard, io.Discard, false, false),
-		output:  output.New(io.Discard, io.Discard, false),
-		fetchMod: func(_ context.Context, p models.Platform, id string, _ platform.FetchOptions, _ platform.Clients) (platform.RemoteMod, error) {
-			fetchCalls++
-			return platform.RemoteMod{Name: "Example", FileName: "example.jar"}, nil
-		},
-		runTea: func(model tea.Model, _ ...tea.ProgramOption) (tea.Model, error) {
-			typed, ok := model.(addTUIModel)
-			assert.True(t, ok)
-			cmd := typed.fetchCmd(models.CURSEFORGE, "abc")
-			msg := cmd().(addTUIFetchResultMsg)
-			updated, _ := typed.Update(msg)
-			return updated, nil
-		},
-	}
-
-	resolved, err := resolveRemoteModWithTUI(ctx, addResolveInputs{
-		ctx:           ctx,
-		commandSpan:   commandSpan,
-		cfg:           cfg,
-		opts:          addOptions{},
-		platformValue: models.Platform("invalid"),
-		projectID:     "abc",
-		deps:          deps,
-		useTUI:        false,
-		in:            strings.NewReader(""),
-		out:           io.Discard,
-	}, addTUIStateUnknownPlatformSelect)
-	assert.NoError(t, err)
-	assert.Equal(t, "example.jar", resolved.remoteMod.FileName)
-	assert.Equal(t, models.CURSEFORGE, resolved.platform)
-	assert.Equal(t, "abc", resolved.projectID)
-	assert.Equal(t, 1, fetchCalls)
-
-	commandSpan.End()
-	assertPerfSpanExists(t, "app.command.add.resolve.attempt")
-}
-
-func TestResolveRemoteModWithTUIFetchError(t *testing.T) {
-	ctx := context.Background()
-	cfg := models.ModsJSON{
-		Loader:                     models.FABRIC,
-		GameVersion:                "1.20.1",
-		DefaultAllowedReleaseTypes: []models.ReleaseType{models.Release},
-	}
-	deps := addDeps{
-		clients: platform.DefaultClients(rate.NewLimiter(rate.Inf, 0)),
-		logger:  logger.New(io.Discard, io.Discard, false, false),
-		output:  output.New(io.Discard, io.Discard, false),
-		fetchMod: func(_ context.Context, _ models.Platform, _ string, _ platform.FetchOptions, _ platform.Clients) (platform.RemoteMod, error) {
-			return platform.RemoteMod{}, errors.New("boom")
-		},
-		runTea: func(model tea.Model, _ ...tea.ProgramOption) (tea.Model, error) {
-			typed := model.(addTUIModel)
-			cmd := typed.fetchCmd(models.MODRINTH, "abc")
-			msg := cmd().(addTUIFetchResultMsg)
-			updated, _ := typed.Update(msg)
-			return updated, nil
-		},
-	}
-
-	_, err := resolveRemoteModWithTUI(ctx, addResolveInputs{
-		ctx:           ctx,
-		commandSpan:   nil,
-		cfg:           cfg,
-		opts:          addOptions{},
-		platformValue: models.MODRINTH,
-		projectID:     "abc",
-		deps:          deps,
-		useTUI:        false,
-		in:            strings.NewReader(""),
-		out:           io.Discard,
-	}, addTUIStateUnknownPlatformSelect)
-	assert.Error(t, err)
 }
 
 type fakeTerminalWriter struct {

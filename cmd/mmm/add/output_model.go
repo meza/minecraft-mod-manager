@@ -1,4 +1,4 @@
-package list
+package add
 
 import (
 	"io"
@@ -19,7 +19,7 @@ func outputLinesModelError(result tea.Model) error {
 	return view.OutputLinesModelError(result)
 }
 
-func runOutputLines(cmd *cobra.Command, deps listDeps, writer io.Writer, lines []string) error {
+func runOutputLines(cmd *cobra.Command, deps addDeps, writer io.Writer, lines []string) error {
 	runTea := deps.runTea
 	if runTea == nil {
 		runTea = runTeaProgram

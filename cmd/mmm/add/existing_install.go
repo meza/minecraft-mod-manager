@@ -3,15 +3,16 @@ package add
 import (
 	"errors"
 
+	"github.com/meza/minecraft-mod-manager/internal/httpclient"
 	"github.com/meza/minecraft-mod-manager/internal/i18n"
 	"github.com/meza/minecraft-mod-manager/internal/models"
 	"github.com/meza/minecraft-mod-manager/internal/modfilename"
 	"github.com/meza/minecraft-mod-manager/internal/modinstall"
 	"github.com/meza/minecraft-mod-manager/internal/modsetup"
-	"github.com/meza/minecraft-mod-manager/internal/output"
 	"github.com/meza/minecraft-mod-manager/internal/perf"
 	"github.com/meza/minecraft-mod-manager/internal/platform"
 	"github.com/meza/minecraft-mod-manager/internal/telemetry"
+	"github.com/meza/minecraft-mod-manager/internal/view"
 	"go.opentelemetry.io/otel/attribute"
 )
 
@@ -37,7 +38,9 @@ func handleExistingInstallIfPresent(input existingInstallCheckInput) (telemetry.
 			projectID:     input.projectID,
 			opts:          input.opts,
 			deps:          input.deps,
-			useTUI:        input.useTUI,
+			mode:          input.mode,
+			in:            input.in,
+			out:           input.out,
 		})
 		return telemetryResult, true, err
 	}
@@ -47,21 +50,25 @@ func handleExistingInstallIfPresent(input existingInstallCheckInput) (telemetry.
 func handleExistingInstall(input existingInstallInput) (telemetry.CommandTelemetry, error) {
 	install, err := normalizeExistingInstallFileName(input)
 	if err != nil {
-		return addFailureTelemetry(input.platformValue, input.projectID, input.opts, input.useTUI, err), err
+		return addFailureTelemetry(input.platformValue, input.projectID, input.opts, input.mode.IsInteractive(), err), err
 	}
 
 	ensureResult, ensureErr := ensureExistingInstall(input, install)
 	if ensureErr != nil {
-		return addFailureTelemetry(input.platformValue, input.projectID, input.opts, input.useTUI, ensureErr), ensureErr
+		return addFailureTelemetry(input.platformValue, input.projectID, input.opts, input.mode.IsInteractive(), ensureErr), ensureErr
 	}
 
-	if outputErr := logEnsureResult(input.deps.output, ensureResult.Reason, input.cfg, input.platformValue, input.projectID); outputErr != nil {
-		return addFailureTelemetry(input.platformValue, input.projectID, input.opts, input.useTUI, outputErr), outputErr
+	if !input.opts.Quiet {
+		colorMode := colorModeForOutput(input.out)
+		message := renderAddSuccessLine(colorMode, modNameForConfig(input.cfg, input.platformValue, input.projectID), input.projectID, input.platformValue)
+		if outputErr := runOutputLines(nil, input.deps, input.out, []string{message}); outputErr != nil {
+			return addFailureTelemetry(input.platformValue, input.projectID, input.opts, input.mode.IsInteractive(), outputErr), outputErr
+		}
 	}
 
 	telemetryPayload, err := recordExistingInstallTelemetry(input, ensureResult.Reason)
 	if err != nil {
-		return addFailureTelemetry(input.platformValue, input.projectID, input.opts, input.useTUI, err), err
+		return addFailureTelemetry(input.platformValue, input.projectID, input.opts, input.mode.IsInteractive(), err), err
 	}
 	return telemetryPayload, nil
 }
@@ -85,7 +92,28 @@ func normalizeExistingInstallFileName(input existingInstallInput) (models.ModIns
 
 func ensureExistingInstall(input existingInstallInput, install models.ModInstall) (modinstall.EnsureResult, error) {
 	installer := modinstall.NewInstaller(input.deps.fs, modinstall.Downloader(input.deps.downloader))
-	return installer.EnsureLockedFile(input.ctx, input.meta, input.cfg, install, platform.PreferredDownloadClient(input.deps.clients), nil)
+	client := platform.PreferredDownloadClient(input.deps.clients)
+	if input.opts.Quiet || !input.mode.IsInteractive() {
+		return installer.EnsureLockedFile(input.ctx, input.meta, input.cfg, install, client, nil)
+	}
+
+	colorMode := colorModeForOutput(input.out)
+	model := newDownloadProgressModel(modNameForConfig(input.cfg, input.platformValue, input.projectID), input.projectID, input.platformValue, colorMode, func(sender httpclient.Sender) (modinstall.EnsureResult, error) {
+		return installer.EnsureLockedFile(input.ctx, input.meta, input.cfg, install, client, sender)
+	})
+
+	result, err := runProgressProgram(model, view.ProgramOptions(input.in, input.out)...)
+	if err != nil {
+		return modinstall.EnsureResult{}, err
+	}
+	progressModel, ok := result.(*downloadProgressModel)
+	if !ok {
+		return modinstall.EnsureResult{}, errors.New("unexpected download progress model")
+	}
+	if progressModel.err != nil {
+		return modinstall.EnsureResult{}, progressModel.err
+	}
+	return progressModel.result, nil
 }
 
 func recordExistingInstallTelemetry(input existingInstallInput, reason modinstall.EnsureReason) (telemetry.CommandTelemetry, error) {
@@ -103,23 +131,5 @@ func recordExistingInstallTelemetry(input existingInstallInput, reason modinstal
 	})); err != nil {
 		return telemetry.CommandTelemetry{}, err
 	}
-	return addExistingInstallTelemetry(input.platformValue, input.projectID, input.opts, input.useTUI, reason), nil
-}
-
-func logEnsureResult(out *output.Output, reason modinstall.EnsureReason, cfg models.ModsJSON, platformValue models.Platform, projectID string) error {
-	switch reason {
-	case modinstall.EnsureReasonMissing:
-		return out.Log(i18n.T("cmd.install.download.missing", &i18n.Tvars{
-			Data: &i18n.TData{
-				"name":     modNameForConfig(cfg, platformValue, projectID),
-				"platform": string(platformValue),
-			},
-		}), output.LogForce)
-	case modinstall.EnsureReasonHashMismatch:
-		return out.Log(i18n.T("cmd.install.download.hash_mismatch", &i18n.Tvars{
-			Data: &i18n.TData{"name": modNameForConfig(cfg, platformValue, projectID)},
-		}), output.LogForce)
-	default:
-		return nil
-	}
+	return addExistingInstallTelemetry(input.platformValue, input.projectID, input.opts, input.mode.IsInteractive(), reason), nil
 }

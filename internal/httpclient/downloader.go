@@ -25,9 +25,17 @@ type progressWriter struct {
 	onProgress func(float64)
 }
 
-type progressMsg float64
+// DownloadProgressMsg reports progress for a download operation.
+type DownloadProgressMsg struct {
+	Downloaded int64
+	Total      int64
+	Ratio      float64
+}
 
-type progressErrMsg struct{ err error }
+// DownloadProgressErrMsg reports a download write error.
+type DownloadProgressErrMsg struct {
+	Err error
+}
 
 func (pw *progressWriter) Write(p []byte) (int, error) {
 	pw.downloaded += int64(len(p))
@@ -137,7 +145,11 @@ func buildProgressWriter(response *http.Response, file afero.File, program Sende
 	}
 	if canSendProgress {
 		progressWriter.onProgress = func(ratio float64) {
-			sendProgress(program, progressMsg(ratio))
+			sendProgress(program, DownloadProgressMsg{
+				Downloaded: progressWriter.downloaded,
+				Total:      progressWriter.total,
+				Ratio:      ratio,
+			})
 		}
 	}
 	if progressWriter.total > 0 {
@@ -155,7 +167,7 @@ func copyDownload(progressWriter *progressWriter) error {
 }
 
 func handleDownloadWriteError(err error, program Sender, filesystem afero.Fs, path string) error {
-	sendProgress(program, progressErrMsg{err})
+	sendProgress(program, DownloadProgressErrMsg{Err: err})
 	if removeErr := filesystem.Remove(path); removeErr != nil && !errors.Is(removeErr, os.ErrNotExist) {
 		return errors.Join(err, fmt.Errorf("failed to remove partial file: %w", removeErr))
 	}

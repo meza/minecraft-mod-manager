@@ -28,11 +28,6 @@ const (
 	done
 )
 
-var writeString = func(builder *strings.Builder, value string) error {
-	_, err := builder.WriteString(value)
-	return err
-}
-
 type CommandModel struct {
 	state                state
 	entered              bool
@@ -67,9 +62,9 @@ func (model CommandModel) View() string {
 	sections := buildViewSections(model)
 	orderedSections := orderedViewSections(model, sections)
 	if model.state == done {
-		return renderViewSectionsWithTrailingNewline(orderedSections)
+		return view.RenderViewSectionsWithTrailingNewline(orderedSections, view.SectionSeparatorLine)
 	}
-	return renderViewSections(orderedSections)
+	return view.RenderViewSections(orderedSections, view.SectionSeparatorLine)
 }
 
 func orderedViewSections(model CommandModel, sections viewSections) []string {
@@ -102,47 +97,6 @@ func orderedViewSections(model CommandModel, sections viewSections) []string {
 	}
 
 	return ordered
-}
-
-func renderViewSections(sections []string) string {
-	stringBuilder, ok := renderViewSectionsBuilder(sections)
-	if !ok {
-		return ""
-	}
-	return stringBuilder.String()
-}
-
-func renderViewSectionsWithTrailingNewline(sections []string) string {
-	stringBuilder, ok := renderViewSectionsBuilder(sections)
-	if !ok {
-		return ""
-	}
-	if stringBuilder.Len() > 0 {
-		if err := writeString(stringBuilder, "\n"); err != nil {
-			return ""
-		}
-	}
-	return stringBuilder.String()
-}
-
-func renderViewSectionsBuilder(sections []string) (*strings.Builder, bool) {
-	stringBuilder := &strings.Builder{}
-
-	for _, section := range sections {
-		if section == "" {
-			continue
-		}
-		if stringBuilder.Len() > 0 {
-			if err := writeString(stringBuilder, "\n"); err != nil {
-				return stringBuilder, false
-			}
-		}
-		if err := writeString(stringBuilder, section); err != nil {
-			return stringBuilder, false
-		}
-	}
-
-	return stringBuilder, true
 }
 
 type viewSections struct {

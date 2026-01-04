@@ -16,6 +16,7 @@ import (
 
 	"github.com/meza/minecraft-mod-manager/internal/config"
 	"github.com/meza/minecraft-mod-manager/internal/i18n"
+	"github.com/meza/minecraft-mod-manager/internal/interaction"
 	"github.com/meza/minecraft-mod-manager/internal/minecraft"
 	"github.com/meza/minecraft-mod-manager/internal/models"
 	"github.com/meza/minecraft-mod-manager/internal/output"
@@ -974,7 +975,7 @@ func TestOutputLineCmdReturnsErrorForNilWriter(t *testing.T) {
 	msg := cmd()
 	typed, ok := msg.(outputLineErrorMsg)
 	assert.True(t, ok)
-	assert.ErrorContains(t, typed.err, "output writer is nil")
+	assert.ErrorContains(t, typed.Err, "output writer is nil")
 }
 
 func TestOutputLineCmdReturnsErrorForWriteFailure(t *testing.T) {
@@ -983,7 +984,7 @@ func TestOutputLineCmdReturnsErrorForWriteFailure(t *testing.T) {
 	msg := cmd()
 	typed, ok := msg.(outputLineErrorMsg)
 	assert.True(t, ok)
-	assert.ErrorIs(t, typed.err, writeErr)
+	assert.ErrorIs(t, typed.Err, writeErr)
 }
 
 func TestMarkModsFolderProvided(t *testing.T) {
@@ -995,11 +996,11 @@ func TestMarkModsFolderProvided(t *testing.T) {
 			ReleaseTypes: true,
 		},
 	}
-	updated := markModsFolderProvided(executionModeUnattended, options)
+	updated := markModsFolderProvided(interaction.ExecutionModeUnattended, options)
 	assert.False(t, updated.Provided.ModsFolder)
 
 	options.Provided.ModsFolder = true
-	updated = markModsFolderProvided(executionModeInteractive, options)
+	updated = markModsFolderProvided(interaction.ExecutionModeInteractive, options)
 	assert.True(t, updated.Provided.ModsFolder)
 
 	options = initOptions{
@@ -1009,7 +1010,7 @@ func TestMarkModsFolderProvided(t *testing.T) {
 			ReleaseTypes: true,
 		},
 	}
-	updated = markModsFolderProvided(executionModeInteractive, options)
+	updated = markModsFolderProvided(interaction.ExecutionModeInteractive, options)
 	assert.False(t, updated.Provided.ModsFolder)
 
 	options = initOptions{
@@ -1020,7 +1021,7 @@ func TestMarkModsFolderProvided(t *testing.T) {
 			ReleaseTypes: true,
 		},
 	}
-	updated = markModsFolderProvided(executionModeInteractive, options)
+	updated = markModsFolderProvided(interaction.ExecutionModeInteractive, options)
 	assert.False(t, updated.Provided.ModsFolder)
 
 	options = initOptions{
@@ -1031,7 +1032,7 @@ func TestMarkModsFolderProvided(t *testing.T) {
 			ReleaseTypes: true,
 		},
 	}
-	updated = markModsFolderProvided(executionModeInteractive, options)
+	updated = markModsFolderProvided(interaction.ExecutionModeInteractive, options)
 	assert.True(t, updated.Provided.ModsFolder)
 }
 
@@ -1044,15 +1045,27 @@ func TestResolveExecutionMode(t *testing.T) {
 	cmd.SetOut(&fakeTTYWriter{})
 	cmd.SetErr(&fakeTTYWriter{})
 
-	mode := resolveExecutionMode(initOptions{Unattended: true}, cmd)
-	assert.Equal(t, executionModeUnattended, mode)
+	mode := interaction.ResolveExecutionMode(interaction.ExecutionModeInput{
+		Unattended: true,
+		In:         cmd.InOrStdin(),
+		Out:        cmd.OutOrStdout(),
+	})
+	assert.Equal(t, interaction.ExecutionModeUnattended, mode)
 
-	mode = resolveExecutionMode(initOptions{}, cmd)
-	assert.Equal(t, executionModeInteractive, mode)
+	mode = interaction.ResolveExecutionMode(interaction.ExecutionModeInput{
+		Unattended: false,
+		In:         cmd.InOrStdin(),
+		Out:        cmd.OutOrStdout(),
+	})
+	assert.Equal(t, interaction.ExecutionModeInteractive, mode)
 
 	cmd.SetIn(bytes.NewReader(nil))
-	mode = resolveExecutionMode(initOptions{}, cmd)
-	assert.Equal(t, executionModeNonTTY, mode)
+	mode = interaction.ResolveExecutionMode(interaction.ExecutionModeInput{
+		Unattended: false,
+		In:         cmd.InOrStdin(),
+		Out:        cmd.OutOrStdout(),
+	})
+	assert.Equal(t, interaction.ExecutionModeNonTTY, mode)
 }
 
 func TestShouldRunWithoutPrompt(t *testing.T) {
@@ -1164,7 +1177,7 @@ func TestRunInitWithoutPromptReturnsOutputError(t *testing.T) {
 		fs:              afero.NewMemMapFs(),
 		minecraftClient: manifestDoer([]string{"1.21.1"}),
 		runTea: func(tea.Model, ...tea.ProgramOption) (tea.Model, error) {
-			return outputLinesModel{err: writeErr}, nil
+			return outputLinesModel{Err: writeErr}, nil
 		},
 	}, config.NewMetadata(filepath.FromSlash("/cfg/modlist.json")))
 	assert.ErrorIs(t, err, writeErr)
@@ -1231,7 +1244,7 @@ func TestRunInitWithoutPromptReturnsSuccessOutputError(t *testing.T) {
 		fs:              fs,
 		minecraftClient: manifestDoer([]string{"1.21.1"}),
 		runTea: func(tea.Model, ...tea.ProgramOption) (tea.Model, error) {
-			return outputLinesModel{err: writeErr}, nil
+			return outputLinesModel{Err: writeErr}, nil
 		},
 	}, meta)
 	assert.ErrorIs(t, err, writeErr)
@@ -1282,7 +1295,7 @@ func TestRunInitInteractiveReturnsOutputError(t *testing.T) {
 					},
 				}, nil
 			}
-			return outputLinesModel{err: writeErr}, nil
+			return outputLinesModel{Err: writeErr}, nil
 		},
 	}, meta, false)
 	assert.ErrorIs(t, err, writeErr)
@@ -1419,7 +1432,7 @@ func TestWriteUnattendedOutputStylesWhenColorEnabled(t *testing.T) {
 			expectedHint := view.CtaStyle.Render(
 				i18n.T("cmd.init.error.unattended.config_exists_hint", nil),
 			)
-			assert.Equal(t, []string{expectedHeadline, expectedHint}, outputModel.lines)
+			assert.Equal(t, []string{expectedHeadline, expectedHint}, outputModel.Lines)
 			return model, nil
 		},
 	}, &unattendedOutputError{
@@ -1465,7 +1478,7 @@ func TestWriteInitSuccessStylesCtaWhenColorEnabled(t *testing.T) {
 			expectedHint := view.CtaStyle.Render(
 				i18n.T("cmd.init.success.next_steps", nil),
 			)
-			assert.Equal(t, []string{expectedHeadline, expectedHint}, outputModel.lines)
+			assert.Equal(t, []string{expectedHeadline, expectedHint}, outputModel.Lines)
 			return model, nil
 		},
 	}, options, meta)
@@ -1552,7 +1565,7 @@ func TestRunInitInteractiveUsesUpdatedConfigPathInSuccess(t *testing.T) {
 				updated.ConfigPath = newConfigPath
 				return CommandModel{state: done, result: updated}, nil
 			case outputLinesModel:
-				assert.Contains(t, typed.lines[0], expectedMeta.ConfigPath)
+				assert.Contains(t, typed.Lines[0], expectedMeta.ConfigPath)
 				return typed, nil
 			default:
 				return nil, errors.New("unexpected model")
@@ -2005,7 +2018,7 @@ func TestNormalizeGameVersion(t *testing.T) {
 }
 
 func TestOutputLinesModelUpdateAndView(t *testing.T) {
-	model := outputLinesModel{lines: []string{"line one"}}
+	model := outputLinesModel{Lines: []string{"line one"}}
 	cmd := model.Init()
 	assert.NotNil(t, cmd)
 
@@ -2014,13 +2027,13 @@ func TestOutputLinesModelUpdateAndView(t *testing.T) {
 	assert.Nil(t, updateCmd)
 	assert.Equal(t, "line one", model.View())
 
-	updated, updateCmd = model.Update(outputLineErrorMsg{err: errors.New("write failed")})
-	assert.ErrorContains(t, updated.(outputLinesModel).err, "write failed")
+	updated, updateCmd = model.Update(outputLineErrorMsg{Err: errors.New("write failed")})
+	assert.ErrorContains(t, updated.(outputLinesModel).Err, "write failed")
 	assert.NotNil(t, updateCmd)
 }
 
 func TestOutputLinesModelInitWithEmptyLinesQuits(t *testing.T) {
-	model := outputLinesModel{lines: []string{}}
+	model := outputLinesModel{Lines: []string{}}
 	cmd := model.Init()
 	assert.NotNil(t, cmd)
 	_, ok := cmd().(tea.QuitMsg)
@@ -2029,9 +2042,9 @@ func TestOutputLinesModelInitWithEmptyLinesQuits(t *testing.T) {
 
 func TestOutputLinesModelError(t *testing.T) {
 	primaryErr := errors.New("boom")
-	assert.ErrorIs(t, outputLinesModelError(outputLinesModel{err: primaryErr}), primaryErr)
+	assert.ErrorIs(t, outputLinesModelError(outputLinesModel{Err: primaryErr}), primaryErr)
 
 	otherErr := errors.New("another")
-	assert.ErrorIs(t, outputLinesModelError(&outputLinesModel{err: otherErr}), otherErr)
+	assert.ErrorIs(t, outputLinesModelError(&outputLinesModel{Err: otherErr}), otherErr)
 	assert.NoError(t, outputLinesModelError(CommandModel{}))
 }
