@@ -11,55 +11,89 @@ import (
 )
 
 func readInitOptions(cmd *cobra.Command, loader models.Loader) (initOptions, error) {
-	gameVersion, err := cmd.Flags().GetString("game-version")
-	if err != nil {
-		return initOptions{}, err
-	}
-	modsFolder, err := cmd.Flags().GetString("mods-folder")
-	if err != nil {
-		return initOptions{}, err
-	}
-	releaseTypesRaw, err := cmd.Flags().GetStringSlice("release-types")
-	if err != nil {
-		return initOptions{}, err
-	}
-	configPath, err := cmd.Flags().GetString("config")
-	if err != nil {
-		return initOptions{}, err
-	}
-	unattended, err := cmd.Flags().GetBool("unattended")
-	if err != nil {
-		return initOptions{}, err
-	}
-	quiet, err := cmd.Flags().GetBool("quiet")
-	if err != nil {
-		return initOptions{}, err
-	}
-	debug, err := cmd.Flags().GetBool("debug")
+	flagValues, err := readInitFlagValues(cmd)
 	if err != nil {
 		return initOptions{}, err
 	}
 
-	releaseTypes, err := parseReleaseTypes(releaseTypesRaw)
+	releaseTypes, err := parseReleaseTypes(flagValues.releaseTypesRaw)
 	if err != nil {
 		return initOptions{}, err
 	}
 
 	return initOptions{
-		ConfigPath:   configPath,
-		Unattended:   unattended,
-		Quiet:        quiet,
-		Debug:        debug,
+		ConfigPath:   flagValues.configPath,
+		Unattended:   flagValues.unattended,
+		Quiet:        flagValues.quiet,
+		Debug:        flagValues.debug,
+		Force:        flagValues.force,
 		Loader:       loader,
-		GameVersion:  gameVersion,
+		GameVersion:  flagValues.gameVersion,
 		ReleaseTypes: releaseTypes,
-		ModsFolder:   modsFolder,
+		ModsFolder:   flagValues.modsFolder,
 		Provided: providedFlags{
 			Loader:       cmd.Flags().Changed("loader"),
 			GameVersion:  cmd.Flags().Changed("game-version"),
 			ReleaseTypes: cmd.Flags().Changed("release-types"),
 			ModsFolder:   cmd.Flags().Changed("mods-folder"),
 		},
+	}, nil
+}
+
+type initFlagValues struct {
+	gameVersion     string
+	modsFolder      string
+	configPath      string
+	releaseTypesRaw []string
+	unattended      bool
+	quiet           bool
+	debug           bool
+	force           bool
+}
+
+func readInitFlagValues(cmd *cobra.Command) (initFlagValues, error) {
+	gameVersion, err := cmd.Flags().GetString("game-version")
+	if err != nil {
+		return initFlagValues{}, err
+	}
+	modsFolder, err := cmd.Flags().GetString("mods-folder")
+	if err != nil {
+		return initFlagValues{}, err
+	}
+	releaseTypesRaw, err := cmd.Flags().GetStringSlice("release-types")
+	if err != nil {
+		return initFlagValues{}, err
+	}
+	configPath, err := cmd.Flags().GetString("config")
+	if err != nil {
+		return initFlagValues{}, err
+	}
+	unattended, err := cmd.Flags().GetBool("unattended")
+	if err != nil {
+		return initFlagValues{}, err
+	}
+	quiet, err := cmd.Flags().GetBool("quiet")
+	if err != nil {
+		return initFlagValues{}, err
+	}
+	debug, err := cmd.Flags().GetBool("debug")
+	if err != nil {
+		return initFlagValues{}, err
+	}
+	force, err := cmd.Flags().GetBool("force")
+	if err != nil {
+		return initFlagValues{}, err
+	}
+
+	return initFlagValues{
+		gameVersion:     gameVersion,
+		modsFolder:      modsFolder,
+		releaseTypesRaw: releaseTypesRaw,
+		configPath:      configPath,
+		unattended:      unattended,
+		quiet:           quiet,
+		debug:           debug,
+		force:           force,
 	}, nil
 }
 

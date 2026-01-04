@@ -7,17 +7,52 @@ import (
 )
 
 func TestSuccessIconIsUnstyledWhenNotColorized(t *testing.T) {
+	restore := SetUnicodeSupportFuncForTesting(func() bool { return true })
+	defer restore()
+
 	assert.Equal(t, "V", SuccessIcon(ColorDisabled))
 }
 
 func TestErrorIconIsUnstyledWhenNotColorized(t *testing.T) {
+	restore := SetUnicodeSupportFuncForTesting(func() bool { return true })
+	defer restore()
+
 	assert.Equal(t, "X", ErrorIcon(ColorDisabled))
 }
 
+func TestFinalErrorIconIsUnstyledWhenNotColorized(t *testing.T) {
+	restore := SetUnicodeSupportFuncForTesting(func() bool { return true })
+	defer restore()
+
+	assert.Equal(t, "!!", FinalErrorIcon(ColorDisabled))
+}
+
 func TestSuccessIconIsStyledWhenColorized(t *testing.T) {
+	restore := SetUnicodeSupportFuncForTesting(func() bool { return true })
+	defer restore()
+
 	assert.Equal(t, QuestionStyle.Render("\u2705"), SuccessIcon(ColorEnabled))
 }
 
 func TestErrorIconIsStyledWhenColorized(t *testing.T) {
+	restore := SetUnicodeSupportFuncForTesting(func() bool { return true })
+	defer restore()
+
 	assert.Equal(t, ErrorStyle.Render("\u274C"), ErrorIcon(ColorEnabled))
+}
+
+func TestFinalErrorIconIsStyledWhenColorized(t *testing.T) {
+	restore := SetUnicodeSupportFuncForTesting(func() bool { return true })
+	defer restore()
+
+	assert.Equal(t, ErrorStyle.Render("\u203C\uFE0F"), FinalErrorIcon(ColorEnabled))
+}
+
+func TestIconsFallbackToAsciiWhenUnicodeUnsupported(t *testing.T) {
+	restore := SetUnicodeSupportFuncForTesting(func() bool { return false })
+	defer restore()
+
+	assert.Equal(t, "V", SuccessIcon(ColorDisabled))
+	assert.Equal(t, "X", ErrorIcon(ColorDisabled))
+	assert.Equal(t, "!!", FinalErrorIcon(ColorDisabled))
 }

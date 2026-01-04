@@ -13,7 +13,6 @@ import (
 	"github.com/meza/minecraft-mod-manager/internal/config"
 	"github.com/meza/minecraft-mod-manager/internal/i18n"
 	"github.com/meza/minecraft-mod-manager/internal/perf"
-	"github.com/meza/minecraft-mod-manager/internal/tui"
 	"github.com/spf13/cobra"
 	"go.opentelemetry.io/otel/attribute"
 )
@@ -50,18 +49,12 @@ func commandWithRunner(runner initRunner) *cobra.Command {
 			if err != nil {
 				return err
 			}
-			promptMode := tui.PromptEnabled
-			if options.Unattended {
-				promptMode = tui.PromptDisabled
-			}
-			promptAllowed := tui.ShouldPrompt(promptMode, cmd.InOrStdin(), cmd.OutOrStdout())
-
 			common := cmddeps.NewCommonDeps(cmd, cmddeps.CommonDepsOptions{
 				Quiet:           options.Quiet,
 				Debug:           options.Debug,
 				MinecraftClient: http.DefaultClient,
 			})
-			deps := newInitDeps(cmd, common, promptAllowed)
+			deps := newInitDeps(common)
 			meta := config.NewMetadata(options.ConfigPath)
 
 			err = runner(ctx, cmd, options, deps, meta)
@@ -100,6 +93,7 @@ func addInitFlags(cmd *cobra.Command, loader *loaderFlag) {
 	}))
 	cmd.Flags().StringP("game-version", "g", "latest", i18n.T("cmd.init.usage.game-version", nil))
 	cmd.Flags().StringP("mods-folder", "m", "mods", i18n.T("cmd.init.usage.mods-folder", nil))
+	cmd.Flags().BoolP("force", "f", false, i18n.T("cmd.init.flag.force", nil))
 }
 
 func registerInitCompletions(cmd *cobra.Command) bool {

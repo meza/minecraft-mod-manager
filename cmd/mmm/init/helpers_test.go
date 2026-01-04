@@ -6,7 +6,6 @@ import (
 	"errors"
 	"fmt"
 	"io"
-	"net/http"
 	"os"
 	"path/filepath"
 	"runtime"
@@ -22,66 +21,6 @@ import (
 	"github.com/meza/minecraft-mod-manager/internal/output"
 	"github.com/meza/minecraft-mod-manager/internal/privacy"
 )
-
-type errorReader struct {
-	err error
-}
-
-func (reader errorReader) Read([]byte) (int, error) {
-	return 0, reader.err
-}
-
-func TestTerminalPrompterConfirmOverwrite(t *testing.T) {
-	prompter := terminalPrompter{
-		in:  bytes.NewBufferString("y\n"),
-		out: io.Discard,
-	}
-	confirmed, err := prompter.ConfirmOverwrite("config.json")
-	assert.NoError(t, err)
-	assert.True(t, confirmed)
-
-	prompter = terminalPrompter{
-		in:  bytes.NewBufferString("no\n"),
-		out: io.Discard,
-	}
-	confirmed, err = prompter.ConfirmOverwrite("config.json")
-	assert.NoError(t, err)
-	assert.False(t, confirmed)
-}
-
-func TestTerminalPrompterRequestNewConfigPath(t *testing.T) {
-	prompter := terminalPrompter{
-		in:  bytes.NewBufferString("\n"),
-		out: io.Discard,
-	}
-	_, err := prompter.RequestNewConfigPath("config.json")
-	assert.ErrorContains(t, err, "cannot be empty")
-
-	prompter = terminalPrompter{
-		in:  bytes.NewBufferString("/tmp/modlist.json\n"),
-		out: io.Discard,
-	}
-	path, err := prompter.RequestNewConfigPath("config.json")
-	assert.NoError(t, err)
-	assert.Equal(t, "/tmp/modlist.json", path)
-}
-
-func TestTerminalPrompterRequestNewConfigPathReadError(t *testing.T) {
-	prompter := terminalPrompter{
-		in:  errorReader{err: errors.New("read failed")},
-		out: io.Discard,
-	}
-	_, err := prompter.RequestNewConfigPath("config.json")
-	assert.ErrorContains(t, err, "read failed")
-}
-
-func TestReadLineEOFAndError(t *testing.T) {
-	_, err := readLine(bytes.NewBuffer(nil))
-	assert.ErrorIs(t, err, io.EOF)
-
-	_, err = readLine(errorReader{err: errors.New("boom")})
-	assert.ErrorContains(t, err, "boom")
-}
 
 func TestBuildTelemetryPayloadExitCode(t *testing.T) {
 	payload := buildTelemetryPayload(initOptions{
@@ -102,6 +41,51 @@ func TestNormalizeGameVersionEmptyNoop(t *testing.T) {
 	opts, err := normalizeGameVersion(context.Background(), initOptions{}, initDeps{output: output.New(io.Discard, io.Discard, true)}, gameVersionUnattended)
 	assert.NoError(t, err)
 	assert.Equal(t, "", opts.GameVersion)
+}
+
+func TestNormalizeGameVersionInteractiveLatestClearsValue(t *testing.T) {
+	opts, err := normalizeGameVersion(context.Background(), initOptions{
+		GameVersion: "latest",
+		Provided: providedFlags{
+			GameVersion: true,
+		},
+	}, initDeps{output: output.New(io.Discard, io.Discard, true)}, gameVersionInteractive)
+	assert.NoError(t, err)
+	assert.Equal(t, "", opts.GameVersion)
+	assert.False(t, opts.Provided.GameVersion)
+}
+
+func TestNormalizeGameVersionUnattendedResolvesLatest(t *testing.T) {
+	opts, err := normalizeGameVersion(context.Background(), initOptions{
+		GameVersion: "latest",
+	}, initDeps{
+		minecraftClient: manifestDoer([]string{"1.21.1"}),
+	}, gameVersionUnattended)
+	assert.NoError(t, err)
+	assert.Equal(t, "1.21.1", opts.GameVersion)
+}
+
+func TestNormalizeGameVersionInteractive(t *testing.T) {
+	options := normalizeGameVersionInteractive(initOptions{
+		GameVersion: "latest",
+		Provided: providedFlags{
+			GameVersion: true,
+		},
+	})
+	assert.Empty(t, options.GameVersion)
+	assert.False(t, options.Provided.GameVersion)
+
+	options = normalizeGameVersionInteractive(initOptions{
+		GameVersion: "1.21.1",
+		Provided: providedFlags{
+			GameVersion: true,
+		},
+	})
+	assert.Equal(t, "1.21.1", options.GameVersion)
+	assert.True(t, options.Provided.GameVersion)
+
+	options = normalizeGameVersionInteractive(initOptions{})
+	assert.Empty(t, options.GameVersion)
 }
 
 func TestValidateModsFolderErrors(t *testing.T) {
@@ -125,6 +109,66 @@ func TestValidateModsFolderErrors(t *testing.T) {
 	}
 	sequenceFs := &statSequenceFs{Fs: fs, err: errors.New("stat second call"), info: info}
 	err = validateModsFolder(sequenceFs, meta, "mods")
+	assert.ErrorContains(t, err, "stat second call")
+}
+
+func TestValidateModsFolderMissingAndNotDirectory(t *testing.T) {
+	t.Setenv("MMM_TEST", "true")
+	fs := afero.NewMemMapFs()
+	meta := config.NewMetadata(filepath.FromSlash("/cfg/modlist.json"))
+
+	err := validateModsFolder(fs, meta, "mods")
+	assert.ErrorContains(t, err, "cmd.init.error.mods-folder.missing")
+
+	assert.NoError(t, fs.MkdirAll(filepath.FromSlash("/cfg"), 0755))
+	assert.NoError(t, afero.WriteFile(fs, filepath.FromSlash("/cfg/mods"), []byte("file"), 0644))
+	err = validateModsFolder(fs, meta, "mods")
+	assert.ErrorContains(t, err, "cmd.init.error.mods-folder.not-directory")
+
+	assert.NoError(t, fs.Remove(filepath.FromSlash("/cfg/mods")))
+	assert.NoError(t, fs.MkdirAll(filepath.FromSlash("/cfg/mods"), 0755))
+	err = validateModsFolder(fs, meta, "mods")
+	assert.NoError(t, err)
+}
+
+func TestValidateModsFolderInteractiveMissingAndNotDirectory(t *testing.T) {
+	t.Setenv("MMM_TEST", "true")
+	fs := afero.NewMemMapFs()
+	meta := config.NewMetadata(filepath.FromSlash("/cfg/modlist.json"))
+
+	err := validateModsFolderInteractive(fs, meta, "")
+	assert.ErrorContains(t, err, "cmd.init.error.mods-folder.empty")
+
+	err = validateModsFolderInteractive(fs, meta, "mods")
+	assert.ErrorContains(t, err, "cmd.init.prompt.mods-folder.missing")
+
+	assert.NoError(t, fs.MkdirAll(filepath.FromSlash("/cfg"), 0755))
+	assert.NoError(t, afero.WriteFile(fs, filepath.FromSlash("/cfg/mods"), []byte("file"), 0644))
+	err = validateModsFolderInteractive(fs, meta, "mods")
+	assert.ErrorContains(t, err, "cmd.init.prompt.mods-folder.not-directory")
+
+	assert.NoError(t, fs.Remove(filepath.FromSlash("/cfg/mods")))
+	assert.NoError(t, fs.MkdirAll(filepath.FromSlash("/cfg/mods"), 0755))
+	err = validateModsFolderInteractive(fs, meta, "mods")
+	assert.NoError(t, err)
+}
+
+func TestValidateModsFolderInteractiveStatErrors(t *testing.T) {
+	t.Setenv("MMM_TEST", "true")
+	meta := config.NewMetadata(filepath.FromSlash("/cfg/modlist.json"))
+
+	statErrFs := statErrorFs{Fs: afero.NewMemMapFs(), err: errors.New("stat failed")}
+	err := validateModsFolderInteractive(statErrFs, meta, "mods")
+	assert.ErrorContains(t, err, "stat failed")
+
+	baseFs := afero.NewMemMapFs()
+	assert.NoError(t, baseFs.MkdirAll(filepath.FromSlash("/cfg/mods"), 0755))
+	info, err := baseFs.Stat(filepath.FromSlash("/cfg/mods"))
+	if err != nil {
+		t.Fatalf("stat failed: %v", err)
+	}
+	sequenceFs := &statSequenceFs{Fs: baseFs, err: errors.New("stat second call"), info: info}
+	err = validateModsFolderInteractive(sequenceFs, meta, "mods")
 	assert.ErrorContains(t, err, "stat second call")
 }
 
@@ -157,51 +201,14 @@ func TestBuildTelemetryPayloadRedactsModsFolderError(t *testing.T) {
 	}
 }
 
-func TestInitWithDepsPrompterErrors(t *testing.T) {
-	minecraft.ClearManifestCache()
-	fs := afero.NewMemMapFs()
-	assert.NoError(t, fs.MkdirAll(filepath.FromSlash("/cfg/mods"), 0755))
-	assert.NoError(t, afero.WriteFile(fs, filepath.FromSlash("/cfg/modlist.json"), []byte(`{"existing":true}`), 0644))
-
-	_, err := initWithDeps(context.Background(), initOptions{
-		ConfigPath:   filepath.FromSlash("/cfg/modlist.json"),
-		Loader:       models.FABRIC,
-		GameVersion:  "1.21.1",
-		ReleaseTypes: []models.ReleaseType{models.Release},
-		ModsFolder:   "mods",
-	}, initDeps{
-		output:          output.New(io.Discard, io.Discard, true),
-		fs:              fs,
-		minecraftClient: manifestDoer([]string{"1.21.1"}),
-		prompter:        fakePrompter{confirmErr: errors.New("confirm failed")},
-		promptAllowed:   true,
-	})
-	assert.ErrorContains(t, err, "confirm failed")
-
-	_, err = initWithDeps(context.Background(), initOptions{
-		ConfigPath:   filepath.FromSlash("/cfg/modlist.json"),
-		Loader:       models.FABRIC,
-		GameVersion:  "1.21.1",
-		ReleaseTypes: []models.ReleaseType{models.Release},
-		ModsFolder:   "mods",
-	}, initDeps{
-		output:          output.New(io.Discard, io.Discard, true),
-		fs:              fs,
-		minecraftClient: manifestDoer([]string{"1.21.1"}),
-		prompter:        fakePrompter{overwrite: false, newPathErr: errors.New("new path failed")},
-		promptAllowed:   true,
-	})
-	assert.ErrorContains(t, err, "new path failed")
-}
-
-func TestInitWithDepsLogsWhenLoggerProvided(t *testing.T) {
+func TestInitWithDepsDoesNotWriteOutput(t *testing.T) {
 	minecraft.ClearManifestCache()
 	fs := afero.NewMemMapFs()
 	meta := config.NewMetadata(filepath.FromSlash("/cfg/modlist.json"))
 	assert.NoError(t, fs.MkdirAll(filepath.FromSlash("/cfg/mods"), 0755))
 
 	logBuffer := &bytes.Buffer{}
-	_, err := initWithDeps(context.Background(), initOptions{
+	err := initWithDeps(context.Background(), initOptions{
 		ConfigPath:   meta.ConfigPath,
 		Loader:       models.FABRIC,
 		GameVersion:  "1.21.1",
@@ -214,43 +221,7 @@ func TestInitWithDepsLogsWhenLoggerProvided(t *testing.T) {
 		output:          output.New(logBuffer, io.Discard, false),
 	})
 	assert.NoError(t, err)
-	assert.Contains(t, logBuffer.String(), "Initialized configuration")
-}
-
-func TestLogInitSuccessSkipsNilOutput(t *testing.T) {
-	out := output.New(io.Discard, io.Discard, true)
-	assert.NoError(t, logInitSuccess(out, config.Metadata{ConfigPath: "modlist.json"}))
-}
-
-func TestLogInitSuccessReturnsOutputError(t *testing.T) {
-	t.Setenv("MMM_TEST", "true")
-
-	writeErr := errors.New("write failed")
-	out := output.New(errorWriter{err: writeErr}, errorWriter{err: writeErr}, false)
-
-	err := logInitSuccess(out, config.Metadata{ConfigPath: "modlist.json"})
-	assert.ErrorIs(t, err, writeErr)
-}
-
-func TestInitWithDepsLatestVersionError(t *testing.T) {
-	minecraft.ClearManifestCache()
-	fs := afero.NewMemMapFs()
-	assert.NoError(t, fs.MkdirAll(filepath.FromSlash("/cfg/mods"), 0755))
-
-	_, err := initWithDeps(context.Background(), initOptions{
-		ConfigPath:   filepath.FromSlash("/cfg/modlist.json"),
-		Loader:       models.FABRIC,
-		GameVersion:  "",
-		ReleaseTypes: []models.ReleaseType{models.Release},
-		ModsFolder:   "mods",
-	}, initDeps{
-		output: output.New(io.Discard, io.Discard, true),
-		fs:     fs,
-		minecraftClient: doerFunc(func(_ *http.Request) (*http.Response, error) {
-			return nil, errors.New("offline")
-		}),
-	})
-	assert.ErrorContains(t, err, "could not determine latest minecraft version")
+	assert.Empty(t, logBuffer.String())
 }
 
 func TestInitWithDepsMkdirAllError(t *testing.T) {
@@ -260,7 +231,7 @@ func TestInitWithDepsMkdirAllError(t *testing.T) {
 	assert.NoError(t, baseFs.MkdirAll(filepath.FromSlash("/cfg/mods"), 0755))
 
 	fs := mkdirErrorFs{Fs: baseFs, failPath: meta.Dir(), err: errors.New("mkdir failed")}
-	_, err := initWithDeps(context.Background(), initOptions{
+	err := initWithDeps(context.Background(), initOptions{
 		ConfigPath:   meta.ConfigPath,
 		Loader:       models.FABRIC,
 		GameVersion:  "1.21.1",
@@ -282,7 +253,7 @@ func TestInitWithDepsWriteConfigError(t *testing.T) {
 
 	fs := renameErrorFs{Fs: baseFs, failPath: meta.ConfigPath, err: errors.New("rename failed")}
 
-	_, err := initWithDeps(context.Background(), initOptions{
+	err := initWithDeps(context.Background(), initOptions{
 		ConfigPath:   meta.ConfigPath,
 		Loader:       models.FABRIC,
 		GameVersion:  "1.21.1",
@@ -304,7 +275,7 @@ func TestInitWithDepsWriteLockError(t *testing.T) {
 
 	fs := renameErrorFs{Fs: baseFs, failPath: meta.LockPath(), err: errors.New("rename failed")}
 
-	_, err := initWithDeps(context.Background(), initOptions{
+	err := initWithDeps(context.Background(), initOptions{
 		ConfigPath:   meta.ConfigPath,
 		Loader:       models.FABRIC,
 		GameVersion:  "1.21.1",
@@ -316,27 +287,6 @@ func TestInitWithDepsWriteLockError(t *testing.T) {
 		minecraftClient: manifestDoer([]string{"1.21.1"}),
 	})
 	assert.Error(t, err)
-}
-
-func TestInitWithDepsReturnsOutputError(t *testing.T) {
-	minecraft.ClearManifestCache()
-	fs := afero.NewMemMapFs()
-	meta := config.NewMetadata(filepath.FromSlash("/cfg/modlist.json"))
-	assert.NoError(t, fs.MkdirAll(filepath.FromSlash("/cfg/mods"), 0755))
-
-	writeErr := errors.New("write failed")
-	_, err := initWithDeps(context.Background(), initOptions{
-		ConfigPath:   meta.ConfigPath,
-		Loader:       models.FABRIC,
-		GameVersion:  "1.21.1",
-		ReleaseTypes: []models.ReleaseType{models.Release},
-		ModsFolder:   "mods",
-	}, initDeps{
-		fs:              fs,
-		minecraftClient: manifestDoer([]string{"1.21.1"}),
-		output:          output.New(errorWriter{err: writeErr}, errorWriter{err: writeErr}, false),
-	})
-	assert.ErrorIs(t, err, writeErr)
 }
 
 type statErrorFs struct {

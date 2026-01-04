@@ -5,6 +5,7 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/muesli/termenv"
 	"github.com/stretchr/testify/assert"
 )
 
@@ -100,6 +101,80 @@ func TestSetIsTerminalFuncForTestingRestores(t *testing.T) {
 
 	restore()
 	assert.False(t, isTerminalFunc(0))
+}
+
+func TestSupportsUnicodeUsesDefaultDetector(t *testing.T) {
+	assert.IsType(t, true, SupportsUnicode())
+}
+
+func TestSupportsUnicodeWhenOverrideReturnsTrue(t *testing.T) {
+	restore := SetIsTerminalFuncForTesting(func(_ int) bool { return true })
+	defer restore()
+
+	assert.True(t, SupportsUnicode())
+}
+
+func TestSupportsUnicodeWhenOverrideReturnsFalse(t *testing.T) {
+	restore := SetIsTerminalFuncForTesting(func(_ int) bool { return false })
+	defer restore()
+
+	assert.False(t, SupportsUnicode())
+}
+
+func TestSupportsUnicodeWhenNotTerminal(t *testing.T) {
+	previousFunc := isTerminalFunc
+	previousOverride := isTerminalFuncOverridden
+	defer func() {
+		isTerminalFunc = previousFunc
+		isTerminalFuncOverridden = previousOverride
+	}()
+
+	isTerminalFunc = func(_ int) bool { return false }
+	isTerminalFuncOverridden = false
+	assert.False(t, SupportsUnicode())
+}
+
+func TestSupportsUnicodeWhenTerminalUsesProfile(t *testing.T) {
+	previousFunc := isTerminalFunc
+	previousOverride := isTerminalFuncOverridden
+	defer func() {
+		isTerminalFunc = previousFunc
+		isTerminalFuncOverridden = previousOverride
+	}()
+
+	isTerminalFunc = func(_ int) bool { return true }
+	isTerminalFuncOverridden = false
+	assert.IsType(t, true, SupportsUnicode())
+}
+
+func TestSupportsColorRequiresTerminalWriter(t *testing.T) {
+	restore := mockTerminalDetection(t, true)
+	defer restore()
+
+	restoreProfile := SetColorProfileFuncForTesting(func() termenv.Profile { return termenv.TrueColor })
+	defer restoreProfile()
+
+	assert.False(t, SupportsColor(&strings.Builder{}))
+}
+
+func TestSupportsColorWhenProfileIsAscii(t *testing.T) {
+	restore := mockTerminalDetection(t, true)
+	defer restore()
+
+	restoreProfile := SetColorProfileFuncForTesting(func() termenv.Profile { return termenv.Ascii })
+	defer restoreProfile()
+
+	assert.False(t, SupportsColor(fakeWriter{}))
+}
+
+func TestSupportsColorWhenTerminalAndProfileSupportsColor(t *testing.T) {
+	restore := mockTerminalDetection(t, true)
+	defer restore()
+
+	restoreProfile := SetColorProfileFuncForTesting(func() termenv.Profile { return termenv.TrueColor })
+	defer restoreProfile()
+
+	assert.True(t, SupportsColor(fakeWriter{}))
 }
 
 func mockTerminalDetection(t *testing.T, result bool) func() {

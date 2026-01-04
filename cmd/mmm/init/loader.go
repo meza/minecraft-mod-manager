@@ -2,14 +2,14 @@ package init
 
 import (
 	"fmt"
+	"io"
+
 	"github.com/charmbracelet/bubbles/list"
 	tea "github.com/charmbracelet/bubbletea"
-	"github.com/charmbracelet/x/term"
+
 	"github.com/meza/minecraft-mod-manager/internal/i18n"
 	"github.com/meza/minecraft-mod-manager/internal/models"
-	"github.com/meza/minecraft-mod-manager/internal/tui"
-	"io"
-	"os"
+	termui "github.com/meza/minecraft-mod-manager/internal/tui"
 )
 
 type LoaderSelectedMessage struct {
@@ -50,7 +50,7 @@ func (model LoaderModel) Update(msg tea.Msg) (LoaderModel, tea.Cmd) {
 
 func (model LoaderModel) View() string {
 	if model.Value != "" {
-		return fmt.Sprintf("%s %s", model.Title(), tui.SelectedItemStyle.Render(string(model.Value)))
+		return fmt.Sprintf("%s %s", model.Title(), termui.SelectedItemStyle.Render(string(model.Value)))
 	}
 	return model.list.View()
 }
@@ -79,13 +79,13 @@ func (delegate itemDelegate) Render(w io.Writer, listModel list.Model, itemIndex
 	itemLine := string(item)
 
 	if itemIndex == listModel.Index() {
-		if _, err := fmt.Fprint(w, tui.SelectedItemStyle.Render("\u276F "+itemLine)); err != nil {
+		if _, err := fmt.Fprint(w, termui.SelectedItemStyle.Render(focusedLoaderPrefix()+itemLine)); err != nil {
 			return
 		}
 		return
 	}
 
-	if _, err := fmt.Fprint(w, tui.ItemStyle.Render(itemLine)); err != nil {
+	if _, err := fmt.Fprint(w, termui.ItemStyle.Render(itemLine)); err != nil {
 		return
 	}
 }
@@ -95,11 +95,6 @@ type loaderType string
 func (item loaderType) FilterValue() string { return "" }
 
 func NewLoaderModel(loader string) LoaderModel {
-	width, _, err := term.GetSize(os.Stdout.Fd())
-	if err != nil {
-		width = 0
-	}
-
 	loaderOptions := models.AllLoaders()
 	items := make([]list.Item, 0)
 
@@ -107,15 +102,15 @@ func NewLoaderModel(loader string) LoaderModel {
 		items = append(items, loaderType(loader))
 	}
 
-	listModel := list.New(items, itemDelegate{}, width, 14)
-	listModel.Title = tui.QuestionStyle.Render("? ") + tui.TitleStyle.Render(i18n.T("cmd.init.tui.loader.question", nil))
+	listModel := list.New(items, itemDelegate{}, 0, 14)
+	listModel.Title = termui.QuestionStyle.Render("? ") + termui.TitleStyle.Render(i18n.T("cmd.init.prompt.loader.question", nil))
 	listModel.SetShowStatusBar(false)
 	listModel.SetShowTitle(true)
-	listModel.Styles.Title = tui.TitleStyle
-	listModel.Styles.TitleBar = tui.TitleStyle
-	listModel.Styles.PaginationStyle = tui.PaginationStyle
-	listModel.Styles.HelpStyle = tui.HelpStyle
-	listModel.KeyMap = tui.TranslatedListKeyMap()
+	listModel.Styles.Title = termui.TitleStyle
+	listModel.Styles.TitleBar = termui.TitleStyle
+	listModel.Styles.PaginationStyle = termui.PaginationStyle
+	listModel.Styles.HelpStyle = termui.HelpStyle
+	listModel.KeyMap = termui.TranslatedListKeyMap()
 
 	model := LoaderModel{
 		list: listModel,
@@ -134,6 +129,14 @@ func NewLoaderModel(loader string) LoaderModel {
 	}
 
 	return model
+}
+
+func focusedLoaderPrefix() string {
+	prefix := "> "
+	if termui.SupportsUnicode() {
+		prefix = "\u276F "
+	}
+	return prefix
 }
 
 func isValidLoader(loader models.Loader) bool {

@@ -37,6 +37,8 @@ func (collector *logCollector) View() string {
 
 func TestInstallTUILogSnapshot(t *testing.T) {
 	t.Setenv("MMM_TEST", "true")
+	restoreUnicode := tui.SetUnicodeSupportFuncForTesting(func() bool { return true })
+	t.Cleanup(restoreUnicode)
 
 	collector := newLogCollector()
 	out := output.New(collector.writer, io.Discard, false)

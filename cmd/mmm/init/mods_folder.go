@@ -13,7 +13,7 @@ import (
 	"github.com/meza/minecraft-mod-manager/internal/config"
 	"github.com/meza/minecraft-mod-manager/internal/i18n"
 	"github.com/meza/minecraft-mod-manager/internal/models"
-	"github.com/meza/minecraft-mod-manager/internal/tui"
+	termui "github.com/meza/minecraft-mod-manager/internal/tui"
 	"github.com/spf13/afero"
 )
 
@@ -24,7 +24,7 @@ type ModsFolderSelectedMessage struct {
 type ModsFolderModel struct {
 	input  textinput.Model
 	help   help.Model
-	keymap tui.TranslatedInputKeyMap
+	keymap termui.TranslatedInputKeyMap
 	error  error
 	Value  string
 
@@ -40,7 +40,7 @@ type modsFolderModelInput struct {
 
 func NewModsFolderModel(input modsFolderModelInput) ModsFolderModel {
 	inputModel := textinput.New()
-	inputModel.Prompt = tui.QuestionStyle.Render("? ") + tui.TitleStyle.Render(i18n.T("cmd.init.tui.mods-folder.question", nil)) + " "
+	inputModel.Prompt = termui.QuestionStyle.Render("? ") + termui.TitleStyle.Render(i18n.T("cmd.init.prompt.mods-folder.question", nil)) + " "
 	resolvedModsFolder := input.meta.ModsFolderPath(models.ModsJSON{ModsFolder: input.modsFolder})
 	inputModel.Placeholder = input.modsFolder
 	// Ensure the placeholder fits so the full path is visible to the user.
@@ -49,7 +49,7 @@ func NewModsFolderModel(input modsFolderModelInput) ModsFolderModel {
 		minWidth = 10
 	}
 	inputModel.Width = minWidth
-	inputModel.PlaceholderStyle = tui.PlaceholderStyle
+	inputModel.PlaceholderStyle = termui.PlaceholderStyle
 	inputModel.Focus()
 	if input.prefill {
 		inputModel.SetValue(input.modsFolder)
@@ -58,9 +58,9 @@ func NewModsFolderModel(input modsFolderModelInput) ModsFolderModel {
 	model := ModsFolderModel{
 		input:  inputModel,
 		help:   help.New(),
-		keymap: tui.TranslatedInputKeyMap{},
+		keymap: termui.TranslatedInputKeyMap{},
 		validate: func(value string) error {
-			return validateModsFolder(input.fs, input.meta, value)
+			return validateModsFolderInteractive(input.fs, input.meta, value)
 		},
 	}
 
@@ -91,12 +91,12 @@ func (model ModsFolderModel) Update(msg tea.Msg) (ModsFolderModel, tea.Cmd) {
 
 func (model ModsFolderModel) View() string {
 	if model.Value != "" {
-		return fmt.Sprintf("%s%s", model.input.Prompt, tui.SelectedItemStyle.Render(model.Value))
+		return fmt.Sprintf("%s%s", model.input.Prompt, termui.SelectedItemStyle.Render(model.Value))
 	}
 
 	errorString := ""
 	if model.error != nil {
-		errorString = tui.ErrorStyle.Render(" <- " + model.error.Error())
+		errorString = termui.ErrorStyle.Render(" <- " + model.error.Error())
 	}
 
 	return fmt.Sprintf("%s%s\n\n%s", model.input.View(), errorString, model.help.View(model.keymap))
@@ -111,11 +111,6 @@ func (model ModsFolderModel) modsFolderSelected() tea.Cmd {
 
 func (model ModsFolderModel) handleKeyMsg(msg tea.KeyMsg) (ModsFolderModel, tea.Cmd, bool) {
 	switch msg.String() {
-	case "q":
-		if !model.input.Focused() {
-			return model, tea.Quit, true
-		}
-		return model, nil, false
 	case "esc":
 		return model, tea.Quit, true
 	case "tab":
@@ -139,7 +134,7 @@ func (model ModsFolderModel) handleEnterKey() (ModsFolderModel, tea.Cmd, bool) {
 		value = strings.TrimSpace(model.input.Placeholder)
 	}
 	if value == "" {
-		model.error = errors.New("mods folder cannot be empty")
+		model.error = errors.New(i18n.T("cmd.init.error.mods-folder.empty", nil))
 		return model, nil, true
 	}
 

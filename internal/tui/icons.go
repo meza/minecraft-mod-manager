@@ -2,19 +2,28 @@
 package tui
 
 func SuccessIcon(colorMode ColorMode) string {
-	emojiIcon := "\u2705"
 	asciiIcon := "V"
-	if colorMode.Enabled() {
-		return QuestionStyle.Render(emojiIcon)
+	icon := asciiIcon
+	if colorMode.Enabled() && SupportsUnicode() {
+		icon = "\u2705"
 	}
-	return asciiIcon
+	return RenderIfColorEnabled(colorMode, QuestionStyle, icon)
 }
 
 func ErrorIcon(colorMode ColorMode) string {
-	emojiIcon := "\u274C"
 	asciiIcon := "X"
-	if colorMode.Enabled() {
-		return ErrorStyle.Render(emojiIcon)
+	icon := asciiIcon
+	if colorMode.Enabled() && SupportsUnicode() {
+		icon = "\u274C"
 	}
-	return asciiIcon
+	return RenderIfColorEnabled(colorMode, ErrorStyle, icon)
+}
+
+func FinalErrorIcon(colorMode ColorMode) string {
+	asciiIcon := "!!"
+	icon := asciiIcon
+	if colorMode.Enabled() && SupportsUnicode() {
+		icon = "\u203C\uFE0F"
+	}
+	return RenderIfColorEnabled(colorMode, ErrorStyle, icon)
 }

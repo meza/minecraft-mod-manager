@@ -16,12 +16,15 @@ import (
 	"github.com/meza/minecraft-mod-manager/internal/i18n"
 	"github.com/meza/minecraft-mod-manager/internal/models"
 	"github.com/meza/minecraft-mod-manager/internal/perf"
+	termui "github.com/meza/minecraft-mod-manager/internal/tui"
 )
 
 const mockLatestVersion = "1.21.1"
 
-func TestInitTUIStateSnapshots(t *testing.T) {
+func TestInitInteractiveFlowStateSnapshots(t *testing.T) {
 	t.Setenv("MMM_TEST", "true")
+	restoreUnicode := termui.SetUnicodeSupportFuncForTesting(func() bool { return true })
+	t.Cleanup(restoreUnicode)
 
 	t.Run("loader", func(t *testing.T) {
 		enablePerf(t)
@@ -30,7 +33,7 @@ func TestInitTUIStateSnapshots(t *testing.T) {
 
 		matchSnapshot(t, model.View())
 		spans := finalizePerfForModel(t, &model)
-		assertPerfEventExistsInit(t, spans, "tui.init.session", "tui.init.state.enter")
+		assertPerfEventExistsInit(t, spans, "interactive.init.session", "interactive.init.state.enter")
 	})
 
 	t.Run("game_version", func(t *testing.T) {
@@ -42,7 +45,7 @@ func TestInitTUIStateSnapshots(t *testing.T) {
 
 		matchSnapshot(t, model.View())
 		spans := finalizePerfForModel(t, &model)
-		assertPerfEventExistsInit(t, spans, "tui.init.session", "tui.init.action.select_loader")
+		assertPerfEventExistsInit(t, spans, "interactive.init.session", "interactive.init.action.select_loader")
 	})
 
 	t.Run("release_types", func(t *testing.T) {
@@ -55,7 +58,7 @@ func TestInitTUIStateSnapshots(t *testing.T) {
 
 		matchSnapshot(t, model.View())
 		spans := finalizePerfForModel(t, &model)
-		assertPerfEventExistsInit(t, spans, "tui.init.session", "tui.init.action.select_game_version")
+		assertPerfEventExistsInit(t, spans, "interactive.init.session", "interactive.init.action.select_game_version")
 	})
 
 	t.Run("mods_folder", func(t *testing.T) {
@@ -70,10 +73,10 @@ func TestInitTUIStateSnapshots(t *testing.T) {
 
 		matchSnapshot(t, model.View())
 		spans := finalizePerfForModel(t, &model)
-		assertPerfEventExistsInit(t, spans, "tui.init.session", "tui.init.action.select_release_types")
+		assertPerfEventExistsInit(t, spans, "interactive.init.session", "interactive.init.action.select_release_types")
 	})
 
-	t.Run("done", func(t *testing.T) {
+	t.Run("confirm_write", func(t *testing.T) {
 		enablePerf(t)
 		model := newSnapshotModel(t)
 		model = applyWindowSize(t, model, 60)
@@ -85,14 +88,32 @@ func TestInitTUIStateSnapshots(t *testing.T) {
 
 		matchSnapshot(t, model.View())
 		spans := finalizePerfForModel(t, &model)
-		assertPerfEventExistsInit(t, spans, "tui.init.session", "tui.init.outcome.completed")
-		assertPerfSpanExistsInit(t, spans, "tui.init.wait.loader")
-		assertPerfSpanExistsInit(t, spans, "tui.init.wait.game_version")
+		assertPerfEventExistsInit(t, spans, "interactive.init.session", "interactive.init.action.select_mods_folder")
+	})
+
+	t.Run("done", func(t *testing.T) {
+		enablePerf(t)
+		model := newSnapshotModel(t)
+		model = applyWindowSize(t, model, 60)
+		model = selectLoader(t, model, models.FABRIC)
+		model = enterGameVersion(t, model, "1.21.1")
+		model = applyWindowSize(t, model, 60)
+		model = confirmReleaseTypes(t, model)
+		model = enterModsFolder(t, model, "mods")
+		model = confirmWrite(t, model)
+
+		matchSnapshot(t, model.View())
+		spans := finalizePerfForModel(t, &model)
+		assertPerfEventExistsInit(t, spans, "interactive.init.session", "interactive.init.outcome.completed")
+		assertPerfSpanExistsInit(t, spans, "interactive.init.wait.loader")
+		assertPerfSpanExistsInit(t, spans, "interactive.init.wait.game_version")
 	})
 }
 
-func TestInitTUIErrorSnapshots(t *testing.T) {
+func TestInitInteractiveFlowErrorSnapshots(t *testing.T) {
 	t.Setenv("MMM_TEST", "true")
+	restoreUnicode := termui.SetUnicodeSupportFuncForTesting(func() bool { return true })
+	t.Cleanup(restoreUnicode)
 
 	t.Run("game_version_invalid", func(t *testing.T) {
 		enablePerf(t)
@@ -107,7 +128,7 @@ func TestInitTUIErrorSnapshots(t *testing.T) {
 
 		matchSnapshot(t, model.View())
 		spans := finalizePerfForModel(t, &model)
-		assertPerfEventExistsInit(t, spans, "tui.init.session", "tui.init.action.select_loader")
+		assertPerfEventExistsInit(t, spans, "interactive.init.session", "interactive.init.action.select_loader")
 	})
 
 	t.Run("game_version_unavailable", func(t *testing.T) {
@@ -116,7 +137,7 @@ func TestInitTUIErrorSnapshots(t *testing.T) {
 		model = applyWindowSize(t, model, 60)
 		model = selectLoader(t, model, models.FABRIC)
 		model.gameVersionQuestion.validate = func(string) error {
-			return fmt.Errorf("%s", i18n.T("cmd.init.tui.game-version.unavailable", nil))
+			return fmt.Errorf("%s", i18n.T("cmd.init.prompt.game-version.unavailable", nil))
 		}
 
 		model.gameVersionQuestion.input.SetValue("1.21.1")
@@ -126,7 +147,7 @@ func TestInitTUIErrorSnapshots(t *testing.T) {
 
 		matchSnapshot(t, model.View())
 		spans := finalizePerfForModel(t, &model)
-		assertPerfEventExistsInit(t, spans, "tui.init.session", "tui.init.action.select_loader")
+		assertPerfEventExistsInit(t, spans, "interactive.init.session", "interactive.init.action.select_loader")
 	})
 
 	t.Run("release_types_empty", func(t *testing.T) {
@@ -146,7 +167,7 @@ func TestInitTUIErrorSnapshots(t *testing.T) {
 
 		matchSnapshot(t, model.View())
 		spans := finalizePerfForModel(t, &model)
-		assertPerfEventExistsInit(t, spans, "tui.init.session", "tui.init.state.enter")
+		assertPerfEventExistsInit(t, spans, "interactive.init.session", "interactive.init.state.enter")
 	})
 
 	t.Run("mods_folder_missing", func(t *testing.T) {
@@ -169,14 +190,16 @@ func TestInitTUIErrorSnapshots(t *testing.T) {
 
 		matchSnapshot(t, model.View())
 		spans := finalizePerfForModel(t, &model)
-		assertPerfEventExistsInit(t, spans, "tui.init.session", "tui.init.state.enter")
+		assertPerfEventExistsInit(t, spans, "interactive.init.session", "interactive.init.state.enter")
 	})
 }
 
-func TestInitTUIUnattendedNoTTYSnapshot(t *testing.T) {
+func TestInitInteractiveFlowUnattendedNoTTYSnapshot(t *testing.T) {
 	t.Setenv("MMM_TEST", "true")
+	restoreUnicode := termui.SetUnicodeSupportFuncForTesting(func() bool { return true })
+	t.Cleanup(restoreUnicode)
 
-	// Unattended mode should bypass TUI entirely.
+	// Unattended mode should bypass InteractiveFlow entirely.
 	model := newSnapshotModelWithOptions(t, initOptions{
 		Unattended: true,
 	})
@@ -231,8 +254,8 @@ func newSnapshotModelWithInput(t *testing.T, input snapshotModelInput) CommandMo
 		options.ReleaseTypes = []models.ReleaseType{models.Release}
 	}
 
-	ctx, span := perf.StartSpan(context.Background(), "tui.init.session")
-	model := NewModel(ctx, span, options, deps, meta)
+	ctx, span := perf.StartSpan(context.Background(), "interactive.init.session")
+	model := NewModel(ctx, span, options, deps, meta, false)
 
 	return *model
 }
@@ -259,7 +282,7 @@ func selectLoader(t *testing.T, model CommandModel, loader models.Loader) Comman
 	return runCmd(t, model, cmd)
 }
 
-func TestInitTUIHidesProvidedGameVersion(t *testing.T) {
+func TestInitInteractiveFlowHidesProvidedGameVersion(t *testing.T) {
 	t.Setenv("MMM_TEST", "true")
 
 	fs := afero.NewMemMapFs()
@@ -280,7 +303,7 @@ func TestInitTUIHidesProvidedGameVersion(t *testing.T) {
 		Provided: providedFlags{
 			GameVersion: true,
 		},
-	}, deps, meta)
+	}, deps, meta, false)
 
 	current := applyWindowSize(t, *model, 60)
 	current = selectLoader(t, current, models.FABRIC)
@@ -330,6 +353,16 @@ func enterModsFolder(t *testing.T, model CommandModel, modsFolder string) Comman
 	model.modsFolderQuestion.input.SetValue(modsFolder)
 	updated, cmd := model.modsFolderQuestion.Update(tea.KeyMsg{Type: tea.KeyEnter})
 	model.modsFolderQuestion = updated
+
+	return runCmd(t, model, cmd)
+}
+
+func confirmWrite(t *testing.T, model CommandModel) CommandModel {
+	t.Helper()
+
+	model.confirmWriteQuestion.input.SetValue(model.confirmWriteQuestion.yesOption.short)
+	updated, cmd := model.confirmWriteQuestion.Update(tea.KeyMsg{Type: tea.KeyEnter})
+	model.confirmWriteQuestion = updated
 
 	return runCmd(t, model, cmd)
 }

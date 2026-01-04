@@ -566,8 +566,10 @@ If a mod or file is fully installed (and will remain installed), it is a final s
 Final command level error summaries MUST use `‼️` (or `!!` in ASCII mode).
 
 Color rules:
-- `‼️` MUST use `ErrorStyle`.
-- `!!` MUST also use `ErrorStyle` (red), even in ASCII mode.
+- Command final error summary lines MUST render the entire line in `ErrorStyle`, not just the icon.
+- `‼️` MUST use `ErrorStyle` as part of the full-line styling.
+- `!!` MUST also use `ErrorStyle` (red), even in ASCII mode, as part of the full-line styling.
+- Final CTA lines (follow-up guidance after a command-level summary) MUST use `CtaStyle` when color is enabled.
 
 For in-progress states, MMM MUST use an indeterminate spinner (animated) instead of printing changing text.
 

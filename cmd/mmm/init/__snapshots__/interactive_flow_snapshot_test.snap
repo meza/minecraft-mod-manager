@@ -1,6 +1,6 @@
 
-[TestInitTUIStateSnapshots/loader - 1]
-? cmd.init.tui.loader.question                             
+[TestInitInteractiveFlowStateSnapshots/loader - 1]
+? cmd.init.prompt.loader.question                          
 ❯ bukkit                                                   
   bungeecord                                               
   cauldron                                                 
@@ -16,17 +16,17 @@
                                                            
 ---
 
-[TestInitTUIStateSnapshots/game_version - 1]
-? cmd.init.tui.loader.question fabric
-? cmd.init.tui.game-version.question 1.21.1     
+[TestInitInteractiveFlowStateSnapshots/game_version - 1]
+? cmd.init.prompt.loader.question fabric
+? cmd.init.prompt.game-version.question 1.21.1     
 
 key.tab key.help.complete • key.enter key.help.accept • key.ctrl_c/key.esc key.help.quit
 ---
 
-[TestInitTUIStateSnapshots/release_types - 1]
-? cmd.init.tui.loader.question fabric
-? cmd.init.tui.game-version.question 1.21.1
-? cmd.init.tui.release-types.question                      
+[TestInitInteractiveFlowStateSnapshots/release_types - 1]
+? cmd.init.prompt.loader.question fabric
+? cmd.init.prompt.game-version.question 1.21.1
+? cmd.init.prompt.release-types.question                   
 ❯   alpha                                                  
     beta                                                   
   ✓ release                                                
@@ -42,34 +42,35 @@ key.tab key.help.complete • key.enter key.help.accept • key.ctrl_c/key.esc k
                                                            
 ---
 
-[TestInitTUIStateSnapshots/mods_folder - 1]
-? cmd.init.tui.loader.question fabric
-? cmd.init.tui.game-version.question 1.21.1
-? cmd.init.tui.release-types.question release
-? cmd.init.tui.mods-folder.question mods        
+[TestInitInteractiveFlowStateSnapshots/mods_folder - 1]
+? cmd.init.prompt.loader.question fabric
+? cmd.init.prompt.game-version.question 1.21.1
+? cmd.init.prompt.release-types.question release
+? cmd.init.prompt.mods-folder.question mods        
 
 key.tab key.help.complete • key.enter key.help.accept • key.ctrl_c/key.esc key.help.quit
 ---
 
-[TestInitTUIStateSnapshots/done - 1]
-? cmd.init.tui.loader.question fabric
-? cmd.init.tui.game-version.question 1.21.1
-? cmd.init.tui.release-types.question release
-? cmd.init.tui.mods-folder.question mods
+[TestInitInteractiveFlowStateSnapshots/done - 1]
+? cmd.init.prompt.loader.question fabric
+? cmd.init.prompt.game-version.question 1.21.1
+? cmd.init.prompt.release-types.question release
+? cmd.init.prompt.mods-folder.question mods
+? cmd.init.prompt.confirm-write.question cmd.init.prompt.confirm.suffix cmd.init.prompt.option.yes.short
 
 ---
 
-[TestInitTUIErrorSnapshots/game_version_invalid - 1]
-? cmd.init.tui.loader.question fabric
-? cmd.init.tui.game-version.question invalid     <- cmd.init.tui.game-version.invalid
+[TestInitInteractiveFlowErrorSnapshots/game_version_invalid - 1]
+? cmd.init.prompt.loader.question fabric
+? cmd.init.prompt.game-version.question invalid     <- cmd.init.prompt.game-version.invalid
 
 key.tab key.help.complete • key.enter key.help.accept • key.ctrl_c/key.esc key.help.quit
 ---
 
-[TestInitTUIErrorSnapshots/release_types_empty - 1]
-? cmd.init.tui.loader.question fabric
-? cmd.init.tui.game-version.question 1.21.1
-? cmd.init.tui.release-types.question                      
+[TestInitInteractiveFlowErrorSnapshots/release_types_empty - 1]
+? cmd.init.prompt.loader.question fabric
+? cmd.init.prompt.game-version.question 1.21.1
+? cmd.init.prompt.release-types.question                   
 ❯   alpha                                                  
     beta                                                   
   ✓ release                                                
@@ -83,19 +84,19 @@ key.tab key.help.complete • key.enter key.help.accept • key.ctrl_c/key.esc k
                                                            
   ↑/k key.help.up • ↓/j key.help.down • / key.help.filter …
                                                            
-release types cannot be empty
+cmd.init.error.release-types.empty
 ---
 
-[TestInitTUIErrorSnapshots/mods_folder_missing - 1]
-? cmd.init.tui.loader.question fabric
-? cmd.init.tui.game-version.question 1.21.1
-? cmd.init.tui.release-types.question release
-? cmd.init.tui.mods-folder.question missing         <- cmd.init.error.mods-folder.missing, Arg 1: {Count: 0, Data: &map[path:/cfg/missing]}
+[TestInitInteractiveFlowErrorSnapshots/mods_folder_missing - 1]
+? cmd.init.prompt.loader.question fabric
+? cmd.init.prompt.game-version.question 1.21.1
+? cmd.init.prompt.release-types.question release
+? cmd.init.prompt.mods-folder.question missing         <- cmd.init.prompt.mods-folder.missing
 
 key.tab key.help.complete • key.enter key.help.accept • key.ctrl_c/key.esc key.help.quit
 ---
 
-[TestInitTUINonInteractiveNoTTYSnapshot - 1]
+[TestInitInteractiveFlowNonInteractiveNoTTYSnapshot - 1]
                                                                                                                                                                                          
 ❯ bukkit                                                                                                                                                                                 
   bungeecord                                                                                                                                                                             
@@ -113,14 +114,14 @@ key.tab key.help.complete • key.enter key.help.accept • key.ctrl_c/key.esc k
                                                                                                                                                                                          
 ---
 
-[TestInitTUIErrorSnapshots/game_version_unavailable - 1]
-? cmd.init.tui.loader.question fabric
-? cmd.init.tui.game-version.question 1.21.1      <- cmd.init.tui.game-version.unavailable
+[TestInitInteractiveFlowErrorSnapshots/game_version_unavailable - 1]
+? cmd.init.prompt.loader.question fabric
+? cmd.init.prompt.game-version.question 1.21.1      <- cmd.init.prompt.game-version.unavailable
 
 key.tab key.help.complete • key.enter key.help.accept • key.ctrl_c/key.esc key.help.quit
 ---
 
-[TestInitTUIUnattendedNoTTYSnapshot - 1]
+[TestInitInteractiveFlowUnattendedNoTTYSnapshot - 1]
                                                                                                                                                                                          
 ❯ bukkit                                                                                                                                                                                 
   bungeecord                                                                                                                                                                             
@@ -136,4 +137,14 @@ key.tab key.help.complete • key.enter key.help.accept • key.ctrl_c/key.esc k
                                                                                                                                                                                          
   ↑/k key.help.up • ↓/j key.help.down • / key.help.filter • key.esc key.help.clear_filter • key.enter key.help.apply_filter • key.esc key.help.cancel • q key.help.quit • ? key.help.more
                                                                                                                                                                                          
+---
+
+[TestInitInteractiveFlowStateSnapshots/confirm_write - 1]
+? cmd.init.prompt.loader.question fabric
+? cmd.init.prompt.game-version.question 1.21.1
+? cmd.init.prompt.release-types.question release
+? cmd.init.prompt.mods-folder.question mods
+? cmd.init.prompt.confirm-write.question cmd.init.prompt.confirm.suffix            
+
+key.tab key.help.complete • key.enter key.help.accept • key.ctrl_c/key.esc key.help.quit
 ---

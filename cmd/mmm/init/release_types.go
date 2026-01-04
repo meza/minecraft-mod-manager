@@ -4,17 +4,15 @@ import (
 	"errors"
 	"fmt"
 	"io"
-	"os"
 	"strings"
 
 	"github.com/charmbracelet/bubbles/key"
 	"github.com/charmbracelet/bubbles/list"
 	tea "github.com/charmbracelet/bubbletea"
-	"github.com/charmbracelet/x/term"
 
 	"github.com/meza/minecraft-mod-manager/internal/i18n"
 	"github.com/meza/minecraft-mod-manager/internal/models"
-	"github.com/meza/minecraft-mod-manager/internal/tui"
+	termui "github.com/meza/minecraft-mod-manager/internal/tui"
 )
 
 type ReleaseTypesSelectedMessage struct {
@@ -29,11 +27,6 @@ type ReleaseTypesModel struct {
 }
 
 func NewReleaseTypesModel(defaults []models.ReleaseType) ReleaseTypesModel {
-	width, _, err := term.GetSize(os.Stdout.Fd())
-	if err != nil {
-		width = 0
-	}
-
 	selected := make(map[models.ReleaseType]bool, len(defaults))
 	for _, value := range defaults {
 		selected[value] = true
@@ -48,20 +41,20 @@ func NewReleaseTypesModel(defaults []models.ReleaseType) ReleaseTypesModel {
 		})
 	}
 
-	listModel := list.New(items, releaseTypeDelegate{}, width, 14)
-	listModel.Title = tui.QuestionStyle.Render("? ") + tui.TitleStyle.Render(i18n.T("cmd.init.tui.release-types.question", nil))
+	listModel := list.New(items, releaseTypeDelegate{}, 0, 14)
+	listModel.Title = termui.QuestionStyle.Render("? ") + termui.TitleStyle.Render(i18n.T("cmd.init.prompt.release-types.question", nil))
 	listModel.SetShowStatusBar(false)
 	listModel.SetShowTitle(true)
-	listModel.Styles.Title = tui.TitleStyle
-	listModel.Styles.TitleBar = tui.TitleStyle
-	listModel.Styles.PaginationStyle = tui.PaginationStyle
-	listModel.Styles.HelpStyle = tui.HelpStyle
-	listModel.KeyMap = tui.TranslatedListKeyMap()
+	listModel.Styles.Title = termui.TitleStyle
+	listModel.Styles.TitleBar = termui.TitleStyle
+	listModel.Styles.PaginationStyle = termui.PaginationStyle
+	listModel.Styles.HelpStyle = termui.HelpStyle
+	listModel.KeyMap = termui.TranslatedListKeyMap()
 	listModel.AdditionalShortHelpKeys = func() []key.Binding {
-		return []key.Binding{toggleBinding(), tui.Accept(), tui.QuitWithEsc()}
+		return []key.Binding{termui.Toggle(), termui.Accept(), termui.QuitWithEsc()}
 	}
 	listModel.AdditionalFullHelpKeys = func() []key.Binding {
-		return []key.Binding{toggleBinding(), tui.Accept(), tui.QuitWithEsc()}
+		return []key.Binding{termui.Toggle(), termui.Accept(), termui.QuitWithEsc()}
 	}
 
 	return ReleaseTypesModel{
@@ -86,7 +79,7 @@ func (model ReleaseTypesModel) Update(msg tea.Msg) (ReleaseTypesModel, tea.Cmd) 
 		case "enter":
 			values := model.values()
 			if len(values) == 0 {
-				model.error = errors.New("release types cannot be empty")
+				model.error = errors.New(i18n.T("cmd.init.error.release-types.empty", nil))
 				return model, nil
 			}
 			model.Value = values
@@ -101,7 +94,7 @@ func (model ReleaseTypesModel) Update(msg tea.Msg) (ReleaseTypesModel, tea.Cmd) 
 
 func (model ReleaseTypesModel) View() string {
 	if model.error != nil {
-		return model.list.View() + "\n" + tui.ErrorStyle.Render(model.error.Error())
+		return model.list.View() + "\n" + termui.ErrorStyle.Render(model.error.Error())
 	}
 
 	return model.list.View()
@@ -155,19 +148,19 @@ func (delegate releaseTypeDelegate) Render(w io.Writer, listModel list.Model, it
 
 	icon := " "
 	if item.selected[item.value] {
-		icon = "\u2713"
+		icon = selectedReleaseTypeIcon()
 	}
 
 	itemLine := fmt.Sprintf("%s %s", icon, item.value)
 
 	if itemIndex == listModel.Index() {
-		if _, err := fmt.Fprint(w, tui.SelectedItemStyle.Render("\u276F "+itemLine)); err != nil {
+		if _, err := fmt.Fprint(w, termui.SelectedItemStyle.Render(focusedReleaseTypePrefix()+itemLine)); err != nil {
 			return
 		}
 		return
 	}
 
-	if _, err := fmt.Fprint(w, tui.ItemStyle.Render(itemLine)); err != nil {
+	if _, err := fmt.Fprint(w, termui.ItemStyle.Render(itemLine)); err != nil {
 		return
 	}
 }
@@ -179,9 +172,17 @@ type releaseTypeItem struct {
 
 func (item releaseTypeItem) FilterValue() string { return string(item.value) }
 
-func toggleBinding() key.Binding {
-	return key.NewBinding(
-		key.WithKeys(" "),
-		key.WithHelp("space", "toggle"),
-	)
+func focusedReleaseTypePrefix() string {
+	prefix := "> "
+	if termui.SupportsUnicode() {
+		prefix = "\u276F "
+	}
+	return prefix
+}
+
+func selectedReleaseTypeIcon() string {
+	if termui.SupportsUnicode() {
+		return "\u2713"
+	}
+	return "*"
 }

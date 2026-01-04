@@ -14,14 +14,14 @@ func releaseTypesToStrings(releaseTypes []models.ReleaseType) []string {
 	return out
 }
 
-func buildTelemetryPayload(options initOptions, didUseTUI bool, err error) telemetry.CommandTelemetry {
+func buildTelemetryPayload(options initOptions, didUseInteractiveFlow bool, err error) telemetry.CommandTelemetry {
 	telemetryError := redactModsFolderErrorForTelemetry(err)
 	payload := telemetry.CommandTelemetry{
 		Command:     "init",
 		Success:     telemetryError == nil,
 		Error:       telemetryError,
 		ExitCode:    0,
-		Interactive: didUseTUI,
+		Interactive: didUseInteractiveFlow,
 		Arguments: map[string]interface{}{
 			"loader":       options.Loader,
 			"gameVersion":  options.GameVersion,

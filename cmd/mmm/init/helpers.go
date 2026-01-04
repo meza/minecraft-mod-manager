@@ -10,7 +10,6 @@ import (
 	"github.com/meza/minecraft-mod-manager/internal/i18n"
 	"github.com/meza/minecraft-mod-manager/internal/minecraft"
 	"github.com/meza/minecraft-mod-manager/internal/models"
-	"github.com/meza/minecraft-mod-manager/internal/output"
 	"github.com/spf13/afero"
 )
 
@@ -20,8 +19,9 @@ func normalizeGameVersion(ctx context.Context, options initOptions, deps initDep
 	}
 
 	if strings.EqualFold(options.GameVersion, "latest") {
-		if mode == gameVersionInteractive && !options.Provided.GameVersion {
+		if mode == gameVersionInteractive {
 			options.GameVersion = ""
+			options.Provided.GameVersion = false
 			return options, nil
 		}
 
@@ -33,6 +33,17 @@ func normalizeGameVersion(ctx context.Context, options initOptions, deps initDep
 	}
 
 	return options, nil
+}
+
+func normalizeGameVersionInteractive(options initOptions) initOptions {
+	if options.GameVersion == "" {
+		return options
+	}
+	if strings.EqualFold(options.GameVersion, "latest") {
+		options.GameVersion = ""
+		options.Provided.GameVersion = false
+	}
+	return options
 }
 
 func validateModsFolder(fs afero.Fs, meta config.Metadata, modsFolder string) error {
@@ -66,32 +77,41 @@ func validateModsFolder(fs afero.Fs, meta config.Metadata, modsFolder string) er
 	return nil
 }
 
-func initWithDeps(ctx context.Context, options initOptions, deps initDeps) (config.Metadata, error) {
-	if err := requireLoader(options); err != nil {
-		return config.Metadata{}, err
+func validateModsFolderInteractive(fs afero.Fs, meta config.Metadata, modsFolder string) error {
+	modsFolder = strings.TrimSpace(modsFolder)
+	if modsFolder == "" {
+		return errors.New(i18n.T("cmd.init.error.mods-folder.empty", nil))
 	}
 
-	options, err := resolveLatestGameVersion(ctx, options, deps)
+	modsFolderConfig := models.ModsJSON{ModsFolder: modsFolder}
+	modsFolderPath := meta.ModsFolderPath(modsFolderConfig)
+	modsFolderExists, err := afero.Exists(fs, modsFolderPath)
 	if err != nil {
-		return config.Metadata{}, err
+		return err
+	}
+	if !modsFolderExists {
+		return errors.New(i18n.T("cmd.init.prompt.mods-folder.missing", nil))
+	}
+
+	isDir, err := afero.IsDir(fs, modsFolderPath)
+	if err != nil {
+		return err
+	}
+	if !isDir {
+		return errors.New(i18n.T("cmd.init.prompt.mods-folder.not-directory", nil))
+	}
+
+	return nil
+}
+
+func initWithDeps(ctx context.Context, options initOptions, deps initDeps) error {
+	if err := requireLoader(options); err != nil {
+		return err
 	}
 
 	meta := config.NewMetadata(options.ConfigPath)
-	meta, err = resolveConfigPath(meta, deps)
-	if err != nil {
-		return config.Metadata{}, err
-	}
-
-	if err := validateModsFolder(deps.fs, meta, options.ModsFolder); err != nil {
-		return config.Metadata{}, err
-	}
-
-	if err := validateGameVersion(ctx, options.GameVersion, deps); err != nil {
-		return config.Metadata{}, err
-	}
-
 	if err := deps.fs.MkdirAll(meta.Dir(), 0755); err != nil {
-		return config.Metadata{}, err
+		return err
 	}
 
 	cfg := models.ModsJSON{
@@ -103,35 +123,12 @@ func initWithDeps(ctx context.Context, options initOptions, deps initDeps) (conf
 	}
 
 	if err := config.WriteConfig(ctx, deps.fs, meta, cfg); err != nil {
-		return config.Metadata{}, err
+		return err
 	}
 	if err := config.WriteLock(ctx, deps.fs, meta, []models.ModInstall{}); err != nil {
-		return config.Metadata{}, err
+		return err
 	}
 
-	if err := logInitSuccess(deps.output, meta); err != nil {
-		return config.Metadata{}, err
-	}
-
-	return meta, nil
-}
-
-func logInitSuccess(out *output.Output, meta config.Metadata) error {
-	return out.Log(i18n.T("cmd.init.success", &i18n.Tvars{
-		Data: &i18n.TData{"configPath": meta.ConfigPath},
-	}), output.LogQuiet)
-}
-
-func validateGameVersion(ctx context.Context, gameVersion string, deps initDeps) error {
-	valid, validationErr := minecraft.IsValidVersion(ctx, gameVersion, deps.minecraftClient)
-	if validationErr != nil {
-		return fmt.Errorf("%s", i18n.T("cmd.init.error.game-version.unavailable", nil))
-	}
-	if !valid {
-		return fmt.Errorf("%s", i18n.T("cmd.init.error.game-version.invalid", &i18n.Tvars{
-			Data: &i18n.TData{"gameVersion": gameVersion},
-		}))
-	}
 	return nil
 }
 
@@ -140,46 +137,4 @@ func requireLoader(options initOptions) error {
 		return errors.New(i18n.T("cmd.init.error.loader.required", nil))
 	}
 	return nil
-}
-
-func resolveLatestGameVersion(ctx context.Context, options initOptions, deps initDeps) (initOptions, error) {
-	if options.GameVersion != "" && !strings.EqualFold(options.GameVersion, "latest") {
-		return options, nil
-	}
-
-	latest, err := minecraft.GetLatestVersion(ctx, deps.minecraftClient)
-	if err != nil {
-		return options, errors.New(i18n.T("cmd.init.error.game-version.latest-unavailable", nil))
-	}
-	options.GameVersion = latest
-	return options, nil
-}
-
-func resolveConfigPath(meta config.Metadata, deps initDeps) (config.Metadata, error) {
-	exists, err := afero.Exists(deps.fs, meta.ConfigPath)
-	if err != nil {
-		return config.Metadata{}, fmt.Errorf("%s: %w", i18n.T("cmd.init.error.config-file.check", nil), err)
-	}
-	if !exists {
-		return meta, nil
-	}
-	if !deps.promptAllowed {
-		return config.Metadata{}, fmt.Errorf("%s", i18n.T("cmd.init.error.config-file.exists", &i18n.Tvars{
-			Data: &i18n.TData{"configPath": meta.ConfigPath},
-		}))
-	}
-
-	overwrite, err := deps.prompter.ConfirmOverwrite(meta.ConfigPath)
-	if err != nil {
-		return config.Metadata{}, err
-	}
-	if overwrite {
-		return meta, nil
-	}
-
-	newPath, err := deps.prompter.RequestNewConfigPath(meta.ConfigPath)
-	if err != nil {
-		return config.Metadata{}, err
-	}
-	return config.NewMetadata(newPath), nil
 }

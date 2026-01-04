@@ -8,9 +8,11 @@ Example:
 
 `mmm init -l fabric`
 
-If you run `mmm init` in a terminal, it opens a short TUI so you can pick the loader, game version, release types, and mods folder (it seeds any flags you already set). In scripts, pass the flags you need and `--unattended` to skip prompts. Use `--quiet` when you want to suppress non-essential output.
+If you run `mmm init` in a terminal, it opens an interactive flow so you can pick the loader, game version, release types, and mods folder (it seeds any flags you already set). If you provide all required values, it writes the configuration without prompting. In attended terminals it asks you to confirm before writing the configuration when the interactive flow is used. If a config already exists, it will ask whether to overwrite it or choose a new path. In scripts, pass the flags you need and `--unattended` to skip prompts. Use `--quiet` when you want to suppress non-essential output.
 
 If you leave the default `--game-version=latest`, the command tries to look up the latest Minecraft release. If that lookup fails (for example, you're offline), run the command again with `-g/--game-version`. Make sure the mods folder you point at already exists; `init` stops if the path is missing or is a file.
+
+In non-interactive terminals (stdin or stdout is not a TTY), `init` behaves the same way as `--unattended`: it never prompts and fails fast when required inputs are missing.
 
 ## Flags
 
@@ -20,6 +22,7 @@ If you leave the default `--game-version=latest`, the command tries to look up t
 |  `-g` | `--game-version`  | Minecraft version to target            | A Minecraft version, or `latest`                    | `mmm init -l fabric -g 1.21.1`       |
 |  `-r` | `--release-types` | Mod release types you allow to install | Comma-separated list of: `alpha`, `beta`, `release` | `mmm init -l fabric -r release,beta` |
 |  `-m` | `--mods-folder`   | Folder to download mods into           | An absolute or relative path to your minecraft      | `mmm init -l fabric -m ./mods`       |
+|  `-f` | `--force`         | Overwrite an existing config file      | `true` or `false`                                   | `mmm init -f -l fabric -m ./mods`    |
 
 ### Loaders
 

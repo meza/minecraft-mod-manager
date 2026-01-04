@@ -15,6 +15,8 @@ import (
 
 func TestListViewSnapshot(t *testing.T) {
 	t.Setenv("MMM_TEST", "true")
+	restoreUnicode := tui.SetUnicodeSupportFuncForTesting(func() bool { return true })
+	t.Cleanup(restoreUnicode)
 
 	entries := []listEntry{
 		{DisplayName: "Alpha Mod", ID: "mod-a", Platform: models.MODRINTH, Status: listEntryInstalled},

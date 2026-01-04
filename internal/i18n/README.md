@@ -6,6 +6,18 @@ It is intentionally small and boring. There is one public entry point: `T()`.
 
 If you are looking for the "how to write translations" guide (ICU format, placeholders, plural rules), start with `docs/i18n.md`.
 
+## Important: do not put icons in translation strings
+
+Translation strings must be plain text only. Do not include iconography (symbols, glyphs, UI adornments) inside `lang/*.json`.
+
+Icons are language-independent. Append them programmatically at the point of rendering where needed so we can:
+
+* keep translations stable and reusable across surfaces
+* avoid forcing translators to manage UI-only decoration
+* control icon usage per environment (TTY vs non-TTY, accessibility, etc.)
+
+Rule of thumb: translations supply words; the UI layer supplies icons.
+
 ## When to use this
 
 **Any user-facing text must be translated.**
@@ -154,7 +166,7 @@ Consistency here matters more than perfection. The goal is that developers can:
 
 ### Terminology
 
-* namespace: the dot-separated path segments (example: `cmd.init.tui.loader.question`)
+* namespace: the dot-separated path segments (example: `cmd.init.prompt.loader.question`)
 * leaf: the final segment that describes the message variant (example: `question`)
 * variant: a leaf that distinguishes multiple messages for the same concept (example: `short` vs `usage.long`)
 
@@ -170,7 +182,7 @@ Examples from this project:
 
 * `app.description`
 * `cmd.help.error`
-* `cmd.init.tui.mods-folder.question`
+* `cmd.init.prompt.mods-folder.question`
 * `cmd.init.usage.release-types`
 * `key.help.page_next`
 

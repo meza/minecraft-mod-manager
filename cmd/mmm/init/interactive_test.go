@@ -15,7 +15,7 @@ import (
 	"github.com/meza/minecraft-mod-manager/internal/perf"
 )
 
-func TestRunInteractiveInitWithLaunchFlagReturnsWithoutTUIWhenDone(t *testing.T) {
+func TestRunInteractiveInitWithLaunchFlagUsesInteractiveFlowWhenConfirmRequired(t *testing.T) {
 	initPerf(t)
 
 	fs := afero.NewMemMapFs()
@@ -38,12 +38,31 @@ func TestRunInteractiveInitWithLaunchFlagReturnsWithoutTUIWhenDone(t *testing.T)
 	deps := initDeps{
 		fs:              fs,
 		minecraftClient: manifestDoer([]string{"1.21.1"}),
+		runTea: func(tea.Model, ...tea.ProgramOption) (tea.Model, error) {
+			return CommandModel{
+				state: done,
+				result: initOptions{
+					ConfigPath:   meta.ConfigPath,
+					Loader:       models.FABRIC,
+					GameVersion:  "1.21.1",
+					ReleaseTypes: []models.ReleaseType{models.Release},
+					ModsFolder:   "mods",
+					Provided: providedFlags{
+						Loader:       true,
+						GameVersion:  true,
+						ReleaseTypes: true,
+						ModsFolder:   true,
+					},
+				},
+			}, nil
+		},
 	}
 
-	updated, launched, err := runInteractiveInitWithLaunchFlag(context.Background(), &cobra.Command{}, options, deps, meta)
+	updated, launched, err := runInteractiveInitWithLaunchFlag(context.Background(), &cobra.Command{}, options, deps, meta, false)
 	assert.NoError(t, err)
-	assert.False(t, launched)
-	assert.Equal(t, options, updated)
+	assert.True(t, launched)
+	assert.Equal(t, "mods", updated.ModsFolder)
+	assert.True(t, updated.Provided.ModsFolder)
 }
 
 func TestRunInteractiveInitWithLaunchFlagRunTeaError(t *testing.T) {
@@ -56,7 +75,7 @@ func TestRunInteractiveInitWithLaunchFlagRunTeaError(t *testing.T) {
 			return nil, errors.New("boom")
 		},
 	}
-	_, launched, err := runInteractiveInitWithLaunchFlag(context.Background(), &cobra.Command{}, initOptions{ModsFolder: "mods"}, deps, config.NewMetadata("/cfg/modlist.json"))
+	_, launched, err := runInteractiveInitWithLaunchFlag(context.Background(), &cobra.Command{}, initOptions{ModsFolder: "mods"}, deps, config.NewMetadata("/cfg/modlist.json"), false)
 	assert.True(t, launched)
 	assert.Error(t, err)
 }

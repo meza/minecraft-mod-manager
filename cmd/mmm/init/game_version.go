@@ -12,7 +12,7 @@ import (
 	"github.com/meza/minecraft-mod-manager/internal/httpclient"
 	"github.com/meza/minecraft-mod-manager/internal/i18n"
 	"github.com/meza/minecraft-mod-manager/internal/minecraft"
-	"github.com/meza/minecraft-mod-manager/internal/tui"
+	termui "github.com/meza/minecraft-mod-manager/internal/tui"
 )
 
 // GameVersionSelectedMessage signals a selected game version.
@@ -25,11 +25,12 @@ type GameVersionModel struct {
 	tea.Model
 	input  textinput.Model
 	help   help.Model
-	keymap tui.TranslatedInputKeyMap
+	keymap termui.TranslatedInputKeyMap
 	error  error
 	Value  string
 
-	validate func(string) error
+	validate      func(string) error
+	resolveLatest func() (string, error)
 }
 
 // Init implements tea.Model.
@@ -55,12 +56,12 @@ func (model GameVersionModel) Update(msg tea.Msg) (GameVersionModel, tea.Cmd) {
 // View renders the game version prompt.
 func (model GameVersionModel) View() string {
 	if model.Value != "" {
-		return fmt.Sprintf("%s%s", model.input.Prompt, tui.SelectedItemStyle.Render(model.Value))
+		return fmt.Sprintf("%s%s", model.input.Prompt, termui.SelectedItemStyle.Render(model.Value))
 	}
 
 	errorString := ""
 	if model.error != nil {
-		errorString = tui.ErrorStyle.Render(" <- " + model.error.Error())
+		errorString = termui.ErrorStyle.Render(" <- " + model.error.Error())
 	}
 
 	return fmt.Sprintf("%s%s\n\n%s", model.input.View(), errorString, model.help.View(model.keymap))
@@ -68,11 +69,6 @@ func (model GameVersionModel) View() string {
 
 func (model GameVersionModel) handleKeyMsg(msg tea.KeyMsg) (GameVersionModel, tea.Cmd, bool) {
 	switch msg.String() {
-	case "q":
-		if !model.input.Focused() {
-			return model, tea.Quit, true
-		}
-		return model, nil, false
 	case "esc":
 		return model, tea.Quit, true
 	case "enter":
@@ -97,8 +93,18 @@ func (model GameVersionModel) handleEnterKey() (GameVersionModel, tea.Cmd, bool)
 	}
 
 	if value == "" {
-		model.error = fmt.Errorf("%s", i18n.T("cmd.init.tui.game-version.error", nil))
+		model.error = fmt.Errorf("%s", i18n.T("cmd.init.prompt.game-version.error", nil))
 		return model, nil, true
+	}
+
+	if strings.EqualFold(value, "latest") {
+		resolved, err := model.resolveLatest()
+		if err != nil {
+			model.error = fmt.Errorf("%s", i18n.T("cmd.init.prompt.game-version.latest-unavailable", nil))
+			return model, nil, true
+		}
+		value = resolved
+		model.input.SetValue(value)
 	}
 
 	err := model.validate(value)
@@ -128,9 +134,9 @@ func NewGameVersionModel(ctx context.Context, minecraftClient httpclient.Doer, g
 	allVersions := minecraft.GetAllMinecraftVersions(ctx, minecraftClient)
 
 	inputModel := textinput.New()
-	inputModel.Prompt = tui.QuestionStyle.Render("? ") + tui.TitleStyle.Render(i18n.T("cmd.init.tui.game-version.question", nil)) + " "
+	inputModel.Prompt = termui.QuestionStyle.Render("? ") + termui.TitleStyle.Render(i18n.T("cmd.init.prompt.game-version.question", nil)) + " "
 	inputModel.Placeholder = latestVersion
-	inputModel.PlaceholderStyle = tui.PlaceholderStyle
+	inputModel.PlaceholderStyle = termui.PlaceholderStyle
 	width := len(inputModel.Placeholder)
 	if len(gameVersion) > width {
 		width = len(gameVersion)
@@ -145,20 +151,25 @@ func NewGameVersionModel(ctx context.Context, minecraftClient httpclient.Doer, g
 	}
 	inputModel.SetSuggestions(allVersions)
 	inputModel.Focus()
+	if gameVersion != "" && !strings.EqualFold(gameVersion, "latest") {
+		inputModel.SetValue(gameVersion)
+	}
 
 	model := GameVersionModel{
 		input:  inputModel,
 		help:   help.New(),
-		keymap: tui.TranslatedInputKeyMap{},
+		keymap: termui.TranslatedInputKeyMap{},
 		validate: func(value string) error {
 			return validateMinecraftVersion(ctx, value, minecraftClient)
+		},
+		resolveLatest: func() (string, error) {
+			return minecraft.GetLatestVersion(ctx, minecraftClient)
 		},
 	}
 
 	if gameVersion != "" && !strings.EqualFold(gameVersion, "latest") {
 		if err := model.validate(gameVersion); err == nil {
 			model.Value = gameVersion
-			model.input.SetValue(gameVersion)
 		}
 	}
 
@@ -167,15 +178,15 @@ func NewGameVersionModel(ctx context.Context, minecraftClient httpclient.Doer, g
 
 func validateMinecraftVersion(ctx context.Context, value string, client httpclient.Doer) error {
 	if value == "" {
-		return fmt.Errorf("%s", i18n.T("cmd.init.tui.game-version.error", nil))
+		return fmt.Errorf("%s", i18n.T("cmd.init.prompt.game-version.error", nil))
 	}
 
 	valid, validationErr := minecraft.IsValidVersion(ctx, value, client)
 	if !valid && validationErr == nil {
-		return fmt.Errorf("%s", i18n.T("cmd.init.tui.game-version.invalid", nil))
+		return fmt.Errorf("%s", i18n.T("cmd.init.prompt.game-version.invalid", nil))
 	}
 	if validationErr != nil {
-		return fmt.Errorf("%s", i18n.T("cmd.init.tui.game-version.unavailable", nil))
+		return fmt.Errorf("%s", i18n.T("cmd.init.prompt.game-version.unavailable", nil))
 	}
 	return nil
 }

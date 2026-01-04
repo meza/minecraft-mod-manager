@@ -257,7 +257,7 @@ Run mmm add <platform> <id> to add your first mod.
 
 ```
 ‼️ Missing required values for init in unattended mode.
-Run mmm init interactively or provide --loader, --game-version, and --mods-folder.
+Run mmm init interactively or provide --loader and --game-version.
 ```
 
 #### Unattended config already exists
@@ -341,7 +341,7 @@ Exit code: 0
 
 ```
 ‼️ Missing required values for init in unattended mode.
-Run mmm init interactively or provide --loader, --game-version, and --mods-folder.
+Run mmm init interactively or provide --loader and --game-version.
 ```
 
 #### `--quiet` config already exists (unattended, no --force)

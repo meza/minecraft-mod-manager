@@ -2,8 +2,10 @@ package tui
 
 import (
 	"io"
+	"os"
 
 	tea "github.com/charmbracelet/bubbletea"
+	"github.com/muesli/termenv"
 	"golang.org/x/term"
 )
 
@@ -16,14 +18,53 @@ type fdWriter interface {
 }
 
 var isTerminalFunc = term.IsTerminal
+var isTerminalFuncOverridden bool
+var unicodeSupportFunc = defaultUnicodeSupport
+var colorProfileFunc = termenv.EnvColorProfile
 
 // SetIsTerminalFuncForTesting overrides the terminal detection function and returns a restore function.
 // This is intended for cross-package tests that need deterministic TTY detection.
 func SetIsTerminalFuncForTesting(fn func(int) bool) func() {
 	previous := isTerminalFunc
+	previousOverride := isTerminalFuncOverridden
 	isTerminalFunc = fn
+	isTerminalFuncOverridden = true
 	return func() {
 		isTerminalFunc = previous
+		isTerminalFuncOverridden = previousOverride
+	}
+}
+
+// SupportsUnicode reports whether Unicode output should be used for the current environment.
+func SupportsUnicode() bool {
+	return unicodeSupportFunc()
+}
+
+// SupportsColor reports whether color output should be used for the provided writer.
+func SupportsColor(writer io.Writer) bool {
+	if !IsTerminalWriter(writer) {
+		return false
+	}
+	return colorProfileFunc() != termenv.Ascii
+}
+
+// SetUnicodeSupportFuncForTesting overrides the Unicode detection function and returns a restore function.
+// This is intended for cross-package tests that need deterministic Unicode detection.
+func SetUnicodeSupportFuncForTesting(fn func() bool) func() {
+	previous := unicodeSupportFunc
+	unicodeSupportFunc = fn
+	return func() {
+		unicodeSupportFunc = previous
+	}
+}
+
+// SetColorProfileFuncForTesting overrides the color profile function and returns a restore function.
+// This is intended for cross-package tests that need deterministic color detection.
+func SetColorProfileFuncForTesting(fn func() termenv.Profile) func() {
+	previous := colorProfileFunc
+	colorProfileFunc = fn
+	return func() {
+		colorProfileFunc = previous
 	}
 }
 
@@ -71,4 +112,14 @@ func ProgramOptions(in io.Reader, out io.Writer) []tea.ProgramOption {
 	}
 
 	return options
+}
+
+func defaultUnicodeSupport() bool {
+	if isTerminalFuncOverridden {
+		return isTerminalFunc(int(os.Stdout.Fd()))
+	}
+	if !IsTerminalWriter(os.Stdout) {
+		return false
+	}
+	return termenv.EnvColorProfile() != termenv.Ascii
 }

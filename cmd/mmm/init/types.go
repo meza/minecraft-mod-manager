@@ -2,7 +2,6 @@ package init
 
 import (
 	"context"
-	"io"
 
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/meza/minecraft-mod-manager/internal/config"
@@ -22,6 +21,7 @@ type initOptions struct {
 	Unattended   bool
 	Quiet        bool
 	Debug        bool
+	Force        bool
 	Loader       models.Loader
 	GameVersion  string
 	ReleaseTypes []models.ReleaseType
@@ -39,22 +39,10 @@ type providedFlags struct {
 type initDeps struct {
 	fs              afero.Fs
 	minecraftClient httpclient.Doer
-	prompter        prompter
-	promptAllowed   bool
 	logger          *logger.Logger
 	output          *output.Output
 	telemetry       func(telemetry.CommandTelemetry)
 	runTea          func(model tea.Model, options ...tea.ProgramOption) (tea.Model, error)
-}
-
-type prompter interface {
-	ConfirmOverwrite(configPath string) (bool, error)
-	RequestNewConfigPath(configPath string) (string, error)
-}
-
-type terminalPrompter struct {
-	in  io.Reader
-	out io.Writer
 }
 
 type loaderFlag struct {

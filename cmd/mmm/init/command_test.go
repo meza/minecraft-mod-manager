@@ -57,6 +57,7 @@ func TestCommandWithRunnerMissingGameVersionFlagErrors(t *testing.T) {
 	cmd := &cobra.Command{}
 	cmd.SetContext(context.Background())
 	setCommandOutputForTesting(cmd)
+	cmd.Flags().Bool("force", false, "force")
 
 	assert.Error(t, runE(cmd, nil))
 }
@@ -69,6 +70,7 @@ func TestCommandWithRunnerMissingModsFolderFlagErrors(t *testing.T) {
 	cmd := &cobra.Command{}
 	cmd.SetContext(context.Background())
 	cmd.Flags().String("game-version", "latest", "game version")
+	cmd.Flags().Bool("force", false, "force")
 	setCommandOutputForTesting(cmd)
 
 	assert.Error(t, runE(cmd, nil))
@@ -83,6 +85,7 @@ func TestCommandWithRunnerMissingReleaseTypesFlagErrors(t *testing.T) {
 	cmd.SetContext(context.Background())
 	cmd.Flags().String("game-version", "latest", "game version")
 	cmd.Flags().String("mods-folder", "mods", "mods folder")
+	cmd.Flags().Bool("force", false, "force")
 	setCommandOutputForTesting(cmd)
 
 	assert.Error(t, runE(cmd, nil))
@@ -98,6 +101,7 @@ func TestCommandWithRunnerMissingConfigFlagErrors(t *testing.T) {
 	cmd.Flags().String("game-version", "latest", "game version")
 	cmd.Flags().String("mods-folder", "mods", "mods folder")
 	cmd.Flags().StringSlice("release-types", []string{"release"}, "release types")
+	cmd.Flags().Bool("force", false, "force")
 	setCommandOutputForTesting(cmd)
 
 	assert.Error(t, runE(cmd, nil))
@@ -114,6 +118,7 @@ func TestCommandWithRunnerMissingUnattendedFlagErrors(t *testing.T) {
 	cmd.Flags().String("mods-folder", "mods", "mods folder")
 	cmd.Flags().StringSlice("release-types", []string{"release"}, "release types")
 	cmd.Flags().String("config", "modlist.json", "config")
+	cmd.Flags().Bool("force", false, "force")
 	setCommandOutputForTesting(cmd)
 
 	assert.Error(t, runE(cmd, nil))
@@ -131,6 +136,7 @@ func TestCommandWithRunnerMissingQuietFlagErrors(t *testing.T) {
 	cmd.Flags().StringSlice("release-types", []string{"release"}, "release types")
 	cmd.Flags().String("config", "modlist.json", "config")
 	cmd.Flags().Bool("unattended", false, "unattended")
+	cmd.Flags().Bool("force", false, "force")
 	setCommandOutputForTesting(cmd)
 
 	assert.Error(t, runE(cmd, nil))
@@ -149,6 +155,26 @@ func TestCommandWithRunnerMissingDebugFlagErrors(t *testing.T) {
 	cmd.Flags().String("config", "modlist.json", "config")
 	cmd.Flags().Bool("unattended", false, "unattended")
 	cmd.Flags().Bool("quiet", false, "quiet")
+	cmd.Flags().Bool("force", false, "force")
+	setCommandOutputForTesting(cmd)
+
+	assert.Error(t, runE(cmd, nil))
+}
+
+func TestCommandWithRunnerMissingForceFlagErrors(t *testing.T) {
+	runE := commandWithRunner(func(context.Context, *cobra.Command, initOptions, initDeps, config.Metadata) error {
+		return nil
+	}).RunE
+
+	cmd := &cobra.Command{}
+	cmd.SetContext(context.Background())
+	cmd.Flags().String("game-version", "latest", "game version")
+	cmd.Flags().String("mods-folder", "mods", "mods folder")
+	cmd.Flags().StringSlice("release-types", []string{"release"}, "release types")
+	cmd.Flags().String("config", "modlist.json", "config")
+	cmd.Flags().Bool("unattended", false, "unattended")
+	cmd.Flags().Bool("quiet", false, "quiet")
+	cmd.Flags().Bool("debug", false, "debug")
 	setCommandOutputForTesting(cmd)
 
 	assert.Error(t, runE(cmd, nil))
@@ -168,6 +194,7 @@ func TestCommandWithRunnerInvalidReleaseTypesErrors(t *testing.T) {
 	cmd.Flags().Bool("unattended", false, "unattended")
 	cmd.Flags().Bool("quiet", false, "quiet")
 	cmd.Flags().Bool("debug", false, "debug")
+	cmd.Flags().Bool("force", false, "force")
 	setCommandOutputForTesting(cmd)
 
 	assert.Error(t, runE(cmd, nil))

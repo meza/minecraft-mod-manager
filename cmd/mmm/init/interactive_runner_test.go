@@ -11,7 +11,7 @@ import (
 	"github.com/meza/minecraft-mod-manager/internal/minecraft"
 	"github.com/meza/minecraft-mod-manager/internal/models"
 	"github.com/meza/minecraft-mod-manager/internal/output"
-	"github.com/meza/minecraft-mod-manager/internal/tui"
+	termui "github.com/meza/minecraft-mod-manager/internal/tui"
 	"github.com/spf13/afero"
 	"github.com/spf13/cobra"
 	"github.com/stretchr/testify/assert"
@@ -37,7 +37,7 @@ func TestRunInteractiveInitRunsInitFlow(t *testing.T) {
 	t.Setenv("MMM_TEST", "true")
 	minecraft.ClearManifestCache()
 
-	restoreTerminal := tui.SetIsTerminalFuncForTesting(func(int) bool { return true })
+	restoreTerminal := termui.SetIsTerminalFuncForTesting(func(int) bool { return true })
 	t.Cleanup(restoreTerminal)
 
 	fs := afero.NewMemMapFs()

@@ -127,3 +127,10 @@ func QuitWithEsc() key.Binding {
 func TranslatedInputKeyBindings() []key.Binding {
 	return []key.Binding{Complete(), Accept(), QuitWithEsc()}
 }
+
+func Toggle() key.Binding {
+	return key.NewBinding(
+		key.WithKeys(" "),
+		key.WithHelp(i18n.T("key.space", nil), i18n.T("key.help.toggle", nil)),
+	)
+}

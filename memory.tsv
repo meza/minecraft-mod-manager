@@ -935,3 +935,37 @@ Loaded persona and core guidance docs; ready to pull mmm-10 details and specs on
 2026-01-02	02:02	mmm-152: defer init TUI quit so mods-folder answer renders; simplified handleMessage; updated tests; make coverage pass.
 2026-01-02	02:03	mmm-152 abandoned per user; UI changes reverted, only refactors kept. Now handling ad-hoc rendering issues with no ticket.
 2026-01-02	02:13	init TUI: add trailing newline on done to prevent success log overwriting final prompt; added test for trailing newline write error; snapshots updated; make coverage pass.
+2026-01-03	00:38	Loaded mmm-165 ticket and reviewed interaction docs/harness notes; preparing alignment on Cobra-level E2E harness approach.
+2026-01-03	00:46	mmm-165 alignment: remove SetIsTerminalFuncForTesting (no prod test overrides), build testutil/e2e harness with PTY for real TTY, init+list example coverage, per-test adjustable terminal size, capture TTY states vs non-tty transcripts.
+2026-01-03	00:50	mmm-165: user noted upcoming refactor to Bubble Tea for all commands; asked whether to postpone E2E harness until a command is fully Bubble Tea-driven.
+2026-01-03	10:22	Loaded mmm-156; read init interaction docs (interaction-guidelines, flows/init, commands/specs) and init command code for alignment; pending gap analysis.
+2026-01-03	10:25	mmm-156 alignment confirmed: move all init prompts into Bubble Tea; adopt localized option prompts; update init messages to flow spec; confirm write always in attended only.
+2026-01-03	11:18	mmm-156: read ticket + init interaction docs/specs/init/commands; reviewed init run/tui/confirm prompt code for alignment; preparing gap list and clarifications (no i18n icons, Bubble Tea only, confirm write only in attended).
+2026-01-03	12:19	mmm-156: re-read ticket + init flow/guidelines/specs/commands, bubbletea non-tty fallback doc, and init TUI code (run/tui/models). Ready to align on gaps + next steps.
+2026-01-03	13:09	mmm-156: fixed init confirm-write rendering to show only after mods folder step; refactored init view builders/option parsing/interactive normalization; added tests to restore 100% coverage; local checks pass; Windows verification (lint/build/coverage/test-race) pass with PSReadLine VT warning.
+2026-01-03	13:33	mmm-156: added config path exists validation and unattended mods-folder not-directory messaging; updated i18n and tests; local checks + Windows verification (lint/build/coverage/test-race) pass with PSReadLine VT warning.
+2026-01-03	13:54	mmm-156: fixed fr-CA not-directory translations; local checks + Windows verification rerun (lint/build/coverage/test-race) pass with PSReadLine VT warning.
+2026-01-03	14:10	mmm-156: revalidate mods folder on config-path change; added tests; local checks + Windows verification rerun pass (PSReadLine VT warning).
+2026-01-03	14:43	mmm-156: localized release-types toggle key help (key.space/key.help.toggle), added Toggle binding test, reran local checks and Windows winhost verification (PSReadLine VT warning).
+2026-01-03	16:00	Created mmm-167 to audit docs for misleading 'TUI' phrasing. Updated init docs to use 'interactive flow' and 'prompting'. Reran local checks and Windows verification (PSReadLine VT warning).
+2026-01-03	16:46	Added missing game-version empty i18n key, made non-tty color gating depend on stdin+stdout, updated interaction-guidelines to allow q cancel in line prompts, corrected init README stdin/stdout wording, and added tests for no-prompt defaults and color gating. Reran local and Windows checks (PSReadLine VT warning).
+2026-01-03	17:04	mmm-156 alignment: reviewed ticket/docs/init code; noted gaps around Bubble Tea-only output for non-tty/unattended, unicode vs ASCII fallback detection, and help line/q-cancel expectations; preparing alignment questions.
+2026-01-03	18:05	mmm-156: switched init unattended/success output to Bubble Tea output-only program, added Unicode detection and ASCII fallback logic, removed direct terminal size reads in init lists, updated init README, expanded tests; make fmt-check/lint/vuln/coverage/build all pass; Windows lint/build/coverage/test-race pass (PSReadLine VT warning).
+2026-01-03	18:32	mmm-156: clarified q cancel behavior: q should not cancel free text input; only line prompts without text input.
+2026-01-03	18:33	mmm-156: restored interaction-guidelines spec line: q is not a special cancel key in line prompts or free text input (per user).
+2026-01-03	18:36	mmm-156: removed q-as-quit handling from init text inputs/confirm prompt and updated tests to ensure q is treated as input.
+2026-01-03	19:07	mmm-156: aligned non-tty init output with bubbletea fallback (tea.Println + WithoutRenderer) and removed custom output-line writer; updated tests.
+2026-01-03	19:46	mmm-156: fixed shouldRunWithoutPrompt gate to require provided flags; localized confirm prompt suffix with format string; updated init tests and snapshots.
+2026-01-03	20:25	mmm-156: aligned init flow spec missing-required text (removed mods-folder), added unattended empty mods-folder errors + tests.
+2026-01-03	20:56	mmm-156: reviewer approved after non-tty output/view alignment, confirm prompt localization, unattended default handling, empty mods-folder error, and doc/test updates.
+2026-01-03	22:01	Created mmm-168 to refactor internal/tui terminology to execution-mode naming; updated cmd/mmm/init to use termui alias and interactive.init perf span names.
+2026-01-03	22:08	Updated cmd/mmm/init perf span names to interactive.init and aliased internal/tui as termui; refreshed init snapshots; ran make fmt-check/lint/coverage/build and Windows winhost lint/build/coverage/test-race (PSReadLine VT warning).
+2026-01-03	22:34	Renamed init flow gating to executionMode (interactive/unattended/non-tty), removed promptAllowed naming, and added tests for resolveExecutionMode and markModsFolderProvided.
+2026-01-03	22:56	Styled init unattended error headline and CTA when color enabled; added termui SupportsColor detection with test override; updated colorModeForWriter and added tests for color detection and styled output.
+2026-01-03	23:00	Added colored styling for init FinalErrorIcon line and CTA when color supported; introduced termui.SupportsColor with test override; updated colorModeForWriter and tests; ran make fmt-check/lint/coverage/build and Windows winhost lint/build/coverage/test-race (PSReadLine VT warning).
+2026-01-03	23:15	Adjusted init FinalErrorIcon line to fully red by using raw icon + ErrorStyle, and set CTA hint to muted CtaStyle; updated init test expectations; added CtaStyle.
+2026-01-03	23:49	Fix: init success output now uses updated config path after interactive selection; added test for updated config path in success output.
+2026-01-04	00:06	Updated interaction-guidelines to require CtaStyle for final CTA lines after command summaries.
+2026-01-04	00:15	Aligned docs/specs/init.md with interactive vs unattended/non-tty behavior; removed q/esc/ctrl+c line from docs/tui-guidelines.md and simplified footer example.
+2026-01-04	00:20	Applied CtaStyle to init success next-steps line and added test to verify CTA styling in init success output.
+2026-01-04	00:40	Closed mmm-156 per user request after CTA styling and doc updates.

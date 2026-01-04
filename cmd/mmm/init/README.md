@@ -10,33 +10,21 @@ This package implements `mmm init`: create a new `modlist.json` and `modlist-loc
 ## Code map
 
 - `cmd/mmm/init/init.go`: cobra wiring, flag parsing, and `initWithDeps` (writes config and lock)
-- `cmd/mmm/init/tui.go`: interactive Bubble Tea flow that asks for any missing values
+- `cmd/mmm/init/interactive_flow.go`: interactive Bubble Tea flow that asks for values and handles overwrite/confirm steps
 - `cmd/mmm/init/*Model*.go`: individual prompt models (loader, game version, release types, mods folder)
-- `cmd/mmm/init/tui_snapshot_test.go`: snapshot tests for the interactive flow
+- `cmd/mmm/init/interactive_flow_snapshot_test.go`: snapshot tests for the interactive flow
 - `cmd/mmm/init/init_test.go`: behavior tests (flags, overwrite flow, validation)
 
 ## Execution flow
 
 `init` is designed to be both scriptable and friendly:
 
-- If you provide all required flags, the command is unattended and writes the files.
-- If you omit required flags and stdout/stderr are terminals, it launches a TUI to collect the missing values.
+- If you provide all required values (including the default mods folder), the command writes the files without prompting.
+- If required values are missing and stdin/stdout are terminals with prompts allowed, it launches an interactive flow to collect values and confirm writing.
+- If the config path already exists, the flow asks whether to overwrite or choose a new path.
+- In `--unattended` or non-TTY mode, it never prompts and fails fast when required inputs are missing or the config already exists (unless `--force` is set).
 
-After inputs are finalized, `initWithDeps`:
-
-1. Validates the mods folder exists and is a directory (relative to the config file directory unless absolute).
-2. Resolves `latest` to the current Minecraft release version when needed.
-3. Validates the Minecraft version against the Mojang manifest (see `internal/minecraft`). Validation failures are treated as errors.
-4. Writes `modlist.json` and an empty `modlist-lock.json`.
-
-## Overwrite behavior (non-TUI prompt)
-
-Even when the TUI is not used, `initWithDeps` may prompt on stdout/stderr if the config file already exists and `--unattended` is not set:
-
-- confirm overwrite, or
-- enter a new config path
-
-This prompt is handled by `terminalPrompter` in `init.go` and is separate from the Bubble Tea flow.
+After inputs are finalized (via flags or the interactive flow), `initWithDeps` writes `modlist.json` and an empty `modlist-lock.json`. Success output is emitted afterward through a Bubble Tea output-only program.
 
 ## Testing and snapshots
 

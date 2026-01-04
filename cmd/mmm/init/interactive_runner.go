@@ -11,7 +11,6 @@ import (
 	"github.com/meza/minecraft-mod-manager/internal/logger"
 	"github.com/meza/minecraft-mod-manager/internal/models"
 	"github.com/meza/minecraft-mod-manager/internal/output"
-	"github.com/meza/minecraft-mod-manager/internal/tui"
 	"github.com/spf13/afero"
 	"github.com/spf13/cobra"
 )
@@ -33,10 +32,10 @@ type InteractiveInitOptions struct {
 	Debug      bool
 }
 
-// RunInteractiveInit runs the init TUI with default values and persists config/lock.
+// RunInteractiveInit runs the init interactive flow with default values and persists config/lock.
 // Use this when another command needs to bootstrap configuration through the same
 // interactive flow as `mmm init`. It does not prompt for flags; all prompts are
-// driven by the TUI.
+// driven by the interactive flow.
 func RunInteractiveInit(ctx context.Context, cmd *cobra.Command, deps InteractiveInitDeps, options InteractiveInitOptions) error {
 	common := cmddeps.NewCommonDeps(cmd, cmddeps.CommonDepsOptions{
 		FS:              deps.FS,
@@ -46,8 +45,7 @@ func RunInteractiveInit(ctx context.Context, cmd *cobra.Command, deps Interactiv
 		Quiet:           options.Quiet,
 		Debug:           options.Debug,
 	})
-	promptAllowed := tui.ShouldPrompt(tui.PromptEnabled, cmd.InOrStdin(), cmd.OutOrStdout())
-	initDependencies := newInitDeps(cmd, common, promptAllowed)
+	initDependencies := newInitDeps(common)
 	if deps.RunTea != nil {
 		initDependencies.runTea = deps.RunTea
 	}
