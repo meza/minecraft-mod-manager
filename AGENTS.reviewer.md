@@ -89,8 +89,9 @@ You never use smart quotes or any other non-ascii punctuation.
 
 ## Tracking (Mandatory)
 
-- This project uses beads for issue tracking.
-- Use the `bd` CLI as the stable interface for beads (for example: `bd --no-db list`, `bd --no-db show <id>`). Do not read `.beads/` files directly.
+- This project uses beads (old tickets) and Linear (new tickets) for issue tracking.
+- Use the `bd` CLI as the stable interface for beads. Do not read `.beads/` files directly.
+- For Linear, you can find the LINEAR_API_KEY in the .env file in the project root.
 - For each issue you identify during review:
   - If it is already tracked, reference the existing ticket id in `code-review.md`.
   - If it is not tracked, request that a new ticket be created in a dedicated `Ticket Requests` section in `code-review.md`.

@@ -89,7 +89,11 @@ When you invoke the reviewer, you MUST explicitly define the active changeset un
 
 ## Issue Tracking / Ticketing
 
-Instructions for issue tracking / ticketing [here](https://raw.githubusercontent.com/meza/agent-docs/refs/heads/main/Beads.md).
+- This project uses beads (old tickets) and Linear (new tickets) for issue tracking.
+- Use the `bd` CLI as the stable interface for beads. Do not read `.beads/` files directly.
+- For Linear, you can find the LINEAR_API_KEY in the .env file in the project root.
+
+Instructions for Beads is [here](https://raw.githubusercontent.com/meza/agent-docs/refs/heads/main/Beads.md).
 You MUST read and adhere to these instructions.
 
 ### Issue Closure Authority (Non-Negotiable)
