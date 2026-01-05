@@ -1,6 +1,7 @@
 # `mmm change`
 
 `mmm change` switches your configuration to a new Minecraft version and reinstalls every configured mod for that version.
+It downloads the new jars first and only switches after all downloads succeed.
 
 Use it when you are ready to move your modpack to a different Minecraft release.
 
@@ -17,10 +18,11 @@ mmm change --force latest
 ## What it does
 
 - Reuses the `test` checks to verify that your configured mods support the target version (unless you pass `--force`).
-- Removes the currently installed mod jars and clears `modlist-lock.json`.
-- Updates `modlist.json` with the new `gameVersion`, then runs `install` to fetch compatible releases.
+- Downloads the compatible jars into `mods/.mmm-staging` without touching your current mods.
+- If all downloads succeed, swaps in the new jars and updates `modlist-lock.json` and `modlist.json`.
+- Cleans up staging and backup files.
 
-If you attempt to change to the current version, the command exits with code `2` and makes no changes.
+If you attempt to change to the current version, the command exits with code `0` and makes no changes.
 
 ## Usage
 

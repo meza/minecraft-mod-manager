@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"context"
 	"fmt"
+	"io"
 	"strings"
 	"testing"
 
@@ -12,13 +13,13 @@ import (
 	"github.com/stretchr/testify/assert"
 
 	"github.com/meza/minecraft-mod-manager/internal/output"
-	tui "github.com/meza/minecraft-mod-manager/internal/view"
+	"github.com/meza/minecraft-mod-manager/internal/view"
 )
 
 func TestChangeCommandPlainOutputSnapshot(t *testing.T) {
 	t.Setenv("MMM_TEST", "true")
 
-	restore := tui.SetIsTerminalFuncForTesting(func(int) bool { return true })
+	restore := view.SetIsTerminalFuncForTesting(func(int) bool { return true })
 	defer restore()
 
 	outputWriter := &terminalWriter{}
@@ -45,4 +46,24 @@ func TestChangeCommandPlainOutputSnapshot(t *testing.T) {
 		strings.TrimSpace(errorWriter.String()),
 	)
 	snaps.MatchSnapshot(t, snapshot)
+}
+
+type terminalWriter struct {
+	bytes.Buffer
+}
+
+func (writer *terminalWriter) Fd() uintptr {
+	return 1
+}
+
+type fdReader struct {
+	fd uintptr
+}
+
+func (reader fdReader) Read(_ []byte) (int, error) {
+	return 0, io.EOF
+}
+
+func (reader fdReader) Fd() uintptr {
+	return reader.fd
 }

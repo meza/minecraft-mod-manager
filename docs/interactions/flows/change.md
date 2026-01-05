@@ -22,8 +22,8 @@ Success looks like (for the user):
 
 1. You run `mmm change [game_version]`.
 2. MMM resolves the target version, defaulting to `latest` when not provided.
-3. MMM checks compatibility for the target version unless `--force` is set.
-4. MMM downloads the new mod set first, without touching your current setup.
+3. MMM starts compatibility checks for the target version unless `--force` is set.
+4. As mods are confirmed compatible, MMM downloads them into a staging area without touching your current setup.
 5. Only if downloads succeed, MMM switches you to the new version (config + mods folder swap).
 6. MMM cleans up temporary and backup artifacts.
 
@@ -31,7 +31,7 @@ Success looks like (for the user):
 
 - If no config is found, MMM follows the missing-config gate as defined in the [guidelines](../interaction-guidelines.md#missing-config).
 - If you attempt to change to the current version, the command exits with code `0` and makes no changes.
-- If some mods do not support the target version, the command fails unless `--force` is set.
+- If some mods do not support the target version and `--force` is not set, MMM cancels downloads and switching (if started), continues checking compatibility to surface all offenders, then fails after all checks complete.
 - With `--force`, MMM proceeds even if some mods are unsupported, and skipped mods are reported.
 - If downloads fail, MMM MUST roll back (no user-visible changes) and print an actionable error.
 - If switching fails after partially switching, MMM MUST attempt rollback and print an actionable error.
@@ -48,7 +48,7 @@ States:
 - CHANGE-01: running (compatibility + download)
 - CHANGE-02: switching
 - CHANGE-03: success
-- CHANGE-ERR-COMPAT: compatibility failed (no --force)
+- CHANGE-ERR-COMPAT: compatibility failed (no --force), downloads and switching canceled, compatibility continues to surface all offenders
 - CHANGE-ERR-DOWNLOAD: download failed (rollback)
 - CHANGE-ERR-SWITCH: switching failed (rollback attempt)
 
@@ -83,7 +83,7 @@ Downloading:
 ⏳ Mod Menu (modmenu) [modrinth]
 ... (one row per mod, all mods shown)
 
-Switching:
+Switching: (⠋ waiting for downloads to complete)
 ⏳ Cloth Config API (cloth-config) [modrinth]
 ⏳ Sodium (sodium) [modrinth]
 ⏳ Sodium Extra (sodium-extra) [modrinth]
@@ -148,30 +148,56 @@ Exit code: 0
 
 ### Error and recovery frames
 
-#### CHANGE-ERR-COMPAT Compatibility failed (no --force)
+#### CHANGE-ERR-COMPAT Compatibility failed (no --force, tty, compatibility continues)
+
+##### Command used
+`change 1.19.4`
+
+In tty mode, once the first compatibility check fails and `--force` is not set, MMM cancels downloads and switching and removes those sections.
+MMM continues compatibility checks so you can see all incompatible mods.
+
+```
+Change Minecraft version to 1.19.4
+Your current setup will not be modified until all downloads succeed.
+
+Compatibility:
+❌ Some Mod (some-mod) [modrinth] unsupported for 1.19.4
+⠋ Better Clouds (better-clouds) [modrinth]
+⏳ Lithium (lithium) [modrinth]
+... (one row per mod, all mods shown)
+```
+
+#### CHANGE-ERR-COMPAT Compatibility failed (no --force, tty, final)
 
 ##### Command used
 `change 1.19.4`
 
 ```
+Change Minecraft version to 1.19.4
+Your current setup will not be modified until all downloads succeed.
+
 Compatibility:
 ❌ Some Mod (some-mod) [modrinth] unsupported for 1.19.4
-... (one row per mod, all mods shown)
-
-Downloading:
-⬇️ Inventory Sorting (inventory-sorting) [modrinth]
-█████░░░░░
-50% (512 KB / 1 MB)
-... (one row per mod, all mods shown)
-
-Switching:
-⏳ Sounds Be Gone! (sounds-be-gone) [modrinth]
-... (one row per mod, all mods shown)
+❌ Another Mod (another-mod) [curseforge] unsupported for 1.19.4
 
 ‼️ Compatibility check failed for 1.19.4
 No changes were made.
 
 Remove blockers, or rerun with `mmm change --force 1.19.4`.
+```
+
+#### CHANGE-ERR-COMPAT Compatibility failed (non-tty, no --force)
+
+##### Command used
+`change 1.19.4`
+
+```
+❌ Sounds Be Gone! (sounds-be-gone) [modrinth]
+❌ Some Mod (some-mod) [modrinth] unsupported for 1.19.4
+❌ Another Mod (another-mod) [curseforge] unsupported for 1.19.4
+
+‼️ Compatibility check failed for 1.19.4
+No changes were made.
 ```
 
 #### CHANGE-ERR-DOWNLOAD Download failed (rollback)
@@ -188,10 +214,6 @@ Downloading:
 █████░░░░░
 50% (512 KB / 1 MB)
 ❌ Some Mod (some-mod) [modrinth] download failed: <reason>
-... (one row per mod, all mods shown)
-
-Switching:
-⏳ Sounds Be Gone! (sounds-be-gone) [modrinth]
 ... (one row per mod, all mods shown)
 
 ‼️ Downloads failed. No changes were made.

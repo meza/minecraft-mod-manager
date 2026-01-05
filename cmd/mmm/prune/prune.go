@@ -343,10 +343,31 @@ func confirmDeletion(in io.Reader, out io.Writer, colorMode tui.ColorMode) (bool
 	if colorMode.Enabled() {
 		questionPrefix = tui.QuestionStyle.Render(questionPrefix)
 	}
-	return tui.RunConfirmPrompt(in, out, tui.ConfirmPrompt{
-		Prefix:   questionPrefix,
-		Question: i18n.T("cmd.prune.confirm", nil),
+	return tui.RunConfirmPrompt(in, out, confirmPrompt(i18n.T("cmd.prune.confirm", nil), questionPrefix))
+}
+
+func confirmPrompt(question string, prefix string) tui.ConfirmPrompt {
+	yesOption := tui.ConfirmPromptOption{
+		ID:    "yes",
+		Label: i18n.T("cmd.init.prompt.option.yes.label", nil),
+		Short: i18n.T("cmd.init.prompt.option.yes.short", nil),
+	}
+	noOption := tui.ConfirmPromptOption{
+		ID:    "no",
+		Label: i18n.T("cmd.init.prompt.option.no.label", nil),
+		Short: i18n.T("cmd.init.prompt.option.no.short", nil),
+	}
+	invalid := i18n.T("cmd.init.prompt.error.invalid_choice", &i18n.Tvars{
+		Data: &i18n.TData{"yesShort": yesOption.Short, "noShort": noOption.Short},
 	})
+	return tui.ConfirmPrompt{
+		Prefix:         prefix,
+		Question:       question,
+		Options:        []tui.ConfirmPromptOption{yesOption, noOption},
+		DefaultID:      noOption.ID,
+		ConfirmID:      yesOption.ID,
+		InvalidMessage: invalid,
+	}
 }
 
 func reportPromptDisabled(out *output.Output) error {

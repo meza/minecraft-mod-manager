@@ -2,9 +2,6 @@ package add
 
 import (
 	"errors"
-	"fmt"
-	"math"
-	"strings"
 
 	"github.com/charmbracelet/bubbles/progress"
 	tea "github.com/charmbracelet/bubbletea"
@@ -60,17 +57,7 @@ func defaultRunProgressProgram(model *downloadProgressModel, options ...tea.Prog
 }
 
 func newDownloadProgressModel(modName string, modID string, platformValue models.Platform, colorMode view.ColorMode, download func(httpclient.Sender) (modinstall.EnsureResult, error)) *downloadProgressModel {
-	bar := progress.New(
-		progress.WithWidth(10),
-		progress.WithoutPercentage(),
-	)
-	if !view.SupportsUnicode() {
-		bar = progress.New(
-			progress.WithWidth(10),
-			progress.WithoutPercentage(),
-			progress.WithFillCharacters('#', '-'),
-		)
-	}
+	bar := view.NewProgressBar()
 
 	return &downloadProgressModel{
 		modName:   modName,
@@ -141,20 +128,25 @@ func (model *downloadProgressModel) startDownloadCmd() tea.Cmd {
 }
 
 func (model *downloadProgressModel) startedLine() string {
-	icon := view.RenderIfColorEnabled(model.colorMode, view.QuestionStyle, preparingIcon())
 	message := i18nLine("cmd.add.progress.start", model.modName, model.modID, model.platform, model.colorMode)
-	return fmt.Sprintf("%s %s", icon, message)
+	return view.RenderModItemLine(view.ModItemLine{
+		Label:  message,
+		Status: view.ModItemStatusPending,
+	}, model.colorMode)
 }
 
 func (model *downloadProgressModel) progressLine() string {
-	icon := view.RenderIfColorEnabled(model.colorMode, view.QuestionStyle, downloadingIcon())
-	message := i18nLine("cmd.add.progress.downloading", model.modName, model.modID, model.platform, model.colorMode)
-	barLine := model.progress.ViewAs(model.ratio)
-	if !view.SupportsUnicode() {
-		barLine = "[" + barLine + "]"
-	}
-	percentLine := progressPercentLine(model.ratio, model.downloaded, model.total)
-	return strings.Join([]string{fmt.Sprintf("%s %s", icon, message), barLine, percentLine}, "\n")
+	message := view.RenderModLabel(model.colorMode, model.modName, model.modID, string(model.platform))
+	return view.RenderModItemLine(view.ModItemLine{
+		Label:  message,
+		Status: view.ModItemStatusDownloading,
+		Progress: &view.ProgressDetails{
+			Bar:        model.progress,
+			Ratio:      model.ratio,
+			Downloaded: model.downloaded,
+			Total:      model.total,
+		},
+	}, model.colorMode)
 }
 
 func i18nLine(key string, name string, id string, platformValue models.Platform, colorMode view.ColorMode) string {
@@ -167,51 +159,4 @@ func i18nLine(key string, name string, id string, platformValue models.Platform,
 			"platform": platformText,
 		},
 	})
-}
-
-func progressPercentLine(ratio float64, downloaded int64, total int64) string {
-	if total <= 0 {
-		return fmt.Sprintf("%d%%", percentFromRatio(ratio))
-	}
-	return fmt.Sprintf("%d%% (%s / %s)", percentFromRatio(ratio), formatBytes(downloaded), formatBytes(total))
-}
-
-func percentFromRatio(ratio float64) int {
-	if ratio <= 0 {
-		return 0
-	}
-	if ratio >= 1 {
-		return 100
-	}
-	return int(math.Round(ratio * 100))
-}
-
-func formatBytes(bytes int64) string {
-	const unit = 1024
-	if bytes < unit {
-		return fmt.Sprintf("%d B", bytes)
-	}
-	value := float64(bytes)
-	suffixes := []string{"KB", "MB", "GB", "TB"}
-	for _, suffix := range suffixes {
-		value = value / unit
-		if value < unit {
-			return fmt.Sprintf("%d %s", int64(math.Round(value)), suffix)
-		}
-	}
-	return fmt.Sprintf("%d TB", int64(math.Round(value)))
-}
-
-func preparingIcon() string {
-	if view.SupportsUnicode() {
-		return "\u23F3"
-	}
-	return "[~]"
-}
-
-func downloadingIcon() string {
-	if view.SupportsUnicode() {
-		return "\u2B07\uFE0F"
-	}
-	return "->"
 }

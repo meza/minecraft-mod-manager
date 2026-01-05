@@ -156,7 +156,7 @@ func TestRunPrunePromptNoKeepsFiles(t *testing.T) {
 	require.NoError(t, afero.WriteFile(fs, unmanagedPath, []byte("data"), 0644))
 
 	input := &fakeTerminalReader{}
-	_, err := input.WriteString("n\n")
+	_, err := input.WriteString("cmd.init.prompt.option.no.short\n")
 	require.NoError(t, err)
 	outputWriter := &fakeTerminalWriter{}
 	errOut := &bytes.Buffer{}
@@ -183,7 +183,7 @@ func TestRunPrunePromptNoKeepsFiles(t *testing.T) {
 	assert.True(t, exists)
 
 	expected := "❌ cmd.prune.unmanaged.entry, Arg 1: {Count: 0, Data: &map[file:" + unmanagedPath + "]}\n" +
-		"? cmd.prune.confirm "
+		"? cmd.prune.confirm (cmd.init.prompt.option.yes.short/cmd.init.prompt.option.no.short) [default: cmd.init.prompt.option.no.short]: "
 	assert.Equal(t, expected, stripANSI(outputWriter.String()))
 	assert.Empty(t, errOut.String())
 }
@@ -212,7 +212,7 @@ func TestRunPrunePromptYesDeletesFiles(t *testing.T) {
 	require.NoError(t, afero.WriteFile(fs, unmanagedPath, []byte("data"), 0644))
 
 	input := &fakeTerminalReader{}
-	_, err := input.WriteString("y\n")
+	_, err := input.WriteString("cmd.init.prompt.option.yes.short\n")
 	require.NoError(t, err)
 	outputWriter := &fakeTerminalWriter{}
 	cmd := &cobra.Command{}

@@ -134,7 +134,7 @@ func TestTerminalPrompterConfirmInitYes(t *testing.T) {
 
 	out := &bytes.Buffer{}
 	prompter := terminalPrompter{
-		in:  strings.NewReader("yes\n"),
+		in:  strings.NewReader("cmd.init.prompt.option.yes.short\n"),
 		out: out,
 	}
 
@@ -162,7 +162,7 @@ func TestTerminalPrompterConfirmInitPromptWriteError(t *testing.T) {
 
 	writeErr := errors.New("write failed")
 	prompter := terminalPrompter{
-		in:  strings.NewReader("y\n"),
+		in:  strings.NewReader("cmd.init.prompt.option.yes.short\n"),
 		out: selectErrorWriter{err: writeErr},
 	}
 

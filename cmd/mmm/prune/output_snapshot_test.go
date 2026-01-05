@@ -45,7 +45,7 @@ func TestPrunePromptOutputSnapshot(t *testing.T) {
 	require.NoError(t, afero.WriteFile(fs, filepath.Join(meta.ModsFolderPath(cfg), "extra.jar"), []byte("data"), 0644))
 
 	input := &fakeTerminalReader{}
-	_, err := input.WriteString("n\n")
+	_, err := input.WriteString("cmd.init.prompt.option.no.short\n")
 	require.NoError(t, err)
 
 	out := &fakeTerminalWriter{}

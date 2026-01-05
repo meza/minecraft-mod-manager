@@ -1,23 +1,18 @@
 package change
 
 import (
-	"bytes"
 	"context"
-	"io"
 	"testing"
 
-	"github.com/stretchr/testify/assert"
-
+	"github.com/spf13/afero"
 	"github.com/spf13/cobra"
+	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 
-	"github.com/meza/minecraft-mod-manager/cmd/mmm/install"
 	"github.com/meza/minecraft-mod-manager/internal/clierrors"
 	"github.com/meza/minecraft-mod-manager/internal/cmddeps"
 	"github.com/meza/minecraft-mod-manager/internal/models"
-	"github.com/meza/minecraft-mod-manager/internal/output"
 	"github.com/meza/minecraft-mod-manager/internal/telemetry"
-	tui "github.com/meza/minecraft-mod-manager/internal/view"
-	"github.com/spf13/afero"
 )
 
 func TestChangeOptionsFromFlags(t *testing.T) {
@@ -48,6 +43,68 @@ func TestChangeOptionsFromFlags(t *testing.T) {
 	assert.Equal(t, "1.21.1", withArg.GameVersion)
 }
 
+func TestChangeOptionsFromFlagsErrors(t *testing.T) {
+	cases := []struct {
+		name  string
+		flags func(cmd *cobra.Command)
+	}{
+		{
+			name: "missing config",
+			flags: func(cmd *cobra.Command) {
+				cmd.Flags().Bool("force", false, "")
+				cmd.Flags().Bool("unattended", false, "")
+				cmd.Flags().Bool("quiet", false, "")
+				cmd.Flags().Bool("debug", false, "")
+			},
+		},
+		{
+			name: "missing unattended",
+			flags: func(cmd *cobra.Command) {
+				cmd.Flags().String("config", "./modlist.json", "")
+				cmd.Flags().Bool("force", false, "")
+				cmd.Flags().Bool("quiet", false, "")
+				cmd.Flags().Bool("debug", false, "")
+			},
+		},
+		{
+			name: "missing quiet",
+			flags: func(cmd *cobra.Command) {
+				cmd.Flags().String("config", "./modlist.json", "")
+				cmd.Flags().Bool("force", false, "")
+				cmd.Flags().Bool("unattended", false, "")
+				cmd.Flags().Bool("debug", false, "")
+			},
+		},
+		{
+			name: "missing debug",
+			flags: func(cmd *cobra.Command) {
+				cmd.Flags().String("config", "./modlist.json", "")
+				cmd.Flags().Bool("force", false, "")
+				cmd.Flags().Bool("unattended", false, "")
+				cmd.Flags().Bool("quiet", false, "")
+			},
+		},
+		{
+			name: "missing force",
+			flags: func(cmd *cobra.Command) {
+				cmd.Flags().String("config", "./modlist.json", "")
+				cmd.Flags().Bool("unattended", false, "")
+				cmd.Flags().Bool("quiet", false, "")
+				cmd.Flags().Bool("debug", false, "")
+			},
+		},
+	}
+
+	for _, testCase := range cases {
+		t.Run(testCase.name, func(t *testing.T) {
+			cmd := &cobra.Command{}
+			testCase.flags(cmd)
+			_, err := changeOptionsFromFlags(cmd, nil)
+			assert.Error(t, err)
+		})
+	}
+}
+
 func TestApplyChangeCommandErrorPolicy(t *testing.T) {
 	cmd := &cobra.Command{}
 
@@ -70,20 +127,22 @@ func TestRecordChangeTelemetry(t *testing.T) {
 		GameVersion: "1.21.1",
 		Unattended:  true,
 	}, changeResult{
-		TargetVersion:   "1.21.1",
-		UnsupportedMods: []models.Mod{{ID: "a"}, {ID: "b"}},
-		InstallResult: install.Result{
-			InstalledCount: 2,
-			UnmanagedFound: true,
-		},
-		ExitCode: 0,
+		TargetVersion:  "1.21.1",
+		TotalMods:      2,
+		SkippedMods:    1,
+		DownloadedMods: 1,
+		ExitCode:       0,
+		Interactive:    true,
 	}, nil)
 
 	assert.True(t, captured.Success)
 	assert.Equal(t, 0, captured.ExitCode)
 	assert.Equal(t, "change", captured.Command)
-	assert.Equal(t, 2, captured.Extra["unsupportedMods"])
+	assert.Equal(t, 2, captured.Extra["totalMods"])
+	assert.Equal(t, 1, captured.Extra["skippedMods"])
+	assert.Equal(t, 1, captured.Extra["downloadedMods"])
 	assert.Equal(t, "1.21.1", captured.Extra["targetVersion"])
+	assert.True(t, captured.Interactive)
 }
 
 func TestRecordChangeTelemetryFailure(t *testing.T) {
@@ -129,210 +188,42 @@ func TestCommandWithRunnerPassesOptions(t *testing.T) {
 	assert.Equal(t, "1.20.4", received.GameVersion)
 }
 
-func TestChangeOptionsFromFlagsErrorsWithoutConfigFlag(t *testing.T) {
-	cmd := &cobra.Command{}
-	cmd.Flags().Bool("force", false, "")
-	cmd.Flags().Bool("unattended", false, "")
-	cmd.Flags().Bool("quiet", false, "")
-	cmd.Flags().Bool("debug", false, "")
-
-	_, err := changeOptionsFromFlags(cmd, nil)
-	assert.Error(t, err)
-}
-
-func TestChangeOptionsFromFlagsErrorsWithoutUnattendedFlag(t *testing.T) {
-	cmd := &cobra.Command{}
-	cmd.Flags().String("config", "./modlist.json", "")
-	cmd.Flags().Bool("force", false, "")
-	cmd.Flags().Bool("quiet", false, "")
-	cmd.Flags().Bool("debug", false, "")
-
-	_, err := changeOptionsFromFlags(cmd, nil)
-	assert.Error(t, err)
-}
-
-func TestChangeOptionsFromFlagsErrorsWithoutQuietFlag(t *testing.T) {
-	cmd := &cobra.Command{}
-	cmd.Flags().String("config", "./modlist.json", "")
-	cmd.Flags().Bool("force", false, "")
-	cmd.Flags().Bool("unattended", false, "")
-	cmd.Flags().Bool("debug", false, "")
-
-	_, err := changeOptionsFromFlags(cmd, nil)
-	assert.Error(t, err)
-}
-
-func TestChangeOptionsFromFlagsErrorsWithoutDebugFlag(t *testing.T) {
-	cmd := &cobra.Command{}
-	cmd.Flags().String("config", "./modlist.json", "")
-	cmd.Flags().Bool("force", false, "")
-	cmd.Flags().Bool("unattended", false, "")
-	cmd.Flags().Bool("quiet", false, "")
-
-	_, err := changeOptionsFromFlags(cmd, nil)
-	assert.Error(t, err)
-}
-
-func TestChangeOptionsFromFlagsErrorsWithoutForceFlag(t *testing.T) {
-	cmd := &cobra.Command{}
-	cmd.Flags().String("config", "./modlist.json", "")
-	cmd.Flags().Bool("unattended", false, "")
-	cmd.Flags().Bool("quiet", false, "")
-	cmd.Flags().Bool("debug", false, "")
-
-	_, err := changeOptionsFromFlags(cmd, nil)
-	assert.Error(t, err)
-}
-
-func TestNewChangeDepsEnablesColorWhenTerminal(t *testing.T) {
-	restore := tui.SetIsTerminalFuncForTesting(func(int) bool { return true })
-	defer restore()
-
+func TestNewChangeDepsDefaults(t *testing.T) {
 	memFS := afero.NewMemMapFs()
 	common := cmddeps.NewCommonDeps(&cobra.Command{}, cmddeps.CommonDepsOptions{FS: memFS})
-	testCmd := &cobra.Command{}
-	testCmd.SetOut(fdWriter{fd: 1})
+	deps := newChangeDeps(common)
 
-	deps := newChangeDeps(common, testCmd, &cobra.Command{})
-	assert.Equal(t, tui.ColorEnabled, deps.colorMode)
+	require.NotNil(t, deps.downloader)
+	require.NotNil(t, deps.fetchMod)
+	require.NotNil(t, deps.latestVersion)
+	require.NotNil(t, deps.isValidVersion)
 
 	path := "/file.txt"
-	assert.NoError(t, afero.WriteFile(memFS, path, []byte("data"), 0644))
-	assert.NoError(t, deps.removeFile(memFS, path))
+	require.NoError(t, afero.WriteFile(memFS, path, []byte("data"), 0644))
+	require.NoError(t, deps.removeFile(memFS, path))
+
+	dir := "/dir"
+	require.NoError(t, deps.mkdirAll(memFS, dir, 0o755))
+	require.NoError(t, afero.WriteFile(memFS, "/source.txt", []byte("data"), 0644))
+	require.NoError(t, deps.renameFile(memFS, "/source.txt", "/dest.txt"))
+	require.NoError(t, deps.removeAll(memFS, dir))
 }
 
-func TestChangeCommandConstructed(t *testing.T) {
+func TestCommandConstructed(t *testing.T) {
 	cmd := Command()
 	assert.Equal(t, "change [game_version]", cmd.Use)
 }
 
-func TestRunChangeCommandUsesPlainOutputWhenTerminal(t *testing.T) {
-	restore := tui.SetIsTerminalFuncForTesting(func(int) bool { return true })
-	defer restore()
-
-	outputWriter := &terminalWriter{}
-	cmd := commandWithRunner(func(_ context.Context, _ *cobra.Command, _ changeOptions, deps changeDeps) (changeResult, error) {
-		return changeResult{}, deps.output.Log("hello", output.LogForce)
-	})
-
-	cmd.Flags().String("config", "./modlist.json", "")
-	cmd.Flags().Bool("unattended", false, "")
-	cmd.Flags().Bool("quiet", false, "")
-	cmd.Flags().Bool("debug", false, "")
-
-	reader := fdReader{fd: 1}
-	cmd.SetIn(reader)
-	cmd.SetOut(outputWriter)
-	cmd.SetErr(io.Discard)
-	cmd.SetArgs([]string{"--config", "./modlist.json"})
-
-	assert.NoError(t, cmd.Execute())
-	assert.Equal(t, "hello\n", outputWriter.String())
+func TestChangeResultCounts(t *testing.T) {
+	items := []changeItem{
+		{DownloadStatus: changeDownloadSucceeded},
+		{DownloadStatus: changeDownloadFailed, Skipped: true},
+	}
+	assert.Equal(t, 1, countDownloaded(items))
+	assert.Equal(t, 1, countSkipped(items))
 }
 
-func TestRunChangeCommandWithTerminal(t *testing.T) {
-	restore := tui.SetIsTerminalFuncForTesting(func(int) bool { return true })
-	defer restore()
-
-	cmd := commandWithRunner(func(context.Context, *cobra.Command, changeOptions, changeDeps) (changeResult, error) {
-		return changeResult{}, nil
-	})
-
-	cmd.Flags().String("config", "./modlist.json", "")
-	cmd.Flags().Bool("unattended", false, "")
-	cmd.Flags().Bool("quiet", false, "")
-	cmd.Flags().Bool("debug", false, "")
-
-	reader := fdReader{fd: 1}
-	writer := fdWriter{fd: 1}
-	cmd.SetIn(reader)
-	cmd.SetOut(writer)
-	cmd.SetErr(writer)
-	cmd.SetArgs([]string{"--config", "./modlist.json"})
-
-	assert.NoError(t, cmd.Execute())
-}
-
-func TestRunChangeCommandWithTerminalError(t *testing.T) {
-	restore := tui.SetIsTerminalFuncForTesting(func(int) bool { return true })
-	defer restore()
-
-	expectedErr := clierrors.MarkHandled(assert.AnError)
-	cmd := commandWithRunner(func(context.Context, *cobra.Command, changeOptions, changeDeps) (changeResult, error) {
-		return changeResult{ExitCode: 1}, expectedErr
-	})
-
-	cmd.Flags().String("config", "./modlist.json", "")
-	cmd.Flags().Bool("unattended", false, "")
-	cmd.Flags().Bool("quiet", false, "")
-	cmd.Flags().Bool("debug", false, "")
-
-	reader := fdReader{fd: 1}
-	writer := fdWriter{fd: 1}
-	cmd.SetIn(reader)
-	cmd.SetOut(writer)
-	cmd.SetErr(writer)
-	cmd.SetArgs([]string{"--config", "./modlist.json"})
-
-	err := cmd.Execute()
-	assert.Equal(t, expectedErr, err)
-}
-
-func TestRunChangeCommandOptionsError(t *testing.T) {
-	cmd := commandWithRunner(func(context.Context, *cobra.Command, changeOptions, changeDeps) (changeResult, error) {
-		t.Fatal("runner should not be called")
-		return changeResult{}, nil
-	})
-
-	err := cmd.Execute()
-	assert.Error(t, err)
-}
-
-func TestRunChangeCommandHandlesRunnerError(t *testing.T) {
-	cmd := commandWithRunner(func(context.Context, *cobra.Command, changeOptions, changeDeps) (changeResult, error) {
-		return changeResult{ExitCode: 2}, clierrors.MarkHandled(assert.AnError)
-	})
-
-	cmd.Flags().String("config", "./modlist.json", "")
-	cmd.Flags().Bool("unattended", false, "")
-	cmd.Flags().Bool("quiet", false, "")
-	cmd.Flags().Bool("debug", false, "")
-	cmd.SetArgs([]string{"--config", "./modlist.json"})
-
-	err := cmd.Execute()
-	assert.Equal(t, clierrors.MarkHandled(assert.AnError), err)
-	assert.True(t, cmd.SilenceErrors)
-	assert.True(t, cmd.SilenceUsage)
-}
-
-type fdWriter struct {
-	fd uintptr
-}
-
-func (writer fdWriter) Write(p []byte) (int, error) {
-	return len(p), nil
-}
-
-func (writer fdWriter) Fd() uintptr {
-	return writer.fd
-}
-
-type fdReader struct {
-	fd uintptr
-}
-
-func (reader fdReader) Read(p []byte) (int, error) {
-	return 0, io.EOF
-}
-
-func (reader fdReader) Fd() uintptr {
-	return reader.fd
-}
-
-type terminalWriter struct {
-	bytes.Buffer
-}
-
-func (writer *terminalWriter) Fd() uintptr {
-	return 1
+func TestChangeModKey(t *testing.T) {
+	mod := models.Mod{Type: models.MODRINTH, ID: "abc"}
+	assert.Equal(t, "modrinth:abc", changeModKey(mod))
 }

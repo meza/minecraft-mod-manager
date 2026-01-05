@@ -396,7 +396,15 @@ func buildEntries(cfg models.ModsJSON, lock []models.ModInstall, meta config.Met
 	}
 
 	sort.Slice(entries, func(i int, j int) bool {
-		return strings.ToLower(entries[i].DisplayName) < strings.ToLower(entries[j].DisplayName)
+		left := strings.ToLower(entries[i].DisplayName)
+		right := strings.ToLower(entries[j].DisplayName)
+		if left != right {
+			return left < right
+		}
+		if entries[i].Platform != entries[j].Platform {
+			return entries[i].Platform < entries[j].Platform
+		}
+		return entries[i].ID < entries[j].ID
 	})
 
 	return entries, nil
@@ -521,31 +529,25 @@ func renderListView(entries []listEntry, colorMode view.ColorMode) string {
 }
 
 func renderEntry(entry listEntry, colorMode view.ColorMode) string {
-	icon := view.ErrorIcon(colorMode)
-	key := "cmd.list.entry.missing"
-
-	id := view.RenderIfColorEnabled(colorMode, view.ParenStyle, entry.ID)
-	platform := view.RenderIfColorEnabled(colorMode, view.ParenStyle, entry.Platform.String())
-	data := i18n.TData{
-		"name":     entry.DisplayName,
-		"id":       id,
-		"platform": platform,
-	}
-
+	label := view.RenderModLabel(colorMode, entry.DisplayName, entry.ID, entry.Platform.String())
+	suffix := ""
+	status := view.ModItemStatusError
 	switch entry.Status {
 	case listEntryInstalled:
-		icon = view.SuccessIcon(colorMode)
-		key = "cmd.list.entry.installed"
+		status = view.ModItemStatusSuccess
 	case listEntryHashMismatch:
-		key = "cmd.list.entry.hash_mismatch"
-		data["fix_command"] = "mmm install"
+		suffix = i18n.T("cmd.list.entry.hash_mismatch_suffix", &i18n.Tvars{
+			Data: &i18n.TData{"fix_command": "mmm install"},
+		})
+	case listEntryMissing:
+		suffix = i18n.T("cmd.list.entry.missing_suffix", nil)
 	}
 
-	message := i18n.T(key, &i18n.Tvars{
-		Data: &data,
-	})
-
-	return fmt.Sprintf("%s %s", icon, message)
+	return view.RenderModItemLine(view.ModItemLine{
+		Label:  label,
+		Suffix: suffix,
+		Status: status,
+	}, colorMode)
 }
 
 func listUnmanagedFiles(fs afero.Fs, meta config.Metadata, cfg models.ModsJSON, lock []models.ModInstall) ([]string, error) {

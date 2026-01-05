@@ -2,7 +2,7 @@
 [TestPrunePromptOutputSnapshot - 1]
 stdout:
 ❌ cmd.prune.unmanaged.entry, Arg 1: {Count: 0, Data: &map[file:/cfg/mods/extra.jar]}
-? cmd.prune.confirm 
+? cmd.prune.confirm (cmd.init.prompt.option.yes.short/cmd.init.prompt.option.no.short) [default: cmd.init.prompt.option.no.short]: 
 stderr:
 
 ---

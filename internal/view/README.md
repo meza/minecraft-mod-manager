@@ -11,9 +11,10 @@ The CLI tries hard to avoid "half a view" when input/output are not terminals (C
 - `SupportsPrompting(in io.Reader, out io.Writer) bool`
 - `SupportsColor(writer io.Writer) bool`
 - `SupportsUnicode() bool`
+- `SupportsControlSequences(out io.Writer) bool`
 - `ProgramOptions(in io.Reader, out io.Writer) []tea.ProgramOption`
 
-`ProgramOptions` disables Bubble Tea's renderer when no terminal is present.
+`ProgramOptions` disables Bubble Tea's renderer when output cannot use control sequences.
 Commands decide how `--unattended` affects prompting; the view package only reports capabilities.
 
 For tests that need deterministic behavior across platforms:

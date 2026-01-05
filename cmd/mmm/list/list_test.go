@@ -78,8 +78,8 @@ func TestRunListPrintsInstalledAndMissing(t *testing.T) {
 
 	assert.NoError(t, err)
 	expected := "cmd.list.header\n" +
-		"V cmd.list.entry.installed, Arg 1: {Count: 0, Data: &map[id:mod-a name:Mod A platform:modrinth]}\n" +
-		"X cmd.list.entry.missing, Arg 1: {Count: 0, Data: &map[id:mod-b name:Mod B platform:curseforge]}\n"
+		"V Mod A (mod-a) [modrinth]\n" +
+		"X Mod B (mod-b) [curseforge] cmd.list.entry.missing_suffix\n"
 	assert.Equal(t, expected, outBuffer.String())
 	assert.Empty(t, errBuffer.String())
 }
@@ -130,7 +130,7 @@ func TestRunListShowsHashMismatch(t *testing.T) {
 
 	assert.NoError(t, err)
 	expected := "cmd.list.header\n" +
-		"X cmd.list.entry.hash_mismatch, Arg 1: {Count: 0, Data: &map[fix_command:mmm install id:mod-a name:Mod A platform:modrinth]}\n"
+		"X Mod A (mod-a) [modrinth] cmd.list.entry.hash_mismatch_suffix, Arg 1: {Count: 0, Data: &map[fix_command:mmm install]}\n"
 	assert.Equal(t, expected, outBuffer.String())
 	assert.Empty(t, errBuffer.String())
 	assert.NotEqual(t, installedHash, otherHash)
@@ -212,7 +212,7 @@ func TestRunListQuietStillPrints(t *testing.T) {
 
 	assert.NoError(t, err)
 	expected := "cmd.list.header\n" +
-		"X cmd.list.entry.missing, Arg 1: {Count: 0, Data: &map[id:mod-a name:Mod A platform:modrinth]}\n"
+		"X Mod A (mod-a) [modrinth] cmd.list.entry.missing_suffix\n"
 	assert.Equal(t, expected, outBuffer.String())
 }
 
@@ -1195,6 +1195,50 @@ func TestBuildEntriesUsesIDWhenNameBlank(t *testing.T) {
 	if assert.Len(t, entries, 1) {
 		assert.Equal(t, "mod-a", entries[0].DisplayName)
 	}
+}
+
+func TestBuildEntriesReturnsStatusError(t *testing.T) {
+	meta := config.NewMetadata(filepath.FromSlash("/cfg/modlist.json"))
+	cfg := models.ModsJSON{
+		ModsFolder: "mods",
+		Mods: []models.Mod{
+			{ID: "mod-a", Name: "Mod A", Type: models.MODRINTH},
+		},
+	}
+	lock := []models.ModInstall{
+		{ID: "mod-a", Type: models.MODRINTH, FileName: "mod-a.jar"},
+	}
+
+	failPath := filepath.Join(meta.ModsFolderPath(cfg), "mod-a.jar")
+	fileSystem := statErrorFs{
+		Fs:       afero.NewMemMapFs(),
+		failPath: failPath,
+		err:      errors.New("read failed"),
+	}
+
+	_, err := buildEntries(cfg, lock, meta, fileSystem)
+	var readErr *modsFolderReadError
+	assert.ErrorAs(t, err, &readErr)
+}
+
+func TestBuildEntriesSortsByPlatformAndID(t *testing.T) {
+	cfg := models.ModsJSON{
+		Mods: []models.Mod{
+			{ID: "b", Name: "Alpha", Type: models.MODRINTH},
+			{ID: "c", Name: "Alpha", Type: models.CURSEFORGE},
+			{ID: "a", Name: "Alpha", Type: models.MODRINTH},
+		},
+	}
+
+	entries, err := buildEntries(cfg, nil, config.NewMetadata("modlist.json"), afero.NewMemMapFs())
+	require.NoError(t, err)
+	require.Len(t, entries, 3)
+	assert.Equal(t, models.CURSEFORGE, entries[0].Platform)
+	assert.Equal(t, "c", entries[0].ID)
+	assert.Equal(t, models.MODRINTH, entries[1].Platform)
+	assert.Equal(t, "a", entries[1].ID)
+	assert.Equal(t, models.MODRINTH, entries[2].Platform)
+	assert.Equal(t, "b", entries[2].ID)
 }
 
 func TestIsInstalledReturnsFalseWhenFileNameMissing(t *testing.T) {

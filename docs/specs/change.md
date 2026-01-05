@@ -4,11 +4,14 @@ Switches the configured Minecraft version and reinstalls all mods for the new ve
 
 ## Behaviour
 1. Resolve the target Minecraft version, defaulting to `latest` when no version is provided.
-2. Verify that the target version is supported by all configured mods (unless `--force` is used).
-3. Download the new mod set without modifying the current setup.
-4. If downloads succeed, switch the config and mods folder to the new version.
-5. Clean up temporary or backup artifacts. On failure, attempt rollback so no user-visible changes remain.
-6. During execution, per-item status may update in place and output order is not deterministic due to parallel processing; final grouped results are stable.
+2. Start per-mod compatibility checks for the target version unless `--force` is used.
+3. As mods are confirmed compatible, resolve and download them in parallel into a staging area under `mods/.mmm-staging`, without modifying the current setup.
+4. If any compatibility checks fail and `--force` is not set, cancel outstanding downloads and roll back staging artifacts, but continue remaining compatibility checks and only exit non-zero after all checks complete.
+5. If all required downloads succeed, move the currently installed jars into `mods/.mmm-staging/backup`.
+6. Move staged jars into the mods folder, update `modlist-lock.json`, and update `modlist.json` with the new `gameVersion`.
+7. Clean up staging and backup artifacts. On failure during switching, attempt rollback so no user-visible changes remain.
+
+During execution, per-item status may update in place. Mod list ordering follows `docs/interactions/interaction-guidelines.md`.
 
 ## Edge Cases
 - When the configuration is missing, follow the missing-config gate defined in `docs/interactions/interaction-guidelines.md`.

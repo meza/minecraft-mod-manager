@@ -99,7 +99,7 @@ Or it can be reached from recovery flows.
 ##### In progress
 
 ```
-⬇️ Downloading Inventory Sorting (inventory-sorting) from <platform>
+⬇️ Inventory Sorting (inventory-sorting) [modrinth]
 █████░░░░░
 50% (512 KB / 1 MB)
 ```
@@ -107,7 +107,7 @@ Or it can be reached from recovery flows.
 ##### Finished
 
 ```
-✅ Added Inventory Sorting (inventory-sorting) for <platform>
+✅ Inventory Sorting (<id>) [<platform>]
 ```
 
 ### Error and recovery frames
@@ -173,7 +173,7 @@ Unattended mode MUST NOT prompt.
 `--unattended add <platform> inventory-sorting`
 
 ```
-✅ Added Inventory Sorting (inventory-sorting) for <platform>
+✅ Inventory Sorting (<id>) [<platform>]
 ```
 
 #### Unattended missing config

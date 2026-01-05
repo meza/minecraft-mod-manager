@@ -149,6 +149,20 @@ func TestSupportsColorWhenTerminalAndProfileSupportsColor(t *testing.T) {
 	assert.True(t, SupportsColor(fakeWriter{}))
 }
 
+func TestSupportsControlSequencesRequiresTerminalWriter(t *testing.T) {
+	restore := mockTerminalDetection(t, true)
+	defer restore()
+
+	assert.False(t, SupportsControlSequences(&strings.Builder{}))
+}
+
+func TestSupportsControlSequencesWhenTerminalWriter(t *testing.T) {
+	restore := mockTerminalDetection(t, true)
+	defer restore()
+
+	assert.True(t, SupportsControlSequences(fakeWriter{}))
+}
+
 func mockTerminalDetection(t *testing.T, result bool) func() {
 	t.Helper()
 	original := isTerminalFunc

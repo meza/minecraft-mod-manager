@@ -82,10 +82,7 @@ func (prompter noopPrompter) ConfirmInit(string) (bool, error) {
 }
 
 func (prompter terminalPrompter) ConfirmAdd() (bool, error) {
-	return tui.RunConfirmPrompt(prompter.in, prompter.out, tui.ConfirmPrompt{
-		Question:    i18n.T("cmd.scan.confirm_add", nil),
-		DefaultHint: "y/N",
-	})
+	return tui.RunConfirmPrompt(prompter.in, prompter.out, yesNoPrompt(i18n.T("cmd.scan.confirm_add", nil)))
 }
 
 func (prompter terminalPrompter) ConfirmInit(configPath string) (bool, error) {
@@ -94,10 +91,30 @@ func (prompter terminalPrompter) ConfirmInit(configPath string) (bool, error) {
 	})); err != nil {
 		return false, err
 	}
-	return tui.RunConfirmPrompt(prompter.in, prompter.out, tui.ConfirmPrompt{
-		Question:    i18n.T("cmd.scan.confirm_init", nil),
-		DefaultHint: "y/N",
+	return tui.RunConfirmPrompt(prompter.in, prompter.out, yesNoPrompt(i18n.T("cmd.scan.confirm_init", nil)))
+}
+
+func yesNoPrompt(question string) tui.ConfirmPrompt {
+	yesOption := tui.ConfirmPromptOption{
+		ID:    "yes",
+		Label: i18n.T("cmd.init.prompt.option.yes.label", nil),
+		Short: i18n.T("cmd.init.prompt.option.yes.short", nil),
+	}
+	noOption := tui.ConfirmPromptOption{
+		ID:    "no",
+		Label: i18n.T("cmd.init.prompt.option.no.label", nil),
+		Short: i18n.T("cmd.init.prompt.option.no.short", nil),
+	}
+	invalid := i18n.T("cmd.init.prompt.error.invalid_choice", &i18n.Tvars{
+		Data: &i18n.TData{"yesShort": yesOption.Short, "noShort": noOption.Short},
 	})
+	return tui.ConfirmPrompt{
+		Question:       question,
+		Options:        []tui.ConfirmPromptOption{yesOption, noOption},
+		DefaultID:      noOption.ID,
+		ConfirmID:      yesOption.ID,
+		InvalidMessage: invalid,
+	}
 }
 
 func messageWithIcon(icon string, message string) string {

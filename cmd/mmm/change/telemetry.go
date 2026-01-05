@@ -10,17 +10,17 @@ func recordChangeTelemetry(recorder func(telemetry.CommandTelemetry), opts chang
 		Success:     err == nil && result.ExitCode == 0,
 		Error:       err,
 		ExitCode:    result.ExitCode,
-		Interactive: false,
+		Interactive: result.Interactive,
 		Arguments: map[string]interface{}{
 			"force":       opts.Force,
 			"gameVersion": opts.GameVersion,
 			"unattended":  opts.Unattended,
 		},
 		Extra: map[string]interface{}{
-			"targetVersion":   result.TargetVersion,
-			"unsupportedMods": len(result.UnsupportedMods),
-			"installedCount":  result.InstallResult.InstalledCount,
-			"unmanagedFound":  result.InstallResult.UnmanagedFound,
+			"targetVersion":  result.TargetVersion,
+			"totalMods":      result.TotalMods,
+			"skippedMods":    result.SkippedMods,
+			"downloadedMods": result.DownloadedMods,
 		},
 	}
 

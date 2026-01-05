@@ -1,0 +1,63 @@
+
+[TestChangeViewSnapshots/running - 1]
+cmd.change.header, Arg 1: {Count: 0, Data: &map[version:1.21.1]}
+cmd.change.notice
+
+cmd.change.section.compatibility
+[~] Alpha (alpha) [modrinth]
+
+cmd.change.section.downloading
+-> Beta (beta) [curseforge]
+[#####-----]
+50% (512 KB / 1 MB)
+
+cmd.change.section.switching cmd.change.section.switching_waiting, Arg 1: {Count: 0, Data: &map[spinner:.]}
+[~] Gamma (gamma) [modrinth]
+---
+
+[TestChangeViewSnapshots/compatibility_failed - 1]
+cmd.change.header, Arg 1: {Count: 0, Data: &map[version:1.21.1]}
+cmd.change.notice
+
+cmd.change.section.compatibility
+X Alpha (alpha) [modrinth] cmd.change.item.unsupported, Arg 1: {Count: 0, Data: &map[version:1.21.1]}
+
+!! cmd.change.error.compatibility_failed, Arg 1: {Count: 0, Data: &map[version:1.21.1]}
+cmd.change.error.no_changes
+
+cmd.change.error.compatibility_hint, Arg 1: {Count: 0, Data: &map[version:1.21.1]}
+---
+
+[TestChangeViewSnapshots/downloading - 1]
+cmd.change.header, Arg 1: {Count: 0, Data: &map[version:1.21.1]}
+cmd.change.notice
+
+cmd.change.section.downloading
+-> Alpha (alpha) [modrinth]
+[#####-----]
+50% (512 KB / 1 MB)
+---
+
+[TestChangeViewSnapshots/switching - 1]
+cmd.change.section.switching
+. Alpha (alpha) [modrinth]
+---
+
+[TestChangeViewSnapshots/success - 1]
+V Alpha (alpha) [modrinth]
+
+V cmd.change.success, Arg 1: {Count: 0, Data: &map[version:1.21.1]}
+---
+
+[TestChangeViewSnapshots/compatibility_failure_running - 1]
+cmd.change.header, Arg 1: {Count: 0, Data: &map[version:1.21.1]}
+cmd.change.notice
+
+cmd.change.section.compatibility
+X Alpha (alpha) [modrinth] cmd.change.item.unsupported, Arg 1: {Count: 0, Data: &map[version:1.21.1]}
+. Beta (beta) [curseforge]
+
+cmd.change.section.downloading cmd.change.section.cancelled_incompatibility
+
+cmd.change.section.switching cmd.change.section.cancelled_incompatibility
+---

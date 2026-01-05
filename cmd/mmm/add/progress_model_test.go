@@ -13,59 +13,6 @@ import (
 	"github.com/meza/minecraft-mod-manager/internal/view"
 )
 
-func TestProgressPercentLineWithoutTotal(t *testing.T) {
-	assert.Equal(t, "50%", progressPercentLine(0.5, 0, 0))
-}
-
-func TestProgressPercentLineWithTotal(t *testing.T) {
-	assert.Equal(t, "50% (512 B / 1 KB)", progressPercentLine(0.5, 512, 1024))
-}
-
-func TestPercentFromRatioBounds(t *testing.T) {
-	assert.Equal(t, 0, percentFromRatio(-0.1))
-	assert.Equal(t, 0, percentFromRatio(0))
-	assert.Equal(t, 100, percentFromRatio(1))
-	assert.Equal(t, 100, percentFromRatio(2))
-}
-
-func TestFormatBytes(t *testing.T) {
-	assert.Equal(t, "0 B", formatBytes(0))
-	assert.Equal(t, "1 KB", formatBytes(1024))
-	assert.Equal(t, "1 MB", formatBytes(1024*1024))
-}
-
-func TestFormatBytesAboveTerabyte(t *testing.T) {
-	assert.Equal(t, "1024 TB", formatBytes(1024*1024*1024*1024*1024))
-}
-
-func TestPreparingIconUsesUnicodeWhenAvailable(t *testing.T) {
-	restore := view.SetUnicodeSupportFuncForTesting(func() bool { return true })
-	t.Cleanup(restore)
-
-	assert.Equal(t, "\u23F3", preparingIcon())
-}
-
-func TestPreparingIconUsesASCIIWhenUnicodeUnavailable(t *testing.T) {
-	restore := view.SetUnicodeSupportFuncForTesting(func() bool { return false })
-	t.Cleanup(restore)
-
-	assert.Equal(t, "[~]", preparingIcon())
-}
-
-func TestDownloadingIconUsesUnicodeWhenAvailable(t *testing.T) {
-	restore := view.SetUnicodeSupportFuncForTesting(func() bool { return true })
-	t.Cleanup(restore)
-
-	assert.Equal(t, "\u2B07\uFE0F", downloadingIcon())
-}
-
-func TestDownloadingIconUsesASCIIWhenUnicodeUnavailable(t *testing.T) {
-	restore := view.SetUnicodeSupportFuncForTesting(func() bool { return false })
-	t.Cleanup(restore)
-
-	assert.Equal(t, "->", downloadingIcon())
-}
-
 func TestDownloadProgressModelStartDownloadCmdMissingDownload(t *testing.T) {
 	model := &downloadProgressModel{}
 	msg := model.startDownloadCmd()()
@@ -179,7 +126,7 @@ func TestDownloadProgressModelViewInProgress(t *testing.T) {
 	model.total = 1024
 
 	viewText := model.View()
-	assert.Contains(t, viewText, "cmd.add.progress.downloading")
+	assert.Contains(t, viewText, "Example (abc) [modrinth]")
 	assert.Contains(t, viewText, "50%")
 }
 
@@ -202,7 +149,7 @@ func TestProgressLineRendersDetails(t *testing.T) {
 	model.total = 1024
 
 	line := model.progressLine()
-	assert.Contains(t, line, "cmd.add.progress.downloading")
+	assert.Contains(t, line, "Example (abc) [modrinth]")
 	assert.Contains(t, line, "50%")
 }
 

@@ -73,6 +73,11 @@ func SupportsPrompting(in io.Reader, out io.Writer) bool {
 	return IsTerminalReader(in) && IsTerminalWriter(out)
 }
 
+// SupportsControlSequences reports whether output supports dynamic rendering.
+func SupportsControlSequences(out io.Writer) bool {
+	return IsTerminalWriter(out)
+}
+
 // IsTerminalReader reports whether the reader wraps a file descriptor bound to a terminal.
 func IsTerminalReader(reader io.Reader) bool {
 	if r, ok := reader.(fdReader); ok {
@@ -89,14 +94,14 @@ func IsTerminalWriter(writer io.Writer) bool {
 	return false
 }
 
-// ProgramOptions builds Bubble Tea program options with the provided I/O, disabling the renderer when no terminal is present.
+// ProgramOptions builds Bubble Tea program options with the provided I/O, disabling the renderer when output lacks control sequences.
 func ProgramOptions(in io.Reader, out io.Writer) []tea.ProgramOption {
 	options := []tea.ProgramOption{
 		tea.WithInput(in),
 		tea.WithOutput(out),
 	}
 
-	if !IsTerminalReader(in) || !IsTerminalWriter(out) {
+	if !SupportsControlSequences(out) {
 		options = append(options, tea.WithoutRenderer())
 	}
 

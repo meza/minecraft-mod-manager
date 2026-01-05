@@ -33,7 +33,7 @@ func TestScanInitCanceledOutputSnapshot(t *testing.T) {
 	out := &fakeTerminalWriter{}
 	errOut := &fakeTerminalWriter{}
 	in := &fakeTerminalReader{}
-	_, err := in.WriteString("y\n")
+	_, err := in.WriteString("cmd.init.prompt.option.yes.short\n")
 	assert.NoError(t, err)
 
 	cmd := Command()

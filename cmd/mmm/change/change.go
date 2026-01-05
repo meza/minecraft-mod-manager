@@ -42,7 +42,7 @@ func runChangeCommand(cmd *cobra.Command, args []string, runner changeRunner) er
 		Quiet: opts.Quiet,
 		Debug: opts.Debug,
 	})
-	deps := newChangeDeps(common, cmd, cmd)
+	deps := newChangeDeps(common)
 
 	result, err := runner(ctx, cmd, opts, deps)
 	applyChangeCommandErrorPolicy(cmd, err)

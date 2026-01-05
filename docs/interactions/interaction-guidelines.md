@@ -252,6 +252,8 @@ In tty mode, MMM MAY update per-mod status in place using terminal control seque
 
 In non-tty mode, MMM MUST print the mod list as a transcript (no terminal control sequences).
 
+When MMM lists mods, it MUST order them alphabetically by mod name, case-insensitive. If names are identical, the order MUST remain stable by platform then id.
+
 ### Quiet flag
 
 Quiet is a flag for scripts and logs that want minimal noise.

@@ -1,39 +1,57 @@
 package change
 
 import (
-	"github.com/spf13/afero"
-	"github.com/spf13/cobra"
+	"os"
 
-	"github.com/meza/minecraft-mod-manager/cmd/mmm/install"
-	"github.com/meza/minecraft-mod-manager/cmd/mmm/test"
+	tea "github.com/charmbracelet/bubbletea"
+	"github.com/spf13/afero"
+
 	"github.com/meza/minecraft-mod-manager/internal/cmddeps"
 	"github.com/meza/minecraft-mod-manager/internal/config"
+	"github.com/meza/minecraft-mod-manager/internal/httpclient"
+	"github.com/meza/minecraft-mod-manager/internal/minecraft"
+	"github.com/meza/minecraft-mod-manager/internal/platform"
 	"github.com/meza/minecraft-mod-manager/internal/telemetry"
-	tui "github.com/meza/minecraft-mod-manager/internal/view"
 )
 
-func newChangeDeps(common cmddeps.CommonDeps, testCmd *cobra.Command, installCmd *cobra.Command) changeDeps {
-	colorMode := tui.ColorDisabled
-	if tui.IsTerminalWriter(testCmd.OutOrStdout()) {
-		colorMode = tui.ColorEnabled
-	}
-
+func newChangeDeps(common cmddeps.CommonDeps) changeDeps {
 	return changeDeps{
-		fs:            common.FS,
-		output:        common.Output,
-		testDeps:      test.NewDeps(common),
-		testCmd:       testCmd,
-		installCmd:    installCmd,
-		colorMode:     colorMode,
-		testRunner:    test.RunWithDeps,
-		installRunner: install.Run,
-		readConfig:    config.ReadConfig,
-		ensureLock:    config.EnsureLock,
-		writeConfig:   config.WriteConfig,
-		writeLock:     config.WriteLock,
+		fs:              common.FS,
+		output:          common.Output,
+		logger:          common.Logger,
+		clients:         common.Clients,
+		downloadClient:  httpclient.NewRLClient(common.Limiter),
+		minecraftClient: common.MinecraftClient,
+		limiter:         common.Limiter,
+		downloader:      httpclient.DownloadFile,
+		fetchMod:        platform.FetchMod,
+		latestVersion:   minecraft.GetLatestVersion,
+		isValidVersion:  minecraft.IsValidVersion,
+		runTea:          defaultRunTea,
+
+		readConfig:  config.ReadConfig,
+		ensureLock:  config.EnsureLock,
+		writeConfig: config.WriteConfig,
+		writeLock:   config.WriteLock,
 		removeFile: func(fs afero.Fs, path string) error {
 			return fs.Remove(path)
 		},
+		renameFile: func(fs afero.Fs, source string, destination string) error {
+			return fs.Rename(source, destination)
+		},
+		removeAll: func(fs afero.Fs, path string) error {
+			return fs.RemoveAll(path)
+		},
+		mkdirAll: func(fs afero.Fs, path string, perm os.FileMode) error {
+			return fs.MkdirAll(path, perm)
+		},
+
 		telemetry: telemetry.RecordCommand,
 	}
 }
+
+func defaultRunTea(model tea.Model, options ...tea.ProgramOption) (tea.Model, error) {
+	return tea.NewProgram(model, options...).Run()
+}
+
+var runTeaProgram = defaultRunTea
