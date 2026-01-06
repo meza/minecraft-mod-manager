@@ -67,7 +67,7 @@ Fingerprint lookups return `*FingerprintAPIError` (it includes the lookup input 
 
 ## Related docs
 
-`docs/platform-apis.md` captures the behavior we aim to match across implementations.
+See `internal/platform/README.md` for shared selection behavior, and `internal/modrinth/README.md` for the Modrinth counterpart.
 
 ## Tests
 

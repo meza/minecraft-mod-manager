@@ -7,8 +7,8 @@ import (
 )
 
 const (
-	DefaultRateLimitInterval                = 250 * time.Millisecond
-	DefaultRateLimitBurst                   = 4
+	DefaultRateLimitInterval                = 300 * time.Millisecond
+	DefaultRateLimitBurst                   = 1
 	DefaultRateLimitRemainingThreshold      = 10
 	DefaultRateLimitResetMaxRelativeSeconds = int64(24 * 60 * 60)
 )

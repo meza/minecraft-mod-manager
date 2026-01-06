@@ -14,6 +14,7 @@ import (
 	"github.com/spf13/afero"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+	"golang.org/x/time/rate"
 
 	"github.com/meza/minecraft-mod-manager/internal/config"
 	"github.com/meza/minecraft-mod-manager/internal/httpclient"
@@ -183,6 +184,7 @@ func TestRunChangeExecutionCompatibilityFailedCancelsDownloads(t *testing.T) {
 	deps := changeDeps{
 		fs:      fs,
 		clients: platform.Clients{},
+		limiter: rate.NewLimiter(rate.Inf, 2),
 		fetchMod: func(ctx context.Context, _ models.Platform, id string, _ platform.FetchOptions, _ platform.Clients) (platform.RemoteMod, error) {
 			if id == "beta" {
 				<-downloadStarted

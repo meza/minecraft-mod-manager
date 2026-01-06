@@ -9,7 +9,7 @@ If you are working on `add`, `install`, `update`, or `scan`, this is the package
 `FetchMod` is the entry point. It returns a `RemoteMod` with a name, filename, SHA-1 hash, release date, and download URL.
 
 ```go
-limiter := rate.NewLimiter(rate.Every(250*time.Millisecond), 1)
+limiter := rate.NewLimiter(rate.Every(300*time.Millisecond), 1)
 clients := platform.DefaultClients(limiter)
 
 remote, err := platform.FetchMod(models.MODRINTH, "P7dR8mSH", platform.FetchOptions{
@@ -90,7 +90,7 @@ This sits above provider-specific `api.*` and `net.http.*` regions so you can te
 - Modrinth selection lives in `internal/modrinth` and honors Modrinth's primary-file semantics.
 - CurseForge selection lives in `internal/curseforge` and uses paginated file listings with typed API errors.
 
-See `docs/platform-apis.md` for the behavior rules that the platform-specific helpers implement.
+See `internal/modrinth/README.md` and `internal/curseforge/README.md` for the behavior rules that the platform-specific helpers implement.
 
 ### Fallback behavior
 

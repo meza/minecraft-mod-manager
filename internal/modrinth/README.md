@@ -6,7 +6,7 @@ It owns Modrinth-specific selection logic and returns the domain `models.RemoteM
 
 ## Start with the behavior docs
 
-- `docs/platform-apis.md` describes the API behavior we aim to match across implementations.
+- `internal/platform/README.md` describes the shared selection behavior that wraps Modrinth and CurseForge helpers.
 - Modrinth API docs (external): https://docs.modrinth.com/
 
 ## Quick start

@@ -908,14 +908,21 @@ func TestRLHTTPClient_WaitForRateLimitDelayHonorsContext(t *testing.T) {
 
 func TestDefaultLimiter_UsesDefaults(t *testing.T) {
 	limiter := DefaultLimiter()
-	assert.Equal(t, rate.Every(DefaultRateLimitInterval), limiter.Limit())
-	assert.Equal(t, DefaultRateLimitBurst, limiter.Burst())
+	expectedInterval := rate.Every(300 * time.Millisecond)
+	expectedBurst := 1
+
+	assert.Equal(t, expectedInterval, limiter.Limit())
+	assert.Equal(t, expectedBurst, limiter.Burst())
 }
 
 func TestNewRLClient_UsesDefaultLimiterWhenNil(t *testing.T) {
 	client := NewRLClient(nil)
 	assert.NotNil(t, client.RateLimiter)
-	assert.Equal(t, rate.Every(DefaultRateLimitInterval), client.RateLimiter.Limit())
+	expectedInterval := rate.Every(300 * time.Millisecond)
+	expectedBurst := 1
+
+	assert.Equal(t, expectedInterval, client.RateLimiter.Limit())
+	assert.Equal(t, expectedBurst, client.RateLimiter.Burst())
 }
 
 func TestValidateRequestForRetries(t *testing.T) {

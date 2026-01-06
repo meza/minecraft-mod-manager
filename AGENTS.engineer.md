@@ -111,7 +111,7 @@ You MUST read and adhere to these instructions, and you MUST update `memory.tsv`
 
 - See `docs/specs/README.md` for engineering specs for each CLI command.
 - See `docs/interactions/interaction-guidelines.md` and `docs/interactions/flows/` for the authoritative terminal interaction contract and per-command flows.
-- Review `docs/platform-apis.md` for specifics on interacting with CurseForge and Modrinth.
+- Review `internal/platform/README.md` for specifics on interacting with CurseForge and Modrinth.
 - Keep documentation in sync with features.
 
 ### Golang Standards

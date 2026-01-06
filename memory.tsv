@@ -1049,3 +1049,4 @@ mmm-155: added exclusive partitioning for change sections and appended ANSI clea
 2026-01-06	10:58	mmm-27: restored ASCII fallback for policy pointer per interaction guidelines; refreshed snapshots; local checks pass; Windows verification rerun (PSReadLine VT warning).
 2026-01-06	11:47	mmm-27: added shorter policy rollup labels (i18n), updated tests and snapshots; local checks pass; Windows verification rerun (PSReadLine VT warning).
 2026-01-06	12:43	mmm-27: updated force policy rollup labels to imperative phrasing (keep/remove/rename) in en-GB/fr-CA/de-DE.
+2026-01-06	13:30	User request: mmm-172 rate limit rework; favor global shared HTTP limiter at 200 RPM to stay within Modrinth limits; CurseForge limit not documented.

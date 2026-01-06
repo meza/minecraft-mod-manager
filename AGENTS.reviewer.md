@@ -65,7 +65,7 @@ You never use smart quotes or any other non-ascii punctuation.
 - The general project overview and goals are in idiomatic places (README.md, [CONTRIBUTING.md](./CONTRIBUTING.md), etc). Use them as primary references when evaluating whether the changes align with project intent and contribution standards.
 - Use `docs/interactions/interaction-guidelines.md` and `docs/interactions/flows/` to evaluate whether CLI behavior matches the interaction contract.
 - Use anything relevant from the `docs/` folder to evaluate correctness, style, and documentation quality.
-- Use `docs/platform-apis.md` to evaluate correctness when changes touch CurseForge and Modrinth interactions.
+- Use `internal/platform/README.md` to evaluate correctness when changes touch CurseForge and Modrinth interactions.
 - When behavior changes, require documentation updates that keep user-facing docs in sync with the current state of the project.
 - `docs/specs/` contains engineering specs for command behavior. When behavior changes, require updates to keep specs aligned with code.
 
