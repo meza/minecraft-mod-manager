@@ -1037,3 +1037,15 @@ mmm-155: added exclusive partitioning for change sections and appended ANSI clea
 2026-01-05	21:49	mmm-171: updated change execution to cancel downloads on first compat failure (non-force) while continuing checks; UI now hides Downloading/Switching and non-tty compat failure lists only unsupported; added tests and new compat-failure-running stage. Local checks + Windows verification passed (PSReadLine VT warning).
 2026-01-05	22:00	mmm-171: reviewer approved; code-review.md updated after local checks and Windows verification.
 2026-01-05	22:22	mmm-171: added cancelled headers for Downloading/Switching during compat-failure-running stage; updated i18n/tests/snapshots; reran local checks and Windows verification; reviewer approved and code-review.md updated.
+2026-01-05	23:11	User prefers no alignment summaries after context compaction; proceed directly with work unless clarification needed.
+2026-01-06	00:30	mmm-27: added disableExistingJar resolve-error test + rollbackSwitch tests to restore 100% coverage; make fmt/lint/coverage/build pass; Windows verification (PSReadLine VT warning) run.
+2026-01-06	00:49	mmm-27: focus policy prompt by auto-scrolling viewport to bottom when prompt shown; added test for focus, removed unreachable offset clamp; local checks pass; Windows verification rerun (PSReadLine VT warning).
+2026-01-06	01:11	mmm-27: policy prompt now uses question line and shows help, renders answered line after selection; added tests for policy label/answer; local checks pass; Windows verification rerun (PSReadLine VT warning).
+2026-01-06	01:17	mmm-27: updated CHANGE-FORCE-POLICY frame to include question line, footer hints, and collapsed answered line; local checks pass; Windows verification rerun (PSReadLine VT warning).
+2026-01-06	01:39	mmm-27: added snapshots for policy prompt and answered line; refreshed snapshots; local checks pass; Windows verification rerun (PSReadLine VT warning).
+2026-01-06	01:58	mmm-27: updated CHANGE-FORCE-POLICY footer hints to match actual list help; documented force policy flags and prompt in docs/specs/change.md; local checks pass; Windows verification rerun (PSReadLine VT warning).
+2026-01-06	10:25	mmm-27: force policy list now shows all three options; pointer uses unicode ❯; refreshed snapshots; local checks pass; Windows verification rerun (PSReadLine VT warning).
+2026-01-06	10:44	mmm-27: transcript now includes policy answer line; added test; local checks pass; Windows verification rerun (PSReadLine VT warning).
+2026-01-06	10:58	mmm-27: restored ASCII fallback for policy pointer per interaction guidelines; refreshed snapshots; local checks pass; Windows verification rerun (PSReadLine VT warning).
+2026-01-06	11:47	mmm-27: added shorter policy rollup labels (i18n), updated tests and snapshots; local checks pass; Windows verification rerun (PSReadLine VT warning).
+2026-01-06	12:43	mmm-27: updated force policy rollup labels to imperative phrasing (keep/remove/rename) in en-GB/fr-CA/de-DE.

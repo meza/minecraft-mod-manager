@@ -160,11 +160,21 @@ func TestBuildQuietChangeLinesSuccessWithSkipped(t *testing.T) {
 	}, "1.19.4", view.ColorDisabled)
 	assert.Len(t, lines, 1)
 	assert.Contains(t, lines[0], "Skipped unsupported mods")
-	assert.Contains(t, lines[0], "unsupported for 1.19.4")
+	assert.Contains(t, lines[0], "Alpha (alpha) [modrinth]")
+}
+
+func TestBuildQuietChangeLinesSuccessWithPrunedPolicy(t *testing.T) {
+	lines := buildQuietChangeLines(changeOutcome{
+		Stage:       changeStageSuccess,
+		ForcePolicy: changeForcePolicyPruneConfig,
+		Items:       []changeItem{{Mod: modFixture("alpha"), DisplayName: "Alpha", Skipped: true}},
+	}, "1.19.4", view.ColorDisabled)
+	assert.Len(t, lines, 1)
+	assert.Contains(t, lines[0], "Removed unsupported mods")
 }
 
 func TestRenderQuietSkippedSectionSkipsNonSkippedItems(t *testing.T) {
-	rendered := renderQuietSkippedSection([]changeItem{{Mod: modFixture("alpha"), DisplayName: "Alpha"}}, "1.19.4", view.ColorDisabled)
+	rendered := renderQuietSkippedSection([]changeItem{{Mod: modFixture("alpha"), DisplayName: "Alpha"}}, "1.19.4", view.ColorDisabled, changeForcePolicyKeepConfig)
 	assert.Equal(t, "Skipped unsupported mods:", rendered)
 }
 
@@ -226,6 +236,30 @@ func TestWriteChangeOutcomeUsesOutputLines(t *testing.T) {
 	}
 
 	assert.NoError(t, writeChangeOutcome(cmd, deps, outcome, "1.19.4", interaction.ExecutionModeUnattended))
+}
+
+func TestWriteChangePolicyFlagErrorMultiple(t *testing.T) {
+	output := &bytes.Buffer{}
+	cmd := &cobra.Command{}
+	cmd.SetOut(output)
+
+	deps := changeDeps{runTea: defaultRunTea}
+	err := writeChangePolicyFlagError(cmd, deps, changePolicyFlagError{kind: changePolicyFlagErrorMultiple})
+	assert.NoError(t, err)
+	assert.Contains(t, output.String(), "Invalid flags")
+	assert.Contains(t, output.String(), "mutually exclusive")
+}
+
+func TestWriteChangePolicyFlagErrorRequiresForce(t *testing.T) {
+	output := &bytes.Buffer{}
+	cmd := &cobra.Command{}
+	cmd.SetOut(output)
+
+	deps := changeDeps{runTea: defaultRunTea}
+	err := writeChangePolicyFlagError(cmd, deps, changePolicyFlagError{kind: changePolicyFlagErrorRequiresForce})
+	assert.NoError(t, err)
+	assert.Contains(t, output.String(), "Invalid flags")
+	assert.Contains(t, output.String(), "Use --force")
 }
 
 func TestWriteChangeOutcomeNonTTYUsesPendingIconForQueued(t *testing.T) {

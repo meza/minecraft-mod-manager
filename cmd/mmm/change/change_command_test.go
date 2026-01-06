@@ -1,7 +1,9 @@
 package change
 
 import (
+	"bytes"
 	"context"
+	"errors"
 	"testing"
 
 	"github.com/spf13/afero"
@@ -13,6 +15,7 @@ import (
 	"github.com/meza/minecraft-mod-manager/internal/cmddeps"
 	"github.com/meza/minecraft-mod-manager/internal/models"
 	"github.com/meza/minecraft-mod-manager/internal/telemetry"
+	"github.com/meza/minecraft-mod-manager/internal/view"
 )
 
 func TestChangeOptionsFromFlags(t *testing.T) {
@@ -22,12 +25,16 @@ func TestChangeOptionsFromFlags(t *testing.T) {
 	cmd.Flags().Bool("quiet", false, "")
 	cmd.Flags().Bool("debug", false, "")
 	cmd.Flags().Bool("force", false, "")
+	cmd.Flags().Bool("keep-config", false, "")
+	cmd.Flags().Bool("prune-config", false, "")
+	cmd.Flags().Bool("disable-skipped", false, "")
 
 	assert.NoError(t, cmd.Flags().Set("config", "/custom/modlist.json"))
 	assert.NoError(t, cmd.Flags().Set("unattended", "true"))
 	assert.NoError(t, cmd.Flags().Set("quiet", "true"))
 	assert.NoError(t, cmd.Flags().Set("debug", "true"))
 	assert.NoError(t, cmd.Flags().Set("force", "true"))
+	assert.NoError(t, cmd.Flags().Set("prune-config", "true"))
 
 	opts, err := changeOptionsFromFlags(cmd, nil)
 	assert.NoError(t, err)
@@ -36,6 +43,7 @@ func TestChangeOptionsFromFlags(t *testing.T) {
 	assert.True(t, opts.Quiet)
 	assert.True(t, opts.Debug)
 	assert.True(t, opts.Force)
+	assert.Equal(t, changeForcePolicyPruneConfig, opts.ForcePolicy)
 	assert.Equal(t, "latest", opts.GameVersion)
 
 	withArg, err := changeOptionsFromFlags(cmd, []string{"1.21.1"})
@@ -93,6 +101,42 @@ func TestChangeOptionsFromFlagsErrors(t *testing.T) {
 				cmd.Flags().Bool("debug", false, "")
 			},
 		},
+		{
+			name: "missing keep-config",
+			flags: func(cmd *cobra.Command) {
+				cmd.Flags().String("config", "./modlist.json", "")
+				cmd.Flags().Bool("force", false, "")
+				cmd.Flags().Bool("unattended", false, "")
+				cmd.Flags().Bool("quiet", false, "")
+				cmd.Flags().Bool("debug", false, "")
+				cmd.Flags().Bool("prune-config", false, "")
+				cmd.Flags().Bool("disable-skipped", false, "")
+			},
+		},
+		{
+			name: "missing prune-config",
+			flags: func(cmd *cobra.Command) {
+				cmd.Flags().String("config", "./modlist.json", "")
+				cmd.Flags().Bool("force", false, "")
+				cmd.Flags().Bool("unattended", false, "")
+				cmd.Flags().Bool("quiet", false, "")
+				cmd.Flags().Bool("debug", false, "")
+				cmd.Flags().Bool("keep-config", false, "")
+				cmd.Flags().Bool("disable-skipped", false, "")
+			},
+		},
+		{
+			name: "missing disable-skipped",
+			flags: func(cmd *cobra.Command) {
+				cmd.Flags().String("config", "./modlist.json", "")
+				cmd.Flags().Bool("force", false, "")
+				cmd.Flags().Bool("unattended", false, "")
+				cmd.Flags().Bool("quiet", false, "")
+				cmd.Flags().Bool("debug", false, "")
+				cmd.Flags().Bool("keep-config", false, "")
+				cmd.Flags().Bool("prune-config", false, "")
+			},
+		},
 	}
 
 	for _, testCase := range cases {
@@ -103,6 +147,46 @@ func TestChangeOptionsFromFlagsErrors(t *testing.T) {
 			assert.Error(t, err)
 		})
 	}
+}
+
+func TestChangeOptionsFromFlagsRejectsMultipleForcePolicies(t *testing.T) {
+	cmd := &cobra.Command{}
+	cmd.Flags().String("config", "./modlist.json", "")
+	cmd.Flags().Bool("unattended", false, "")
+	cmd.Flags().Bool("quiet", false, "")
+	cmd.Flags().Bool("debug", false, "")
+	cmd.Flags().Bool("force", false, "")
+	cmd.Flags().Bool("keep-config", false, "")
+	cmd.Flags().Bool("prune-config", false, "")
+	cmd.Flags().Bool("disable-skipped", false, "")
+
+	assert.NoError(t, cmd.Flags().Set("force", "true"))
+	assert.NoError(t, cmd.Flags().Set("keep-config", "true"))
+	assert.NoError(t, cmd.Flags().Set("prune-config", "true"))
+
+	_, err := changeOptionsFromFlags(cmd, []string{"1.21.1"})
+	var policyErr changePolicyFlagError
+	assert.ErrorAs(t, err, &policyErr)
+	assert.Equal(t, changePolicyFlagErrorMultiple, policyErr.kind)
+}
+
+func TestChangeOptionsFromFlagsRejectsPolicyWithoutForce(t *testing.T) {
+	cmd := &cobra.Command{}
+	cmd.Flags().String("config", "./modlist.json", "")
+	cmd.Flags().Bool("unattended", false, "")
+	cmd.Flags().Bool("quiet", false, "")
+	cmd.Flags().Bool("debug", false, "")
+	cmd.Flags().Bool("force", false, "")
+	cmd.Flags().Bool("keep-config", false, "")
+	cmd.Flags().Bool("prune-config", false, "")
+	cmd.Flags().Bool("disable-skipped", false, "")
+
+	assert.NoError(t, cmd.Flags().Set("prune-config", "true"))
+
+	_, err := changeOptionsFromFlags(cmd, []string{"1.21.1"})
+	var policyErr changePolicyFlagError
+	assert.ErrorAs(t, err, &policyErr)
+	assert.Equal(t, changePolicyFlagErrorRequiresForce, policyErr.kind)
 }
 
 func TestApplyChangeCommandErrorPolicy(t *testing.T) {
@@ -177,13 +261,14 @@ func TestCommandWithRunnerPassesOptions(t *testing.T) {
 	cmd.Flags().Bool("quiet", false, "")
 	cmd.Flags().Bool("debug", false, "")
 
-	cmd.SetArgs([]string{"--force", "--config", "/tmp/modlist.json", "--unattended", "--quiet", "--debug", "1.20.4"})
+	cmd.SetArgs([]string{"--force", "--prune-config", "--config", "/tmp/modlist.json", "--unattended", "--quiet", "--debug", "1.20.4"})
 
 	assert.NoError(t, cmd.ExecuteContext(context.Background()))
 	assert.True(t, received.Force)
 	assert.True(t, received.Unattended)
 	assert.True(t, received.Quiet)
 	assert.True(t, received.Debug)
+	assert.Equal(t, changeForcePolicyPruneConfig, received.ForcePolicy)
 	assert.Equal(t, "/tmp/modlist.json", received.ConfigPath)
 	assert.Equal(t, "1.20.4", received.GameVersion)
 }
@@ -226,4 +311,52 @@ func TestChangeResultCounts(t *testing.T) {
 func TestChangeModKey(t *testing.T) {
 	mod := models.Mod{Type: models.MODRINTH, ID: "abc"}
 	assert.Equal(t, "modrinth:abc", changeModKey(mod))
+}
+
+func TestHandleChangeOptionsErrorReturnsOriginal(t *testing.T) {
+	cmd := &cobra.Command{}
+	err := errors.New("boom")
+	assert.Equal(t, err, handleChangeOptionsError(cmd, changeOptions{}, err))
+}
+
+func TestHandleChangeOptionsErrorHandlesPolicy(t *testing.T) {
+	t.Setenv("MMM_TEST", "true")
+
+	restore := view.SetIsTerminalFuncForTesting(func(int) bool { return true })
+	defer restore()
+
+	buffer := &bytes.Buffer{}
+	cmd := &cobra.Command{}
+	cmd.SetOut(buffer)
+	cmd.SetErr(buffer)
+
+	err := handleChangeOptionsError(cmd, changeOptions{}, changePolicyFlagError{kind: changePolicyFlagErrorMultiple})
+	assert.True(t, clierrors.IsHandled(err))
+	assert.True(t, cmd.SilenceErrors)
+	assert.True(t, cmd.SilenceUsage)
+	assert.Contains(t, buffer.String(), "cmd.change.error.invalid_flags")
+}
+
+func TestHandleChangeOptionsErrorReturnsOutputError(t *testing.T) {
+	t.Setenv("MMM_TEST", "true")
+
+	restore := view.SetIsTerminalFuncForTesting(func(int) bool { return true })
+	defer restore()
+
+	writeErr := errors.New("write failed")
+	writer := policyErrorWriter{err: writeErr}
+	cmd := &cobra.Command{}
+	cmd.SetOut(writer)
+	cmd.SetErr(writer)
+
+	err := handleChangeOptionsError(cmd, changeOptions{}, changePolicyFlagError{kind: changePolicyFlagErrorMultiple})
+	assert.Equal(t, writeErr, err)
+}
+
+type policyErrorWriter struct {
+	err error
+}
+
+func (writer policyErrorWriter) Write(_ []byte) (int, error) {
+	return 0, writer.err
 }

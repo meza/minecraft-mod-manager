@@ -23,6 +23,7 @@ func writeChangeOutcome(cmd *cobra.Command, deps changeDeps, outcome changeOutco
 		items:        outcome.Items,
 		colorMode:    colorMode,
 		spinnerFrame: spinnerFrame,
+		forcePolicy:  outcome.ForcePolicy,
 	})
 	if mode == interaction.ExecutionModeNonTTY && outcome.Stage == changeStageCompatibilityFailed {
 		sections = buildNonTTYCompatibilityFailureSections(changeViewInput{
@@ -42,6 +43,23 @@ func writeQuietChangeOutcome(cmd *cobra.Command, deps changeDeps, outcome change
 		return nil
 	}
 	return runOutputLines(cmd, deps, cmd.OutOrStdout(), lines)
+}
+
+func writeChangePolicyFlagError(cmd *cobra.Command, deps changeDeps, err changePolicyFlagError) error {
+	colorMode := colorModeForOutput(cmd.OutOrStdout())
+	headline := renderFinalErrorLine(colorMode, i18n.T("cmd.change.error.invalid_flags", nil))
+
+	bodyLines := []string{}
+	switch err.kind {
+	case changePolicyFlagErrorRequiresForce:
+		bodyLines = append(bodyLines, i18n.T("cmd.change.error.force_policy_requires_force", nil))
+	default:
+		bodyLines = append(bodyLines, i18n.T("cmd.change.error.force_policy_multiple", nil))
+		bodyLines = append(bodyLines, i18n.T("cmd.change.error.force_policy_choose", nil))
+	}
+
+	body := strings.Join(bodyLines, "\n")
+	return runOutputLines(cmd, deps, cmd.OutOrStdout(), []string{headline, body})
 }
 
 func buildNonTTYCompatibilityFailureSections(input changeViewInput) []string {
@@ -92,7 +110,7 @@ func buildQuietChangeLines(outcome changeOutcome, targetVersion string, colorMod
 		if countSkipped(outcome.Items) == 0 {
 			return nil
 		}
-		return []string{renderQuietSkippedSection(outcome.Items, targetVersion, colorMode)}
+		return []string{renderQuietSkippedSection(outcome.Items, targetVersion, colorMode, outcome.ForcePolicy)}
 	case changeStageCompatibilityFailed:
 		headline := renderFinalErrorLine(colorMode, i18n.T("cmd.change.error.compatibility_failed_quiet", &i18n.Tvars{
 			Data: &i18n.TData{"version": targetVersion},
@@ -152,8 +170,8 @@ func renderQuietFailures(items []changeItem, colorMode view.ColorMode, include f
 	return strings.Join(lines, "\n")
 }
 
-func renderQuietSkippedSection(items []changeItem, targetVersion string, colorMode view.ColorMode) string {
-	lines := []string{i18n.T("cmd.change.skipped.header", nil)}
+func renderQuietSkippedSection(items []changeItem, targetVersion string, colorMode view.ColorMode, policy changeForcePolicy) string {
+	lines := []string{i18n.T(skippedSectionHeader(policy), nil)}
 	for _, item := range items {
 		if !item.Skipped {
 			continue

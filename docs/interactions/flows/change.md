@@ -40,8 +40,6 @@ Success looks like (for the user):
 
 ## `change` frame snapshots
 
-This section is intentionally a stub. Capture fresh frames here.
-
 ### State model
 
 States:
@@ -121,6 +119,75 @@ Skipped unsupported mods:
 ❌ Some Mod (some-mod) [modrinth]
 ```
 
+#### CHANGE-FORCE-POLICY Choose incompatible jar policy (--force, tty)
+
+##### Command used
+`change --force 1.19.4`
+
+```
+Change Minecraft version to 1.19.4
+Your current setup will not be modified until all downloads succeed.
+
+Compatibility:
+✅ Sounds Be Gone! (sounds-be-gone) [modrinth]
+✅ Inventory Sorting (inventory-sorting) [modrinth]
+❌ Some Mod (some-mod) [modrinth] unsupported for 1.19.4 (skipped)
+... (one row per mod, all mods shown)
+
+Downloading:
+✅ Sounds Be Gone! (sounds-be-gone) [modrinth]
+✅ Inventory Sorting (inventory-sorting) [modrinth]
+... (one row per mod, all mods shown)
+
+Switching: (⠋ waiting for your choice)
+⏳ Cloth Config API (cloth-config) [modrinth]
+⏳ Sodium (sodium) [modrinth]
+⏳ Sodium Extra (sodium-extra) [modrinth]
+... (one row per mod, all mods shown)
+
+? Choose what to do with the incompatible mods already present
+❯ Keep the mods in the config and remove the incompatible files
+  Remove the mods from the config and remove the incompatible files
+  Keep the mods in the config and disable the incompatible files (*.jar.disabled)
+↑/k up • ↓/j down • / filter • esc clear filter • enter apply filter • esc cancel • q quit • ? more
+
+? Choose what to do with the incompatible mods already present Kept in config
+```
+
+#### CHANGE-03 Success with skipped mods (--force --prune-config, tty)
+
+##### Command used
+`change --force --prune-config 1.19.4`
+
+```
+✅ Sounds Be Gone! (sounds-be-gone) [modrinth]
+✅ Inventory Sorting (inventory-sorting) [modrinth]
+❌ Some Mod (some-mod) [modrinth] unsupported for 1.19.4
+... (one row per mod, all mods shown)
+
+✅ Now targeting 1.19.4
+
+Removed unsupported mods:
+❌ Some Mod (some-mod) [modrinth]
+```
+
+#### CHANGE-03 Success with skipped mods (--force --disable-skipped, tty)
+
+##### Command used
+`change --force --disable-skipped 1.19.4`
+
+```
+✅ Sounds Be Gone! (sounds-be-gone) [modrinth]
+✅ Inventory Sorting (inventory-sorting) [modrinth]
+❌ Some Mod (some-mod) [modrinth] unsupported for 1.19.4
+... (one row per mod, all mods shown)
+
+✅ Now targeting 1.19.4
+
+Disabled unsupported mods:
+❌ Some Mod (some-mod) [modrinth]
+```
+
 #### CHANGE-NOOP Target equals current version
 
 ##### Command used
@@ -144,6 +211,57 @@ Exit code: 0
 ... (one row per mod, all mods shown)
 
 ✅ Now targeting 1.19.4
+```
+
+#### CHANGE-03 Success with skipped mods (--force, non-tty)
+
+##### Command used
+`change --force 1.19.4`
+
+```
+✅ Sounds Be Gone! (sounds-be-gone) [modrinth]
+✅ Inventory Sorting (inventory-sorting) [modrinth]
+❌ Some Mod (some-mod) [modrinth] unsupported for 1.19.4 (skipped)
+... (one row per mod, all mods shown)
+
+✅ Now targeting 1.19.4
+
+Skipped unsupported mods:
+❌ Some Mod (some-mod) [modrinth]
+```
+
+#### CHANGE-03 Success with skipped mods (--force --prune-config, non-tty)
+
+##### Command used
+`change --force --prune-config 1.19.4`
+
+```
+✅ Sounds Be Gone! (sounds-be-gone) [modrinth]
+✅ Inventory Sorting (inventory-sorting) [modrinth]
+❌ Some Mod (some-mod) [modrinth] unsupported for 1.19.4
+... (one row per mod, all mods shown)
+
+✅ Now targeting 1.19.4
+
+Removed unsupported mods:
+❌ Some Mod (some-mod) [modrinth]
+```
+
+#### CHANGE-03 Success with skipped mods (--force --disable-skipped, non-tty)
+
+##### Command used
+`change --force --disable-skipped 1.19.4`
+
+```
+✅ Sounds Be Gone! (sounds-be-gone) [modrinth]
+✅ Inventory Sorting (inventory-sorting) [modrinth]
+❌ Some Mod (some-mod) [modrinth] unsupported for 1.19.4
+... (one row per mod, all mods shown)
+
+✅ Now targeting 1.19.4
+
+Disabled unsupported mods:
+❌ Some Mod (some-mod) [modrinth]
 ```
 
 ### Error and recovery frames
@@ -234,6 +352,18 @@ Switching:
 ... (one row per mod, all mods shown)
 
 ‼️ Switching failed. Attempted rollback. No changes were made.
+```
+
+#### CHANGE-ERR-FORCE-POLICY Multiple policy flags (--force)
+
+##### Command used
+`change --force --keep-config --prune-config 1.19.4`
+
+```
+‼️ Invalid flags
+
+--keep-config, --prune-config, and --disable-skipped are mutually exclusive.
+Choose exactly one policy flag under --force.
 ```
 
 ### Unattended behavior

@@ -1266,6 +1266,30 @@ func TestWriteInteractiveTranscriptIfNeededSkipsEmptyContent(t *testing.T) {
 	assert.False(t, teaInvoked)
 }
 
+func TestWriteInteractiveTranscriptIncludesPolicyAnswer(t *testing.T) {
+	cmd := &cobra.Command{}
+	cmd.SetOut(&bytes.Buffer{})
+
+	var capturedLines []string
+	deps := changeDeps{
+		runTea: func(model tea.Model, _ ...tea.ProgramOption) (tea.Model, error) {
+			outputModel, ok := model.(view.OutputLinesModel)
+			if ok {
+				capturedLines = outputModel.Lines
+			}
+			return model, nil
+		},
+	}
+
+	model := buildTranscriptTestModel()
+	model.windowH = 1
+	model.policyAnswer = "answer line"
+
+	err := writeInteractiveTranscriptIfNeeded(cmd, changeExecutionInput{deps: deps}, model)
+	assert.NoError(t, err)
+	assert.Contains(t, capturedLines, "answer line")
+}
+
 func TestRunInteractiveChangeTranscriptWriteError(t *testing.T) {
 	original := runChangeProgram
 	defer func() { runChangeProgram = original }()

@@ -428,8 +428,8 @@ func TestRenderCompatibilityLineVariants(t *testing.T) {
 		target:       "1.20.1",
 		colorMode:    view.ColorDisabled,
 		spinnerFrame: ".",
-	}, changeItem{Mod: models.Mod{ID: "beta", Type: models.MODRINTH}, DisplayName: "Beta", CompatStatus: changeCompatUnsupported})
-	assert.Contains(t, unsupported, "unsupported for 1.20.1")
+	}, changeItem{Mod: models.Mod{ID: "beta", Type: models.MODRINTH}, DisplayName: "Beta", CompatStatus: changeCompatUnsupported, Skipped: true})
+	assert.Contains(t, unsupported, "unsupported for 1.20.1 (skipped)")
 }
 
 func TestRenderDownloadLineCompatUnsupported(t *testing.T) {
@@ -563,6 +563,25 @@ func TestRenderSwitchingLineVariants(t *testing.T) {
 	assert.Contains(t, skipped, "unsupported for 1.20.1")
 }
 
+func TestRenderSwitchingSectionWaitingForPolicy(t *testing.T) {
+	items := []changeItem{
+		{
+			Mod:            models.Mod{ID: "alpha", Type: models.MODRINTH},
+			DisplayName:    "Alpha",
+			CompatStatus:   changeCompatSupported,
+			DownloadStatus: changeDownloadSucceeded,
+		},
+	}
+	output := renderSwitchingSection(changeViewInput{
+		stage:            changeStageRunning,
+		target:           "1.20.1",
+		colorMode:        view.ColorDisabled,
+		spinnerFrame:     ".",
+		waitingForPolicy: true,
+	}, items)
+	assert.Contains(t, output, "waiting for your choice")
+}
+
 func TestRenderSwitchingLinePending(t *testing.T) {
 	line := renderSwitchingLine(changeViewInput{
 		target:       "1.20.1",
@@ -617,6 +636,239 @@ func TestChangeModelViewRendersHeader(t *testing.T) {
 
 	viewText := model.View()
 	assert.Contains(t, viewText, "Change Minecraft version to 1.19.4")
+}
+
+func TestChangeModelUpdateSpinnerTick(t *testing.T) {
+	model := newChangeModel(changeModelInput{
+		ctx:        context.Background(),
+		target:     "1.19.4",
+		colorMode:  view.ColorDisabled,
+		items:      []changeItem{{Mod: models.Mod{ID: "alpha", Type: models.MODRINTH}}},
+		indexByKey: map[string]int{"modrinth:alpha": 0},
+		execRunner: func(context.Context, httpclient.Sender) changeOutcome { return changeOutcome{} },
+	})
+
+	updated, cmd := model.Update(spinner.TickMsg{})
+	typed, ok := updated.(*changeModel)
+	assert.True(t, ok)
+	assert.NotNil(t, typed.spinner)
+	assert.NotNil(t, cmd)
+}
+
+func TestChangeModelUpdateUnknownMessage(t *testing.T) {
+	model := newChangeModel(changeModelInput{
+		ctx:        context.Background(),
+		target:     "1.19.4",
+		colorMode:  view.ColorDisabled,
+		items:      []changeItem{{Mod: models.Mod{ID: "alpha", Type: models.MODRINTH}}},
+		indexByKey: map[string]int{"modrinth:alpha": 0},
+		execRunner: func(context.Context, httpclient.Sender) changeOutcome { return changeOutcome{} },
+	})
+
+	updated, cmd := model.Update(struct{}{})
+	typed, ok := updated.(*changeModel)
+	assert.True(t, ok)
+	assert.Nil(t, cmd)
+	assert.NotNil(t, typed)
+}
+
+func TestChangeModelViewIncludesPolicyPrompt(t *testing.T) {
+	t.Setenv("MMM_TEST", "true")
+	model := newChangeModel(changeModelInput{
+		ctx:        context.Background(),
+		target:     "1.19.4",
+		colorMode:  view.ColorDisabled,
+		items:      []changeItem{{Mod: models.Mod{ID: "alpha", Type: models.MODRINTH}}},
+		indexByKey: map[string]int{"modrinth:alpha": 0},
+		execRunner: func(context.Context, httpclient.Sender) changeOutcome {
+			return changeOutcome{}
+		},
+	})
+
+	updated, _ := model.Update(changePolicyPromptMsg{})
+	typed, ok := updated.(*changeModel)
+	assert.True(t, ok)
+	viewText := typed.View()
+	assert.Contains(t, viewText, "cmd.change.force_policy.prompt")
+}
+
+func TestChangeModelPolicyPromptSelectionSendsPolicy(t *testing.T) {
+	t.Setenv("MMM_TEST", "true")
+	selections := make(chan changeForcePolicy, 1)
+	model := newChangeModel(changeModelInput{
+		ctx:             context.Background(),
+		target:          "1.19.4",
+		colorMode:       view.ColorDisabled,
+		items:           []changeItem{{Mod: models.Mod{ID: "alpha", Type: models.MODRINTH}}},
+		indexByKey:      map[string]int{"modrinth:alpha": 0},
+		execRunner:      func(context.Context, httpclient.Sender) changeOutcome { return changeOutcome{} },
+		policySelection: selections,
+	})
+
+	updated, _ := model.Update(changePolicyPromptMsg{})
+	typed, ok := updated.(*changeModel)
+	assert.True(t, ok)
+	assert.NotNil(t, typed.policyPrompt)
+
+	updated, _ = typed.Update(changePolicySelectedMsg{policy: changeForcePolicyDisableSkipped})
+	typed, ok = updated.(*changeModel)
+	assert.True(t, ok)
+	assert.Nil(t, typed.policyPrompt)
+	assert.Equal(t, changeForcePolicyDisableSkipped, typed.forcePolicy)
+	assert.Contains(t, typed.policyAnswer, "cmd.change.force_policy.answer.disable")
+
+	select {
+	case policy := <-selections:
+		assert.Equal(t, changeForcePolicyDisableSkipped, policy)
+	default:
+		t.Fatal("expected policy selection to be sent")
+	}
+}
+
+func TestChangeModelPolicyPromptWindowSizeAndKey(t *testing.T) {
+	model := newChangeModel(changeModelInput{
+		ctx:        context.Background(),
+		target:     "1.19.4",
+		colorMode:  view.ColorDisabled,
+		items:      []changeItem{{Mod: models.Mod{ID: "alpha", Type: models.MODRINTH}}},
+		indexByKey: map[string]int{"modrinth:alpha": 0},
+		execRunner: func(context.Context, httpclient.Sender) changeOutcome { return changeOutcome{} },
+	})
+
+	updated, _ := model.Update(changePolicyPromptMsg{})
+	typed, ok := updated.(*changeModel)
+	assert.True(t, ok)
+	assert.NotNil(t, typed.policyPrompt)
+
+	sizeMsg := tea.WindowSizeMsg{Width: 80, Height: 24}
+	updated, _ = typed.Update(sizeMsg)
+	typed, ok = updated.(*changeModel)
+	assert.True(t, ok)
+	assert.Equal(t, 80, typed.windowW)
+	assert.Equal(t, 24, typed.windowH)
+	assert.Equal(t, 80, typed.policyPrompt.list.Width())
+
+	updated, _ = typed.Update(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune{'j'}})
+	typed, ok = updated.(*changeModel)
+	assert.True(t, ok)
+	assert.NotNil(t, typed.policyPrompt)
+}
+
+func TestChangeModelPolicyPromptUsesWindowWidth(t *testing.T) {
+	model := newChangeModel(changeModelInput{
+		ctx:        context.Background(),
+		target:     "1.19.4",
+		colorMode:  view.ColorDisabled,
+		items:      []changeItem{{Mod: models.Mod{ID: "alpha", Type: models.MODRINTH}}},
+		indexByKey: map[string]int{"modrinth:alpha": 0},
+		execRunner: func(context.Context, httpclient.Sender) changeOutcome { return changeOutcome{} },
+	})
+
+	updated, _ := model.Update(tea.WindowSizeMsg{Width: 72, Height: 20})
+	typed, ok := updated.(*changeModel)
+	assert.True(t, ok)
+
+	updated, _ = typed.Update(changePolicyPromptMsg{})
+	typed, ok = updated.(*changeModel)
+	assert.True(t, ok)
+	assert.NotNil(t, typed.policyPrompt)
+	assert.Equal(t, 72, typed.policyPrompt.list.Width())
+}
+
+func TestChangeModelPolicyPromptMouse(t *testing.T) {
+	model := newChangeModel(changeModelInput{
+		ctx:        context.Background(),
+		target:     "1.19.4",
+		colorMode:  view.ColorDisabled,
+		items:      []changeItem{{Mod: models.Mod{ID: "alpha", Type: models.MODRINTH}}},
+		indexByKey: map[string]int{"modrinth:alpha": 0},
+		execRunner: func(context.Context, httpclient.Sender) changeOutcome { return changeOutcome{} },
+	})
+
+	updated, _ := model.Update(changePolicyPromptMsg{})
+	typed, ok := updated.(*changeModel)
+	assert.True(t, ok)
+	assert.NotNil(t, typed.policyPrompt)
+
+	mouseMsg := tea.MouseMsg{Action: tea.MouseActionPress, Button: tea.MouseButtonWheelDown}
+	updated, _ = typed.Update(mouseMsg)
+	typed, ok = updated.(*changeModel)
+	assert.True(t, ok)
+	assert.NotNil(t, typed.policyPrompt)
+}
+
+func TestChangeModelViewIncludesPolicyAnswerLine(t *testing.T) {
+	t.Setenv("MMM_TEST", "true")
+	model := newChangeModel(changeModelInput{
+		ctx:        context.Background(),
+		target:     "1.19.4",
+		colorMode:  view.ColorDisabled,
+		items:      []changeItem{{Mod: models.Mod{ID: "alpha", Type: models.MODRINTH}}},
+		indexByKey: map[string]int{"modrinth:alpha": 0},
+		execRunner: func(context.Context, httpclient.Sender) changeOutcome { return changeOutcome{} },
+	})
+
+	updated, _ := model.Update(changePolicyPromptMsg{})
+	typed, ok := updated.(*changeModel)
+	require.True(t, ok)
+
+	updated, _ = typed.Update(changePolicySelectedMsg{policy: changeForcePolicyKeepConfig})
+	typed, ok = updated.(*changeModel)
+	require.True(t, ok)
+
+	viewText := typed.View()
+	assert.Contains(t, viewText, "cmd.change.force_policy.prompt")
+	assert.Contains(t, viewText, "cmd.change.force_policy.answer.keep")
+}
+
+func TestChangeModelPolicyPromptFocusesViewportBottom(t *testing.T) {
+	t.Setenv("MMM_TEST", "true")
+	model := newChangeModel(changeModelInput{
+		ctx:       context.Background(),
+		target:    "1.19.4",
+		colorMode: view.ColorDisabled,
+		items: []changeItem{
+			{Mod: models.Mod{ID: "alpha", Type: models.MODRINTH}},
+			{Mod: models.Mod{ID: "beta", Type: models.MODRINTH}},
+			{Mod: models.Mod{ID: "gamma", Type: models.MODRINTH}},
+			{Mod: models.Mod{ID: "delta", Type: models.MODRINTH}},
+		},
+		indexByKey: map[string]int{
+			"modrinth:alpha": 0,
+			"modrinth:beta":  1,
+			"modrinth:gamma": 2,
+			"modrinth:delta": 3,
+		},
+		execRunner: func(context.Context, httpclient.Sender) changeOutcome { return changeOutcome{} },
+	})
+
+	updated, _ := model.Update(tea.WindowSizeMsg{Width: 80, Height: 3})
+	typed, ok := updated.(*changeModel)
+	require.True(t, ok)
+
+	updated, _ = typed.Update(changePolicyPromptMsg{})
+	typed, ok = updated.(*changeModel)
+	require.True(t, ok)
+	require.NotNil(t, typed.policyPrompt)
+
+	sections := buildChangeSections(changeViewInput{
+		stage:            typed.stage,
+		target:           typed.target,
+		items:            typed.items,
+		colorMode:        typed.colorMode,
+		spinnerFrame:     typed.spinnerFrame(),
+		forcePolicy:      typed.forcePolicy,
+		waitingForPolicy: true,
+	})
+	sections = append(sections, typed.policyPrompt.View())
+	content := view.RenderViewSections(sections, view.SectionSeparatorParagraph)
+	expectedMax := lipgloss.Height(content) - typed.windowH
+	if expectedMax < 0 {
+		expectedMax = 0
+	}
+
+	_ = typed.View()
+	assert.Equal(t, expectedMax, typed.viewport.YOffset)
 }
 
 func TestChangeModelViewRendersFullContentOnFinalRender(t *testing.T) {
@@ -697,7 +949,7 @@ func TestChangeModelUpdateViewportMessageKeyMovesOffset(t *testing.T) {
 	})
 
 	model.windowH = 1
-	model.updateViewport("one\ntwo")
+	model.updateViewport("one\ntwo", viewportFocusPreserve)
 
 	_, _ = model.Update(tea.KeyMsg{Type: tea.KeyDown})
 	assert.Equal(t, 1, model.viewport.YOffset)
@@ -716,7 +968,7 @@ func TestChangeModelUpdateViewportMessageMouseMovesOffset(t *testing.T) {
 	})
 
 	model.windowH = 1
-	model.updateViewport("one\ntwo")
+	model.updateViewport("one\ntwo", viewportFocusPreserve)
 
 	_, _ = model.Update(tea.MouseMsg{Action: tea.MouseActionPress, Button: tea.MouseButtonWheelDown})
 	assert.Equal(t, 1, model.viewport.YOffset)
@@ -767,7 +1019,7 @@ func TestChangeModelUpdateViewportNoWindowClamp(t *testing.T) {
 	})
 
 	model.windowH = 10
-	model.updateViewport("one\ntwo")
+	model.updateViewport("one\ntwo", viewportFocusPreserve)
 	assert.Equal(t, 2, model.viewport.Height)
 }
 

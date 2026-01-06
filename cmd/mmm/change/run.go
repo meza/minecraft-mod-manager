@@ -51,6 +51,25 @@ func changeOptionsFromFlags(cmd *cobra.Command, args []string) (changeOptions, e
 	if err != nil {
 		return changeOptions{}, err
 	}
+	keepConfig, err := cmd.Flags().GetBool("keep-config")
+	if err != nil {
+		return changeOptions{}, err
+	}
+	pruneConfig, err := cmd.Flags().GetBool("prune-config")
+	if err != nil {
+		return changeOptions{}, err
+	}
+	disableSkipped, err := cmd.Flags().GetBool("disable-skipped")
+	if err != nil {
+		return changeOptions{}, err
+	}
+
+	forcePolicy, resolveErr := resolveForcePolicy(changeForcePolicyFlags{
+		force:          force,
+		keepConfig:     keepConfig,
+		pruneConfig:    pruneConfig,
+		disableSkipped: disableSkipped,
+	})
 
 	return changeOptions{
 		ConfigPath:  configPath,
@@ -59,7 +78,8 @@ func changeOptionsFromFlags(cmd *cobra.Command, args []string) (changeOptions, e
 		Quiet:       quiet,
 		Debug:       debug,
 		Force:       force,
-	}, nil
+		ForcePolicy: forcePolicy,
+	}, resolveErr
 }
 
 func resolveGameVersion(args []string) string {
@@ -256,6 +276,7 @@ func runChangeWithTarget(ctx context.Context, cmd *cobra.Command, opts changeOpt
 		lock:          runState.lock,
 		targetVersion: targetVersion,
 		force:         opts.Force,
+		forcePolicy:   opts.ForcePolicy,
 		deps:          deps,
 		items:         items,
 		indexByKey:    indexByKey,
@@ -308,12 +329,16 @@ func outputAndHandleChangeError(cmd *cobra.Command, deps changeDeps, message str
 }
 
 func runInteractiveChange(ctx context.Context, cmd *cobra.Command, input changeExecutionInput) (changeOutcome, error) {
+	policySelections := make(chan changeForcePolicy, 1)
+	input.policySelection = policySelections
 	model := newChangeModel(changeModelInput{
-		ctx:        ctx,
-		target:     input.targetVersion,
-		colorMode:  colorModeForOutput(cmd.OutOrStdout()),
-		items:      input.items,
-		indexByKey: input.indexByKey,
+		ctx:             ctx,
+		target:          input.targetVersion,
+		colorMode:       colorModeForOutput(cmd.OutOrStdout()),
+		items:           input.items,
+		indexByKey:      input.indexByKey,
+		forcePolicy:     input.forcePolicy,
+		policySelection: policySelections,
 		execRunner: func(ctx context.Context, sender httpclient.Sender) changeOutcome {
 			return runChangeExecution(ctx, sender, input)
 		},
@@ -406,12 +431,17 @@ func writeInteractiveTranscriptIfNeeded(cmd *cobra.Command, input changeExecutio
 	}
 
 	sections := buildChangeSections(changeViewInput{
-		stage:        model.stage,
-		target:       model.target,
-		items:        model.items,
-		colorMode:    model.colorMode,
-		spinnerFrame: model.spinnerFrame(),
+		stage:            model.stage,
+		target:           model.target,
+		items:            model.items,
+		colorMode:        model.colorMode,
+		spinnerFrame:     model.spinnerFrame(),
+		forcePolicy:      model.forcePolicy,
+		waitingForPolicy: model.policyPrompt != nil,
 	})
+	if model.policyAnswer != "" {
+		sections = append(sections, model.policyAnswer)
+	}
 	content := view.RenderViewSections(sections, view.SectionSeparatorParagraph)
 	if strings.TrimSpace(content) == "" {
 		return nil

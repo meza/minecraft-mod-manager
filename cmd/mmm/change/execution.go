@@ -24,14 +24,16 @@ import (
 var errCompatibilityFailed = errors.New("compatibility check failed")
 
 type changeExecutionInput struct {
-	meta          config.Metadata
-	cfg           models.ModsJSON
-	lock          []models.ModInstall
-	targetVersion string
-	force         bool
-	deps          changeDeps
-	items         []changeItem
-	indexByKey    map[string]int
+	meta            config.Metadata
+	cfg             models.ModsJSON
+	lock            []models.ModInstall
+	targetVersion   string
+	force           bool
+	forcePolicy     changeForcePolicy
+	policySelection <-chan changeForcePolicy
+	deps            changeDeps
+	items           []changeItem
+	indexByKey      map[string]int
 }
 
 type changeExecutionState struct {
@@ -144,6 +146,7 @@ func runChangeExecution(ctx context.Context, sender httpclient.Sender, input cha
 			Stage:         changeStageDownloadFailed,
 			TargetVersion: input.targetVersion,
 			Items:         state.snapshot(),
+			ForcePolicy:   input.forcePolicy,
 			Err:           err,
 		}
 	}
@@ -157,6 +160,18 @@ func runChangeExecution(ctx context.Context, sender httpclient.Sender, input cha
 	if outcome, handled := outcomeFromDownloadPhase(execCtx, input, state, downloadResult, staging.root); handled {
 		return outcome
 	}
+
+	forcePolicy, resolveErr := resolveForcePolicyForRun(execCtx, input, state)
+	if resolveErr != nil {
+		return changeOutcome{
+			Stage:         changeStageSwitchFailed,
+			TargetVersion: input.targetVersion,
+			Items:         state.snapshot(),
+			ForcePolicy:   forcePolicy,
+			Err:           resolveErr,
+		}
+	}
+	input.forcePolicy = forcePolicy
 
 	return runSwitchPhase(execCtx, input, state, downloadResult, staging)
 }
@@ -376,6 +391,7 @@ func outcomeFromDownloadPhase(
 			Stage:         changeStageCompatibilityFailed,
 			TargetVersion: input.targetVersion,
 			Items:         items,
+			ForcePolicy:   input.forcePolicy,
 			Err:           errors.Join(errCompatibilityFailed, cleanupErr),
 		}, true
 	}
@@ -386,6 +402,7 @@ func outcomeFromDownloadPhase(
 			Stage:         changeStageDownloadFailed,
 			TargetVersion: input.targetVersion,
 			Items:         items,
+			ForcePolicy:   input.forcePolicy,
 			Err:           errors.Join(result.downloadErr, cleanupErr),
 		}, true
 	}
@@ -397,6 +414,7 @@ func outcomeFromDownloadPhase(
 				Stage:         changeStageSwitchFailed,
 				TargetVersion: input.targetVersion,
 				Items:         items,
+				ForcePolicy:   input.forcePolicy,
 				Err:           switchErr,
 			}, true
 		}
@@ -404,10 +422,41 @@ func outcomeFromDownloadPhase(
 			Stage:         changeStageSuccess,
 			TargetVersion: input.targetVersion,
 			Items:         items,
+			ForcePolicy:   input.forcePolicy,
 		}, true
 	}
 
 	return changeOutcome{}, false
+}
+
+func resolveForcePolicyForRun(ctx context.Context, input changeExecutionInput, state *changeExecutionState) (changeForcePolicy, error) {
+	if !input.force {
+		return changeForcePolicyUnset, nil
+	}
+
+	items := state.snapshot()
+	if !hasSkippedItems(items) {
+		if input.forcePolicy != changeForcePolicyUnset {
+			return input.forcePolicy, nil
+		}
+		return changeForcePolicyKeepConfig, nil
+	}
+
+	if input.forcePolicy != changeForcePolicyUnset {
+		return input.forcePolicy, nil
+	}
+
+	if input.policySelection == nil {
+		return changeForcePolicyKeepConfig, nil
+	}
+
+	state.send(changePolicyPromptMsg{})
+	select {
+	case policy := <-input.policySelection:
+		return policy, nil
+	case <-ctx.Done():
+		return changeForcePolicyKeepConfig, ctx.Err()
+	}
 }
 
 func runSwitchPhase(
@@ -427,6 +476,7 @@ func runSwitchPhase(
 		cfg:           input.cfg,
 		lock:          input.lock,
 		targetVersion: input.targetVersion,
+		forcePolicy:   input.forcePolicy,
 		items:         switchItems,
 		lockEntries:   result.lockEntries,
 		stagedPaths:   result.stagedPaths,
@@ -441,6 +491,7 @@ func runSwitchPhase(
 			Stage:         changeStageSwitchFailed,
 			TargetVersion: input.targetVersion,
 			Items:         outcomeItems,
+			ForcePolicy:   input.forcePolicy,
 			Err:           errors.Join(switchErr, cleanupErr),
 		}
 	}
@@ -450,6 +501,7 @@ func runSwitchPhase(
 			Stage:         changeStageSwitchFailed,
 			TargetVersion: input.targetVersion,
 			Items:         outcomeItems,
+			ForcePolicy:   input.forcePolicy,
 			Err:           cleanupErr,
 		}
 	}
@@ -458,6 +510,7 @@ func runSwitchPhase(
 		Stage:         changeStageSuccess,
 		TargetVersion: input.targetVersion,
 		Items:         outcomeItems,
+		ForcePolicy:   input.forcePolicy,
 	}
 }
 
@@ -752,6 +805,7 @@ type changeSwitchInput struct {
 	cfg           models.ModsJSON
 	lock          []models.ModInstall
 	targetVersion string
+	forcePolicy   changeForcePolicy
 	items         []changeItem
 	lockEntries   map[string]models.ModInstall
 	stagedPaths   map[string]string
@@ -769,9 +823,15 @@ type switchInstall struct {
 	destination string
 }
 
+type switchDisabled struct {
+	original string
+	disabled string
+}
+
 type switchState struct {
-	backups  []switchBackup
-	installs []switchInstall
+	backups   []switchBackup
+	installs  []switchInstall
+	disableds []switchDisabled
 }
 
 func switchToDownloadedMods(input changeSwitchInput) error {
@@ -806,14 +866,18 @@ func applySwitchForItem(
 		return err
 	}
 
+	if item.Skipped {
+		if err := applySkippedPolicy(input, lockIndex, modsDir, item.Mod, switchPlan); err != nil {
+			input.changeState.setSwitchFailure(key, err)
+			return rollbackSwitch(input, *switchPlan, err)
+		}
+		input.changeState.setSwitchSkipped(key)
+		return nil
+	}
+
 	if err := moveExistingToBackup(input, lockIndex, modsDir, item.Mod, switchPlan); err != nil {
 		input.changeState.setSwitchFailure(key, err)
 		return rollbackSwitch(input, *switchPlan, err)
-	}
-
-	if item.Skipped {
-		input.changeState.setSwitchSkipped(key)
-		return nil
 	}
 
 	lockEntry, ok := input.lockEntries[key]
@@ -849,7 +913,8 @@ func applySwitchForItem(
 
 func finalizeSwitch(input changeSwitchInput, switchPlan switchState) error {
 	newLock := buildNewLock(input.items, input.lockEntries)
-	newConfig := updateConfigForChange(input.cfg, input.resolvedNames, input.targetVersion)
+	skipped := buildSkippedIndex(input.items)
+	newConfig := updateConfigForChange(input.cfg, input.resolvedNames, input.targetVersion, input.forcePolicy, skipped)
 
 	if err := input.deps.writeLock(input.ctx, input.deps.fs, input.meta, newLock); err != nil {
 		rollbackErr := rollbackSwitch(input, switchPlan, err)
@@ -912,12 +977,87 @@ func moveExistingToBackup(
 	return nil
 }
 
+func applySkippedPolicy(
+	input changeSwitchInput,
+	lockIndex map[string]models.ModInstall,
+	modsDir string,
+	mod models.Mod,
+	switchState *switchState,
+) error {
+	switch input.forcePolicy {
+	case changeForcePolicyDisableSkipped:
+		return disableExistingJar(input, lockIndex, modsDir, mod, switchState)
+	default:
+		return moveExistingToBackup(input, lockIndex, modsDir, mod, switchState)
+	}
+}
+
+func disableExistingJar(
+	input changeSwitchInput,
+	lockIndex map[string]models.ModInstall,
+	modsDir string,
+	mod models.Mod,
+	switchState *switchState,
+) error {
+	lockEntry, ok := lockIndex[changeModKey(mod)]
+	if !ok {
+		return nil
+	}
+
+	normalizedFileName, err := modfilename.Normalize(lockEntry.FileName)
+	if err != nil {
+		return err
+	}
+
+	originalPath := filepath.Join(modsDir, normalizedFileName)
+	resolvedOriginal, err := modpath.ResolveWritablePath(input.deps.fs, modsDir, originalPath)
+	if err != nil {
+		return err
+	}
+
+	exists, err := afero.Exists(input.deps.fs, resolvedOriginal)
+	if err != nil || !exists {
+		return err
+	}
+
+	disabledFileName := normalizedFileName + ".disabled"
+	disabledPath := filepath.Join(modsDir, disabledFileName)
+	resolvedDisabled, err := modpath.ResolveWritablePath(input.deps.fs, modsDir, disabledPath)
+	if err != nil {
+		return err
+	}
+
+	disabledExists, err := afero.Exists(input.deps.fs, resolvedDisabled)
+	if err != nil {
+		return err
+	}
+	if disabledExists {
+		return fmt.Errorf("disabled mod already exists at %s", resolvedDisabled)
+	}
+
+	if err := input.deps.renameFile(input.deps.fs, resolvedOriginal, resolvedDisabled); err != nil {
+		return err
+	}
+
+	switchState.disableds = append(switchState.disableds, switchDisabled{
+		original: resolvedOriginal,
+		disabled: resolvedDisabled,
+	})
+	return nil
+}
+
 func rollbackSwitch(input changeSwitchInput, state switchState, err error) error {
 	var rollbackErr error
 
 	for _, install := range state.installs {
 		if removeErr := input.deps.removeFile(input.deps.fs, install.destination); removeErr != nil {
 			rollbackErr = errors.Join(rollbackErr, removeErr)
+		}
+	}
+
+	for _, disabled := range state.disableds {
+		if renameErr := input.deps.renameFile(input.deps.fs, disabled.disabled, disabled.original); renameErr != nil {
+			rollbackErr = errors.Join(rollbackErr, renameErr)
 		}
 	}
 
@@ -948,9 +1088,30 @@ func buildNewLock(items []changeItem, lockEntries map[string]models.ModInstall) 
 	return entries
 }
 
-func updateConfigForChange(cfg models.ModsJSON, resolvedNames map[string]string, targetVersion string) models.ModsJSON {
+func buildSkippedIndex(items []changeItem) map[string]bool {
+	skipped := make(map[string]bool)
+	for _, item := range items {
+		if item.Skipped {
+			skipped[changeModKey(item.Mod)] = true
+		}
+	}
+	return skipped
+}
+
+func updateConfigForChange(cfg models.ModsJSON, resolvedNames map[string]string, targetVersion string, policy changeForcePolicy, skipped map[string]bool) models.ModsJSON {
 	updated := cfg
 	updated.GameVersion = targetVersion
+
+	if policy == changeForcePolicyPruneConfig && len(skipped) > 0 {
+		filtered := make([]models.Mod, 0, len(updated.Mods))
+		for _, mod := range updated.Mods {
+			if skipped[changeModKey(mod)] {
+				continue
+			}
+			filtered = append(filtered, mod)
+		}
+		updated.Mods = filtered
+	}
 
 	for i := range updated.Mods {
 		mod := updated.Mods[i]

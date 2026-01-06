@@ -82,34 +82,48 @@ type changeOutcome struct {
 	Stage         changeStage
 	TargetVersion string
 	Items         []changeItem
+	ForcePolicy   changeForcePolicy
 	Err           error
 }
 
 type changeModel struct {
-	ctx         context.Context
-	cancel      context.CancelFunc
-	sender      httpclient.Sender
-	execRunner  func(context.Context, httpclient.Sender) changeOutcome
-	colorMode   view.ColorMode
-	stage       changeStage
-	target      string
-	items       []changeItem
-	indexByKey  map[string]int
-	spinner     spinner.Model
-	viewport    viewport.Model
-	windowW     int
-	windowH     int
-	finalRender bool
-	outcome     changeOutcome
+	ctx             context.Context
+	cancel          context.CancelFunc
+	sender          httpclient.Sender
+	execRunner      func(context.Context, httpclient.Sender) changeOutcome
+	colorMode       view.ColorMode
+	stage           changeStage
+	target          string
+	items           []changeItem
+	indexByKey      map[string]int
+	spinner         spinner.Model
+	viewport        viewport.Model
+	windowW         int
+	windowH         int
+	finalRender     bool
+	outcome         changeOutcome
+	forcePolicy     changeForcePolicy
+	policyPrompt    *changePolicyPromptModel
+	policyAnswer    string
+	policySelection chan<- changeForcePolicy
 }
 
+type viewportFocusMode int
+
+const (
+	viewportFocusPreserve viewportFocusMode = iota
+	viewportFocusBottom
+)
+
 type changeModelInput struct {
-	ctx        context.Context
-	target     string
-	colorMode  view.ColorMode
-	items      []changeItem
-	indexByKey map[string]int
-	execRunner func(context.Context, httpclient.Sender) changeOutcome
+	ctx             context.Context
+	target          string
+	colorMode       view.ColorMode
+	items           []changeItem
+	indexByKey      map[string]int
+	execRunner      func(context.Context, httpclient.Sender) changeOutcome
+	forcePolicy     changeForcePolicy
+	policySelection chan<- changeForcePolicy
 }
 
 type changeExecMessage struct {
@@ -169,6 +183,12 @@ type changeSwitchSkippedMsg struct {
 	key string
 }
 
+type changePolicyPromptMsg struct{}
+
+type changePolicySelectedMsg struct {
+	policy changeForcePolicy
+}
+
 func newChangeModel(input changeModelInput) *changeModel {
 	ctx, cancel := context.WithCancel(input.ctx)
 	spin := spinner.New()
@@ -180,19 +200,21 @@ func newChangeModel(input changeModelInput) *changeModel {
 	spin.Style = lipgloss.NewStyle()
 
 	model := &changeModel{
-		ctx:        ctx,
-		cancel:     cancel,
-		execRunner: input.execRunner,
-		colorMode:  input.colorMode,
-		stage:      changeStageRunning,
-		target:     input.target,
-		items:      input.items,
-		indexByKey: input.indexByKey,
-		spinner:    spin,
-		viewport:   viewport.New(0, 0),
+		ctx:             ctx,
+		cancel:          cancel,
+		execRunner:      input.execRunner,
+		colorMode:       input.colorMode,
+		stage:           changeStageRunning,
+		target:          input.target,
+		items:           input.items,
+		indexByKey:      input.indexByKey,
+		spinner:         spin,
+		viewport:        viewport.New(0, 0),
+		forcePolicy:     input.forcePolicy,
+		policySelection: input.policySelection,
 	}
 	model.viewport.MouseWheelEnabled = true
-	model.outcome = changeOutcome{Stage: changeStageRunning, TargetVersion: input.target, Items: input.items}
+	model.outcome = changeOutcome{Stage: changeStageRunning, TargetVersion: input.target, Items: input.items, ForcePolicy: input.forcePolicy}
 	return model
 }
 
@@ -221,17 +243,44 @@ func (model *changeModel) Init() tea.Cmd {
 func (model *changeModel) startChangeCmd() tea.Cmd {
 	return func() tea.Msg {
 		if model.sender == nil {
-			return changeExecMessage{outcome: changeOutcome{Stage: changeStageDownloadFailed, Err: errors.New("missing bubble tea sender")}}
+			return changeExecMessage{outcome: changeOutcome{
+				Stage:       changeStageDownloadFailed,
+				ForcePolicy: model.forcePolicy,
+				Err:         errors.New("missing bubble tea sender"),
+			}}
 		}
 		return changeExecMessage{outcome: model.execRunner(model.ctx, model.sender)}
 	}
 }
 
 func (model *changeModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
+	if cmd, handled := model.updatePolicyPromptMessage(msg); handled {
+		return model, cmd
+	}
 	if cmd, handled := model.updateViewportMessage(msg); handled {
 		return model, cmd
 	}
 	return model.updateChangeMessage(msg)
+}
+
+func (model *changeModel) updatePolicyPromptMessage(msg tea.Msg) (tea.Cmd, bool) {
+	if model.policyPrompt == nil {
+		return nil, false
+	}
+
+	switch typed := msg.(type) {
+	case tea.WindowSizeMsg:
+		model.windowW = typed.Width
+		model.windowH = typed.Height
+		model.policyPrompt.SetWidth(typed.Width)
+		return nil, true
+	case tea.KeyMsg, tea.MouseMsg:
+		updated, cmd := model.policyPrompt.Update(msg)
+		model.policyPrompt = &updated
+		return cmd, true
+	default:
+		return nil, false
+	}
 }
 
 func (model *changeModel) updateViewportMessage(msg tea.Msg) (tea.Cmd, bool) {
@@ -269,10 +318,25 @@ func (model *changeModel) updateChangeMessage(msg tea.Msg) (tea.Model, tea.Cmd) 
 		updated, cmd := model.spinner.Update(typed)
 		model.spinner = updated
 		return model, cmd
+	case changePolicyPromptMsg:
+		model.policyPrompt = newChangePolicyPromptModel()
+		if model.windowW > 0 {
+			model.policyPrompt.SetWidth(model.windowW)
+		}
+		return model, nil
+	case changePolicySelectedMsg:
+		model.forcePolicy = typed.policy
+		model.policyAnswer = forcePolicyAnswerLine(typed.policy)
+		if model.policySelection != nil {
+			model.policySelection <- typed.policy
+		}
+		model.policyPrompt = nil
+		return model, nil
 	case changeExecMessage:
 		model.outcome = typed.outcome
 		model.stage = typed.outcome.Stage
 		model.items = typed.outcome.Items
+		model.forcePolicy = typed.outcome.ForcePolicy
 		model.finalRender = true
 		return model, func() tea.Msg { return changeFinalizeMsg{} }
 	case changeFinalizeMsg:
@@ -343,21 +407,33 @@ func (model *changeModel) updateSwitchMessage(msg tea.Msg) bool {
 
 func (model *changeModel) View() string {
 	spinnerFrame := model.spinnerFrame()
-	content := view.RenderViewSections(buildChangeSections(changeViewInput{
-		stage:        model.stage,
-		target:       model.target,
-		items:        model.items,
-		colorMode:    model.colorMode,
-		spinnerFrame: spinnerFrame,
-	}), view.SectionSeparatorParagraph)
+	sections := buildChangeSections(changeViewInput{
+		stage:            model.stage,
+		target:           model.target,
+		items:            model.items,
+		colorMode:        model.colorMode,
+		spinnerFrame:     spinnerFrame,
+		forcePolicy:      model.forcePolicy,
+		waitingForPolicy: model.policyPrompt != nil,
+	})
+	if model.policyPrompt != nil {
+		sections = append(sections, model.policyPrompt.View())
+	} else if model.policyAnswer != "" {
+		sections = append(sections, model.policyAnswer)
+	}
+	content := view.RenderViewSections(sections, view.SectionSeparatorParagraph)
 	if model.finalRender {
 		return content
 	}
-	model.updateViewport(content)
+	focusMode := viewportFocusPreserve
+	if model.policyPrompt != nil {
+		focusMode = viewportFocusBottom
+	}
+	model.updateViewport(content, focusMode)
 	return model.viewport.View()
 }
 
-func (model *changeModel) updateViewport(content string) {
+func (model *changeModel) updateViewport(content string, focusMode viewportFocusMode) {
 	model.viewport.SetContent(content)
 
 	contentHeight := lipgloss.Height(content)
@@ -369,6 +445,12 @@ func (model *changeModel) updateViewport(content string) {
 	model.viewport.Height = height
 	if model.windowW > 0 {
 		model.viewport.Width = model.windowW
+	}
+
+	maxOffset := contentHeight - height
+	if focusMode == viewportFocusBottom {
+		model.viewport.SetYOffset(maxOffset)
+		return
 	}
 	model.viewport.SetYOffset(model.viewport.YOffset)
 }
@@ -515,11 +597,13 @@ func (model *changeModel) applySwitchSkipped(msg changeSwitchSkippedMsg) {
 }
 
 type changeViewInput struct {
-	stage        changeStage
-	target       string
-	items        []changeItem
-	colorMode    view.ColorMode
-	spinnerFrame string
+	stage            changeStage
+	target           string
+	items            []changeItem
+	colorMode        view.ColorMode
+	spinnerFrame     string
+	forcePolicy      changeForcePolicy
+	waitingForPolicy bool
 }
 
 func buildChangeSections(input changeViewInput) []string {
@@ -648,7 +732,11 @@ func renderCompatibilityLine(input changeViewInput, item changeItem) string {
 		}
 	case changeCompatUnsupported:
 		status = view.ModItemStatusError
-		suffix = i18n.T("cmd.change.item.unsupported", &i18n.Tvars{Data: &i18n.TData{"version": input.target}})
+		suffixKey := "cmd.change.item.unsupported"
+		if item.Skipped {
+			suffixKey = "cmd.change.item.unsupported_skipped"
+		}
+		suffix = i18n.T(suffixKey, &i18n.Tvars{Data: &i18n.TData{"version": input.target}})
 	}
 	return view.RenderModItemLine(view.ModItemLine{
 		Label:        label,
@@ -725,7 +813,11 @@ func renderSwitchingSection(input changeViewInput, sectionItems []changeItem) st
 	}
 	title := i18n.T("cmd.change.section.switching", nil)
 	if input.stage == changeStageRunning {
-		waiting := i18n.T("cmd.change.section.switching_waiting", &i18n.Tvars{
+		waitingKey := "cmd.change.section.switching_waiting"
+		if input.waitingForPolicy {
+			waitingKey = "cmd.change.section.switching_waiting_choice"
+		}
+		waiting := i18n.T(waitingKey, &i18n.Tvars{
 			Data: &i18n.TData{"spinner": input.spinnerFrame},
 		})
 		title = title + " " + view.RenderIfColorEnabled(input.colorMode, view.ParenStyle, waiting)
@@ -768,7 +860,7 @@ func renderSwitchingLine(input changeViewInput, item changeItem) string {
 		}
 	case changeSwitchSkipped:
 		status = view.ModItemStatusError
-		suffix = i18n.T("cmd.change.item.unsupported_skipped", &i18n.Tvars{Data: &i18n.TData{"version": input.target}})
+		suffix = i18n.T(skippedItemSuffixKey(input.forcePolicy), &i18n.Tvars{Data: &i18n.TData{"version": input.target}})
 	}
 
 	return view.RenderModItemLine(view.ModItemLine{
@@ -844,7 +936,7 @@ func renderSuccessLine(input changeViewInput, item changeItem) string {
 	status := view.ModItemStatusSuccess
 	if item.Skipped {
 		status = view.ModItemStatusError
-		suffix = i18n.T("cmd.change.item.unsupported_skipped", &i18n.Tvars{Data: &i18n.TData{"version": input.target}})
+		suffix = i18n.T(skippedItemSuffixKey(input.forcePolicy), &i18n.Tvars{Data: &i18n.TData{"version": input.target}})
 	}
 	return view.RenderModItemLine(view.ModItemLine{
 		Label:  label,
@@ -870,7 +962,7 @@ func renderSkippedSection(input changeViewInput) string {
 	if len(skipped) == 0 {
 		return ""
 	}
-	lines := []string{i18n.T("cmd.change.skipped.header", nil)}
+	lines := []string{i18n.T(skippedSectionHeader(input.forcePolicy), nil)}
 	for _, item := range skipped {
 		label := renderModLabel(input, item)
 		lines = append(lines, view.RenderModItemLine(view.ModItemLine{

@@ -140,4 +140,50 @@ func TestChangeViewSnapshots(t *testing.T) {
 		}), view.SectionSeparatorParagraph)
 		snaps.MatchSnapshot(t, output)
 	})
+
+	t.Run("force_policy_prompt", func(t *testing.T) {
+		promptItems := []changeItem{
+			{
+				Mod:            models.Mod{ID: "alpha", Name: "Alpha", Type: models.MODRINTH},
+				DisplayName:    "Alpha",
+				CompatStatus:   changeCompatSupported,
+				DownloadStatus: changeDownloadSucceeded,
+				SwitchStatus:   changeSwitchPending,
+			},
+		}
+		sections := buildChangeSections(changeViewInput{
+			stage:            changeStageRunning,
+			target:           "1.21.1",
+			items:            promptItems,
+			colorMode:        view.ColorDisabled,
+			spinnerFrame:     ".",
+			waitingForPolicy: true,
+		})
+		prompt := newChangePolicyPromptModel()
+		sections = append(sections, prompt.View())
+		output := view.RenderViewSections(sections, view.SectionSeparatorParagraph)
+		snaps.MatchSnapshot(t, output)
+	})
+
+	t.Run("force_policy_answered", func(t *testing.T) {
+		answeredItems := []changeItem{
+			{
+				Mod:            models.Mod{ID: "alpha", Name: "Alpha", Type: models.MODRINTH},
+				DisplayName:    "Alpha",
+				CompatStatus:   changeCompatSupported,
+				DownloadStatus: changeDownloadSucceeded,
+				SwitchStatus:   changeSwitchPending,
+			},
+		}
+		sections := buildChangeSections(changeViewInput{
+			stage:        changeStageRunning,
+			target:       "1.21.1",
+			items:        answeredItems,
+			colorMode:    view.ColorDisabled,
+			spinnerFrame: ".",
+		})
+		sections = append(sections, forcePolicyAnswerLine(changeForcePolicyKeepConfig))
+		output := view.RenderViewSections(sections, view.SectionSeparatorParagraph)
+		snaps.MatchSnapshot(t, output)
+	})
 }

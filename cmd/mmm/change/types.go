@@ -25,6 +25,7 @@ type changeOptions struct {
 	Quiet       bool
 	Debug       bool
 	Force       bool
+	ForcePolicy changeForcePolicy
 }
 
 type changeResult struct {

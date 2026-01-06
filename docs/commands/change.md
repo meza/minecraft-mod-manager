@@ -10,6 +10,8 @@ mmm change 1.21.1
 ```
 
 With `--force`, the command proceeds even if some mods do not support the target version. Those mods are skipped during install.
+If incompatible jars already exist, MMM keeps your current config and removes those files unless you supply a policy flag.
+In interactive runs, MMM will ask which policy to use when you do not set one.
 
 ```bash
 mmm change --force latest
@@ -32,6 +34,9 @@ mmm change [game_version]
 
 ## Options
 
-| Flag          | Meaning                                                              | Allowed values | Example                     |
-|---------------|----------------------------------------------------------------------|----------------|-----------------------------|
-| `-f, --force` | Proceed even if some mods lack support; unsupported mods are skipped | `true/false`   | `mmm change --force 1.21.1` |
+| Flag                  | Meaning                                                                 | Allowed values | Example                                    |
+|-----------------------|-------------------------------------------------------------------------|----------------|--------------------------------------------|
+| `-f, --force`         | Proceed even if some mods lack support; unsupported mods are skipped    | `true/false`   | `mmm change --force 1.21.1`                |
+| `--keep-config`       | Keep incompatible mods in the config and remove their files (requires `--force`) | `true/false`   | `mmm change --force --keep-config 1.21.1`  |
+| `--prune-config`      | Remove incompatible mods from the config and remove their files (requires `--force`) | `true/false`   | `mmm change --force --prune-config 1.21.1` |
+| `--disable-skipped`   | Keep incompatible mods in the config and disable their files (requires `--force`) | `true/false`   | `mmm change --force --disable-skipped 1.21.1` |
