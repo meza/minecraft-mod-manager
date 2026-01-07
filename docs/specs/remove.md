@@ -3,11 +3,11 @@
 Deletes one or more mods from both the configuration and the filesystem.
 
 ## Behaviour
-1. Resolve the provided names or IDs against `modlist-lock.json`, supporting glob patterns against lockfile filenames.
-2. When a matching installation exists, delete the file from the mods directory and remove the entry from `modlist-lock.json`.
-3. Remove the corresponding mod entry from `modlist.json` and save the updated configuration.
+1. Resolve the provided names or IDs against `modlist-lock.json`, supporting glob patterns against mod IDs and names.
+2. For any matching lock entry, delete its jar from the mods directory, remove the matching mod entry from `modlist.json` by ID, then remove the lock entry.
+3. For any matching config entry without a lock entry, remove the entry from `modlist.json` by ID or name (even if the same lookup also matched lock entries).
 4. When `--dry-run` is used, actions are logged but no files are changed.
-5. During execution, per-item status may update in place and output order is not deterministic due to parallel processing; final grouped results are stable.
+5. During execution, tty output updates items in place with a stable list order; non-tty output is a plain transcript in completion order.
 
 ## Edge Cases
 - Mods that do not match any pattern are ignored.

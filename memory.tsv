@@ -1073,3 +1073,24 @@ mmm-155: added exclusive partitioning for change sections and appended ANSI clea
 2026-01-07	13:49	Decoupled Unicode from tty by locale detection, gated ANSI styling on control sequences, updated tests/docs, and fixed memory.tsv formatting per reviewer feedback.
 2026-01-07	14:33	mmm-160: fixed prune force model/update tests and confirmPrune/runForceInteractiveDeletion coverage; all required checks pass; Windows winhost lint/build/coverage/test-race pass (PSReadLine VT warning).
 2026-01-07	15:17	mmm-160: fixed interactive prune confirmation to render delete results only, added confirm-delete model and tests, updated snapshots; all required checks and Windows verification pass (PSReadLine VT warning).
+2026-01-07	16:53	mmm-161: read ticket, remove flow/spec/command docs, interaction guidelines, terminal guide, and reference implementations (add/change/list/prune/install/init); noted lookup matching and non-tty output order inconsistencies to confirm.
+2026-01-07	16:59	mmm-161: user clarified remove should match ID/name, run parallel with tty deterministic list and non-tty completion-order output; delete failure should keep config/lock entries unchanged for retry.
+2026-01-07	17:56	Session start: read persona + mandatory refs, interaction guidelines, remove flow/spec/command docs, terminal guide, and mmm-161 ticket; ready to align and continue remove work.
+2026-01-07	18:43	mmm-161: added transcript completion ordering safeguard for remove, expanded remove coverage tests, and ran make fmt/lint/coverage/build successfully.
+2026-01-07	18:55	Session resumed for mmm-161; read current instructions and memory tail; ready for user context.
+2026-01-07	19:05	Reviewer invocation failed: codex CLI not found on PATH; need user guidance on installation/path before re-running review.
+2026-01-07	19:20	Session resumed; awaiting user context for mmm-161 after disconnect.
+2026-01-07	19:40	mmm-161 reviewer not approved; required fixes: transactional config/lock write safety, resolve lockfile vs config lookup requirement (needs user approval for doc changes), add non-tty multi-item ordering test, align remove spec step 5 with ordering.
+2026-01-07	20:40	mmm-161: implemented lock-first remove matching with config fallback, added safe restore on write failures, synchronous transcript output, updated docs/tests; make fmt/lint/coverage/build and Windows lint/build/coverage/test-race pass (PSReadLine VT warning).
+2026-01-07	21:13	mmm-161: reviewer approved after docs updated to lock-first + config-only removal semantics; make fmt/lint/coverage/build and Windows lint/build/coverage/test-race pass (PSReadLine VT warning).
+2026-01-07	21:56	mmm-161: added finalize message cycle for remove tty to render summary; renamed loop index to index for naming rule; make fmt/lint/coverage/build and Windows lint/build/coverage/test-race pass (PSReadLine VT warning); reviewer approved.
+2026-01-07	22:27	mmm-161: added PTY integration test for remove final summary, rendered final view with trailing newline to show Remove complete in TTY; make fmt/lint/coverage/build pass; Windows winhost lint/build/coverage/test-race pass (PSReadLine VT warning).
+2026-01-07	22:46	Closed mmm-161 in beads per user request.
+2026-01-07	22:51	Created Linear MMM-28 for remove confirmation UX (remove --dry-run, add TTY confirm, --force/--quiet behavior).
+2026-01-07	22:53	Updated Linear MMM-28 to require docs updates for remove confirmation/--dry-run removal (flows/specs/commands).
+2026-01-07	22:54	Updated Linear MMM-28 with required reference implementations (install/add/change) and convention alignment note.
+2026-01-07	22:59	Created Linear MMM-29 (UX-labeled) for add fallback platform picker showing full list; created UX label for MMM team and applied to MMM-28 per user request.
+2026-01-07	23:01	Created Linear MMM-30 (UX-labeled) for global ctrl+c immediate cancel + cleanup messaging across commands.
+2026-01-07	23:02	Updated MMM-30 with non-tty ctrl+c availability note (SIGINT via supervisor).
+2026-01-07	23:03	Updated MMM-30 success-criteria line with non-tty SIGINT nuance.
+2026-01-07	23:04	Reframed MMM-30 around cancellation (title + description), added explicit signal handling section.

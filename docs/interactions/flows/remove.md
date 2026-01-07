@@ -21,8 +21,8 @@ Success looks like (for the user):
 ### Primary flow
 
 1. You run `mmm remove <mods...>`.
-2. MMM resolves each lookup against the lockfile.
-3. MMM deletes jar files when possible and updates config and lock.
+2. MMM resolves each lookup against the lockfile by ID and name, and also removes any matching config entries that do not have lock entries.
+3. MMM deletes jar files when possible, removes the matching config entries by ID, and then removes the lock entries.
 
 ### Alternate and error flows
 

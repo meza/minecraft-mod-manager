@@ -12,14 +12,16 @@ mmm remove sodium
 
 `mmm remove <mods...>`
 
-You can pass one or more mod lookups. Each lookup is matched against both the configured mod ID and the mod name.
-MMM checks the ID first, and then the name.
+You can pass one or more mod lookups. Each lookup is matched against the lockfile first by mod ID and name.
+MMM also removes any matching config entries that do not have a lock entry, even when the lookup matches the lockfile.
 
 You can also use [glob patterns](#glob-primer) to describe multiple mods.
 
 If a lookup does not match anything, MMM skips it and keeps going.
 
 If the mod file is already missing on disk, MMM skips the file removal and still removes the mod from your config.
+
+When a lock entry matches, MMM removes the config entry with the same ID and then removes the lock entry.
 
 If you use `--dry-run`, MMM prints what it would remove without changing any files (it will not delete jars, and it will
 not create a missing lock file).

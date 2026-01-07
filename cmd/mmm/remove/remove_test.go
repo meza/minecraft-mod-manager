@@ -5,8 +5,8 @@ import (
 	"context"
 	"errors"
 	"io"
-	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 
 	"github.com/spf13/afero"
@@ -14,21 +14,12 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
+	"github.com/meza/minecraft-mod-manager/internal/clierrors"
 	"github.com/meza/minecraft-mod-manager/internal/config"
 	"github.com/meza/minecraft-mod-manager/internal/logger"
 	"github.com/meza/minecraft-mod-manager/internal/models"
-	"github.com/meza/minecraft-mod-manager/internal/output"
-	"github.com/meza/minecraft-mod-manager/internal/telemetry"
-	tui "github.com/meza/minecraft-mod-manager/internal/view"
+	"github.com/meza/minecraft-mod-manager/internal/view"
 )
-
-type fakeTerminalWriter struct {
-	bytes.Buffer
-}
-
-func (writer *fakeTerminalWriter) Fd() uintptr {
-	return 1
-}
 
 type errorWriter struct {
 	err error
@@ -38,46 +29,119 @@ func (writer errorWriter) Write([]byte) (int, error) {
 	return 0, writer.err
 }
 
-func TestResolveModsToRemoveMatchesIDsAndNamesAndPreservesOrder(t *testing.T) {
+func TestResolveMatchesForRemovePrefersLockEntries(t *testing.T) {
 	cfg := models.ModsJSON{
 		Mods: []models.Mod{
-			{Type: models.MODRINTH, ID: "AANobbMI", Name: "Sodium"},
-			{Type: models.CURSEFORGE, ID: "123", Name: "Fabric API"},
-			{Type: models.MODRINTH, ID: "iris", Name: "Iris Shaders"},
+			{Type: models.MODRINTH, ID: "sodium", Name: "Config Sodium"},
 		},
 	}
+	lock := []models.ModInstall{{
+		Type: models.MODRINTH,
+		ID:   "sodium",
+		Name: "Lock Sodium",
+	}}
 
-	mods, err := resolveModsToRemove([]string{"*bmi", "fabric*", "sod*"}, cfg)
+	matches, err := resolveMatchesForRemove([]string{"lock*"}, cfg, lock)
 	require.NoError(t, err)
-	require.Len(t, mods, 2)
-	assert.Equal(t, "AANobbMI", mods[0].ID)
-	assert.Equal(t, "123", mods[1].ID)
+	require.Len(t, matches, 1)
+	assert.Equal(t, "sodium", matches[0].mod.ID)
+	assert.Equal(t, "Lock Sodium", matches[0].mod.Name)
+	assert.True(t, matches[0].hasLockEntry)
 }
 
-func TestResolveModsToRemoveErrorsOnInvalidPattern(t *testing.T) {
+func TestResolveMatchesForRemoveUsesConfigNameWhenLockNameMissing(t *testing.T) {
+	cfg := models.ModsJSON{
+		Mods: []models.Mod{{Type: models.MODRINTH, ID: "sodium", Name: "Config Name"}},
+	}
+	lock := []models.ModInstall{{Type: models.MODRINTH, ID: "sodium"}}
+
+	matches, err := resolveMatchesForRemove([]string{"sod*"}, cfg, lock)
+	require.NoError(t, err)
+	require.Len(t, matches, 1)
+	assert.Equal(t, "Config Name", matches[0].mod.Name)
+}
+
+func TestResolveMatchesForRemoveSkipsConfigMatchWhenLockEntryExists(t *testing.T) {
+	cfg := models.ModsJSON{
+		Mods: []models.Mod{{Type: models.MODRINTH, ID: "sodium", Name: "Config Name"}},
+	}
+	lock := []models.ModInstall{{Type: models.MODRINTH, ID: "sodium", Name: "Lock Name"}}
+
+	matches, err := resolveMatchesForRemove([]string{"config*"}, cfg, lock)
+	require.NoError(t, err)
+	assert.Empty(t, matches)
+}
+
+func TestResolveMatchesForRemoveFallsBackToConfigWhenLockMissing(t *testing.T) {
 	cfg := models.ModsJSON{Mods: []models.Mod{{Type: models.MODRINTH, ID: "x", Name: "y"}}}
-	_, err := resolveModsToRemove([]string{"["}, cfg)
+	lock := []models.ModInstall{{Type: models.MODRINTH, ID: "other", Name: "Other"}}
+
+	matches, err := resolveMatchesForRemove([]string{"y"}, cfg, lock)
+	require.NoError(t, err)
+	require.Len(t, matches, 1)
+	assert.Equal(t, "x", matches[0].mod.ID)
+	assert.False(t, matches[0].hasLockEntry)
+}
+
+func TestResolveMatchesForRemoveIncludesConfigEntriesWithoutLockWhenPatternMatchesBoth(t *testing.T) {
+	cfg := models.ModsJSON{
+		Mods: []models.Mod{
+			{Type: models.MODRINTH, ID: "sodium", Name: "Sodium"},
+			{Type: models.MODRINTH, ID: "iris", Name: "Iris"},
+		},
+	}
+	lock := []models.ModInstall{{Type: models.MODRINTH, ID: "sodium", Name: "Sodium"}}
+
+	matches, err := resolveMatchesForRemove([]string{"*"}, cfg, lock)
+	require.NoError(t, err)
+	require.Len(t, matches, 2)
+	assert.True(t, matches[0].hasLockEntry || matches[1].hasLockEntry)
+	assert.True(t, matches[0].hasLockEntry != matches[1].hasLockEntry)
+}
+
+func TestResolveMatchesForRemoveErrorsOnInvalidPattern(t *testing.T) {
+	cfg := models.ModsJSON{Mods: []models.Mod{{Type: models.MODRINTH, ID: "x", Name: "y"}}}
+	_, err := resolveMatchesForRemove([]string{"["}, cfg, nil)
 	assert.Error(t, err)
+}
+
+func TestResolveMatchesForRemoveSkipsBlanksAndDedupes(t *testing.T) {
+	cfg := models.ModsJSON{
+		Mods: []models.Mod{
+			{Type: models.MODRINTH, ID: "sodium", Name: "Sodium"},
+		},
+	}
+	lock := []models.ModInstall{{Type: models.MODRINTH, ID: "sodium", Name: "Sodium"}}
+
+	matches, err := resolveMatchesForRemove([]string{"", "sod*", "SOD*"}, cfg, lock)
+	require.NoError(t, err)
+	require.Len(t, matches, 1)
+	assert.Equal(t, "sodium", matches[0].mod.ID)
+	assert.True(t, matches[0].hasLockEntry)
 }
 
 func TestGlobMatchesReturnsFalseOnInvalidPattern(t *testing.T) {
 	assert.False(t, globMatches("[", "value"))
 }
 
-func TestResolveModsToRemoveSkipsBlanksAndDedupes(t *testing.T) {
-	cfg := models.ModsJSON{
-		Mods: []models.Mod{
-			{Type: models.MODRINTH, ID: "sodium", Name: "Sodium"},
-		},
+func TestBuildRemoveItemsSortsByNameThenPlatformThenID(t *testing.T) {
+	matches := []removeMatch{
+		{mod: models.Mod{Type: models.CURSEFORGE, ID: "b", Name: "Same"}},
+		{mod: models.Mod{Type: models.MODRINTH, ID: "a", Name: "Same"}},
+		{mod: models.Mod{Type: models.MODRINTH, ID: "c", Name: "Alpha"}},
 	}
 
-	mods, err := resolveModsToRemove([]string{"", "sod*", "SOD*"}, cfg)
-	require.NoError(t, err)
-	require.Len(t, mods, 1)
-	assert.Equal(t, "sodium", mods[0].ID)
+	items := buildRemoveItems(matches)
+	require.Len(t, items, 3)
+	assert.Equal(t, "Alpha", items[0].Mod.Name)
+	assert.Equal(t, "b", items[1].Mod.ID)
+	assert.Equal(t, "a", items[2].Mod.ID)
 }
 
-func TestRunRemoveDryRunPrintsHeaderAndWouldHaveLines(t *testing.T) {
+func TestRunRemoveDryRunOutputsWouldRemoveAndDoesNotCreateLock(t *testing.T) {
+	restoreUnicode := view.SetUnicodeSupportFuncForTesting(func() bool { return false })
+	t.Cleanup(restoreUnicode)
+
 	fs := afero.NewMemMapFs()
 	var out bytes.Buffer
 	log := logger.New(&out, &out, false, false)
@@ -88,7 +152,6 @@ func TestRunRemoveDryRunPrintsHeaderAndWouldHaveLines(t *testing.T) {
 		DefaultAllowedReleaseTypes: []models.ReleaseType{models.Release},
 		ModsFolder:                 "mods",
 		Mods: []models.Mod{
-			{Type: models.MODRINTH, ID: "iris", Name: "Iris Shaders"},
 			{Type: models.MODRINTH, ID: "sodium", Name: "Sodium"},
 		},
 	}
@@ -96,26 +159,62 @@ func TestRunRemoveDryRunPrintsHeaderAndWouldHaveLines(t *testing.T) {
 	meta := config.NewMetadata("modlist.json")
 	require.NoError(t, config.WriteConfig(context.Background(), fs, meta, cfg))
 
+	cmd := &cobra.Command{}
+	cmd.SetIn(strings.NewReader(""))
+	cmd.SetOut(&out)
+
 	deps := removeDeps{
 		fs:     fs,
 		logger: log,
-		output: output.New(&out, &out, false),
-		telemetry: func(_ telemetry.CommandTelemetry) {
-		},
+		runTea: defaultRunTea,
 	}
 
-	removed, err := runRemove(context.Background(), removeOptions{
+	removed, usedInteractive, err := runRemove(context.Background(), cmd, removeOptions{
 		ConfigPath: meta.ConfigPath,
 		DryRun:     true,
 		Lookups:    []string{"*"},
 	}, deps)
 	require.NoError(t, err)
 	assert.Equal(t, 0, removed)
+	assert.False(t, usedInteractive)
 
-	assert.Equal(t, "Running in dry-run mode. Nothing will actually be removed.\nWould have removed Iris Shaders\nWould have removed Sodium\n", out.String())
+	assert.Equal(t, "Would remove:\n? Sodium (sodium)\n", out.String())
+
+	lockExists, err := afero.Exists(fs, meta.LockPath())
+	require.NoError(t, err)
+	assert.False(t, lockExists)
 }
 
-func TestRunRemoveDryRunDoesNotCreateLockFileWhenMissing(t *testing.T) {
+func TestRunRemoveNoMatchesOutputsMessage(t *testing.T) {
+	fs := afero.NewMemMapFs()
+	var out bytes.Buffer
+	log := logger.New(&out, &out, false, false)
+
+	cfg := models.ModsJSON{
+		Mods: []models.Mod{{Type: models.MODRINTH, ID: "sodium", Name: "Sodium"}},
+	}
+	meta := config.NewMetadata("modlist.json")
+	require.NoError(t, config.WriteConfig(context.Background(), fs, meta, cfg))
+
+	cmd := &cobra.Command{}
+	cmd.SetIn(strings.NewReader(""))
+	cmd.SetOut(&out)
+
+	deps := removeDeps{fs: fs, logger: log, runTea: defaultRunTea}
+
+	removed, _, err := runRemove(context.Background(), cmd, removeOptions{
+		ConfigPath: meta.ConfigPath,
+		Lookups:    []string{"none"},
+	}, deps)
+	require.NoError(t, err)
+	assert.Equal(t, 0, removed)
+	assert.Equal(t, "No matching mods found.\n", out.String())
+}
+
+func TestRunRemoveSuccessRemovesConfigAndLockAndDeletesFile(t *testing.T) {
+	restoreUnicode := view.SetUnicodeSupportFuncForTesting(func() bool { return false })
+	t.Cleanup(restoreUnicode)
+
 	fs := afero.NewMemMapFs()
 	var out bytes.Buffer
 	log := logger.New(&out, &out, false, false)
@@ -125,86 +224,291 @@ func TestRunRemoveDryRunDoesNotCreateLockFileWhenMissing(t *testing.T) {
 		GameVersion:                "1.20.1",
 		DefaultAllowedReleaseTypes: []models.ReleaseType{models.Release},
 		ModsFolder:                 "mods",
-		Mods: []models.Mod{
-			{Type: models.MODRINTH, ID: "sodium", Name: "Sodium"},
-		},
+		Mods:                       []models.Mod{{Type: models.MODRINTH, ID: "sodium", Name: "Sodium"}},
 	}
-
 	meta := config.NewMetadata("config/modlist.json")
 	require.NoError(t, fs.MkdirAll(meta.Dir(), 0755))
 	require.NoError(t, config.WriteConfig(context.Background(), fs, meta, cfg))
 
-	lockPath := meta.LockPath()
-	exists, err := afero.Exists(fs, lockPath)
-	require.NoError(t, err)
-	require.False(t, exists)
+	modsDir := meta.ModsFolderPath(cfg)
+	require.NoError(t, fs.MkdirAll(modsDir, 0755))
+	require.NoError(t, config.WriteLock(context.Background(), fs, meta, []models.ModInstall{{
+		Type:     models.MODRINTH,
+		ID:       "sodium",
+		Name:     "Sodium",
+		FileName: "sodium.jar",
+	}}))
+	require.NoError(t, afero.WriteFile(fs, filepath.Join(modsDir, "sodium.jar"), []byte("x"), 0644))
 
-	deps := removeDeps{
-		fs:     fs,
-		logger: log,
-		output: output.New(&out, &out, true),
-		telemetry: func(_ telemetry.CommandTelemetry) {
-		},
-	}
+	cmd := &cobra.Command{}
+	cmd.SetIn(strings.NewReader(""))
+	cmd.SetOut(&out)
 
-	removed, err := runRemove(context.Background(), removeOptions{
+	deps := removeDeps{fs: fs, logger: log, runTea: defaultRunTea}
+
+	removed, _, err := runRemove(context.Background(), cmd, removeOptions{
 		ConfigPath: meta.ConfigPath,
-		DryRun:     true,
 		Lookups:    []string{"sod*"},
 	}, deps)
 	require.NoError(t, err)
-	assert.Equal(t, 0, removed)
+	assert.Equal(t, 1, removed)
 
-	exists, err = afero.Exists(fs, lockPath)
+	exists, err := afero.Exists(fs, filepath.Join(modsDir, "sodium.jar"))
 	require.NoError(t, err)
 	assert.False(t, exists)
 
+	updatedLock, err := config.ReadLock(context.Background(), fs, meta)
+	require.NoError(t, err)
+	assert.Empty(t, updatedLock)
+
 	updatedCfg, err := config.ReadConfig(context.Background(), fs, meta)
 	require.NoError(t, err)
-	require.Len(t, updatedCfg.Mods, 1)
-	assert.Equal(t, "sodium", updatedCfg.Mods[0].ID)
+	assert.Empty(t, updatedCfg.Mods)
+
+	assert.Equal(t, "V Sodium (sodium)\n\nV Remove complete.\n", out.String())
 }
 
-func TestRunRemoveCommandUsesTerminalColorMode(t *testing.T) {
-	restore := tui.SetIsTerminalFuncForTesting(func(_ int) bool { return true })
-	t.Cleanup(restore)
+func TestRunRemoveUsesLockNameAndRemovesConfigByID(t *testing.T) {
+	restoreUnicode := view.SetUnicodeSupportFuncForTesting(func() bool { return false })
+	t.Cleanup(restoreUnicode)
 
-	fs := afero.NewOsFs()
-	meta := config.NewMetadata(filepath.Join(t.TempDir(), "modlist.json"))
+	fs := afero.NewMemMapFs()
+	var out bytes.Buffer
+	log := logger.New(&out, &out, false, false)
 
 	cfg := models.ModsJSON{
 		Loader:                     models.FABRIC,
 		GameVersion:                "1.20.1",
 		DefaultAllowedReleaseTypes: []models.ReleaseType{models.Release},
 		ModsFolder:                 "mods",
-		Mods: []models.Mod{
-			{Type: models.MODRINTH, ID: "sodium", Name: "Sodium"},
-		},
+		Mods:                       []models.Mod{{Type: models.MODRINTH, ID: "sodium", Name: "Config Name"}},
 	}
-
+	meta := config.NewMetadata("config/modlist.json")
 	require.NoError(t, fs.MkdirAll(meta.Dir(), 0755))
-	require.NoError(t, fs.MkdirAll(meta.ModsFolderPath(cfg), 0755))
 	require.NoError(t, config.WriteConfig(context.Background(), fs, meta, cfg))
-	require.NoError(t, config.WriteLock(context.Background(), fs, meta, []models.ModInstall{
-		{Type: models.MODRINTH, ID: "sodium", Name: "Sodium", FileName: "sodium.jar"},
-	}))
-	require.NoError(t, afero.WriteFile(fs, filepath.Join(meta.ModsFolderPath(cfg), "sodium.jar"), []byte("mod"), 0644))
 
-	var out fakeTerminalWriter
+	modsDir := meta.ModsFolderPath(cfg)
+	require.NoError(t, fs.MkdirAll(modsDir, 0755))
+	require.NoError(t, config.WriteLock(context.Background(), fs, meta, []models.ModInstall{{
+		Type:     models.MODRINTH,
+		ID:       "sodium",
+		Name:     "Lock Name",
+		FileName: "sodium.jar",
+	}}))
+	require.NoError(t, afero.WriteFile(fs, filepath.Join(modsDir, "sodium.jar"), []byte("x"), 0644))
+
 	cmd := &cobra.Command{}
-	cmd.SetContext(context.Background())
+	cmd.SetIn(strings.NewReader(""))
 	cmd.SetOut(&out)
-	cmd.SetErr(&out)
-	cmd.Flags().String("config", meta.ConfigPath, "")
-	cmd.Flags().Bool("quiet", false, "")
-	cmd.Flags().Bool("debug", false, "")
-	cmd.Flags().Bool("dry-run", false, "")
 
-	assert.NoError(t, runRemoveCommand(cmd, []string{"sodium"}))
-	assert.Contains(t, out.String(), "\u2705 Removed Sodium")
+	deps := removeDeps{fs: fs, logger: log, runTea: defaultRunTea}
+
+	removed, _, err := runRemove(context.Background(), cmd, removeOptions{
+		ConfigPath: meta.ConfigPath,
+		Lookups:    []string{"lock*"},
+	}, deps)
+	require.NoError(t, err)
+	assert.Equal(t, 1, removed)
+
+	updatedCfg, err := config.ReadConfig(context.Background(), fs, meta)
+	require.NoError(t, err)
+	assert.Empty(t, updatedCfg.Mods)
+
+	updatedLock, err := config.ReadLock(context.Background(), fs, meta)
+	require.NoError(t, err)
+	assert.Empty(t, updatedLock)
+
+	assert.Contains(t, out.String(), "Lock Name (sodium)")
 }
 
-func TestRunRemoveQuietSuppressesNormalOutput(t *testing.T) {
+func TestRunRemoveRemovesConfigWhenLockEntryMissing(t *testing.T) {
+	restoreUnicode := view.SetUnicodeSupportFuncForTesting(func() bool { return false })
+	t.Cleanup(restoreUnicode)
+
+	fs := afero.NewMemMapFs()
+	var out bytes.Buffer
+	log := logger.New(&out, &out, false, false)
+
+	cfg := models.ModsJSON{
+		Loader:                     models.FABRIC,
+		GameVersion:                "1.20.1",
+		DefaultAllowedReleaseTypes: []models.ReleaseType{models.Release},
+		ModsFolder:                 "mods",
+		Mods:                       []models.Mod{{Type: models.MODRINTH, ID: "sodium", Name: "Sodium"}},
+	}
+	meta := config.NewMetadata("modlist.json")
+	require.NoError(t, config.WriteConfig(context.Background(), fs, meta, cfg))
+
+	cmd := &cobra.Command{}
+	cmd.SetIn(strings.NewReader(""))
+	cmd.SetOut(&out)
+
+	deps := removeDeps{fs: fs, logger: log, runTea: defaultRunTea}
+
+	removed, _, err := runRemove(context.Background(), cmd, removeOptions{
+		ConfigPath: meta.ConfigPath,
+		Lookups:    []string{"sod*"},
+	}, deps)
+	require.NoError(t, err)
+	assert.Equal(t, 1, removed)
+
+	updatedCfg, err := config.ReadConfig(context.Background(), fs, meta)
+	require.NoError(t, err)
+	assert.Empty(t, updatedCfg.Mods)
+}
+
+func TestRunRemoveSkipsMissingFileStillUpdatesConfigAndLock(t *testing.T) {
+	restoreUnicode := view.SetUnicodeSupportFuncForTesting(func() bool { return false })
+	t.Cleanup(restoreUnicode)
+
+	fs := afero.NewMemMapFs()
+	var out bytes.Buffer
+	log := logger.New(&out, &out, false, false)
+
+	cfg := models.ModsJSON{
+		Loader:                     models.FABRIC,
+		GameVersion:                "1.20.1",
+		DefaultAllowedReleaseTypes: []models.ReleaseType{models.Release},
+		ModsFolder:                 "mods",
+		Mods:                       []models.Mod{{Type: models.MODRINTH, ID: "sodium", Name: "Sodium"}},
+	}
+	meta := config.NewMetadata("modlist.json")
+	require.NoError(t, config.WriteConfig(context.Background(), fs, meta, cfg))
+
+	require.NoError(t, config.WriteLock(context.Background(), fs, meta, []models.ModInstall{{
+		Type:     models.MODRINTH,
+		ID:       "sodium",
+		Name:     "Sodium",
+		FileName: "missing.jar",
+	}}))
+
+	cmd := &cobra.Command{}
+	cmd.SetIn(strings.NewReader(""))
+	cmd.SetOut(&out)
+
+	deps := removeDeps{fs: fs, logger: log, runTea: defaultRunTea}
+
+	removed, _, err := runRemove(context.Background(), cmd, removeOptions{
+		ConfigPath: meta.ConfigPath,
+		Lookups:    []string{"sod*"},
+	}, deps)
+	require.NoError(t, err)
+	assert.Equal(t, 1, removed)
+
+	updatedLock, err := config.ReadLock(context.Background(), fs, meta)
+	require.NoError(t, err)
+	assert.Empty(t, updatedLock)
+
+	updatedCfg, err := config.ReadConfig(context.Background(), fs, meta)
+	require.NoError(t, err)
+	assert.Empty(t, updatedCfg.Mods)
+
+	assert.Equal(t, "V Sodium (sodium)\n\nV Remove complete.\n", out.String())
+}
+
+func TestRunRemoveDeleteFailureKeepsEntries(t *testing.T) {
+	restoreUnicode := view.SetUnicodeSupportFuncForTesting(func() bool { return false })
+	t.Cleanup(restoreUnicode)
+
+	baseFs := afero.NewMemMapFs()
+	var out bytes.Buffer
+	log := logger.New(&out, &out, false, false)
+
+	cfg := models.ModsJSON{
+		Loader:                     models.FABRIC,
+		GameVersion:                "1.20.1",
+		DefaultAllowedReleaseTypes: []models.ReleaseType{models.Release},
+		ModsFolder:                 "mods",
+		Mods:                       []models.Mod{{Type: models.MODRINTH, ID: "sodium", Name: "Sodium"}},
+	}
+	meta := config.NewMetadata(filepath.FromSlash("/cfg/modlist.json"))
+	require.NoError(t, baseFs.MkdirAll(meta.ModsFolderPath(cfg), 0755))
+	require.NoError(t, config.WriteConfig(context.Background(), baseFs, meta, cfg))
+	require.NoError(t, config.WriteLock(context.Background(), baseFs, meta, []models.ModInstall{{
+		Type:     models.MODRINTH,
+		ID:       "sodium",
+		FileName: "bad.jar",
+	}}))
+	require.NoError(t, afero.WriteFile(baseFs, filepath.Join(meta.ModsFolderPath(cfg), "bad.jar"), []byte("x"), 0644))
+
+	fs := removeErrorFs{
+		Fs:       baseFs,
+		failPath: filepath.Join(meta.ModsFolderPath(cfg), "bad.jar"),
+		err:      errors.New("remove failed"),
+	}
+
+	cmd := &cobra.Command{}
+	cmd.SetIn(strings.NewReader(""))
+	cmd.SetOut(&out)
+
+	deps := removeDeps{fs: fs, logger: log, runTea: defaultRunTea}
+
+	_, _, err := runRemove(context.Background(), cmd, removeOptions{
+		ConfigPath: meta.ConfigPath,
+		Lookups:    []string{"sod*"},
+	}, deps)
+	assert.Error(t, err)
+
+	updatedLock, readErr := config.ReadLock(context.Background(), baseFs, meta)
+	require.NoError(t, readErr)
+	require.Len(t, updatedLock, 1)
+
+	updatedCfg, readErr := config.ReadConfig(context.Background(), baseFs, meta)
+	require.NoError(t, readErr)
+	require.Len(t, updatedCfg.Mods, 1)
+
+	expected := "X Sodium (sodium) delete failed: remove failed\n\n!! Remove incomplete.\nFix the reason and rerun mmm remove.\n"
+	assert.Equal(t, expected, out.String())
+}
+
+func TestRunRemoveInvalidLockFilenameKeepsEntries(t *testing.T) {
+	restoreUnicode := view.SetUnicodeSupportFuncForTesting(func() bool { return false })
+	t.Cleanup(restoreUnicode)
+
+	fs := afero.NewMemMapFs()
+	var out bytes.Buffer
+	log := logger.New(&out, &out, false, false)
+
+	cfg := models.ModsJSON{
+		Loader:                     models.FABRIC,
+		GameVersion:                "1.20.1",
+		DefaultAllowedReleaseTypes: []models.ReleaseType{models.Release},
+		ModsFolder:                 "mods",
+		Mods:                       []models.Mod{{Type: models.MODRINTH, ID: "sodium", Name: "Sodium"}},
+	}
+	meta := config.NewMetadata("modlist.json")
+	require.NoError(t, config.WriteConfig(context.Background(), fs, meta, cfg))
+	require.NoError(t, config.WriteLock(context.Background(), fs, meta, []models.ModInstall{{
+		Type:     models.MODRINTH,
+		ID:       "sodium",
+		FileName: "",
+	}}))
+
+	cmd := &cobra.Command{}
+	cmd.SetIn(strings.NewReader(""))
+	cmd.SetOut(&out)
+
+	deps := removeDeps{fs: fs, logger: log, runTea: defaultRunTea}
+
+	_, _, err := runRemove(context.Background(), cmd, removeOptions{
+		ConfigPath: meta.ConfigPath,
+		Lookups:    []string{"sod*"},
+	}, deps)
+	assert.Error(t, err)
+
+	updatedLock, readErr := config.ReadLock(context.Background(), fs, meta)
+	require.NoError(t, readErr)
+	require.Len(t, updatedLock, 1)
+
+	updatedCfg, readErr := config.ReadConfig(context.Background(), fs, meta)
+	require.NoError(t, readErr)
+	require.Len(t, updatedCfg.Mods, 1)
+
+	expected := "X Sodium (sodium) delete failed: lock file filename is unsafe ((empty))\n\n!! Remove incomplete.\nFix the reason and rerun mmm remove.\n"
+	assert.Equal(t, expected, out.String())
+}
+
+func TestRunRemoveQuietSuccessSuppressesOutput(t *testing.T) {
 	fs := afero.NewMemMapFs()
 	var out bytes.Buffer
 	log := logger.New(&out, &out, true, false)
@@ -214,27 +518,25 @@ func TestRunRemoveQuietSuppressesNormalOutput(t *testing.T) {
 		GameVersion:                "1.20.1",
 		DefaultAllowedReleaseTypes: []models.ReleaseType{models.Release},
 		ModsFolder:                 "mods",
-		Mods: []models.Mod{
-			{Type: models.MODRINTH, ID: "sodium", Name: "Sodium"},
-		},
+		Mods:                       []models.Mod{{Type: models.MODRINTH, ID: "sodium", Name: "Sodium"}},
 	}
 	meta := config.NewMetadata("modlist.json")
 	require.NoError(t, config.WriteConfig(context.Background(), fs, meta, cfg))
-	require.NoError(t, config.WriteLock(context.Background(), fs, meta, []models.ModInstall{
-		{Type: models.MODRINTH, ID: "sodium", Name: "Sodium", FileName: "missing.jar"},
-	}))
+	require.NoError(t, config.WriteLock(context.Background(), fs, meta, []models.ModInstall{{
+		Type:     models.MODRINTH,
+		ID:       "sodium",
+		FileName: "missing.jar",
+	}}))
 
-	deps := removeDeps{
-		fs:     fs,
-		logger: log,
-		output: output.New(&out, &out, true),
-		telemetry: func(_ telemetry.CommandTelemetry) {
-		},
-	}
+	cmd := &cobra.Command{}
+	cmd.SetIn(strings.NewReader(""))
+	cmd.SetOut(&out)
 
-	removed, err := runRemove(context.Background(), removeOptions{
+	deps := removeDeps{fs: fs, logger: log, runTea: defaultRunTea}
+
+	removed, _, err := runRemove(context.Background(), cmd, removeOptions{
 		ConfigPath: meta.ConfigPath,
-		DryRun:     false,
+		Quiet:      true,
 		Lookups:    []string{"sod*"},
 	}, deps)
 	require.NoError(t, err)
@@ -242,505 +544,29 @@ func TestRunRemoveQuietSuppressesNormalOutput(t *testing.T) {
 	assert.Equal(t, "", out.String())
 }
 
-func TestRunRemoveDeletesFilesUpdatesLockAndConfig(t *testing.T) {
-	restoreUnicode := tui.SetUnicodeSupportFuncForTesting(func() bool { return true })
+func TestRunRemoveQuietFailureOutputsOnlyFailed(t *testing.T) {
+	restoreUnicode := view.SetUnicodeSupportFuncForTesting(func() bool { return false })
 	t.Cleanup(restoreUnicode)
 
-	fs := afero.NewMemMapFs()
+	baseFs := afero.NewMemMapFs()
 	var out bytes.Buffer
-	log := logger.New(&out, &out, false, false)
+	log := logger.New(&out, &out, true, false)
 
 	cfg := models.ModsJSON{
 		Loader:                     models.FABRIC,
 		GameVersion:                "1.20.1",
 		DefaultAllowedReleaseTypes: []models.ReleaseType{models.Release},
 		ModsFolder:                 "mods",
-		Mods: []models.Mod{
-			{Type: models.MODRINTH, ID: "sodium", Name: "Sodium"},
-			{Type: models.CURSEFORGE, ID: "fabric-api", Name: "Fabric API"},
-		},
+		Mods:                       []models.Mod{{Type: models.MODRINTH, ID: "sodium", Name: "Sodium"}},
 	}
-	meta := config.NewMetadata("config/modlist.json")
-	require.NoError(t, fs.MkdirAll(meta.Dir(), 0755))
-	require.NoError(t, config.WriteConfig(context.Background(), fs, meta, cfg))
-
-	modsDir := meta.ModsFolderPath(cfg)
-	require.NoError(t, fs.MkdirAll(modsDir, 0755))
-
-	lock := []models.ModInstall{
-		{Type: models.MODRINTH, ID: "sodium", Name: "Sodium", FileName: "sodium.jar"},
-		{Type: models.CURSEFORGE, ID: "fabric-api", Name: "Fabric API", FileName: "fabric-api.jar"},
-	}
-	require.NoError(t, config.WriteLock(context.Background(), fs, meta, lock))
-	require.NoError(t, afero.WriteFile(fs, filepath.Join(modsDir, "sodium.jar"), []byte("x"), 0644))
-	require.NoError(t, afero.WriteFile(fs, filepath.Join(modsDir, "fabric-api.jar"), []byte("x"), 0644))
-
-	deps := removeDeps{
-		fs:     fs,
-		logger: log,
-		output: output.New(&out, &out, false),
-		telemetry: func(_ telemetry.CommandTelemetry) {
-		},
-	}
-
-	removed, err := runRemove(context.Background(), removeOptions{
-		ConfigPath: meta.ConfigPath,
-		DryRun:     false,
-		Lookups:    []string{"sod*", "fabric*"},
-	}, deps)
-	require.NoError(t, err)
-	assert.Equal(t, 2, removed)
-
-	exists, err := afero.Exists(fs, filepath.Join(modsDir, "sodium.jar"))
-	require.NoError(t, err)
-	assert.False(t, exists)
-
-	exists, err = afero.Exists(fs, filepath.Join(modsDir, "fabric-api.jar"))
-	require.NoError(t, err)
-	assert.False(t, exists)
-
-	updatedLock, err := config.ReadLock(context.Background(), fs, meta)
-	require.NoError(t, err)
-	assert.Empty(t, updatedLock)
-
-	updatedCfg, err := config.ReadConfig(context.Background(), fs, meta)
-	require.NoError(t, err)
-	assert.Empty(t, updatedCfg.Mods)
-
-	assert.Equal(t, "\u2705 Removed Sodium\n\u2705 Removed Fabric API\n", out.String())
-}
-
-func TestRemoveConfigEntryNoMatchDoesNothing(t *testing.T) {
-	fs := afero.NewMemMapFs()
-	meta := config.NewMetadata("/tmp/modlist.json")
-	cfg := models.ModsJSON{
-		Mods: []models.Mod{
-			{Type: models.MODRINTH, ID: "one"},
-		},
-	}
-
-	err := removeConfigEntry(context.Background(), meta, &cfg, models.Mod{Type: models.CURSEFORGE, ID: "two"}, removeDeps{fs: fs})
-	assert.NoError(t, err)
-	assert.Len(t, cfg.Mods, 1)
-	assert.Equal(t, "one", cfg.Mods[0].ID)
-}
-
-func TestRunRemoveSkipsMissingFilesWithoutFailing(t *testing.T) {
-	restoreUnicode := tui.SetUnicodeSupportFuncForTesting(func() bool { return true })
-	t.Cleanup(restoreUnicode)
-
-	fs := afero.NewMemMapFs()
-	var out bytes.Buffer
-	log := logger.New(&out, &out, false, false)
-
-	cfg := models.ModsJSON{
-		Loader:                     models.FABRIC,
-		GameVersion:                "1.20.1",
-		DefaultAllowedReleaseTypes: []models.ReleaseType{models.Release},
-		ModsFolder:                 "mods",
-		Mods: []models.Mod{
-			{Type: models.MODRINTH, ID: "sodium", Name: "Sodium"},
-		},
-	}
-	meta := config.NewMetadata("modlist.json")
-	require.NoError(t, config.WriteConfig(context.Background(), fs, meta, cfg))
-
-	lock := []models.ModInstall{
-		{Type: models.MODRINTH, ID: "sodium", Name: "Sodium", FileName: "missing.jar"},
-	}
-	require.NoError(t, config.WriteLock(context.Background(), fs, meta, lock))
-
-	deps := removeDeps{
-		fs:     fs,
-		logger: log,
-		output: output.New(&out, &out, false),
-		telemetry: func(_ telemetry.CommandTelemetry) {
-		},
-	}
-
-	removed, err := runRemove(context.Background(), removeOptions{
-		ConfigPath: meta.ConfigPath,
-		DryRun:     false,
-		Lookups:    []string{"sod*"},
-	}, deps)
-	require.NoError(t, err)
-	assert.Equal(t, 1, removed)
-
-	updatedLock, err := config.ReadLock(context.Background(), fs, meta)
-	require.NoError(t, err)
-	assert.Empty(t, updatedLock)
-
-	updatedCfg, err := config.ReadConfig(context.Background(), fs, meta)
-	require.NoError(t, err)
-	assert.Empty(t, updatedCfg.Mods)
-
-	assert.Equal(t, "\u2705 Removed Sodium\n", out.String())
-}
-
-func TestRunRemoveReturnsZeroWhenNoMatches(t *testing.T) {
-	fs := afero.NewMemMapFs()
-	var out bytes.Buffer
-	log := logger.New(&out, &out, false, false)
-
-	cfg := models.ModsJSON{
-		Loader:                     models.FABRIC,
-		GameVersion:                "1.20.1",
-		DefaultAllowedReleaseTypes: []models.ReleaseType{models.Release},
-		ModsFolder:                 "mods",
-		Mods: []models.Mod{
-			{Type: models.MODRINTH, ID: "sodium", Name: "Sodium"},
-		},
-	}
-
-	meta := config.NewMetadata("modlist.json")
-	require.NoError(t, config.WriteConfig(context.Background(), fs, meta, cfg))
-
-	deps := removeDeps{
-		fs:     fs,
-		logger: log,
-		output: output.New(io.Discard, io.Discard, false),
-		telemetry: func(_ telemetry.CommandTelemetry) {
-		},
-	}
-
-	removed, err := runRemove(context.Background(), removeOptions{
-		ConfigPath: meta.ConfigPath,
-		Lookups:    []string{"does-not-match"},
-	}, deps)
-	require.NoError(t, err)
-	assert.Equal(t, 0, removed)
-}
-
-func TestRunRemoveReturnsErrorWhenConfigMissing(t *testing.T) {
-	fs := afero.NewMemMapFs()
-	log := logger.New(io.Discard, io.Discard, false, false)
-
-	deps := removeDeps{
-		fs:     fs,
-		logger: log,
-		output: output.New(io.Discard, io.Discard, false),
-		telemetry: func(_ telemetry.CommandTelemetry) {
-		},
-	}
-
-	_, err := runRemove(context.Background(), removeOptions{
-		ConfigPath: "missing.json",
-		Lookups:    []string{"mod"},
-	}, deps)
-	assert.Error(t, err)
-}
-
-func TestRunRemoveReturnsErrorWhenReadLockFails(t *testing.T) {
-	baseFs := afero.NewMemMapFs()
-	log := logger.New(io.Discard, io.Discard, false, false)
-
-	cfg := models.ModsJSON{
-		Loader:                     models.FABRIC,
-		GameVersion:                "1.20.1",
-		DefaultAllowedReleaseTypes: []models.ReleaseType{models.Release},
-		ModsFolder:                 "mods",
-		Mods: []models.Mod{
-			{Type: models.MODRINTH, ID: "sodium", Name: "Sodium"},
-		},
-	}
-	meta := config.NewMetadata("modlist.json")
-	require.NoError(t, config.WriteConfig(context.Background(), baseFs, meta, cfg))
-
-	fs := afero.NewReadOnlyFs(baseFs)
-	deps := removeDeps{
-		fs:     fs,
-		logger: log,
-		output: output.New(io.Discard, io.Discard, false),
-		telemetry: func(_ telemetry.CommandTelemetry) {
-		},
-	}
-
-	_, err := runRemove(context.Background(), removeOptions{
-		ConfigPath: meta.ConfigPath,
-		Lookups:    []string{"sod*"},
-	}, deps)
-	assert.Error(t, err)
-}
-
-func TestRunRemoveReturnsErrorWhenResolveModsFails(t *testing.T) {
-	fs := afero.NewMemMapFs()
-	log := logger.New(io.Discard, io.Discard, false, false)
-
-	cfg := models.ModsJSON{
-		Loader:                     models.FABRIC,
-		GameVersion:                "1.20.1",
-		DefaultAllowedReleaseTypes: []models.ReleaseType{models.Release},
-		ModsFolder:                 "mods",
-		Mods: []models.Mod{
-			{Type: models.MODRINTH, ID: "sodium", Name: "Sodium"},
-		},
-	}
-	meta := config.NewMetadata("modlist.json")
-	require.NoError(t, config.WriteConfig(context.Background(), fs, meta, cfg))
-
-	deps := removeDeps{
-		fs:     fs,
-		logger: log,
-		output: output.New(io.Discard, io.Discard, false),
-		telemetry: func(_ telemetry.CommandTelemetry) {
-		},
-	}
-
-	_, err := runRemove(context.Background(), removeOptions{
-		ConfigPath: meta.ConfigPath,
-		DryRun:     true,
-		Lookups:    []string{"["},
-	}, deps)
-	assert.Error(t, err)
-}
-
-func TestRunRemoveReturnsErrorWhenWriteLockFails(t *testing.T) {
-	baseFs := afero.NewMemMapFs()
-	log := logger.New(io.Discard, io.Discard, false, false)
-
-	cfg := models.ModsJSON{
-		Loader:                     models.FABRIC,
-		GameVersion:                "1.20.1",
-		DefaultAllowedReleaseTypes: []models.ReleaseType{models.Release},
-		ModsFolder:                 "mods",
-		Mods: []models.Mod{
-			{Type: models.MODRINTH, ID: "sodium", Name: "Sodium"},
-		},
-	}
-	meta := config.NewMetadata("modlist.json")
-	require.NoError(t, config.WriteConfig(context.Background(), baseFs, meta, cfg))
-	require.NoError(t, config.WriteLock(context.Background(), baseFs, meta, []models.ModInstall{
-		{Type: models.MODRINTH, ID: "sodium", FileName: "missing.jar"},
-	}))
-
-	fs := renameErrorFs{Fs: baseFs, failNew: meta.LockPath(), err: errors.New("rename failed")}
-	deps := removeDeps{
-		fs:     fs,
-		logger: log,
-		output: output.New(io.Discard, io.Discard, false),
-		telemetry: func(_ telemetry.CommandTelemetry) {
-		},
-	}
-
-	_, err := runRemove(context.Background(), removeOptions{
-		ConfigPath: meta.ConfigPath,
-		Lookups:    []string{"sod*"},
-	}, deps)
-	assert.Error(t, err)
-}
-
-func TestRunRemoveReturnsErrorWhenWriteConfigFails(t *testing.T) {
-	baseFs := afero.NewMemMapFs()
-	log := logger.New(io.Discard, io.Discard, false, false)
-
-	cfg := models.ModsJSON{
-		Loader:                     models.FABRIC,
-		GameVersion:                "1.20.1",
-		DefaultAllowedReleaseTypes: []models.ReleaseType{models.Release},
-		ModsFolder:                 "mods",
-		Mods: []models.Mod{
-			{Type: models.MODRINTH, ID: "sodium", Name: "Sodium"},
-		},
-	}
-	meta := config.NewMetadata("modlist.json")
-	require.NoError(t, config.WriteConfig(context.Background(), baseFs, meta, cfg))
-	require.NoError(t, config.WriteLock(context.Background(), baseFs, meta, []models.ModInstall{
-		{Type: models.MODRINTH, ID: "sodium", FileName: "missing.jar"},
-	}))
-
-	fs := renameErrorFs{Fs: baseFs, failNew: meta.ConfigPath, err: errors.New("rename failed")}
-	deps := removeDeps{
-		fs:     fs,
-		logger: log,
-		output: output.New(io.Discard, io.Discard, false),
-		telemetry: func(_ telemetry.CommandTelemetry) {
-		},
-	}
-
-	_, err := runRemove(context.Background(), removeOptions{
-		ConfigPath: meta.ConfigPath,
-		Lookups:    []string{"sod*"},
-	}, deps)
-	assert.Error(t, err)
-}
-
-func TestRunRemoveSkipsLockWhenMissing(t *testing.T) {
-	fs := afero.NewMemMapFs()
-	log := logger.New(io.Discard, io.Discard, false, false)
-
-	cfg := models.ModsJSON{
-		Loader:                     models.FABRIC,
-		GameVersion:                "1.20.1",
-		DefaultAllowedReleaseTypes: []models.ReleaseType{models.Release},
-		ModsFolder:                 "mods",
-		Mods: []models.Mod{
-			{Type: models.MODRINTH, ID: "sodium", Name: "Sodium"},
-		},
-	}
-
-	meta := config.NewMetadata("modlist.json")
-	require.NoError(t, config.WriteConfig(context.Background(), fs, meta, cfg))
-
-	deps := removeDeps{
-		fs:     fs,
-		logger: log,
-		output: output.New(io.Discard, io.Discard, false),
-		telemetry: func(_ telemetry.CommandTelemetry) {
-		},
-	}
-
-	removed, err := runRemove(context.Background(), removeOptions{
-		ConfigPath: meta.ConfigPath,
-		Lookups:    []string{"sod*"},
-	}, deps)
-	require.NoError(t, err)
-	assert.Equal(t, 1, removed)
-
-	updated, readErr := config.ReadConfig(context.Background(), fs, meta)
-	require.NoError(t, readErr)
-	assert.Empty(t, updated.Mods)
-
-	lock, lockErr := config.ReadLock(context.Background(), fs, meta)
-	require.NoError(t, lockErr)
-	assert.Empty(t, lock)
-}
-
-func TestRunRemoveSkipsFileRemovalWhenFileNameEmpty(t *testing.T) {
-	t.Setenv("MMM_TEST", "true")
-
-	fs := afero.NewMemMapFs()
-	out := &bytes.Buffer{}
-	errOut := &bytes.Buffer{}
-	log := logger.New(out, errOut, false, false)
-
-	cfg := models.ModsJSON{
-		Loader:                     models.FABRIC,
-		GameVersion:                "1.20.1",
-		DefaultAllowedReleaseTypes: []models.ReleaseType{models.Release},
-		ModsFolder:                 "mods",
-		Mods: []models.Mod{
-			{Type: models.MODRINTH, ID: "sodium", Name: "Sodium"},
-		},
-	}
-
-	meta := config.NewMetadata("modlist.json")
-	require.NoError(t, config.WriteConfig(context.Background(), fs, meta, cfg))
-	require.NoError(t, config.WriteLock(context.Background(), fs, meta, []models.ModInstall{
-		{Type: models.MODRINTH, ID: "sodium", FileName: ""},
-	}))
-
-	deps := removeDeps{
-		fs:     fs,
-		logger: log,
-		output: output.New(out, errOut, false),
-		telemetry: func(_ telemetry.CommandTelemetry) {
-		},
-	}
-
-	removed, err := runRemove(context.Background(), removeOptions{
-		ConfigPath: meta.ConfigPath,
-		Lookups:    []string{"sod*"},
-	}, deps)
-	require.NoError(t, err)
-	assert.Equal(t, 1, removed)
-	assert.Contains(t, errOut.String(), "cmd.remove.error.invalid_filename_lock")
-
-	lock, err := config.ReadLock(context.Background(), fs, meta)
-	require.NoError(t, err)
-	assert.Empty(t, lock)
-}
-
-func TestRunRemoveReturnsErrorWhenDryRunNoticeWriteFails(t *testing.T) {
-	fs := afero.NewMemMapFs()
-	cfg := models.ModsJSON{
-		Mods: []models.Mod{
-			{Type: models.MODRINTH, ID: "sodium", Name: "Sodium"},
-		},
-	}
-	meta := config.NewMetadata("modlist.json")
-	require.NoError(t, config.WriteConfig(context.Background(), fs, meta, cfg))
-
-	writeErr := errors.New("write failed")
-	deps := removeDeps{
-		fs:     fs,
-		logger: logger.New(io.Discard, io.Discard, false, false),
-		output: output.New(errorWriter{err: writeErr}, errorWriter{err: writeErr}, false),
-		telemetry: func(_ telemetry.CommandTelemetry) {
-		},
-	}
-
-	_, err := runRemove(context.Background(), removeOptions{
-		ConfigPath: meta.ConfigPath,
-		DryRun:     true,
-		Lookups:    []string{"*"},
-	}, deps)
-	assert.ErrorIs(t, err, writeErr)
-}
-
-func TestRemoveLockEntryReturnsErrorWhenInvalidFilenameLogFails(t *testing.T) {
-	writeErr := errors.New("write failed")
-	lock := []models.ModInstall{{Type: models.MODRINTH, ID: "sodium", FileName: ""}}
-	deps := removeDeps{
-		fs:     afero.NewMemMapFs(),
-		output: output.New(io.Discard, errorWriter{err: writeErr}, false),
-	}
-	cfg := models.ModsJSON{ModsFolder: "mods"}
-
-	err := removeLockEntry(context.Background(), config.NewMetadata("modlist.json"), &cfg, &lock, models.Mod{
-		Type: models.MODRINTH,
-		ID:   "sodium",
-		Name: "Sodium",
-	}, deps)
-	assert.ErrorIs(t, err, writeErr)
-}
-
-func TestRemoveModReturnsErrorWhenDryRunLogFails(t *testing.T) {
-	writeErr := errors.New("write failed")
-	deps := removeDeps{
-		output: output.New(errorWriter{err: writeErr}, errorWriter{err: writeErr}, false),
-	}
-
-	_, err := removeMod(context.Background(), config.Metadata{}, &models.ModsJSON{}, &[]models.ModInstall{}, models.Mod{Name: "Sodium"}, removeOptions{DryRun: true}, deps)
-	assert.ErrorIs(t, err, writeErr)
-}
-
-func TestRemoveModReturnsErrorWhenSuccessLogFails(t *testing.T) {
-	fs := afero.NewMemMapFs()
-	meta := config.NewMetadata("modlist.json")
-	cfg := models.ModsJSON{
-		Mods: []models.Mod{
-			{Type: models.MODRINTH, ID: "sodium", Name: "Sodium"},
-		},
-	}
-	require.NoError(t, config.WriteConfig(context.Background(), fs, meta, cfg))
-
-	writeErr := errors.New("write failed")
-	deps := removeDeps{
-		fs:     fs,
-		output: output.New(errorWriter{err: writeErr}, errorWriter{err: writeErr}, false),
-	}
-
-	_, err := removeMod(context.Background(), meta, &cfg, &[]models.ModInstall{}, models.Mod{Type: models.MODRINTH, ID: "sodium", Name: "Sodium"}, removeOptions{}, deps)
-	assert.ErrorIs(t, err, writeErr)
-}
-
-func TestRunRemoveReturnsErrorWhenFileRemovalFails(t *testing.T) {
-	baseFs := afero.NewMemMapFs()
 	meta := config.NewMetadata(filepath.FromSlash("/cfg/modlist.json"))
-	cfg := models.ModsJSON{
-		Loader:                     models.FABRIC,
-		GameVersion:                "1.20.1",
-		DefaultAllowedReleaseTypes: []models.ReleaseType{models.Release},
-		ModsFolder:                 "mods",
-		Mods: []models.Mod{
-			{Type: models.MODRINTH, ID: "sodium", Name: "Sodium"},
-		},
-	}
 	require.NoError(t, baseFs.MkdirAll(meta.ModsFolderPath(cfg), 0755))
 	require.NoError(t, config.WriteConfig(context.Background(), baseFs, meta, cfg))
-	require.NoError(t, config.WriteLock(context.Background(), baseFs, meta, []models.ModInstall{
-		{Type: models.MODRINTH, ID: "sodium", FileName: "bad.jar"},
-	}))
+	require.NoError(t, config.WriteLock(context.Background(), baseFs, meta, []models.ModInstall{{
+		Type:     models.MODRINTH,
+		ID:       "sodium",
+		FileName: "bad.jar",
+	}}))
 	require.NoError(t, afero.WriteFile(baseFs, filepath.Join(meta.ModsFolderPath(cfg), "bad.jar"), []byte("x"), 0644))
 
 	fs := removeErrorFs{
@@ -749,94 +575,170 @@ func TestRunRemoveReturnsErrorWhenFileRemovalFails(t *testing.T) {
 		err:      errors.New("remove failed"),
 	}
 
-	deps := removeDeps{
-		fs:     fs,
-		logger: logger.New(io.Discard, io.Discard, false, false),
-		output: output.New(io.Discard, io.Discard, false),
-		telemetry: func(_ telemetry.CommandTelemetry) {
-		},
-	}
+	cmd := &cobra.Command{}
+	cmd.SetIn(strings.NewReader(""))
+	cmd.SetOut(&out)
 
-	_, err := runRemove(context.Background(), removeOptions{
+	deps := removeDeps{fs: fs, logger: log, runTea: defaultRunTea}
+
+	_, _, err := runRemove(context.Background(), cmd, removeOptions{
+		ConfigPath: meta.ConfigPath,
+		Quiet:      true,
+		Lookups:    []string{"sod*"},
+	}, deps)
+	assert.Error(t, err)
+
+	expected := "X Sodium (sodium) delete failed: remove failed\n\n!! Remove incomplete.\nFix the reason and rerun mmm remove.\n"
+	assert.Equal(t, expected, out.String())
+}
+
+func TestRunRemoveUnattendedConfigMissingOutputsError(t *testing.T) {
+	restoreUnicode := view.SetUnicodeSupportFuncForTesting(func() bool { return false })
+	t.Cleanup(restoreUnicode)
+
+	fs := afero.NewMemMapFs()
+	var out bytes.Buffer
+	log := logger.New(&out, &out, true, false)
+
+	cmd := &cobra.Command{}
+	cmd.SetIn(strings.NewReader(""))
+	cmd.SetOut(&out)
+
+	deps := removeDeps{fs: fs, logger: log, runTea: defaultRunTea}
+
+	_, _, err := runRemove(context.Background(), cmd, removeOptions{
+		ConfigPath: "missing.json",
+		Unattended: true,
+		Lookups:    []string{"mod"},
+	}, deps)
+	assert.Error(t, err)
+	assert.True(t, clierrors.IsHandled(err))
+	assert.Contains(t, out.String(), "No configuration file found")
+	assert.Contains(t, out.String(), "Run `mmm init` to create one.")
+}
+
+func TestRunRemoveWriteLockFailureOutputsError(t *testing.T) {
+	restoreUnicode := view.SetUnicodeSupportFuncForTesting(func() bool { return false })
+	t.Cleanup(restoreUnicode)
+
+	baseFs := afero.NewMemMapFs()
+	var out bytes.Buffer
+	log := logger.New(&out, &out, false, false)
+
+	cfg := models.ModsJSON{
+		Loader:                     models.FABRIC,
+		GameVersion:                "1.20.1",
+		DefaultAllowedReleaseTypes: []models.ReleaseType{models.Release},
+		ModsFolder:                 "mods",
+		Mods:                       []models.Mod{{Type: models.MODRINTH, ID: "sodium", Name: "Sodium"}},
+	}
+	meta := config.NewMetadata("modlist.json")
+	require.NoError(t, config.WriteConfig(context.Background(), baseFs, meta, cfg))
+	require.NoError(t, config.WriteLock(context.Background(), baseFs, meta, []models.ModInstall{{
+		Type:     models.MODRINTH,
+		ID:       "sodium",
+		FileName: "missing.jar",
+	}}))
+
+	fs := renameErrorFs{Fs: baseFs, failNew: meta.LockPath(), err: errors.New("rename failed")}
+
+	cmd := &cobra.Command{}
+	cmd.SetIn(strings.NewReader(""))
+	cmd.SetOut(&out)
+
+	deps := removeDeps{fs: fs, logger: log, runTea: defaultRunTea}
+
+	_, _, err := runRemove(context.Background(), cmd, removeOptions{
 		ConfigPath: meta.ConfigPath,
 		Lookups:    []string{"sod*"},
 	}, deps)
 	assert.Error(t, err)
-}
+	assert.True(t, clierrors.IsHandled(err))
+	assert.Contains(t, out.String(), "Remove failed")
 
-func TestReadLockForRemoveErrorsOnEnsureLockFailure(t *testing.T) {
-	readOnlyFs := afero.NewReadOnlyFs(afero.NewMemMapFs())
-	meta := config.NewMetadata(filepath.FromSlash("/cfg/modlist.json"))
-
-	_, err := readLockForRemove(context.Background(), readOnlyFs, meta, removeLockOptions{dryRun: false})
-	assert.Error(t, err)
-}
-
-func TestReadLockForRemoveReturnsErrorOnStatFailure(t *testing.T) {
-	fs := statErrorFs{
-		Fs:       afero.NewMemMapFs(),
-		failPath: filepath.FromSlash("/cfg/modlist-lock.json"),
-		err:      errors.New("stat failed"),
-	}
-	meta := config.NewMetadata(filepath.FromSlash("/cfg/modlist.json"))
-
-	_, err := readLockForRemove(context.Background(), fs, meta, removeLockOptions{dryRun: true})
-	assert.Error(t, err)
-}
-
-func TestReadLockForRemoveReadsExistingLockOnDryRun(t *testing.T) {
-	fs := afero.NewMemMapFs()
-	meta := config.NewMetadata("modlist.json")
-
-	lock := []models.ModInstall{{Type: models.MODRINTH, ID: "proj-1"}}
-	require.NoError(t, config.WriteLock(context.Background(), fs, meta, lock))
-
-	readLock, err := readLockForRemove(context.Background(), fs, meta, removeLockOptions{dryRun: true})
+	updatedCfg, err := config.ReadConfig(context.Background(), baseFs, meta)
 	require.NoError(t, err)
-	assert.Len(t, readLock, 1)
-	assert.Equal(t, "proj-1", readLock[0].ID)
+	assert.Equal(t, cfg.Mods, updatedCfg.Mods)
+
+	updatedLock, err := config.ReadLock(context.Background(), baseFs, meta)
+	require.NoError(t, err)
+	assert.Len(t, updatedLock, 1)
+	assert.Equal(t, "sodium", updatedLock[0].ID)
 }
 
-func TestLockAndConfigIndexForReturnMinusOneWhenMissing(t *testing.T) {
-	mod := models.Mod{Type: models.MODRINTH, ID: "missing"}
-	assert.Equal(t, -1, models.LockIndexForMod(mod, nil))
-	assert.Equal(t, -1, configIndexFor(mod, nil))
-}
+func TestRunRemoveWriteConfigFailureOutputsError(t *testing.T) {
+	restoreUnicode := view.SetUnicodeSupportFuncForTesting(func() bool { return false })
+	t.Cleanup(restoreUnicode)
 
-func TestRemoveFileForceReturnsErrorOnRemoveFailure(t *testing.T) {
-	fs := removeErrorFs{
-		Fs:       afero.NewMemMapFs(),
-		failPath: filepath.FromSlash("/mods/mod.jar"),
-		err:      errors.New("remove failed"),
+	baseFs := afero.NewMemMapFs()
+	var out bytes.Buffer
+	log := logger.New(&out, &out, false, false)
+
+	cfg := models.ModsJSON{
+		Loader:                     models.FABRIC,
+		GameVersion:                "1.20.1",
+		DefaultAllowedReleaseTypes: []models.ReleaseType{models.Release},
+		ModsFolder:                 "mods",
+		Mods:                       []models.Mod{{Type: models.MODRINTH, ID: "sodium", Name: "Sodium"}},
 	}
+	meta := config.NewMetadata("modlist.json")
+	require.NoError(t, config.WriteConfig(context.Background(), baseFs, meta, cfg))
+	require.NoError(t, config.WriteLock(context.Background(), baseFs, meta, []models.ModInstall{{
+		Type:     models.MODRINTH,
+		ID:       "sodium",
+		FileName: "missing.jar",
+	}}))
 
-	assert.Error(t, removeFileForce(fs, filepath.FromSlash("/mods/mod.jar")))
+	fs := renameErrorFs{Fs: baseFs, failNew: meta.ConfigPath, err: errors.New("rename failed")}
+
+	cmd := &cobra.Command{}
+	cmd.SetIn(strings.NewReader(""))
+	cmd.SetOut(&out)
+
+	deps := removeDeps{fs: fs, logger: log, runTea: defaultRunTea}
+
+	_, _, err := runRemove(context.Background(), cmd, removeOptions{
+		ConfigPath: meta.ConfigPath,
+		Lookups:    []string{"sod*"},
+	}, deps)
+	assert.Error(t, err)
+	assert.True(t, clierrors.IsHandled(err))
+	assert.Contains(t, out.String(), "Remove failed")
+
+	updatedCfg, err := config.ReadConfig(context.Background(), baseFs, meta)
+	require.NoError(t, err)
+	assert.Equal(t, cfg.Mods, updatedCfg.Mods)
+
+	updatedLock, err := config.ReadLock(context.Background(), baseFs, meta)
+	require.NoError(t, err)
+	assert.Len(t, updatedLock, 1)
+	assert.Equal(t, "sodium", updatedLock[0].ID)
 }
 
-type statErrorFs struct {
-	afero.Fs
-	failPath string
-	err      error
+func TestRemoveModelSpinnerFrameHandlesError(t *testing.T) {
+	model := newRemoveModel(context.Background(), view.ColorDisabled, nil, nil, nil)
+	model.spinner.Spinner.Frames = []string{}
+	assert.Equal(t, "", model.spinnerFrame())
 }
 
-func (filesystem statErrorFs) Stat(name string) (os.FileInfo, error) {
-	if filepath.Clean(name) == filepath.Clean(filesystem.failPath) {
-		return nil, filesystem.err
-	}
-	return filesystem.Fs.Stat(name)
+func TestRemoveModelViewFinalFailureIncludesSummary(t *testing.T) {
+	model := newRemoveModel(context.Background(), view.ColorDisabled, []removeItem{{
+		Mod:           models.Mod{Name: "Sodium", ID: "sodium"},
+		Status:        removeItemFailed,
+		FailureReason: "oops",
+	}}, map[string]int{"modrinth:sodium": 0}, nil)
+	model.done = true
+	model.outcome = removeExecutionOutcome{err: errors.New("fail"), errType: removeExecutionErrorDelete}
+
+	viewText := model.View()
+	assert.Contains(t, viewText, "Remove incomplete.")
 }
 
-type removeErrorFs struct {
-	afero.Fs
-	failPath string
-	err      error
-}
-
-func (filesystem removeErrorFs) Remove(name string) error {
-	if filepath.Clean(name) == filepath.Clean(filesystem.failPath) {
-		return filesystem.err
-	}
-	return filesystem.Fs.Remove(name)
+func TestRemoveTranscriptModelHandlesOutputLineError(t *testing.T) {
+	model := newRemoveTranscriptModel(context.Background(), view.ColorDisabled, nil, nil, io.Discard, nil)
+	updated, _ := model.Update(outputLineErrorMsg{Err: errors.New("write failed")})
+	updatedModel := updated.(*removeTranscriptModel)
+	assert.Equal(t, removeExecutionErrorUnknown, updatedModel.outcome.errType)
 }
 
 type renameErrorFs struct {
@@ -850,4 +752,17 @@ func (filesystem renameErrorFs) Rename(oldname, newname string) error {
 		return filesystem.err
 	}
 	return filesystem.Fs.Rename(oldname, newname)
+}
+
+type removeErrorFs struct {
+	afero.Fs
+	failPath string
+	err      error
+}
+
+func (filesystem removeErrorFs) Remove(name string) error {
+	if filepath.Clean(name) == filepath.Clean(filesystem.failPath) {
+		return filesystem.err
+	}
+	return filesystem.Fs.Remove(name)
 }

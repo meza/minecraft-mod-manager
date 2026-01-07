@@ -120,6 +120,7 @@ func TestCommandReturnsErrorWhenRemoveFails(t *testing.T) {
 
 func addPersistentFlagsForTesting(cmd *cobra.Command) {
 	cmd.PersistentFlags().StringP("config", "c", "./modlist.json", "An alternative JSON file containing the configuration")
+	cmd.PersistentFlags().Bool("unattended", false, "Disable all prompts")
 	cmd.PersistentFlags().BoolP("quiet", "q", false, "Suppress non-essential output (errors and required results still print)")
 	cmd.PersistentFlags().BoolP("debug", "d", false, "Enable debug messages")
 }
