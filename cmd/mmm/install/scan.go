@@ -20,8 +20,7 @@ import (
 	"github.com/meza/minecraft-mod-manager/internal/mmmignore"
 	"github.com/meza/minecraft-mod-manager/internal/models"
 	"github.com/meza/minecraft-mod-manager/internal/modrinth"
-	"github.com/meza/minecraft-mod-manager/internal/output"
-	tui "github.com/meza/minecraft-mod-manager/internal/view"
+	"github.com/meza/minecraft-mod-manager/internal/view"
 	"github.com/spf13/afero"
 )
 
@@ -38,10 +37,11 @@ func preflightInstall(ctx context.Context, meta config.Metadata, cfg models.Mods
 		return scanReportOutcome{}, err
 	}
 	if preflight.unresolved {
-		if outputErr := deps.output.Error(i18n.T("cmd.install.error.unresolved", nil)); outputErr != nil {
-			return scanReportOutcome{}, outputErr
-		}
-		return scanReportOutcome{}, clierrors.MarkHandled(errUnresolvedFiles)
+		return scanReportOutcome{
+			unresolved:     true,
+			unmanagedFound: preflight.unmanagedFound,
+			lines:          preflight.lines,
+		}, errUnresolvedFiles
 	}
 	return preflight, nil
 }
@@ -64,9 +64,9 @@ func preflightUnknownFiles(input preflightInputs) (scanReportOutcome, error) {
 	}
 	scanned, err := scanFiles(input.ctx, nonManaged, input.deps)
 	if err != nil {
-		handled, handleErr := handlePreflightScanFailure(input, err)
+		outcome, handled, handleErr := handlePreflightScanFailure(input, err)
 		if handled {
-			return scanReportOutcome{unresolved: true}, nil
+			return outcome, nil
 		}
 		return scanReportOutcome{}, handleErr
 	}
@@ -76,22 +76,26 @@ func preflightUnknownFiles(input preflightInputs) (scanReportOutcome, error) {
 		lock:     input.lock,
 		deps:     input.deps,
 		colorize: input.colorize,
-	})
+	}), nil
 }
 
-func handlePreflightScanFailure(input preflightInputs, scanErr error) (bool, error) {
+func handlePreflightScanFailure(input preflightInputs, scanErr error) (scanReportOutcome, bool, error) {
 	var lookupFailure *platformLookupFailure
 	if errors.As(scanErr, &lookupFailure) {
-		colorMode := tui.ColorDisabled
+		colorMode := view.ColorDisabled
 		if input.colorize {
-			colorMode = tui.ColorEnabled
+			colorMode = view.ColorEnabled
 		}
-		if err := logPlatformLookupFailure(input.deps.output, input.deps.logger, lookupFailure, colorMode); err != nil {
-			return false, err
+		lines, err := platformLookupFailureLines(input.deps.logger, lookupFailure, colorMode)
+		if err != nil {
+			return scanReportOutcome{}, false, err
 		}
-		return true, nil
+		return scanReportOutcome{
+			unresolved: true,
+			lines:      lines,
+		}, true, nil
 	}
-	return false, scanErr
+	return scanReportOutcome{}, false, scanErr
 }
 
 func scanFiles(ctx context.Context, files []string, deps installDeps) ([]scannedFile, error) {
@@ -159,13 +163,13 @@ func platformErrorDetails(err error) string {
 	return err.Error()
 }
 
-func logPlatformLookupFailure(out *output.Output, log *logger.Logger, failure *platformLookupFailure, colorMode tui.ColorMode) error {
-	if failure == nil || out == nil {
-		return nil
+func platformLookupFailureLines(log *logger.Logger, failure *platformLookupFailure, colorMode view.ColorMode) ([]string, error) {
+	if failure == nil {
+		return nil, nil
 	}
 	if strings.TrimSpace(failure.DebugDetails) != "" {
 		if log == nil {
-			return errors.New("missing logger for platform debug output")
+			return nil, errors.New("missing logger for platform debug output")
 		}
 		if err := log.Debug(i18n.T("cmd.install.debug.platform_error", &i18n.Tvars{
 			Data: &i18n.TData{
@@ -173,31 +177,29 @@ func logPlatformLookupFailure(out *output.Output, log *logger.Logger, failure *p
 				"details":  failure.DebugDetails,
 			},
 		})); err != nil {
-			return err
+			return nil, err
 		}
 	}
+
+	lines := make([]string, 0, len(failure.Files)+1)
 	for _, filePath := range failure.Files {
-		if err := out.Log(messageWithIcon(tui.ErrorIcon(colorMode), i18n.T("cmd.install.unsure.platform_error", &i18n.Tvars{
+		lines = append(lines, messageWithIcon(view.ErrorIcon(colorMode), i18n.T("cmd.install.unsure.platform_error", &i18n.Tvars{
 			Data: &i18n.TData{
 				"file":     filepath.Base(filePath),
 				"platform": string(failure.Platform),
 				"reason":   failure.Reason,
 			},
-		})), output.LogForce); err != nil {
-			return err
-		}
+		})))
 	}
 	if strings.TrimSpace(failure.DebugDetails) != "" {
-		if err := out.Log(messageWithIcon(tui.ErrorIcon(colorMode), i18n.T("cmd.install.unsure.platform_error_details", &i18n.Tvars{
+		lines = append(lines, messageWithIcon(view.ErrorIcon(colorMode), i18n.T("cmd.install.unsure.platform_error_details", &i18n.Tvars{
 			Data: &i18n.TData{
 				"platform": string(failure.Platform),
 				"details":  failure.DebugDetails,
 			},
-		})), output.LogForce); err != nil {
-			return err
-		}
+		})))
 	}
-	return nil
+	return lines, nil
 }
 
 func buildScanCandidates(files []string, deps installDeps) (scanCandidates, error) {
@@ -311,65 +313,69 @@ func curseforgeMatchesByFingerprint(ctx context.Context, fingerprints []uint32, 
 	return matches, nil
 }
 
-func reportScanResults(input scanReportInputs) (scanReportOutcome, error) {
+func reportScanResults(input scanReportInputs) scanReportOutcome {
 	outcome := scanReportOutcome{}
-	colorMode := tui.ColorDisabled
+	colorMode := view.ColorDisabled
 	if input.colorize {
-		colorMode = tui.ColorEnabled
+		colorMode = view.ColorEnabled
 	}
 
 	for _, item := range input.scanned {
-		itemOutcome, err := reportScanResult(input, item, colorMode)
-		if err != nil {
-			return scanReportOutcome{}, err
-		}
+		itemOutcome := reportScanResult(input, item, colorMode)
 		outcome.unmanagedFound = outcome.unmanagedFound || itemOutcome.unmanagedFound
 		outcome.unresolved = outcome.unresolved || itemOutcome.unresolved
+		outcome.lines = append(outcome.lines, itemOutcome.lines...)
 	}
 
-	return outcome, nil
+	return outcome
 }
 
-func reportScanResult(input scanReportInputs, item scannedFile, colorMode tui.ColorMode) (scanReportOutcome, error) {
+func reportScanResult(input scanReportInputs, item scannedFile, colorMode view.ColorMode) scanReportOutcome {
 	if len(item.Hits) == 0 {
-		return scanReportOutcome{}, nil
+		return scanReportOutcome{}
 	}
 
 	matchedModIndex := findConfiguredModIndex(input.cfg, item.Hits)
 	if matchedModIndex < 0 {
 		name := item.Hits[0].Name
 		if input.colorize {
-			name = tui.TitleStyle.Bold(true).Render(name)
+			name = view.TitleStyle.Bold(true).Render(name)
 		}
-		if err := input.deps.output.Log(tui.SuccessIcon(colorMode)+i18n.T("cmd.install.unmanaged.found", &i18n.Tvars{
-			Data: &i18n.TData{"name": name},
-		}), output.LogForce); err != nil {
-			return scanReportOutcome{}, err
+		return scanReportOutcome{
+			unmanagedFound: true,
+			lines: []string{
+				view.SuccessIcon(colorMode) + i18n.T("cmd.install.unmanaged.found", &i18n.Tvars{
+					Data: &i18n.TData{"name": name},
+				}),
+			},
 		}
-		return scanReportOutcome{unmanagedFound: true}, nil
 	}
 
 	mod := input.cfg.Mods[matchedModIndex]
 	lockIndex := models.LockIndexForMod(mod, input.lock)
 	if lockIndex < 0 {
-		if err := input.deps.output.Log(messageWithIcon(tui.ErrorIcon(colorMode), i18n.T("cmd.install.unsure.lock_missing", &i18n.Tvars{
-			Data: &i18n.TData{"name": item.Hits[0].Name},
-		})), output.LogForce); err != nil {
-			return scanReportOutcome{}, err
+		return scanReportOutcome{
+			unresolved: true,
+			lines: []string{
+				messageWithIcon(view.ErrorIcon(colorMode), i18n.T("cmd.install.unsure.lock_missing", &i18n.Tvars{
+					Data: &i18n.TData{"name": item.Hits[0].Name},
+				})),
+			},
 		}
-		return scanReportOutcome{unresolved: true}, nil
 	}
 
 	if !strings.EqualFold(input.lock[lockIndex].Hash, item.Sha1) {
-		if err := input.deps.output.Log(messageWithIcon(tui.ErrorIcon(colorMode), i18n.T("cmd.install.unsure.hash_mismatch", &i18n.Tvars{
-			Data: &i18n.TData{"name": item.Hits[0].Name},
-		})), output.LogForce); err != nil {
-			return scanReportOutcome{}, err
+		return scanReportOutcome{
+			unresolved: true,
+			lines: []string{
+				messageWithIcon(view.ErrorIcon(colorMode), i18n.T("cmd.install.unsure.hash_mismatch", &i18n.Tvars{
+					Data: &i18n.TData{"name": item.Hits[0].Name},
+				})),
+			},
 		}
-		return scanReportOutcome{unresolved: true}, nil
 	}
 
-	return scanReportOutcome{}, nil
+	return scanReportOutcome{}
 }
 
 func listModFiles(fs afero.Fs, meta config.Metadata, cfg models.ModsJSON) ([]string, error) {

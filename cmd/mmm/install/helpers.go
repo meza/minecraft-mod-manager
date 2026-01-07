@@ -2,10 +2,12 @@ package install
 
 import (
 	"fmt"
+	"io"
 	"path/filepath"
 	"strings"
 
 	"github.com/meza/minecraft-mod-manager/internal/models"
+	"github.com/meza/minecraft-mod-manager/internal/view"
 )
 
 func optionalStringValue(value *string) string {
@@ -24,6 +26,13 @@ func modVersionLabel(mod models.Mod) string {
 
 func messageWithIcon(icon string, message string) string {
 	return fmt.Sprintf("%s %s", icon, message)
+}
+
+func colorModeForOutput(output io.Writer) view.ColorMode {
+	if view.SupportsColor(output) {
+		return view.ColorEnabled
+	}
+	return view.ColorDisabled
 }
 
 func uniqueUint32s(values []uint32) []uint32 {

@@ -3,6 +3,7 @@ package install
 import (
 	"context"
 
+	tea "github.com/charmbracelet/bubbletea"
 	"github.com/meza/minecraft-mod-manager/internal/config"
 	"github.com/meza/minecraft-mod-manager/internal/curseforge"
 	"github.com/meza/minecraft-mod-manager/internal/httpclient"
@@ -24,12 +25,14 @@ type installDeps struct {
 	downloader downloader
 	fetchMod   fetcher
 	telemetry  func(telemetry.CommandTelemetry)
+	runTea     func(model tea.Model, options ...tea.ProgramOption) (tea.Model, error)
 
 	curseforgeFingerprint      func(string) uint32
 	modrinthVersionForSha      func(context.Context, string, httpclient.Doer) (*modrinth.Version, error)
 	modrinthProjectTitle       func(context.Context, string, httpclient.Doer) (string, error)
 	curseforgeFingerprintMatch func(context.Context, []uint32, httpclient.Doer) (*curseforge.FingerprintResult, error)
 	curseforgeProjectName      func(context.Context, string, httpclient.Doer) (string, error)
+	runInit                    initRunner
 }
 
 type fetcher func(context.Context, models.Platform, string, platform.FetchOptions, platform.Clients) (platform.RemoteMod, error)
@@ -49,18 +52,19 @@ type Result struct {
 }
 
 type installConfiguredInputs struct {
-	ctx      context.Context
-	meta     config.Metadata
-	cfg      models.ModsJSON
-	lock     []models.ModInstall
-	deps     installDeps
-	colorize bool
+	ctx        context.Context
+	meta       config.Metadata
+	cfg        models.ModsJSON
+	lock       []models.ModInstall
+	deps       installDeps
+	colorize   bool
+	state      *installExecutionState
+	writeState *installWriteState
 }
 
 type installConfiguredOutcome struct {
-	cfg         models.ModsJSON
-	lock        []models.ModInstall
 	failedCount int
+	items       []installItem
 }
 
 type installModInputs struct {
@@ -71,6 +75,7 @@ type installModInputs struct {
 	mod      models.Mod
 	deps     installDeps
 	colorize bool
+	state    *installExecutionState
 }
 
 type preflightInputs struct {
@@ -93,9 +98,16 @@ type scanReportInputs struct {
 type scanReportOutcome struct {
 	unresolved     bool
 	unmanagedFound bool
+	lines          []string
 }
 
 type installRunner func(context.Context, *cobra.Command, installOptions, installDeps) (Result, error)
+
+type initRequest struct {
+	configPath string
+}
+
+type initRunner func(context.Context, *cobra.Command, initRequest) error
 
 type scanHit struct {
 	Platform models.Platform
@@ -110,9 +122,10 @@ type scannedFile struct {
 }
 
 type modInstallOutcome struct {
-	failed    bool
-	newName   string
-	lockEntry *models.ModInstall
+	failed        bool
+	failureReason string
+	newName       string
+	lockEntry     *models.ModInstall
 }
 
 type scanCandidates struct {

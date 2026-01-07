@@ -166,7 +166,7 @@ func TestCommandSetsSilenceUsageOnError(t *testing.T) {
 	assert.True(t, cmd.SilenceUsage)
 }
 
-func TestCommandUsesTUIOutputWhenTerminal(t *testing.T) {
+func TestCommandOutputsResults(t *testing.T) {
 	t.Setenv("MMM_TEST", "true")
 
 	restore := tui.SetIsTerminalFuncForTesting(func(_ int) bool { return true })
@@ -192,14 +192,14 @@ func TestCommandUsesTUIOutputWhenTerminal(t *testing.T) {
 
 	cmd := Command()
 	addPersistentFlagsForTesting(cmd)
-	output := &terminalWriter{}
-	cmd.SetIn(terminalReader{Reader: bytes.NewBuffer(nil)})
+	output := &bytes.Buffer{}
+	cmd.SetIn(bytes.NewBuffer(nil))
 	cmd.SetOut(output)
 	cmd.SetErr(io.Discard)
 	cmd.SetArgs([]string{"--config", configPath})
 
 	assert.NoError(t, cmd.Execute())
-	assert.Contains(t, output.String(), "cmd.install.success")
+	assert.Contains(t, output.String(), "cmd.install.summary.success")
 	assert.Contains(t, output.String(), "cmd.update.no_updates")
 }
 

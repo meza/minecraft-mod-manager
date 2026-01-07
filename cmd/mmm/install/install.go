@@ -8,7 +8,6 @@ import (
 	"github.com/meza/minecraft-mod-manager/internal/i18n"
 	"github.com/meza/minecraft-mod-manager/internal/perf"
 	"github.com/meza/minecraft-mod-manager/internal/telemetry"
-	"github.com/meza/minecraft-mod-manager/internal/view"
 	"github.com/spf13/cobra"
 	"go.opentelemetry.io/otel/attribute"
 )
@@ -44,7 +43,7 @@ func Run(ctx context.Context, cmd *cobra.Command, configPath string, quiet bool,
 		Quiet: quiet,
 		Debug: debug,
 	})
-	return runInstall(ctx, cmd, opts, newInstallDeps(common, func(telemetry.CommandTelemetry) {}))
+	return runInstall(ctx, cmd, opts, newInstallDeps(common, opts, func(telemetry.CommandTelemetry) {}))
 }
 
 func runInstallCommand(cmd *cobra.Command, runner installRunner) error {
@@ -56,38 +55,29 @@ func runInstallCommand(cmd *cobra.Command, runner installRunner) error {
 		span.End()
 		return err
 	}
-
-	useView := view.SupportsPrompting(cmd.InOrStdin(), cmd.OutOrStdout()) && !opts.Unattended
-
-	outWriter := cmd.OutOrStdout()
-	errWriter := cmd.ErrOrStderr()
-	var logProgram *view.LogProgram
-	if useView {
-		logProgram = view.StartLogProgram(cmd.InOrStdin(), outWriter)
-		outWriter = logProgram.Writer()
-	}
-
 	common := cmddeps.NewCommonDeps(cmd, cmddeps.CommonDepsOptions{
-		OutWriter: outWriter,
-		ErrWriter: errWriter,
-		Quiet:     opts.Quiet,
-		Debug:     opts.Debug,
+		Quiet: opts.Quiet,
+		Debug: opts.Debug,
 	})
-	deps := newInstallDeps(common, telemetry.RecordCommand)
+	deps := newInstallDeps(common, opts, telemetry.RecordCommand)
 
 	result, err := runner(ctx, cmd, opts, deps)
-	if useView {
-		err = view.MergeProgramError(err, logProgram.Stop())
-	}
-	if clierrors.IsHandled(err) {
-		cmd.SilenceErrors = true
-		cmd.SilenceUsage = true
-	}
+	applyInstallCommandErrorPolicy(cmd, err)
 	span.SetAttributes(attribute.Bool("success", err == nil))
 	span.End()
 
 	recordInstallTelemetry(deps.telemetry, result, err)
 	return err
+}
+
+func applyInstallCommandErrorPolicy(cmd *cobra.Command, err error) {
+	if err == nil {
+		return
+	}
+	if clierrors.IsHandled(err) {
+		cmd.SilenceErrors = true
+	}
+	cmd.SilenceUsage = true
 }
 
 func installOptionsFromFlags(cmd *cobra.Command) (installOptions, error) {

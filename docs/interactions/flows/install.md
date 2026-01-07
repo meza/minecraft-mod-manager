@@ -11,7 +11,7 @@ You want to ensure that whatever is in the lock file (or in the config when a lo
 Success looks like (for the user):
 - Each managed mod has a matching jar on disk
 - The lock entries reflect what is installed on disk
-- No config or lock changes unless lock entries must be added
+- Any new lock entries are written as soon as their files are downloaded
 
 ### Entry points
 
@@ -24,13 +24,14 @@ Success looks like (for the user):
 1. You run `mmm install`.
 2. MMM reads config and lock.
 3. MMM installs managed mods by ensuring every mod in the lock file (or in config when a lock entry is missing) is present on disk.
-4. If any config entries are missing from the lock file, MMM adds lock entries for the downloaded mods. Otherwise, MMM leaves `modlist.json` and `modlist-lock.json` unchanged.
+4. If any config entries are missing from the lock file, MMM adds lock entries for the downloaded mods as each download completes. Otherwise, MMM leaves `modlist.json` and `modlist-lock.json` unchanged.
 
 ### Alternate and error flows
 
 - If the lock file is missing entries for some configured mods, MMM resolves files for those mods and adds lock entries after download.
-- If downloads fail, MMM prints an actionable error and exits non-zero.
-- If MMM cannot write new lock entries when needed, MMM prints an actionable error and exits non-zero.
+- If downloads fail, MMM prints an actionable error and exits non-zero. Completed downloads remain on disk.
+- If MMM cannot write new lock or config entries when needed, MMM prints an actionable error and exits non-zero. Completed downloads remain on disk.
+- If you cancel, MMM stops in-progress work and exits. Completed downloads remain on disk.
 
 ---
 
@@ -96,7 +97,7 @@ Installing mods:
 ... (one row per mod, all mods shown)
 
 ‼️ Download failed. Installation incomplete.
-Your configuration was not modified.
+The install has completed but the mods with ❌ have failed to download. Run mmm install again to retry the failed ones.
 
 Check your network and rerun mmm install.
 ```
@@ -112,10 +113,8 @@ Installing mods:
 ✅ Fabric API (fabric-api) [modrinth]
 ... (one row per mod, all mods shown)
 
-‼️ Could not write lock file at ./modlist-lock.json.
-Your configuration was not modified.
-
-Fix the file permissions and rerun mmm install.
+‼️ Install has aborted because your modlist-lock.json cannot be written.
+Fix the file permissions/issues and try mmm install again.
 ```
 
 #### INSTALL-ERR-DOWNLOAD Download failed (non-tty)
@@ -128,11 +127,11 @@ In non-tty mode, MMM MUST NOT emit terminal control sequences and MUST avoid spi
 ```
 ✅ Inventory Sorting (inventory-sorting) [modrinth]
 ❌ Fabric API (fabric-api) [modrinth] download failed: <reason>
-❌ Mod Menu (modmenu) [modrinth] not installed (install aborted)
+✅ Mod Menu (modmenu) [modrinth]
 ... (one row per mod, all mods shown)
 
 ‼️ Download failed. Installation incomplete.
-Your configuration was not modified.
+The install has completed but the mods with ❌ have failed to download. Run mmm install again to retry the failed ones.
 ```
 
 #### INSTALL-ERR-WRITE-LOCK Failed to write lock updates (non-tty)
@@ -147,8 +146,8 @@ In non-tty mode, MMM MUST NOT emit terminal control sequences and MUST avoid spi
 ✅ Fabric API (fabric-api) [modrinth]
 ... (one row per mod, all mods shown)
 
-‼️ Could not write lock file at ./modlist-lock.json.
-Your configuration was not modified.
+‼️ Install has aborted because your modlist-lock.json cannot be written.
+Fix the file permissions/issues and try mmm install again.
 ```
 
 ### Unattended behavior

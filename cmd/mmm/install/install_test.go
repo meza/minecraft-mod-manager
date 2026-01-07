@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"context"
 	"errors"
+	"io"
 	"os"
 	"path/filepath"
 	"testing"
@@ -19,7 +20,7 @@ import (
 	"github.com/meza/minecraft-mod-manager/internal/output"
 	"github.com/meza/minecraft-mod-manager/internal/platform"
 	"github.com/meza/minecraft-mod-manager/internal/telemetry"
-	tui "github.com/meza/minecraft-mod-manager/internal/view"
+	"github.com/meza/minecraft-mod-manager/internal/view"
 	"github.com/spf13/afero"
 	"github.com/spf13/cobra"
 	"github.com/stretchr/testify/assert"
@@ -51,8 +52,8 @@ func TestRunInstallHaltsWhenPreflightFindsUnsureHashMismatch(t *testing.T) {
 	foreignPath := filepath.Join(meta.ModsFolderPath(cfg), "foreign.jar")
 	assert.NoError(t, afero.WriteFile(fs, foreignPath, []byte("local-content"), 0644))
 
-	out := &bytes.Buffer{}
-	errOut := &bytes.Buffer{}
+	out := &lockedBuffer{}
+	errOut := &lockedBuffer{}
 	cmd := &cobra.Command{}
 	cmd.SetIn(&bytes.Buffer{})
 	cmd.SetOut(out)
@@ -90,12 +91,12 @@ func TestRunInstallHaltsWhenPreflightFindsUnsureHashMismatch(t *testing.T) {
 	assert.ErrorIs(t, err, errUnresolvedFiles)
 
 	assert.Contains(t, out.String(), "cmd.install.unsure.hash_mismatch")
-	assert.Contains(t, errOut.String(), "cmd.install.error.unresolved")
+	assert.Contains(t, out.String(), "cmd.install.error.unresolved")
 }
 
 func TestRunInstallReportsUnmanagedButDoesNotHalt(t *testing.T) {
 	t.Setenv("MMM_TEST", "true")
-	restore := tui.SetIsTerminalFuncForTesting(func(_ int) bool { return true })
+	restore := view.SetIsTerminalFuncForTesting(func(_ int) bool { return true })
 	defer restore()
 
 	fs := afero.NewMemMapFs()
@@ -118,11 +119,11 @@ func TestRunInstallReportsUnmanagedButDoesNotHalt(t *testing.T) {
 	foreignPath := filepath.Join(meta.ModsFolderPath(cfg), "foreign.jar")
 	assert.NoError(t, afero.WriteFile(fs, foreignPath, []byte("x"), 0644))
 
-	out := &bytes.Buffer{}
-	errOut := &bytes.Buffer{}
+	out := &lockedBuffer{}
+	errOut := &lockedBuffer{}
 	cmd := &cobra.Command{}
 	cmd.SetIn(&bytes.Buffer{})
-	cmd.SetOut(fakeTTYWriter{Buffer: out})
+	cmd.SetOut(fakeTTYWriter{writer: out})
 	cmd.SetErr(errOut)
 
 	deps := installDeps{
@@ -158,7 +159,7 @@ func TestRunInstallReportsUnmanagedButDoesNotHalt(t *testing.T) {
 	assert.True(t, result.UnmanagedFound)
 
 	assert.Contains(t, out.String(), "cmd.install.unmanaged.found")
-	assert.Contains(t, out.String(), "cmd.install.success")
+	assert.Contains(t, out.String(), "cmd.install.summary.success")
 	assert.Empty(t, errOut.String())
 }
 
@@ -188,8 +189,8 @@ func TestRunInstallPreflightRespectsMmmignoreAndDisabledFiles(t *testing.T) {
 	assert.NoError(t, afero.WriteFile(fs, filepath.Join(meta.ModsFolderPath(cfg), "ignored-1.jar"), []byte("x"), 0644))
 	assert.NoError(t, afero.WriteFile(fs, filepath.Join(meta.ModsFolderPath(cfg), "keep.jar.disabled"), []byte("x"), 0644))
 
-	out := &bytes.Buffer{}
-	errOut := &bytes.Buffer{}
+	out := &lockedBuffer{}
+	errOut := &lockedBuffer{}
 	cmd := &cobra.Command{}
 	cmd.SetIn(&bytes.Buffer{})
 	cmd.SetOut(out)
@@ -263,8 +264,8 @@ func TestRunInstallSilentlyIgnoresFilesWithNoPlatformHits(t *testing.T) {
 	foreignPath := filepath.Join(meta.ModsFolderPath(cfg), "foreign.jar")
 	assert.NoError(t, afero.WriteFile(fs, foreignPath, []byte("x"), 0644))
 
-	out := &bytes.Buffer{}
-	errOut := &bytes.Buffer{}
+	out := &lockedBuffer{}
+	errOut := &lockedBuffer{}
 	cmd := &cobra.Command{}
 	cmd.SetIn(&bytes.Buffer{})
 	cmd.SetOut(out)
@@ -301,7 +302,7 @@ func TestRunInstallSilentlyIgnoresFilesWithNoPlatformHits(t *testing.T) {
 	_, err = runInstall(context.Background(), cmd, installOptions{ConfigPath: meta.ConfigPath}, deps)
 	assert.NoError(t, err)
 
-	assert.Contains(t, out.String(), "cmd.install.success")
+	assert.Contains(t, out.String(), "cmd.install.summary.success")
 	assert.NotContains(t, out.String(), "cmd.install.unmanaged.found")
 	assert.NotContains(t, out.String(), "cmd.install.unsure.")
 	assert.Empty(t, errOut.String())
@@ -330,8 +331,8 @@ func TestRunInstallDownloadsMissingManagedFileFromLock(t *testing.T) {
 		{ID: "proj-1", Type: models.MODRINTH, Hash: sha1Hex("downloaded"), FileName: "managed.jar", DownloadURL: "https://example.invalid/managed.jar"},
 	}))
 
-	out := &bytes.Buffer{}
-	errOut := &bytes.Buffer{}
+	out := &lockedBuffer{}
+	errOut := &lockedBuffer{}
 	cmd := &cobra.Command{}
 	cmd.SetIn(&bytes.Buffer{})
 	cmd.SetOut(out)
@@ -375,8 +376,8 @@ func TestRunInstallDownloadsMissingManagedFileFromLock(t *testing.T) {
 	assert.NoError(t, err)
 	assert.True(t, downloaded)
 
-	assert.Contains(t, out.String(), "cmd.install.download.missing")
-	assert.Contains(t, out.String(), "cmd.install.success")
+	assert.Contains(t, out.String(), "proj-1")
+	assert.Contains(t, out.String(), "cmd.install.summary.success")
 	assert.Empty(t, errOut.String())
 }
 
@@ -406,8 +407,8 @@ func TestRunInstallDownloadsWhenHashMismatch(t *testing.T) {
 	managedPath := filepath.Join(meta.ModsFolderPath(cfg), "managed.jar")
 	assert.NoError(t, afero.WriteFile(fs, managedPath, []byte("different"), 0644))
 
-	out := &bytes.Buffer{}
-	errOut := &bytes.Buffer{}
+	out := &lockedBuffer{}
+	errOut := &lockedBuffer{}
 	cmd := &cobra.Command{}
 	cmd.SetIn(&bytes.Buffer{})
 	cmd.SetOut(out)
@@ -451,8 +452,8 @@ func TestRunInstallDownloadsWhenHashMismatch(t *testing.T) {
 	assert.NoError(t, err)
 	assert.True(t, downloaded)
 
-	assert.Contains(t, out.String(), "cmd.install.download.hash_mismatch")
-	assert.Contains(t, out.String(), "cmd.install.success")
+	assert.Contains(t, out.String(), "proj-1")
+	assert.Contains(t, out.String(), "cmd.install.summary.success")
 	assert.Empty(t, errOut.String())
 }
 
@@ -478,8 +479,8 @@ func TestRunInstallFetchesAndAppendsLockWhenMissing(t *testing.T) {
 	_, err := config.EnsureLock(context.Background(), fs, meta)
 	assert.NoError(t, err)
 
-	out := &bytes.Buffer{}
-	errOut := &bytes.Buffer{}
+	out := &lockedBuffer{}
+	errOut := &lockedBuffer{}
 	cmd := &cobra.Command{}
 	cmd.SetIn(&bytes.Buffer{})
 	cmd.SetOut(out)
@@ -535,8 +536,8 @@ func TestRunInstallFetchesAndAppendsLockWhenMissing(t *testing.T) {
 	assert.Len(t, updatedLock, 1)
 	assert.Equal(t, "remote.jar", updatedLock[0].FileName)
 
-	assert.Contains(t, out.String(), "cmd.install.download.missing")
-	assert.Contains(t, out.String(), "cmd.install.success")
+	assert.Contains(t, out.String(), "proj-1")
+	assert.Contains(t, out.String(), "cmd.install.summary.success")
 	assert.Empty(t, errOut.String())
 }
 
@@ -563,8 +564,8 @@ func TestRunInstallReportsMissingHashWithoutHalting(t *testing.T) {
 	_, err := config.EnsureLock(context.Background(), fs, meta)
 	assert.NoError(t, err)
 
-	out := &bytes.Buffer{}
-	errOut := &bytes.Buffer{}
+	out := &lockedBuffer{}
+	errOut := &lockedBuffer{}
 	cmd := &cobra.Command{}
 	cmd.SetIn(&bytes.Buffer{})
 	cmd.SetOut(out)
@@ -614,12 +615,14 @@ func TestRunInstallReportsMissingHashWithoutHalting(t *testing.T) {
 
 	_, err = runInstall(context.Background(), cmd, installOptions{ConfigPath: meta.ConfigPath}, deps)
 	assert.ErrorIs(t, err, errInstallFailures)
-	assert.Contains(t, errOut.String(), "cmd.install.error.missing_hash_remote")
+	assert.Contains(t, out.String(), "cmd.install.summary.download_failed")
+	assert.Contains(t, out.String(), "cmd.install.error.missing_hash_remote")
 
 	updatedLock, lockErr := config.ReadLock(context.Background(), fs, meta)
 	assert.NoError(t, lockErr)
-	assert.Len(t, updatedLock, 1)
-	assert.Equal(t, "good.jar", updatedLock[0].FileName)
+	if assert.Len(t, updatedLock, 1) {
+		assert.Equal(t, "good.jar", updatedLock[0].FileName)
+	}
 }
 
 func TestRunInstallReportsHashMismatch(t *testing.T) {
@@ -644,8 +647,8 @@ func TestRunInstallReportsHashMismatch(t *testing.T) {
 	_, err := config.EnsureLock(context.Background(), fs, meta)
 	assert.NoError(t, err)
 
-	out := &bytes.Buffer{}
-	errOut := &bytes.Buffer{}
+	out := &lockedBuffer{}
+	errOut := &lockedBuffer{}
 	cmd := &cobra.Command{}
 	cmd.SetIn(&bytes.Buffer{})
 	cmd.SetOut(out)
@@ -686,7 +689,8 @@ func TestRunInstallReportsHashMismatch(t *testing.T) {
 
 	_, err = runInstall(context.Background(), cmd, installOptions{ConfigPath: meta.ConfigPath}, deps)
 	assert.ErrorIs(t, err, errInstallFailures)
-	assert.Contains(t, errOut.String(), "cmd.install.error.hash_mismatch")
+	assert.Contains(t, out.String(), "cmd.install.error.hash_mismatch")
+	assert.Contains(t, out.String(), "cmd.install.summary.download_failed")
 
 	updatedLock, lockErr := config.ReadLock(context.Background(), fs, meta)
 	assert.NoError(t, lockErr)
@@ -724,8 +728,8 @@ func TestRunInstallReportsMissingHashForLockEntry(t *testing.T) {
 		},
 	}))
 
-	out := &bytes.Buffer{}
-	errOut := &bytes.Buffer{}
+	out := &lockedBuffer{}
+	errOut := &lockedBuffer{}
 	cmd := &cobra.Command{}
 	cmd.SetIn(&bytes.Buffer{})
 	cmd.SetOut(out)
@@ -762,7 +766,8 @@ func TestRunInstallReportsMissingHashForLockEntry(t *testing.T) {
 
 	_, err := runInstall(context.Background(), cmd, installOptions{ConfigPath: meta.ConfigPath}, deps)
 	assert.ErrorIs(t, err, errInstallFailures)
-	assert.Contains(t, errOut.String(), "cmd.install.error.missing_hash_lock")
+	assert.Contains(t, out.String(), "cmd.install.error.missing_hash_lock")
+	assert.Contains(t, out.String(), "cmd.install.summary.download_failed")
 }
 
 func TestRunInstallReportsInvalidLockFileName(t *testing.T) {
@@ -796,8 +801,8 @@ func TestRunInstallReportsInvalidLockFileName(t *testing.T) {
 		},
 	}))
 
-	out := &bytes.Buffer{}
-	errOut := &bytes.Buffer{}
+	out := &lockedBuffer{}
+	errOut := &lockedBuffer{}
 	cmd := &cobra.Command{}
 	cmd.SetIn(&bytes.Buffer{})
 	cmd.SetOut(out)
@@ -834,7 +839,8 @@ func TestRunInstallReportsInvalidLockFileName(t *testing.T) {
 
 	_, err := runInstall(context.Background(), cmd, installOptions{ConfigPath: meta.ConfigPath}, deps)
 	assert.ErrorIs(t, err, errInstallFailures)
-	assert.Contains(t, errOut.String(), "cmd.install.error.invalid_filename_lock")
+	assert.Contains(t, out.String(), "cmd.install.error.invalid_filename_lock")
+	assert.Contains(t, out.String(), "cmd.install.summary.download_failed")
 }
 
 func TestRunInstallReportsInvalidRemoteFileName(t *testing.T) {
@@ -859,8 +865,8 @@ func TestRunInstallReportsInvalidRemoteFileName(t *testing.T) {
 	_, err := config.EnsureLock(context.Background(), fs, meta)
 	assert.NoError(t, err)
 
-	out := &bytes.Buffer{}
-	errOut := &bytes.Buffer{}
+	out := &lockedBuffer{}
+	errOut := &lockedBuffer{}
 	cmd := &cobra.Command{}
 	cmd.SetIn(&bytes.Buffer{})
 	cmd.SetOut(out)
@@ -902,7 +908,7 @@ func TestRunInstallReportsInvalidRemoteFileName(t *testing.T) {
 
 	_, err = runInstall(context.Background(), cmd, installOptions{ConfigPath: meta.ConfigPath}, deps)
 	assert.ErrorIs(t, err, errInstallFailures)
-	assert.Contains(t, errOut.String(), "cmd.install.error.invalid_filename_remote")
+	assert.Contains(t, out.String(), "cmd.install.error.invalid_filename_remote")
 }
 
 func TestRunInstallContinuesWhenFetchReturnsExpectedErrors(t *testing.T) {
@@ -928,14 +934,13 @@ func TestRunInstallContinuesWhenFetchReturnsExpectedErrors(t *testing.T) {
 	_, err := config.EnsureLock(context.Background(), fs, meta)
 	assert.NoError(t, err)
 
-	out := &bytes.Buffer{}
-	errOut := &bytes.Buffer{}
+	out := &lockedBuffer{}
+	errOut := &lockedBuffer{}
 	cmd := &cobra.Command{}
 	cmd.SetIn(&bytes.Buffer{})
 	cmd.SetOut(out)
 	cmd.SetErr(errOut)
 
-	call := 0
 	deps := installDeps{
 		fs:      fs,
 		logger:  logger.New(out, errOut, false, false),
@@ -944,12 +949,15 @@ func TestRunInstallContinuesWhenFetchReturnsExpectedErrors(t *testing.T) {
 		downloader: func(context.Context, string, string, httpclient.Doer, httpclient.Sender, ...afero.Fs) error {
 			return nil
 		},
-		fetchMod: func(context.Context, models.Platform, string, platform.FetchOptions, platform.Clients) (platform.RemoteMod, error) {
-			call++
-			if call == 1 {
-				return platform.RemoteMod{}, &platform.ModNotFoundError{Platform: models.MODRINTH, ProjectID: "proj-1"}
+		fetchMod: func(_ context.Context, platformType models.Platform, projectID string, _ platform.FetchOptions, _ platform.Clients) (platform.RemoteMod, error) {
+			switch projectID {
+			case "proj-1":
+				return platform.RemoteMod{}, &platform.ModNotFoundError{Platform: platformType, ProjectID: projectID}
+			case "proj-2":
+				return platform.RemoteMod{}, &platform.NoCompatibleFileError{Platform: platformType, ProjectID: projectID}
+			default:
+				return platform.RemoteMod{}, nil
 			}
-			return platform.RemoteMod{}, &platform.NoCompatibleFileError{Platform: models.CURSEFORGE, ProjectID: "proj-2"}
 		},
 		telemetry: func(telemetry.CommandTelemetry) {},
 
@@ -969,11 +977,10 @@ func TestRunInstallContinuesWhenFetchReturnsExpectedErrors(t *testing.T) {
 	}
 
 	_, err = runInstall(context.Background(), cmd, installOptions{ConfigPath: meta.ConfigPath}, deps)
-	assert.NoError(t, err)
+	assert.ErrorIs(t, err, errInstallFailures)
 
 	assert.Contains(t, out.String(), "cmd.install.error.mod_not_found")
-	assert.Contains(t, out.String(), "cmd.install.error.no_file")
-	assert.Contains(t, out.String(), "cmd.install.success")
+	assert.Contains(t, out.String(), "cmd.install.summary.download_failed")
 	assert.Empty(t, errOut.String())
 }
 
@@ -1016,8 +1023,8 @@ func TestRunInstallReportsSymlinkOutsideMods(t *testing.T) {
 	assert.NoError(t, afero.WriteFile(fs, linkPath, []byte("link"), 0644))
 	fs.symlinks[linkPath] = target
 
-	out := &bytes.Buffer{}
-	errOut := &bytes.Buffer{}
+	out := &lockedBuffer{}
+	errOut := &lockedBuffer{}
 	cmd := &cobra.Command{}
 	cmd.SetIn(&bytes.Buffer{})
 	cmd.SetOut(out)
@@ -1058,7 +1065,8 @@ func TestRunInstallReportsSymlinkOutsideMods(t *testing.T) {
 
 	_, err := runInstall(context.Background(), cmd, installOptions{ConfigPath: meta.ConfigPath}, deps)
 	assert.ErrorIs(t, err, errInstallFailures)
-	assert.Contains(t, errOut.String(), "cmd.install.error.symlink_outside_mods")
+	assert.Contains(t, out.String(), "cmd.install.error.symlink_outside_mods")
+	assert.Contains(t, out.String(), "cmd.install.summary.download_failed")
 }
 
 func TestRunInstallReturnsErrorOnResolveFailure(t *testing.T) {
@@ -1082,8 +1090,8 @@ func TestRunInstallReturnsErrorOnResolveFailure(t *testing.T) {
 	assert.NoError(t, config.WriteConfig(context.Background(), afero.NewOsFs(), meta, cfg))
 	assert.NoError(t, config.WriteLock(context.Background(), afero.NewOsFs(), meta, nil))
 
-	out := &bytes.Buffer{}
-	errOut := &bytes.Buffer{}
+	out := &lockedBuffer{}
+	errOut := &lockedBuffer{}
 	cmd := &cobra.Command{}
 	cmd.SetIn(&bytes.Buffer{})
 	cmd.SetOut(out)
@@ -1126,20 +1134,25 @@ func TestRunInstallReturnsErrorOnResolveFailure(t *testing.T) {
 	assert.Error(t, err)
 }
 
-func TestIntegrityErrorMessage_SymlinkOutsideMods(t *testing.T) {
+func TestInstallFailureReason_SymlinkOutsideMods(t *testing.T) {
+	t.Setenv("MMM_TEST", "true")
+
 	outsidePath := filepath.FromSlash("/outside/path")
 	rootPath := filepath.FromSlash("/mods")
-	message, ok := integrityErrorMessage(modpath.OutsideRootError{
+	message, ok := installFailureReason(modpath.OutsideRootError{
 		ResolvedPath: outsidePath,
 		Root:         rootPath,
 	}, "Example Mod")
 	assert.True(t, ok)
-	assert.Contains(t, message, outsidePath)
-	assert.Contains(t, message, rootPath)
+	assert.Contains(t, message, "cmd.install.error.symlink_outside_mods")
 }
 
 type fakeTTYWriter struct {
-	*bytes.Buffer
+	writer io.Writer
+}
+
+func (writer fakeTTYWriter) Write(p []byte) (int, error) {
+	return writer.writer.Write(p)
 }
 
 func (writer fakeTTYWriter) Fd() uintptr { return 1 }

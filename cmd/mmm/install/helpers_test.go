@@ -24,17 +24,26 @@ import (
 	"github.com/meza/minecraft-mod-manager/internal/i18n"
 	"github.com/meza/minecraft-mod-manager/internal/logger"
 	"github.com/meza/minecraft-mod-manager/internal/models"
-	"github.com/meza/minecraft-mod-manager/internal/modinstall"
 	"github.com/meza/minecraft-mod-manager/internal/modrinth"
 	"github.com/meza/minecraft-mod-manager/internal/output"
 	"github.com/meza/minecraft-mod-manager/internal/platform"
-	tui "github.com/meza/minecraft-mod-manager/internal/view"
+	"github.com/meza/minecraft-mod-manager/internal/view"
 )
 
 func TestOptionalStringValue(t *testing.T) {
 	assert.Equal(t, "", optionalStringValue(nil))
 	value := "  value "
 	assert.Equal(t, "value", optionalStringValue(&value))
+}
+
+func TestModVersionLabel(t *testing.T) {
+	version := "1.2.3"
+	mod := models.Mod{Version: &version}
+	assert.Equal(t, "1.2.3", modVersionLabel(mod))
+
+	blank := "   "
+	mod.Version = &blank
+	assert.Equal(t, "latest", modVersionLabel(mod))
 }
 
 func TestEffectiveAllowedReleaseTypes(t *testing.T) {
@@ -284,11 +293,6 @@ func TestReportScanResultsPaths(t *testing.T) {
 	lock := []models.ModInstall{
 		{Type: models.MODRINTH, ID: "abc", Name: "Example", Hash: "deadbeef"},
 	}
-	logBuffer := &strings.Builder{}
-	deps := installDeps{
-		logger: logger.New(logBuffer, io.Discard, false, false),
-		output: output.New(logBuffer, io.Discard, false),
-	}
 
 	scanned := []scannedFile{
 		{Sha1: "empty"},
@@ -298,78 +302,63 @@ func TestReportScanResultsPaths(t *testing.T) {
 		{Sha1: "lockmissing", Hits: []scanHit{{Platform: models.CURSEFORGE, Project: "def", Name: "NoLock"}}},
 	}
 
-	outcome, err := reportScanResults(scanReportInputs{
+	outcome := reportScanResults(scanReportInputs{
 		scanned:  scanned,
 		cfg:      cfg,
 		lock:     lock,
-		deps:     deps,
+		deps:     installDeps{},
 		colorize: false,
 	})
-	assert.NoError(t, err)
 	assert.True(t, outcome.unresolved)
 	assert.True(t, outcome.unmanagedFound)
-	assert.NotEmpty(t, logBuffer.String())
+	assert.NotEmpty(t, outcome.lines)
 }
 
 func TestReportScanResultsColorizesUnmanaged(t *testing.T) {
 	cfg := models.ModsJSON{}
 	lock := []models.ModInstall{}
-	logBuffer := &strings.Builder{}
-	deps := installDeps{
-		logger: logger.New(logBuffer, io.Discard, false, false),
-		output: output.New(logBuffer, io.Discard, false),
-	}
 
 	scanned := []scannedFile{
 		{Sha1: "hash", Hits: []scanHit{{Platform: models.MODRINTH, Project: "abc", Name: "Unmanaged"}}},
 	}
 
-	outcome, err := reportScanResults(scanReportInputs{
+	outcome := reportScanResults(scanReportInputs{
 		scanned:  scanned,
 		cfg:      cfg,
 		lock:     lock,
-		deps:     deps,
+		deps:     installDeps{},
 		colorize: true,
 	})
-	assert.NoError(t, err)
 	assert.False(t, outcome.unresolved)
 	assert.True(t, outcome.unmanagedFound)
-	assert.Contains(t, logBuffer.String(), "Unmanaged")
+	assert.Contains(t, outcome.lines[0], "Unmanaged")
 }
 
 func TestHandleExpectedFetchError(t *testing.T) {
-	logBuffer := &strings.Builder{}
-	deps := installDeps{
-		logger: logger.New(logBuffer, io.Discard, false, false),
-		output: output.New(logBuffer, io.Discard, false),
-	}
+	t.Setenv("MMM_TEST", "true")
 
 	mod := models.Mod{Name: "Example", ID: "abc", Type: models.MODRINTH}
-	handled, err := handleExpectedFetchError(&platform.ModNotFoundError{Platform: models.MODRINTH, ProjectID: "abc"}, installModInputs{mod: mod, deps: deps, colorize: false})
-	assert.NoError(t, err)
+	outcome, handled := handleExpectedFetchError(&platform.ModNotFoundError{Platform: models.MODRINTH, ProjectID: "abc"}, installModInputs{mod: mod})
 	assert.True(t, handled)
+	assert.True(t, outcome.failed)
+	assert.Contains(t, outcome.failureReason, "cmd.install.error.mod_not_found")
 
-	handled, err = handleExpectedFetchError(&platform.NoCompatibleFileError{Platform: models.MODRINTH, ProjectID: "abc"}, installModInputs{mod: mod, deps: deps, colorize: false})
-	assert.NoError(t, err)
+	outcome, handled = handleExpectedFetchError(&platform.NoCompatibleFileError{Platform: models.MODRINTH, ProjectID: "abc"}, installModInputs{mod: mod})
 	assert.True(t, handled)
+	assert.True(t, outcome.failed)
+	assert.Contains(t, outcome.failureReason, "cmd.install.error.no_file")
 
-	handled, err = handleExpectedFetchError(errors.New("boom"), installModInputs{mod: mod, deps: deps, colorize: false})
-	assert.NoError(t, err)
+	_, handled = handleExpectedFetchError(errors.New("boom"), installModInputs{mod: mod})
 	assert.False(t, handled)
 }
 
-func TestHandleExpectedFetchErrorColorizedLogs(t *testing.T) {
-	logBuffer := &strings.Builder{}
-	deps := installDeps{
-		logger: logger.New(logBuffer, io.Discard, false, false),
-		output: output.New(logBuffer, io.Discard, false),
-	}
+func TestHandleExpectedFetchErrorUsesFailureReason(t *testing.T) {
+	t.Setenv("MMM_TEST", "true")
 
 	mod := models.Mod{Name: "Example", ID: "abc", Type: models.MODRINTH}
-	handled, err := handleExpectedFetchError(&platform.ModNotFoundError{Platform: models.MODRINTH, ProjectID: "abc"}, installModInputs{mod: mod, deps: deps, colorize: true})
-	assert.NoError(t, err)
+	outcome, handled := handleExpectedFetchError(&platform.ModNotFoundError{Platform: models.MODRINTH, ProjectID: "abc"}, installModInputs{mod: mod, colorize: true})
 	assert.True(t, handled)
-	assert.Contains(t, logBuffer.String(), "modrinth")
+	assert.Contains(t, outcome.failureReason, "cmd.install.error.mod_not_found")
 }
 
 func TestEnsureLockInstallLogsReasons(t *testing.T) {
@@ -397,9 +386,8 @@ func TestEnsureLockInstallLogsReasons(t *testing.T) {
 		Hash:        sha1Hex("data"),
 		DownloadURL: "https://example.com/example.jar",
 	}
-	mod := models.Mod{Type: models.MODRINTH, ID: "abc", Name: "Example"}
-
-	assert.NoError(t, ensureLockInstall(context.Background(), meta, cfg, mod, missingInstall, deps))
+	_, err := ensureLockInstall(context.Background(), meta, cfg, missingInstall, deps, nil)
+	assert.NoError(t, err)
 
 	mismatchPath := filepath.Join(meta.ModsFolderPath(cfg), "mismatch.jar")
 	assert.NoError(t, afero.WriteFile(fs, mismatchPath, []byte("bad"), 0644))
@@ -407,7 +395,8 @@ func TestEnsureLockInstallLogsReasons(t *testing.T) {
 	mismatchInstall.FileName = "mismatch.jar"
 	mismatchInstall.Hash = sha1Hex("data")
 
-	assert.NoError(t, ensureLockInstall(context.Background(), meta, cfg, mod, mismatchInstall, deps))
+	_, err = ensureLockInstall(context.Background(), meta, cfg, mismatchInstall, deps, nil)
+	assert.NoError(t, err)
 }
 
 func TestEnsureLockInstallAlreadyPresent(t *testing.T) {
@@ -439,9 +428,8 @@ func TestEnsureLockInstallAlreadyPresent(t *testing.T) {
 		Hash:        sha1Hex(string(contents)),
 		DownloadURL: "https://example.com/present.jar",
 	}
-	mod := models.Mod{Type: models.MODRINTH, ID: "abc", Name: "Example"}
-
-	assert.NoError(t, ensureLockInstall(context.Background(), meta, cfg, mod, installEntry, deps))
+	_, err := ensureLockInstall(context.Background(), meta, cfg, installEntry, deps, nil)
+	assert.NoError(t, err)
 }
 
 func TestEnsureLockInstallReturnsErrorOnMissingDownloadURL(t *testing.T) {
@@ -463,9 +451,8 @@ func TestEnsureLockInstallReturnsErrorOnMissingDownloadURL(t *testing.T) {
 		FileName: "present.jar",
 		Hash:     sha1Hex("data"),
 	}
-	mod := models.Mod{Type: models.MODRINTH, ID: "abc", Name: "Example"}
-
-	assert.Error(t, ensureLockInstall(context.Background(), meta, cfg, mod, installEntry, deps))
+	_, err := ensureLockInstall(context.Background(), meta, cfg, installEntry, deps, nil)
+	assert.Error(t, err)
 }
 
 func sha1Hex(data string) string {
@@ -1010,13 +997,12 @@ func TestPlatformErrorDetailsFallsBackToErrorMessage(t *testing.T) {
 	assert.Equal(t, "boom", details)
 }
 
-func TestLogPlatformLookupFailureOutputsMessages(t *testing.T) {
+func TestPlatformLookupFailureLinesOutputsMessages(t *testing.T) {
 	t.Setenv("MMM_TEST", "true")
 
 	out := &bytes.Buffer{}
 	errOut := &bytes.Buffer{}
 	log := logger.New(out, errOut, false, true)
-	outWriter := output.New(out, errOut, false)
 
 	failure := &platformLookupFailure{
 		Platform: models.CURSEFORGE,
@@ -1027,24 +1013,23 @@ func TestLogPlatformLookupFailureOutputsMessages(t *testing.T) {
 		DebugDetails: "debug details",
 	}
 
-	err := logPlatformLookupFailure(outWriter, log, failure, tui.ColorDisabled)
+	lines, err := platformLookupFailureLines(log, failure, view.ColorDisabled)
 	assert.NoError(t, err)
 	assert.Contains(t, out.String(), "cmd.install.debug.platform_error")
-	assert.Contains(t, out.String(), "cmd.install.unsure.platform_error")
-	assert.Contains(t, out.String(), "cmd.install.unsure.platform_error_details")
-	assert.Contains(t, out.String(), "a.jar")
+	assert.Len(t, lines, 2)
+	assert.Contains(t, lines[0], "cmd.install.unsure.platform_error")
+	assert.Contains(t, lines[0], "a.jar")
+	assert.Contains(t, lines[1], "cmd.install.unsure.platform_error_details")
 }
 
-func TestLogPlatformLookupFailureHandlesNil(t *testing.T) {
-	assert.NoError(t, logPlatformLookupFailure(nil, nil, nil, tui.ColorDisabled))
+func TestPlatformLookupFailureLinesHandlesNil(t *testing.T) {
+	lines, err := platformLookupFailureLines(nil, nil, view.ColorDisabled)
+	assert.NoError(t, err)
+	assert.Nil(t, lines)
 }
 
-func TestLogPlatformLookupFailureErrorsWithoutLogger(t *testing.T) {
+func TestPlatformLookupFailureLinesErrorsWithoutLogger(t *testing.T) {
 	t.Setenv("MMM_TEST", "true")
-
-	out := &bytes.Buffer{}
-	errOut := &bytes.Buffer{}
-	outWriter := output.New(out, errOut, false)
 
 	failure := &platformLookupFailure{
 		Platform: models.CURSEFORGE,
@@ -1055,29 +1040,12 @@ func TestLogPlatformLookupFailureErrorsWithoutLogger(t *testing.T) {
 		DebugDetails: "debug details",
 	}
 
-	err := logPlatformLookupFailure(outWriter, nil, failure, tui.ColorDisabled)
+	_, err := platformLookupFailureLines(nil, failure, view.ColorDisabled)
 	assert.ErrorContains(t, err, "missing logger for platform debug output")
 }
 
-func TestLogPlatformLookupFailureReturnsOutputError(t *testing.T) {
+func TestPlatformLookupFailureLinesReturnsLoggerError(t *testing.T) {
 	writeErr := errors.New("write failed")
-	outWriter := output.New(errorWriter{err: writeErr}, io.Discard, false)
-
-	failure := &platformLookupFailure{
-		Platform: models.CURSEFORGE,
-		Files:    []string{"/mods/a.jar"},
-		Reason:   "failure reason",
-	}
-
-	err := logPlatformLookupFailure(outWriter, logger.New(io.Discard, io.Discard, false, false), failure, tui.ColorDisabled)
-	assert.ErrorIs(t, err, writeErr)
-}
-
-func TestLogPlatformLookupFailureReturnsLoggerError(t *testing.T) {
-	writeErr := errors.New("write failed")
-	out := &bytes.Buffer{}
-	errOut := &bytes.Buffer{}
-	outWriter := output.New(out, errOut, false)
 	log := logger.New(errorWriter{err: writeErr}, io.Discard, false, true)
 
 	failure := &platformLookupFailure{
@@ -1087,23 +1055,7 @@ func TestLogPlatformLookupFailureReturnsLoggerError(t *testing.T) {
 		DebugDetails: "debug details",
 	}
 
-	err := logPlatformLookupFailure(outWriter, log, failure, tui.ColorDisabled)
-	assert.ErrorIs(t, err, writeErr)
-}
-
-func TestLogPlatformLookupFailureReturnsDetailsOutputError(t *testing.T) {
-	writeErr := errors.New("write failed")
-	limitedWriter := &limitedErrorWriter{remaining: 1, err: writeErr}
-	outWriter := output.New(limitedWriter, io.Discard, false)
-
-	failure := &platformLookupFailure{
-		Platform:     models.CURSEFORGE,
-		Files:        []string{"/mods/a.jar"},
-		Reason:       "failure reason",
-		DebugDetails: "debug details",
-	}
-
-	err := logPlatformLookupFailure(outWriter, logger.New(io.Discard, io.Discard, false, true), failure, tui.ColorDisabled)
+	_, err := platformLookupFailureLines(log, failure, view.ColorDisabled)
 	assert.ErrorIs(t, err, writeErr)
 }
 
@@ -1151,29 +1103,39 @@ func TestPreflightUnknownFilesLogsPlatformErrors(t *testing.T) {
 
 	assert.NoError(t, err)
 	assert.True(t, outcome.unresolved)
-	assert.Contains(t, out.String(), "cmd.install.unsure.platform_error")
-	assert.Contains(t, out.String(), "cmd.platform.error.reason.auth")
 	assert.Contains(t, out.String(), "cmd.install.debug.platform_error")
-	assert.Contains(t, out.String(), "cmd.install.unsure.platform_error_details")
-	assert.Contains(t, out.String(), "bad.jar")
+	assert.Len(t, outcome.lines, 2)
+	assert.Contains(t, outcome.lines[0], "cmd.install.unsure.platform_error")
+	assert.Contains(t, outcome.lines[0], "cmd.platform.error.reason.auth")
+	assert.Contains(t, outcome.lines[0], "bad.jar")
+	assert.Contains(t, outcome.lines[1], "cmd.install.unsure.platform_error_details")
 }
 
-func TestInstallFromLockReturnsOutputErrorOnInvalidFilename(t *testing.T) {
-	writeErr := errors.New("write failed")
+func TestInstallFromLockReturnsFailedOutcomeOnInvalidFilename(t *testing.T) {
+	t.Setenv("MMM_TEST", "true")
+
 	mod := models.Mod{Name: "Example"}
 	installEntry := models.ModInstall{FileName: "mods/invalid.jar"}
 
-	_, err := installFromLock(context.Background(), config.NewMetadata("modlist.json"), models.ModsJSON{ModsFolder: "mods"}, mod, installEntry, installDeps{
-		output: output.New(io.Discard, errorWriter{err: writeErr}, false),
-	})
-	assert.ErrorIs(t, err, writeErr)
+	outcome, err := installFromLock(context.Background(), config.NewMetadata("modlist.json"), models.ModsJSON{ModsFolder: "mods"}, mod, installEntry, installDeps{}, nil)
+	assert.NoError(t, err)
+	assert.True(t, outcome.failed)
+	assert.Contains(t, outcome.failureReason, "cmd.install.error.invalid_filename_lock")
 }
 
-func TestInstallFromRemoteReturnsOutputErrorOnMissingLog(t *testing.T) {
-	writeErr := errors.New("write failed")
+func TestInstallFromRemoteReturnsErrorOnDownloadFailure(t *testing.T) {
+	downloadErr := errors.New("download failed")
+	fs := afero.NewMemMapFs()
+	meta := config.NewMetadata(filepath.FromSlash("/cfg/modlist.json"))
+	cfg := models.ModsJSON{ModsFolder: "mods"}
+	assert.NoError(t, fs.MkdirAll(meta.ModsFolderPath(cfg), 0755))
+
 	deps := installDeps{
-		output:  output.New(errorWriter{err: writeErr}, io.Discard, false),
+		fs:      fs,
 		clients: platform.DefaultClients(rate.NewLimiter(rate.Inf, 0)),
+		downloader: func(context.Context, string, string, httpclient.Doer, httpclient.Sender, ...afero.Fs) error {
+			return downloadErr
+		},
 		fetchMod: func(context.Context, models.Platform, string, platform.FetchOptions, platform.Clients) (platform.RemoteMod, error) {
 			return platform.RemoteMod{
 				Name:        "Example",
@@ -1186,20 +1148,18 @@ func TestInstallFromRemoteReturnsOutputErrorOnMissingLog(t *testing.T) {
 
 	_, err := installFromRemote(installModInputs{
 		ctx:  context.Background(),
-		meta: config.NewMetadata("modlist.json"),
-		cfg: models.ModsJSON{
-			ModsFolder: "mods",
-		},
+		meta: meta,
+		cfg:  cfg,
 		mod:  models.Mod{Name: "Example", ID: "abc", Type: models.MODRINTH},
 		deps: deps,
 	})
-	assert.ErrorIs(t, err, writeErr)
+	assert.ErrorIs(t, err, downloadErr)
 }
 
-func TestInstallFromRemoteReturnsErrorOnNormalizeOutputFailure(t *testing.T) {
-	writeErr := errors.New("write failed")
+func TestInstallFromRemoteReturnsFailedOutcomeOnInvalidFilename(t *testing.T) {
+	t.Setenv("MMM_TEST", "true")
+
 	deps := installDeps{
-		output:  output.New(io.Discard, errorWriter{err: writeErr}, false),
 		clients: platform.DefaultClients(rate.NewLimiter(rate.Inf, 0)),
 		fetchMod: func(context.Context, models.Platform, string, platform.FetchOptions, platform.Clients) (platform.RemoteMod, error) {
 			return platform.RemoteMod{
@@ -1211,7 +1171,7 @@ func TestInstallFromRemoteReturnsErrorOnNormalizeOutputFailure(t *testing.T) {
 		},
 	}
 
-	_, err := installFromRemote(installModInputs{
+	outcome, err := installFromRemote(installModInputs{
 		ctx:  context.Background(),
 		meta: config.NewMetadata("modlist.json"),
 		cfg: models.ModsJSON{
@@ -1220,12 +1180,15 @@ func TestInstallFromRemoteReturnsErrorOnNormalizeOutputFailure(t *testing.T) {
 		mod:  models.Mod{Name: "Example", ID: "abc", Type: models.MODRINTH},
 		deps: deps,
 	})
-	assert.ErrorIs(t, err, writeErr)
+	assert.NoError(t, err)
+	assert.True(t, outcome.failed)
+	assert.Contains(t, outcome.failureReason, "cmd.install.error.invalid_filename_remote")
 }
 
 func TestInstallFromRemoteHandlesExpectedFetchError(t *testing.T) {
+	t.Setenv("MMM_TEST", "true")
+
 	deps := installDeps{
-		output:  output.New(io.Discard, io.Discard, false),
 		clients: platform.DefaultClients(rate.NewLimiter(rate.Inf, 0)),
 		fetchMod: func(context.Context, models.Platform, string, platform.FetchOptions, platform.Clients) (platform.RemoteMod, error) {
 			return platform.RemoteMod{}, &platform.ModNotFoundError{Platform: models.MODRINTH, ProjectID: "abc"}
@@ -1240,12 +1203,14 @@ func TestInstallFromRemoteHandlesExpectedFetchError(t *testing.T) {
 		deps: deps,
 	})
 	assert.NoError(t, err)
-	assert.False(t, outcome.failed)
+	assert.True(t, outcome.failed)
+	assert.Contains(t, outcome.failureReason, "cmd.install.error.mod_not_found")
 }
 
 func TestInstallFromRemoteReturnsFailedOutcomeOnMissingHash(t *testing.T) {
+	t.Setenv("MMM_TEST", "true")
+
 	deps := installDeps{
-		output:  output.New(io.Discard, io.Discard, false),
 		clients: platform.DefaultClients(rate.NewLimiter(rate.Inf, 0)),
 		fetchMod: func(context.Context, models.Platform, string, platform.FetchOptions, platform.Clients) (platform.RemoteMod, error) {
 			return platform.RemoteMod{
@@ -1266,150 +1231,56 @@ func TestInstallFromRemoteReturnsFailedOutcomeOnMissingHash(t *testing.T) {
 	})
 	assert.NoError(t, err)
 	assert.True(t, outcome.failed)
+	assert.Contains(t, outcome.failureReason, "cmd.install.error.missing_hash_remote")
 }
 
-func TestInstallFromRemoteReturnsErrorOnFetchOutputFailure(t *testing.T) {
-	writeErr := errors.New("write failed")
+func TestInstallFromRemoteReturnsFailedOutcomeOnNoFile(t *testing.T) {
+	t.Setenv("MMM_TEST", "true")
+
 	deps := installDeps{
-		output:  output.New(errorWriter{err: writeErr}, io.Discard, false),
 		clients: platform.DefaultClients(rate.NewLimiter(rate.Inf, 0)),
 		fetchMod: func(context.Context, models.Platform, string, platform.FetchOptions, platform.Clients) (platform.RemoteMod, error) {
-			return platform.RemoteMod{}, &platform.ModNotFoundError{Platform: models.MODRINTH, ProjectID: "abc"}
+			return platform.RemoteMod{}, &platform.NoCompatibleFileError{Platform: models.MODRINTH, ProjectID: "abc"}
 		},
 	}
 
-	_, err := installFromRemote(installModInputs{
+	outcome, err := installFromRemote(installModInputs{
 		ctx:  context.Background(),
 		meta: config.NewMetadata("modlist.json"),
 		cfg:  models.ModsJSON{ModsFolder: "mods"},
 		mod:  models.Mod{Name: "Example", ID: "abc", Type: models.MODRINTH},
 		deps: deps,
 	})
-	assert.ErrorIs(t, err, writeErr)
+	assert.NoError(t, err)
+	assert.True(t, outcome.failed)
+	assert.Contains(t, outcome.failureReason, "cmd.install.error.no_file")
 }
 
-func TestHandleInstallIntegrityErrorReturnsOutputError(t *testing.T) {
-	writeErr := errors.New("write failed")
-	_, err := handleInstallIntegrityError(output.New(io.Discard, errorWriter{err: writeErr}, false), modinstall.MissingHashError{FileName: "mod.jar"}, "Example")
-	assert.ErrorIs(t, err, writeErr)
-}
+func TestNormalizeRemoteForInstallReturnsFailureOnInvalidFileName(t *testing.T) {
+	t.Setenv("MMM_TEST", "true")
 
-func TestHandleDownloadIntegrityErrorReturnsOutputError(t *testing.T) {
-	writeErr := errors.New("write failed")
-	_, err := handleDownloadIntegrityError(output.New(io.Discard, errorWriter{err: writeErr}, false), modinstall.MissingHashError{FileName: "mod.jar"}, "Example")
-	assert.ErrorIs(t, err, writeErr)
-}
-
-func TestNormalizeRemoteForInstallReturnsOutputErrorOnInvalidFileName(t *testing.T) {
-	writeErr := errors.New("write failed")
-	deps := installDeps{output: output.New(io.Discard, errorWriter{err: writeErr}, false)}
-
-	_, _, err := normalizeRemoteForInstall(platform.RemoteMod{
+	_, outcome := normalizeRemoteForInstall(platform.RemoteMod{
 		Name:     "Example",
 		FileName: "mods/invalid.jar",
 		Hash:     sha1Hex("data"),
-	}, models.Mod{Name: "Example"}, deps)
-	assert.ErrorIs(t, err, writeErr)
+	}, models.Mod{Name: "Example"})
+	assert.True(t, outcome.failed)
+	assert.Contains(t, outcome.failureReason, "cmd.install.error.invalid_filename_remote")
 }
 
-func TestNormalizeRemoteForInstallReturnsOutputErrorOnMissingHash(t *testing.T) {
-	writeErr := errors.New("write failed")
-	deps := installDeps{output: output.New(io.Discard, errorWriter{err: writeErr}, false)}
+func TestNormalizeRemoteForInstallReturnsFailureOnMissingHash(t *testing.T) {
+	t.Setenv("MMM_TEST", "true")
 
-	_, _, err := normalizeRemoteForInstall(platform.RemoteMod{
+	_, outcome := normalizeRemoteForInstall(platform.RemoteMod{
 		Name:     "Example",
 		FileName: "example.jar",
 		Hash:     "",
-	}, models.Mod{Name: "Example"}, deps)
-	assert.ErrorIs(t, err, writeErr)
+	}, models.Mod{Name: "Example"})
+	assert.True(t, outcome.failed)
+	assert.Contains(t, outcome.failureReason, "cmd.install.error.missing_hash_remote")
 }
 
-func TestEnsureLockInstallReturnsOutputError(t *testing.T) {
-	writeErr := errors.New("write failed")
-	fs := afero.NewMemMapFs()
-	meta := config.NewMetadata(filepath.FromSlash("/cfg/modlist.json"))
-	cfg := models.ModsJSON{ModsFolder: "mods"}
-	assert.NoError(t, fs.MkdirAll(meta.ModsFolderPath(cfg), 0755))
-
-	deps := installDeps{
-		fs:      fs,
-		logger:  logger.New(io.Discard, io.Discard, false, false),
-		output:  output.New(errorWriter{err: writeErr}, io.Discard, false),
-		clients: platform.DefaultClients(rate.NewLimiter(rate.Inf, 0)),
-		downloader: func(_ context.Context, _ string, path string, _ httpclient.Doer, _ httpclient.Sender, _ ...afero.Fs) error {
-			return afero.WriteFile(fs, path, []byte("data"), 0644)
-		},
-	}
-
-	installEntry := models.ModInstall{
-		Type:        models.MODRINTH,
-		ID:          "abc",
-		Name:        "Example",
-		FileName:    "example.jar",
-		Hash:        sha1Hex("data"),
-		DownloadURL: "https://example.com/example.jar",
-	}
-	mod := models.Mod{Type: models.MODRINTH, ID: "abc", Name: "Example"}
-
-	assert.ErrorIs(t, ensureLockInstall(context.Background(), meta, cfg, mod, installEntry, deps), writeErr)
-}
-
-func TestEnsureLockInstallReturnsHashMismatchOutputError(t *testing.T) {
-	writeErr := errors.New("write failed")
-	fs := afero.NewMemMapFs()
-	meta := config.NewMetadata(filepath.FromSlash("/cfg/modlist.json"))
-	cfg := models.ModsJSON{ModsFolder: "mods"}
-	assert.NoError(t, fs.MkdirAll(meta.ModsFolderPath(cfg), 0755))
-	assert.NoError(t, afero.WriteFile(fs, filepath.Join(meta.ModsFolderPath(cfg), "mismatch.jar"), []byte("bad"), 0644))
-
-	deps := installDeps{
-		fs:      fs,
-		logger:  logger.New(io.Discard, io.Discard, false, false),
-		output:  output.New(errorWriter{err: writeErr}, io.Discard, false),
-		clients: platform.DefaultClients(rate.NewLimiter(rate.Inf, 0)),
-		downloader: func(_ context.Context, _ string, path string, _ httpclient.Doer, _ httpclient.Sender, _ ...afero.Fs) error {
-			return afero.WriteFile(fs, path, []byte("data"), 0644)
-		},
-	}
-
-	installEntry := models.ModInstall{
-		Type:        models.MODRINTH,
-		ID:          "abc",
-		Name:        "Example",
-		FileName:    "mismatch.jar",
-		Hash:        sha1Hex("data"),
-		DownloadURL: "https://example.com/mismatch.jar",
-	}
-	mod := models.Mod{Type: models.MODRINTH, ID: "abc", Name: "Example"}
-
-	assert.ErrorIs(t, ensureLockInstall(context.Background(), meta, cfg, mod, installEntry, deps), writeErr)
-}
-
-func TestHandleExpectedFetchErrorReturnsOutputError(t *testing.T) {
-	writeErr := errors.New("write failed")
-	deps := installDeps{
-		output: output.New(errorWriter{err: writeErr}, io.Discard, false),
-	}
-	mod := models.Mod{Name: "Example", ID: "abc", Type: models.MODRINTH}
-
-	handled, err := handleExpectedFetchError(&platform.ModNotFoundError{Platform: models.MODRINTH, ProjectID: "abc"}, installModInputs{mod: mod, deps: deps, colorize: false})
-	assert.False(t, handled)
-	assert.ErrorIs(t, err, writeErr)
-}
-
-func TestHandleExpectedFetchErrorReturnsNoFileOutputError(t *testing.T) {
-	writeErr := errors.New("write failed")
-	deps := installDeps{
-		output: output.New(errorWriter{err: writeErr}, io.Discard, false),
-	}
-	mod := models.Mod{Name: "Example", ID: "abc", Type: models.MODRINTH}
-
-	handled, err := handleExpectedFetchError(&platform.NoCompatibleFileError{Platform: models.MODRINTH, ProjectID: "abc"}, installModInputs{mod: mod, deps: deps, colorize: false})
-	assert.False(t, handled)
-	assert.ErrorIs(t, err, writeErr)
-}
-func TestRunInstallReturnsOutputErrorOnSuccessLog(t *testing.T) {
-	writeErr := errors.New("write failed")
+func TestRunInstallDoesNotWriteOnSuccess(t *testing.T) {
 	fs := afero.NewMemMapFs()
 	meta := config.NewMetadata(filepath.FromSlash("/cfg/modlist.json"))
 	cfg := models.ModsJSON{
@@ -1422,14 +1293,15 @@ func TestRunInstallReturnsOutputErrorOnSuccessLog(t *testing.T) {
 	assert.NoError(t, config.WriteLock(context.Background(), fs, meta, []models.ModInstall{}))
 
 	cmd := &cobra.Command{}
+	cmd.SetIn(&bytes.Buffer{})
 	cmd.SetOut(&bytes.Buffer{})
 
 	_, err := runInstall(context.Background(), cmd, installOptions{ConfigPath: meta.ConfigPath}, installDeps{
 		fs:     fs,
 		logger: logger.New(io.Discard, io.Discard, false, false),
-		output: output.New(errorWriter{err: writeErr}, io.Discard, false),
+		output: output.New(io.Discard, io.Discard, false),
 	})
-	assert.ErrorIs(t, err, writeErr)
+	assert.NoError(t, err)
 }
 
 func TestInstallConfiguredModsReturnsLoggerError(t *testing.T) {
@@ -1453,7 +1325,6 @@ func TestInstallConfiguredModsReturnsLoggerError(t *testing.T) {
 }
 
 func TestPreflightInstallReturnsOutputErrorWhenUnresolved(t *testing.T) {
-	writeErr := errors.New("write failed")
 	fs := afero.NewMemMapFs()
 	meta := config.NewMetadata(filepath.FromSlash("/cfg/modlist.json"))
 	cfg := models.ModsJSON{
@@ -1470,71 +1341,51 @@ func TestPreflightInstallReturnsOutputErrorWhenUnresolved(t *testing.T) {
 	_, err := preflightInstall(context.Background(), meta, cfg, nil, installDeps{
 		fs:                    fs,
 		logger:                logger.New(io.Discard, io.Discard, false, true),
-		output:                output.New(io.Discard, errorWriter{err: writeErr}, false),
 		clients:               platform.DefaultClients(rate.NewLimiter(rate.Inf, 0)),
 		curseforgeFingerprint: func(string) uint32 { return 123 },
 		curseforgeFingerprintMatch: func(context.Context, []uint32, httpclient.Doer) (*curseforge.FingerprintResult, error) {
 			return nil, errors.New("boom")
 		},
 	}, false)
-	assert.ErrorIs(t, err, writeErr)
+	assert.ErrorIs(t, err, errUnresolvedFiles)
 }
 
-func TestHandlePreflightScanFailureReturnsOutputError(t *testing.T) {
-	writeErr := errors.New("write failed")
-	input := preflightInputs{
-		deps: installDeps{
-			output: output.New(errorWriter{err: writeErr}, io.Discard, false),
-		},
-	}
-	handled, err := handlePreflightScanFailure(input, &platformLookupFailure{
+func TestHandlePreflightScanFailureReturnsOutcome(t *testing.T) {
+	input := preflightInputs{}
+	outcome, handled, err := handlePreflightScanFailure(input, &platformLookupFailure{
 		Platform: models.MODRINTH,
 		Files:    []string{"mod.jar"},
 		Reason:   "boom",
 	})
-	assert.False(t, handled)
-	assert.ErrorIs(t, err, writeErr)
+	assert.True(t, handled)
+	assert.NoError(t, err)
+	assert.NotEmpty(t, outcome.lines)
 }
 
-func TestLogPlatformLookupFailureReturnsErrorWhenMissingLogger(t *testing.T) {
-	out := output.New(io.Discard, io.Discard, false)
-	err := logPlatformLookupFailure(out, nil, &platformLookupFailure{
+func TestPlatformLookupFailureLinesReturnsErrorWhenMissingLogger(t *testing.T) {
+	_, err := platformLookupFailureLines(nil, &platformLookupFailure{
 		Platform:     models.MODRINTH,
 		Files:        []string{"mod.jar"},
 		Reason:       "boom",
 		DebugDetails: "details",
-	}, tui.ColorDisabled)
+	}, view.ColorDisabled)
 	assert.ErrorContains(t, err, "missing logger")
 }
 
-func TestLogPlatformLookupFailureReturnsErrorOnLogFailure(t *testing.T) {
+func TestPlatformLookupFailureLinesReturnsErrorOnLogFailure(t *testing.T) {
 	writeErr := errors.New("write failed")
-	out := output.New(io.Discard, io.Discard, false)
 	log := logger.New(errorWriter{err: writeErr}, io.Discard, false, true)
 
-	err := logPlatformLookupFailure(out, log, &platformLookupFailure{
+	_, err := platformLookupFailureLines(log, &platformLookupFailure{
 		Platform:     models.MODRINTH,
 		Files:        []string{"mod.jar"},
 		Reason:       "boom",
 		DebugDetails: "details",
-	}, tui.ColorDisabled)
+	}, view.ColorDisabled)
 	assert.ErrorIs(t, err, writeErr)
 }
 
-func TestLogPlatformLookupFailureReturnsErrorOnOutputFailure(t *testing.T) {
-	writeErr := errors.New("write failed")
-	out := output.New(errorWriter{err: writeErr}, io.Discard, false)
-
-	err := logPlatformLookupFailure(out, logger.New(io.Discard, io.Discard, false, false), &platformLookupFailure{
-		Platform: models.MODRINTH,
-		Files:    []string{"mod.jar"},
-		Reason:   "boom",
-	}, tui.ColorDisabled)
-	assert.ErrorIs(t, err, writeErr)
-}
-
-func TestReportScanResultsReturnsError(t *testing.T) {
-	writeErr := errors.New("write failed")
+func TestReportScanResultsReturnsOutcome(t *testing.T) {
 	input := scanReportInputs{
 		scanned: []scannedFile{
 			{
@@ -1543,68 +1394,54 @@ func TestReportScanResultsReturnsError(t *testing.T) {
 			},
 		},
 		cfg: models.ModsJSON{},
-		deps: installDeps{
-			output: output.New(errorWriter{err: writeErr}, io.Discard, false),
-		},
 	}
 
-	_, err := reportScanResults(input)
-	assert.ErrorIs(t, err, writeErr)
+	outcome := reportScanResults(input)
+	assert.True(t, outcome.unmanagedFound)
 }
 
-func TestReportScanResultReturnsOutputErrorWhenUnmanaged(t *testing.T) {
-	writeErr := errors.New("write failed")
-	input := scanReportInputs{
-		cfg: models.ModsJSON{},
-		deps: installDeps{
-			output: output.New(errorWriter{err: writeErr}, io.Discard, false),
-		},
-	}
+func TestReportScanResultReturnsUnmanagedLine(t *testing.T) {
+	input := scanReportInputs{cfg: models.ModsJSON{}}
 
-	_, err := reportScanResult(input, scannedFile{
+	outcome := reportScanResult(input, scannedFile{
 		Path: "mod.jar",
 		Hits: []scanHit{{Platform: models.MODRINTH, Project: "abc", Name: "Example"}},
-	}, tui.ColorDisabled)
-	assert.ErrorIs(t, err, writeErr)
+	}, view.ColorDisabled)
+	assert.True(t, outcome.unmanagedFound)
+	assert.NotEmpty(t, outcome.lines)
 }
 
-func TestReportScanResultReturnsOutputErrorWhenLockMissing(t *testing.T) {
-	writeErr := errors.New("write failed")
+func TestReportScanResultReturnsLockMissingLine(t *testing.T) {
 	input := scanReportInputs{
 		cfg: models.ModsJSON{
 			Mods: []models.Mod{{ID: "abc", Name: "Example", Type: models.MODRINTH}},
 		},
 		lock: []models.ModInstall{},
-		deps: installDeps{
-			output: output.New(errorWriter{err: writeErr}, io.Discard, false),
-		},
 	}
 
-	_, err := reportScanResult(input, scannedFile{
+	outcome := reportScanResult(input, scannedFile{
 		Path: "mod.jar",
 		Hits: []scanHit{{Platform: models.MODRINTH, Project: "abc", Name: "Example"}},
-	}, tui.ColorDisabled)
-	assert.ErrorIs(t, err, writeErr)
+	}, view.ColorDisabled)
+	assert.True(t, outcome.unresolved)
+	assert.NotEmpty(t, outcome.lines)
 }
 
-func TestReportScanResultReturnsOutputErrorWhenHashMismatch(t *testing.T) {
-	writeErr := errors.New("write failed")
+func TestReportScanResultReturnsHashMismatchLine(t *testing.T) {
 	input := scanReportInputs{
 		cfg: models.ModsJSON{
 			Mods: []models.Mod{{ID: "abc", Name: "Example", Type: models.MODRINTH}},
 		},
 		lock: []models.ModInstall{{ID: "abc", Type: models.MODRINTH, Hash: "abc123"}},
-		deps: installDeps{
-			output: output.New(errorWriter{err: writeErr}, io.Discard, false),
-		},
 	}
 
-	_, err := reportScanResult(input, scannedFile{
+	outcome := reportScanResult(input, scannedFile{
 		Path: "mod.jar",
 		Sha1: "different",
 		Hits: []scanHit{{Platform: models.MODRINTH, Project: "abc", Name: "Example"}},
-	}, tui.ColorDisabled)
-	assert.ErrorIs(t, err, writeErr)
+	}, view.ColorDisabled)
+	assert.True(t, outcome.unresolved)
+	assert.NotEmpty(t, outcome.lines)
 }
 
 type errorWriter struct {
@@ -1613,17 +1450,4 @@ type errorWriter struct {
 
 func (writer errorWriter) Write([]byte) (int, error) {
 	return 0, writer.err
-}
-
-type limitedErrorWriter struct {
-	remaining int
-	err       error
-}
-
-func (writer *limitedErrorWriter) Write(p []byte) (int, error) {
-	if writer.remaining <= 0 {
-		return 0, writer.err
-	}
-	writer.remaining--
-	return len(p), nil
 }

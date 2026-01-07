@@ -1,6 +1,7 @@
 package install
 
 import (
+	"bytes"
 	"context"
 	"errors"
 	"io"
@@ -8,6 +9,7 @@ import (
 	"path/filepath"
 	"testing"
 
+	tea "github.com/charmbracelet/bubbletea"
 	"github.com/spf13/afero"
 	"github.com/spf13/cobra"
 	"github.com/stretchr/testify/assert"
@@ -30,6 +32,7 @@ func TestRunInstallReturnsErrorOnConfigReadFailure(t *testing.T) {
 	require.NoError(t, afero.WriteFile(fs, meta.ConfigPath, []byte("{invalid"), 0644))
 
 	cmd := &cobra.Command{}
+	cmd.SetIn(&bytes.Buffer{})
 	cmd.SetOut(io.Discard)
 	cmd.SetErr(io.Discard)
 
@@ -55,6 +58,7 @@ func TestRunInstallReturnsErrorOnEnsureLockFailure(t *testing.T) {
 	readOnlyFs := afero.NewReadOnlyFs(baseFs)
 
 	cmd := &cobra.Command{}
+	cmd.SetIn(&bytes.Buffer{})
 	cmd.SetOut(io.Discard)
 	cmd.SetErr(io.Discard)
 
@@ -86,6 +90,7 @@ func TestRunInstallReturnsErrorOnPreflightFailure(t *testing.T) {
 	}
 
 	cmd := &cobra.Command{}
+	cmd.SetIn(&bytes.Buffer{})
 	cmd.SetOut(io.Discard)
 	cmd.SetErr(io.Discard)
 
@@ -117,6 +122,7 @@ func TestRunInstallReturnsUnresolvedFilesError(t *testing.T) {
 	require.NoError(t, config.WriteLock(context.Background(), fs, meta, []models.ModInstall{}))
 
 	cmd := &cobra.Command{}
+	cmd.SetIn(&bytes.Buffer{})
 	cmd.SetOut(io.Discard)
 	cmd.SetErr(io.Discard)
 
@@ -141,6 +147,43 @@ func TestRunInstallReturnsUnresolvedFilesError(t *testing.T) {
 	assert.ErrorIs(t, err, errUnresolvedFiles)
 }
 
+func TestRunInstallQuietOutputsDownloadFailures(t *testing.T) {
+	t.Setenv("MMM_TEST", "true")
+
+	fs := afero.NewMemMapFs()
+	meta := config.NewMetadata(filepath.FromSlash("/cfg/modlist.json"))
+	cfg := models.ModsJSON{
+		Loader:                     models.FABRIC,
+		GameVersion:                "1.20.1",
+		DefaultAllowedReleaseTypes: []models.ReleaseType{models.Release},
+		ModsFolder:                 "mods",
+		Mods: []models.Mod{
+			{Type: models.MODRINTH, ID: "abc", Name: "Example"},
+		},
+	}
+
+	require.NoError(t, fs.MkdirAll(meta.ModsFolderPath(cfg), 0755))
+	require.NoError(t, config.WriteConfig(context.Background(), fs, meta, cfg))
+	require.NoError(t, config.WriteLock(context.Background(), fs, meta, []models.ModInstall{
+		{Type: models.MODRINTH, ID: "abc", FileName: "example.jar", Hash: "", DownloadURL: "https://example.invalid"},
+	}))
+
+	outBuffer := &bytes.Buffer{}
+	cmd := &cobra.Command{}
+	cmd.SetOut(outBuffer)
+	cmd.SetErr(io.Discard)
+
+	_, err := runInstall(context.Background(), cmd, installOptions{ConfigPath: meta.ConfigPath, Quiet: true}, installDeps{
+		fs:      fs,
+		logger:  logger.New(io.Discard, io.Discard, false, false),
+		output:  output.New(io.Discard, io.Discard, false),
+		clients: platform.DefaultClients(rate.NewLimiter(rate.Inf, 0)),
+	})
+	assert.Error(t, err)
+	assert.Contains(t, outBuffer.String(), "cmd.install.quiet.download_failed")
+	assert.Contains(t, outBuffer.String(), "cmd.install.item.download_failed")
+}
+
 func TestRunInstallEnsuresExistingLockEntry(t *testing.T) {
 	fs := afero.NewMemMapFs()
 	meta := config.NewMetadata(filepath.FromSlash("/cfg/modlist.json"))
@@ -163,8 +206,12 @@ func TestRunInstallEnsuresExistingLockEntry(t *testing.T) {
 	}))
 
 	cmd := &cobra.Command{}
+	cmd.SetIn(&bytes.Buffer{})
 	cmd.SetOut(io.Discard)
 	cmd.SetErr(io.Discard)
+
+	restore := stubInstallTranscriptProgram()
+	defer restore()
 
 	_, err := runInstall(context.Background(), cmd, installOptions{ConfigPath: meta.ConfigPath}, installDeps{
 		fs:      fs,
@@ -201,8 +248,12 @@ func TestRunInstallFetchesWhenLockMissing(t *testing.T) {
 	require.NoError(t, fs.MkdirAll(meta.ModsFolderPath(cfg), 0755))
 
 	cmd := &cobra.Command{}
+	cmd.SetIn(&bytes.Buffer{})
 	cmd.SetOut(io.Discard)
 	cmd.SetErr(io.Discard)
+
+	restore := stubInstallTranscriptProgram()
+	defer restore()
 
 	remote := platform.RemoteMod{
 		Name:        "Remote",
@@ -245,8 +296,12 @@ func TestRunInstallHandlesExpectedFetchError(t *testing.T) {
 	require.NoError(t, fs.MkdirAll(meta.ModsFolderPath(cfg), 0755))
 
 	cmd := &cobra.Command{}
+	cmd.SetIn(&bytes.Buffer{})
 	cmd.SetOut(io.Discard)
 	cmd.SetErr(io.Discard)
+
+	restore := stubInstallTranscriptProgram()
+	defer restore()
 
 	_, err := runInstall(context.Background(), cmd, installOptions{ConfigPath: meta.ConfigPath}, installDeps{
 		fs:      fs,
@@ -257,7 +312,7 @@ func TestRunInstallHandlesExpectedFetchError(t *testing.T) {
 			return platform.RemoteMod{}, &platform.ModNotFoundError{Platform: models.MODRINTH, ProjectID: "abc"}
 		},
 	})
-	assert.NoError(t, err)
+	assert.ErrorIs(t, err, errInstallFailures)
 }
 
 func TestRunInstallReturnsErrorOnFetchFailure(t *testing.T) {
@@ -342,9 +397,13 @@ func TestRunInstallReturnsErrorOnWriteLockFailure(t *testing.T) {
 		GameVersion:                "1.20.1",
 		DefaultAllowedReleaseTypes: []models.ReleaseType{models.Release},
 		ModsFolder:                 "mods",
+		Mods: []models.Mod{
+			{ID: "alpha", Name: "Alpha", Type: models.MODRINTH},
+		},
 	}
 
 	require.NoError(t, config.WriteConfig(context.Background(), baseFs, meta, cfg))
+	require.NoError(t, config.WriteLock(context.Background(), baseFs, meta, []models.ModInstall{}))
 	require.NoError(t, baseFs.MkdirAll(meta.ModsFolderPath(cfg), 0755))
 
 	fs := renameErrorFs{Fs: baseFs, failNew: meta.LockPath(), err: errors.New("rename failed")}
@@ -357,6 +416,21 @@ func TestRunInstallReturnsErrorOnWriteLockFailure(t *testing.T) {
 		fs:     fs,
 		logger: logger.New(io.Discard, io.Discard, false, false),
 		output: output.New(io.Discard, io.Discard, false),
+		fetchMod: func(context.Context, models.Platform, string, platform.FetchOptions, platform.Clients) (platform.RemoteMod, error) {
+			return platform.RemoteMod{
+				Name:        "Alpha Remote",
+				FileName:    "alpha.jar",
+				Hash:        sha1Hex("data"),
+				DownloadURL: "https://example.invalid/alpha.jar",
+			}, nil
+		},
+		downloader: func(_ context.Context, _ string, destination string, _ httpclient.Doer, _ httpclient.Sender, filesystems ...afero.Fs) error {
+			var target afero.Fs = fs
+			if len(filesystems) > 0 {
+				target = filesystems[0]
+			}
+			return afero.WriteFile(target, destination, []byte("data"), 0644)
+		},
 	})
 	assert.Error(t, err)
 }
@@ -369,6 +443,9 @@ func TestRunInstallReturnsErrorOnWriteConfigFailure(t *testing.T) {
 		GameVersion:                "1.20.1",
 		DefaultAllowedReleaseTypes: []models.ReleaseType{models.Release},
 		ModsFolder:                 "mods",
+		Mods: []models.Mod{
+			{ID: "alpha", Name: "Alpha", Type: models.MODRINTH},
+		},
 	}
 
 	require.NoError(t, config.WriteConfig(context.Background(), baseFs, meta, cfg))
@@ -385,6 +462,21 @@ func TestRunInstallReturnsErrorOnWriteConfigFailure(t *testing.T) {
 		fs:     fs,
 		logger: logger.New(io.Discard, io.Discard, false, false),
 		output: output.New(io.Discard, io.Discard, false),
+		fetchMod: func(context.Context, models.Platform, string, platform.FetchOptions, platform.Clients) (platform.RemoteMod, error) {
+			return platform.RemoteMod{
+				Name:        "Alpha Remote",
+				FileName:    "alpha.jar",
+				Hash:        sha1Hex("data"),
+				DownloadURL: "https://example.invalid/alpha.jar",
+			}, nil
+		},
+		downloader: func(_ context.Context, _ string, destination string, _ httpclient.Doer, _ httpclient.Sender, filesystems ...afero.Fs) error {
+			var target afero.Fs = fs
+			if len(filesystems) > 0 {
+				target = filesystems[0]
+			}
+			return afero.WriteFile(target, destination, []byte("data"), 0644)
+		},
 	})
 	assert.Error(t, err)
 }
@@ -572,8 +664,12 @@ func TestRunInstallReportsUnmanagedFound(t *testing.T) {
 	require.NoError(t, config.WriteLock(context.Background(), fs, meta, []models.ModInstall{}))
 
 	cmd := &cobra.Command{}
+	cmd.SetIn(&bytes.Buffer{})
 	cmd.SetOut(io.Discard)
 	cmd.SetErr(io.Discard)
+
+	restore := stubInstallTranscriptProgram()
+	defer restore()
 
 	result, err := runInstall(context.Background(), cmd, installOptions{ConfigPath: meta.ConfigPath}, installDeps{
 		fs:                    fs,
@@ -596,6 +692,19 @@ func TestRunInstallReportsUnmanagedFound(t *testing.T) {
 
 	assert.NoError(t, err)
 	assert.True(t, result.UnmanagedFound)
+}
+
+func stubInstallTranscriptProgram() func() {
+	original := runInstallTranscriptProgram
+	runInstallTranscriptProgram = func(model *installTranscriptModel, _ ...tea.ProgramOption) (tea.Model, error) {
+		if model.execRunner != nil {
+			model.outcome = model.execRunner(model.ctx, nil)
+		}
+		return model, nil
+	}
+	return func() {
+		runInstallTranscriptProgram = original
+	}
 }
 
 type renameErrorFs struct {

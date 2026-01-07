@@ -250,9 +250,9 @@ When MMM is working with a list of mods, MMM MUST present the full set of mods a
 
 In tty mode, MMM MAY update per-mod status in place using terminal control sequences, but the view MUST always include all mods.
 
-In non-tty mode, MMM MUST print the mod list as a transcript (no terminal control sequences).
+In non-tty mode, MMM MUST print mod item lines as a transcript (no terminal control sequences). For progress visibility, MMM SHOULD emit each mod line when it reaches a final state, even if that means the list is not shown all at once and the order reflects completion rather than alphabetical ordering.
 
-When MMM lists mods, it MUST order them alphabetically by mod name, case-insensitive. If names are identical, the order MUST remain stable by platform then id.
+When MMM lists mods as a full list, it MUST order them alphabetically by mod name, case-insensitive. If names are identical, the order MUST remain stable by platform then id.
 
 ### Quiet flag
 
@@ -592,7 +592,7 @@ Bubble Tea flows:
 - `ctrl+c` cancels and exits
 - `esc` goes back, or cancels when there is no previous step
 - When Bubble Tea provides `q` as a quit key for a given control, the app MUST keep that behavior.
-  - The app MUST NOT add or rebind `q` in controls that do not already support it.
+  - The app MUST NOT add or rebind `q` in controls that do not already support it, except for long-running progress-only views where `q` is an alias for cancel.
 
 Line prompts:
 - EOF aborts with no side effects
