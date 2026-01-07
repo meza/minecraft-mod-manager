@@ -769,7 +769,7 @@ func colorModeForWriter(cmd *cobra.Command) view.ColorMode {
 	if cmd == nil {
 		return view.ColorDisabled
 	}
-	if !view.SupportsColor(cmd.OutOrStdout()) {
+	if !view.SupportsColor(cmd.OutOrStdout()) || !view.SupportsControlSequences(cmd.OutOrStdout()) {
 		return view.ColorDisabled
 	}
 	return view.ColorEnabled

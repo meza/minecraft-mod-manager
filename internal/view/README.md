@@ -17,6 +17,8 @@ The CLI tries hard to avoid "half a view" when input/output are not terminals (C
 `ProgramOptions` disables Bubble Tea's renderer when output cannot use control sequences.
 Commands decide how `--unattended` affects prompting; the view package only reports capabilities.
 
+`SupportsColor` reports whether the environment supports color, and `SupportsUnicode` reports whether Unicode output is supported. Neither implies that control sequences are safe to emit; gate ANSI styling on `SupportsControlSequences`.
+
 For tests that need deterministic behavior across platforms:
 
 - `SetIsTerminalFuncForTesting(fn func(int) bool) func()` returns a restore function

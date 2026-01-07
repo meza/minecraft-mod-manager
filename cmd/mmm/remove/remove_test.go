@@ -243,6 +243,9 @@ func TestRunRemoveQuietSuppressesNormalOutput(t *testing.T) {
 }
 
 func TestRunRemoveDeletesFilesUpdatesLockAndConfig(t *testing.T) {
+	restoreUnicode := tui.SetUnicodeSupportFuncForTesting(func() bool { return true })
+	t.Cleanup(restoreUnicode)
+
 	fs := afero.NewMemMapFs()
 	var out bytes.Buffer
 	log := logger.New(&out, &out, false, false)
@@ -304,7 +307,7 @@ func TestRunRemoveDeletesFilesUpdatesLockAndConfig(t *testing.T) {
 	require.NoError(t, err)
 	assert.Empty(t, updatedCfg.Mods)
 
-	assert.Equal(t, "V Removed Sodium\nV Removed Fabric API\n", out.String())
+	assert.Equal(t, "\u2705 Removed Sodium\n\u2705 Removed Fabric API\n", out.String())
 }
 
 func TestRemoveConfigEntryNoMatchDoesNothing(t *testing.T) {
@@ -323,6 +326,9 @@ func TestRemoveConfigEntryNoMatchDoesNothing(t *testing.T) {
 }
 
 func TestRunRemoveSkipsMissingFilesWithoutFailing(t *testing.T) {
+	restoreUnicode := tui.SetUnicodeSupportFuncForTesting(func() bool { return true })
+	t.Cleanup(restoreUnicode)
+
 	fs := afero.NewMemMapFs()
 	var out bytes.Buffer
 	log := logger.New(&out, &out, false, false)
@@ -368,7 +374,7 @@ func TestRunRemoveSkipsMissingFilesWithoutFailing(t *testing.T) {
 	require.NoError(t, err)
 	assert.Empty(t, updatedCfg.Mods)
 
-	assert.Equal(t, "V Removed Sodium\n", out.String())
+	assert.Equal(t, "\u2705 Removed Sodium\n", out.String())
 }
 
 func TestRunRemoveReturnsZeroWhenNoMatches(t *testing.T) {

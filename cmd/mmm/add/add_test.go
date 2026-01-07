@@ -33,6 +33,9 @@ import (
 )
 
 func TestRunAdd_Success(t *testing.T) {
+	restoreUnicode := viewinternal.SetUnicodeSupportFuncForTesting(func() bool { return true })
+	t.Cleanup(restoreUnicode)
+
 	ctx, commandSpan := startAddPerf(t)
 	fs := afero.NewMemMapFs()
 	meta := config.NewMetadata(filepath.FromSlash("/cfg/modlist.json"))
@@ -150,7 +153,7 @@ func TestRunAdd_SuccessLogsAsciiIconWhenNotTerminal(t *testing.T) {
 	})
 
 	assert.NoError(t, err)
-	assert.Contains(t, out.String(), "V cmd.add.success")
+	assert.Contains(t, out.String(), "\u2705 cmd.add.success")
 }
 
 func TestRunAdd_SuccessLogsEmojiIconWhenTerminal(t *testing.T) {

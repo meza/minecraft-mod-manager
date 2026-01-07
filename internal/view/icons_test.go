@@ -10,21 +10,21 @@ func TestSuccessIconIsUnstyledWhenNotColorized(t *testing.T) {
 	restore := SetUnicodeSupportFuncForTesting(func() bool { return true })
 	defer restore()
 
-	assert.Equal(t, "V", SuccessIcon(ColorDisabled))
+	assert.Equal(t, "\u2705", SuccessIcon(ColorDisabled))
 }
 
 func TestErrorIconIsUnstyledWhenNotColorized(t *testing.T) {
 	restore := SetUnicodeSupportFuncForTesting(func() bool { return true })
 	defer restore()
 
-	assert.Equal(t, "X", ErrorIcon(ColorDisabled))
+	assert.Equal(t, "\u274C", ErrorIcon(ColorDisabled))
 }
 
 func TestFinalErrorIconIsUnstyledWhenNotColorized(t *testing.T) {
 	restore := SetUnicodeSupportFuncForTesting(func() bool { return true })
 	defer restore()
 
-	assert.Equal(t, "!!", FinalErrorIcon(ColorDisabled))
+	assert.Equal(t, "\u203C\uFE0F", FinalErrorIcon(ColorDisabled))
 }
 
 func TestSuccessIconIsStyledWhenColorized(t *testing.T) {

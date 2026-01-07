@@ -10,6 +10,8 @@ import (
 	"strings"
 	"testing"
 
+	tea "github.com/charmbracelet/bubbletea"
+	"github.com/muesli/termenv"
 	"github.com/spf13/afero"
 	"github.com/spf13/cobra"
 	"github.com/stretchr/testify/assert"
@@ -17,53 +19,11 @@ import (
 
 	"github.com/meza/minecraft-mod-manager/internal/clierrors"
 	"github.com/meza/minecraft-mod-manager/internal/config"
+	"github.com/meza/minecraft-mod-manager/internal/interaction"
 	"github.com/meza/minecraft-mod-manager/internal/models"
-	"github.com/meza/minecraft-mod-manager/internal/output"
 	"github.com/meza/minecraft-mod-manager/internal/telemetry"
-	tui "github.com/meza/minecraft-mod-manager/internal/view"
+	"github.com/meza/minecraft-mod-manager/internal/view"
 )
-
-type errorWriter struct {
-	err error
-}
-
-func (writer errorWriter) Write([]byte) (int, error) {
-	return 0, writer.err
-}
-
-type countingErrorWriter struct {
-	failOn int
-	count  int
-	err    error
-}
-
-func (writer *countingErrorWriter) Write(payload []byte) (int, error) {
-	writer.count++
-	if writer.count == writer.failOn {
-		return 0, writer.err
-	}
-	return len(payload), nil
-}
-
-type errorReader struct {
-	err error
-}
-
-func (reader errorReader) Read([]byte) (int, error) {
-	return 0, reader.err
-}
-
-type errorTerminalReader struct {
-	err error
-}
-
-func (reader errorTerminalReader) Read([]byte) (int, error) {
-	return 0, reader.err
-}
-
-func (reader errorTerminalReader) Fd() uintptr {
-	return 0
-}
 
 type statErrorFs struct {
 	afero.Fs
@@ -115,13 +75,15 @@ func TestRecordPruneTelemetryExitCodes(t *testing.T) {
 		payloads = append(payloads, payload)
 	}
 
-	recordPruneTelemetry(recorder, pruneOptions{Force: true}, 2, nil)
-	recordPruneTelemetry(recorder, pruneOptions{}, 0, errors.New("boom"))
+	recordPruneTelemetry(recorder, pruneOptions{Force: true}, 2, true, nil)
+	recordPruneTelemetry(recorder, pruneOptions{}, 0, false, errors.New("boom"))
 
 	require.Len(t, payloads, 2)
 	assert.Equal(t, 0, payloads[0].ExitCode)
 	assert.Equal(t, 1, payloads[1].ExitCode)
 	assert.Equal(t, 2, payloads[0].Extra["deletedCount"])
+	assert.True(t, payloads[0].Interactive)
+	assert.False(t, payloads[1].Interactive)
 }
 
 func TestRunPruneNoUnmanagedReturnsOutputError(t *testing.T) {
@@ -146,79 +108,106 @@ func TestRunPruneNoUnmanagedReturnsOutputError(t *testing.T) {
 	cmd.SetErr(io.Discard)
 
 	outErr := errors.New("write failed")
-	_, err := runPrune(context.Background(), cmd, pruneOptions{ConfigPath: meta.ConfigPath}, pruneDeps{
-		fs:     fs,
-		output: output.New(errorWriter{err: outErr}, io.Discard, false),
-		telemetry: func(telemetry.CommandTelemetry) {
+	_, _, err := runPrune(context.Background(), cmd, pruneOptions{ConfigPath: meta.ConfigPath}, pruneDeps{
+		fs: fs,
+		runTea: func(tea.Model, ...tea.ProgramOption) (tea.Model, error) {
+			return view.OutputLinesModel{Err: outErr}, nil
 		},
+		telemetry: func(telemetry.CommandTelemetry) {},
 	})
 
 	assert.ErrorIs(t, err, outErr)
 }
 
-func TestShouldDeleteUnmanagedReturnsListError(t *testing.T) {
-	restoreTerminal := tui.SetIsTerminalFuncForTesting(func(int) bool { return true })
-	t.Cleanup(restoreTerminal)
-
-	cmd := &cobra.Command{}
-	cmd.SetIn(&fakeTerminalReader{})
-	cmd.SetOut(&fakeTerminalWriter{})
-	cmd.SetErr(io.Discard)
-
-	outErr := errors.New("list failed")
-	result, err := shouldDeleteUnmanaged(cmd, pruneOptions{}, pruneDeps{
-		output: output.New(errorWriter{err: outErr}, io.Discard, false),
-	}, tui.ColorDisabled, []string{"/mods/unmanaged.jar"})
-
-	assert.False(t, result)
-	assert.ErrorIs(t, err, outErr)
-}
-
-func TestShouldDeleteUnmanagedUnattendedReturnsListError(t *testing.T) {
+func TestShouldDeleteUnmanagedNonInteractiveReturnsOutputError(t *testing.T) {
 	cmd := &cobra.Command{}
 	cmd.SetIn(&bytes.Buffer{})
 	cmd.SetOut(&bytes.Buffer{})
 	cmd.SetErr(io.Discard)
 
-	outErr := errors.New("list failed")
-	result, err := shouldDeleteUnmanaged(cmd, pruneOptions{Unattended: true}, pruneDeps{
-		output: output.New(errorWriter{err: outErr}, io.Discard, false),
-	}, tui.ColorDisabled, []string{"/mods/unmanaged.jar"})
+	outErr := errors.New("write failed")
+	result, err := shouldDeleteUnmanaged(cmd, pruneDeps{
+		runTea: func(tea.Model, ...tea.ProgramOption) (tea.Model, error) {
+			return view.OutputLinesModel{Err: outErr}, nil
+		},
+	}, interaction.ExecutionModeNonTTY, view.ColorDisabled, []string{"/mods/unmanaged.jar"})
 
 	assert.False(t, result)
 	assert.ErrorIs(t, err, outErr)
 }
 
-func TestShouldDeleteUnmanagedUnattendedReturnsWarningError(t *testing.T) {
+func TestShouldDeleteUnmanagedInteractiveReturnsPromptError(t *testing.T) {
 	cmd := &cobra.Command{}
 	cmd.SetIn(&bytes.Buffer{})
 	cmd.SetOut(&bytes.Buffer{})
 	cmd.SetErr(io.Discard)
 
-	outErr := errors.New("warn failed")
-	result, err := shouldDeleteUnmanaged(cmd, pruneOptions{Unattended: true}, pruneDeps{
-		output: output.New(io.Discard, errorWriter{err: outErr}, false),
-	}, tui.ColorDisabled, []string{"/mods/unmanaged.jar"})
+	promptErr := errors.New("prompt failed")
+	result, err := shouldDeleteUnmanaged(cmd, pruneDeps{
+		runTea: func(tea.Model, ...tea.ProgramOption) (tea.Model, error) {
+			return nil, promptErr
+		},
+	}, interaction.ExecutionModeInteractive, view.ColorDisabled, []string{"/mods/unmanaged.jar"})
 
 	assert.False(t, result)
-	assert.ErrorIs(t, err, outErr)
+	assert.ErrorIs(t, err, promptErr)
 }
 
-func TestShouldDeleteUnmanagedReturnsConfirmError(t *testing.T) {
-	restoreTerminal := tui.SetIsTerminalFuncForTesting(func(int) bool { return true })
-	t.Cleanup(restoreTerminal)
+func TestRunConfigInitPromptUsesRunTeaResult(t *testing.T) {
+	command := &cobra.Command{}
+	command.SetIn(&bytes.Buffer{})
+	command.SetOut(&bytes.Buffer{})
 
-	readErr := errors.New("read failed")
-	cmd := &cobra.Command{}
-	cmd.SetIn(errorTerminalReader{err: readErr})
-	cmd.SetOut(&fakeTerminalWriter{})
-	cmd.SetErr(io.Discard)
+	deps := pruneDeps{
+		runTea: func(tea.Model, ...tea.ProgramOption) (tea.Model, error) {
+			return configInitModel{confirmed: true}, nil
+		},
+	}
 
-	_, err := shouldDeleteUnmanaged(cmd, pruneOptions{}, pruneDeps{
-		output: output.New(io.Discard, io.Discard, false),
-	}, tui.ColorEnabled, []string{"/mods/unmanaged.jar"})
+	confirmed, canceled, err := runConfigInitPrompt(command, deps, config.NewMetadata("/cfg/modlist.json"))
+	require.NoError(t, err)
+	assert.True(t, confirmed)
+	assert.False(t, canceled)
+}
 
-	assert.ErrorIs(t, err, readErr)
+func TestConfigInitResultHandlesPointerModel(t *testing.T) {
+	model := &configInitModel{confirmed: true, canceled: false}
+	confirmed, canceled, err := configInitResult(model)
+	require.NoError(t, err)
+	assert.True(t, confirmed)
+	assert.False(t, canceled)
+}
+
+func TestRunConfigInitPromptReturnsErrorWhenRunTeaFails(t *testing.T) {
+	command := &cobra.Command{}
+	command.SetIn(&bytes.Buffer{})
+	command.SetOut(&bytes.Buffer{})
+
+	runErr := errors.New("run tea failed")
+	deps := pruneDeps{
+		runTea: func(tea.Model, ...tea.ProgramOption) (tea.Model, error) {
+			return nil, runErr
+		},
+	}
+
+	_, _, err := runConfigInitPrompt(command, deps, config.NewMetadata("/cfg/modlist.json"))
+	assert.ErrorIs(t, err, runErr)
+}
+
+func TestRunDeletePromptReturnsErrorWhenRunTeaFails(t *testing.T) {
+	command := &cobra.Command{}
+	command.SetIn(&bytes.Buffer{})
+	command.SetOut(&bytes.Buffer{})
+
+	runErr := errors.New("run tea failed")
+	deps := pruneDeps{
+		runTea: func(tea.Model, ...tea.ProgramOption) (tea.Model, error) {
+			return nil, runErr
+		},
+	}
+
+	_, _, err := runDeletePrompt(command, deps, view.ColorDisabled, []string{"/mods/unmanaged.jar"})
+	assert.ErrorIs(t, err, runErr)
 }
 
 func TestReadLockRequiredReturnsErrorOnInvalidJSON(t *testing.T) {
@@ -237,17 +226,138 @@ func TestRunPruneConfigReadError(t *testing.T) {
 
 	cmd := &cobra.Command{}
 	cmd.SetIn(&bytes.Buffer{})
-	cmd.SetOut(io.Discard)
+	cmd.SetOut(&bytes.Buffer{})
 	cmd.SetErr(io.Discard)
 
-	_, err := runPrune(context.Background(), cmd, pruneOptions{ConfigPath: "/cfg/missing.json"}, pruneDeps{
-		fs:     fs,
-		output: output.New(io.Discard, io.Discard, false),
-		telemetry: func(telemetry.CommandTelemetry) {
+	_, _, err := runPrune(context.Background(), cmd, pruneOptions{ConfigPath: "/cfg/missing.json"}, pruneDeps{
+		fs: fs,
+		runTea: func(tea.Model, ...tea.ProgramOption) (tea.Model, error) {
+			return view.OutputLinesModel{}, nil
 		},
+		telemetry: func(telemetry.CommandTelemetry) {},
 	})
 
-	assert.Error(t, err)
+	assert.True(t, clierrors.IsHandled(err))
+}
+
+func TestEnsurePruneConfigInvalidConfigReturnsHandled(t *testing.T) {
+	fs := afero.NewMemMapFs()
+	meta := config.NewMetadata(filepath.FromSlash("/cfg/modlist.json"))
+
+	require.NoError(t, fs.MkdirAll(meta.Dir(), 0755))
+	require.NoError(t, afero.WriteFile(fs, meta.ConfigPath, []byte("{"), 0644))
+
+	cmd := &cobra.Command{}
+	cmd.SetIn(&bytes.Buffer{})
+	cmd.SetOut(&bytes.Buffer{})
+	cmd.SetErr(io.Discard)
+
+	_, _, err := ensurePruneConfig(context.Background(), cmd, pruneOptions{}, pruneDeps{
+		fs: fs,
+		runTea: func(tea.Model, ...tea.ProgramOption) (tea.Model, error) {
+			return view.OutputLinesModel{}, nil
+		},
+	}, meta, interaction.ExecutionModeInteractive)
+
+	assert.True(t, clierrors.IsHandled(err))
+}
+
+func TestEnsurePruneConfigMissingWriteConfigMissingOutputError(t *testing.T) {
+	fs := afero.NewMemMapFs()
+	meta := config.NewMetadata(filepath.FromSlash("/cfg/modlist.json"))
+
+	writeErr := errors.New("write failed")
+	cmd := &cobra.Command{}
+	cmd.SetIn(&bytes.Buffer{})
+	cmd.SetOut(&bytes.Buffer{})
+	cmd.SetErr(io.Discard)
+
+	_, _, err := ensurePruneConfig(context.Background(), cmd, pruneOptions{Unattended: true}, pruneDeps{
+		fs: fs,
+		runTea: func(tea.Model, ...tea.ProgramOption) (tea.Model, error) {
+			return view.OutputLinesModel{Err: writeErr}, nil
+		},
+	}, meta, interaction.ExecutionModeUnattended)
+
+	assert.ErrorIs(t, err, writeErr)
+}
+
+func TestEnsurePruneConfigRunInitError(t *testing.T) {
+	restoreTerminal := view.SetIsTerminalFuncForTesting(func(int) bool { return true })
+	t.Cleanup(restoreTerminal)
+
+	meta := config.NewMetadata(filepath.FromSlash("/cfg/modlist.json"))
+
+	cmd := &cobra.Command{}
+	cmd.SetIn(&fakeTerminalReader{})
+	cmd.SetOut(&fakeTerminalWriter{})
+	cmd.SetErr(io.Discard)
+
+	runErr := errors.New("init failed")
+	_, _, err := ensurePruneConfig(context.Background(), cmd, pruneOptions{}, pruneDeps{
+		fs: afero.NewMemMapFs(),
+		runTea: func(tea.Model, ...tea.ProgramOption) (tea.Model, error) {
+			return configInitModel{confirmed: true}, nil
+		},
+		runInit: func(context.Context, *cobra.Command, initRequest) error {
+			return runErr
+		},
+	}, meta, interaction.ExecutionModeInteractive)
+
+	assert.ErrorIs(t, err, runErr)
+}
+
+func TestEnsurePruneConfigMissingAfterInitHandled(t *testing.T) {
+	restoreTerminal := view.SetIsTerminalFuncForTesting(func(int) bool { return true })
+	t.Cleanup(restoreTerminal)
+
+	meta := config.NewMetadata(filepath.FromSlash("/cfg/modlist.json"))
+
+	cmd := &cobra.Command{}
+	cmd.SetIn(&fakeTerminalReader{})
+	cmd.SetOut(&fakeTerminalWriter{})
+	cmd.SetErr(io.Discard)
+
+	_, _, err := ensurePruneConfig(context.Background(), cmd, pruneOptions{}, pruneDeps{
+		fs: afero.NewMemMapFs(),
+		runTea: func(tea.Model, ...tea.ProgramOption) (tea.Model, error) {
+			return configInitModel{confirmed: true}, nil
+		},
+		runInit: func(context.Context, *cobra.Command, initRequest) error {
+			return nil
+		},
+	}, meta, interaction.ExecutionModeInteractive)
+
+	assert.True(t, clierrors.IsHandled(err))
+}
+
+func TestEnsurePruneConfigLockMissingAfterInitHandled(t *testing.T) {
+	restoreTerminal := view.SetIsTerminalFuncForTesting(func(int) bool { return true })
+	t.Cleanup(restoreTerminal)
+
+	fs := afero.NewMemMapFs()
+	meta := config.NewMetadata(filepath.FromSlash("/cfg/modlist.json"))
+	cfg := models.ModsJSON{ModsFolder: "mods"}
+
+	cmd := &cobra.Command{}
+	cmd.SetIn(&fakeTerminalReader{})
+	cmd.SetOut(&fakeTerminalWriter{})
+	cmd.SetErr(io.Discard)
+
+	_, _, err := ensurePruneConfig(context.Background(), cmd, pruneOptions{}, pruneDeps{
+		fs: fs,
+		runTea: func(tea.Model, ...tea.ProgramOption) (tea.Model, error) {
+			return configInitModel{confirmed: true}, nil
+		},
+		runInit: func(context.Context, *cobra.Command, initRequest) error {
+			require.NoError(t, fs.MkdirAll(meta.Dir(), 0755))
+			require.NoError(t, config.WriteConfig(context.Background(), fs, meta, cfg))
+			require.NoError(t, fs.MkdirAll(meta.ModsFolderPath(cfg), 0755))
+			return nil
+		},
+	}, meta, interaction.ExecutionModeInteractive)
+
+	assert.True(t, clierrors.IsHandled(err))
 }
 
 func TestRunPruneListUnmanagedError(t *testing.T) {
@@ -261,20 +371,21 @@ func TestRunPruneListUnmanagedError(t *testing.T) {
 
 	cmd := &cobra.Command{}
 	cmd.SetIn(&bytes.Buffer{})
-	cmd.SetOut(io.Discard)
+	cmd.SetOut(&bytes.Buffer{})
 	cmd.SetErr(io.Discard)
 
-	_, err := runPrune(context.Background(), cmd, pruneOptions{
+	_, _, err := runPrune(context.Background(), cmd, pruneOptions{
 		ConfigPath: meta.ConfigPath,
 		Force:      true,
 	}, pruneDeps{
-		fs:     fs,
-		output: output.New(io.Discard, io.Discard, false),
-		telemetry: func(telemetry.CommandTelemetry) {
+		fs: fs,
+		runTea: func(tea.Model, ...tea.ProgramOption) (tea.Model, error) {
+			return view.OutputLinesModel{}, nil
 		},
+		telemetry: func(telemetry.CommandTelemetry) {},
 	})
 
-	assert.Error(t, err)
+	assert.True(t, clierrors.IsHandled(err))
 }
 
 func TestRunPruneDeleteError(t *testing.T) {
@@ -294,31 +405,351 @@ func TestRunPruneDeleteError(t *testing.T) {
 
 	cmd := &cobra.Command{}
 	cmd.SetIn(&bytes.Buffer{})
-	cmd.SetOut(io.Discard)
+	cmd.SetOut(&bytes.Buffer{})
 	cmd.SetErr(io.Discard)
 
-	_, err := runPrune(context.Background(), cmd, pruneOptions{
+	_, _, err := runPrune(context.Background(), cmd, pruneOptions{
 		ConfigPath: meta.ConfigPath,
 		Force:      true,
 	}, pruneDeps{
-		fs:     wrapped,
-		output: output.New(io.Discard, io.Discard, false),
-		telemetry: func(telemetry.CommandTelemetry) {
+		fs: wrapped,
+		runTea: func(tea.Model, ...tea.ProgramOption) (tea.Model, error) {
+			return view.OutputLinesModel{}, nil
 		},
+		telemetry: func(telemetry.CommandTelemetry) {},
 	})
 
-	assert.Error(t, err)
+	assert.True(t, clierrors.IsHandled(err))
+}
+
+func TestRunPruneForceInteractiveDeletingRunTeaError(t *testing.T) {
+	restoreTerminal := view.SetIsTerminalFuncForTesting(func(int) bool { return true })
+	t.Cleanup(restoreTerminal)
+
+	fs := afero.NewMemMapFs()
+	meta := config.NewMetadata(filepath.FromSlash("/cfg/modlist.json"))
+	cfg := models.ModsJSON{ModsFolder: "mods"}
+
+	require.NoError(t, fs.MkdirAll(meta.Dir(), 0755))
+	require.NoError(t, fs.MkdirAll(meta.ModsFolderPath(cfg), 0755))
+	require.NoError(t, config.WriteConfig(context.Background(), fs, meta, cfg))
+	require.NoError(t, config.WriteLock(context.Background(), fs, meta, []models.ModInstall{}))
+	require.NoError(t, afero.WriteFile(fs, filepath.Join(meta.ModsFolderPath(cfg), "extra.jar"), []byte("data"), 0644))
+
+	cmd := &cobra.Command{}
+	cmd.SetIn(&fakeTerminalReader{})
+	cmd.SetOut(&fakeTerminalWriter{})
+	cmd.SetErr(io.Discard)
+
+	runErr := errors.New("run tea failed")
+	_, _, err := runPrune(context.Background(), cmd, pruneOptions{ConfigPath: meta.ConfigPath, Force: true}, pruneDeps{
+		fs: fs,
+		runTea: func(tea.Model, ...tea.ProgramOption) (tea.Model, error) {
+			return nil, runErr
+		},
+		telemetry: func(telemetry.CommandTelemetry) {},
+	})
+
+	assert.ErrorIs(t, err, runErr)
+}
+
+func TestRunPruneDeleteErrorOutputFailure(t *testing.T) {
+	fs := afero.NewMemMapFs()
+	meta := config.NewMetadata(filepath.FromSlash("/cfg/modlist.json"))
+	cfg := models.ModsJSON{ModsFolder: "mods"}
+
+	require.NoError(t, fs.MkdirAll(meta.Dir(), 0755))
+	require.NoError(t, fs.MkdirAll(meta.ModsFolderPath(cfg), 0755))
+	require.NoError(t, config.WriteConfig(context.Background(), fs, meta, cfg))
+	require.NoError(t, config.WriteLock(context.Background(), fs, meta, []models.ModInstall{}))
+
+	unmanagedPath := filepath.Join(meta.ModsFolderPath(cfg), "unmanaged.jar")
+	require.NoError(t, afero.WriteFile(fs, unmanagedPath, []byte("data"), 0644))
+
+	wrapped := removeErrorFs{Fs: fs, failPath: unmanagedPath, err: errors.New("remove failed")}
+
+	cmd := &cobra.Command{}
+	cmd.SetIn(&bytes.Buffer{})
+	cmd.SetOut(&bytes.Buffer{})
+	cmd.SetErr(io.Discard)
+
+	writeErr := errors.New("write failed")
+	_, _, err := runPrune(context.Background(), cmd, pruneOptions{
+		ConfigPath: meta.ConfigPath,
+		Force:      true,
+	}, pruneDeps{
+		fs: wrapped,
+		runTea: func(tea.Model, ...tea.ProgramOption) (tea.Model, error) {
+			return view.OutputLinesModel{Err: writeErr}, nil
+		},
+		telemetry: func(telemetry.CommandTelemetry) {},
+	})
+
+	assert.ErrorIs(t, err, writeErr)
+}
+
+func TestRunPruneDeleteSuccessOutputFailure(t *testing.T) {
+	fs := afero.NewMemMapFs()
+	meta := config.NewMetadata(filepath.FromSlash("/cfg/modlist.json"))
+	cfg := models.ModsJSON{ModsFolder: "mods"}
+
+	require.NoError(t, fs.MkdirAll(meta.Dir(), 0755))
+	require.NoError(t, fs.MkdirAll(meta.ModsFolderPath(cfg), 0755))
+	require.NoError(t, config.WriteConfig(context.Background(), fs, meta, cfg))
+	require.NoError(t, config.WriteLock(context.Background(), fs, meta, []models.ModInstall{}))
+
+	unmanagedPath := filepath.Join(meta.ModsFolderPath(cfg), "unmanaged.jar")
+	require.NoError(t, afero.WriteFile(fs, unmanagedPath, []byte("data"), 0644))
+
+	cmd := &cobra.Command{}
+	cmd.SetIn(&bytes.Buffer{})
+	cmd.SetOut(&bytes.Buffer{})
+	cmd.SetErr(io.Discard)
+
+	writeErr := errors.New("write failed")
+	_, _, err := runPrune(context.Background(), cmd, pruneOptions{
+		ConfigPath: meta.ConfigPath,
+		Force:      true,
+	}, pruneDeps{
+		fs: fs,
+		runTea: func(tea.Model, ...tea.ProgramOption) (tea.Model, error) {
+			return view.OutputLinesModel{Err: writeErr}, nil
+		},
+		telemetry: func(telemetry.CommandTelemetry) {},
+	})
+
+	assert.ErrorIs(t, err, writeErr)
+}
+
+func TestRunPrunePromptDisabledReturnsHandledError(t *testing.T) {
+	fs := afero.NewMemMapFs()
+	meta := config.NewMetadata(filepath.FromSlash("/cfg/modlist.json"))
+	cfg := models.ModsJSON{ModsFolder: "mods"}
+
+	require.NoError(t, fs.MkdirAll(meta.Dir(), 0755))
+	require.NoError(t, fs.MkdirAll(meta.ModsFolderPath(cfg), 0755))
+	require.NoError(t, config.WriteConfig(context.Background(), fs, meta, cfg))
+	require.NoError(t, config.WriteLock(context.Background(), fs, meta, []models.ModInstall{}))
+	require.NoError(t, afero.WriteFile(fs, filepath.Join(meta.ModsFolderPath(cfg), "extra.jar"), []byte("data"), 0644))
+
+	cmd := &cobra.Command{}
+	cmd.SetIn(&bytes.Buffer{})
+	cmd.SetOut(&bytes.Buffer{})
+	cmd.SetErr(io.Discard)
+
+	_, _, err := runPrune(context.Background(), cmd, pruneOptions{ConfigPath: meta.ConfigPath}, pruneDeps{
+		fs: fs,
+		runTea: func(tea.Model, ...tea.ProgramOption) (tea.Model, error) {
+			return view.OutputLinesModel{}, nil
+		},
+		telemetry: func(telemetry.CommandTelemetry) {},
+	})
+
+	assert.True(t, clierrors.IsHandled(err))
+}
+
+func TestRunPrunePromptDeclinedSkipsDelete(t *testing.T) {
+	restoreTerminal := view.SetIsTerminalFuncForTesting(func(int) bool { return true })
+	t.Cleanup(restoreTerminal)
+
+	fs := afero.NewMemMapFs()
+	meta := config.NewMetadata(filepath.FromSlash("/cfg/modlist.json"))
+	cfg := models.ModsJSON{ModsFolder: "mods"}
+
+	require.NoError(t, fs.MkdirAll(meta.Dir(), 0755))
+	require.NoError(t, fs.MkdirAll(meta.ModsFolderPath(cfg), 0755))
+	require.NoError(t, config.WriteConfig(context.Background(), fs, meta, cfg))
+	require.NoError(t, config.WriteLock(context.Background(), fs, meta, []models.ModInstall{}))
+	unmanagedPath := filepath.Join(meta.ModsFolderPath(cfg), "extra.jar")
+	require.NoError(t, afero.WriteFile(fs, unmanagedPath, []byte("data"), 0644))
+
+	cmd := &cobra.Command{}
+	cmd.SetIn(&fakeTerminalReader{})
+	cmd.SetOut(&fakeTerminalWriter{})
+	cmd.SetErr(io.Discard)
+
+	deletedCount, _, err := runPrune(context.Background(), cmd, pruneOptions{ConfigPath: meta.ConfigPath}, pruneDeps{
+		fs: fs,
+		runTea: func(tea.Model, ...tea.ProgramOption) (tea.Model, error) {
+			return pruneConfirmDeleteModel{confirmed: false}, nil
+		},
+		telemetry: func(telemetry.CommandTelemetry) {},
+	})
+
+	assert.NoError(t, err)
+	assert.Equal(t, 0, deletedCount)
+	exists, statErr := afero.Exists(fs, unmanagedPath)
+	require.NoError(t, statErr)
+	assert.True(t, exists)
+}
+
+func TestRunPrunePromptErrorReturnsError(t *testing.T) {
+	restoreTerminal := view.SetIsTerminalFuncForTesting(func(int) bool { return true })
+	t.Cleanup(restoreTerminal)
+
+	fs := afero.NewMemMapFs()
+	meta := config.NewMetadata(filepath.FromSlash("/cfg/modlist.json"))
+	cfg := models.ModsJSON{ModsFolder: "mods"}
+
+	require.NoError(t, fs.MkdirAll(meta.Dir(), 0755))
+	require.NoError(t, fs.MkdirAll(meta.ModsFolderPath(cfg), 0755))
+	require.NoError(t, config.WriteConfig(context.Background(), fs, meta, cfg))
+	require.NoError(t, config.WriteLock(context.Background(), fs, meta, []models.ModInstall{}))
+	require.NoError(t, afero.WriteFile(fs, filepath.Join(meta.ModsFolderPath(cfg), "extra.jar"), []byte("data"), 0644))
+
+	cmd := &cobra.Command{}
+	cmd.SetIn(&fakeTerminalReader{})
+	cmd.SetOut(&fakeTerminalWriter{})
+	cmd.SetErr(io.Discard)
+
+	promptErr := errors.New("prompt failed")
+	_, _, err := runPrune(context.Background(), cmd, pruneOptions{ConfigPath: meta.ConfigPath}, pruneDeps{
+		fs: fs,
+		runTea: func(tea.Model, ...tea.ProgramOption) (tea.Model, error) {
+			return nil, promptErr
+		},
+		telemetry: func(telemetry.CommandTelemetry) {},
+	})
+
+	assert.ErrorIs(t, err, promptErr)
+}
+
+func TestRunPruneConfirmDeleteRunTeaErrorReturnsError(t *testing.T) {
+	restoreTerminal := view.SetIsTerminalFuncForTesting(func(int) bool { return true })
+	t.Cleanup(restoreTerminal)
+
+	fs := afero.NewMemMapFs()
+	meta := config.NewMetadata(filepath.FromSlash("/cfg/modlist.json"))
+	cfg := models.ModsJSON{ModsFolder: "mods"}
+
+	require.NoError(t, fs.MkdirAll(meta.Dir(), 0755))
+	require.NoError(t, fs.MkdirAll(meta.ModsFolderPath(cfg), 0755))
+	require.NoError(t, config.WriteConfig(context.Background(), fs, meta, cfg))
+	require.NoError(t, config.WriteLock(context.Background(), fs, meta, []models.ModInstall{}))
+	require.NoError(t, afero.WriteFile(fs, filepath.Join(meta.ModsFolderPath(cfg), "extra.jar"), []byte("data"), 0644))
+
+	cmd := &cobra.Command{}
+	cmd.SetIn(&fakeTerminalReader{})
+	cmd.SetOut(&fakeTerminalWriter{})
+	cmd.SetErr(io.Discard)
+
+	runErr := errors.New("run tea failed")
+	_, _, err := runPrune(context.Background(), cmd, pruneOptions{ConfigPath: meta.ConfigPath}, pruneDeps{
+		fs: fs,
+		runTea: func(tea.Model, ...tea.ProgramOption) (tea.Model, error) {
+			return nil, runErr
+		},
+		telemetry: func(telemetry.CommandTelemetry) {},
+	})
+
+	assert.ErrorIs(t, err, runErr)
+}
+
+func TestRunPruneConfirmDeleteReturnsHandledDeleteError(t *testing.T) {
+	restoreTerminal := view.SetIsTerminalFuncForTesting(func(int) bool { return true })
+	t.Cleanup(restoreTerminal)
+
+	fs := afero.NewMemMapFs()
+	meta := config.NewMetadata(filepath.FromSlash("/cfg/modlist.json"))
+	cfg := models.ModsJSON{ModsFolder: "mods"}
+
+	require.NoError(t, fs.MkdirAll(meta.Dir(), 0755))
+	require.NoError(t, fs.MkdirAll(meta.ModsFolderPath(cfg), 0755))
+	require.NoError(t, config.WriteConfig(context.Background(), fs, meta, cfg))
+	require.NoError(t, config.WriteLock(context.Background(), fs, meta, []models.ModInstall{}))
+	require.NoError(t, afero.WriteFile(fs, filepath.Join(meta.ModsFolderPath(cfg), "extra.jar"), []byte("data"), 0644))
+
+	cmd := &cobra.Command{}
+	cmd.SetIn(&fakeTerminalReader{})
+	cmd.SetOut(&fakeTerminalWriter{})
+	cmd.SetErr(io.Discard)
+
+	deleteErr := errors.New("delete failed")
+	_, _, err := runPrune(context.Background(), cmd, pruneOptions{ConfigPath: meta.ConfigPath}, pruneDeps{
+		fs: fs,
+		runTea: func(tea.Model, ...tea.ProgramOption) (tea.Model, error) {
+			return pruneConfirmDeleteModel{
+				confirmed: true,
+				results: []pruneFileResult{
+					{Path: filepath.Join(meta.ModsFolderPath(cfg), "extra.jar"), Status: pruneFileStatusFailed, Err: deleteErr},
+				},
+				deleteErr: deleteErr,
+				done:      true,
+			}, nil
+		},
+		telemetry: func(telemetry.CommandTelemetry) {},
+	})
+
+	assert.True(t, clierrors.IsHandled(err))
+	assert.ErrorIs(t, err, deleteErr)
+}
+
+func TestRunPruneConfigMissingPromptDeclined(t *testing.T) {
+	restoreTerminal := view.SetIsTerminalFuncForTesting(func(int) bool { return true })
+	t.Cleanup(restoreTerminal)
+
+	cmd := &cobra.Command{}
+	cmd.SetIn(&fakeTerminalReader{})
+	cmd.SetOut(&fakeTerminalWriter{})
+	cmd.SetErr(io.Discard)
+
+	deletedCount, _, err := runPrune(context.Background(), cmd, pruneOptions{ConfigPath: "/cfg/modlist.json"}, pruneDeps{
+		fs: afero.NewMemMapFs(),
+		runTea: func(tea.Model, ...tea.ProgramOption) (tea.Model, error) {
+			return configInitModel{confirmed: false}, nil
+		},
+		telemetry: func(telemetry.CommandTelemetry) {},
+	})
+
+	assert.NoError(t, err)
+	assert.Equal(t, 0, deletedCount)
+}
+
+func TestEnsurePruneConfigPromptReturnsError(t *testing.T) {
+	restoreTerminal := view.SetIsTerminalFuncForTesting(func(int) bool { return true })
+	t.Cleanup(restoreTerminal)
+
+	meta := config.NewMetadata(filepath.FromSlash("/cfg/modlist.json"))
+
+	cmd := &cobra.Command{}
+	cmd.SetIn(&fakeTerminalReader{})
+	cmd.SetOut(&fakeTerminalWriter{})
+	cmd.SetErr(io.Discard)
+
+	promptErr := errors.New("prompt failed")
+	_, _, err := ensurePruneConfig(context.Background(), cmd, pruneOptions{}, pruneDeps{
+		fs: afero.NewMemMapFs(),
+		runTea: func(tea.Model, ...tea.ProgramOption) (tea.Model, error) {
+			return nil, promptErr
+		},
+	}, meta, interaction.ExecutionModeInteractive)
+
+	assert.ErrorIs(t, err, promptErr)
 }
 
 func TestHandleLockReadErrorReturnsOriginalError(t *testing.T) {
 	original := errors.New("original")
-	err := handleLockReadError(original, output.New(io.Discard, io.Discard, false))
-	assert.Equal(t, original, err)
+	cmd := &cobra.Command{}
+	cmd.SetIn(&bytes.Buffer{})
+	cmd.SetOut(&bytes.Buffer{})
+	cmd.SetErr(io.Discard)
+
+	err := handleLockReadError(cmd, pruneDeps{
+		runTea: func(tea.Model, ...tea.ProgramOption) (tea.Model, error) {
+			return view.OutputLinesModel{}, nil
+		},
+	}, original)
+	assert.True(t, clierrors.IsHandled(err))
+	assert.ErrorIs(t, err, original)
 }
 
 func TestHandleLockReadErrorReturnsOutputError(t *testing.T) {
 	writeErr := errors.New("write failed")
-	err := handleLockReadError(&lockMissingError{message: "lock missing"}, output.New(io.Discard, errorWriter{err: writeErr}, false))
+	err := handleLockReadError(&cobra.Command{}, pruneDeps{
+		runTea: func(tea.Model, ...tea.ProgramOption) (tea.Model, error) {
+			return view.OutputLinesModel{Err: writeErr}, nil
+		},
+	}, &lockMissingError{message: "lock missing"})
 	assert.ErrorIs(t, err, writeErr)
 }
 
@@ -386,42 +817,6 @@ func TestListJarFilesReturnsIgnorePatternError(t *testing.T) {
 	assert.Error(t, err)
 }
 
-func TestPrintUnmanagedListHeaderError(t *testing.T) {
-	writeErr := errors.New("write failed")
-	err := printUnmanagedList(output.New(errorWriter{err: writeErr}, io.Discard, false), tui.ColorDisabled, []string{"file.jar"})
-	assert.ErrorIs(t, err, writeErr)
-}
-
-func TestPrintUnmanagedListEntryError(t *testing.T) {
-	writer := &countingErrorWriter{failOn: 2, err: errors.New("write failed")}
-	err := printUnmanagedList(output.New(writer, io.Discard, false), tui.ColorDisabled, []string{"file-1.jar", "file-2.jar"})
-	assert.ErrorIs(t, err, writer.err)
-}
-
-func TestConfirmDeletionWriteError(t *testing.T) {
-	writeErr := errors.New("write failed")
-	_, err := confirmDeletion(strings.NewReader("y\n"), errorWriter{err: writeErr}, tui.ColorDisabled)
-	assert.ErrorIs(t, err, writeErr)
-}
-
-func TestConfirmDeletionReadError(t *testing.T) {
-	readErr := errors.New("read failed")
-	_, err := confirmDeletion(errorReader{err: readErr}, io.Discard, tui.ColorDisabled)
-	assert.ErrorIs(t, err, readErr)
-}
-
-func TestReportPromptDisabledFirstWriteError(t *testing.T) {
-	writeErr := errors.New("write failed")
-	err := reportPromptDisabled(output.New(io.Discard, errorWriter{err: writeErr}, false))
-	assert.ErrorIs(t, err, writeErr)
-}
-
-func TestReportPromptDisabledSecondWriteError(t *testing.T) {
-	writer := &countingErrorWriter{failOn: 2, err: errors.New("write failed")}
-	err := reportPromptDisabled(output.New(io.Discard, writer, false))
-	assert.ErrorIs(t, err, writer.err)
-}
-
 func TestDeleteUnmanagedFilesRemoveError(t *testing.T) {
 	fs := afero.NewMemMapFs()
 	path := filepath.FromSlash("/mods/unmanaged.jar")
@@ -429,31 +824,27 @@ func TestDeleteUnmanagedFilesRemoveError(t *testing.T) {
 	require.NoError(t, afero.WriteFile(fs, path, []byte("data"), 0644))
 
 	wrapped := removeErrorFs{Fs: fs, failPath: path, err: errors.New("remove failed")}
-	_, err := deleteUnmanagedFiles(pruneDeps{
-		fs:     wrapped,
-		output: output.New(io.Discard, io.Discard, false),
-	}, []string{path})
+	results, err := deleteUnmanagedFiles(pruneDeps{fs: wrapped}, []string{path})
 
 	assert.Error(t, err)
-}
-
-func TestDeleteUnmanagedFilesOutputError(t *testing.T) {
-	fs := afero.NewMemMapFs()
-	path := filepath.FromSlash("/mods/unmanaged.jar")
-	require.NoError(t, fs.MkdirAll(filepath.Dir(path), 0755))
-	require.NoError(t, afero.WriteFile(fs, path, []byte("data"), 0644))
-
-	writeErr := errors.New("write failed")
-	_, err := deleteUnmanagedFiles(pruneDeps{
-		fs:     fs,
-		output: output.New(errorWriter{err: writeErr}, io.Discard, false),
-	}, []string{path})
-
-	assert.ErrorIs(t, err, writeErr)
+	require.Len(t, results, 1)
+	assert.Equal(t, pruneFileStatusFailed, results[0].Status)
 }
 
 func TestRemoveFileForceMissingFile(t *testing.T) {
 	fs := afero.NewMemMapFs()
 	missingPath := filepath.FromSlash("/mods/missing.jar")
 	assert.NoError(t, removeFileForce(fs, missingPath))
+}
+
+func TestRenderDeleteFailureSummaryUsesErrorStyle(t *testing.T) {
+	t.Setenv("MMM_TEST", "true")
+
+	restoreTerminal := view.SetIsTerminalFuncForTesting(func(int) bool { return true })
+	t.Cleanup(restoreTerminal)
+	restoreColor := view.SetColorProfileFuncForTesting(func() termenv.Profile { return termenv.TrueColor })
+	t.Cleanup(restoreColor)
+
+	summary := renderDeleteFailureSummary(view.ColorEnabled)
+	assert.True(t, strings.Contains(summary, view.FinalErrorIcon(view.ColorEnabled)))
 }

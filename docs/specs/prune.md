@@ -7,7 +7,7 @@ Deletes unmanaged files from the mods directory.
 2. Scan the mods directory and list all files that are not present in `modlist-lock.json`, applying `.mmmignore` rules.
 3. Unless `--force` is specified, ask for confirmation before deleting the files. In `--unattended` mode and non-tty mode, do not prompt and require `--force` to delete.
 4. Remove the selected files.
-5. During execution, per-item status may update in place and output order is not deterministic due to parallel processing; final grouped results are stable.
+5. Output is ordered deterministically by filename; per-item status is rendered consistently across execution contexts.
 
 ## Edge Cases
 - When run in `--unattended` mode without `--force`, the command prints a warning, lists unmanaged files, and exits without deleting them.

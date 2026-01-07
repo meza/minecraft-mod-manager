@@ -75,78 +75,127 @@ func TestSetIsTerminalFuncForTestingRestores(t *testing.T) {
 	assert.False(t, isTerminalFunc(0))
 }
 
-func TestSupportsUnicodeUsesDefaultDetector(t *testing.T) {
-	assert.IsType(t, true, SupportsUnicode())
+func TestSupportsUnicodeUsesLocaleUTF8(t *testing.T) {
+	previous := unicodeSupportFunc
+	t.Cleanup(func() { unicodeSupportFunc = previous })
+	unicodeSupportFunc = defaultUnicodeSupport
+	t.Setenv("LC_ALL", "")
+	t.Setenv("LC_CTYPE", "")
+	t.Setenv("LANG", "en_US.UTF-8")
+
+	assert.True(t, SupportsUnicode())
+}
+
+func TestSupportsUnicodeReturnsFalseForCLocale(t *testing.T) {
+	previous := unicodeSupportFunc
+	t.Cleanup(func() { unicodeSupportFunc = previous })
+	unicodeSupportFunc = defaultUnicodeSupport
+	t.Setenv("LC_ALL", "")
+	t.Setenv("LC_CTYPE", "")
+	t.Setenv("LANG", "C")
+
+	assert.False(t, SupportsUnicode())
+}
+
+func TestSupportsUnicodeDefaultsToTrueWithoutLocale(t *testing.T) {
+	previous := unicodeSupportFunc
+	t.Cleanup(func() { unicodeSupportFunc = previous })
+	unicodeSupportFunc = defaultUnicodeSupport
+	t.Setenv("LANG", "")
+	t.Setenv("LC_ALL", "")
+	t.Setenv("LC_CTYPE", "")
+
+	assert.True(t, SupportsUnicode())
+}
+
+func TestSupportsUnicodeUsesLCAll(t *testing.T) {
+	previous := unicodeSupportFunc
+	t.Cleanup(func() { unicodeSupportFunc = previous })
+	unicodeSupportFunc = defaultUnicodeSupport
+	t.Setenv("LC_ALL", "en_US.UTF-8")
+	t.Setenv("LANG", "C")
+
+	assert.True(t, SupportsUnicode())
+}
+
+func TestSupportsUnicodeUsesLCCType(t *testing.T) {
+	previous := unicodeSupportFunc
+	t.Cleanup(func() { unicodeSupportFunc = previous })
+	unicodeSupportFunc = defaultUnicodeSupport
+	t.Setenv("LC_ALL", "")
+	t.Setenv("LC_CTYPE", "en_US.UTF-8")
+
+	assert.True(t, SupportsUnicode())
+}
+
+func TestSupportsUnicodeReturnsFalseForCPrefixedLocale(t *testing.T) {
+	previous := unicodeSupportFunc
+	t.Cleanup(func() { unicodeSupportFunc = previous })
+	unicodeSupportFunc = defaultUnicodeSupport
+	t.Setenv("LANG", "C.ISO8859-1")
+
+	assert.False(t, SupportsUnicode())
+}
+
+func TestSupportsUnicodeReturnsFalseForPosixLocale(t *testing.T) {
+	previous := unicodeSupportFunc
+	t.Cleanup(func() { unicodeSupportFunc = previous })
+	unicodeSupportFunc = defaultUnicodeSupport
+	t.Setenv("LC_ALL", "")
+	t.Setenv("LC_CTYPE", "")
+	t.Setenv("LANG", "POSIX")
+
+	assert.False(t, SupportsUnicode())
+}
+
+func TestSupportsUnicodeReturnsTrueForUTF8NoDash(t *testing.T) {
+	previous := unicodeSupportFunc
+	t.Cleanup(func() { unicodeSupportFunc = previous })
+	unicodeSupportFunc = defaultUnicodeSupport
+	t.Setenv("LC_ALL", "")
+	t.Setenv("LC_CTYPE", "")
+	t.Setenv("LANG", "en_US.UTF8")
+
+	assert.True(t, SupportsUnicode())
+}
+
+func TestSupportsUnicodeReturnsTrueForNonUTF8Locale(t *testing.T) {
+	previous := unicodeSupportFunc
+	t.Cleanup(func() { unicodeSupportFunc = previous })
+	unicodeSupportFunc = defaultUnicodeSupport
+	t.Setenv("LC_ALL", "")
+	t.Setenv("LC_CTYPE", "")
+	t.Setenv("LANG", "en_US.ISO8859-1")
+
+	assert.True(t, SupportsUnicode())
 }
 
 func TestSupportsUnicodeWhenOverrideReturnsTrue(t *testing.T) {
-	restore := SetIsTerminalFuncForTesting(func(_ int) bool { return true })
+	restore := SetUnicodeSupportFuncForTesting(func() bool { return true })
 	defer restore()
 
 	assert.True(t, SupportsUnicode())
 }
 
 func TestSupportsUnicodeWhenOverrideReturnsFalse(t *testing.T) {
-	restore := SetIsTerminalFuncForTesting(func(_ int) bool { return false })
+	restore := SetUnicodeSupportFuncForTesting(func() bool { return false })
 	defer restore()
 
 	assert.False(t, SupportsUnicode())
 }
 
-func TestSupportsUnicodeWhenNotTerminal(t *testing.T) {
-	previousFunc := isTerminalFunc
-	previousOverride := isTerminalFuncOverridden
-	defer func() {
-		isTerminalFunc = previousFunc
-		isTerminalFuncOverridden = previousOverride
-	}()
-
-	isTerminalFunc = func(_ int) bool { return false }
-	isTerminalFuncOverridden = false
-	assert.False(t, SupportsUnicode())
-}
-
-func TestSupportsUnicodeWhenTerminalUsesProfile(t *testing.T) {
-	previousFunc := isTerminalFunc
-	previousOverride := isTerminalFuncOverridden
-	defer func() {
-		isTerminalFunc = previousFunc
-		isTerminalFuncOverridden = previousOverride
-	}()
-
-	isTerminalFunc = func(_ int) bool { return true }
-	isTerminalFuncOverridden = false
-	assert.IsType(t, true, SupportsUnicode())
-}
-
-func TestSupportsColorRequiresTerminalWriter(t *testing.T) {
-	restore := mockTerminalDetection(t, true)
-	defer restore()
-
-	restoreProfile := SetColorProfileFuncForTesting(func() termenv.Profile { return termenv.TrueColor })
+func TestSupportsColorWhenProfileIsAscii(t *testing.T) {
+	restoreProfile := SetColorProfileFuncForTesting(func() termenv.Profile { return termenv.Ascii })
 	defer restoreProfile()
 
 	assert.False(t, SupportsColor(&strings.Builder{}))
 }
 
-func TestSupportsColorWhenProfileIsAscii(t *testing.T) {
-	restore := mockTerminalDetection(t, true)
-	defer restore()
-
-	restoreProfile := SetColorProfileFuncForTesting(func() termenv.Profile { return termenv.Ascii })
-	defer restoreProfile()
-
-	assert.False(t, SupportsColor(fakeWriter{}))
-}
-
-func TestSupportsColorWhenTerminalAndProfileSupportsColor(t *testing.T) {
-	restore := mockTerminalDetection(t, true)
-	defer restore()
-
+func TestSupportsColorWhenProfileSupportsColor(t *testing.T) {
 	restoreProfile := SetColorProfileFuncForTesting(func() termenv.Profile { return termenv.TrueColor })
 	defer restoreProfile()
 
-	assert.True(t, SupportsColor(fakeWriter{}))
+	assert.True(t, SupportsColor(&strings.Builder{}))
 }
 
 func TestSupportsControlSequencesRequiresTerminalWriter(t *testing.T) {

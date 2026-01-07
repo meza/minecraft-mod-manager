@@ -3,11 +3,13 @@ package prune
 import (
 	"bytes"
 	"context"
+	"fmt"
 	"path/filepath"
 	"regexp"
 	"strings"
 	"testing"
 
+	tea "github.com/charmbracelet/bubbletea"
 	"github.com/spf13/afero"
 	"github.com/spf13/cobra"
 	"github.com/stretchr/testify/assert"
@@ -19,7 +21,7 @@ import (
 	"github.com/meza/minecraft-mod-manager/internal/models"
 	"github.com/meza/minecraft-mod-manager/internal/output"
 	"github.com/meza/minecraft-mod-manager/internal/telemetry"
-	tui "github.com/meza/minecraft-mod-manager/internal/view"
+	"github.com/meza/minecraft-mod-manager/internal/view"
 )
 
 type fakeTerminalWriter struct {
@@ -63,7 +65,7 @@ func TestRunPruneNoUnmanagedLogsNotice(t *testing.T) {
 	cmd.SetOut(out)
 	cmd.SetErr(errOut)
 
-	deletedCount, err := runPrune(context.Background(), cmd, pruneOptions{
+	deletedCount, _, err := runPrune(context.Background(), cmd, pruneOptions{
 		ConfigPath: meta.ConfigPath,
 	}, pruneDeps{
 		fs:     fs,
@@ -75,13 +77,13 @@ func TestRunPruneNoUnmanagedLogsNotice(t *testing.T) {
 
 	require.NoError(t, err)
 	assert.Equal(t, 0, deletedCount)
-	assert.Equal(t, "cmd.prune.no_unmanaged\n", out.String())
+	assert.Equal(t, "cmd.prune.no_unmanaged\n\ncmd.prune.summary.success_hint\n", out.String())
 	assert.Empty(t, errOut.String())
 }
 
-func TestRunPruneUnattendedWithoutForceSkipsDeletion(t *testing.T) {
+func TestRunPruneUnattendedQuietWithoutForceSkipsDeletion(t *testing.T) {
 	t.Setenv("MMM_TEST", "true")
-	restoreTerminal := tui.SetIsTerminalFuncForTesting(func(int) bool { return true })
+	restoreTerminal := view.SetIsTerminalFuncForTesting(func(int) bool { return true })
 	t.Cleanup(restoreTerminal)
 
 	fs := afero.NewMemMapFs()
@@ -109,7 +111,7 @@ func TestRunPruneUnattendedWithoutForceSkipsDeletion(t *testing.T) {
 	cmd.SetOut(out)
 	cmd.SetErr(errOut)
 
-	deletedCount, err := runPrune(context.Background(), cmd, pruneOptions{
+	deletedCount, _, err := runPrune(context.Background(), cmd, pruneOptions{
 		ConfigPath: meta.ConfigPath,
 		Unattended: true,
 		Quiet:      true,
@@ -121,11 +123,11 @@ func TestRunPruneUnattendedWithoutForceSkipsDeletion(t *testing.T) {
 		},
 	})
 
-	require.NoError(t, err)
+	assert.NoError(t, err)
 	assert.Equal(t, 0, deletedCount)
-	expected := "❌ cmd.prune.unmanaged.entry, Arg 1: {Count: 0, Data: &map[file:" + unmanagedPath + "]}\n"
+	expected := "cmd.prune.header.unmanaged\n❌ extra.jar\n"
 	assert.Equal(t, expected, stripANSI(out.String()))
-	assert.Equal(t, "cmd.prune.error.prompt_disabled\n", errOut.String())
+	assert.Empty(t, errOut.String())
 
 	exists, existsErr := afero.Exists(fs, unmanagedPath)
 	require.NoError(t, existsErr)
@@ -134,7 +136,7 @@ func TestRunPruneUnattendedWithoutForceSkipsDeletion(t *testing.T) {
 
 func TestRunPrunePromptNoKeepsFiles(t *testing.T) {
 	t.Setenv("MMM_TEST", "true")
-	restoreTerminal := tui.SetIsTerminalFuncForTesting(func(int) bool { return true })
+	restoreTerminal := view.SetIsTerminalFuncForTesting(func(int) bool { return true })
 	t.Cleanup(restoreTerminal)
 
 	fs := afero.NewMemMapFs()
@@ -165,12 +167,23 @@ func TestRunPrunePromptNoKeepsFiles(t *testing.T) {
 	cmd.SetOut(outputWriter)
 	cmd.SetErr(errOut)
 
-	deletedCount, err := runPrune(context.Background(), cmd, pruneOptions{
+	deletedCount, _, err := runPrune(context.Background(), cmd, pruneOptions{
 		ConfigPath: meta.ConfigPath,
 	}, pruneDeps{
 		fs:     fs,
 		logger: logger.New(outputWriter, errOut, false, false),
 		output: output.New(outputWriter, errOut, false),
+		runTea: func(model tea.Model, _ ...tea.ProgramOption) (tea.Model, error) {
+			if typed, ok := model.(pruneConfirmDeleteModel); ok {
+				typed.prompt.value = typed.prompt.noOption.short
+				typed.prompt.input.SetValue(typed.prompt.value)
+				model = typed
+			}
+			if _, writeErr := fmt.Fprint(outputWriter, model.View()); writeErr != nil {
+				return model, writeErr
+			}
+			return model, nil
+		},
 		telemetry: func(telemetry.CommandTelemetry) {
 		},
 	})
@@ -182,15 +195,71 @@ func TestRunPrunePromptNoKeepsFiles(t *testing.T) {
 	require.NoError(t, existsErr)
 	assert.True(t, exists)
 
-	expected := "❌ cmd.prune.unmanaged.entry, Arg 1: {Count: 0, Data: &map[file:" + unmanagedPath + "]}\n" +
-		"? cmd.prune.confirm (cmd.init.prompt.option.yes.short/cmd.init.prompt.option.no.short) [default: cmd.init.prompt.option.no.short]: "
+	expected := "cmd.prune.header.unmanaged\n❌ extra.jar\n\n" +
+		"? cmd.prune.confirm cmd.init.prompt.confirm.suffix cmd.init.prompt.option.no.short"
 	assert.Equal(t, expected, stripANSI(outputWriter.String()))
 	assert.Empty(t, errOut.String())
 }
 
+func TestRunPrunePromptCanceledSkipsDelete(t *testing.T) {
+	t.Setenv("MMM_TEST", "true")
+	restoreTerminal := view.SetIsTerminalFuncForTesting(func(int) bool { return true })
+	t.Cleanup(restoreTerminal)
+
+	fs := afero.NewMemMapFs()
+	meta := config.NewMetadata(filepath.FromSlash("/cfg/modlist.json"))
+	cfg := models.ModsJSON{
+		Loader:                     models.FABRIC,
+		GameVersion:                "1.20.1",
+		DefaultAllowedReleaseTypes: []models.ReleaseType{models.Release},
+		ModsFolder:                 "mods",
+		Mods:                       []models.Mod{},
+	}
+
+	require.NoError(t, fs.MkdirAll(meta.Dir(), 0755))
+	require.NoError(t, fs.MkdirAll(meta.ModsFolderPath(cfg), 0755))
+	require.NoError(t, config.WriteConfig(context.Background(), fs, meta, cfg))
+	require.NoError(t, config.WriteLock(context.Background(), fs, meta, []models.ModInstall{}))
+
+	unmanagedPath := filepath.Join(meta.ModsFolderPath(cfg), "extra.jar")
+	require.NoError(t, afero.WriteFile(fs, unmanagedPath, []byte("data"), 0644))
+
+	outputWriter := &fakeTerminalWriter{}
+	cmd := &cobra.Command{}
+	cmd.SetIn(&fakeTerminalReader{})
+	cmd.SetOut(outputWriter)
+	cmd.SetErr(&bytes.Buffer{})
+
+	deletedCount, _, err := runPrune(context.Background(), cmd, pruneOptions{
+		ConfigPath: meta.ConfigPath,
+	}, pruneDeps{
+		fs:     fs,
+		logger: logger.New(outputWriter, outputWriter, false, false),
+		output: output.New(outputWriter, outputWriter, false),
+		runTea: func(model tea.Model, _ ...tea.ProgramOption) (tea.Model, error) {
+			if typed, ok := model.(pruneConfirmDeleteModel); ok {
+				typed.canceled = true
+				model = typed
+			}
+			if _, writeErr := fmt.Fprint(outputWriter, model.View()); writeErr != nil {
+				return model, writeErr
+			}
+			return model, nil
+		},
+		telemetry: func(telemetry.CommandTelemetry) {},
+	})
+
+	require.NoError(t, err)
+	assert.Equal(t, 0, deletedCount)
+
+	exists, existsErr := afero.Exists(fs, unmanagedPath)
+	require.NoError(t, existsErr)
+	assert.True(t, exists)
+}
+
 func TestRunPrunePromptYesDeletesFiles(t *testing.T) {
 	t.Setenv("MMM_TEST", "true")
-	restoreTerminal := tui.SetIsTerminalFuncForTesting(func(int) bool { return true })
+	restoreTerminal := view.SetIsTerminalFuncForTesting(func(int) bool { return true })
 	t.Cleanup(restoreTerminal)
 
 	fs := afero.NewMemMapFs()
@@ -220,19 +289,33 @@ func TestRunPrunePromptYesDeletesFiles(t *testing.T) {
 	cmd.SetOut(outputWriter)
 	cmd.SetErr(&bytes.Buffer{})
 
-	deletedCount, err := runPrune(context.Background(), cmd, pruneOptions{
+	deletedCount, _, err := runPrune(context.Background(), cmd, pruneOptions{
 		ConfigPath: meta.ConfigPath,
 	}, pruneDeps{
 		fs:     fs,
 		logger: logger.New(outputWriter, outputWriter, false, false),
 		output: output.New(outputWriter, outputWriter, false),
+		runTea: func(model tea.Model, _ ...tea.ProgramOption) (tea.Model, error) {
+			if typed, ok := model.(pruneConfirmDeleteModel); ok {
+				results, deleteErr := typed.deleteFn()
+				typed.results = results
+				typed.deleteErr = deleteErr
+				typed.confirmed = true
+				typed.done = true
+				model = typed
+			}
+			if _, writeErr := fmt.Fprint(outputWriter, model.View()); writeErr != nil {
+				return model, writeErr
+			}
+			return model, nil
+		},
 		telemetry: func(telemetry.CommandTelemetry) {
 		},
 	})
 
 	require.NoError(t, err)
 	assert.Equal(t, 1, deletedCount)
-	assert.Contains(t, outputWriter.String(), "cmd.prune.confirm")
+	assert.Contains(t, outputWriter.String(), "cmd.prune.header.deleted")
 
 	exists, existsErr := afero.Exists(fs, unmanagedPath)
 	require.NoError(t, existsErr)
@@ -271,7 +354,7 @@ func TestRunPruneForceDeletesAndRespectsIgnore(t *testing.T) {
 	cmd.SetOut(out)
 	cmd.SetErr(errOut)
 
-	deletedCount, err := runPrune(context.Background(), cmd, pruneOptions{
+	deletedCount, _, err := runPrune(context.Background(), cmd, pruneOptions{
 		ConfigPath: meta.ConfigPath,
 		Unattended: true,
 		Force:      true,
@@ -286,9 +369,8 @@ func TestRunPruneForceDeletesAndRespectsIgnore(t *testing.T) {
 	require.NoError(t, err)
 	assert.Equal(t, 1, deletedCount)
 
-	expectedLine := "cmd.prune.deleted, Arg 1: {Count: 0, Data: &map[file:" +
-		filepath.Join(meta.ModsFolderPath(cfg), "unmanaged.jar") + "]}\n"
-	assert.Equal(t, expectedLine, out.String())
+	expectedLine := "cmd.prune.header.deleted\n\u2705 unmanaged.jar\n\n\u2705 cmd.prune.summary.success\ncmd.prune.summary.success_hint\n"
+	assert.Equal(t, expectedLine, stripANSI(out.String()))
 	assert.Empty(t, errOut.String())
 
 	managedExists, managedErr := afero.Exists(fs, filepath.Join(meta.ModsFolderPath(cfg), "managed.jar"))
@@ -330,7 +412,7 @@ func TestRunPruneQuietForceIsSilent(t *testing.T) {
 	cmd.SetOut(out)
 	cmd.SetErr(errOut)
 
-	deletedCount, err := runPrune(context.Background(), cmd, pruneOptions{
+	deletedCount, _, err := runPrune(context.Background(), cmd, pruneOptions{
 		ConfigPath: meta.ConfigPath,
 		Quiet:      true,
 		Force:      true,
@@ -372,7 +454,7 @@ func TestRunPruneLockMissingErrors(t *testing.T) {
 	cmd.SetOut(out)
 	cmd.SetErr(errOut)
 
-	deletedCount, err := runPrune(context.Background(), cmd, pruneOptions{
+	deletedCount, _, err := runPrune(context.Background(), cmd, pruneOptions{
 		ConfigPath: meta.ConfigPath,
 	}, pruneDeps{
 		fs:     fs,
@@ -384,10 +466,10 @@ func TestRunPruneLockMissingErrors(t *testing.T) {
 
 	assert.True(t, clierrors.IsHandled(err))
 	assert.Equal(t, 0, deletedCount)
-	assert.Empty(t, out.String())
-	assert.True(t, strings.Contains(errOut.String(), "cmd.prune.error.lock_missing"))
-	assert.True(t, strings.Contains(errOut.String(), meta.LockPath()))
-	assert.True(t, strings.Contains(errOut.String(), "mmm install"))
+	assert.True(t, strings.Contains(out.String(), "cmd.prune.error.lock_missing"))
+	assert.True(t, strings.Contains(out.String(), meta.LockPath()))
+	assert.True(t, strings.Contains(out.String(), "cmd.prune.error.lock_missing_hint"))
+	assert.Empty(t, errOut.String())
 }
 
 var ansiPattern = regexp.MustCompile("\u001b\\[[0-9;]*[A-Za-z]")

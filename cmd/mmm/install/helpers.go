@@ -29,7 +29,7 @@ func messageWithIcon(icon string, message string) string {
 }
 
 func colorModeForOutput(output io.Writer) view.ColorMode {
-	if view.SupportsColor(output) {
+	if view.SupportsColor(output) && view.SupportsControlSequences(output) {
 		return view.ColorEnabled
 	}
 	return view.ColorDisabled

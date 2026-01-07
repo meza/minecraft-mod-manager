@@ -1,12 +1,12 @@
 [TestRecoveryFlowSnapshots/not_found_confirm - 1]
-!! cmd.add.error.not_found, Arg 1: {Count: 0, Data: &map[id:abc platform:modrinth]}
+‼️ cmd.add.error.not_found, Arg 1: {Count: 0, Data: &map[id:abc platform:modrinth]}
 ? cmd.add.prompt.modify_search cmd.init.prompt.confirm.suffix            
 
 key.enter key.help.accept • key.ctrl_c/key.esc key.help.quit
 ---
 
 [TestRecoveryFlowSnapshots/download_failed_confirm - 1]
-!! cmd.add.error.download_failed, Arg 1: {Count: 0, Data: &map[id:xyz platform:curseforge]}
+‼️ cmd.add.error.download_failed, Arg 1: {Count: 0, Data: &map[id:xyz platform:curseforge]}
 
 cmd.add.error.download_failed_retries, Arg 1: {Count: 0, Data: &map[count:3]}
 cmd.add.error.download_failed_platform, Arg 1: {Count: 0, Data: &map[platform:curseforge]}
@@ -19,7 +19,7 @@ key.enter key.help.accept • key.ctrl_c/key.esc key.help.quit
 
 [TestRecoveryFlowSnapshots/platform_list - 1]
 ? cmd.add.prompt.platform_list                             
-> curseforge                                               
+❯ curseforge                                               
   modrinth                                                 
                                                            
                                                            

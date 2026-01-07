@@ -31,6 +31,8 @@ import (
 
 func TestRunListPrintsInstalledAndMissing(t *testing.T) {
 	t.Setenv("MMM_TEST", "true")
+	restoreUnicode := view.SetUnicodeSupportFuncForTesting(func() bool { return true })
+	t.Cleanup(restoreUnicode)
 
 	fileSystem := afero.NewMemMapFs()
 	meta := config.NewMetadata(filepath.FromSlash("/cfg/modlist.json"))
@@ -78,14 +80,16 @@ func TestRunListPrintsInstalledAndMissing(t *testing.T) {
 
 	assert.NoError(t, err)
 	expected := "cmd.list.header\n" +
-		"V Mod A (mod-a) [modrinth]\n" +
-		"X Mod B (mod-b) [curseforge] cmd.list.entry.missing_suffix\n"
+		"\u2705 Mod A (mod-a) [modrinth]\n" +
+		"\u274C Mod B (mod-b) [curseforge] cmd.list.entry.missing_suffix\n"
 	assert.Equal(t, expected, outBuffer.String())
 	assert.Empty(t, errBuffer.String())
 }
 
 func TestRunListShowsHashMismatch(t *testing.T) {
 	t.Setenv("MMM_TEST", "true")
+	restoreUnicode := view.SetUnicodeSupportFuncForTesting(func() bool { return true })
+	t.Cleanup(restoreUnicode)
 
 	fileSystem := afero.NewMemMapFs()
 	meta := config.NewMetadata(filepath.FromSlash("/cfg/modlist.json"))
@@ -130,7 +134,7 @@ func TestRunListShowsHashMismatch(t *testing.T) {
 
 	assert.NoError(t, err)
 	expected := "cmd.list.header\n" +
-		"X Mod A (mod-a) [modrinth] cmd.list.entry.hash_mismatch_suffix, Arg 1: {Count: 0, Data: &map[fix_command:mmm install]}\n"
+		"\u274C Mod A (mod-a) [modrinth] cmd.list.entry.hash_mismatch_suffix, Arg 1: {Count: 0, Data: &map[fix_command:mmm install]}\n"
 	assert.Equal(t, expected, outBuffer.String())
 	assert.Empty(t, errBuffer.String())
 	assert.NotEqual(t, installedHash, otherHash)
@@ -176,6 +180,8 @@ func TestRunListShowsEmptyMessageWhenNoMods(t *testing.T) {
 
 func TestRunListQuietStillPrints(t *testing.T) {
 	t.Setenv("MMM_TEST", "true")
+	restoreUnicode := view.SetUnicodeSupportFuncForTesting(func() bool { return true })
+	t.Cleanup(restoreUnicode)
 
 	fileSystem := afero.NewMemMapFs()
 	meta := config.NewMetadata(filepath.FromSlash("/cfg/modlist.json"))
@@ -212,7 +218,7 @@ func TestRunListQuietStillPrints(t *testing.T) {
 
 	assert.NoError(t, err)
 	expected := "cmd.list.header\n" +
-		"X Mod A (mod-a) [modrinth] cmd.list.entry.missing_suffix\n"
+		"\u274C Mod A (mod-a) [modrinth] cmd.list.entry.missing_suffix\n"
 	assert.Equal(t, expected, outBuffer.String())
 }
 

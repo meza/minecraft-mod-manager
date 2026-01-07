@@ -263,6 +263,9 @@ func TestWriteChangePolicyFlagErrorRequiresForce(t *testing.T) {
 }
 
 func TestWriteChangeOutcomeNonTTYUsesPendingIconForQueued(t *testing.T) {
+	restoreUnicode := view.SetUnicodeSupportFuncForTesting(func() bool { return true })
+	t.Cleanup(restoreUnicode)
+
 	output := &bytes.Buffer{}
 	cmd := &cobra.Command{}
 	cmd.SetOut(output)
@@ -280,7 +283,7 @@ func TestWriteChangeOutcomeNonTTYUsesPendingIconForQueued(t *testing.T) {
 	}
 
 	assert.NoError(t, writeChangeOutcome(cmd, deps, outcome, "1.19.4", interaction.ExecutionModeNonTTY))
-	assert.Contains(t, output.String(), "[~] Alpha (alpha) [modrinth]")
+	assert.Contains(t, output.String(), "\u23F3 Alpha (alpha) [modrinth]")
 }
 
 func TestWriteChangeOutcomeUnattendedCompatibilityFailedFiltersSupported(t *testing.T) {

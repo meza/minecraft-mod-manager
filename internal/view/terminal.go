@@ -3,6 +3,7 @@ package view
 import (
 	"io"
 	"os"
+	"strings"
 
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/muesli/termenv"
@@ -18,7 +19,6 @@ type fdWriter interface {
 }
 
 var isTerminalFunc = term.IsTerminal
-var isTerminalFuncOverridden bool
 var unicodeSupportFunc = defaultUnicodeSupport
 var colorProfileFunc = termenv.EnvColorProfile
 
@@ -26,12 +26,9 @@ var colorProfileFunc = termenv.EnvColorProfile
 // This is intended for cross-package tests that need deterministic TTY detection.
 func SetIsTerminalFuncForTesting(fn func(int) bool) func() {
 	previous := isTerminalFunc
-	previousOverride := isTerminalFuncOverridden
 	isTerminalFunc = fn
-	isTerminalFuncOverridden = true
 	return func() {
 		isTerminalFunc = previous
-		isTerminalFuncOverridden = previousOverride
 	}
 }
 
@@ -42,9 +39,6 @@ func SupportsUnicode() bool {
 
 // SupportsColor reports whether color output should be used for the provided writer.
 func SupportsColor(writer io.Writer) bool {
-	if !IsTerminalWriter(writer) {
-		return false
-	}
 	return colorProfileFunc() != termenv.Ascii
 }
 
@@ -109,11 +103,23 @@ func ProgramOptions(in io.Reader, out io.Writer) []tea.ProgramOption {
 }
 
 func defaultUnicodeSupport() bool {
-	if isTerminalFuncOverridden {
-		return isTerminalFunc(int(os.Stdout.Fd()))
+	locale := os.Getenv("LC_ALL")
+	if locale == "" {
+		locale = os.Getenv("LC_CTYPE")
 	}
-	if !IsTerminalWriter(os.Stdout) {
+	if locale == "" {
+		locale = os.Getenv("LANG")
+	}
+	if locale == "" {
+		return true
+	}
+
+	normalized := strings.ToUpper(locale)
+	if strings.Contains(normalized, "UTF-8") || strings.Contains(normalized, "UTF8") {
+		return true
+	}
+	if normalized == "POSIX" || normalized == "C" || strings.HasPrefix(normalized, "C.") {
 		return false
 	}
-	return termenv.EnvColorProfile() != termenv.Ascii
+	return true
 }

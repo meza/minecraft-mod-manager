@@ -1130,6 +1130,9 @@ func TestFormatMissingModEntryWithColorization(t *testing.T) {
 }
 
 func TestFormatMissingModEntryWithoutColorization(t *testing.T) {
+	restoreUnicode := tui.SetUnicodeSupportFuncForTesting(func() bool { return true })
+	t.Cleanup(restoreUnicode)
+
 	mod := models.Mod{
 		ID:   "test-mod-id",
 		Name: "TestMod",
@@ -1138,7 +1141,7 @@ func TestFormatMissingModEntryWithoutColorization(t *testing.T) {
 
 	result := formatMissingModEntry(mod, tui.ColorDisabled)
 
-	assert.Equal(t, "X TestMod (test-mod-id)", result)
+	assert.Equal(t, "\u274C TestMod (test-mod-id)", result)
 }
 
 func TestFormatReleaseTypesEmptyReturnsNone(t *testing.T) {

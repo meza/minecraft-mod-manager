@@ -12,14 +12,18 @@ import (
 
 func TestRenderAddSuccessLine(t *testing.T) {
 	t.Setenv("MMM_TEST", "true")
+	restoreUnicode := view.SetUnicodeSupportFuncForTesting(func() bool { return true })
+	t.Cleanup(restoreUnicode)
 	line := renderAddSuccessLine(view.ColorDisabled, "Example", "abc", models.MODRINTH)
 	assert.Contains(t, line, "cmd.add.success")
-	assert.Contains(t, line, "V")
+	assert.Contains(t, line, "\u2705")
 }
 
 func TestRenderFinalErrorLine(t *testing.T) {
+	restoreUnicode := view.SetUnicodeSupportFuncForTesting(func() bool { return true })
+	t.Cleanup(restoreUnicode)
 	line := renderFinalErrorLine(view.ColorDisabled, "boom")
-	assert.True(t, strings.HasPrefix(line, "!!"))
+	assert.True(t, strings.HasPrefix(line, "\u203C\uFE0F"))
 	assert.Contains(t, line, "boom")
 }
 

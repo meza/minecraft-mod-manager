@@ -1206,6 +1206,8 @@ func TestRunScan_PromptDeclineSkipsPersist(t *testing.T) {
 
 func TestRunScan_AllManagedReturnsEarly(t *testing.T) {
 	t.Setenv("MMM_TEST", "true")
+	restoreUnicode := tui.SetUnicodeSupportFuncForTesting(func() bool { return true })
+	t.Cleanup(restoreUnicode)
 
 	fs := afero.NewMemMapFs()
 	meta := config.NewMetadata(filepath.FromSlash("/cfg/modlist.json"))
@@ -1243,7 +1245,7 @@ func TestRunScan_AllManagedReturnsEarly(t *testing.T) {
 	})
 
 	assert.NoError(t, err)
-	assert.Contains(t, out.String(), "V cmd.scan.all_managed")
+	assert.Contains(t, out.String(), "\u2705 cmd.scan.all_managed")
 }
 
 func TestRunScan_ReturnsErrorOnEnsureConfigFailure(t *testing.T) {

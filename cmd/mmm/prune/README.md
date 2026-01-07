@@ -10,9 +10,12 @@ The implementation follows the command conventions used elsewhere in the CLI:
 
 ## Prompt behavior
 
-Prompts are allowed only when `--unattended` is not set and the command is running in a TTY.
-When `--unattended` is set, prune prints a warning, skips the prompt, and assumes no deletion unless `--force` is also set.
-If prompts are disabled because the command is not running in a TTY and `--force` is not set, `mmm prune` prints a warning and exits without deleting files.
+Prompts are allowed only in interactive mode. Interactive mode requires both stdin and stdout to be TTYs and `--unattended` to be unset.
+
+When prompts are not allowed and `--force` is not set, prune prints the unmanaged list and refuses to delete files. This applies to both `--unattended` and non-tty runs.
+When `--force` is set, prune skips prompting and deletes unmanaged files immediately.
+
+When the config file is missing and prompts are allowed, prune offers to run `mmm init` and then resumes. In unattended or non-tty contexts, it prints the missing config error and exits.
 
 ## Testing and snapshots
 

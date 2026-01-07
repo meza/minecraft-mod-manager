@@ -583,6 +583,9 @@ func TestRenderSwitchingSectionWaitingForPolicy(t *testing.T) {
 }
 
 func TestRenderSwitchingLinePending(t *testing.T) {
+	restoreUnicode := view.SetUnicodeSupportFuncForTesting(func() bool { return true })
+	t.Cleanup(restoreUnicode)
+
 	line := renderSwitchingLine(changeViewInput{
 		target:       "1.20.1",
 		colorMode:    view.ColorDisabled,
@@ -591,7 +594,7 @@ func TestRenderSwitchingLinePending(t *testing.T) {
 		Mod:         models.Mod{ID: "alpha", Type: models.MODRINTH},
 		DisplayName: "Alpha",
 	})
-	assert.Contains(t, line, "[~] Alpha")
+	assert.Contains(t, line, "\u23F3 Alpha")
 }
 
 func TestBuildChangeSectionsSwitchingStage(t *testing.T) {

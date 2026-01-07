@@ -4,15 +4,15 @@ cmd.change.header, Arg 1: {Count: 0, Data: &map[version:1.21.1]}
 cmd.change.notice
 
 cmd.change.section.compatibility
-[~] Alpha (alpha) [modrinth]
+⏳ Alpha (alpha) [modrinth]
 
 cmd.change.section.downloading
--> Beta (beta) [curseforge]
-[#####-----]
+⬇️ Beta (beta) [curseforge]
+█████░░░░░
 50% (512 KB / 1 MB)
 
 cmd.change.section.switching cmd.change.section.switching_waiting, Arg 1: {Count: 0, Data: &map[spinner:.]}
-[~] Gamma (gamma) [modrinth]
+⏳ Gamma (gamma) [modrinth]
 ---
 
 [TestChangeViewSnapshots/compatibility_failed - 1]
@@ -20,9 +20,9 @@ cmd.change.header, Arg 1: {Count: 0, Data: &map[version:1.21.1]}
 cmd.change.notice
 
 cmd.change.section.compatibility
-X Alpha (alpha) [modrinth] cmd.change.item.unsupported, Arg 1: {Count: 0, Data: &map[version:1.21.1]}
+❌ Alpha (alpha) [modrinth] cmd.change.item.unsupported, Arg 1: {Count: 0, Data: &map[version:1.21.1]}
 
-!! cmd.change.error.compatibility_failed, Arg 1: {Count: 0, Data: &map[version:1.21.1]}
+‼️ cmd.change.error.compatibility_failed, Arg 1: {Count: 0, Data: &map[version:1.21.1]}
 cmd.change.error.no_changes
 
 cmd.change.error.compatibility_hint, Arg 1: {Count: 0, Data: &map[version:1.21.1]}
@@ -33,8 +33,8 @@ cmd.change.header, Arg 1: {Count: 0, Data: &map[version:1.21.1]}
 cmd.change.notice
 
 cmd.change.section.downloading
--> Alpha (alpha) [modrinth]
-[#####-----]
+⬇️ Alpha (alpha) [modrinth]
+█████░░░░░
 50% (512 KB / 1 MB)
 ---
 
@@ -44,9 +44,9 @@ cmd.change.section.switching
 ---
 
 [TestChangeViewSnapshots/success - 1]
-V Alpha (alpha) [modrinth]
+✅ Alpha (alpha) [modrinth]
 
-V cmd.change.success, Arg 1: {Count: 0, Data: &map[version:1.21.1]}
+✅ cmd.change.success, Arg 1: {Count: 0, Data: &map[version:1.21.1]}
 ---
 
 [TestChangeViewSnapshots/compatibility_failure_running - 1]
@@ -54,7 +54,7 @@ cmd.change.header, Arg 1: {Count: 0, Data: &map[version:1.21.1]}
 cmd.change.notice
 
 cmd.change.section.compatibility
-X Alpha (alpha) [modrinth] cmd.change.item.unsupported, Arg 1: {Count: 0, Data: &map[version:1.21.1]}
+❌ Alpha (alpha) [modrinth] cmd.change.item.unsupported, Arg 1: {Count: 0, Data: &map[version:1.21.1]}
 . Beta (beta) [curseforge]
 
 cmd.change.section.downloading cmd.change.section.cancelled_incompatibility
@@ -67,10 +67,10 @@ cmd.change.header, Arg 1: {Count: 0, Data: &map[version:1.21.1]}
 cmd.change.notice
 
 cmd.change.section.switching cmd.change.section.switching_waiting_choice, Arg 1: {Count: 0, Data: &map[spinner:.]}
-[~] Alpha (alpha) [modrinth]
+⏳ Alpha (alpha) [modrinth]
 
 ? cmd.change.force_policy.prompt                                                                                                                                                         
-> cmd.change.force_policy.option.keep                                                                                                                                                    
+❯ cmd.change.force_policy.option.keep                                                                                                                                                    
   cmd.change.force_policy.option.prune                                                                                                                                                   
   cmd.change.force_policy.option.disable                                                                                                                                                 
                                                                                                                                                                                          
@@ -84,7 +84,7 @@ cmd.change.header, Arg 1: {Count: 0, Data: &map[version:1.21.1]}
 cmd.change.notice
 
 cmd.change.section.switching cmd.change.section.switching_waiting, Arg 1: {Count: 0, Data: &map[spinner:.]}
-[~] Alpha (alpha) [modrinth]
+⏳ Alpha (alpha) [modrinth]
 
 ? cmd.change.force_policy.prompt cmd.change.force_policy.answer.keep
 ---

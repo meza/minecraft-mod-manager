@@ -13,7 +13,7 @@ import (
 )
 
 func colorModeForOutput(out io.Writer) view.ColorMode {
-	if view.SupportsColor(out) {
+	if view.SupportsColor(out) && view.SupportsControlSequences(out) {
 		return view.ColorEnabled
 	}
 	return view.ColorDisabled

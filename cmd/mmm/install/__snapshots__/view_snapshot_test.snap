@@ -1,39 +1,39 @@
 
 [TestInstallViewSnapshots/running - 1]
 cmd.install.header.running
-[~] Alpha (alpha) [modrinth]
--> Beta (beta) [curseforge]
-[#####-----]
+⏳ Alpha (alpha) [modrinth]
+⬇️ Beta (beta) [curseforge]
+█████░░░░░
 50% (512 KB / 1 MB)
-V Gamma (gamma) [modrinth]
+✅ Gamma (gamma) [modrinth]
 ---
 
 [TestInstallViewSnapshots/success - 1]
-V Alpha (alpha) [modrinth]
-V Beta (beta) [curseforge]
+✅ Alpha (alpha) [modrinth]
+✅ Beta (beta) [curseforge]
 
-V cmd.install.summary.success
+✅ cmd.install.summary.success
 ---
 
 [TestInstallViewSnapshots/download_failed - 1]
 cmd.install.header.running
-V Alpha (alpha) [modrinth]
-X Beta (beta) [curseforge] cmd.install.item.download_failed, Arg 1: {Count: 0, Data: &map[reason:network]}
+✅ Alpha (alpha) [modrinth]
+❌ Beta (beta) [curseforge] cmd.install.item.download_failed, Arg 1: {Count: 0, Data: &map[reason:network]}
 
-!! cmd.install.summary.download_failed
-cmd.install.summary.partial, Arg 1: {Count: 0, Data: &map[errorIcon:X]}
+‼️ cmd.install.summary.download_failed
+cmd.install.summary.partial, Arg 1: {Count: 0, Data: &map[errorIcon:❌]}
 
 cmd.install.summary.download_failed_hint
 ---
 
 [TestInstallViewSnapshots/write_lock_failed - 1]
 cmd.install.header.running
-[~] Alpha (alpha) [modrinth]
--> Beta (beta) [curseforge]
-[#####-----]
+⏳ Alpha (alpha) [modrinth]
+⬇️ Beta (beta) [curseforge]
+█████░░░░░
 50% (512 KB / 1 MB)
-V Gamma (gamma) [modrinth]
+✅ Gamma (gamma) [modrinth]
 
-!! cmd.install.summary.write_failed_abort, Arg 1: {Count: 0, Data: &map[file:modlist-lock.json]}
+‼️ cmd.install.summary.write_failed_abort, Arg 1: {Count: 0, Data: &map[file:modlist-lock.json]}
 cmd.install.summary.write_failed_hint
 ---

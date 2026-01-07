@@ -13,6 +13,9 @@ func TestRenderModLabel(t *testing.T) {
 }
 
 func TestRenderModItemLineAddsSuffix(t *testing.T) {
+	restore := SetUnicodeSupportFuncForTesting(func() bool { return false })
+	t.Cleanup(restore)
+
 	label := RenderModLabel(ColorDisabled, "Example", "abc", "modrinth")
 	line := RenderModItemLine(ModItemLine{
 		Label:  label,
@@ -41,6 +44,9 @@ func TestRenderModItemLineAddsProgressLines(t *testing.T) {
 }
 
 func TestRenderModItemLineUsesPendingIcon(t *testing.T) {
+	restore := SetUnicodeSupportFuncForTesting(func() bool { return false })
+	t.Cleanup(restore)
+
 	line := RenderModItemLine(ModItemLine{
 		Label:  "Example (abc) [modrinth]",
 		Status: ModItemStatusPending,
@@ -50,6 +56,9 @@ func TestRenderModItemLineUsesPendingIcon(t *testing.T) {
 }
 
 func TestRenderModItemLineUsesDownloadIcon(t *testing.T) {
+	restore := SetUnicodeSupportFuncForTesting(func() bool { return false })
+	t.Cleanup(restore)
+
 	line := RenderModItemLine(ModItemLine{
 		Label:  "Example (abc) [modrinth]",
 		Status: ModItemStatusDownloading,
@@ -69,6 +78,9 @@ func TestRenderModItemLineUsesSpinnerFrame(t *testing.T) {
 }
 
 func TestRenderModItemLineUsesPendingIconWhenSpinnerEmpty(t *testing.T) {
+	restore := SetUnicodeSupportFuncForTesting(func() bool { return false })
+	t.Cleanup(restore)
+
 	line := RenderModItemLine(ModItemLine{
 		Label:        "Example (abc) [modrinth]",
 		Status:       ModItemStatusSpinning,
@@ -79,6 +91,9 @@ func TestRenderModItemLineUsesPendingIconWhenSpinnerEmpty(t *testing.T) {
 }
 
 func TestRenderModItemLineUsesErrorIconForSkipped(t *testing.T) {
+	restore := SetUnicodeSupportFuncForTesting(func() bool { return false })
+	t.Cleanup(restore)
+
 	line := RenderModItemLine(ModItemLine{
 		Label:  "Example (abc) [modrinth]",
 		Status: ModItemStatusSkipped,
@@ -88,6 +103,9 @@ func TestRenderModItemLineUsesErrorIconForSkipped(t *testing.T) {
 }
 
 func TestRenderModItemLineUsesSuccessIcon(t *testing.T) {
+	restore := SetUnicodeSupportFuncForTesting(func() bool { return false })
+	t.Cleanup(restore)
+
 	line := RenderModItemLine(ModItemLine{
 		Label:  "Example (abc) [modrinth]",
 		Status: ModItemStatusSuccess,

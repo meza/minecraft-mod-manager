@@ -14,16 +14,18 @@ import (
 func TestRenderFinalErrorLineRespectsColorMode(t *testing.T) {
 	restoreColor := view.SetColorProfileFuncForTesting(func() termenv.Profile { return termenv.TrueColor })
 	restoreTerminal := view.SetIsTerminalFuncForTesting(func(int) bool { return true })
+	restoreUnicode := view.SetUnicodeSupportFuncForTesting(func() bool { return true })
 	t.Cleanup(func() {
 		restoreColor()
 		restoreTerminal()
+		restoreUnicode()
 	})
 
 	line := renderFinalErrorLine(view.ColorEnabled, "boom")
 	assert.Contains(t, line, "boom")
 
 	line = renderFinalErrorLine(view.ColorDisabled, "boom")
-	assert.Contains(t, line, "!!")
+	assert.Contains(t, line, "\u203C\uFE0F")
 }
 
 func TestRenderInstallExecutionFailureSummaryIncludesReasonAndHint(t *testing.T) {

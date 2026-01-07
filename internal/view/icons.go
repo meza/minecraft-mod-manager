@@ -3,7 +3,7 @@ package view
 func SuccessIcon(colorMode ColorMode) string {
 	asciiIcon := "V"
 	icon := asciiIcon
-	if colorMode.Enabled() && SupportsUnicode() {
+	if SupportsUnicode() {
 		icon = "\u2705"
 	}
 	return RenderIfColorEnabled(colorMode, QuestionStyle, icon)
@@ -12,7 +12,7 @@ func SuccessIcon(colorMode ColorMode) string {
 func ErrorIcon(colorMode ColorMode) string {
 	asciiIcon := "X"
 	icon := asciiIcon
-	if colorMode.Enabled() && SupportsUnicode() {
+	if SupportsUnicode() {
 		icon = "\u274C"
 	}
 	return RenderIfColorEnabled(colorMode, ErrorStyle, icon)
@@ -21,7 +21,7 @@ func ErrorIcon(colorMode ColorMode) string {
 func FinalErrorIcon(colorMode ColorMode) string {
 	asciiIcon := "!!"
 	icon := asciiIcon
-	if colorMode.Enabled() && SupportsUnicode() {
+	if SupportsUnicode() {
 		icon = "\u203C\uFE0F"
 	}
 	return RenderIfColorEnabled(colorMode, ErrorStyle, icon)
@@ -30,7 +30,7 @@ func FinalErrorIcon(colorMode ColorMode) string {
 func PendingIcon(colorMode ColorMode) string {
 	asciiIcon := "[~]"
 	icon := asciiIcon
-	if colorMode.Enabled() && SupportsUnicode() {
+	if SupportsUnicode() {
 		icon = "\u23F3"
 	}
 	return RenderIfColorEnabled(colorMode, QuestionStyle, icon)
@@ -39,7 +39,7 @@ func PendingIcon(colorMode ColorMode) string {
 func DownloadIcon(colorMode ColorMode) string {
 	asciiIcon := "->"
 	icon := asciiIcon
-	if colorMode.Enabled() && SupportsUnicode() {
+	if SupportsUnicode() {
 		icon = "\u2B07\uFE0F"
 	}
 	return RenderIfColorEnabled(colorMode, QuestionStyle, icon)
