@@ -71,7 +71,14 @@ This is not a prompt. It is version resolution before running the check.
 `test`
 
 ```
-Testing compatibility for Minecraft <resolvedLatest>...
+Test Minecraft version <resolvedLatest>
+
+Compatibility:
+⠋ Inventory Sorting (inventory-sorting) [modrinth]
+✅ Fabric API (fabric-api) [modrinth]
+✅ Mod Menu (modmenu) [modrinth]
+⠋ Some Mod (some-mod) [curseforge]
+... (one row per mod, all mods shown)
 ```
 
 #### TEST-03 Running (tty)
@@ -83,11 +90,13 @@ As mod status changes, MMM updates the icons in place.
 `test 1.21.11`
 
 ```
-Testing compatibility for Minecraft 1.21.11:
+Test Minecraft version 1.21.11
+
+Compatibility:
 ⠋ Inventory Sorting (inventory-sorting) [modrinth]
 ⠋ Fabric API (fabric-api) [modrinth]
 ⠋ Mod Menu (modmenu) [modrinth]
-⠋ Some Mod (some-mod) [curseforge]
+✅ Some Mod (some-mod) [curseforge]
 ... (one row per mod, all mods shown)
 ```
 
@@ -97,6 +106,8 @@ Testing compatibility for Minecraft 1.21.11:
 `test 1.21.11`
 
 ```
+Test Minecraft version 1.21.11
+
 Compatible mods:
 ✅ Inventory Sorting (inventory-sorting) [modrinth]
 ✅ Fabric API (fabric-api) [modrinth]
@@ -114,6 +125,8 @@ Exit code: 0
 `test 1.21.11`
 
 ```
+Test Minecraft version 1.21.11
+
 Compatible mods:
 ✅ Inventory Sorting (inventory-sorting) [modrinth]
 ✅ Mod Menu (modmenu) [modrinth]
@@ -124,8 +137,6 @@ Not compatible mods:
 ... (one row per not compatible mod)
 
 ‼️ Some mods do not support 1.21.11.
-
-Wait for updates, remove blockers, then rerun `mmm test 1.21.11`.
 ```
 
 Exit code: 1
@@ -138,6 +149,8 @@ If compatibility cannot be determined for one or more mods, MMM MUST treat this 
 `test 1.21.11`
 
 ```
+Test Minecraft version 1.21.11
+
 Compatible mods:
 ✅ Inventory Sorting (inventory-sorting) [modrinth]
 ... (one row per compatible mod)
@@ -161,6 +174,8 @@ When both not compatible mods and platform errors exist, MMM MUST render both se
 `test 1.21.11`
 
 ```
+Test Minecraft version 1.21.11
+
 Compatible mods:
 ✅ Inventory Sorting (inventory-sorting) [modrinth]
 ... (one row per compatible mod)
@@ -172,10 +187,6 @@ Not compatible mods:
 Could not be checked:
 ❔ Flaky Mod (flaky-mod) [modrinth] <reason>
 ... (one row per inconclusive mod)
-
-‼️ Some mods do not support 1.21.11.
-
-Wait for updates, remove blockers, then rerun `mmm test 1.21.11`.
 
 ‼️ Compatibility check incomplete for 1.21.11.
 
@@ -190,8 +201,7 @@ Exit code: 1
 `test 1.21.11`
 
 ```
-The target version 1.21.11 is the same as your configured version.
-Nothing to test.
+✅ You are already on 1.21.11.
 ```
 
 Exit code: 0
@@ -246,6 +256,8 @@ In unattended mode:
 `--unattended test 1.21.11`
 
 ```
+Test Minecraft version 1.21.11
+
 Compatible mods:
 ✅ Inventory Sorting (inventory-sorting) [modrinth]
 ... (one row per compatible mod)
@@ -261,6 +273,8 @@ Exit code: 0
 `--unattended test 1.21.11`
 
 ```
+Test Minecraft version 1.21.11
+
 Compatible mods:
 ✅ Inventory Sorting (inventory-sorting) [modrinth]
 ... (one row per compatible mod)
@@ -280,8 +294,7 @@ Exit code: 1
 `--unattended test 1.21.11`
 
 ```
-The target version 1.21.11 is the same as your configured version.
-Nothing to test.
+✅ You are already on 1.21.11.
 ```
 
 Exit code: 0
@@ -342,11 +355,8 @@ Exit code: 0
 `test --quiet 1.21.11`
 
 ```
-Not compatible mods:
 ❌ Some Mod (some-mod) [curseforge]
 ❌ Another Mod (another-mod) [modrinth]
-
-Could not be checked:
 ❔ Flaky Mod (flaky-mod) [modrinth]
 ```
 
