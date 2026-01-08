@@ -3,12 +3,9 @@ package scan
 import (
 	"context"
 	"errors"
-	"fmt"
-	"io"
-	"path/filepath"
-	"sort"
 	"strings"
 
+	tea "github.com/charmbracelet/bubbletea"
 	curseforgeFingerprint "github.com/meza/curseforge-fingerprint-go"
 	"github.com/spf13/afero"
 	"github.com/spf13/cobra"
@@ -26,11 +23,9 @@ import (
 	"github.com/meza/minecraft-mod-manager/internal/models"
 	"github.com/meza/minecraft-mod-manager/internal/modrinth"
 	"github.com/meza/minecraft-mod-manager/internal/modsetup"
-	"github.com/meza/minecraft-mod-manager/internal/output"
 	"github.com/meza/minecraft-mod-manager/internal/perf"
 	"github.com/meza/minecraft-mod-manager/internal/platform"
 	"github.com/meza/minecraft-mod-manager/internal/telemetry"
-	tui "github.com/meza/minecraft-mod-manager/internal/view"
 )
 
 var runInteractiveInit = initCmd.RunInteractiveInit
@@ -49,9 +44,8 @@ type scanDeps struct {
 	clients         platform.Clients
 	minecraftClient httpclient.Doer
 	logger          *logger.Logger
-	output          *output.Output
-	prompter        prompter
 	telemetry       func(telemetry.CommandTelemetry)
+	runTea          func(model tea.Model, options ...tea.ProgramOption) (tea.Model, error)
 	runInit         initRunner
 
 	curseforgeFingerprint      func(string) uint32
@@ -59,66 +53,6 @@ type scanDeps struct {
 	modrinthProjectTitle       func(context.Context, string, httpclient.Doer) (string, error)
 	curseforgeFingerprintMatch func(context.Context, []uint32, httpclient.Doer) (*curseforge.FingerprintResult, error)
 	curseforgeProjectName      func(context.Context, string, httpclient.Doer) (string, error)
-}
-
-type prompter interface {
-	ConfirmAdd() (bool, error)
-	ConfirmInit(configPath string) (bool, error)
-}
-
-type terminalPrompter struct {
-	in  io.Reader
-	out io.Writer
-}
-
-type noopPrompter struct{}
-
-func (prompter noopPrompter) ConfirmAdd() (bool, error) {
-	return false, nil
-}
-
-func (prompter noopPrompter) ConfirmInit(string) (bool, error) {
-	return false, nil
-}
-
-func (prompter terminalPrompter) ConfirmAdd() (bool, error) {
-	return tui.RunConfirmPrompt(prompter.in, prompter.out, yesNoPrompt(i18n.T("cmd.scan.confirm_add", nil)))
-}
-
-func (prompter terminalPrompter) ConfirmInit(configPath string) (bool, error) {
-	if _, err := fmt.Fprintln(prompter.out, i18n.T("cmd.scan.config_missing", &i18n.Tvars{
-		Data: &i18n.TData{"configPath": configPath},
-	})); err != nil {
-		return false, err
-	}
-	return tui.RunConfirmPrompt(prompter.in, prompter.out, yesNoPrompt(i18n.T("cmd.scan.confirm_init", nil)))
-}
-
-func yesNoPrompt(question string) tui.ConfirmPrompt {
-	yesOption := tui.ConfirmPromptOption{
-		ID:    "yes",
-		Label: i18n.T("cmd.init.prompt.option.yes.label", nil),
-		Short: i18n.T("cmd.init.prompt.option.yes.short", nil),
-	}
-	noOption := tui.ConfirmPromptOption{
-		ID:    "no",
-		Label: i18n.T("cmd.init.prompt.option.no.label", nil),
-		Short: i18n.T("cmd.init.prompt.option.no.short", nil),
-	}
-	invalid := i18n.T("cmd.init.prompt.error.invalid_choice", &i18n.Tvars{
-		Data: &i18n.TData{"yesShort": yesOption.Short, "noShort": noOption.Short},
-	})
-	return tui.ConfirmPrompt{
-		Question:       question,
-		Options:        []tui.ConfirmPromptOption{yesOption, noOption},
-		DefaultID:      noOption.ID,
-		ConfirmID:      yesOption.ID,
-		InvalidMessage: invalid,
-	}
-}
-
-func messageWithIcon(icon string, message string) string {
-	return fmt.Sprintf("%s %s", icon, message)
 }
 
 func Command() *cobra.Command {
@@ -213,15 +147,14 @@ func defaultScanDeps(cmd *cobra.Command, opts scanOptions) scanDeps {
 		clients:         common.Clients,
 		minecraftClient: common.MinecraftClient,
 		logger:          common.Logger,
-		output:          common.Output,
-		prompter:        pickPrompter(opts, cmd.InOrStdin(), cmd.OutOrStdout()),
 		telemetry:       telemetry.RecordCommand,
+		runTea:          runTeaProgram,
 		runInit: func(ctx context.Context, cmd *cobra.Command, request initRequest) error {
 			return runInteractiveInit(ctx, cmd, initCmd.InteractiveInitDeps{
 				FS:              common.FS,
-				Output:          common.Output,
 				Logger:          common.Logger,
 				MinecraftClient: common.MinecraftClient,
+				RunTea:          runTeaProgram,
 			}, initCmd.InteractiveInitOptions{
 				ConfigPath: request.ConfigPath,
 				Quiet:      opts.Quiet,
@@ -235,13 +168,6 @@ func defaultScanDeps(cmd *cobra.Command, opts scanOptions) scanDeps {
 		curseforgeFingerprintMatch: defaultCurseforgeFingerprintMatch,
 		curseforgeProjectName:      defaultCurseforgeProjectName,
 	}
-}
-
-func pickPrompter(options scanOptions, in io.Reader, out io.Writer) prompter {
-	if options.Unattended || !tui.SupportsPrompting(in, out) {
-		return noopPrompter{}
-	}
-	return terminalPrompter{in: in, out: out}
 }
 
 type scanCandidate struct {
@@ -272,19 +198,13 @@ type platformLookupOutcome struct {
 	unsure  map[string]error
 }
 
-type candidateIdentification struct {
-	matches []scanMatch
-	unknown []string
-	unsure  []scanUnsure
-}
-
 func runScan(ctx context.Context, cmd *cobra.Command, opts scanOptions, deps scanDeps) (telemetry.CommandTelemetry, error) {
 	meta := config.NewMetadata(opts.ConfigPath)
 	setupCoordinator := modsetup.NewSetupCoordinator(deps.fs, deps.minecraftClient, nil)
 
 	configState, err := ensureScanConfig(ctx, cmd, opts, deps, meta)
 	if err != nil {
-		return scanFailureTelemetry(err), err
+		return scanFailureTelemetry(err), handleScanFailure(cmd, deps, err)
 	}
 	if !configState.ShouldContinue {
 		return scanSuccessTelemetryWithoutArgs(), nil
@@ -293,47 +213,57 @@ func runScan(ctx context.Context, cmd *cobra.Command, opts scanOptions, deps sca
 }
 
 func runScanWithConfig(ctx context.Context, cmd *cobra.Command, opts scanOptions, deps scanDeps, meta config.Metadata, setupCoordinator *modsetup.SetupCoordinator, cfg models.ModsJSON, lock []models.ModInstall) (telemetry.CommandTelemetry, error) {
-	preferPlatform, err := resolvePreferredPlatform(opts.Prefer, deps.output)
+	preferPlatform, err := resolvePreferredPlatform(opts.Prefer)
 	if err != nil {
-		return scanFailureTelemetry(err), err
+		return scanFailureTelemetry(err), handleScanFailure(cmd, deps, err)
 	}
 
 	files, err := listJarFiles(deps.fs, meta, cfg)
 	if err != nil {
-		return scanFailureTelemetry(err), err
+		return scanFailureTelemetry(err), handleScanFailure(cmd, deps, err)
 	}
 
 	unmanaged := unmanagedFiles(files, lock)
-	colorMode := colorModeForOutput(cmd.OutOrStdout())
-
 	if len(unmanaged) == 0 {
-		return reportAllManaged(deps.output, colorMode)
+		return handleAllManagedScan(cmd, deps, opts)
 	}
 
 	candidates, err := sha1Candidates(ctx, deps.fs, unmanaged)
 	if err != nil {
-		return scanFailureTelemetry(err), err
+		return scanFailureTelemetry(err), handleScanFailure(cmd, deps, err)
 	}
 
-	identification, err := identifyAndPrintCandidates(ctx, deps.output, cmd.OutOrStdout(), preferPlatform, candidates, deps)
+	executionInput := scanExecutionInput{
+		meta:             meta,
+		cfg:              cfg,
+		lock:             lock,
+		setupCoordinator: setupCoordinator,
+		candidates:       candidates,
+		preferPlatform:   preferPlatform,
+		deps:             deps,
+	}
+
+	mode := interaction.ResolveExecutionMode(interaction.ExecutionModeInput{
+		Unattended: opts.Unattended,
+		In:         cmd.InOrStdin(),
+		Out:        cmd.OutOrStdout(),
+	})
+
+	_, err = runScanByMode(ctx, cmd, executionInput, mode, opts)
 	if err != nil {
 		return scanFailureTelemetry(err), err
 	}
+	return scanSuccessTelemetry(preferPlatform, opts.Add), nil
+}
 
-	return persistScanMatchesIfRequested(persistScanRequest{
-		Context:          ctx,
-		Command:          cmd,
-		Options:          opts,
-		Dependencies:     deps,
-		Metadata:         meta,
-		SetupCoordinator: setupCoordinator,
-		Matches:          identification.matches,
-		Unsure:           identification.unsure,
-		Config:           cfg,
-		Lock:             lock,
-		PreferPlatform:   preferPlatform,
-		ColorMode:        colorMode,
-	})
+func handleAllManagedScan(cmd *cobra.Command, deps scanDeps, opts scanOptions) (telemetry.CommandTelemetry, error) {
+	if opts.Quiet {
+		return scanSuccessTelemetryWithoutArgs(), nil
+	}
+	if outputErr := writeScanAllManaged(cmd, deps); outputErr != nil {
+		return scanFailureTelemetry(outputErr), outputErr
+	}
+	return scanSuccessTelemetryWithoutArgs(), nil
 }
 
 type initRequest struct {
@@ -364,14 +294,17 @@ func ensureScanConfig(ctx context.Context, cmd *cobra.Command, opts scanOptions,
 	}
 
 	if promptErr := configMissingPromptError(opts, cmd, meta); promptErr != nil {
-		return scanConfigState{}, promptErr
+		if outputErr := writeConfigMissingOutput(cmd, deps, meta); outputErr != nil {
+			return scanConfigState{}, outputErr
+		}
+		return scanConfigState{}, clierrors.MarkHandled(promptErr)
 	}
 
-	confirmInit, err := deps.prompter.ConfirmInit(meta.ConfigPath)
+	confirmed, canceled, err := runConfigInitPrompt(cmd, deps, meta)
 	if err != nil {
 		return scanConfigState{}, err
 	}
-	if !confirmInit {
+	if canceled || !confirmed {
 		return scanConfigState{ShouldContinue: false}, nil
 	}
 	if deps.runInit == nil {
@@ -397,128 +330,18 @@ func ensureScanConfig(ctx context.Context, cmd *cobra.Command, opts scanOptions,
 
 func configMissingPromptError(opts scanOptions, cmd *cobra.Command, meta config.Metadata) error {
 	return interaction.CheckConfigInitGate(meta, interaction.ConfigInitGate{
-		Unattended: opts.Unattended,
-		In:         cmd.InOrStdin(),
-		Out:        cmd.OutOrStdout(),
-		UnattendedError: func(meta config.Metadata) error {
-			return configMissingUnattendedError(meta)
-		},
-		NoTTYError: func(meta config.Metadata) error {
-			return configMissingNoTTYError(meta)
-		},
+		Unattended:      opts.Unattended,
+		In:              cmd.InOrStdin(),
+		Out:             cmd.OutOrStdout(),
+		UnattendedError: configMissingError,
+		NoTTYError:      configMissingError,
 	})
 }
 
-func configMissingUnattendedError(meta config.Metadata) error {
-	return errors.New(i18n.T("cmd.scan.error.config_missing_noninteractive", &i18n.Tvars{
+func configMissingError(meta config.Metadata) error {
+	return errors.New(i18n.T("cmd.scan.error.config_missing", &i18n.Tvars{
 		Data: &i18n.TData{"configPath": meta.ConfigPath},
 	}))
-}
-
-func configMissingNoTTYError(meta config.Metadata) error {
-	return errors.New(i18n.T("cmd.scan.error.config_missing_no_tty", &i18n.Tvars{
-		Data: &i18n.TData{"configPath": meta.ConfigPath},
-	}))
-}
-
-func reportAllManaged(out *output.Output, colorMode tui.ColorMode) (telemetry.CommandTelemetry, error) {
-	if outputErr := out.Log(messageWithIcon(tui.SuccessIcon(colorMode), i18n.T("cmd.scan.all_managed", nil)), output.LogQuiet); outputErr != nil {
-		return scanFailureTelemetry(outputErr), outputErr
-	}
-	return scanSuccessTelemetryWithoutArgs(), nil
-}
-
-func identifyAndPrintCandidates(ctx context.Context, out *output.Output, writer io.Writer, preferPlatform models.Platform, candidates []scanCandidate, deps scanDeps) (candidateIdentification, error) {
-	identification, err := identifyCandidates(ctx, candidates, preferPlatform, deps)
-	if err != nil {
-		return candidateIdentification{}, err
-	}
-	if err := printResults(out, writer, preferPlatform, identification.matches, identification.unknown, identification.unsure); err != nil {
-		return candidateIdentification{}, err
-	}
-	return identification, nil
-}
-
-func persistScanMatches(ctx context.Context, cmd *cobra.Command, meta config.Metadata, setupCoordinator *modsetup.SetupCoordinator, deps scanDeps, matches []scanMatch, cfg models.ModsJSON, lock []models.ModInstall) (bool, error) {
-	changedConfig := false
-	changedLock := false
-	colorMode := tui.ColorDisabled
-	if tui.IsTerminalWriter(cmd.OutOrStdout()) {
-		colorMode = tui.ColorEnabled
-	}
-
-	for _, match := range matches {
-		outcome, err := setupCoordinator.UpsertConfigAndLock(cfg, lock, match.Platform, match.ProjectID, platform.RemoteMod{
-			Name:        match.Name,
-			FileName:    match.FileName,
-			Hash:        match.Hash,
-			ReleaseDate: match.ReleaseDate,
-			DownloadURL: match.DownloadURL,
-		}, modsetup.EnsurePersistOptions{})
-		if err != nil {
-			if outputErr := deps.output.Log(tui.ErrorIcon(colorMode)+i18n.T("cmd.scan.persist_failed", &i18n.Tvars{
-				Data: &i18n.TData{"file": match.FileName},
-			}), output.LogQuiet); outputErr != nil {
-				return false, outputErr
-			}
-			continue
-		}
-
-		if outcome.Result.ConfigAdded || outcome.Result.ConfigUpdated {
-			changedConfig = true
-		}
-		if outcome.Result.LockAdded || outcome.Result.LockUpdated {
-			changedLock = true
-		}
-
-		cfg = outcome.Config
-		lock = outcome.Lock
-	}
-
-	if changedConfig {
-		if err := config.WriteConfig(ctx, deps.fs, meta, cfg); err != nil {
-			return false, err
-		}
-	}
-	if changedLock {
-		if err := config.WriteLock(ctx, deps.fs, meta, lock); err != nil {
-			return false, err
-		}
-	}
-
-	return changedConfig || changedLock, nil
-}
-
-func identifyCandidates(ctx context.Context, candidates []scanCandidate, prefer models.Platform, deps scanDeps) (candidateIdentification, error) {
-	preferredOutcome, err := lookupOnPlatform(ctx, candidates, prefer, deps)
-	if err != nil {
-		return candidateIdentification{}, err
-	}
-
-	fallback := alternatePlatform(prefer)
-	fallbackOutcome, err := lookupOnPlatform(ctx, preferredOutcome.misses, fallback, deps)
-	if err != nil {
-		return candidateIdentification{}, err
-	}
-
-	matches := combineMatches(preferredOutcome.matches, fallbackOutcome.matches)
-	unsureByPath := mergeUnsure(preferredOutcome.unsure, fallbackOutcome.unsure, matches)
-	unknown := collectUnknownPaths(fallbackOutcome.misses, unsureByPath)
-	unsure := buildUnsureList(unsureByPath)
-	sortMatchesByPreference(matches, prefer)
-
-	return candidateIdentification{
-		matches: matches,
-		unknown: unknown,
-		unsure:  unsure,
-	}, nil
-}
-
-func combineMatches(preferred []scanMatch, fallback []scanMatch) []scanMatch {
-	matches := make([]scanMatch, 0, len(preferred)+len(fallback))
-	matches = append(matches, preferred...)
-	matches = append(matches, fallback...)
-	return matches
 }
 
 func mergeUnsure(preferred map[string]error, fallback map[string]error, matches []scanMatch) map[string]error {
@@ -533,54 +356,6 @@ func mergeUnsure(preferred map[string]error, fallback map[string]error, matches 
 		delete(unsureByPath, match.Path)
 	}
 	return unsureByPath
-}
-
-func collectUnknownPaths(misses []scanCandidate, unsureByPath map[string]error) []string {
-	unknown := make([]string, 0, len(misses))
-	for _, miss := range misses {
-		if _, isUnsure := unsureByPath[miss.Path]; isUnsure {
-			continue
-		}
-		unknown = append(unknown, miss.Path)
-	}
-	sort.Strings(unknown)
-	return unknown
-}
-
-func buildUnsureList(unsureByPath map[string]error) []scanUnsure {
-	unsure := make([]scanUnsure, 0, len(unsureByPath))
-	for path, outcomeErr := range unsureByPath {
-		unsure = append(unsure, scanUnsure{Path: path, Error: outcomeErr})
-	}
-	sort.SliceStable(unsure, func(i, j int) bool { return unsure[i].Path < unsure[j].Path })
-	return unsure
-}
-
-func sortMatchesByPreference(matches []scanMatch, prefer models.Platform) {
-	sort.SliceStable(matches, func(i, j int) bool {
-		if matches[i].Platform != matches[j].Platform {
-			return matches[i].Platform == prefer
-		}
-		if matches[i].Name != matches[j].Name {
-			return matches[i].Name < matches[j].Name
-		}
-		return matches[i].FileName < matches[j].FileName
-	})
-}
-
-func lookupOnPlatform(ctx context.Context, candidates []scanCandidate, platformValue models.Platform, deps scanDeps) (platformLookupOutcome, error) {
-	switch platformValue {
-	case models.MODRINTH:
-		return lookupModrinth(ctx, candidates, deps)
-	case models.CURSEFORGE:
-		return lookupCurseforge(ctx, candidates, deps)
-	default:
-		return platformLookupOutcome{
-			matches: nil,
-			misses:  candidates,
-			unsure:  map[string]error{},
-		}, nil
-	}
 }
 
 func uniqueUint32s(values []uint32) []uint32 {
@@ -612,96 +387,6 @@ func alternatePlatform(platform models.Platform) models.Platform {
 		return models.MODRINTH
 	}
 	return models.CURSEFORGE
-}
-
-func printResults(out *output.Output, writer io.Writer, _ models.Platform, matches []scanMatch, unknown []string, unsure []scanUnsure) error {
-	colorMode := tui.ColorDisabled
-	if tui.IsTerminalWriter(writer) {
-		colorMode = tui.ColorEnabled
-	}
-
-	if len(matches) > 0 {
-		if err := printMatchResults(out, colorMode, matches); err != nil {
-			return err
-		}
-	}
-
-	if len(unknown) > 0 {
-		if err := printUnknownResults(out, colorMode, unknown); err != nil {
-			return err
-		}
-	}
-
-	if len(unsure) > 0 {
-		if err := printUnsureResults(out, colorMode, unsure); err != nil {
-			return err
-		}
-	}
-
-	if len(matches) == 0 && len(unknown) == 0 && len(unsure) == 0 {
-		if err := out.Log(i18n.T("cmd.scan.no_results", nil), output.LogQuiet); err != nil {
-			return err
-		}
-	}
-	return nil
-}
-
-func printMatchResults(out *output.Output, colorMode tui.ColorMode, matches []scanMatch) error {
-	if err := out.Log(i18n.T("cmd.scan.recognized.header", nil), output.LogQuiet); err != nil {
-		return err
-	}
-	for _, match := range matches {
-		name := tui.RenderIfColorEnabled(colorMode, tui.TitleStyle.Bold(true), match.Name)
-		if err := out.Log(messageWithIcon(tui.SuccessIcon(colorMode), i18n.T("cmd.scan.recognized.entry", &i18n.Tvars{
-			Data: &i18n.TData{
-				"name":     name,
-				"platform": string(match.Platform),
-				"id":       match.ProjectID,
-				"file":     match.FileName,
-			},
-		})), output.LogQuiet); err != nil {
-			return err
-		}
-	}
-	return nil
-}
-
-func printUnknownResults(out *output.Output, colorMode tui.ColorMode, unknown []string) error {
-	if err := out.Log(i18n.T("cmd.scan.unknown.header", nil), output.LogQuiet); err != nil {
-		return err
-	}
-	for _, file := range unknown {
-		if err := out.Log(messageWithIcon(tui.ErrorIcon(colorMode), i18n.T("cmd.scan.unknown.entry", &i18n.Tvars{
-			Data: &i18n.TData{"file": filepath.Base(file)},
-		})), output.LogQuiet); err != nil {
-			return err
-		}
-	}
-	return nil
-}
-
-func printUnsureResults(out *output.Output, colorMode tui.ColorMode, unsure []scanUnsure) error {
-	if err := out.Log(i18n.T("cmd.scan.unsure.header", nil), output.LogQuiet); err != nil {
-		return err
-	}
-	for _, item := range unsure {
-		if err := out.Log(messageWithIcon(tui.ErrorIcon(colorMode), i18n.T("cmd.scan.unsure.entry_with_reason", &i18n.Tvars{
-			Data: &i18n.TData{
-				"file":   filepath.Base(item.Path),
-				"reason": unsureReason(item.Error),
-			},
-		})), output.LogQuiet); err != nil {
-			return err
-		}
-	}
-	return nil
-}
-
-func unsureReason(err error) string {
-	if err != nil {
-		return err.Error()
-	}
-	return "unknown error"
 }
 
 func defaultModrinthVersionForSha(ctx context.Context, sha1 string, doer httpclient.Doer) (*modrinth.Version, error) {

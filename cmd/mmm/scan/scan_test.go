@@ -9,52 +9,34 @@ import (
 	"hash"
 	"net/http"
 	"path/filepath"
+	"strings"
 	"testing"
 	"time"
 
+	tea "github.com/charmbracelet/bubbletea"
+	"github.com/muesli/termenv"
 	"github.com/spf13/afero"
 	"github.com/spf13/cobra"
 	"github.com/stretchr/testify/assert"
 
+	initCmd "github.com/meza/minecraft-mod-manager/cmd/mmm/init"
+	"github.com/meza/minecraft-mod-manager/internal/clierrors"
 	"github.com/meza/minecraft-mod-manager/internal/config"
 	"github.com/meza/minecraft-mod-manager/internal/curseforge"
 	"github.com/meza/minecraft-mod-manager/internal/httpclient"
 	"github.com/meza/minecraft-mod-manager/internal/logger"
 	"github.com/meza/minecraft-mod-manager/internal/models"
 	"github.com/meza/minecraft-mod-manager/internal/modrinth"
-	"github.com/meza/minecraft-mod-manager/internal/output"
 	"github.com/meza/minecraft-mod-manager/internal/platform"
 	"github.com/meza/minecraft-mod-manager/internal/telemetry"
-	tui "github.com/meza/minecraft-mod-manager/internal/view"
+	"github.com/meza/minecraft-mod-manager/internal/view"
 )
 
-type fakePrompter struct {
-	confirm     bool
-	confirmInit bool
-	err         error
+type fakeTTY struct {
+	*bytes.Buffer
 }
 
-type fakeTerminalWriter struct {
-	bytes.Buffer
-}
-
-func (writer *fakeTerminalWriter) Fd() uintptr {
-	return 1
-}
-
-type fakeTerminalReader struct {
-	bytes.Buffer
-}
-
-func (reader *fakeTerminalReader) Fd() uintptr {
-	return 0
-}
-
-func (prompter fakePrompter) ConfirmAdd() (bool, error) { return prompter.confirm, prompter.err }
-
-func (prompter fakePrompter) ConfirmInit(string) (bool, error) {
-	return prompter.confirmInit, prompter.err
-}
+func (tty fakeTTY) Fd() uintptr { return 1 }
 
 func TestRunScan_ConfigMissingUnattendedFails(t *testing.T) {
 	t.Setenv("MMM_TEST", "true")
@@ -73,15 +55,13 @@ func TestRunScan_ConfigMissingUnattendedFails(t *testing.T) {
 		ConfigPath: meta.ConfigPath,
 		Unattended: true,
 	}, scanDeps{
-		fs:       fs,
-		logger:   logger.New(out, errOut, false, false),
-		output:   output.New(out, errOut, false),
-		prompter: noopPrompter{},
+		fs:     fs,
+		logger: logger.New(out, errOut, false, false),
 		telemetry: func(telemetry.CommandTelemetry) {
 		},
 	})
 
-	assert.ErrorContains(t, err, "cmd.scan.error.config_missing_noninteractive")
+	assert.ErrorContains(t, err, "cmd.scan.error.config_missing")
 	exists, existsErr := afero.Exists(fs, meta.ConfigPath)
 	assert.NoError(t, existsErr)
 	assert.False(t, exists)
@@ -103,27 +83,25 @@ func TestRunScan_ConfigMissingNoTTYFails(t *testing.T) {
 	_, err := runScan(context.Background(), cmd, scanOptions{
 		ConfigPath: meta.ConfigPath,
 	}, scanDeps{
-		fs:       fs,
-		logger:   logger.New(out, errOut, false, false),
-		output:   output.New(out, errOut, false),
-		prompter: noopPrompter{},
+		fs:     fs,
+		logger: logger.New(out, errOut, false, false),
 		telemetry: func(telemetry.CommandTelemetry) {
 		},
 	})
 
-	assert.ErrorContains(t, err, "cmd.scan.error.config_missing_no_tty")
+	assert.ErrorContains(t, err, "cmd.scan.error.config_missing")
 }
 
 func TestRunScan_ConfigMissingPromptDeclineExits(t *testing.T) {
 	t.Setenv("MMM_TEST", "true")
-	restoreTerminal := tui.SetIsTerminalFuncForTesting(func(int) bool { return true })
+	restoreTerminal := view.SetIsTerminalFuncForTesting(func(int) bool { return true })
 	t.Cleanup(restoreTerminal)
 
 	fs := afero.NewMemMapFs()
 	meta := config.NewMetadata(filepath.FromSlash("/cfg/modlist.json"))
 
-	in := &fakeTerminalReader{}
-	out := &fakeTerminalWriter{}
+	in := fakeTTY{Buffer: &bytes.Buffer{}}
+	out := fakeTTY{Buffer: &bytes.Buffer{}}
 	errOut := &bytes.Buffer{}
 	cmd := &cobra.Command{}
 	cmd.SetIn(in)
@@ -135,10 +113,11 @@ func TestRunScan_ConfigMissingPromptDeclineExits(t *testing.T) {
 		ConfigPath: meta.ConfigPath,
 		Prefer:     "modrinth",
 	}, scanDeps{
-		fs:       fs,
-		logger:   logger.New(out, errOut, false, false),
-		output:   output.New(out, errOut, false),
-		prompter: fakePrompter{confirmInit: false},
+		fs:     fs,
+		logger: logger.New(out, errOut, false, false),
+		runTea: runTeaStub(runTeaScenario{
+			configResult: &scanConfigInitModel{confirmed: false, canceled: false},
+		}),
 		runInit: func(context.Context, *cobra.Command, initRequest) error {
 			initCalled = true
 			return nil
@@ -156,14 +135,14 @@ func TestRunScan_ConfigMissingPromptDeclineExits(t *testing.T) {
 
 func TestRunScan_ConfigMissingPromptAcceptRunsInit(t *testing.T) {
 	t.Setenv("MMM_TEST", "true")
-	restoreTerminal := tui.SetIsTerminalFuncForTesting(func(int) bool { return true })
+	restoreTerminal := view.SetIsTerminalFuncForTesting(func(int) bool { return true })
 	t.Cleanup(restoreTerminal)
 
 	fs := afero.NewMemMapFs()
 	meta := config.NewMetadata(filepath.FromSlash("/cfg/modlist.json"))
 
-	in := &fakeTerminalReader{}
-	out := &fakeTerminalWriter{}
+	in := fakeTTY{Buffer: &bytes.Buffer{}}
+	out := fakeTTY{Buffer: &bytes.Buffer{}}
 	errOut := &bytes.Buffer{}
 	cmd := &cobra.Command{}
 	cmd.SetIn(in)
@@ -175,10 +154,11 @@ func TestRunScan_ConfigMissingPromptAcceptRunsInit(t *testing.T) {
 		ConfigPath: meta.ConfigPath,
 		Prefer:     "modrinth",
 	}, scanDeps{
-		fs:       fs,
-		logger:   logger.New(out, errOut, false, false),
-		output:   output.New(out, errOut, false),
-		prompter: fakePrompter{confirmInit: true},
+		fs:     fs,
+		logger: logger.New(out, errOut, false, false),
+		runTea: runTeaStub(runTeaScenario{
+			configResult: &scanConfigInitModel{confirmed: true, canceled: false},
+		}),
 		runInit: func(ctx context.Context, _ *cobra.Command, request initRequest) error {
 			initCalled = true
 			cfg := models.ModsJSON{
@@ -219,8 +199,7 @@ func TestEnsureScanConfigConfigReadError(t *testing.T) {
 	cmd.SetErr(&bytes.Buffer{})
 
 	_, err := ensureScanConfig(context.Background(), cmd, scanOptions{}, scanDeps{
-		fs:       fs,
-		prompter: noopPrompter{},
+		fs: fs,
 	}, meta)
 
 	assert.Error(t, err)
@@ -244,70 +223,135 @@ func TestEnsureScanConfigExistingConfigLockError(t *testing.T) {
 	cmd.SetErr(&bytes.Buffer{})
 
 	_, err := ensureScanConfig(context.Background(), cmd, scanOptions{}, scanDeps{
-		fs:       fs,
-		prompter: noopPrompter{},
+		fs: fs,
 	}, meta)
 
 	assert.Error(t, err)
 }
 
 func TestEnsureScanConfigConfirmInitError(t *testing.T) {
-	restoreTerminal := tui.SetIsTerminalFuncForTesting(func(int) bool { return true })
+	restoreTerminal := view.SetIsTerminalFuncForTesting(func(int) bool { return true })
 	t.Cleanup(restoreTerminal)
 
 	fs := afero.NewMemMapFs()
 	meta := config.NewMetadata(filepath.FromSlash("/cfg/modlist.json"))
 
 	cmd := &cobra.Command{}
-	cmd.SetIn(&fakeTerminalReader{})
-	cmd.SetOut(&fakeTerminalWriter{})
-	cmd.SetErr(&fakeTerminalWriter{})
+	cmd.SetIn(fakeTTY{Buffer: &bytes.Buffer{}})
+	cmd.SetOut(fakeTTY{Buffer: &bytes.Buffer{}})
+	cmd.SetErr(&bytes.Buffer{})
 
 	expectedErr := errors.New("prompt failed")
 	_, err := ensureScanConfig(context.Background(), cmd, scanOptions{}, scanDeps{
-		fs:       fs,
-		prompter: fakePrompter{err: expectedErr},
+		fs:     fs,
+		runTea: runTeaStub(runTeaScenario{err: expectedErr}),
 	}, meta)
 
 	assert.ErrorIs(t, err, expectedErr)
 }
 
-func TestEnsureScanConfigRunInitNilReturnsError(t *testing.T) {
-	restoreTerminal := tui.SetIsTerminalFuncForTesting(func(int) bool { return true })
+func TestEnsureScanConfigUnattendedMarksHandled(t *testing.T) {
+	t.Setenv("MMM_TEST", "true")
+
+	fs := afero.NewMemMapFs()
+	meta := config.NewMetadata(filepath.FromSlash("/cfg/modlist.json"))
+
+	cmd := &cobra.Command{}
+	cmd.SetIn(&bytes.Buffer{})
+	cmd.SetOut(&bytes.Buffer{})
+	cmd.SetErr(&bytes.Buffer{})
+
+	_, err := ensureScanConfig(context.Background(), cmd, scanOptions{Unattended: true}, scanDeps{
+		fs:     fs,
+		runTea: runTeaStub(runTeaScenario{}),
+	}, meta)
+
+	assert.Error(t, err)
+	assert.True(t, clierrors.IsHandled(err))
+}
+
+func TestEnsureScanConfigUnattendedOutputError(t *testing.T) {
+	t.Setenv("MMM_TEST", "true")
+
+	fs := afero.NewMemMapFs()
+	meta := config.NewMetadata(filepath.FromSlash("/cfg/modlist.json"))
+
+	cmd := &cobra.Command{}
+	cmd.SetIn(&bytes.Buffer{})
+	cmd.SetOut(&bytes.Buffer{})
+	cmd.SetErr(&bytes.Buffer{})
+
+	_, err := ensureScanConfig(context.Background(), cmd, scanOptions{Unattended: true}, scanDeps{
+		fs:     fs,
+		runTea: runTeaStub(runTeaScenario{err: errors.New("write failed")}),
+	}, meta)
+
+	assert.Error(t, err)
+}
+
+func TestEnsureScanConfigPromptCanceledExits(t *testing.T) {
+	restoreTerminal := view.SetIsTerminalFuncForTesting(func(int) bool { return true })
 	t.Cleanup(restoreTerminal)
 
 	fs := afero.NewMemMapFs()
 	meta := config.NewMetadata(filepath.FromSlash("/cfg/modlist.json"))
 
 	cmd := &cobra.Command{}
-	cmd.SetIn(&fakeTerminalReader{})
-	cmd.SetOut(&fakeTerminalWriter{})
-	cmd.SetErr(&fakeTerminalWriter{})
+	cmd.SetIn(fakeTTY{Buffer: &bytes.Buffer{}})
+	cmd.SetOut(fakeTTY{Buffer: &bytes.Buffer{}})
+	cmd.SetErr(&bytes.Buffer{})
+
+	state, err := ensureScanConfig(context.Background(), cmd, scanOptions{}, scanDeps{
+		fs: fs,
+		runTea: runTeaStub(runTeaScenario{
+			configResult: &scanConfigInitModel{confirmed: false, canceled: true},
+		}),
+	}, meta)
+
+	assert.NoError(t, err)
+	assert.False(t, state.ShouldContinue)
+}
+
+func TestEnsureScanConfigRunInitNilReturnsError(t *testing.T) {
+	restoreTerminal := view.SetIsTerminalFuncForTesting(func(int) bool { return true })
+	t.Cleanup(restoreTerminal)
+
+	fs := afero.NewMemMapFs()
+	meta := config.NewMetadata(filepath.FromSlash("/cfg/modlist.json"))
+
+	cmd := &cobra.Command{}
+	cmd.SetIn(fakeTTY{Buffer: &bytes.Buffer{}})
+	cmd.SetOut(fakeTTY{Buffer: &bytes.Buffer{}})
+	cmd.SetErr(&bytes.Buffer{})
 
 	_, err := ensureScanConfig(context.Background(), cmd, scanOptions{}, scanDeps{
-		fs:       fs,
-		prompter: fakePrompter{confirmInit: true},
+		fs: fs,
+		runTea: runTeaStub(runTeaScenario{
+			configResult: &scanConfigInitModel{confirmed: true, canceled: false},
+		}),
 	}, meta)
 
 	assert.ErrorContains(t, err, "missing init runner")
 }
 
 func TestEnsureScanConfigRunInitError(t *testing.T) {
-	restoreTerminal := tui.SetIsTerminalFuncForTesting(func(int) bool { return true })
+	restoreTerminal := view.SetIsTerminalFuncForTesting(func(int) bool { return true })
 	t.Cleanup(restoreTerminal)
 
 	fs := afero.NewMemMapFs()
 	meta := config.NewMetadata(filepath.FromSlash("/cfg/modlist.json"))
 
 	cmd := &cobra.Command{}
-	cmd.SetIn(&fakeTerminalReader{})
-	cmd.SetOut(&fakeTerminalWriter{})
-	cmd.SetErr(&fakeTerminalWriter{})
+	cmd.SetIn(fakeTTY{Buffer: &bytes.Buffer{}})
+	cmd.SetOut(fakeTTY{Buffer: &bytes.Buffer{}})
+	cmd.SetErr(&bytes.Buffer{})
 
 	runErr := errors.New("init failed")
 	_, err := ensureScanConfig(context.Background(), cmd, scanOptions{}, scanDeps{
-		fs:       fs,
-		prompter: fakePrompter{confirmInit: true},
+		fs: fs,
+		runTea: runTeaStub(runTeaScenario{
+			configResult: &scanConfigInitModel{confirmed: true, canceled: false},
+		}),
 		runInit: func(context.Context, *cobra.Command, initRequest) error {
 			return runErr
 		},
@@ -316,21 +360,49 @@ func TestEnsureScanConfigRunInitError(t *testing.T) {
 	assert.ErrorIs(t, err, runErr)
 }
 
-func TestEnsureScanConfigPostInitReadError(t *testing.T) {
-	restoreTerminal := tui.SetIsTerminalFuncForTesting(func(int) bool { return true })
+func TestEnsureScanConfigRunInitCanceledExits(t *testing.T) {
+	restoreTerminal := view.SetIsTerminalFuncForTesting(func(int) bool { return true })
 	t.Cleanup(restoreTerminal)
 
 	fs := afero.NewMemMapFs()
 	meta := config.NewMetadata(filepath.FromSlash("/cfg/modlist.json"))
 
 	cmd := &cobra.Command{}
-	cmd.SetIn(&fakeTerminalReader{})
-	cmd.SetOut(&fakeTerminalWriter{})
-	cmd.SetErr(&fakeTerminalWriter{})
+	cmd.SetIn(fakeTTY{Buffer: &bytes.Buffer{}})
+	cmd.SetOut(fakeTTY{Buffer: &bytes.Buffer{}})
+	cmd.SetErr(&bytes.Buffer{})
+
+	state, err := ensureScanConfig(context.Background(), cmd, scanOptions{}, scanDeps{
+		fs: fs,
+		runTea: runTeaStub(runTeaScenario{
+			configResult: &scanConfigInitModel{confirmed: true, canceled: false},
+		}),
+		runInit: func(context.Context, *cobra.Command, initRequest) error {
+			return initCmd.ErrInitCanceled
+		},
+	}, meta)
+
+	assert.NoError(t, err)
+	assert.False(t, state.ShouldContinue)
+}
+
+func TestEnsureScanConfigPostInitReadError(t *testing.T) {
+	restoreTerminal := view.SetIsTerminalFuncForTesting(func(int) bool { return true })
+	t.Cleanup(restoreTerminal)
+
+	fs := afero.NewMemMapFs()
+	meta := config.NewMetadata(filepath.FromSlash("/cfg/modlist.json"))
+
+	cmd := &cobra.Command{}
+	cmd.SetIn(fakeTTY{Buffer: &bytes.Buffer{}})
+	cmd.SetOut(fakeTTY{Buffer: &bytes.Buffer{}})
+	cmd.SetErr(&bytes.Buffer{})
 
 	_, err := ensureScanConfig(context.Background(), cmd, scanOptions{}, scanDeps{
-		fs:       fs,
-		prompter: fakePrompter{confirmInit: true},
+		fs: fs,
+		runTea: runTeaStub(runTeaScenario{
+			configResult: &scanConfigInitModel{confirmed: true, canceled: false},
+		}),
 		runInit: func(context.Context, *cobra.Command, initRequest) error {
 			return nil
 		},
@@ -340,20 +412,22 @@ func TestEnsureScanConfigPostInitReadError(t *testing.T) {
 }
 
 func TestEnsureScanConfigPostInitLockError(t *testing.T) {
-	restoreTerminal := tui.SetIsTerminalFuncForTesting(func(int) bool { return true })
+	restoreTerminal := view.SetIsTerminalFuncForTesting(func(int) bool { return true })
 	t.Cleanup(restoreTerminal)
 
 	fs := afero.NewMemMapFs()
 	meta := config.NewMetadata(filepath.FromSlash("/cfg/modlist.json"))
 
 	cmd := &cobra.Command{}
-	cmd.SetIn(&fakeTerminalReader{})
-	cmd.SetOut(&fakeTerminalWriter{})
-	cmd.SetErr(&fakeTerminalWriter{})
+	cmd.SetIn(fakeTTY{Buffer: &bytes.Buffer{}})
+	cmd.SetOut(fakeTTY{Buffer: &bytes.Buffer{}})
+	cmd.SetErr(&bytes.Buffer{})
 
 	_, err := ensureScanConfig(context.Background(), cmd, scanOptions{}, scanDeps{
-		fs:       fs,
-		prompter: fakePrompter{confirmInit: true},
+		fs: fs,
+		runTea: runTeaStub(runTeaScenario{
+			configResult: &scanConfigInitModel{confirmed: true, canceled: false},
+		}),
 		runInit: func(ctx context.Context, _ *cobra.Command, request initRequest) error {
 			cfg := models.ModsJSON{
 				ModsFolder:                 "mods",
@@ -411,10 +485,8 @@ func TestRunScan_PreferModrinthDoesNotCallCurseforgeWhenHit(t *testing.T) {
 		ConfigPath: meta.ConfigPath,
 		Prefer:     "modrinth",
 	}, scanDeps{
-		fs:       fs,
-		logger:   logger.New(out, errOut, false, false),
-		output:   output.New(out, errOut, false),
-		prompter: noopPrompter{},
+		fs:     fs,
+		logger: logger.New(out, errOut, false, false),
 		clients: platform.Clients{
 			Modrinth:   nil,
 			Curseforge: nil,
@@ -446,8 +518,7 @@ func TestRunScan_PreferModrinthDoesNotCallCurseforgeWhenHit(t *testing.T) {
 	})
 
 	assert.NoError(t, err)
-	assert.Contains(t, out.String(), "cmd.scan.recognized.header")
-	assert.Contains(t, out.String(), "cmd.scan.recognized.entry")
+	assert.Contains(t, out.String(), "Example Mod")
 	assert.False(t, curseforgeCalled)
 }
 
@@ -482,10 +553,8 @@ func TestRunScan_FallbackOnMissUsesOtherPlatform(t *testing.T) {
 		ConfigPath: meta.ConfigPath,
 		Prefer:     "modrinth",
 	}, scanDeps{
-		fs:       fs,
-		logger:   logger.New(out, errOut, false, false),
-		output:   output.New(out, errOut, false),
-		prompter: noopPrompter{},
+		fs:     fs,
+		logger: logger.New(out, errOut, false, false),
 		clients: platform.Clients{
 			Modrinth:   nil,
 			Curseforge: nil,
@@ -519,7 +588,7 @@ func TestRunScan_FallbackOnMissUsesOtherPlatform(t *testing.T) {
 	})
 
 	assert.NoError(t, err)
-	assert.Contains(t, out.String(), "cmd.scan.recognized.entry")
+	assert.Contains(t, out.String(), "CurseForge Mod")
 }
 
 func TestRunScan_Curseforge403ErrorIncludesPerFileFingerprint(t *testing.T) {
@@ -555,10 +624,8 @@ func TestRunScan_Curseforge403ErrorIncludesPerFileFingerprint(t *testing.T) {
 		ConfigPath: meta.ConfigPath,
 		Prefer:     "modrinth",
 	}, scanDeps{
-		fs:       fs,
-		logger:   logger.New(out, errOut, false, false),
-		output:   output.New(out, errOut, false),
-		prompter: noopPrompter{},
+		fs:     fs,
+		logger: logger.New(out, errOut, false, false),
 		clients: platform.Clients{
 			Modrinth:   nil,
 			Curseforge: nil,
@@ -588,8 +655,6 @@ func TestRunScan_Curseforge403ErrorIncludesPerFileFingerprint(t *testing.T) {
 	assert.NoError(t, err)
 	assert.Contains(t, out.String(), "a.jar")
 	assert.Contains(t, out.String(), "b.jar")
-	assert.Contains(t, out.String(), "cmd.scan.unsure.platform_error")
-	assert.Contains(t, out.String(), "cmd.platform.error.reason.auth")
 }
 
 func TestRunScan_PreferredLookupErrorDoesNotFallbackAndIsUnsure(t *testing.T) {
@@ -625,10 +690,8 @@ func TestRunScan_PreferredLookupErrorDoesNotFallbackAndIsUnsure(t *testing.T) {
 		ConfigPath: meta.ConfigPath,
 		Prefer:     "modrinth",
 	}, scanDeps{
-		fs:       fs,
-		logger:   logger.New(out, errOut, false, false),
-		output:   output.New(out, errOut, false),
-		prompter: noopPrompter{},
+		fs:     fs,
+		logger: logger.New(out, errOut, false, false),
 		clients: platform.Clients{
 			Modrinth:   nil,
 			Curseforge: nil,
@@ -645,8 +708,7 @@ func TestRunScan_PreferredLookupErrorDoesNotFallbackAndIsUnsure(t *testing.T) {
 	})
 
 	assert.NoError(t, err)
-	assert.Contains(t, out.String(), "cmd.scan.unsure.header")
-	assert.Contains(t, out.String(), "cmd.scan.unsure.entry_with_reason")
+	assert.Contains(t, out.String(), "unmanaged.jar")
 	assert.False(t, curseforgeCalled)
 }
 
@@ -682,10 +744,8 @@ func TestRunScan_AddPersistsConfigAndLock(t *testing.T) {
 		Prefer:     "modrinth",
 		Add:        true,
 	}, scanDeps{
-		fs:       fs,
-		logger:   logger.New(out, errOut, false, false),
-		output:   output.New(out, errOut, false),
-		prompter: noopPrompter{},
+		fs:     fs,
+		logger: logger.New(out, errOut, false, false),
 		telemetry: func(telemetry.CommandTelemetry) {
 		},
 		modrinthVersionForSha: func(context.Context, string, httpclient.Doer) (*modrinth.Version, error) {
@@ -707,7 +767,10 @@ func TestRunScan_AddPersistsConfigAndLock(t *testing.T) {
 
 	updatedCfg, err := config.ReadConfig(context.Background(), fs, meta)
 	assert.NoError(t, err)
-	assert.Len(t, updatedCfg.Mods, 1)
+	if !assert.Len(t, updatedCfg.Mods, 1) {
+		t.Logf("output: %s", out.String())
+		return
+	}
 	assert.Equal(t, "proj-1", updatedCfg.Mods[0].ID)
 	assert.Equal(t, models.MODRINTH, updatedCfg.Mods[0].Type)
 
@@ -719,7 +782,7 @@ func TestRunScan_AddPersistsConfigAndLock(t *testing.T) {
 	assert.Equal(t, "proj-1", lock[0].ID)
 }
 
-func TestRunScan_AddDoesNotPersistWhenAnyFileIsUnsure(t *testing.T) {
+func TestRunScan_AddPersistsWhenSomeFilesAreUnsure(t *testing.T) {
 	t.Setenv("MMM_TEST", "true")
 
 	fs := afero.NewMemMapFs()
@@ -756,10 +819,8 @@ func TestRunScan_AddDoesNotPersistWhenAnyFileIsUnsure(t *testing.T) {
 		Prefer:     "modrinth",
 		Add:        true,
 	}, scanDeps{
-		fs:       fs,
-		logger:   logger.New(out, errOut, false, false),
-		output:   output.New(out, errOut, false),
-		prompter: noopPrompter{},
+		fs:     fs,
+		logger: logger.New(out, errOut, false, false),
 		telemetry: func(telemetry.CommandTelemetry) {
 		},
 		modrinthVersionForSha: func(_ context.Context, sha string, _ httpclient.Doer) (*modrinth.Version, error) {
@@ -784,11 +845,11 @@ func TestRunScan_AddDoesNotPersistWhenAnyFileIsUnsure(t *testing.T) {
 
 	updatedCfg, err := config.ReadConfig(context.Background(), fs, meta)
 	assert.NoError(t, err)
-	assert.Len(t, updatedCfg.Mods, 0)
+	assert.Len(t, updatedCfg.Mods, 1)
 
 	lock, err := config.ReadLock(context.Background(), fs, meta)
 	assert.NoError(t, err)
-	assert.Len(t, lock, 0)
+	assert.Len(t, lock, 1)
 }
 
 func TestRunScan_QuietSuppressesNormalOutput(t *testing.T) {
@@ -825,8 +886,6 @@ func TestRunScan_QuietSuppressesNormalOutput(t *testing.T) {
 	}, scanDeps{
 		fs:        fs,
 		logger:    logger.New(out, errOut, true, false),
-		output:    output.New(out, errOut, true),
-		prompter:  noopPrompter{},
 		telemetry: func(telemetry.CommandTelemetry) {},
 		modrinthVersionForSha: func(context.Context, string, httpclient.Doer) (*modrinth.Version, error) {
 			return &modrinth.Version{
@@ -881,10 +940,8 @@ func TestRunScan_AddBackfillsMissingLockEntry(t *testing.T) {
 		Prefer:     "modrinth",
 		Add:        true,
 	}, scanDeps{
-		fs:       fs,
-		logger:   logger.New(out, errOut, false, false),
-		output:   output.New(out, errOut, false),
-		prompter: noopPrompter{},
+		fs:     fs,
+		logger: logger.New(out, errOut, false, false),
 		modrinthVersionForSha: func(context.Context, string, httpclient.Doer) (*modrinth.Version, error) {
 			return &modrinth.Version{
 				ProjectID:     "proj-1",
@@ -949,10 +1006,8 @@ func TestRunScan_RespectsMmmignoreAndSkipsManagedFiles(t *testing.T) {
 		ConfigPath: meta.ConfigPath,
 		Prefer:     "modrinth",
 	}, scanDeps{
-		fs:       fs,
-		logger:   logger.New(out, errOut, false, false),
-		output:   output.New(out, errOut, false),
-		prompter: noopPrompter{},
+		fs:     fs,
+		logger: logger.New(out, errOut, false, false),
 		modrinthVersionForSha: func(context.Context, string, httpclient.Doer) (*modrinth.Version, error) {
 			called++
 			return &modrinth.Version{
@@ -1004,8 +1059,6 @@ func TestRunScan_InvalidPreferReturnsError(t *testing.T) {
 	}, scanDeps{
 		fs:        fs,
 		logger:    logger.New(out, errOut, false, false),
-		output:    output.New(out, errOut, false),
-		prompter:  noopPrompter{},
 		telemetry: func(telemetry.CommandTelemetry) {},
 	})
 
@@ -1041,8 +1094,6 @@ func TestRunScan_ReturnsErrorOnListJarFailure(t *testing.T) {
 	}, scanDeps{
 		fs:        fs,
 		logger:    logger.New(out, errOut, false, false),
-		output:    output.New(out, errOut, false),
-		prompter:  noopPrompter{},
 		telemetry: func(telemetry.CommandTelemetry) {},
 	})
 
@@ -1084,8 +1135,6 @@ func TestRunScan_ReturnsErrorOnSha1Failure(t *testing.T) {
 	}, scanDeps{
 		fs:        fs,
 		logger:    logger.New(out, errOut, false, false),
-		output:    output.New(out, errOut, false),
-		prompter:  noopPrompter{},
 		telemetry: func(telemetry.CommandTelemetry) {},
 	})
 
@@ -1094,6 +1143,22 @@ func TestRunScan_ReturnsErrorOnSha1Failure(t *testing.T) {
 
 func TestRunScan_ReturnsErrorOnPrompterFailure(t *testing.T) {
 	t.Setenv("MMM_TEST", "true")
+	restoreTerminal := view.SetIsTerminalFuncForTesting(func(int) bool { return true })
+	t.Cleanup(restoreTerminal)
+	restoreRunner := stubRunScanProgram(scanExecutionOutcome{
+		matches: []scanMatch{
+			{
+				FileName:    "unmanaged.jar",
+				Name:        "Example",
+				ProjectID:   "proj-1",
+				Platform:    models.MODRINTH,
+				Hash:        "abc123",
+				ReleaseDate: "2024-01-01T00:00:00Z",
+				DownloadURL: "https://example.invalid/mod.jar",
+			},
+		},
+	})
+	t.Cleanup(restoreRunner)
 
 	fs := afero.NewMemMapFs()
 	meta := config.NewMetadata(filepath.FromSlash("/cfg/modlist.json"))
@@ -1115,8 +1180,8 @@ func TestRunScan_ReturnsErrorOnPrompterFailure(t *testing.T) {
 	out := &bytes.Buffer{}
 	errOut := &bytes.Buffer{}
 	cmd := &cobra.Command{}
-	cmd.SetIn(&bytes.Buffer{})
-	cmd.SetOut(out)
+	cmd.SetIn(fakeTTY{Buffer: &bytes.Buffer{}})
+	cmd.SetOut(fakeTTY{Buffer: out})
 	cmd.SetErr(errOut)
 
 	_, err := runScan(context.Background(), cmd, scanOptions{
@@ -1125,22 +1190,9 @@ func TestRunScan_ReturnsErrorOnPrompterFailure(t *testing.T) {
 	}, scanDeps{
 		fs:        fs,
 		logger:    logger.New(out, errOut, false, false),
-		output:    output.New(out, errOut, false),
-		prompter:  fakePrompter{err: errors.New("confirm failed")},
+		runTea:    runTeaStub(runTeaScenario{err: errors.New("confirm failed")}),
 		telemetry: func(telemetry.CommandTelemetry) {},
-		modrinthVersionForSha: func(context.Context, string, httpclient.Doer) (*modrinth.Version, error) {
-			return &modrinth.Version{
-				ProjectID:     "proj-1",
-				DatePublished: time.Date(2024, 1, 1, 0, 0, 0, 0, time.UTC),
-				Files: []modrinth.VersionFile{
-					{URL: "https://example.invalid/mod.jar", Primary: true},
-				},
-			}, nil
-		},
-		modrinthProjectTitle: func(context.Context, string, httpclient.Doer) (string, error) {
-			return "Example", nil
-		},
-		clients: platform.Clients{},
+		clients:   platform.Clients{},
 	})
 
 	assert.Error(t, err)
@@ -1148,6 +1200,22 @@ func TestRunScan_ReturnsErrorOnPrompterFailure(t *testing.T) {
 
 func TestRunScan_PromptDeclineSkipsPersist(t *testing.T) {
 	t.Setenv("MMM_TEST", "true")
+	restoreTerminal := view.SetIsTerminalFuncForTesting(func(int) bool { return true })
+	t.Cleanup(restoreTerminal)
+	restoreRunner := stubRunScanProgram(scanExecutionOutcome{
+		matches: []scanMatch{
+			{
+				FileName:    "unmanaged.jar",
+				Name:        "Example",
+				ProjectID:   "proj-1",
+				Platform:    models.MODRINTH,
+				Hash:        "abc123",
+				ReleaseDate: "2024-01-01T00:00:00Z",
+				DownloadURL: "https://example.invalid/mod.jar",
+			},
+		},
+	})
+	t.Cleanup(restoreRunner)
 
 	fs := afero.NewMemMapFs()
 	meta := config.NewMetadata(filepath.FromSlash("/cfg/modlist.json"))
@@ -1169,32 +1237,21 @@ func TestRunScan_PromptDeclineSkipsPersist(t *testing.T) {
 	out := &bytes.Buffer{}
 	errOut := &bytes.Buffer{}
 	cmd := &cobra.Command{}
-	cmd.SetIn(&bytes.Buffer{})
-	cmd.SetOut(out)
+	cmd.SetIn(fakeTTY{Buffer: &bytes.Buffer{}})
+	cmd.SetOut(fakeTTY{Buffer: out})
 	cmd.SetErr(errOut)
 
 	_, err := runScan(context.Background(), cmd, scanOptions{
 		ConfigPath: meta.ConfigPath,
 		Prefer:     "modrinth",
 	}, scanDeps{
-		fs:        fs,
-		logger:    logger.New(out, errOut, false, false),
-		output:    output.New(out, errOut, false),
-		prompter:  fakePrompter{confirm: false},
+		fs:     fs,
+		logger: logger.New(out, errOut, false, false),
+		runTea: runTeaStub(runTeaScenario{
+			adoptionResult: &scanAdoptionPromptModel{confirmed: false, canceled: false},
+		}),
 		telemetry: func(telemetry.CommandTelemetry) {},
-		modrinthVersionForSha: func(context.Context, string, httpclient.Doer) (*modrinth.Version, error) {
-			return &modrinth.Version{
-				ProjectID:     "proj-1",
-				DatePublished: time.Date(2024, 1, 1, 0, 0, 0, 0, time.UTC),
-				Files: []modrinth.VersionFile{
-					{URL: "https://example.invalid/mod.jar", Primary: true},
-				},
-			}, nil
-		},
-		modrinthProjectTitle: func(context.Context, string, httpclient.Doer) (string, error) {
-			return "Example", nil
-		},
-		clients: platform.Clients{},
+		clients:   platform.Clients{},
 	})
 
 	assert.NoError(t, err)
@@ -1204,9 +1261,137 @@ func TestRunScan_PromptDeclineSkipsPersist(t *testing.T) {
 	assert.Empty(t, updatedCfg.Mods)
 }
 
+func TestRunScan_PromptCancelWritesResults(t *testing.T) {
+	t.Setenv("MMM_TEST", "true")
+	restoreTerminal := view.SetIsTerminalFuncForTesting(func(int) bool { return true })
+	t.Cleanup(restoreTerminal)
+	restoreRunner := stubRunScanProgram(scanExecutionOutcome{
+		matches: []scanMatch{
+			{
+				FileName:    "unmanaged.jar",
+				Name:        "Example",
+				ProjectID:   "proj-1",
+				Platform:    models.MODRINTH,
+				Hash:        "abc123",
+				ReleaseDate: "2024-01-01T00:00:00Z",
+				DownloadURL: "https://example.invalid/mod.jar",
+			},
+		},
+	})
+	t.Cleanup(restoreRunner)
+
+	fs := afero.NewMemMapFs()
+	meta := config.NewMetadata(filepath.FromSlash("/cfg/modlist.json"))
+	assert.NoError(t, fs.MkdirAll(meta.Dir(), 0755))
+
+	cfg := models.ModsJSON{
+		ModsFolder:                 "mods",
+		Loader:                     models.FABRIC,
+		GameVersion:                "1.20.1",
+		DefaultAllowedReleaseTypes: []models.ReleaseType{models.Release},
+	}
+	assert.NoError(t, config.WriteConfig(context.Background(), fs, meta, cfg))
+	assert.NoError(t, config.WriteLock(context.Background(), fs, meta, nil))
+	assert.NoError(t, fs.MkdirAll(meta.ModsFolderPath(cfg), 0755))
+
+	jarPath := filepath.Join(meta.ModsFolderPath(cfg), "unmanaged.jar")
+	assert.NoError(t, afero.WriteFile(fs, jarPath, []byte("content"), 0644))
+
+	out := &bytes.Buffer{}
+	errOut := &bytes.Buffer{}
+	cmd := &cobra.Command{}
+	cmd.SetIn(fakeTTY{Buffer: &bytes.Buffer{}})
+	cmd.SetOut(fakeTTY{Buffer: out})
+	cmd.SetErr(errOut)
+
+	_, err := runScan(context.Background(), cmd, scanOptions{
+		ConfigPath: meta.ConfigPath,
+		Prefer:     "modrinth",
+	}, scanDeps{
+		fs:     fs,
+		logger: logger.New(out, errOut, false, false),
+		runTea: runTeaStub(runTeaScenario{
+			adoptionResult: &scanAdoptionPromptModel{canceled: true},
+		}),
+		telemetry: func(telemetry.CommandTelemetry) {},
+		clients:   platform.Clients{},
+	})
+
+	assert.NoError(t, err)
+	assert.Empty(t, strings.TrimSpace(out.String()))
+}
+
+func TestRunScan_PromptConfirmPersistsAndWritesAdded(t *testing.T) {
+	t.Setenv("MMM_TEST", "true")
+	restoreTerminal := view.SetIsTerminalFuncForTesting(func(int) bool { return true })
+	t.Cleanup(restoreTerminal)
+	restoreRunner := stubRunScanProgram(scanExecutionOutcome{
+		matches: []scanMatch{
+			{
+				FileName:    "unmanaged.jar",
+				Name:        "Example",
+				ProjectID:   "proj-1",
+				Platform:    models.MODRINTH,
+				Hash:        "abc123",
+				ReleaseDate: "2024-01-01T00:00:00Z",
+				DownloadURL: "https://example.invalid/mod.jar",
+			},
+		},
+	})
+	t.Cleanup(restoreRunner)
+
+	fs := afero.NewMemMapFs()
+	meta := config.NewMetadata(filepath.FromSlash("/cfg/modlist.json"))
+	assert.NoError(t, fs.MkdirAll(meta.Dir(), 0755))
+
+	cfg := models.ModsJSON{
+		ModsFolder:                 "mods",
+		Loader:                     models.FABRIC,
+		GameVersion:                "1.20.1",
+		DefaultAllowedReleaseTypes: []models.ReleaseType{models.Release},
+	}
+	assert.NoError(t, config.WriteConfig(context.Background(), fs, meta, cfg))
+	assert.NoError(t, config.WriteLock(context.Background(), fs, meta, nil))
+	assert.NoError(t, fs.MkdirAll(meta.ModsFolderPath(cfg), 0755))
+
+	jarPath := filepath.Join(meta.ModsFolderPath(cfg), "unmanaged.jar")
+	assert.NoError(t, afero.WriteFile(fs, jarPath, []byte("content"), 0644))
+
+	out := &bytes.Buffer{}
+	errOut := &bytes.Buffer{}
+	cmd := &cobra.Command{}
+	cmd.SetIn(fakeTTY{Buffer: &bytes.Buffer{}})
+	cmd.SetOut(fakeTTY{Buffer: out})
+	cmd.SetErr(errOut)
+
+	_, err := runScan(context.Background(), cmd, scanOptions{
+		ConfigPath: meta.ConfigPath,
+		Prefer:     "modrinth",
+	}, scanDeps{
+		fs:     fs,
+		logger: logger.New(out, errOut, false, false),
+		runTea: runTeaStub(runTeaScenario{
+			adoptionResult: &scanAdoptionPromptModel{confirmed: true},
+		}),
+		telemetry: func(telemetry.CommandTelemetry) {},
+		clients:   platform.Clients{},
+	})
+
+	assert.NoError(t, err)
+
+	updatedCfg, err := config.ReadConfig(context.Background(), fs, meta)
+	assert.NoError(t, err)
+	if !assert.Len(t, updatedCfg.Mods, 1) {
+		t.Logf("output: %s", out.String())
+		return
+	}
+	assert.Equal(t, "proj-1", updatedCfg.Mods[0].ID)
+	assert.Contains(t, out.String(), "cmd.scan.section.added")
+}
+
 func TestRunScan_AllManagedReturnsEarly(t *testing.T) {
 	t.Setenv("MMM_TEST", "true")
-	restoreUnicode := tui.SetUnicodeSupportFuncForTesting(func() bool { return true })
+	restoreUnicode := view.SetUnicodeSupportFuncForTesting(func() bool { return true })
 	t.Cleanup(restoreUnicode)
 
 	fs := afero.NewMemMapFs()
@@ -1239,13 +1424,11 @@ func TestRunScan_AllManagedReturnsEarly(t *testing.T) {
 	}, scanDeps{
 		fs:        fs,
 		logger:    logger.New(out, errOut, false, false),
-		output:    output.New(out, errOut, false),
-		prompter:  noopPrompter{},
 		telemetry: func(telemetry.CommandTelemetry) {},
 	})
 
 	assert.NoError(t, err)
-	assert.Contains(t, out.String(), "\u2705 cmd.scan.all_managed")
+	assert.Contains(t, out.String(), "cmd.scan.all_managed")
 }
 
 func TestRunScan_ReturnsErrorOnEnsureConfigFailure(t *testing.T) {
@@ -1266,8 +1449,6 @@ func TestRunScan_ReturnsErrorOnEnsureConfigFailure(t *testing.T) {
 	}, scanDeps{
 		fs:        fs,
 		logger:    logger.New(out, errOut, true, false),
-		output:    output.New(out, errOut, true),
-		prompter:  noopPrompter{},
 		telemetry: func(telemetry.CommandTelemetry) {},
 	})
 
@@ -1308,8 +1489,6 @@ func TestRunScan_AddLogsPersistFailureAndContinues(t *testing.T) {
 	}, scanDeps{
 		fs:        fs,
 		logger:    logger.New(out, errOut, false, false),
-		output:    output.New(out, errOut, false),
-		prompter:  noopPrompter{},
 		telemetry: func(telemetry.CommandTelemetry) {},
 		modrinthVersionForSha: func(context.Context, string, httpclient.Doer) (*modrinth.Version, error) {
 			return &modrinth.Version{
@@ -1369,8 +1548,6 @@ func TestRunScan_WriteConfigFailure(t *testing.T) {
 	}, scanDeps{
 		fs:        fs,
 		logger:    logger.New(out, errOut, false, false),
-		output:    output.New(out, errOut, false),
-		prompter:  noopPrompter{},
 		telemetry: func(telemetry.CommandTelemetry) {},
 		modrinthVersionForSha: func(context.Context, string, httpclient.Doer) (*modrinth.Version, error) {
 			return &modrinth.Version{
@@ -1426,8 +1603,6 @@ func TestRunScan_WriteLockFailure(t *testing.T) {
 	}, scanDeps{
 		fs:        fs,
 		logger:    logger.New(out, errOut, false, false),
-		output:    output.New(out, errOut, false),
-		prompter:  noopPrompter{},
 		telemetry: func(telemetry.CommandTelemetry) {},
 		modrinthVersionForSha: func(context.Context, string, httpclient.Doer) (*modrinth.Version, error) {
 			return &modrinth.Version{
@@ -1550,7 +1725,6 @@ func TestLookupModrinthReturnsUnsureOnContextCancel(t *testing.T) {
 	}
 
 	outcome, err := lookupModrinth(ctx, candidates, scanDeps{
-		prompter: noopPrompter{},
 		modrinthVersionForSha: func(context.Context, string, httpclient.Doer) (*modrinth.Version, error) {
 			t.Fatal("unexpected lookup call after context cancellation")
 			return nil, errors.New("unexpected lookup call after context cancellation")
@@ -1570,17 +1744,79 @@ func TestLookupModrinthReturnsUnsureOnContextCancel(t *testing.T) {
 }
 
 func TestColorModeForOutputWhenTerminal(t *testing.T) {
-	restore := tui.SetIsTerminalFuncForTesting(func(_ int) bool { return true })
+	restore := view.SetIsTerminalFuncForTesting(func(_ int) bool { return true })
 	t.Cleanup(restore)
+	restoreProfile := view.SetColorProfileFuncForTesting(func() termenv.Profile { return termenv.TrueColor })
+	t.Cleanup(restoreProfile)
 
-	writer := &fakeTerminalWriter{}
-	assert.Equal(t, tui.ColorEnabled, colorModeForOutput(writer))
+	writer := fakeTTY{Buffer: &bytes.Buffer{}}
+	assert.Equal(t, view.ColorEnabled, colorModeForOutput(writer))
 }
 
 func TestColorModeForOutputWhenNotTerminal(t *testing.T) {
-	restore := tui.SetIsTerminalFuncForTesting(func(_ int) bool { return false })
+	restore := view.SetIsTerminalFuncForTesting(func(_ int) bool { return false })
 	t.Cleanup(restore)
 
-	writer := &fakeTerminalWriter{}
-	assert.Equal(t, tui.ColorDisabled, colorModeForOutput(writer))
+	writer := fakeTTY{Buffer: &bytes.Buffer{}}
+	assert.Equal(t, view.ColorDisabled, colorModeForOutput(writer))
+}
+
+type runTeaScenario struct {
+	configResult   *scanConfigInitModel
+	adoptionResult *scanAdoptionPromptModel
+	err            error
+}
+
+func runTeaStub(scenario runTeaScenario) func(tea.Model, ...tea.ProgramOption) (tea.Model, error) {
+	return func(model tea.Model, _ ...tea.ProgramOption) (tea.Model, error) {
+		if scenario.err != nil {
+			return nil, scenario.err
+		}
+		switch typed := model.(type) {
+		case view.OutputLinesModel:
+			return typed, writeOutputLinesStub(typed)
+		case *view.OutputLinesModel:
+			return typed, writeOutputLinesStub(*typed)
+		case scanConfigInitModel:
+			if scenario.configResult != nil {
+				return *scenario.configResult, nil
+			}
+			return typed, nil
+		case *scanConfigInitModel:
+			if scenario.configResult != nil {
+				return scenario.configResult, nil
+			}
+			return typed, nil
+		case *scanAdoptionPromptModel:
+			if scenario.adoptionResult != nil {
+				return scenario.adoptionResult, nil
+			}
+			return typed, nil
+		default:
+			return model, nil
+		}
+	}
+}
+
+func writeOutputLinesStub(model view.OutputLinesModel) error {
+	output := model.View()
+	if strings.TrimSpace(output) == "" {
+		return nil
+	}
+	msg := view.OutputLineCmd(model.Output, output)()
+	if errMsg, ok := msg.(view.OutputLineErrorMsg); ok {
+		return errMsg.Err
+	}
+	return nil
+}
+
+func stubRunScanProgram(outcome scanExecutionOutcome) func() {
+	originalRunScanProgram := runScanProgram
+	runScanProgram = func(model *scanModel, _ ...tea.ProgramOption) (tea.Model, error) {
+		model.outcome = outcome
+		return model, nil
+	}
+	return func() {
+		runScanProgram = originalRunScanProgram
+	}
 }

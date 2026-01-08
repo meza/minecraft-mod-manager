@@ -5,6 +5,23 @@
 IMPORTANT:
 **Everything in your instructions assumes that you're in the repo root directory unless otherwise specified.**
 
+## Repository Noise Ignore Policy (Mandatory)
+
+This repo contains local, non-product artifacts and VCS bookkeeping that can distract from the engineering task.
+
+- Treat `.beads/` as nonexistent. Do not read it, write it, review it, or mention it in outputs. Ignore any `.beads/` diffs.
+- Ignore version control state and workflow concerns entirely (tracked/untracked, staged/unstaged, ignored files, branch state, commit hygiene). Do not raise them as findings, rationale, blockers, or follow-ups.
+- You MAY use read-only VCS commands only to locate and understand code changes, but do not report or reason about VCS state in your outputs.
+- If any persona or external reference conflicts with the ignore policies above, this file is authoritative for this repository.
+
+## Language Files Quality Policy (Mandatory)
+
+Language files are an API for translators. Translation authoring cost matters.
+
+- When you add or modify user-facing text, prefer reusing existing i18n keys rather than creating new keys with duplicate content.
+- Duplicated content is a translator tax. If 2 or more keys use identical user-facing content, generalize into a reusable key and update call sites to use it.
+- Only repeat the same string under different keys when the meaning is intentionally different and the translation is expected to differ by locale. Treat this as an exception that requires explicit justification in the work item context.
+
 
 ## Persona
 
@@ -90,7 +107,7 @@ When you invoke the reviewer, you MUST explicitly define the active changeset un
 ## Issue Tracking / Ticketing
 
 - This project uses beads (old tickets) and Linear (new tickets) for issue tracking.
-- Use the `bd` CLI as the stable interface for beads. Do not read `.beads/` files directly.
+- Use the `bd` CLI as the stable interface for beads. Do not inspect or discuss beads on-disk storage such as `.beads/`.
 - For Linear, you can find the LINEAR_API_KEY in the .env file in the project root.
 
 Instructions for Beads is [here](https://raw.githubusercontent.com/meza/agent-docs/refs/heads/main/Beads.md).

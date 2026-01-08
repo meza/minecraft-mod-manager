@@ -60,13 +60,37 @@ As file status changes, MMM updates the icons in place.
 
 ```
 Scanning mods folder:
-⏳ inventorysorter.jar
+⠋ soundsbegone.jar
+⠋ inventorysorter.jar
 ⏳ unmanaged.jar
 ⏳ flaky.jar
+⏳ bc.jar
+⠋ lithium-123.23.jar
 ... (one row per file, all candidates shown)
 ```
 
-#### SCAN-02 Results rendered (tty and non-tty)
+#### SCAN-01A Running (tty)
+
+##### Command used
+`scan`
+
+```
+Scanning mods folder:
+⠋ soundsbegone.jar
+⠋ lithium-123.23.jar
+
+Recognized:
+✅ inventorysorter.jar -> Inventory Sorting (inventory-sorting) [modrinth]
+✅ bc.jar -> Better Clouds (better-clouds) [modrinth]
+
+Unknown: (no match on modrinth or curseforge)
+❌ unmanaged.jar
+
+Unsure: (platform lookup failed)
+❔ flaky.jar
+```
+
+#### SCAN-02 Results rendered (tty)
 
 ##### Command used
 `scan`
@@ -75,13 +99,30 @@ Scanning mods folder:
 Scan results:
 
 Recognized:
+✅ bc.jar -> Better Clouds (better-clouds) [modrinth]
 ✅ inventorysorter.jar -> Inventory Sorting (inventory-sorting) [modrinth]
+✅ lithium-123.23.jar -> Lithium (lithium) [modrinth]
+✅ soundsbegone.jar -> Sounds Be Gone! (sounds-be-gone) [modrinth]
 
 Unknown: (no match on modrinth or curseforge)
 ❌ unmanaged.jar
 
 Unsure: (platform lookup failed)
 ❔ flaky.jar
+```
+
+#### SCAN-02N Results rendered (non-tty)
+
+##### Command used
+`scan --add`
+
+```
+✅ inventorysorter.jar -> Inventory Sorting (inventory-sorting) [modrinth]
+❌ unmanaged.jar
+❔ flaky.jar
+
+Added:
+✅ Inventory Sorting (inventory-sorting) [modrinth]
 ```
 
 #### SCAN-03 Adoption prompt (tty)
@@ -93,11 +134,13 @@ Unsure: (platform lookup failed)
 Scan results:
 
 Recognized:
+✅ bc.jar -> Better Clouds (better-clouds) [modrinth]
 ✅ inventorysorter.jar -> Inventory Sorting (inventory-sorting) [modrinth]
+✅ lithium-123.23.jar -> Lithium (lithium) [modrinth]
+✅ soundsbegone.jar -> Sounds Be Gone! (sounds-be-gone) [modrinth]
 
 Unknown: (no match on modrinth or curseforge)
-❌ unmanaged-A.jar
-❌ unmanaged-B.jar
+❌ unmanaged.jar
 
 Unsure: (platform lookup failed)
 ❔ flaky.jar
@@ -107,7 +150,7 @@ Unsure: (platform lookup failed)
 enter accept • ctrl+c/esc quit
 ```
 
-#### SCAN-04 Adoption written (tty)
+#### SCAN-04 Adoption written with errors (tty)
 
 ##### Command used
 `scan`
@@ -125,7 +168,33 @@ Unsure: (platform lookup failed)
 ? Add recognized mods to your configuration? (<yesShort>/<noShort>) [default: <noShort>]: <yesShort>
 
 Added:
+✅ Better Clouds (better-clouds) [modrinth]
 ✅ Inventory Sorting (inventory-sorting) [modrinth]
+✅ Lithium (lithium) [modrinth]
+✅ Sounds Be Gone! (sounds-be-gone) [modrinth]
+```
+
+#### SCAN-04A Full Adoption written without errors (tty)
+
+##### Command used
+`scan`
+
+```
+Added:
+✅ Better Clouds (better-clouds) [modrinth]
+✅ Inventory Sorting (inventory-sorting) [modrinth]
+✅ Lithium (lithium) [modrinth]
+✅ Sounds Be Gone! (sounds-be-gone) [modrinth]
+```
+
+#### SCAN-04B Cancelled Adoption without errors (tty and non-tty)
+##### Command used
+`scan`
+
+This happens when the user declines to add recognized results.
+
+```
+✅ Cancelled. Your configuration was not modified.
 ```
 
 ### Error frames
@@ -183,7 +252,23 @@ In non-tty mode:
 - MMM MUST NOT emit terminal control sequences.
 - Output is rendered as a plain transcript.
 
-Behavior matches unattended mode for adoption.
+Output prints each file line as it reaches a final state (recognized, unknown, unsure).
+Because scans are parallel, line order reflects completion order, not alphabetical order.
+If `--add` is set, MMM writes recognized results and prints an "Added" section after the per-file lines.
+
+#### Non-tty transcript example
+
+##### Command used
+`scan --add`
+
+```
+✅ inventorysorter.jar -> Inventory Sorting (inventory-sorting) [modrinth]
+❌ unmanaged.jar
+❔ flaky.jar
+
+Added:
+✅ Inventory Sorting (inventory-sorting) [modrinth]
+```
 
 ### Quiet flag
 

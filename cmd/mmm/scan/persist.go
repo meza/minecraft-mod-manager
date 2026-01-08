@@ -2,78 +2,19 @@ package scan
 
 import (
 	"context"
+	"errors"
 	"fmt"
-	"io"
+	"strings"
 
 	"github.com/meza/minecraft-mod-manager/internal/config"
 	"github.com/meza/minecraft-mod-manager/internal/i18n"
 	"github.com/meza/minecraft-mod-manager/internal/models"
 	"github.com/meza/minecraft-mod-manager/internal/modsetup"
-	"github.com/meza/minecraft-mod-manager/internal/output"
+	"github.com/meza/minecraft-mod-manager/internal/platform"
 	"github.com/meza/minecraft-mod-manager/internal/telemetry"
-	tui "github.com/meza/minecraft-mod-manager/internal/view"
+	"github.com/meza/minecraft-mod-manager/internal/view"
 	"github.com/spf13/cobra"
 )
-
-func colorModeForOutput(out io.Writer) tui.ColorMode {
-	if tui.IsTerminalWriter(out) {
-		return tui.ColorEnabled
-	}
-	return tui.ColorDisabled
-}
-
-type persistScanRequest struct {
-	Context          context.Context
-	Command          *cobra.Command
-	Options          scanOptions
-	Dependencies     scanDeps
-	Metadata         config.Metadata
-	SetupCoordinator *modsetup.SetupCoordinator
-	Matches          []scanMatch
-	Unsure           []scanUnsure
-	Config           models.ModsJSON
-	Lock             []models.ModInstall
-	PreferPlatform   models.Platform
-	ColorMode        tui.ColorMode
-}
-
-func persistScanMatchesIfRequested(request persistScanRequest) (telemetry.CommandTelemetry, error) {
-	shouldPersist, err := confirmPersist(request.Options, request.Dependencies)
-	if err != nil {
-		return scanFailureTelemetry(err), err
-	}
-	if !shouldPersist {
-		return scanSuccessTelemetry(request.PreferPlatform, request.Options.Add), nil
-	}
-
-	if len(request.Unsure) > 0 {
-		if outputErr := request.Dependencies.output.Log(i18n.T("cmd.scan.persist_skipped_unsure", nil), output.LogQuiet); outputErr != nil {
-			return scanFailureTelemetry(outputErr), outputErr
-		}
-		return scanSuccessTelemetry(request.PreferPlatform, request.Options.Add), nil
-	}
-
-	persisted, err := persistScanMatches(
-		request.Context,
-		request.Command,
-		request.Metadata,
-		request.SetupCoordinator,
-		request.Dependencies,
-		request.Matches,
-		request.Config,
-		request.Lock,
-	)
-	if err != nil {
-		return scanFailureTelemetry(err), err
-	}
-	if persisted {
-		if outputErr := request.Dependencies.output.Log(messageWithIcon(tui.SuccessIcon(request.ColorMode), i18n.T("cmd.scan.persisted", nil)), output.LogQuiet); outputErr != nil {
-			return scanFailureTelemetry(outputErr), outputErr
-		}
-	}
-
-	return scanSuccessTelemetry(request.PreferPlatform, request.Options.Add), nil
-}
 
 func scanFailureTelemetry(err error) telemetry.CommandTelemetry {
 	return telemetry.CommandTelemetry{Command: "scan", Success: false, ExitCode: 1, Error: err}
@@ -99,36 +40,71 @@ func scanSuccessTelemetryWithoutArgs() telemetry.CommandTelemetry {
 	}
 }
 
-func resolvePreferredPlatform(value string, out *output.Output) (models.Platform, error) {
-	preferPlatform := normalizePlatform(value)
-	if preferPlatform != models.MODRINTH && preferPlatform != models.CURSEFORGE {
-		platformErr := fmt.Errorf("unknown platform: %s", value)
-		if err := out.Error(platformErr.Error()); err != nil {
-			return "", err
-		}
-		return "", platformErr
+func persistScanMatches(ctx context.Context, cmd *cobra.Command, input scanExecutionInput, matches []scanMatch) ([]scanMatch, error) {
+	if len(matches) == 0 {
+		return nil, nil
 	}
-	return preferPlatform, nil
-}
+	if input.setupCoordinator == nil {
+		return nil, errors.New("missing setup coordinator")
+	}
 
-func unmanagedFiles(files []string, lock []models.ModInstall) []string {
-	unmanaged := make([]string, 0, len(files))
-	for _, file := range files {
-		if fileIsManaged(file, lock) {
+	cfg := input.cfg
+	lock := input.lock
+	changedConfig := false
+	changedLock := false
+	added := make([]scanMatch, 0, len(matches))
+	failed := make([]string, 0)
+
+	for _, match := range matches {
+		outcome, err := input.setupCoordinator.UpsertConfigAndLock(cfg, lock, match.Platform, match.ProjectID, platformRemoteMod(match), modsetup.EnsurePersistOptions{})
+		if err != nil {
+			failed = append(failed, renderScanPersistFailureLine(colorModeForOutput(cmd.OutOrStdout()), match.FileName))
 			continue
 		}
-		unmanaged = append(unmanaged, file)
+		cfg = outcome.Config
+		lock = outcome.Lock
+		if outcome.Result.ConfigAdded || outcome.Result.ConfigUpdated {
+			changedConfig = true
+		}
+		if outcome.Result.LockAdded || outcome.Result.LockUpdated {
+			changedLock = true
+		}
+		added = append(added, match)
 	}
-	return unmanaged
+
+	if changedConfig {
+		if err := config.WriteConfig(ctx, input.deps.fs, input.meta, cfg); err != nil {
+			return added, err
+		}
+	}
+	if changedLock {
+		if err := config.WriteLock(ctx, input.deps.fs, input.meta, lock); err != nil {
+			return added, err
+		}
+	}
+
+	if len(failed) > 0 {
+		combined := strings.Join(failed, "\n")
+		if outputErr := runOutputLines(cmd, input.deps, cmd.OutOrStdout(), []string{combined}); outputErr != nil {
+			return added, outputErr
+		}
+	}
+
+	return added, nil
 }
 
-func confirmPersist(opts scanOptions, deps scanDeps) (bool, error) {
-	shouldPersist := opts.Add
-	if !shouldPersist {
-		if deps.prompter == nil {
-			return false, nil
-		}
-		return deps.prompter.ConfirmAdd()
+func platformRemoteMod(match scanMatch) platform.RemoteMod {
+	return platform.RemoteMod{
+		Name:        match.Name,
+		FileName:    match.FileName,
+		Hash:        match.Hash,
+		ReleaseDate: match.ReleaseDate,
+		DownloadURL: match.DownloadURL,
 	}
-	return shouldPersist, nil
+}
+
+func renderScanPersistFailureLine(colorMode view.ColorMode, fileName string) string {
+	return fmt.Sprintf("%s %s", view.ErrorIcon(colorMode), i18n.T("cmd.scan.persist_failed", &i18n.Tvars{
+		Data: &i18n.TData{"file": fileName},
+	}))
 }

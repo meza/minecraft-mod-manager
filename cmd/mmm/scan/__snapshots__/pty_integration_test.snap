@@ -1,0 +1,163 @@
+[TestScanCommandInteractivePTYRunningSnapshotShortHeight - 1]
+cmd.scan.header.running
+⣾  alpha.jar
+⣾  beta.jar
+⣾  delta.jar
+⣾  epsilon.jar
+⣾  eta.jar
+---
+
+[TestScanCommandInteractivePTYRunningSnapshotMediumHeight - 1]
+cmd.scan.header.running
+⣾  alpha.jar
+⣾  beta.jar
+⣾  delta.jar
+⣾  epsilon.jar
+⣾  gamma.jar
+⣾  zeta.jar
+
+cmd.scan.section.recognized
+✅ appleskin.jar -> AppleSkin (appleskin) [modrinth]
+✅ bc.jar -> Better Clouds (better-clouds) [modrinth]
+✅ inventorysorter.jar -> Inventory Sorting (inventory-sorting) [modrinth]
+---
+
+[TestScanCommandInteractivePTYFinalTranscriptShortHeight - 1]
+cmd.scan.header.results
+
+cmd.scan.section.recognized
+✅ appleskin.jar -> AppleSkin (appleskin) [modrinth]
+✅ bc.jar -> Better Clouds (better-clouds) [modrinth]
+✅ inventorysorter.jar -> Inventory Sorting (inventory-sorting) [modrinth]
+✅ lithium-123.23.jar -> Lithium (lithium) [modrinth]
+✅ shulkerbox.jar -> Shulker Box Tooltip (shulker-tooltip) [modrinth]
+✅ sodium.jar -> Sodium (sodium) [modrinth]
+✅ soundsbegone.jar -> Sounds Be Gone! (sounds-be-gone) [modrinth]
+
+cmd.scan.section.unknown (cmd.scan.section.unknown_note)
+❌ unmanaged-a.jar
+❌ unmanaged-b.jar
+❌ unmanaged-c.jar
+❌ unmanaged-d.jar
+❌ unmanaged-e.jar
+❌ unmanaged-f.jar
+
+cmd.scan.section.unsure (cmd.scan.section.unsure_note)
+❔ flaky-a.jar
+❔ flaky-b.jar
+❔ flaky-c.jar
+❔ flaky-d.jar
+❔ flaky-e.jar
+❔ flaky-f.jar
+---
+
+[TestScanCommandInteractivePTYRunningSnapshotTallHeight - 1]
+cmd.scan.header.running
+⣾  alpha.jar
+⣾  beta.jar
+⣾  delta.jar
+⣾  epsilon.jar
+⣾  gamma.jar
+⣾  zeta.jar
+
+cmd.scan.section.recognized
+✅ appleskin.jar -> AppleSkin (appleskin) [modrinth]
+✅ bc.jar -> Better Clouds (better-clouds) [modrinth]
+✅ inventorysorter.jar -> Inventory Sorting (inventory-sorting) [modrinth]
+✅ lithium-123.23.jar -> Lithium (lithium) [modrinth]
+✅ shulkerbox.jar -> Shulker Box Tooltip (shulker-tooltip) [modrinth]
+✅ sodium.jar -> Sodium (sodium) [modrinth]
+✅ soundsbegone.jar -> Sounds Be Gone! (sounds-be-gone) [modrinth]
+
+cmd.scan.section.unknown (cmd.scan.section.unknown_note)
+❌ unmanaged-a.jar
+❌ unmanaged-b.jar
+❌ unmanaged-c.jar
+❌ unmanaged-d.jar
+❌ unmanaged-e.jar
+❌ unmanaged-f.jar
+
+cmd.scan.section.unsure (cmd.scan.section.unsure_note)
+❔ flaky-a.jar
+❔ flaky-b.jar
+❔ flaky-c.jar
+❔ flaky-d.jar
+❔ flaky-e.jar
+❔ flaky-f.jar
+---
+
+[TestScanCommandInteractivePTYFinalTranscriptMediumHeight - 1]
+cmd.scan.header.results
+
+cmd.scan.section.recognized
+✅ appleskin.jar -> AppleSkin (appleskin) [modrinth]
+✅ bc.jar -> Better Clouds (better-clouds) [modrinth]
+✅ inventorysorter.jar -> Inventory Sorting (inventory-sorting) [modrinth]
+✅ lithium-123.23.jar -> Lithium (lithium) [modrinth]
+✅ shulkerbox.jar -> Shulker Box Tooltip (shulker-tooltip) [modrinth]
+✅ sodium.jar -> Sodium (sodium) [modrinth]
+✅ soundsbegone.jar -> Sounds Be Gone! (sounds-be-gone) [modrinth]
+
+cmd.scan.section.unknown (cmd.scan.section.unknown_note)
+❌ unmanaged-a.jar
+❌ unmanaged-b.jar
+❌ unmanaged-c.jar
+❌ unmanaged-d.jar
+❌ unmanaged-e.jar
+❌ unmanaged-f.jar
+
+cmd.scan.section.unsure (cmd.scan.section.unsure_note)
+❔ flaky-a.jar
+❔ flaky-b.jar
+❔ flaky-c.jar
+❔ flaky-d.jar
+❔ flaky-e.jar
+❔ flaky-f.jar
+---
+
+[TestScanCommandInteractivePTYFinalTranscriptTallHeight - 1]
+cmd.scan.header.results
+
+cmd.scan.section.recognized
+✅ appleskin.jar -> AppleSkin (appleskin) [modrinth]
+✅ bc.jar -> Better Clouds (better-clouds) [modrinth]
+✅ inventorysorter.jar -> Inventory Sorting (inventory-sorting) [modrinth]
+✅ lithium-123.23.jar -> Lithium (lithium) [modrinth]
+✅ shulkerbox.jar -> Shulker Box Tooltip (shulker-tooltip) [modrinth]
+✅ sodium.jar -> Sodium (sodium) [modrinth]
+✅ soundsbegone.jar -> Sounds Be Gone! (sounds-be-gone) [modrinth]
+
+cmd.scan.section.unknown (cmd.scan.section.unknown_note)
+❌ unmanaged-a.jar
+❌ unmanaged-b.jar
+❌ unmanaged-c.jar
+❌ unmanaged-d.jar
+❌ unmanaged-e.jar
+❌ unmanaged-f.jar
+
+cmd.scan.section.unsure (cmd.scan.section.unsure_note)
+❔ flaky-a.jar
+❔ flaky-b.jar
+❔ flaky-c.jar
+❔ flaky-d.jar
+❔ flaky-e.jar
+❔ flaky-f.jar
+---
+
+[TestScanCommandInteractivePTYRunningSnapshotShortHeightManyMods - 1]
+cmd.scan.header.running
+⣾  ArmorPoser-fabric-1.21.10-12.3.0.jar
+⣾  audioplayer-fabric-2.1.0+1.21.10.jar
+⣾  Axiom-5.2.1-for-MC1.21.10.jar
+⣾  BetterServerPacksFabric-1.2.0.jar
+⣾  carpet-tis-addition-v1.74.0-mc1.21.10.jar
+---
+
+[TestScanCommandInteractivePTYPromptConfirmAddedOnly - 1]
+Added:
+✅ Alpha (alpha) [modrinth]
+---
+
+[TestScanCommandInteractivePTYPromptDeclineCancelledOnly - 1]
+✅ Cancelled. Your configuration was not modified.
+---

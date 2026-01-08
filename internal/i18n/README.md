@@ -4,7 +4,7 @@ This package provides one job for the wider project: return the right user-facin
 
 It is intentionally small and boring. There is one public entry point: `T()`.
 
-If you are looking for the "how to write translations" guide (ICU format, placeholders, plural rules), start with `docs/i18n.md`.
+If you are looking for the "how to write translations" guide (ICU format, placeholders, plural rules), start with this README.
 
 ## Important: do not put icons in translation strings
 
@@ -263,6 +263,7 @@ Keys are a contract between code and translations.
 * Do not include language in the key name (`cmd.init.short.en`).
 * Do not use spaces, slashes, or mixed casing in keys.
 * Do not use unstable identifiers like filenames or numeric IDs in keys.
+* Do not create duplicate values across keys. If 2 or more keys would use identical user-facing content, reuse a single key instead. Only create multiple keys with identical English when the meaning is intentionally different and translations are expected to differ by locale.
 
 ## Where to add new strings
 

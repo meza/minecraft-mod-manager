@@ -1,8 +1,56 @@
 
 [TestScanInitCanceledOutputSnapshot - 1]
 stdout:
-cmd.scan.config_missing, Arg 1: {Count: 0, Data: &map[configPath:./modlist.json]}
-cmd.scan.confirm_init (cmd.init.prompt.option.yes.short/cmd.init.prompt.option.no.short) [default: cmd.init.prompt.option.no.short]:
+‼️ cmd.scan.error.config_missing, Arg 1: {Count: 0, Data: &map[configPath:./modlist.json]}
+
+? cmd.scan.confirm_init cmd.init.prompt.confirm.suffix cmd.init.prompt.option.yes.short
+stderr:
+
+---
+
+[TestScanMissingConfigUnattendedOutputSnapshot - 1]
+stdout:
+‼️ cmd.scan.error.config_missing, Arg 1: {Count: 0, Data: &map[configPath:<configPath>]}
+
+cmd.scan.error.config_missing_hint
+stderr:
+
+---
+
+[TestScanInvalidPreferOutputSnapshot - 1]
+stdout:
+‼️ cmd.scan.error.failed, Arg 1: {Count: 0, Data: &map[reason:cmd.scan.error.unknown_platform, Arg 1: {Count: 0, Data: &map[platform:unknown]}]}
+stderr:
+
+---
+
+[TestScanCanceledInteractiveOutputSnapshot - 1]
+stdout:
+
+stderr:
+
+---
+
+[TestScanFullAdoptionOutputSnapshot - 1]
+stdout:
+cmd.scan.section.added
+✅ Alpha (alpha) [modrinth]
+✅ Beta (beta) [modrinth]
+stderr:
+
+---
+
+[TestScanAdoptionCancelledOutputSnapshot - 1]
+stdout:
+✅ cmd.scan.adoption.cancelled
+stderr:
+
+---
+
+[TestScanFullAdoptionAddOutputSnapshot - 1]
+stdout:
+cmd.scan.section.added
+✅ Alpha (alpha) [modrinth]
 stderr:
 
 ---

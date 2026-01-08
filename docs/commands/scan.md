@@ -17,7 +17,7 @@ mmm scan --prefer modrinth --add
 - Skips files that are already managed by the lock file.
 - Tries to identify each file by hash on your preferred platform first, and only falls back to the other platform if there are no hits.
 - Prints recognized vs unknown vs unsure files.
-- With `--add` (or when you confirm the prompt), updates `modlist.json` and `modlist-lock.json` with the discovered mods (unless any file is "unsure").
+- With `--add` (or when you confirm the prompt), updates `modlist.json` and `modlist-lock.json` with the recognized mods.
 
 ## Flags
 
@@ -28,7 +28,7 @@ mmm scan --prefer modrinth --add
 
 ## If something goes wrong
 
-If a file cannot be looked up due to a platform error, it is reported as "unsure" and nothing is written to your config/lock, even with `--add`.
+If a file cannot be looked up due to a platform error, it is reported as "unsure".
 
 If a file is listed as "unknown", it means the file hash did not match anything on either platform.
 
@@ -36,4 +36,4 @@ If no configuration file exists, the command tells you and asks if you want to i
 
 See `docs/interactions/interaction-guidelines.md#missing-config` and `docs/interactions/flows/scan.md`.
 
-If you run with `--unattended`, the command does not prompt and skips writing changes unless you pass `--add`. If you run with `--quiet`, the command suppresses non-essential output.
+If you run with `--unattended`, the command does not prompt and skips writing changes unless you pass `--add`. If you run with `--quiet`, the command suppresses non-essential output. In non-tty output, per-file result lines print as they settle.

@@ -49,7 +49,6 @@ func runModrinthLookups(ctx context.Context, candidates []scanCandidate, deps sc
 	titleCache := newModrinthTitleCache()
 
 	group, groupCtx := errgroup.WithContext(ctx)
-	group.SetLimit(4)
 
 	for i := range candidates {
 		i := i

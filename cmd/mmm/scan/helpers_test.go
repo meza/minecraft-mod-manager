@@ -1,7 +1,6 @@
 package scan
 
 import (
-	"bytes"
 	"context"
 	"crypto/sha1"
 	"encoding/hex"
@@ -20,13 +19,11 @@ import (
 	"github.com/meza/minecraft-mod-manager/internal/config"
 	"github.com/meza/minecraft-mod-manager/internal/curseforge"
 	"github.com/meza/minecraft-mod-manager/internal/httpclient"
+	"github.com/meza/minecraft-mod-manager/internal/i18n"
 	"github.com/meza/minecraft-mod-manager/internal/logger"
 	"github.com/meza/minecraft-mod-manager/internal/models"
 	"github.com/meza/minecraft-mod-manager/internal/modrinth"
-	"github.com/meza/minecraft-mod-manager/internal/modsetup"
-	"github.com/meza/minecraft-mod-manager/internal/output"
 	"github.com/meza/minecraft-mod-manager/internal/platform"
-	tui "github.com/meza/minecraft-mod-manager/internal/view"
 	"github.com/spf13/afero"
 	"github.com/spf13/cobra"
 	"github.com/stretchr/testify/assert"
@@ -42,27 +39,12 @@ func (doer noopDoer) Do(*http.Request) (*http.Response, error) {
 	}, nil
 }
 
-type errorReader struct{}
-
-func (errorReader) Read([]byte) (int, error) { return 0, errors.New("read failed") }
-
 type errorWriter struct {
 	err error
 }
 
 func (writer errorWriter) Write([]byte) (int, error) {
 	return 0, writer.err
-}
-
-type selectErrorWriter struct {
-	err error
-}
-
-func (writer selectErrorWriter) Write(p []byte) (int, error) {
-	if strings.Contains(string(p), "cmd.scan.confirm_init") {
-		return 0, writer.err
-	}
-	return len(p), nil
 }
 
 type errorDoer struct {
@@ -82,110 +64,6 @@ func (doer responseDoer) Do(*http.Request) (*http.Response, error) {
 		Body:       io.NopCloser(strings.NewReader(doer.body)),
 		Header:     http.Header{},
 	}, nil
-}
-
-func TestTerminalPrompterConfirmAddYes(t *testing.T) {
-	prompter := terminalPrompter{
-		in:  strings.NewReader("Y\n"),
-		out: io.Discard,
-	}
-
-	confirmed, err := prompter.ConfirmAdd()
-	assert.NoError(t, err)
-	assert.True(t, confirmed)
-}
-
-func TestTerminalPrompterConfirmAddNo(t *testing.T) {
-	prompter := terminalPrompter{
-		in:  strings.NewReader("no\n"),
-		out: io.Discard,
-	}
-
-	confirmed, err := prompter.ConfirmAdd()
-	assert.NoError(t, err)
-	assert.False(t, confirmed)
-}
-
-func TestTerminalPrompterConfirmAddError(t *testing.T) {
-	prompter := terminalPrompter{
-		in:  errorReader{},
-		out: io.Discard,
-	}
-
-	confirmed, err := prompter.ConfirmAdd()
-	assert.Error(t, err)
-	assert.False(t, confirmed)
-}
-
-func TestTerminalPrompterConfirmAddWriteError(t *testing.T) {
-	writeErr := errors.New("write failed")
-	prompter := terminalPrompter{
-		in:  strings.NewReader("y\n"),
-		out: errorWriter{err: writeErr},
-	}
-
-	confirmed, err := prompter.ConfirmAdd()
-	assert.ErrorIs(t, err, writeErr)
-	assert.False(t, confirmed)
-}
-
-func TestTerminalPrompterConfirmInitYes(t *testing.T) {
-	t.Setenv("MMM_TEST", "true")
-
-	out := &bytes.Buffer{}
-	prompter := terminalPrompter{
-		in:  strings.NewReader("cmd.init.prompt.option.yes.short\n"),
-		out: out,
-	}
-
-	confirmed, err := prompter.ConfirmInit("modlist.json")
-	assert.NoError(t, err)
-	assert.True(t, confirmed)
-	assert.Contains(t, out.String(), "cmd.scan.config_missing")
-	assert.Contains(t, out.String(), "cmd.scan.confirm_init")
-}
-
-func TestTerminalPrompterConfirmInitWriteError(t *testing.T) {
-	writeErr := errors.New("write failed")
-	prompter := terminalPrompter{
-		in:  strings.NewReader("y\n"),
-		out: errorWriter{err: writeErr},
-	}
-
-	confirmed, err := prompter.ConfirmInit("modlist.json")
-	assert.ErrorIs(t, err, writeErr)
-	assert.False(t, confirmed)
-}
-
-func TestTerminalPrompterConfirmInitPromptWriteError(t *testing.T) {
-	t.Setenv("MMM_TEST", "true")
-
-	writeErr := errors.New("write failed")
-	prompter := terminalPrompter{
-		in:  strings.NewReader("cmd.init.prompt.option.yes.short\n"),
-		out: selectErrorWriter{err: writeErr},
-	}
-
-	confirmed, err := prompter.ConfirmInit("modlist.json")
-	assert.ErrorIs(t, err, writeErr)
-	assert.False(t, confirmed)
-}
-
-func TestTerminalPrompterConfirmInitReadError(t *testing.T) {
-	prompter := terminalPrompter{
-		in:  errorReader{},
-		out: io.Discard,
-	}
-
-	confirmed, err := prompter.ConfirmInit("modlist.json")
-	assert.Error(t, err)
-	assert.False(t, confirmed)
-}
-
-func TestNoopPrompterConfirmInitReturnsFalse(t *testing.T) {
-	confirmed, err := noopPrompter{}.ConfirmInit("modlist.json")
-	assert.NoError(t, err)
-	assert.False(t, confirmed)
 }
 
 func TestDefaultScanDepsRunInitUsesRunner(t *testing.T) {
@@ -219,6 +97,15 @@ func TestAlternatePlatform(t *testing.T) {
 	assert.Equal(t, models.MODRINTH, alternatePlatform(models.CURSEFORGE))
 	assert.Equal(t, models.CURSEFORGE, alternatePlatform(models.MODRINTH))
 	assert.Equal(t, models.CURSEFORGE, alternatePlatform(models.Platform("custom")))
+}
+
+func TestResolvePreferredPlatformRejectsUnknownValue(t *testing.T) {
+	platformValue, err := resolvePreferredPlatform("unknown-platform")
+	assert.Error(t, err)
+	assert.Empty(t, platformValue)
+	assert.Equal(t, i18n.T("cmd.scan.error.unknown_platform", &i18n.Tvars{
+		Data: &i18n.TData{"platform": "unknown-platform"},
+	}), err.Error())
 }
 
 func TestModrinthDownloadDetailsErrors(t *testing.T) {
@@ -258,80 +145,22 @@ func TestUniqueUint32s(t *testing.T) {
 	assert.Equal(t, []uint32{3, 1, 2}, uniqueUint32s([]uint32{3, 1, 3, 2, 1}))
 }
 
-func TestPrintResultsLogsAllSections(t *testing.T) {
-	t.Setenv("MMM_TEST", "true")
-
-	var out bytes.Buffer
-	outWriter := output.New(&out, &out, false)
-
-	matches := []scanMatch{
-		{Path: "/mods/a.jar", Platform: models.MODRINTH, ProjectID: "a", Name: "Alpha", FileName: "a.jar"},
-	}
-	unknown := []string{"/mods/b.jar"}
-	unsure := []scanUnsure{{Path: "/mods/c.jar", Error: errors.New("nope")}}
-
-	err := printResults(outWriter, &out, models.MODRINTH, matches, unknown, unsure)
-	assert.NoError(t, err)
-
-	output := out.String()
-	assert.Contains(t, output, "cmd.scan.recognized.header")
-	assert.Contains(t, output, "cmd.scan.unknown.header")
-	assert.Contains(t, output, "cmd.scan.unsure.header")
-}
-
-func TestPrintResultsColorizesWhenTerminal(t *testing.T) {
-	t.Setenv("MMM_TEST", "true")
-
-	restore := tui.SetIsTerminalFuncForTesting(func(int) bool { return true })
-	t.Cleanup(restore)
-
-	var out bytes.Buffer
-	tty := fakeTTY{Buffer: &out}
-	outWriter := output.New(&tty, &tty, false)
-
-	err := printResults(outWriter, &tty, models.MODRINTH, []scanMatch{
-		{Path: "/mods/a.jar", Platform: models.MODRINTH, ProjectID: "a", Name: "Alpha", FileName: "a.jar"},
-	}, nil, nil)
-	assert.NoError(t, err)
-
-	assert.Contains(t, out.String(), "cmd.scan.recognized.header")
-}
-
-func TestPrintResultsUsesUnknownErrorWhenNil(t *testing.T) {
-	t.Setenv("MMM_TEST", "true")
-
-	var out bytes.Buffer
-	outWriter := output.New(&out, &out, false)
-
-	err := printResults(outWriter, &out, models.MODRINTH, nil, nil, []scanUnsure{{Path: "/mods/a.jar"}})
-	assert.NoError(t, err)
-	assert.Contains(t, out.String(), "unknown error")
-}
-
-func TestPrintResultsLogsNoResults(t *testing.T) {
-	t.Setenv("MMM_TEST", "true")
-
-	var out bytes.Buffer
-	outWriter := output.New(&out, &out, false)
-
-	err := printResults(outWriter, &out, models.MODRINTH, nil, nil, nil)
-	assert.NoError(t, err)
-	assert.Contains(t, out.String(), "cmd.scan.no_results")
-}
-
 func TestLookupOnPlatformUnknownReturnsMisses(t *testing.T) {
 	candidates := []scanCandidate{
 		{Path: "/mods/a.jar", FileName: "a.jar", Sha1: "a"},
 	}
 
-	outcome, err := lookupOnPlatform(context.Background(), candidates, models.Platform("unknown"), scanDeps{})
+	items, index := buildScanItems(candidates)
+	state := newScanExecState(items, index, scanExecSender{})
+
+	outcome, err := lookupPlatformWithUpdates(context.Background(), models.Platform("unknown"), candidates, scanDeps{}, state)
 	assert.NoError(t, err)
 	assert.Empty(t, outcome.matches)
 	assert.Equal(t, candidates, outcome.misses)
 	assert.Empty(t, outcome.unsure)
 }
 
-func TestIdentifyCandidatesCombinesPreferredAndFallback(t *testing.T) {
+func TestRunScanExecutionCombinesPreferredAndFallback(t *testing.T) {
 	t.Setenv("MMM_TEST", "true")
 
 	candidates := []scanCandidate{
@@ -361,7 +190,12 @@ func TestIdentifyCandidatesCombinesPreferredAndFallback(t *testing.T) {
 		modrinthProjectTitle: func(context.Context, string, httpclient.Doer) (string, error) {
 			return "Modrinth Title", nil
 		},
-		curseforgeFingerprint: func(string) uint32 { return 101 },
+		curseforgeFingerprint: func(path string) uint32 {
+			if strings.Contains(path, "b.jar") {
+				return 101
+			}
+			return 202
+		},
 		curseforgeFingerprintMatch: func(context.Context, []uint32, httpclient.Doer) (*curseforge.FingerprintResult, error) {
 			return &curseforge.FingerprintResult{
 				Matches: []curseforge.File{
@@ -374,16 +208,23 @@ func TestIdentifyCandidatesCombinesPreferredAndFallback(t *testing.T) {
 		},
 	}
 
-	identification, err := identifyCandidates(context.Background(), candidates, models.MODRINTH, deps)
-	assert.NoError(t, err)
-	assert.Len(t, identification.matches, 2)
-	assert.Empty(t, identification.unknown)
-	assert.Empty(t, identification.unsure)
-	assert.Equal(t, models.MODRINTH, identification.matches[0].Platform)
-	assert.Equal(t, models.CURSEFORGE, identification.matches[1].Platform)
+	input := scanExecutionInput{
+		candidates:     candidates,
+		preferPlatform: models.CURSEFORGE,
+		deps:           deps,
+	}
+	outcome := runScanExecution(context.Background(), input, scanExecSender{})
+	assert.NoError(t, outcome.err)
+	assert.Len(t, outcome.matches, 2)
+	assert.Empty(t, outcome.unknown)
+	assert.Empty(t, outcome.unsure)
+	assert.ElementsMatch(t, []models.Platform{models.CURSEFORGE, models.MODRINTH}, []models.Platform{
+		outcome.matches[0].Platform,
+		outcome.matches[1].Platform,
+	})
 }
 
-func TestIdentifyCandidatesRemovesUnsureWhenMatchedPathExists(t *testing.T) {
+func TestRunScanExecutionRemovesUnsureWhenMatchedPathExists(t *testing.T) {
 	t.Setenv("MMM_TEST", "true")
 
 	candidates := []scanCandidate{
@@ -417,14 +258,19 @@ func TestIdentifyCandidatesRemovesUnsureWhenMatchedPathExists(t *testing.T) {
 		},
 	}
 
-	identification, err := identifyCandidates(context.Background(), candidates, models.MODRINTH, deps)
-	assert.NoError(t, err)
-	assert.Len(t, identification.matches, 1)
-	assert.Empty(t, identification.unknown)
-	assert.Empty(t, identification.unsure)
+	input := scanExecutionInput{
+		candidates:     candidates,
+		preferPlatform: models.MODRINTH,
+		deps:           deps,
+	}
+	outcome := runScanExecution(context.Background(), input, scanExecSender{})
+	assert.NoError(t, outcome.err)
+	assert.Len(t, outcome.matches, 1)
+	assert.Empty(t, outcome.unknown)
+	assert.Empty(t, outcome.unsure)
 }
 
-func TestIdentifyCandidatesSkipsUnknownWhenUnsure(t *testing.T) {
+func TestRunScanExecutionSkipsUnknownWhenUnsure(t *testing.T) {
 	candidates := []scanCandidate{
 		{Path: "/mods/a.jar", FileName: "a.jar", Sha1: "a"},
 	}
@@ -443,16 +289,21 @@ func TestIdentifyCandidatesSkipsUnknownWhenUnsure(t *testing.T) {
 		},
 	}
 
-	identification, err := identifyCandidates(context.Background(), candidates, models.MODRINTH, deps)
-	assert.NoError(t, err)
-	assert.Empty(t, identification.matches)
-	assert.Empty(t, identification.unknown)
-	if assert.Len(t, identification.unsure, 1) {
-		assert.Equal(t, "/mods/a.jar", identification.unsure[0].Path)
+	input := scanExecutionInput{
+		candidates:     candidates,
+		preferPlatform: models.MODRINTH,
+		deps:           deps,
+	}
+	outcome := runScanExecution(context.Background(), input, scanExecSender{})
+	assert.NoError(t, outcome.err)
+	assert.Empty(t, outcome.matches)
+	assert.Empty(t, outcome.unknown)
+	if assert.Len(t, outcome.unsure, 1) {
+		assert.Equal(t, "a.jar", outcome.unsure[0].Path)
 	}
 }
 
-func TestIdentifyCandidatesAddsUnknownWhenUnmatched(t *testing.T) {
+func TestRunScanExecutionAddsUnknownWhenUnmatched(t *testing.T) {
 	candidates := []scanCandidate{
 		{Path: "/mods/a.jar", FileName: "a.jar", Sha1: "a"},
 	}
@@ -471,14 +322,19 @@ func TestIdentifyCandidatesAddsUnknownWhenUnmatched(t *testing.T) {
 		},
 	}
 
-	identification, err := identifyCandidates(context.Background(), candidates, models.MODRINTH, deps)
-	assert.NoError(t, err)
-	assert.Empty(t, identification.matches)
-	assert.Empty(t, identification.unsure)
-	assert.Equal(t, []string{"/mods/a.jar"}, identification.unknown)
+	input := scanExecutionInput{
+		candidates:     candidates,
+		preferPlatform: models.MODRINTH,
+		deps:           deps,
+	}
+	outcome := runScanExecution(context.Background(), input, scanExecSender{})
+	assert.NoError(t, outcome.err)
+	assert.Empty(t, outcome.matches)
+	assert.Empty(t, outcome.unsure)
+	assert.Equal(t, []string{"a.jar"}, outcome.unknown)
 }
 
-func TestIdentifyCandidatesMergesFallbackUnsure(t *testing.T) {
+func TestRunScanExecutionMergesFallbackUnsure(t *testing.T) {
 	t.Setenv("MMM_TEST", "true")
 
 	candidates := []scanCandidate{
@@ -499,18 +355,23 @@ func TestIdentifyCandidatesMergesFallbackUnsure(t *testing.T) {
 		},
 	}
 
-	identification, err := identifyCandidates(context.Background(), candidates, models.MODRINTH, deps)
-	assert.NoError(t, err)
-	assert.Empty(t, identification.matches)
-	assert.Empty(t, identification.unknown)
-	if assert.Len(t, identification.unsure, 1) {
-		assert.Equal(t, "/mods/a.jar", identification.unsure[0].Path)
-		assert.Contains(t, identification.unsure[0].Error.Error(), "cmd.scan.unsure.platform_error")
-		assert.Contains(t, identification.unsure[0].Error.Error(), "cmd.platform.error.reason.unknown")
+	input := scanExecutionInput{
+		candidates:     candidates,
+		preferPlatform: models.MODRINTH,
+		deps:           deps,
+	}
+	outcome := runScanExecution(context.Background(), input, scanExecSender{})
+	assert.NoError(t, outcome.err)
+	assert.Empty(t, outcome.matches)
+	assert.Empty(t, outcome.unknown)
+	if assert.Len(t, outcome.unsure, 1) {
+		assert.Equal(t, "a.jar", outcome.unsure[0].Path)
+		assert.Contains(t, outcome.unsure[0].Error.Error(), "cmd.scan.unsure.platform_error")
+		assert.Contains(t, outcome.unsure[0].Error.Error(), "cmd.platform.error.reason.unknown")
 	}
 }
 
-func TestIdentifyCandidatesSkipsUnknownWhenPathIsUnsure(t *testing.T) {
+func TestRunScanExecutionSkipsUnknownWhenPathIsUnsure(t *testing.T) {
 	candidates := []scanCandidate{
 		{Path: "/mods/dupe.jar", FileName: "dupe.jar", Sha1: "error"},
 		{Path: "/mods/dupe.jar", FileName: "dupe.jar", Sha1: "miss"},
@@ -533,69 +394,17 @@ func TestIdentifyCandidatesSkipsUnknownWhenPathIsUnsure(t *testing.T) {
 		},
 	}
 
-	identification, err := identifyCandidates(context.Background(), candidates, models.MODRINTH, deps)
-	assert.NoError(t, err)
-	assert.Empty(t, identification.matches)
-	assert.Empty(t, identification.unknown)
-	if assert.Len(t, identification.unsure, 1) {
-		assert.Equal(t, "/mods/dupe.jar", identification.unsure[0].Path)
+	input := scanExecutionInput{
+		candidates:     candidates,
+		preferPlatform: models.MODRINTH,
+		deps:           deps,
 	}
-}
-
-func TestIdentifyCandidatesSortsMatchesByNameAndFileName(t *testing.T) {
-	candidates := []scanCandidate{
-		{Path: "/mods/b.jar", FileName: "b.jar", Sha1: "b"},
-		{Path: "/mods/a.jar", FileName: "a.jar", Sha1: "a"},
-		{Path: "/mods/c.jar", FileName: "c.jar", Sha1: "c"},
-	}
-
-	versionFor := func(projectID string) *modrinth.Version {
-		return &modrinth.Version{
-			ProjectID:     projectID,
-			DatePublished: time.Date(2024, 1, 2, 0, 0, 0, 0, time.UTC),
-			Files: []modrinth.VersionFile{
-				{URL: "https://example.invalid/" + projectID + ".jar", Primary: true},
-			},
-		}
-	}
-
-	deps := scanDeps{
-		clients: platform.Clients{
-			Modrinth:   noopDoer{},
-			Curseforge: noopDoer{},
-		},
-		modrinthVersionForSha: func(_ context.Context, hash string, _ httpclient.Doer) (*modrinth.Version, error) {
-			switch hash {
-			case "a", "c":
-				return versionFor("proj-alpha"), nil
-			case "b":
-				return versionFor("proj-beta"), nil
-			default:
-				return nil, &modrinth.VersionNotFoundError{}
-			}
-		},
-		modrinthProjectTitle: func(_ context.Context, projectID string, _ httpclient.Doer) (string, error) {
-			switch projectID {
-			case "proj-alpha":
-				return "Alpha", nil
-			case "proj-beta":
-				return "Beta", nil
-			default:
-				return "Unknown", nil
-			}
-		},
-	}
-
-	identification, err := identifyCandidates(context.Background(), candidates, models.MODRINTH, deps)
-	assert.NoError(t, err)
-	assert.Empty(t, identification.unknown)
-	assert.Empty(t, identification.unsure)
-	if assert.Len(t, identification.matches, 3) {
-		assert.Equal(t, "Alpha", identification.matches[0].Name)
-		assert.Equal(t, "a.jar", identification.matches[0].FileName)
-		assert.Equal(t, "Alpha", identification.matches[1].Name)
-		assert.Equal(t, "c.jar", identification.matches[1].FileName)
-		assert.Equal(t, "Beta", identification.matches[2].Name)
+	outcome := runScanExecution(context.Background(), input, scanExecSender{})
+	assert.NoError(t, outcome.err)
+	assert.Empty(t, outcome.matches)
+	assert.Empty(t, outcome.unknown)
+	if assert.Len(t, outcome.unsure, 1) {
+		assert.Equal(t, "dupe.jar", outcome.unsure[0].Path)
 	}
 }
 
@@ -1039,116 +848,19 @@ func TestSummarizePlatformFailureWithNilError(t *testing.T) {
 	assert.Equal(t, "", summary.DebugDetails)
 }
 
-func TestPersistScanMatchesLogsColorizedErrors(t *testing.T) {
-	restore := tui.SetIsTerminalFuncForTesting(func(_ int) bool { return true })
-	defer restore()
-
+func TestPersistScanMatchesReturnsErrorWhenSetupCoordinatorMissing(t *testing.T) {
 	fs := afero.NewMemMapFs()
 	meta := config.NewMetadata(filepath.FromSlash("/cfg/modlist.json"))
-	cfg := models.ModsJSON{ModsFolder: "mods"}
-	lock := []models.ModInstall{}
-	setupCoordinator := modsetup.NewSetupCoordinator(fs, nil, nil)
-
-	out := &bytes.Buffer{}
-	errOut := &bytes.Buffer{}
+	input := scanExecutionInput{
+		meta:             meta,
+		cfg:              models.ModsJSON{ModsFolder: "mods"},
+		lock:             nil,
+		setupCoordinator: nil,
+		deps:             scanDeps{fs: fs},
+	}
 	cmd := &cobra.Command{}
-	cmd.SetOut(fakeTTY{Buffer: out})
-
-	deps := scanDeps{
-		fs:     fs,
-		logger: logger.New(out, errOut, false, false),
-		output: output.New(out, errOut, false),
-	}
-
-	persisted, err := persistScanMatches(context.Background(), cmd, meta, setupCoordinator, deps, []scanMatch{
-		{Platform: models.MODRINTH, ProjectID: "abc", FileName: "bad.jar"},
-	}, cfg, lock)
-	assert.NoError(t, err)
-	assert.False(t, persisted)
-	assert.Contains(t, out.String(), "bad.jar")
-}
-
-func TestReportAllManagedReturnsErrorOnOutputFailure(t *testing.T) {
-	writeErr := errors.New("write failed")
-	outWriter := output.New(errorWriter{err: writeErr}, errorWriter{err: writeErr}, false)
-
-	_, err := reportAllManaged(outWriter, tui.ColorDisabled)
-	assert.ErrorIs(t, err, writeErr)
-}
-
-func TestIdentifyAndPrintCandidatesReturnsErrorOnOutputFailure(t *testing.T) {
-	writeErr := errors.New("write failed")
-	outWriter := output.New(errorWriter{err: writeErr}, errorWriter{err: writeErr}, false)
-	candidates := []scanCandidate{{Path: "/mods/a.jar", FileName: "a.jar", Sha1: "a"}}
-
-	version := &modrinth.Version{
-		ProjectID:     "proj-1",
-		DatePublished: time.Date(2024, 1, 2, 0, 0, 0, 0, time.UTC),
-		Files:         []modrinth.VersionFile{{URL: "https://example.invalid/a.jar", Primary: true}},
-	}
-
-	deps := scanDeps{
-		clients: platform.Clients{
-			Modrinth: noopDoer{},
-		},
-		modrinthVersionForSha: func(context.Context, string, httpclient.Doer) (*modrinth.Version, error) {
-			return version, nil
-		},
-		modrinthProjectTitle: func(context.Context, string, httpclient.Doer) (string, error) {
-			return "Example", nil
-		},
-	}
-
-	_, err := identifyAndPrintCandidates(context.Background(), outWriter, io.Discard, models.MODRINTH, candidates, deps)
-	assert.ErrorIs(t, err, writeErr)
-}
-
-func TestPrintMatchResultsReturnsErrorOnOutputFailure(t *testing.T) {
-	writeErr := errors.New("write failed")
-	outWriter := output.New(errorWriter{err: writeErr}, errorWriter{err: writeErr}, false)
-
-	err := printMatchResults(outWriter, tui.ColorDisabled, []scanMatch{
-		{Path: "/mods/a.jar", Platform: models.MODRINTH, ProjectID: "a", Name: "Alpha", FileName: "a.jar"},
-	})
-	assert.ErrorIs(t, err, writeErr)
-}
-
-func TestPrintUnknownResultsReturnsErrorOnOutputFailure(t *testing.T) {
-	writeErr := errors.New("write failed")
-	outWriter := output.New(errorWriter{err: writeErr}, errorWriter{err: writeErr}, false)
-
-	err := printUnknownResults(outWriter, tui.ColorDisabled, []string{"/mods/unknown.jar"})
-	assert.ErrorIs(t, err, writeErr)
-}
-
-func TestPrintUnsureResultsReturnsErrorOnOutputFailure(t *testing.T) {
-	writeErr := errors.New("write failed")
-	outWriter := output.New(errorWriter{err: writeErr}, errorWriter{err: writeErr}, false)
-
-	err := printUnsureResults(outWriter, tui.ColorDisabled, []scanUnsure{{Path: "/mods/unsure.jar", Error: errors.New("nope")}})
-	assert.ErrorIs(t, err, writeErr)
-}
-
-func TestResolvePreferredPlatformReturnsOutputError(t *testing.T) {
-	writeErr := errors.New("write failed")
-	outWriter := output.New(errorWriter{err: writeErr}, errorWriter{err: writeErr}, false)
-
-	_, err := resolvePreferredPlatform("unknown", outWriter)
-	assert.ErrorIs(t, err, writeErr)
-}
-
-func TestPersistScanMatchesIfRequestedReturnsErrorWhenUnsureLogFails(t *testing.T) {
-	writeErr := errors.New("write failed")
-	outWriter := output.New(errorWriter{err: writeErr}, errorWriter{err: writeErr}, false)
-
-	_, err := persistScanMatchesIfRequested(persistScanRequest{
-		Context:        context.Background(),
-		Options:        scanOptions{Add: true},
-		Dependencies:   scanDeps{output: outWriter},
-		PreferPlatform: models.MODRINTH,
-		Unsure:         []scanUnsure{{Path: "/mods/unsure.jar", Error: errors.New("nope")}},
-	})
-	assert.ErrorIs(t, err, writeErr)
+	_, err := persistScanMatches(context.Background(), cmd, input, []scanMatch{{FileName: "bad.jar"}})
+	assert.Error(t, err)
 }
 
 func TestLogPlatformDebugReturnsError(t *testing.T) {
@@ -1436,209 +1148,29 @@ func TestLookupModrinthCandidateReturnsErrorOnDownloadLogFailure(t *testing.T) {
 	assert.ErrorIs(t, err, writeErr)
 }
 
-func TestPersistScanMatchesIfRequestedReturnsOutputErrorWhenPersistedLogFails(t *testing.T) {
-	writeErr := errors.New("write failed")
-	fs := afero.NewMemMapFs()
-	meta := config.NewMetadata(filepath.FromSlash("/cfg/modlist.json"))
-	cfg := models.ModsJSON{ModsFolder: "mods"}
-	lock := []models.ModInstall{}
-	setupCoordinator := modsetup.NewSetupCoordinator(fs, nil, nil)
-	cmd := &cobra.Command{}
-	cmd.SetOut(&bytes.Buffer{})
+func TestSplitModrinthResults(t *testing.T) {
+	candidates := []scanCandidate{
+		{Path: "/mods/match.jar", FileName: "match.jar"},
+		{Path: "/mods/miss.jar", FileName: "miss.jar"},
+		{Path: "/mods/fallback.jar", FileName: "fallback.jar"},
+		{Path: "/mods/unsure.jar", FileName: "unsure.jar"},
+	}
+	results := []modrinthLookupResult{
+		{match: &scanMatch{FileName: "match.jar", Name: "Match", ProjectID: "match", Platform: models.MODRINTH}},
+		{miss: true},
+		{err: errors.New("fallback"), allowFallback: true},
+		{err: errors.New("unsure"), allowFallback: false},
+	}
 
-	_, err := persistScanMatchesIfRequested(persistScanRequest{
-		Context:          context.Background(),
-		Command:          cmd,
-		Options:          scanOptions{Add: true},
-		Dependencies:     scanDeps{fs: fs, output: output.New(errorWriter{err: writeErr}, errorWriter{err: writeErr}, false)},
-		Metadata:         meta,
-		SetupCoordinator: setupCoordinator,
-		Matches: []scanMatch{{
-			Path:        "/mods/a.jar",
-			Platform:    models.MODRINTH,
-			ProjectID:   "abc",
-			Name:        "Example",
-			FileName:    "example.jar",
-			Hash:        "hash",
-			ReleaseDate: "1970-01-01T00:00:00Z",
-			DownloadURL: "https://example.invalid/example.jar",
-		}},
-		Config:         cfg,
-		Lock:           lock,
-		PreferPlatform: models.MODRINTH,
-		ColorMode:      tui.ColorDisabled,
-	})
-	assert.ErrorIs(t, err, writeErr)
+	outcome := splitModrinthResults(candidates, results)
+	assert.Len(t, outcome.matches, 1)
+	assert.Len(t, outcome.misses, 2)
+	assert.Len(t, outcome.unsure, 2)
+	assert.Contains(t, outcome.unsure, "/mods/fallback.jar")
+	assert.Contains(t, outcome.unsure, "/mods/unsure.jar")
 }
 
-func TestRunScanReturnsSuccessWhenAllManaged(t *testing.T) {
-	fs := afero.NewMemMapFs()
-	meta := config.NewMetadata(filepath.FromSlash("/cfg/modlist.json"))
-	cfg := models.ModsJSON{ModsFolder: "mods"}
-	assert.NoError(t, fs.MkdirAll(meta.Dir(), 0755))
-	assert.NoError(t, fs.MkdirAll(meta.ModsFolderPath(cfg), 0755))
-	assert.NoError(t, config.WriteConfig(context.Background(), fs, meta, cfg))
-	assert.NoError(t, config.WriteLock(context.Background(), fs, meta, []models.ModInstall{}))
-
-	cmd := &cobra.Command{}
-	cmd.SetOut(&bytes.Buffer{})
-
-	telemetryPayload, err := runScan(context.Background(), cmd, scanOptions{
-		ConfigPath: meta.ConfigPath,
-		Quiet:      true,
-		Prefer:     string(models.MODRINTH),
-	}, scanDeps{
-		fs:     fs,
-		output: output.New(io.Discard, io.Discard, false),
-	})
-	assert.NoError(t, err)
-	assert.True(t, telemetryPayload.Success)
-}
-
-func TestRunScanReturnsErrorWhenModsFolderMissing(t *testing.T) {
-	fs := afero.NewMemMapFs()
-	meta := config.NewMetadata(filepath.FromSlash("/cfg/modlist.json"))
-	cfg := models.ModsJSON{ModsFolder: "missing"}
-	assert.NoError(t, fs.MkdirAll(meta.Dir(), 0755))
-	assert.NoError(t, config.WriteConfig(context.Background(), fs, meta, cfg))
-	assert.NoError(t, config.WriteLock(context.Background(), fs, meta, []models.ModInstall{}))
-
-	cmd := &cobra.Command{}
-	cmd.SetOut(&bytes.Buffer{})
-
-	_, err := runScan(context.Background(), cmd, scanOptions{
-		ConfigPath: meta.ConfigPath,
-		Quiet:      true,
-		Prefer:     string(models.MODRINTH),
-	}, scanDeps{
-		fs:     fs,
-		output: output.New(io.Discard, io.Discard, false),
-	})
-	assert.Error(t, err)
-}
-
-func TestRunScanReturnsErrorWhenSha1Fails(t *testing.T) {
-	baseFs := afero.NewMemMapFs()
-	meta := config.NewMetadata(filepath.FromSlash("/cfg/modlist.json"))
-	cfg := models.ModsJSON{ModsFolder: "mods"}
-	assert.NoError(t, baseFs.MkdirAll(meta.Dir(), 0755))
-	assert.NoError(t, baseFs.MkdirAll(meta.ModsFolderPath(cfg), 0755))
-	assert.NoError(t, config.WriteConfig(context.Background(), baseFs, meta, cfg))
-	assert.NoError(t, config.WriteLock(context.Background(), baseFs, meta, []models.ModInstall{}))
-
-	path := filepath.Join(meta.ModsFolderPath(cfg), "bad.jar")
-	assert.NoError(t, afero.WriteFile(baseFs, path, []byte("data"), 0644))
-
-	fs := readErrorFs{Fs: baseFs, failPath: path, err: errors.New("read failed")}
-
-	cmd := &cobra.Command{}
-	cmd.SetOut(&bytes.Buffer{})
-
-	_, err := runScan(context.Background(), cmd, scanOptions{
-		ConfigPath: meta.ConfigPath,
-		Quiet:      true,
-		Prefer:     string(models.MODRINTH),
-	}, scanDeps{
-		fs:     fs,
-		output: output.New(io.Discard, io.Discard, false),
-	})
-	assert.ErrorContains(t, err, "read failed")
-}
-
-func TestRunScanReturnsErrorWhenPrintResultsFails(t *testing.T) {
-	writeErr := errors.New("write failed")
-	baseFs := afero.NewMemMapFs()
-	meta := config.NewMetadata(filepath.FromSlash("/cfg/modlist.json"))
-	cfg := models.ModsJSON{ModsFolder: "mods"}
-	assert.NoError(t, baseFs.MkdirAll(meta.Dir(), 0755))
-	assert.NoError(t, baseFs.MkdirAll(meta.ModsFolderPath(cfg), 0755))
-	assert.NoError(t, config.WriteConfig(context.Background(), baseFs, meta, cfg))
-	assert.NoError(t, config.WriteLock(context.Background(), baseFs, meta, []models.ModInstall{}))
-
-	path := filepath.Join(meta.ModsFolderPath(cfg), "unknown.jar")
-	assert.NoError(t, afero.WriteFile(baseFs, path, []byte("data"), 0644))
-
-	cmd := &cobra.Command{}
-	cmd.SetOut(&bytes.Buffer{})
-
-	_, err := runScan(context.Background(), cmd, scanOptions{
-		ConfigPath: meta.ConfigPath,
-		Quiet:      true,
-		Prefer:     string(models.MODRINTH),
-	}, scanDeps{
-		fs:     baseFs,
-		output: output.New(errorWriter{err: writeErr}, errorWriter{err: writeErr}, false),
-		modrinthVersionForSha: func(context.Context, string, httpclient.Doer) (*modrinth.Version, error) {
-			return nil, &modrinth.VersionNotFoundError{Lookup: *modrinth.NewVersionHashLookup("missing", modrinth.SHA1)}
-		},
-		curseforgeFingerprint: func(string) uint32 { return 101 },
-		curseforgeFingerprintMatch: func(context.Context, []uint32, httpclient.Doer) (*curseforge.FingerprintResult, error) {
-			return nil, errors.New("boom")
-		},
-	})
-	assert.ErrorIs(t, err, writeErr)
-}
-
-func TestRunScanReturnsErrorOnInvalidConfig(t *testing.T) {
-	fs := afero.NewMemMapFs()
-	meta := config.NewMetadata(filepath.FromSlash("/cfg/modlist.json"))
-	assert.NoError(t, fs.MkdirAll(meta.Dir(), 0755))
-	assert.NoError(t, afero.WriteFile(fs, meta.ConfigPath, []byte("{invalid"), 0644))
-
-	cmd := &cobra.Command{}
-	cmd.SetOut(&bytes.Buffer{})
-
-	_, err := runScan(context.Background(), cmd, scanOptions{
-		ConfigPath: meta.ConfigPath,
-		Quiet:      true,
-		Prefer:     string(models.MODRINTH),
-	}, scanDeps{
-		fs:     fs,
-		output: output.New(io.Discard, io.Discard, false),
-	})
-	assert.Error(t, err)
-}
-func TestRunScanReturnsOutputErrorOnInvalidPrefer(t *testing.T) {
-	writeErr := errors.New("write failed")
-	fs := afero.NewMemMapFs()
-	meta := config.NewMetadata(filepath.FromSlash("/cfg/modlist.json"))
-	cfg := models.ModsJSON{ModsFolder: "mods"}
-	assert.NoError(t, fs.MkdirAll(meta.Dir(), 0755))
-	assert.NoError(t, config.WriteConfig(context.Background(), fs, meta, cfg))
-	assert.NoError(t, config.WriteLock(context.Background(), fs, meta, []models.ModInstall{}))
-
-	cmd := &cobra.Command{}
-	cmd.SetOut(&bytes.Buffer{})
-
-	_, err := runScan(context.Background(), cmd, scanOptions{
-		ConfigPath: meta.ConfigPath,
-		Quiet:      true,
-		Prefer:     "unknown",
-	}, scanDeps{
-		fs:     fs,
-		output: output.New(io.Discard, errorWriter{err: writeErr}, false),
-	})
-	assert.ErrorIs(t, err, writeErr)
-}
-
-func TestIdentifyAndPrintCandidatesReturnsErrorOnLookupFailure(t *testing.T) {
-	writeErr := errors.New("write failed")
-	candidates := []scanCandidate{{Path: "/mods/a.jar", FileName: "a.jar", Sha1: "a"}}
-
-	_, err := identifyAndPrintCandidates(context.Background(), output.New(io.Discard, io.Discard, false), io.Discard, models.CURSEFORGE, candidates, scanDeps{
-		logger: logger.New(errorWriter{err: writeErr}, errorWriter{err: writeErr}, false, true),
-		clients: platform.Clients{
-			Curseforge: noopDoer{},
-		},
-		curseforgeFingerprint: func(string) uint32 { return 101 },
-		curseforgeFingerprintMatch: func(context.Context, []uint32, httpclient.Doer) (*curseforge.FingerprintResult, error) {
-			return nil, errors.New("boom")
-		},
-	})
-	assert.ErrorIs(t, err, writeErr)
-}
-
-func TestIdentifyCandidatesReturnsErrorOnLookupFailure(t *testing.T) {
+func TestRunScanExecutionReturnsErrorOnLookupFailure(t *testing.T) {
 	writeErr := errors.New("write failed")
 	candidates := []scanCandidate{{Path: "/mods/a.jar", FileName: "a.jar", Sha1: "a"}}
 	deps := scanDeps{
@@ -1648,11 +1180,16 @@ func TestIdentifyCandidatesReturnsErrorOnLookupFailure(t *testing.T) {
 		},
 	}
 
-	_, err := identifyCandidates(context.Background(), candidates, models.MODRINTH, deps)
-	assert.ErrorIs(t, err, writeErr)
+	input := scanExecutionInput{
+		candidates:     candidates,
+		preferPlatform: models.MODRINTH,
+		deps:           deps,
+	}
+	outcome := runScanExecution(context.Background(), input, scanExecSender{})
+	assert.ErrorIs(t, outcome.err, writeErr)
 }
 
-func TestIdentifyCandidatesReturnsErrorOnFallbackFailure(t *testing.T) {
+func TestRunScanExecutionReturnsErrorOnFallbackFailure(t *testing.T) {
 	writeErr := errors.New("write failed")
 	candidates := []scanCandidate{{Path: "/mods/a.jar", FileName: "a.jar", Sha1: "a"}}
 	deps := scanDeps{
@@ -1666,106 +1203,13 @@ func TestIdentifyCandidatesReturnsErrorOnFallbackFailure(t *testing.T) {
 		},
 	}
 
-	_, err := identifyCandidates(context.Background(), candidates, models.MODRINTH, deps)
-	assert.ErrorIs(t, err, writeErr)
-}
-
-func TestPersistScanMatchesReturnsOutputErrorOnPersistFailure(t *testing.T) {
-	writeErr := errors.New("write failed")
-	fs := afero.NewMemMapFs()
-	meta := config.NewMetadata(filepath.FromSlash("/cfg/modlist.json"))
-	cfg := models.ModsJSON{ModsFolder: "mods"}
-	lock := []models.ModInstall{}
-	setupCoordinator := modsetup.NewSetupCoordinator(fs, nil, nil)
-
-	cmd := &cobra.Command{}
-	cmd.SetOut(&bytes.Buffer{})
-
-	_, err := persistScanMatches(context.Background(), cmd, meta, setupCoordinator, scanDeps{
-		fs:     fs,
-		output: output.New(errorWriter{err: writeErr}, errorWriter{err: writeErr}, false),
-	}, []scanMatch{{
-		Platform:  models.MODRINTH,
-		ProjectID: "abc",
-		FileName:  "mods/bad.jar",
-		Name:      "Example",
-	}}, cfg, lock)
-	assert.ErrorIs(t, err, writeErr)
-}
-
-func TestPrintResultsReturnsOutputErrorOnNoResults(t *testing.T) {
-	writeErr := errors.New("write failed")
-	outWriter := output.New(errorWriter{err: writeErr}, errorWriter{err: writeErr}, false)
-
-	err := printResults(outWriter, &bytes.Buffer{}, models.MODRINTH, nil, nil, nil)
-	assert.ErrorIs(t, err, writeErr)
-}
-
-func TestPrintResultsReturnsErrorOnUnknownOutputFailure(t *testing.T) {
-	writeErr := errors.New("write failed")
-	outWriter := output.New(errorWriter{err: writeErr}, errorWriter{err: writeErr}, false)
-
-	err := printResults(outWriter, &bytes.Buffer{}, models.MODRINTH, nil, []string{"/mods/a.jar"}, nil)
-	assert.ErrorIs(t, err, writeErr)
-}
-
-func TestPrintResultsReturnsErrorOnMatchOutputFailure(t *testing.T) {
-	writeErr := errors.New("write failed")
-	outWriter := output.New(errorWriter{err: writeErr}, errorWriter{err: writeErr}, false)
-
-	err := printResults(outWriter, &bytes.Buffer{}, models.MODRINTH, []scanMatch{
-		{Path: "/mods/a.jar", Platform: models.MODRINTH, ProjectID: "a", Name: "Alpha", FileName: "a.jar"},
-	}, nil, nil)
-	assert.ErrorIs(t, err, writeErr)
-}
-
-func TestPrintResultsReturnsErrorOnUnsureOutputFailure(t *testing.T) {
-	writeErr := errors.New("write failed")
-	outWriter := output.New(errorWriter{err: writeErr}, errorWriter{err: writeErr}, false)
-
-	err := printResults(outWriter, &bytes.Buffer{}, models.MODRINTH, nil, nil, []scanUnsure{{Path: "/mods/a.jar", Error: errors.New("nope")}})
-	assert.ErrorIs(t, err, writeErr)
-}
-func TestPrintMatchResultsReturnsErrorOnEntryFailure(t *testing.T) {
-	writeErr := errors.New("write failed")
-	writer := &errAfterWriter{remaining: 1, err: writeErr}
-	outWriter := output.New(writer, writer, false)
-
-	err := printMatchResults(outWriter, tui.ColorDisabled, []scanMatch{
-		{Path: "/mods/a.jar", Platform: models.MODRINTH, ProjectID: "a", Name: "Alpha", FileName: "a.jar"},
-	})
-	assert.ErrorIs(t, err, writeErr)
-}
-
-func TestPrintUnknownResultsReturnsErrorOnEntryFailure(t *testing.T) {
-	writeErr := errors.New("write failed")
-	writer := &errAfterWriter{remaining: 1, err: writeErr}
-	outWriter := output.New(writer, writer, false)
-
-	err := printUnknownResults(outWriter, tui.ColorDisabled, []string{"/mods/unknown.jar"})
-	assert.ErrorIs(t, err, writeErr)
-}
-
-func TestPrintUnsureResultsReturnsErrorOnEntryFailure(t *testing.T) {
-	writeErr := errors.New("write failed")
-	writer := &errAfterWriter{remaining: 1, err: writeErr}
-	outWriter := output.New(writer, writer, false)
-
-	err := printUnsureResults(outWriter, tui.ColorDisabled, []scanUnsure{{Path: "/mods/unsure.jar", Error: errors.New("nope")}})
-	assert.ErrorIs(t, err, writeErr)
-}
-
-type errAfterWriter struct {
-	remaining int
-	err       error
-}
-
-func (writer *errAfterWriter) Write(value []byte) (int, error) {
-	if writer.remaining == 0 {
-		return 0, writer.err
+	input := scanExecutionInput{
+		candidates:     candidates,
+		preferPlatform: models.MODRINTH,
+		deps:           deps,
 	}
-	writer.remaining--
-	return len(value), nil
+	outcome := runScanExecution(context.Background(), input, scanExecSender{})
+	assert.ErrorIs(t, outcome.err, writeErr)
 }
 
 type statErrorFs struct {
@@ -1806,48 +1250,3 @@ type readErrorFile struct {
 func (file readErrorFile) Read([]byte) (int, error) {
 	return 0, file.err
 }
-
-func TestPickPrompterReturnsNoopWhenPromptDisabled(t *testing.T) {
-	restore := tui.SetIsTerminalFuncForTesting(func(_ int) bool { return true })
-	t.Cleanup(restore)
-
-	tty := fakeTTY{Buffer: &bytes.Buffer{}}
-	prompter := pickPrompter(scanOptions{Unattended: true}, tty, tty)
-	_, ok := prompter.(noopPrompter)
-	assert.True(t, ok)
-}
-
-func TestPickPrompterReturnsTerminalWhenPromptEnabled(t *testing.T) {
-	restore := tui.SetIsTerminalFuncForTesting(func(_ int) bool { return true })
-	t.Cleanup(restore)
-
-	tty := fakeTTY{Buffer: &bytes.Buffer{}}
-	prompter := pickPrompter(scanOptions{}, tty, tty)
-	_, ok := prompter.(terminalPrompter)
-	assert.True(t, ok)
-}
-
-func TestDefaultScanDepsUnattendedUsesNoopPrompter(t *testing.T) {
-	restore := tui.SetIsTerminalFuncForTesting(func(_ int) bool { return true })
-	t.Cleanup(restore)
-
-	cmd := &cobra.Command{}
-	cmd.SetIn(fakeTTY{Buffer: &bytes.Buffer{}})
-	cmd.SetOut(fakeTTY{Buffer: &bytes.Buffer{}})
-
-	deps := defaultScanDeps(cmd, scanOptions{Unattended: true})
-	_, ok := deps.prompter.(noopPrompter)
-	assert.True(t, ok)
-}
-
-func TestConfirmPersistSkipsWhenNoPrompter(t *testing.T) {
-	confirmed, err := confirmPersist(scanOptions{}, scanDeps{})
-	assert.NoError(t, err)
-	assert.False(t, confirmed)
-}
-
-type fakeTTY struct {
-	*bytes.Buffer
-}
-
-func (tty fakeTTY) Fd() uintptr { return 0 }

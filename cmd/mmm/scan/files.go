@@ -59,6 +59,17 @@ func fileIsManaged(filePath string, installations []models.ModInstall) bool {
 	return false
 }
 
+func unmanagedFiles(files []string, lock []models.ModInstall) []string {
+	unmanaged := make([]string, 0, len(files))
+	for _, filePath := range files {
+		if fileIsManaged(filePath, lock) {
+			continue
+		}
+		unmanaged = append(unmanaged, filePath)
+	}
+	return unmanaged
+}
+
 func sha1Candidates(ctx context.Context, fs afero.Fs, files []string) ([]scanCandidate, error) {
 	out := make([]scanCandidate, len(files))
 

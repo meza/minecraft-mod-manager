@@ -115,6 +115,14 @@ If a changeset includes or implies an ADR requirement, request the missing ADR w
 
 - The project must work across Windows, macOS, and Linux. Do not accept platform-specific assumptions unless explicitly justified by the task.
 
+### Language Files Requirement
+
+Language files are an API for translators. Translation authoring cost matters.
+
+- When the changeset modifies `internal/i18n/lang/*.json`, review the language files for maintainability and translator overhead.
+- Duplicated content is a translator tax. If 2 or more keys use identical user-facing content, require generalizing into a reusable key instead of duplicating the same string under many keys.
+- Only allow repeated strings when the meaning is intentionally different and the translation is expected to differ by locale. Treat this as an exception that requires explicit justification by the implementer.
+
 ### Project Behavior Requirement
 
 - When invoked with a specific command and all required arguments, require deterministic CLI behavior and do not accept starting the TUI.

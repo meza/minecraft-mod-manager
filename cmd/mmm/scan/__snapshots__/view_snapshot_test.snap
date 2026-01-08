@@ -1,0 +1,164 @@
+[TestScanViewSnapshots/running - 1]
+cmd.scan.header.running
+⠋ appleskin.jar
+⠋ bc.jar
+⠋ delta.jar
+⠋ flaky.jar
+⠋ inventorysorter.jar
+⠋ lithium-123.23.jar
+⠋ shulkerbox.jar
+⠋ sodium.jar
+⠋ soundsbegone.jar
+⠋ unmanaged.jar
+⠋ zeta.jar
+---
+
+[TestScanViewSnapshots/running_with_sections - 1]
+cmd.scan.header.running
+⠋ lithium-123.23.jar
+⠋ sodium.jar
+
+cmd.scan.section.recognized
+✅ appleskin.jar -> AppleSkin (appleskin) [modrinth]
+✅ bc.jar -> Better Clouds (better-clouds) [modrinth]
+✅ inventorysorter.jar -> Inventory Sorting (inventory-sorting) [modrinth]
+✅ shulkerbox.jar -> Shulker Box Tooltip (shulker-tooltip) [modrinth]
+✅ soundsbegone.jar -> Sounds Be Gone! (sounds-be-gone) [modrinth]
+
+cmd.scan.section.unknown (cmd.scan.section.unknown_note)
+❌ unmanaged-a.jar
+❌ unmanaged-b.jar
+❌ unmanaged-c.jar
+
+cmd.scan.section.unsure (cmd.scan.section.unsure_note)
+❔ flaky-a.jar
+❔ flaky-b.jar
+❔ flaky-c.jar
+---
+
+[TestScanViewSnapshots/results - 1]
+cmd.scan.header.results
+
+cmd.scan.section.recognized
+✅ appleskin.jar -> AppleSkin (appleskin) [modrinth]
+✅ bc.jar -> Better Clouds (better-clouds) [modrinth]
+✅ inventorysorter.jar -> Inventory Sorting (inventory-sorting) [modrinth]
+✅ lithium-123.23.jar -> Lithium (lithium) [modrinth]
+✅ shulkerbox.jar -> Shulker Box Tooltip (shulker-tooltip) [modrinth]
+✅ sodium.jar -> Sodium (sodium) [modrinth]
+✅ soundsbegone.jar -> Sounds Be Gone! (sounds-be-gone) [modrinth]
+
+cmd.scan.section.unknown (cmd.scan.section.unknown_note)
+❌ unmanaged-a.jar
+❌ unmanaged-b.jar
+❌ unmanaged-c.jar
+❌ unmanaged-d.jar
+
+cmd.scan.section.unsure (cmd.scan.section.unsure_note)
+❔ flaky-a.jar
+❔ flaky-b.jar
+❔ flaky-c.jar
+---
+
+[TestScanViewSnapshots/adoption_prompt - 1]
+cmd.scan.header.results
+
+cmd.scan.section.recognized
+✅ appleskin.jar -> AppleSkin (appleskin) [modrinth]
+✅ bc.jar -> Better Clouds (better-clouds) [modrinth]
+✅ inventorysorter.jar -> Inventory Sorting (inventory-sorting) [modrinth]
+✅ soundsbegone.jar -> Sounds Be Gone! (sounds-be-gone) [modrinth]
+
+cmd.scan.section.unknown (cmd.scan.section.unknown_note)
+❌ unmanaged-a.jar
+❌ unmanaged-b.jar
+❌ unmanaged-c.jar
+
+cmd.scan.section.unsure (cmd.scan.section.unsure_note)
+❔ flaky-a.jar
+❔ flaky-b.jar
+❔ flaky-c.jar
+
+? cmd.scan.prompt.add cmd.init.prompt.confirm.suffix            
+
+key.enter key.help.accept • key.ctrl_c/key.esc key.help.quit
+---
+
+[TestScanViewSnapshots/adoption_written - 1]
+cmd.scan.header.results
+
+cmd.scan.section.unknown (cmd.scan.section.unknown_note)
+❌ unmanaged-A.jar
+❌ unmanaged-B.jar
+❌ unmanaged-C.jar
+
+cmd.scan.section.unsure (cmd.scan.section.unsure_note)
+❔ flaky-a.jar
+❔ flaky-b.jar
+❔ flaky-c.jar
+
+? cmd.scan.prompt.add cmd.init.prompt.confirm.suffix cmd.init.prompt.option.yes.short
+
+cmd.scan.section.added
+✅ AppleSkin (appleskin) [modrinth]
+✅ Better Clouds (better-clouds) [modrinth]
+✅ Inventory Sorting (inventory-sorting) [modrinth]
+✅ Lithium (lithium) [modrinth]
+✅ Sodium (sodium) [modrinth]
+✅ Sounds Be Gone! (sounds-be-gone) [modrinth]
+---
+
+[TestScanViewSnapshots/failure - 1]
+‼️ cmd.scan.error.failed, Arg 1: {Count: 0, Data: &map[reason:boom]}
+---
+
+[TestScanViewSnapshots/unattended_results - 1]
+cmd.scan.header.results
+
+cmd.scan.section.recognized
+✅ appleskin.jar -> AppleSkin (appleskin) [modrinth]
+✅ inventorysorter.jar -> Inventory Sorting (inventory-sorting) [modrinth]
+✅ lithium-123.23.jar -> Lithium (lithium) [modrinth]
+---
+
+[TestScanViewSnapshots/unattended_add - 1]
+cmd.scan.header.results
+
+cmd.scan.section.unknown (cmd.scan.section.unknown_note)
+❌ unmanaged-A.jar
+❌ unmanaged-B.jar
+❌ unmanaged-C.jar
+
+cmd.scan.section.unsure (cmd.scan.section.unsure_note)
+❔ flaky-a.jar
+❔ flaky-b.jar
+
+cmd.scan.section.added
+✅ AppleSkin (appleskin) [modrinth]
+✅ Inventory Sorting (inventory-sorting) [modrinth]
+✅ Lithium (lithium) [modrinth]
+---
+
+[TestScanViewSnapshots/non_tty_results - 1]
+cmd.scan.header.results
+
+cmd.scan.section.recognized
+✅ appleskin.jar -> AppleSkin (appleskin) [modrinth]
+✅ inventorysorter.jar -> Inventory Sorting (inventory-sorting) [modrinth]
+✅ lithium-123.23.jar -> Lithium (lithium) [modrinth]
+---
+
+[TestScanViewSnapshots/quiet_unknown_unsure - 1]
+cmd.scan.section.unknown (cmd.scan.section.unknown_note)
+❌ unmanaged-A.jar
+❌ unmanaged-B.jar
+❌ unmanaged-C.jar
+
+cmd.scan.section.unsure (cmd.scan.section.unsure_note)
+❔ flaky-a.jar
+❔ flaky-b.jar
+---
+
+[TestScanViewSnapshots/quiet_add_no_output - 1]
+
+---
