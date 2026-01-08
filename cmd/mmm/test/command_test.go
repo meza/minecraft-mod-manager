@@ -8,16 +8,14 @@ import (
 	"testing"
 
 	"github.com/meza/minecraft-mod-manager/internal/clierrors"
+	"github.com/meza/minecraft-mod-manager/internal/output"
 	"github.com/spf13/cobra"
 	"github.com/stretchr/testify/assert"
-
-	"github.com/meza/minecraft-mod-manager/internal/output"
-	tui "github.com/meza/minecraft-mod-manager/internal/view"
 )
 
 func TestCommandWithRunnerMissingConfigFlagErrors(t *testing.T) {
-	cmd := commandWithRunner(func(ctx context.Context, cmd *cobra.Command, opts testOptions, deps testDeps) (int, error) {
-		return 0, nil
+	cmd := commandWithRunner(func(ctx context.Context, cmd *cobra.Command, opts testOptions, deps testDeps) (Result, error) {
+		return Result{}, nil
 	})
 	setCommandOutputForTesting(cmd)
 	cmd.SetArgs([]string{})
@@ -26,8 +24,8 @@ func TestCommandWithRunnerMissingConfigFlagErrors(t *testing.T) {
 }
 
 func TestCommandWithRunnerMissingUnattendedFlagErrors(t *testing.T) {
-	cmd := commandWithRunner(func(ctx context.Context, cmd *cobra.Command, opts testOptions, deps testDeps) (int, error) {
-		return 0, nil
+	cmd := commandWithRunner(func(ctx context.Context, cmd *cobra.Command, opts testOptions, deps testDeps) (Result, error) {
+		return Result{}, nil
 	})
 	cmd.PersistentFlags().StringP("config", "c", "modlist.json", "config")
 	setCommandOutputForTesting(cmd)
@@ -37,8 +35,8 @@ func TestCommandWithRunnerMissingUnattendedFlagErrors(t *testing.T) {
 }
 
 func TestCommandWithRunnerMissingQuietFlagErrors(t *testing.T) {
-	cmd := commandWithRunner(func(ctx context.Context, cmd *cobra.Command, opts testOptions, deps testDeps) (int, error) {
-		return 0, nil
+	cmd := commandWithRunner(func(ctx context.Context, cmd *cobra.Command, opts testOptions, deps testDeps) (Result, error) {
+		return Result{}, nil
 	})
 	cmd.PersistentFlags().StringP("config", "c", "modlist.json", "config")
 	cmd.PersistentFlags().Bool("unattended", false, "unattended")
@@ -49,8 +47,8 @@ func TestCommandWithRunnerMissingQuietFlagErrors(t *testing.T) {
 }
 
 func TestCommandWithRunnerMissingDebugFlagErrors(t *testing.T) {
-	cmd := commandWithRunner(func(ctx context.Context, cmd *cobra.Command, opts testOptions, deps testDeps) (int, error) {
-		return 0, nil
+	cmd := commandWithRunner(func(ctx context.Context, cmd *cobra.Command, opts testOptions, deps testDeps) (Result, error) {
+		return Result{}, nil
 	})
 	cmd.PersistentFlags().StringP("config", "c", "modlist.json", "config")
 	cmd.PersistentFlags().Bool("unattended", false, "unattended")
@@ -62,8 +60,8 @@ func TestCommandWithRunnerMissingDebugFlagErrors(t *testing.T) {
 }
 
 func TestCommandWithRunnerSuccess(t *testing.T) {
-	cmd := commandWithRunner(func(ctx context.Context, cmd *cobra.Command, opts testOptions, deps testDeps) (int, error) {
-		return 0, nil
+	cmd := commandWithRunner(func(ctx context.Context, cmd *cobra.Command, opts testOptions, deps testDeps) (Result, error) {
+		return Result{}, nil
 	})
 	addPersistentFlagsForTesting(cmd)
 	setCommandOutputForTesting(cmd)
@@ -74,22 +72,9 @@ func TestCommandWithRunnerSuccess(t *testing.T) {
 	assert.False(t, cmd.SilenceErrors)
 }
 
-func TestCommandWithRunnerExitCodeErrorSilencesErrors(t *testing.T) {
-	cmd := commandWithRunner(func(ctx context.Context, cmd *cobra.Command, opts testOptions, deps testDeps) (int, error) {
-		return 2, clierrors.MarkHandled(errSameVersion)
-	})
-	addPersistentFlagsForTesting(cmd)
-	setCommandOutputForTesting(cmd)
-	cmd.SetArgs([]string{})
-
-	assert.Error(t, cmd.Execute())
-	assert.True(t, cmd.SilenceUsage)
-	assert.True(t, cmd.SilenceErrors)
-}
-
 func TestCommandWithRunnerInvalidVersionSilencesErrors(t *testing.T) {
-	cmd := commandWithRunner(func(ctx context.Context, cmd *cobra.Command, opts testOptions, deps testDeps) (int, error) {
-		return 1, clierrors.MarkHandled(errInvalidVersion)
+	cmd := commandWithRunner(func(ctx context.Context, cmd *cobra.Command, opts testOptions, deps testDeps) (Result, error) {
+		return Result{ExitCode: 1}, clierrors.MarkHandled(errInvalidVersion)
 	})
 	addPersistentFlagsForTesting(cmd)
 	setCommandOutputForTesting(cmd)
@@ -101,8 +86,8 @@ func TestCommandWithRunnerInvalidVersionSilencesErrors(t *testing.T) {
 }
 
 func TestCommandWithRunnerLatestVersionRequiredSilencesErrors(t *testing.T) {
-	cmd := commandWithRunner(func(ctx context.Context, cmd *cobra.Command, opts testOptions, deps testDeps) (int, error) {
-		return 1, clierrors.MarkHandled(errLatestVersionRequired)
+	cmd := commandWithRunner(func(ctx context.Context, cmd *cobra.Command, opts testOptions, deps testDeps) (Result, error) {
+		return Result{ExitCode: 1}, clierrors.MarkHandled(errLatestVersionRequired)
 	})
 	addPersistentFlagsForTesting(cmd)
 	setCommandOutputForTesting(cmd)
@@ -114,8 +99,8 @@ func TestCommandWithRunnerLatestVersionRequiredSilencesErrors(t *testing.T) {
 }
 
 func TestCommandWithRunnerGenericErrorDoesNotSilence(t *testing.T) {
-	cmd := commandWithRunner(func(ctx context.Context, cmd *cobra.Command, opts testOptions, deps testDeps) (int, error) {
-		return 1, errors.New("boom")
+	cmd := commandWithRunner(func(ctx context.Context, cmd *cobra.Command, opts testOptions, deps testDeps) (Result, error) {
+		return Result{ExitCode: 1}, errors.New("boom")
 	})
 	addPersistentFlagsForTesting(cmd)
 	setCommandOutputForTesting(cmd)
@@ -126,16 +111,13 @@ func TestCommandWithRunnerGenericErrorDoesNotSilence(t *testing.T) {
 	assert.False(t, cmd.SilenceErrors)
 }
 
-func TestCommandWithRunnerUsesPlainOutputWhenTerminal(t *testing.T) {
-	restore := tui.SetIsTerminalFuncForTesting(func(_ int) bool { return true })
-	defer restore()
-
-	outputWriter := &terminalWriter{}
-	cmd := commandWithRunner(func(_ context.Context, _ *cobra.Command, _ testOptions, deps testDeps) (int, error) {
-		return 0, deps.output.Log("hello", output.LogForce)
+func TestCommandWithRunnerUsesPlainOutputWhenNonTTY(t *testing.T) {
+	outputWriter := &bytes.Buffer{}
+	cmd := commandWithRunner(func(_ context.Context, _ *cobra.Command, _ testOptions, deps testDeps) (Result, error) {
+		return Result{}, deps.output.Log("hello", output.LogForce)
 	})
 	addPersistentFlagsForTesting(cmd)
-	cmd.SetIn(terminalReader{Reader: bytes.NewBuffer(nil)})
+	cmd.SetIn(bytes.NewBuffer(nil))
 	cmd.SetOut(outputWriter)
 	cmd.SetErr(io.Discard)
 	cmd.SetArgs([]string{"1.20.1"})
@@ -145,26 +127,18 @@ func TestCommandWithRunnerUsesPlainOutputWhenTerminal(t *testing.T) {
 }
 
 func TestCommandWithRunnerQuietSuppressesOutput(t *testing.T) {
-	restore := tui.SetIsTerminalFuncForTesting(func(_ int) bool { return true })
-	defer restore()
-
-	outputWriter := &terminalWriter{}
-	cmd := commandWithRunner(func(_ context.Context, _ *cobra.Command, _ testOptions, deps testDeps) (int, error) {
-		return 0, deps.output.Log("quiet", output.LogQuiet)
+	outputWriter := &bytes.Buffer{}
+	cmd := commandWithRunner(func(_ context.Context, _ *cobra.Command, _ testOptions, deps testDeps) (Result, error) {
+		return Result{}, deps.output.Log("quiet", output.LogQuiet)
 	})
 	addPersistentFlagsForTesting(cmd)
-	cmd.SetIn(terminalReader{Reader: bytes.NewBuffer(nil)})
+	cmd.SetIn(bytes.NewBuffer(nil))
 	cmd.SetOut(outputWriter)
 	cmd.SetErr(io.Discard)
 	cmd.SetArgs([]string{"--unattended", "--quiet", "1.20.1"})
 
 	assert.NoError(t, cmd.Execute())
 	assert.Empty(t, outputWriter.String())
-}
-
-func TestExitCodeErrorMessage(t *testing.T) {
-	err := &exitCodeError{code: 3}
-	assert.Equal(t, "exit code 3", err.Error())
 }
 
 func addPersistentFlagsForTesting(cmd *cobra.Command) {
@@ -177,20 +151,4 @@ func addPersistentFlagsForTesting(cmd *cobra.Command) {
 func setCommandOutputForTesting(cmd *cobra.Command) {
 	cmd.SetOut(io.Discard)
 	cmd.SetErr(io.Discard)
-}
-
-type terminalReader struct {
-	io.Reader
-}
-
-func (terminalReader) Fd() uintptr {
-	return 0
-}
-
-type terminalWriter struct {
-	bytes.Buffer
-}
-
-func (writer *terminalWriter) Fd() uintptr {
-	return 1
 }

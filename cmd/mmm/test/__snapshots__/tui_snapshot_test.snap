@@ -1,7 +1,0 @@
-
-[TestTestTUILogSnapshot - 1]
-cmd.test.missing_support_header, Arg 1: {Count: 0, Data: &map[version:1.20.1]}
-❌ Alpha Mod (mod-a)
-❌ Beta Mod (mod-b)
-cmd.test.cannot_upgrade, Arg 1: {Count: 0, Data: &map[version:1.20.1]}
----

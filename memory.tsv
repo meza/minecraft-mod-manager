@@ -1094,3 +1094,10 @@ mmm-155: added exclusive partitioning for change sections and appended ANSI clea
 2026-01-07	23:02	Updated MMM-30 with non-tty ctrl+c availability note (SIGINT via supervisor).
 2026-01-07	23:03	Updated MMM-30 success-criteria line with non-tty SIGINT nuance.
 2026-01-07	23:04	Reframed MMM-30 around cancellation (title + description), added explicit signal handling section.
+2026-01-07	23:18	Stakeholder alignment for mmm-163: test is informational-only (Compatibility portion of change), mixed failures end with compatibility-incomplete guidance only, no-op exit code is 0; after context compaction, continue work without re-alignment.
+2026-01-08	00:00	mmm-163: user confirmed requirements are intentional, no-op exit code is 0, test-02 updated in docs and authoritative, and after context compaction continue work without re-alignment; ticket description updated.
+2026-01-08	10:59	mmm-163: refactor test running view to use viewport with sticky header/compatibility and update unit/PTY tests to catch missing header and truncated list.
+2026-01-08	11:10	mmm-163: implemented viewport-based running view with sticky header/compatibility, removed trimming, added viewport clamp tests and PTY delay to capture running frame; make fmt/lint/coverage/build pass.
+2026-01-08	16:28	mmm-163: PTY snapshot tests required for test output; failing snapshot shows final transcript missing header/compatible list without scroll (TestTestCommandInteractivePTYFinalTranscriptIncludesSummaryWithoutScroll).
+2026-01-08	16:48	mmm-163: expanded test PTY snapshots (running/final across short/medium/tall heights) and normalized PTY snapshots; make coverage now fails only on TestTestCommandInteractivePTYFinalTranscriptIncludesSummaryWithoutScroll (missing header/compat).
+2026-01-08	18:11	mmm-163: reviewer wants .beads/issues.jsonl removed from changeset; all new cmd/mmm/test files are now tracked. Awaiting user guidance on reverting/stashing .beads update.

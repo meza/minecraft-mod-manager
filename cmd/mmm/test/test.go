@@ -3,12 +3,11 @@ package test
 import (
 	"context"
 	"errors"
-	"fmt"
-	"strings"
 
+	tea "github.com/charmbracelet/bubbletea"
+	initCmd "github.com/meza/minecraft-mod-manager/cmd/mmm/init"
 	"github.com/meza/minecraft-mod-manager/internal/clierrors"
 	"github.com/meza/minecraft-mod-manager/internal/cmddeps"
-	"github.com/meza/minecraft-mod-manager/internal/config"
 	"github.com/meza/minecraft-mod-manager/internal/httpclient"
 	"github.com/meza/minecraft-mod-manager/internal/i18n"
 	"github.com/meza/minecraft-mod-manager/internal/logger"
@@ -18,14 +17,14 @@ import (
 	"github.com/meza/minecraft-mod-manager/internal/perf"
 	"github.com/meza/minecraft-mod-manager/internal/platform"
 	"github.com/meza/minecraft-mod-manager/internal/telemetry"
-	tui "github.com/meza/minecraft-mod-manager/internal/view"
 	"github.com/spf13/afero"
 	"github.com/spf13/cobra"
 	"go.opentelemetry.io/otel/attribute"
-	"golang.org/x/sync/errgroup"
 )
 
 const defaultTestMaxConcurrency = 4
+
+var runInteractiveInit = initCmd.RunInteractiveInit
 
 type testOptions struct {
 	ConfigPath  string
@@ -33,18 +32,26 @@ type testOptions struct {
 	Unattended  bool
 	Quiet       bool
 	Debug       bool
-	Force       bool
 }
 
+type initRequest struct {
+	configPath string
+}
+
+type initRunner func(context.Context, *cobra.Command, initRequest) error
+
 type testDeps struct {
-	fs             afero.Fs
-	logger         *logger.Logger
-	output         *output.Output
-	clients        platform.Clients
-	fetchMod       fetcher
-	latestVersion  latestVersionFetcher
-	isValidVersion versionValidator
-	telemetry      func(telemetry.CommandTelemetry)
+	fs              afero.Fs
+	logger          *logger.Logger
+	output          *output.Output
+	clients         platform.Clients
+	minecraftClient httpclient.Doer
+	fetchMod        fetcher
+	latestVersion   latestVersionFetcher
+	isValidVersion  versionValidator
+	telemetry       func(telemetry.CommandTelemetry)
+	runTea          func(model tea.Model, options ...tea.ProgramOption) (tea.Model, error)
+	runInit         initRunner
 }
 
 type fetcher func(context.Context, models.Platform, string, platform.FetchOptions, platform.Clients) (platform.RemoteMod, error)
@@ -56,28 +63,9 @@ type versionValidator func(context.Context, string, httpclient.Doer) (bool, erro
 var errInvalidVersion = errors.New("invalid minecraft version")
 var errLatestVersionRequired = errors.New("could not determine latest version: please provide an explicit version")
 var errVersionValidationUnavailable = errors.New("could not verify minecraft version")
+var errUnsupportedMods = errors.New("unsupported mods")
 
-// exitCodeError is a private error type that carries a specific exit code.
-// Used for the "same version" case (exit code 2) where we need a non-standard exit code
-// but the condition is not a failure.
-type exitCodeError struct {
-	code int
-}
-
-func (exitError *exitCodeError) Error() string {
-	return fmt.Sprintf("exit code %d", exitError.code)
-}
-
-func (exitError *exitCodeError) ExitCode() int {
-	return exitError.code
-}
-
-// errSameVersion signals that the target version matches the current config version.
-// This is a special case that returns exit code 2 per spec.
-var errSameVersion = &exitCodeError{code: 2}
-var errUnsupportedMods = &exitCodeError{code: 1}
-
-type testRunner func(context.Context, *cobra.Command, testOptions, testDeps) (int, error)
+type testRunner func(context.Context, *cobra.Command, testOptions, testDeps) (Result, error)
 
 type Options = testOptions
 type Deps = testDeps
@@ -86,6 +74,7 @@ type Result struct {
 	TargetVersion   string
 	ExitCode        int
 	UnsupportedMods []models.Mod
+	Interactive     bool
 }
 
 func Command() *cobra.Command {
@@ -116,18 +105,14 @@ func runTestCommand(cmd *cobra.Command, args []string, runner testRunner) error 
 		return err
 	}
 
-	common := cmddeps.NewCommonDeps(cmd, cmddeps.CommonDepsOptions{
-		Quiet: opts.Quiet,
-		Debug: opts.Debug,
-	})
-	deps := newTestDeps(common)
+	deps := defaultTestDeps(cmd, opts)
 
-	exitCode, err := runner(ctx, cmd, opts, deps)
+	result, err := runner(ctx, cmd, opts, deps)
 	span.SetAttributes(attribute.Bool("success", err == nil))
 	span.End()
 
 	handleTestCommandError(cmd, err)
-	recordTestTelemetry(deps.telemetry, opts.GameVersion, exitCode, err)
+	recordTestTelemetry(deps.telemetry, result, err)
 	return err
 }
 
@@ -167,15 +152,44 @@ func resolveGameVersion(args []string) string {
 
 func newTestDeps(common cmddeps.CommonDeps) testDeps {
 	return testDeps{
-		fs:             common.FS,
-		logger:         common.Logger,
-		output:         common.Output,
-		clients:        common.Clients,
-		fetchMod:       platform.FetchMod,
-		latestVersion:  minecraft.GetLatestVersion,
-		isValidVersion: minecraft.IsValidVersion,
-		telemetry:      telemetry.RecordCommand,
+		fs:              common.FS,
+		logger:          common.Logger,
+		output:          common.Output,
+		clients:         common.Clients,
+		minecraftClient: common.MinecraftClient,
+		fetchMod:        platform.FetchMod,
+		latestVersion:   minecraft.GetLatestVersion,
+		isValidVersion:  minecraft.IsValidVersion,
+		telemetry:       telemetry.RecordCommand,
+		runTea:          defaultRunTea,
 	}
+}
+
+func defaultTestDeps(cmd *cobra.Command, opts testOptions) testDeps {
+	common := cmddeps.NewCommonDeps(cmd, cmddeps.CommonDepsOptions{
+		Quiet: opts.Quiet,
+		Debug: opts.Debug,
+	})
+
+	deps := newTestDeps(common)
+	deps.runInit = func(ctx context.Context, command *cobra.Command, request initRequest) error {
+		if runInteractiveInit == nil {
+			return errors.New("missing init runner")
+		}
+		return runInteractiveInit(ctx, command, initCmd.InteractiveInitDeps{
+			FS:              common.FS,
+			Output:          common.Output,
+			Logger:          common.Logger,
+			MinecraftClient: common.MinecraftClient,
+			RunTea:          defaultRunTea,
+		}, initCmd.InteractiveInitOptions{
+			ConfigPath: request.configPath,
+			Quiet:      opts.Quiet,
+			Debug:      opts.Debug,
+		})
+	}
+
+	return deps
 }
 
 func NewDeps(common cmddeps.CommonDeps) Deps {
@@ -193,507 +207,17 @@ func handleTestCommandError(cmd *cobra.Command, err error) {
 	}
 }
 
-func recordTestTelemetry(telemetryRecorder func(telemetry.CommandTelemetry), gameVersion string, exitCode int, err error) {
+func recordTestTelemetry(telemetryRecorder func(telemetry.CommandTelemetry), result Result, err error) {
 	payload := telemetry.CommandTelemetry{
 		Command:     "test",
-		Success:     err == nil && exitCode == 0,
+		Success:     err == nil && result.ExitCode == 0,
 		Error:       err,
-		ExitCode:    exitCode,
-		Interactive: false,
+		ExitCode:    result.ExitCode,
+		Interactive: result.Interactive,
 		Extra: map[string]interface{}{
-			"targetVersion": gameVersion,
-			"exitCode":      exitCode,
+			"targetVersion": result.TargetVersion,
+			"exitCode":      result.ExitCode,
 		},
 	}
 	telemetryRecorder(payload)
-}
-
-type modCheckCandidate struct {
-	ConfigIndex int
-	Mod         models.Mod
-}
-
-type modCheckOutcome struct {
-	ConfigIndex int
-	Mod         models.Mod
-	Supported   bool
-	LogEvents   []logEvent
-}
-
-type logEventKind int
-
-const (
-	logEventKindError logEventKind = iota
-	logEventKindDebug
-)
-
-type logEvent struct {
-	Kind      logEventKind
-	Message   string
-	ForceShow bool
-}
-
-func runTest(ctx context.Context, cmd *cobra.Command, opts testOptions, deps testDeps) (int, error) {
-	colorMode := tui.ColorDisabled
-	if tui.IsTerminalWriter(cmd.OutOrStdout()) {
-		colorMode = tui.ColorEnabled
-	}
-
-	result, err := runTestWithResult(ctx, opts, deps, colorMode)
-	return result.ExitCode, err
-}
-
-func RunWithDeps(ctx context.Context, _ *cobra.Command, opts Options, deps Deps, colorMode tui.ColorMode) (Result, error) {
-	return runTestWithResult(ctx, opts, deps, colorMode)
-}
-
-func runTestWithResult(ctx context.Context, opts testOptions, deps testDeps, colorMode tui.ColorMode) (Result, error) {
-	meta := config.NewMetadata(opts.ConfigPath)
-
-	cfg, err := config.ReadConfig(ctx, deps.fs, meta)
-	if err != nil {
-		return Result{ExitCode: 1}, err
-	}
-
-	targetVersion, exitCode, err := resolveTargetVersion(ctx, cfg, opts, deps)
-	if err != nil {
-		return Result{ExitCode: exitCode, TargetVersion: targetVersion}, err
-	}
-
-	if len(cfg.Mods) == 0 {
-		if outputErr := logTestSuccess(targetVersion, deps); outputErr != nil {
-			return Result{ExitCode: 0, TargetVersion: targetVersion}, outputErr
-		}
-		return Result{ExitCode: 0, TargetVersion: targetVersion}, nil
-	}
-
-	outcomes, err := collectOutcomes(ctx, cfg, targetVersion, deps)
-	if err != nil {
-		return Result{ExitCode: 0, TargetVersion: targetVersion}, err
-	}
-
-	unsupported, err := logOutcomes(outcomes, deps)
-	if err != nil {
-		return Result{ExitCode: 0, TargetVersion: targetVersion}, err
-	}
-
-	if opts.Force {
-		forcedResult, forceErr := handleForcedTestResult(targetVersion, unsupported, deps, colorMode)
-		if forceErr != nil {
-			return forcedResult, forceErr
-		}
-		return forcedResult, nil
-	}
-
-	exitCode, err = evaluateTestOutcomes(targetVersion, unsupported, deps, colorMode)
-
-	return Result{
-		TargetVersion:   targetVersion,
-		ExitCode:        exitCode,
-		UnsupportedMods: toUnsupportedMods(unsupported),
-	}, err
-}
-
-func checkMod(
-	ctx context.Context,
-	cfg models.ModsJSON,
-	candidate modCheckCandidate,
-	targetVersion string,
-	deps testDeps,
-) modCheckOutcome {
-	mod := candidate.Mod
-
-	outcome := modCheckOutcome{
-		ConfigIndex: candidate.ConfigIndex,
-		Mod:         mod,
-		Supported:   true,
-	}
-
-	outcome.LogEvents = append(outcome.LogEvents, logEvent{
-		Kind: logEventKindDebug,
-		Message: i18n.T("cmd.test.debug.checking", &i18n.Tvars{
-			Data: &i18n.TData{
-				"name":     mod.Name,
-				"platform": string(mod.Type),
-				"version":  targetVersion,
-			},
-		}),
-	})
-
-	fetchOpts := platform.FetchOptions{
-		AllowedReleaseTypes: models.EffectiveAllowedReleaseTypes(mod, cfg),
-		GameVersion:         targetVersion,
-		Loader:              cfg.Loader,
-		AllowFallback:       mod.AllowVersionFallback != nil && *mod.AllowVersionFallback,
-	}
-
-	if mod.Version != nil && strings.TrimSpace(*mod.Version) != "" {
-		fetchOpts.FixedVersion = *mod.Version
-	}
-
-	_, fetchErr := deps.fetchMod(ctx, mod.Type, mod.ID, fetchOpts, deps.clients)
-	if fetchErr != nil {
-		outcome.Supported = false
-		outcome.LogEvents = append(outcome.LogEvents, fetchFailureUserEvent(fetchErr, mod))
-		if detailEvent, ok := fetchFailureDetailEvent(fetchErr, mod); ok {
-			outcome.LogEvents = append(outcome.LogEvents, detailEvent)
-		}
-
-		if debugEvent, ok := fetchFailureDebugEvent(fetchErr, mod, cfg, targetVersion, fetchOpts); ok {
-			outcome.LogEvents = append(outcome.LogEvents, debugEvent)
-		}
-	}
-
-	return outcome
-}
-
-func fetchFailureDetails(mod models.Mod, cfg models.ModsJSON, targetVersion string, opts platform.FetchOptions) string {
-	fixedVersion := strings.TrimSpace(opts.FixedVersion)
-	if fixedVersion == "" {
-		fixedVersion = "none"
-	}
-	return fmt.Sprintf("id=%s version=%s loader=%s releases=%s fixedVersion=%s allowFallback=%t",
-		mod.ID,
-		targetVersion,
-		cfg.Loader,
-		formatReleaseTypes(opts.AllowedReleaseTypes),
-		fixedVersion,
-		opts.AllowFallback,
-	)
-}
-
-func formatReleaseTypes(releaseTypes []models.ReleaseType) string {
-	if len(releaseTypes) == 0 {
-		return "none"
-	}
-	entries := make([]string, 0, len(releaseTypes))
-	for _, releaseType := range releaseTypes {
-		entries = append(entries, string(releaseType))
-	}
-	return strings.Join(entries, ",")
-}
-
-func fetchFailureUserEvent(fetchErr error, mod models.Mod) logEvent {
-	var notFound *platform.ModNotFoundError
-	if errors.As(fetchErr, &notFound) {
-		return logEvent{
-			Kind: logEventKindDebug,
-			Message: i18n.T("cmd.test.error.mod_not_found", &i18n.Tvars{
-				Data: &i18n.TData{
-					"name":     mod.Name,
-					"id":       mod.ID,
-					"platform": string(mod.Type),
-				},
-			}),
-		}
-	}
-
-	var noFile *platform.NoCompatibleFileError
-	if errors.As(fetchErr, &noFile) {
-		return logEvent{
-			Kind: logEventKindDebug,
-			Message: i18n.T("cmd.test.error.no_file", &i18n.Tvars{
-				Data: &i18n.TData{
-					"name":     mod.Name,
-					"id":       mod.ID,
-					"platform": string(mod.Type),
-				},
-			}),
-		}
-	}
-
-	summary, ok := clierrors.SummarizePlatformError(fetchErr, mod.Type)
-	reason := i18n.T("cmd.platform.error.reason.unknown", &i18n.Tvars{
-		Data: &i18n.TData{"platform": string(mod.Type)},
-	})
-	if ok && strings.TrimSpace(summary.Reason) != "" {
-		reason = summary.Reason
-	}
-
-	return logEvent{
-		Kind: logEventKindError,
-		Message: i18n.T("cmd.test.error.platform", &i18n.Tvars{
-			Data: &i18n.TData{
-				"name":     mod.Name,
-				"platform": string(mod.Type),
-				"reason":   reason,
-			},
-		}),
-	}
-}
-
-func fetchFailureDetailEvent(fetchErr error, mod models.Mod) (logEvent, bool) {
-	if fetchErr == nil {
-		return logEvent{}, false
-	}
-
-	var notFound *platform.ModNotFoundError
-	if errors.As(fetchErr, &notFound) {
-		return logEvent{}, false
-	}
-
-	var noFile *platform.NoCompatibleFileError
-	if errors.As(fetchErr, &noFile) {
-		return logEvent{}, false
-	}
-
-	summary, _ := clierrors.SummarizePlatformError(fetchErr, mod.Type)
-
-	details := summary.DebugDetails
-	if strings.TrimSpace(details) == "" {
-		details = fetchErr.Error()
-	}
-	if strings.TrimSpace(details) == "" {
-		return logEvent{}, false
-	}
-
-	return logEvent{
-		Kind: logEventKindError,
-		Message: i18n.T("cmd.test.error.platform_details", &i18n.Tvars{
-			Data: &i18n.TData{
-				"name":     mod.Name,
-				"platform": string(mod.Type),
-				"details":  details,
-			},
-		}),
-	}, true
-}
-
-func fetchFailureDebugEvent(fetchErr error, mod models.Mod, cfg models.ModsJSON, targetVersion string, opts platform.FetchOptions) (logEvent, bool) {
-	details := fetchFailureDetails(mod, cfg, targetVersion, opts)
-	debugError := fetchErr.Error()
-	if summary, ok := clierrors.SummarizePlatformError(fetchErr, mod.Type); ok && strings.TrimSpace(summary.DebugDetails) != "" {
-		debugError = summary.DebugDetails
-	}
-	return logEvent{
-		Kind: logEventKindDebug,
-		Message: i18n.T("cmd.test.debug.platform_error", &i18n.Tvars{
-			Data: &i18n.TData{
-				"name":     mod.Name,
-				"platform": string(mod.Type),
-				"error":    debugError,
-				"details":  details,
-			},
-		}),
-	}, true
-}
-
-func formatMissingModEntry(mod models.Mod, colorMode tui.ColorMode) string {
-	icon := tui.ErrorIcon(colorMode)
-	name := mod.Name
-	id := mod.ID
-
-	// Use PlaceholderStyle color without padding to allow explicit spacing control
-	grayStyle := tui.PlaceholderStyle.UnsetPaddingLeft()
-	idPart := tui.RenderIfColorEnabled(colorMode, grayStyle, fmt.Sprintf("(%s)", id))
-	return fmt.Sprintf("%s %s %s", icon, name, idPart)
-}
-
-func resolveTargetVersion(ctx context.Context, cfg models.ModsJSON, opts testOptions, deps testDeps) (string, int, error) {
-	targetVersion := opts.GameVersion
-
-	if strings.EqualFold(targetVersion, "latest") {
-		latest, err := resolveLatestVersion(ctx, deps)
-		if err != nil {
-			return "", 0, err
-		}
-		targetVersion = latest
-	}
-
-	valid, validationErr := deps.isValidVersion(ctx, targetVersion, deps.clients.Modrinth)
-	if validationErr != nil {
-		if outputErr := deps.output.Error(i18n.T("cmd.test.error.version_unavailable", nil)); outputErr != nil {
-			return "", 0, outputErr
-		}
-		return "", 0, clierrors.MarkHandled(errVersionValidationUnavailable)
-	}
-	if !valid {
-		if outputErr := deps.output.Error(i18n.T("cmd.test.error.invalid_version", &i18n.Tvars{
-			Data: &i18n.TData{"version": targetVersion},
-		})); outputErr != nil {
-			return "", 0, outputErr
-		}
-		return "", 0, clierrors.MarkHandled(errInvalidVersion)
-	}
-
-	if targetVersion == cfg.GameVersion {
-		if outputErr := deps.output.Log(i18n.T("cmd.test.same_version", &i18n.Tvars{
-			Data: &i18n.TData{"version": targetVersion},
-		}), output.LogForce); outputErr != nil {
-			return "", 0, outputErr
-		}
-		// Return exit code 2 via errSameVersion so it propagates through main.go
-		return targetVersion, 2, clierrors.MarkHandled(errSameVersion)
-	}
-
-	return targetVersion, 0, nil
-}
-
-func resolveLatestVersion(ctx context.Context, deps testDeps) (string, error) {
-	latest, err := deps.latestVersion(ctx, deps.clients.Modrinth)
-	if err != nil {
-		// Per ADR 0006: when manifest fails, we cannot determine "latest" in unattended mode.
-		// The user must provide an explicit version. Interactive prompting is for TUI only.
-		if outputErr := deps.output.Error(i18n.T("cmd.test.error.latest_unavailable", nil)); outputErr != nil {
-			return "", outputErr
-		}
-		return "", clierrors.MarkHandled(errLatestVersionRequired)
-	}
-	return latest, nil
-}
-
-func collectOutcomes(ctx context.Context, cfg models.ModsJSON, targetVersion string, deps testDeps) ([]modCheckOutcome, error) {
-	if err := ctx.Err(); err != nil {
-		return nil, err
-	}
-
-	candidates := make([]modCheckCandidate, 0, len(cfg.Mods))
-	for i := range cfg.Mods {
-		candidates = append(candidates, modCheckCandidate{
-			ConfigIndex: i,
-			Mod:         cfg.Mods[i],
-		})
-	}
-
-	outcomes := make([]modCheckOutcome, len(candidates))
-	group, groupCtx := errgroup.WithContext(ctx)
-	group.SetLimit(defaultTestMaxConcurrency)
-
-	for _, candidate := range candidates {
-		candidate := candidate
-		group.Go(func() error {
-			outcome := checkMod(groupCtx, cfg, candidate, targetVersion, deps)
-			if outcome.ConfigIndex >= 0 && outcome.ConfigIndex < len(outcomes) {
-				outcomes[outcome.ConfigIndex] = outcome
-			}
-			if err := groupCtx.Err(); err != nil {
-				return err
-			}
-			return nil
-		})
-	}
-
-	if err := group.Wait(); err != nil {
-		return nil, err
-	}
-
-	return outcomes, nil
-}
-
-func logOutcomes(outcomes []modCheckOutcome, deps testDeps) ([]modCheckOutcome, error) {
-	unsupportedMods := make([]modCheckOutcome, 0)
-	for _, outcome := range outcomes {
-		for _, event := range outcome.LogEvents {
-			switch event.Kind {
-			case logEventKindError:
-				if err := deps.output.Error(event.Message); err != nil {
-					return nil, err
-				}
-			case logEventKindDebug:
-				if err := deps.logger.Debug(event.Message); err != nil {
-					return nil, err
-				}
-			}
-		}
-
-		if !outcome.Supported {
-			unsupportedMods = append(unsupportedMods, outcome)
-		}
-	}
-	return unsupportedMods, nil
-}
-
-func evaluateTestOutcomes(targetVersion string, unsupportedMods []modCheckOutcome, deps testDeps, colorMode tui.ColorMode) (int, error) {
-	if len(unsupportedMods) > 0 {
-		exitCode, reportErr := reportUnsupportedMods(targetVersion, unsupportedMods, deps, colorMode)
-		return exitCode, reportErr
-	}
-
-	if outputErr := logTestSuccess(targetVersion, deps); outputErr != nil {
-		return 0, outputErr
-	}
-	return 0, nil
-}
-
-func handleForcedTestResult(targetVersion string, unsupported []modCheckOutcome, deps testDeps, colorMode tui.ColorMode) (Result, error) {
-	if len(unsupported) > 0 {
-		if err := reportUnsupportedModsForced(targetVersion, unsupported, deps, colorMode); err != nil {
-			return Result{ExitCode: 0, TargetVersion: targetVersion}, err
-		}
-	}
-
-	return Result{
-		TargetVersion:   targetVersion,
-		ExitCode:        0,
-		UnsupportedMods: toUnsupportedMods(unsupported),
-	}, nil
-}
-
-func logUnsupportedMods(targetVersion string, unsupportedMods []modCheckOutcome, deps testDeps, colorMode tui.ColorMode) error {
-	if outputErr := deps.output.Log(i18n.T("cmd.test.missing_support_header", &i18n.Tvars{
-		Data: &i18n.TData{"version": targetVersion},
-	}), output.LogForce); outputErr != nil {
-		return outputErr
-	}
-
-	for _, unsupported := range unsupportedMods {
-		modEntry := formatMissingModEntry(unsupported.Mod, colorMode)
-		if outputErr := deps.output.Log(modEntry, output.LogForce); outputErr != nil {
-			return outputErr
-		}
-	}
-
-	return nil
-}
-
-func reportUnsupportedModsForced(
-	targetVersion string,
-	unsupportedMods []modCheckOutcome,
-	deps testDeps,
-	colorMode tui.ColorMode,
-) error {
-	if err := logUnsupportedMods(targetVersion, unsupportedMods, deps, colorMode); err != nil {
-		return err
-	}
-
-	return deps.output.Log(i18n.T("cmd.change.force.skipping_missing_support", &i18n.Tvars{
-		Data: &i18n.TData{"version": targetVersion},
-	}), output.LogForce)
-}
-
-func reportUnsupportedMods(
-	targetVersion string,
-	unsupportedMods []modCheckOutcome,
-	deps testDeps,
-	colorMode tui.ColorMode,
-) (int, error) {
-	if err := logUnsupportedMods(targetVersion, unsupportedMods, deps, colorMode); err != nil {
-		return 0, err
-	}
-
-	if outputErr := deps.output.Log(i18n.T("cmd.test.cannot_upgrade", &i18n.Tvars{
-		Data: &i18n.TData{"version": targetVersion},
-	}), output.LogForce); outputErr != nil {
-		return 0, outputErr
-	}
-
-	return 1, clierrors.MarkHandled(errUnsupportedMods)
-}
-
-func toUnsupportedMods(outcomes []modCheckOutcome) []models.Mod {
-	if len(outcomes) == 0 {
-		return nil
-	}
-
-	unsupported := make([]models.Mod, 0, len(outcomes))
-	for _, outcome := range outcomes {
-		unsupported = append(unsupported, outcome.Mod)
-	}
-	return unsupported
-}
-
-func logTestSuccess(targetVersion string, deps testDeps) error {
-	return deps.output.Log(i18n.T("cmd.test.success", &i18n.Tvars{
-		Data: &i18n.TData{"version": targetVersion},
-	}), output.LogQuiet)
 }

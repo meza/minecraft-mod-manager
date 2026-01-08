@@ -17,6 +17,7 @@ import (
 	"github.com/stretchr/testify/assert"
 
 	"github.com/meza/minecraft-mod-manager/internal/config"
+	"github.com/meza/minecraft-mod-manager/internal/i18n"
 	"github.com/meza/minecraft-mod-manager/internal/minecraft"
 	"github.com/meza/minecraft-mod-manager/internal/models"
 	"github.com/meza/minecraft-mod-manager/internal/perf"
@@ -1305,6 +1306,43 @@ func TestNewGameVersionModelInvalidProvidedVersionDoesNotSetValue(t *testing.T) 
 	model := NewGameVersionModel(context.Background(), manifestDoer([]string{"1.21.1"}), "nope")
 	assert.Equal(t, "nope", model.input.Value())
 	assert.Empty(t, model.Value)
+}
+
+func TestNewGameVersionPromptModelSetsInitialError(t *testing.T) {
+	minecraft.ClearManifestCache()
+	model := NewGameVersionPromptModel(context.Background(), manifestDoer([]string{"1.21.1"}), "", GameVersionPromptOptions{
+		Question:     "Question?",
+		Messages:     defaultGameVersionPromptMessages(),
+		InitialError: "boom",
+	})
+	assert.Error(t, model.error)
+	assert.Equal(t, "boom", model.error.Error())
+}
+
+func TestNormalizeGameVersionPromptOptionsDefaults(t *testing.T) {
+	options := normalizeGameVersionPromptOptions(GameVersionPromptOptions{})
+	defaultMessages := defaultGameVersionPromptMessages()
+
+	assert.Equal(t, i18n.T("cmd.init.prompt.game-version.question", nil), options.Question)
+	assert.Equal(t, defaultMessages, options.Messages)
+}
+
+func TestNormalizeGameVersionPromptOptionsPreservesOverrides(t *testing.T) {
+	options := normalizeGameVersionPromptOptions(GameVersionPromptOptions{
+		Question: "Custom question?",
+		Messages: GameVersionPromptMessages{
+			Empty:             "Empty",
+			Invalid:           "Invalid",
+			Unavailable:       "Unavailable",
+			LatestUnavailable: "LatestUnavailable",
+		},
+	})
+
+	assert.Equal(t, "Custom question?", options.Question)
+	assert.Equal(t, "Empty", options.Messages.Empty)
+	assert.Equal(t, "Invalid", options.Messages.Invalid)
+	assert.Equal(t, "Unavailable", options.Messages.Unavailable)
+	assert.Equal(t, "LatestUnavailable", options.Messages.LatestUnavailable)
 }
 
 func TestNewGameVersionModelValidateAndResolveLatest(t *testing.T) {

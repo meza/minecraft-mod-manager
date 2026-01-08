@@ -14,17 +14,17 @@ import (
 
 	"github.com/meza/minecraft-mod-manager/internal/config"
 	"github.com/meza/minecraft-mod-manager/internal/httpclient"
+	"github.com/meza/minecraft-mod-manager/internal/interaction"
 	"github.com/meza/minecraft-mod-manager/internal/logger"
 	"github.com/meza/minecraft-mod-manager/internal/models"
 	"github.com/meza/minecraft-mod-manager/internal/output"
 	"github.com/meza/minecraft-mod-manager/internal/platform"
 	"github.com/meza/minecraft-mod-manager/internal/telemetry"
-	tui "github.com/meza/minecraft-mod-manager/internal/view"
+	"github.com/meza/minecraft-mod-manager/internal/view"
 	"github.com/spf13/afero"
 	"github.com/spf13/cobra"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
-	"golang.org/x/time/rate"
 )
 
 type noopDoer struct{}
@@ -46,8 +46,6 @@ func TestCommandHasCorrectUsageAndAliases(t *testing.T) {
 
 func TestExitCode0WhenAllModsSupported(t *testing.T) {
 	t.Setenv("MMM_TEST", "true")
-	restore := tui.SetIsTerminalFuncForTesting(func(_ int) bool { return true })
-	defer restore()
 
 	fs := afero.NewMemMapFs()
 	meta := config.NewMetadata(filepath.FromSlash("/cfg/modlist.json"))
@@ -70,12 +68,13 @@ func TestExitCode0WhenAllModsSupported(t *testing.T) {
 	errOut := &bytes.Buffer{}
 	cmd := &cobra.Command{}
 	cmd.SetIn(&bytes.Buffer{})
-	cmd.SetOut(fakeTTYWriter{Buffer: out})
+	cmd.SetOut(out)
 	cmd.SetErr(errOut)
 
-	exitCode, err := runTest(context.Background(), cmd, testOptions{
+	result, err := runTest(context.Background(), cmd, testOptions{
 		ConfigPath:  meta.ConfigPath,
 		GameVersion: "1.22.0",
+		Unattended:  true,
 	}, testDeps{
 		fs:     fs,
 		logger: logger.New(out, errOut, false, false),
@@ -84,6 +83,7 @@ func TestExitCode0WhenAllModsSupported(t *testing.T) {
 			Modrinth:   noopDoer{},
 			Curseforge: noopDoer{},
 		},
+		minecraftClient: noopDoer{},
 		fetchMod: func(ctx context.Context, p models.Platform, id string, opts platform.FetchOptions, clients platform.Clients) (platform.RemoteMod, error) {
 			return platform.RemoteMod{Name: "TestMod"}, nil
 		},
@@ -97,7 +97,9 @@ func TestExitCode0WhenAllModsSupported(t *testing.T) {
 	})
 
 	assert.NoError(t, err)
-	assert.Equal(t, 0, exitCode)
+	assert.Equal(t, 0, result.ExitCode)
+	assert.Contains(t, out.String(), "cmd.test.header")
+	assert.Contains(t, out.String(), "cmd.test.section.compatible")
 	assert.Contains(t, out.String(), "cmd.test.success")
 }
 
@@ -128,7 +130,7 @@ func TestExitCode1WhenSomeModsUnsupported(t *testing.T) {
 	cmd.SetOut(out)
 	cmd.SetErr(errOut)
 
-	exitCode, err := runTest(context.Background(), cmd, testOptions{
+	result, err := runTest(context.Background(), cmd, testOptions{
 		ConfigPath:  meta.ConfigPath,
 		GameVersion: "1.22.0",
 	}, testDeps{
@@ -153,17 +155,16 @@ func TestExitCode1WhenSomeModsUnsupported(t *testing.T) {
 		telemetry: func(telemetry.CommandTelemetry) {},
 	})
 
-	var exitErr *exitCodeError
-	assert.ErrorAs(t, err, &exitErr)
-	assert.Equal(t, 1, exitErr.ExitCode())
-	assert.Equal(t, 1, exitCode)
-	assert.Contains(t, out.String(), "cmd.test.missing_support_header")
+	assert.ErrorIs(t, err, errUnsupportedMods)
+	assert.Equal(t, 1, result.ExitCode)
+	assert.Contains(t, out.String(), "cmd.test.section.compatible")
+	assert.Contains(t, out.String(), "cmd.test.section.not_compatible")
 	assert.Contains(t, out.String(), "UnsupportedMod (proj-2)")
-	assert.Contains(t, out.String(), "cmd.test.cannot_upgrade")
-	assert.NotContains(t, errOut.String(), "cmd.test.error.no_file")
+	assert.Contains(t, out.String(), "cmd.test.summary.unsupported")
+	assert.Empty(t, errOut.String())
 }
 
-func TestExitCode2WhenVersionMatchesCurrent(t *testing.T) {
+func TestExitCode0WhenVersionMatchesCurrent(t *testing.T) {
 	t.Setenv("MMM_TEST", "true")
 
 	fs := afero.NewMemMapFs()
@@ -189,7 +190,7 @@ func TestExitCode2WhenVersionMatchesCurrent(t *testing.T) {
 	cmd.SetOut(out)
 	cmd.SetErr(errOut)
 
-	exitCode, err := runTest(context.Background(), cmd, testOptions{
+	result, err := runTest(context.Background(), cmd, testOptions{
 		ConfigPath:  meta.ConfigPath,
 		GameVersion: "1.21.1",
 	}, testDeps{
@@ -212,12 +213,8 @@ func TestExitCode2WhenVersionMatchesCurrent(t *testing.T) {
 		telemetry: func(telemetry.CommandTelemetry) {},
 	})
 
-	// Exit code 2 is now returned via exitCodeError for proper process exit code propagation
-	assert.Error(t, err)
-	var exitErr *exitCodeError
-	assert.ErrorAs(t, err, &exitErr)
-	assert.Equal(t, 2, exitErr.code)
-	assert.Equal(t, 2, exitCode)
+	assert.NoError(t, err)
+	assert.Equal(t, 0, result.ExitCode)
 	assert.Contains(t, out.String(), "cmd.test.same_version")
 }
 
@@ -248,7 +245,7 @@ func TestLatestVersionResolution(t *testing.T) {
 	cmd.SetErr(errOut)
 
 	fetchedVersion := ""
-	exitCode, err := runTest(context.Background(), cmd, testOptions{
+	result, err := runTest(context.Background(), cmd, testOptions{
 		ConfigPath:  meta.ConfigPath,
 		GameVersion: "latest",
 	}, testDeps{
@@ -272,7 +269,7 @@ func TestLatestVersionResolution(t *testing.T) {
 	})
 
 	assert.NoError(t, err)
-	assert.Equal(t, 0, exitCode)
+	assert.Equal(t, 0, result.ExitCode)
 	assert.Equal(t, "1.22.0", fetchedVersion)
 }
 
@@ -327,7 +324,8 @@ func TestInvalidVersionHandling(t *testing.T) {
 
 	assert.Error(t, err)
 	assert.ErrorIs(t, err, errInvalidVersion)
-	assert.Contains(t, errOut.String(), "cmd.test.error.invalid_version")
+	assert.Contains(t, out.String(), "cmd.test.error.invalid_version")
+	assert.Contains(t, out.String(), "cmd.test.error.invalid_version_hint")
 }
 
 func TestVersionValidationFailureReturnsError(t *testing.T) {
@@ -381,7 +379,7 @@ func TestVersionValidationFailureReturnsError(t *testing.T) {
 
 	assert.Error(t, err)
 	assert.ErrorIs(t, err, errVersionValidationUnavailable)
-	assert.Contains(t, errOut.String(), "cmd.test.error.version_unavailable")
+	assert.Contains(t, out.String(), "cmd.test.error.version_unavailable")
 }
 
 func TestQuietFlagBehavior(t *testing.T) {
@@ -410,7 +408,7 @@ func TestQuietFlagBehavior(t *testing.T) {
 	cmd.SetOut(out)
 	cmd.SetErr(errOut)
 
-	exitCode, err := runTest(context.Background(), cmd, testOptions{
+	result, err := runTest(context.Background(), cmd, testOptions{
 		ConfigPath:  meta.ConfigPath,
 		GameVersion: "1.22.0",
 		Quiet:       true,
@@ -434,7 +432,7 @@ func TestQuietFlagBehavior(t *testing.T) {
 	})
 
 	assert.NoError(t, err)
-	assert.Equal(t, 0, exitCode)
+	assert.Equal(t, 0, result.ExitCode)
 	// In quiet mode, no output is produced unless forced
 	assert.Empty(t, out.String())
 }
@@ -465,7 +463,7 @@ func TestDebugFlagBehavior(t *testing.T) {
 	cmd.SetOut(out)
 	cmd.SetErr(errOut)
 
-	exitCode, err := runTest(context.Background(), cmd, testOptions{
+	result, err := runTest(context.Background(), cmd, testOptions{
 		ConfigPath:  meta.ConfigPath,
 		GameVersion: "1.22.0",
 		Debug:       true,
@@ -489,7 +487,7 @@ func TestDebugFlagBehavior(t *testing.T) {
 	})
 
 	assert.NoError(t, err)
-	assert.Equal(t, 0, exitCode)
+	assert.Equal(t, 0, result.ExitCode)
 	assert.Contains(t, out.String(), "cmd.test.debug.checking")
 }
 
@@ -525,7 +523,7 @@ func TestAllowVersionFallbackHonored(t *testing.T) {
 
 	var fetchOptionsMu sync.Mutex
 	fetchOptions := make(map[string]platform.FetchOptions)
-	exitCode, err := runTest(context.Background(), cmd, testOptions{
+	result, err := runTest(context.Background(), cmd, testOptions{
 		ConfigPath:  meta.ConfigPath,
 		GameVersion: "1.22.0",
 	}, testDeps{
@@ -551,7 +549,7 @@ func TestAllowVersionFallbackHonored(t *testing.T) {
 	})
 
 	assert.NoError(t, err)
-	assert.Equal(t, 0, exitCode)
+	assert.Equal(t, 0, result.ExitCode)
 	assert.True(t, fetchOptions["proj-1"].AllowFallback, "FallbackMod should have AllowFallback=true")
 	assert.False(t, fetchOptions["proj-2"].AllowFallback, "NoFallbackMod should have AllowFallback=false")
 	assert.False(t, fetchOptions["proj-3"].AllowFallback, "DefaultMod should have AllowFallback=false")
@@ -587,7 +585,7 @@ func TestPinnedModsAreChecked(t *testing.T) {
 
 	var checkedModsMu sync.Mutex
 	checkedMods := make(map[string]bool)
-	exitCode, err := runTest(context.Background(), cmd, testOptions{
+	result, err := runTest(context.Background(), cmd, testOptions{
 		ConfigPath:  meta.ConfigPath,
 		GameVersion: "1.22.0",
 	}, testDeps{
@@ -613,7 +611,7 @@ func TestPinnedModsAreChecked(t *testing.T) {
 	})
 
 	assert.NoError(t, err)
-	assert.Equal(t, 0, exitCode)
+	assert.Equal(t, 0, result.ExitCode)
 	assert.True(t, checkedMods["proj-1"], "Pinned mod should be checked")
 	assert.True(t, checkedMods["proj-2"], "Normal mod should be checked")
 }
@@ -644,7 +642,7 @@ func TestModNotFoundError(t *testing.T) {
 	cmd.SetOut(out)
 	cmd.SetErr(errOut)
 
-	exitCode, err := runTest(context.Background(), cmd, testOptions{
+	result, err := runTest(context.Background(), cmd, testOptions{
 		ConfigPath:  meta.ConfigPath,
 		GameVersion: "1.22.0",
 	}, testDeps{
@@ -666,12 +664,11 @@ func TestModNotFoundError(t *testing.T) {
 		telemetry: func(telemetry.CommandTelemetry) {},
 	})
 
-	var exitErr *exitCodeError
-	assert.ErrorAs(t, err, &exitErr)
-	assert.Equal(t, 1, exitErr.ExitCode())
-	assert.Equal(t, 1, exitCode)
+	assert.ErrorIs(t, err, errUnsupportedMods)
+	assert.Equal(t, 1, result.ExitCode)
+	assert.Contains(t, out.String(), "cmd.test.section.not_compatible")
 	assert.Contains(t, out.String(), "MissingMod (proj-1)")
-	assert.NotContains(t, errOut.String(), "cmd.test.error.mod_not_found")
+	assert.Empty(t, errOut.String())
 }
 
 func TestConfigFileNotFound(t *testing.T) {
@@ -711,6 +708,8 @@ func TestConfigFileNotFound(t *testing.T) {
 	})
 
 	assert.Error(t, err)
+	assert.Contains(t, out.String(), "cmd.test.error.config_missing")
+	assert.Contains(t, out.String(), "cmd.test.error.config_missing_hint")
 }
 
 func TestLatestVersionResolutionError(t *testing.T) {
@@ -767,8 +766,8 @@ func TestLatestVersionResolutionError(t *testing.T) {
 
 	assert.Error(t, err)
 	assert.ErrorIs(t, err, errLatestVersionRequired)
-	// Verify user-friendly error message is logged
-	assert.Contains(t, errOut.String(), "cmd.test.error.latest_unavailable")
+	assert.Contains(t, out.String(), "cmd.test.error.latest_unavailable")
+	assert.Contains(t, out.String(), "cmd.test.error.latest_unavailable_hint")
 }
 
 func TestEmptyModListSuccess(t *testing.T) {
@@ -795,7 +794,7 @@ func TestEmptyModListSuccess(t *testing.T) {
 	cmd.SetOut(out)
 	cmd.SetErr(errOut)
 
-	exitCode, err := runTest(context.Background(), cmd, testOptions{
+	result, err := runTest(context.Background(), cmd, testOptions{
 		ConfigPath:  meta.ConfigPath,
 		GameVersion: "1.22.0",
 	}, testDeps{
@@ -819,7 +818,7 @@ func TestEmptyModListSuccess(t *testing.T) {
 	})
 
 	assert.NoError(t, err)
-	assert.Equal(t, 0, exitCode)
+	assert.Equal(t, 0, result.ExitCode)
 	assert.Contains(t, out.String(), "cmd.test.success")
 }
 
@@ -849,7 +848,7 @@ func TestRunTestReturnsCorrectExitCodeForTelemetry(t *testing.T) {
 	cmd.SetOut(out)
 	cmd.SetErr(errOut)
 
-	exitCode, err := runTest(context.Background(), cmd, testOptions{
+	result, err := runTest(context.Background(), cmd, testOptions{
 		ConfigPath:  meta.ConfigPath,
 		GameVersion: "1.22.0",
 	}, testDeps{
@@ -871,10 +870,10 @@ func TestRunTestReturnsCorrectExitCodeForTelemetry(t *testing.T) {
 		telemetry: func(telemetry.CommandTelemetry) {},
 	})
 
-	// runTest returns exitCode and err which Command() uses for telemetry:
-	// Success = err == nil && exitCode == 0
+	// runTest returns result.ExitCode and err which Command() uses for telemetry:
+	// Success = err == nil && result.ExitCode == 0
 	assert.NoError(t, err)
-	assert.Equal(t, 0, exitCode)
+	assert.Equal(t, 0, result.ExitCode)
 	// This verifies telemetry would have Success=true and ExitCode=0
 }
 
@@ -909,7 +908,7 @@ func TestParallelModChecks(t *testing.T) {
 
 	var callCountMu sync.Mutex
 	callCount := 0
-	exitCode, err := runTest(context.Background(), cmd, testOptions{
+	result, err := runTest(context.Background(), cmd, testOptions{
 		ConfigPath:  meta.ConfigPath,
 		GameVersion: "1.22.0",
 	}, testDeps{
@@ -935,7 +934,7 @@ func TestParallelModChecks(t *testing.T) {
 	})
 
 	assert.NoError(t, err)
-	assert.Equal(t, 0, exitCode)
+	assert.Equal(t, 0, result.ExitCode)
 	assert.Equal(t, 4, callCount)
 }
 
@@ -968,7 +967,7 @@ func TestMixedPlatformMods(t *testing.T) {
 
 	var platformCallsMu sync.Mutex
 	platformCalls := make(map[models.Platform]int)
-	exitCode, err := runTest(context.Background(), cmd, testOptions{
+	result, err := runTest(context.Background(), cmd, testOptions{
 		ConfigPath:  meta.ConfigPath,
 		GameVersion: "1.22.0",
 	}, testDeps{
@@ -995,7 +994,7 @@ func TestMixedPlatformMods(t *testing.T) {
 	})
 
 	assert.NoError(t, err)
-	assert.Equal(t, 0, exitCode)
+	assert.Equal(t, 0, result.ExitCode)
 	assert.Equal(t, 1, platformCalls[models.MODRINTH])
 	assert.Equal(t, 1, platformCalls[models.CURSEFORGE])
 }
@@ -1029,7 +1028,7 @@ func TestCustomAllowedReleaseTypes(t *testing.T) {
 
 	var fetchOptionsMu sync.Mutex
 	fetchOptions := make(map[string]platform.FetchOptions)
-	exitCode, err := runTest(context.Background(), cmd, testOptions{
+	result, err := runTest(context.Background(), cmd, testOptions{
 		ConfigPath:  meta.ConfigPath,
 		GameVersion: "1.22.0",
 	}, testDeps{
@@ -1055,7 +1054,7 @@ func TestCustomAllowedReleaseTypes(t *testing.T) {
 	})
 
 	assert.NoError(t, err)
-	assert.Equal(t, 0, exitCode)
+	assert.Equal(t, 0, result.ExitCode)
 	assert.Equal(t, []models.ReleaseType{models.Alpha, models.Beta}, fetchOptions["proj-1"].AllowedReleaseTypes)
 	assert.Equal(t, []models.ReleaseType{models.Release}, fetchOptions["proj-2"].AllowedReleaseTypes)
 }
@@ -1086,7 +1085,7 @@ func TestGenericFetchErrorLogsToErrorOutput(t *testing.T) {
 	cmd.SetOut(out)
 	cmd.SetErr(errOut)
 
-	exitCode, err := runTest(context.Background(), cmd, testOptions{
+	result, err := runTest(context.Background(), cmd, testOptions{
 		ConfigPath:  meta.ConfigPath,
 		GameVersion: "1.22.0",
 	}, testDeps{
@@ -1108,29 +1107,15 @@ func TestGenericFetchErrorLogsToErrorOutput(t *testing.T) {
 		telemetry: func(telemetry.CommandTelemetry) {},
 	})
 
-	var exitErr *exitCodeError
-	assert.ErrorAs(t, err, &exitErr)
-	assert.Equal(t, 1, exitErr.ExitCode())
-	assert.Equal(t, 1, exitCode)
-	assert.Contains(t, errOut.String(), "cmd.test.error.platform")
-	assert.Contains(t, errOut.String(), "cmd.platform.error.reason.unknown")
+	assert.ErrorIs(t, err, errUnsupportedMods)
+	assert.Equal(t, 1, result.ExitCode)
+	assert.Contains(t, out.String(), "cmd.test.section.inconclusive")
+	assert.Contains(t, out.String(), "cmd.platform.error.reason.unknown")
+	assert.Empty(t, errOut.String())
 }
 
-func TestFormatMissingModEntryWithColorization(t *testing.T) {
-	mod := models.Mod{
-		ID:   "test-mod-id",
-		Name: "TestMod",
-		Type: models.MODRINTH,
-	}
-
-	result := formatMissingModEntry(mod, tui.ColorEnabled)
-
-	assert.Contains(t, result, "TestMod")
-	assert.Contains(t, result, "test-mod-id")
-}
-
-func TestFormatMissingModEntryWithoutColorization(t *testing.T) {
-	restoreUnicode := tui.SetUnicodeSupportFuncForTesting(func() bool { return true })
+func TestRenderTestItemLineSupported(t *testing.T) {
+	restoreUnicode := view.SetUnicodeSupportFuncForTesting(func() bool { return true })
 	t.Cleanup(restoreUnicode)
 
 	mod := models.Mod{
@@ -1139,9 +1124,31 @@ func TestFormatMissingModEntryWithoutColorization(t *testing.T) {
 		Type: models.MODRINTH,
 	}
 
-	result := formatMissingModEntry(mod, tui.ColorDisabled)
+	result := renderTestItemLine(view.ColorDisabled, testItem{
+		Mod:    mod,
+		Status: testItemStatusSupported,
+	})
 
-	assert.Equal(t, "\u274C TestMod (test-mod-id)", result)
+	assert.Equal(t, "✅ TestMod (test-mod-id) [modrinth]", result)
+}
+
+func TestRenderTestItemLineInconclusiveIncludesReason(t *testing.T) {
+	restoreUnicode := view.SetUnicodeSupportFuncForTesting(func() bool { return true })
+	t.Cleanup(restoreUnicode)
+
+	mod := models.Mod{
+		ID:   "test-mod-id",
+		Name: "TestMod",
+		Type: models.MODRINTH,
+	}
+
+	result := renderTestItemLineWithReason(view.ColorDisabled, testItem{
+		Mod:    mod,
+		Status: testItemStatusInconclusive,
+		Reason: "network error",
+	})
+
+	assert.Equal(t, "❔ TestMod (test-mod-id) [modrinth] network error", result)
 }
 
 func TestFormatReleaseTypesEmptyReturnsNone(t *testing.T) {
@@ -1237,12 +1244,6 @@ func TestFetchFailureDetailEventReturnsFalseForEmptyDetails(t *testing.T) {
 	assert.Equal(t, logEvent{}, event)
 }
 
-type fakeTTYWriter struct {
-	*bytes.Buffer
-}
-
-func (writer fakeTTYWriter) Fd() uintptr { return 1 }
-
 type emptyError struct{}
 
 func (emptyError) Error() string { return "" }
@@ -1292,7 +1293,7 @@ func TestRunTestReturnsContextErrorWhenCanceled(t *testing.T) {
 	assert.ErrorIs(t, err, context.Canceled)
 }
 
-func TestCollectOutcomesBoundsConcurrency(t *testing.T) {
+func TestRunTestExecutionBoundsConcurrency(t *testing.T) {
 	cfg := models.ModsJSON{
 		Loader:                     models.FABRIC,
 		GameVersion:                "1.20.1",
@@ -1302,8 +1303,11 @@ func TestCollectOutcomesBoundsConcurrency(t *testing.T) {
 			{Name: "Mod Two", ID: "mod-two", Type: models.MODRINTH},
 			{Name: "Mod Three", ID: "mod-three", Type: models.MODRINTH},
 			{Name: "Mod Four", ID: "mod-four", Type: models.MODRINTH},
+			{Name: "Mod Five", ID: "mod-five", Type: models.MODRINTH},
+			{Name: "Mod Six", ID: "mod-six", Type: models.MODRINTH},
 		},
 	}
+	items, indexByKey := buildTestItems(cfg)
 	readyCh := make(chan struct{}, len(cfg.Mods))
 	releaseCh := make(chan struct{})
 	var currentInFlight int64
@@ -1325,11 +1329,16 @@ func TestCollectOutcomesBoundsConcurrency(t *testing.T) {
 		},
 	}
 
-	resultCh := make(chan error, 1)
+	resultCh := make(chan testExecutionOutcome, 1)
 	concurrencyLimit := defaultTestMaxConcurrency
 	go func() {
-		_, err := collectOutcomes(context.Background(), cfg, "1.20.1", deps)
-		resultCh <- err
+		resultCh <- runTestExecution(context.Background(), testExecutionInput{
+			cfg:           cfg,
+			targetVersion: "1.20.1",
+			items:         items,
+			indexByKey:    indexByKey,
+			deps:          deps,
+		}, testExecSender{})
 	}()
 
 	for index := 0; index < concurrencyLimit; index++ {
@@ -1347,54 +1356,60 @@ func TestCollectOutcomesBoundsConcurrency(t *testing.T) {
 	close(releaseCh)
 
 	select {
-	case err := <-resultCh:
-		assert.NoError(t, err)
+	case outcome := <-resultCh:
+		assert.NoError(t, outcome.err)
 	case <-time.After(time.Second):
-		t.Fatal("collectOutcomes did not finish")
+		t.Fatal("runTestExecution did not finish")
 	}
 }
 
-func TestCollectOutcomesHonorsContextCancellation(t *testing.T) {
+func TestRunTestExecutionReturnsContextErrorWhenCanceled(t *testing.T) {
 	ctx, cancel := context.WithCancel(context.Background())
 	cancel()
 
-	deps := testDeps{
-		fetchMod: func(context.Context, models.Platform, string, platform.FetchOptions, platform.Clients) (platform.RemoteMod, error) {
-			t.Fatal("fetchMod should not be called after cancellation")
-			return platform.RemoteMod{}, errors.New("unexpected")
-		},
-	}
-
 	cfg := models.ModsJSON{
 		Mods: []models.Mod{{Name: "Mod One", ID: "mod-one", Type: models.MODRINTH}},
 	}
+	items, indexByKey := buildTestItems(cfg)
 
-	_, err := collectOutcomes(ctx, cfg, "1.20.1", deps)
-	assert.Error(t, err)
-	assert.ErrorIs(t, err, context.Canceled)
+	outcome := runTestExecution(ctx, testExecutionInput{
+		cfg:           cfg,
+		targetVersion: "1.20.1",
+		items:         items,
+		indexByKey:    indexByKey,
+		deps:          testDeps{},
+	}, testExecSender{})
+
+	assert.Error(t, outcome.err)
+	assert.ErrorIs(t, outcome.err, context.Canceled)
 }
 
-func TestCollectOutcomesReturnsErrorWhenCanceledDuringWork(t *testing.T) {
+func TestRunTestExecutionReturnsContextErrorWhenCanceledDuringWork(t *testing.T) {
 	ctx, cancel := context.WithCancel(context.Background())
 
 	cfg := models.ModsJSON{
 		Mods: []models.Mod{{Name: "Mod One", ID: "mod-one", Type: models.MODRINTH}},
 	}
+	items, indexByKey := buildTestItems(cfg)
 
 	readyCh := make(chan struct{}, 1)
-	releaseCh := make(chan struct{})
 	deps := testDeps{
-		fetchMod: func(context.Context, models.Platform, string, platform.FetchOptions, platform.Clients) (platform.RemoteMod, error) {
+		fetchMod: func(ctx context.Context, platformName models.Platform, projectID string, opts platform.FetchOptions, clients platform.Clients) (platform.RemoteMod, error) {
 			readyCh <- struct{}{}
-			<-releaseCh
-			return platform.RemoteMod{}, errors.New("fetch failed")
+			<-ctx.Done()
+			return platform.RemoteMod{}, ctx.Err()
 		},
 	}
 
-	resultCh := make(chan error, 1)
+	resultCh := make(chan testExecutionOutcome, 1)
 	go func() {
-		_, err := collectOutcomes(ctx, cfg, "1.20.1", deps)
-		resultCh <- err
+		resultCh <- runTestExecution(ctx, testExecutionInput{
+			cfg:           cfg,
+			targetVersion: "1.20.1",
+			items:         items,
+			indexByKey:    indexByKey,
+			deps:          deps,
+		}, testExecSender{})
 	}()
 
 	select {
@@ -1404,14 +1419,13 @@ func TestCollectOutcomesReturnsErrorWhenCanceledDuringWork(t *testing.T) {
 	}
 
 	cancel()
-	close(releaseCh)
 
 	select {
-	case err := <-resultCh:
-		assert.Error(t, err)
-		assert.ErrorIs(t, err, context.Canceled)
+	case outcome := <-resultCh:
+		assert.Error(t, outcome.err)
+		assert.ErrorIs(t, outcome.err, context.Canceled)
 	case <-time.After(time.Second):
-		t.Fatal("collectOutcomes did not finish")
+		t.Fatal("runTestExecution did not finish")
 	}
 }
 
@@ -1423,166 +1437,102 @@ func TestRunTestReturnsOutputErrorWhenNoMods(t *testing.T) {
 	assert.NoError(t, config.WriteConfig(context.Background(), fs, meta, models.ModsJSON{ModsFolder: "mods"}))
 
 	cmd := &cobra.Command{}
-	cmd.SetOut(&bytes.Buffer{})
+	cmd.SetOut(errorWriter{err: writeErr})
 
 	_, err := runTest(context.Background(), cmd, testOptions{
 		ConfigPath:  meta.ConfigPath,
 		GameVersion: "1.20.1",
 	}, testDeps{
-		fs:     fs,
-		output: output.New(errorWriter{err: writeErr}, io.Discard, false),
+		fs: fs,
 		isValidVersion: func(context.Context, string, httpclient.Doer) (bool, error) {
 			return true, nil
 		},
-		clients: platform.DefaultClients(rate.NewLimiter(rate.Inf, 0)),
 	})
 	assert.ErrorIs(t, err, writeErr)
 }
 
 func TestResolveTargetVersionReturnsOutputErrorOnValidationUnavailable(t *testing.T) {
 	writeErr := errors.New("write failed")
+	cmd := &cobra.Command{}
+	cmd.SetOut(errorWriter{err: writeErr})
 
-	_, _, err := resolveTargetVersion(context.Background(), models.ModsJSON{}, testOptions{GameVersion: "1.20.1"}, testDeps{
-		output: output.New(io.Discard, errorWriter{err: writeErr}, false),
+	_, err := resolveTargetVersion(context.Background(), cmd, testOptions{GameVersion: "1.20.1"}, testDeps{
 		isValidVersion: func(context.Context, string, httpclient.Doer) (bool, error) {
 			return false, errors.New("boom")
 		},
-	})
+	}, models.ModsJSON{}, interaction.ExecutionModeNonTTY)
 	assert.ErrorIs(t, err, writeErr)
 }
 
 func TestResolveTargetVersionReturnsOutputErrorOnInvalidVersion(t *testing.T) {
 	writeErr := errors.New("write failed")
+	cmd := &cobra.Command{}
+	cmd.SetOut(errorWriter{err: writeErr})
 
-	_, _, err := resolveTargetVersion(context.Background(), models.ModsJSON{}, testOptions{GameVersion: "1.20.1"}, testDeps{
-		output: output.New(io.Discard, errorWriter{err: writeErr}, false),
+	_, err := resolveTargetVersion(context.Background(), cmd, testOptions{GameVersion: "1.20.1"}, testDeps{
 		isValidVersion: func(context.Context, string, httpclient.Doer) (bool, error) {
 			return false, nil
 		},
-	})
+	}, models.ModsJSON{}, interaction.ExecutionModeNonTTY)
 	assert.ErrorIs(t, err, writeErr)
 }
 
 func TestResolveTargetVersionReturnsOutputErrorOnSameVersionLog(t *testing.T) {
 	writeErr := errors.New("write failed")
+	cmd := &cobra.Command{}
+	cmd.SetOut(errorWriter{err: writeErr})
 
-	_, _, err := resolveTargetVersion(context.Background(), models.ModsJSON{GameVersion: "1.20.1"}, testOptions{GameVersion: "1.20.1"}, testDeps{
-		output: output.New(errorWriter{err: writeErr}, io.Discard, false),
+	_, err := resolveTargetVersion(context.Background(), cmd, testOptions{GameVersion: "1.20.1"}, testDeps{
 		isValidVersion: func(context.Context, string, httpclient.Doer) (bool, error) {
 			return true, nil
 		},
-	})
+	}, models.ModsJSON{GameVersion: "1.20.1"}, interaction.ExecutionModeNonTTY)
 	assert.ErrorIs(t, err, writeErr)
 }
 
-func TestResolveLatestVersionReturnsOutputError(t *testing.T) {
+func TestLogEventsReturnsLoggerError(t *testing.T) {
 	writeErr := errors.New("write failed")
-
-	_, err := resolveLatestVersion(context.Background(), testDeps{
-		output: output.New(io.Discard, errorWriter{err: writeErr}, false),
-		latestVersion: func(context.Context, httpclient.Doer) (string, error) {
-			return "", errors.New("boom")
-		},
-	})
-	assert.ErrorIs(t, err, writeErr)
-}
-
-func TestLogOutcomesReturnsOutputError(t *testing.T) {
-	writeErr := errors.New("write failed")
-
-	_, err := logOutcomes([]modCheckOutcome{
-		{LogEvents: []logEvent{{Kind: logEventKindError, Message: "boom"}}},
-	}, testDeps{
-		output: output.New(io.Discard, errorWriter{err: writeErr}, false),
-		logger: logger.New(io.Discard, io.Discard, false, false),
-	})
-	assert.ErrorIs(t, err, writeErr)
-}
-
-func TestLogOutcomesReturnsLoggerError(t *testing.T) {
-	writeErr := errors.New("write failed")
-
-	_, err := logOutcomes([]modCheckOutcome{
-		{LogEvents: []logEvent{{Kind: logEventKindDebug, Message: "boom"}}},
-	}, testDeps{
-		output: output.New(io.Discard, io.Discard, false),
+	deps := testDeps{
 		logger: logger.New(errorWriter{err: writeErr}, io.Discard, false, true),
+	}
+
+	err := logEvents(deps, []logEvent{{Kind: logEventKindDebug, Message: "boom"}})
+	assert.ErrorIs(t, err, writeErr)
+}
+
+func TestEvaluateTestOutcomeReportsUnsupported(t *testing.T) {
+	exitCode, err := evaluateTestOutcome(testExecutionOutcome{
+		items: []testItem{{Status: testItemStatusUnsupported}},
 	})
-	assert.ErrorIs(t, err, writeErr)
-}
-
-func TestEvaluateTestOutcomesReturnsOutputErrorOnSuccessLog(t *testing.T) {
-	writeErr := errors.New("write failed")
-
-	_, err := evaluateTestOutcomes("1.20.1", nil, testDeps{
-		output: output.New(errorWriter{err: writeErr}, io.Discard, false),
-		logger: logger.New(io.Discard, io.Discard, false, false),
-	}, tui.ColorDisabled)
-	assert.ErrorIs(t, err, writeErr)
-}
-
-func TestEvaluateTestOutcomesReportsUnsupported(t *testing.T) {
-	exitCode, err := evaluateTestOutcomes("1.20.1", []modCheckOutcome{
-		{Mod: models.Mod{Name: "Example", ID: "abc", Type: models.MODRINTH}},
-	}, testDeps{
-		output: output.New(io.Discard, io.Discard, false),
-		logger: logger.New(io.Discard, io.Discard, false, false),
-	}, tui.ColorDisabled)
 	assert.ErrorIs(t, err, errUnsupportedMods)
 	assert.Equal(t, 1, exitCode)
 }
 
-func TestReportUnsupportedModsForced(t *testing.T) {
-	err := reportUnsupportedModsForced("1.20.1", []modCheckOutcome{
-		{Mod: models.Mod{Name: "Example", ID: "abc", Type: models.MODRINTH}},
-	}, testDeps{
-		output: output.New(io.Discard, io.Discard, false),
-	}, tui.ColorDisabled)
-	assert.NoError(t, err)
-}
-
-func TestReportUnsupportedModsReturnsOutputErrorOnEntry(t *testing.T) {
-	writeErr := errors.New("write failed")
-	writer := &errAfterWriter{remaining: 1, err: writeErr}
-
-	_, err := reportUnsupportedMods("1.20.1", []modCheckOutcome{
-		{Mod: models.Mod{Name: "Example", ID: "abc", Type: models.MODRINTH}},
-	}, testDeps{
-		output: output.New(writer, io.Discard, false),
-	}, tui.ColorDisabled)
-	assert.ErrorIs(t, err, writeErr)
-}
-
-func TestReportUnsupportedModsReturnsOutputErrorOnHeader(t *testing.T) {
-	writeErr := errors.New("write failed")
-
-	_, err := reportUnsupportedMods("1.20.1", []modCheckOutcome{
-		{Mod: models.Mod{Name: "Example", ID: "abc", Type: models.MODRINTH}},
-	}, testDeps{
-		output: output.New(errorWriter{err: writeErr}, io.Discard, false),
-	}, tui.ColorDisabled)
-	assert.ErrorIs(t, err, writeErr)
-}
-
-func TestReportUnsupportedModsReturnsOutputErrorOnFooter(t *testing.T) {
-	writeErr := errors.New("write failed")
-	writer := &errAfterWriter{remaining: 2, err: writeErr}
-
-	_, err := reportUnsupportedMods("1.20.1", []modCheckOutcome{
-		{Mod: models.Mod{Name: "Example", ID: "abc", Type: models.MODRINTH}},
-	}, testDeps{
-		output: output.New(writer, io.Discard, false),
-	}, tui.ColorDisabled)
-	assert.ErrorIs(t, err, writeErr)
-}
-
-func TestReportUnsupportedModsReturnsErrorWhenLogsSucceed(t *testing.T) {
-	_, err := reportUnsupportedMods("1.20.1", []modCheckOutcome{
-		{Mod: models.Mod{Name: "Example", ID: "abc", Type: models.MODRINTH}},
-	}, testDeps{
-		output: output.New(io.Discard, io.Discard, false),
-	}, tui.ColorDisabled)
+func TestEvaluateTestOutcomeReportsInconclusive(t *testing.T) {
+	exitCode, err := evaluateTestOutcome(testExecutionOutcome{
+		items: []testItem{{Status: testItemStatusInconclusive}},
+	})
 	assert.ErrorIs(t, err, errUnsupportedMods)
+	assert.Equal(t, 1, exitCode)
+}
+
+func TestEvaluateTestOutcomeSuccess(t *testing.T) {
+	exitCode, err := evaluateTestOutcome(testExecutionOutcome{
+		items: []testItem{{Status: testItemStatusSupported}},
+	})
+	assert.NoError(t, err)
+	assert.Equal(t, 0, exitCode)
+}
+
+func TestToUnsupportedModsFiltersUnsupported(t *testing.T) {
+	unsupported := toUnsupportedMods([]testItem{
+		{Mod: models.Mod{ID: "alpha", Type: models.MODRINTH}, Status: testItemStatusUnsupported},
+		{Mod: models.Mod{ID: "beta", Type: models.MODRINTH}, Status: testItemStatusSupported},
+	})
+
+	if assert.Len(t, unsupported, 1) {
+		assert.Equal(t, "alpha", unsupported[0].ID)
+	}
 }
 
 type errorWriter struct {
@@ -1591,17 +1541,4 @@ type errorWriter struct {
 
 func (writer errorWriter) Write([]byte) (int, error) {
 	return 0, writer.err
-}
-
-type errAfterWriter struct {
-	remaining int
-	err       error
-}
-
-func (writer *errAfterWriter) Write(value []byte) (int, error) {
-	if writer.remaining == 0 {
-		return 0, writer.err
-	}
-	writer.remaining--
-	return len(value), nil
 }

@@ -51,7 +51,7 @@ func TestTestCommandDefaultOutputSnapshot(t *testing.T) {
 	cmd.SetOut(out)
 	cmd.SetErr(errOut)
 
-	exitCode, err := runTest(context.Background(), cmd, testOptions{
+	result, err := runTest(context.Background(), cmd, testOptions{
 		ConfigPath:  meta.ConfigPath,
 		GameVersion: "1.22.0",
 	}, testDeps{
@@ -83,10 +83,8 @@ func TestTestCommandDefaultOutputSnapshot(t *testing.T) {
 		telemetry: func(telemetry.CommandTelemetry) {},
 	})
 
-	var exitErr *exitCodeError
-	assert.ErrorAs(t, err, &exitErr)
-	assert.Equal(t, 1, exitErr.ExitCode())
-	assert.Equal(t, 1, exitCode)
+	assert.ErrorIs(t, err, errUnsupportedMods)
+	assert.Equal(t, 1, result.ExitCode)
 
 	snapshot := fmt.Sprintf(
 		"stdout:\n%s\nstderr:\n%s",

@@ -24,6 +24,8 @@ mmm test 1.20.4
 If you are on 1.19.2 and want to see whether you could upgrade to 1.19.3, run `mmm test 1.19.3`. If you omit the game version, the command uses the latest stable Minecraft version automatically. If the command cannot fetch the latest version (for example, when offline), provide an explicit version instead.
 
 In unattended environments, MMM fails fast if it cannot determine the latest version, so you should supply an explicit version.
+If the target version matches your configured version, the command prints a no-op message and exits successfully.
+If MMM cannot determine compatibility for a mod because a platform check fails, it reports that mod as inconclusive and exits non-zero.
 
 ## Exit codes for automation
 
@@ -31,11 +33,10 @@ For server operators and script automation, the command returns specific exit co
 
 | Exit code | Meaning |
 | --- | --- |
-| 0 | All mods have support for the target version |
-| 1 | One or more mods lack support for the target version |
-| 2 | The target version matches the version you are already using |
+| 0 | All mods support the target version, or the target version matches your current version |
+| 1 | One or more mods lack support for the target version, or compatibility could not be determined |
 
-You could run `mmm test` daily in a cron job. Whenever it returns exit code 0, you know a version upgrade is possible. If it returns 1, some mods still need updates from their authors before you can upgrade.
+You could run `mmm test` daily in a cron job. When it returns exit code 0, you know a version upgrade is possible. If it returns 1, some mods are incompatible or MMM could not confirm compatibility due to a platform error.
 
 ## Usage
 

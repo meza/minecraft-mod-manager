@@ -18,6 +18,21 @@ Please note we have a code of conduct, please follow it in all your interactions
 This project optimizes for long-term maintainability and predictable behavior. Prefer small, boring, readable changes over clever
 ones.
 
+## Ways of working (contract)
+
+This is how we contribute quality code.
+
+### Test-first workflow (mandatory)
+
+The expectation of the system MUST be expressed in proper automated tests first.
+
+- Write the test first.
+  - If the behavior is user-facing, the test MUST be a snapshot test that captures the rendered user-visible output.
+- Verify the new test fails (prove the gap).
+- Then, and only then, implement the code change that makes the test pass.
+
+Completion means the tests prove it. If you cannot write a test for the expectation, stop and resolve that before proceeding.
+
 ## Shared infrastructure risk
 
 This CLI relies on shared infrastructure and credentials. That means a single bad actor can degrade or remove service for
@@ -55,9 +70,16 @@ We treat automated tests as the primary contract for behavior and user experienc
 - Prefer tests that exercise real production wiring and code paths.
 - Use fakes/stubs only to control nondeterminism (time, random, network, filesystem, OS signals) or to force rare error paths. Do
   not stub core behavior to "make coverage green".
-- Snapshot tests are the primary guardrail against UX regressions:
+- Snapshot tests are the primary guardrail against UX regressions (hard requirement):
+  - All user-facing behavior paths MUST be covered by snapshot tests. If a user can observe a difference, it needs a snapshot.
   - For any user-visible output (TUI or non-TUI), add snapshot coverage of the rendered output.
+  - If it has an interface (a TUI screen/view/prompt/menu/table), it MUST have snapshot tests that cover all branches and states of
+    the UI.
+  - "All branches and states" includes (at minimum): success, empty/no results, loading, validation errors, recoverable errors,
+    fatal errors, and any conditional rendering (for example: selected vs unselected, focused vs unfocused, enabled vs disabled,
+    expanded vs collapsed, pagination).
   - When possible, drive TUIs with `teatest` and snapshot the output/view so we catch regressions in interaction and presentation.
+  - Update snapshots only when the user-visible behavior is intentionally changed.
 - Every user-facing behavior change must be backed by at least one automated test that would fail if the behavior regressed.
 
 Terminal interaction docs:
@@ -66,13 +88,22 @@ Terminal interaction docs:
 
 ### Required local checks
 
+- The code adheres to engineering and code quality standards
+- The changes don't re-invent the wheel by not using existing abstractions
+- New features and bug fixes are covered by tests
+- Snapshots exist for all user-visible behavior changes
+- All new code follows the established patterns in this repo
+- All relevant documentation is updated
+- `make fmt-check` passes (`make fmt` if not formatted)
+- `make lint` passes (`make lint-fix` if lint reports fixes)
+- `make vuln` passes
+- `make coverage` passes (runs tests and enforces 100% coverage)
+- `make build` passes
+
+**IMPORTANT**
+
 Run the repo `make` targets (do not call go test/go build directly):
 
-- `make fmt-check` (`make fmt` if not formatted)
-- `make lint` (`make lint-fix` if lint reports fixes)
-- `make vuln`
-- `make coverage` (runs tests and enforces 100% coverage)
-- `make build`
 
 ### Optional checks
 

@@ -51,7 +51,7 @@ func TestProgramOptionsKeepsRendererWithTerminal(t *testing.T) {
 	defer restore()
 
 	opts := ProgramOptions(fakeReader{}, fakeWriter{})
-	assert.Len(t, opts, 2)
+	assert.Len(t, opts, 3)
 }
 
 func TestIsTerminalReaderWithoutFD(t *testing.T) {

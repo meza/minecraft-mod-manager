@@ -2,7 +2,6 @@ package test
 
 import (
 	"context"
-	"errors"
 	"io"
 	"testing"
 
@@ -19,7 +18,6 @@ import (
 	"github.com/meza/minecraft-mod-manager/internal/output"
 	"github.com/meza/minecraft-mod-manager/internal/platform"
 	"github.com/meza/minecraft-mod-manager/internal/telemetry"
-	tui "github.com/meza/minecraft-mod-manager/internal/view"
 )
 
 func TestNewDepsUsesCommonValues(t *testing.T) {
@@ -46,10 +44,11 @@ func TestRunWithDepsReturnsSuccessForEmptyMods(t *testing.T) {
 	require.NoError(t, config.WriteConfig(context.Background(), fs, meta, cfg))
 
 	deps := testDeps{
-		fs:      fs,
-		output:  output.New(io.Discard, io.Discard, false),
-		logger:  logger.New(io.Discard, io.Discard, false, false),
-		clients: platform.Clients{},
+		fs:              fs,
+		output:          output.New(io.Discard, io.Discard, false),
+		logger:          logger.New(io.Discard, io.Discard, false, false),
+		clients:         platform.Clients{},
+		minecraftClient: noopDoer{},
 		fetchMod: func(context.Context, models.Platform, string, platform.FetchOptions, platform.Clients) (platform.RemoteMod, error) {
 			return platform.RemoteMod{}, nil
 		},
@@ -65,107 +64,10 @@ func TestRunWithDepsReturnsSuccessForEmptyMods(t *testing.T) {
 	result, err := RunWithDeps(context.Background(), &cobra.Command{}, Options{
 		ConfigPath:  meta.ConfigPath,
 		GameVersion: "1.20.2",
-	}, deps, tui.ColorDisabled)
+	}, deps)
 
 	assert.NoError(t, err)
 	assert.Equal(t, 0, result.ExitCode)
-}
-
-func TestHandleForcedTestResultError(t *testing.T) {
-	writeErr := errors.New("write failed")
-	_, err := handleForcedTestResult("1.20.1", []modCheckOutcome{
-		{Mod: models.Mod{ID: "abc", Name: "Example", Type: models.MODRINTH}},
-	}, testDeps{
-		output: output.New(errorWriter{err: writeErr}, io.Discard, false),
-	}, tui.ColorDisabled)
-
-	assert.ErrorIs(t, err, writeErr)
-}
-
-func TestRunWithDepsForcePath(t *testing.T) {
-	fs := afero.NewMemMapFs()
-	meta := config.NewMetadata("/cfg/modlist.json")
-	cfg := models.ModsJSON{
-		GameVersion: "1.20.1",
-		ModsFolder:  "mods",
-		Mods: []models.Mod{
-			{ID: "alpha", Name: "Alpha", Type: models.MODRINTH},
-		},
-	}
-	require.NoError(t, config.WriteConfig(context.Background(), fs, meta, cfg))
-
-	deps := testDeps{
-		fs:     fs,
-		output: output.New(io.Discard, io.Discard, false),
-		logger: logger.New(io.Discard, io.Discard, false, false),
-		clients: platform.Clients{
-			Modrinth: httpclient.NewRLClient(httpclient.DefaultLimiter()),
-		},
-		fetchMod: func(context.Context, models.Platform, string, platform.FetchOptions, platform.Clients) (platform.RemoteMod, error) {
-			return platform.RemoteMod{Name: "Alpha"}, nil
-		},
-		latestVersion: func(context.Context, httpclient.Doer) (string, error) {
-			return "1.20.1", nil
-		},
-		isValidVersion: func(context.Context, string, httpclient.Doer) (bool, error) {
-			return true, nil
-		},
-		telemetry: func(telemetry.CommandTelemetry) {},
-	}
-
-	result, err := RunWithDeps(context.Background(), &cobra.Command{}, Options{
-		ConfigPath:  meta.ConfigPath,
-		GameVersion: "1.20.2",
-		Force:       true,
-	}, deps, tui.ColorDisabled)
-
-	assert.NoError(t, err)
-	assert.Equal(t, 0, result.ExitCode)
-	assert.Empty(t, result.UnsupportedMods)
-}
-
-func TestRunWithDepsForceReturnsErrorWhenReportingUnsupportedModsFails(t *testing.T) {
-	fs := afero.NewMemMapFs()
-	meta := config.NewMetadata("/cfg/modlist.json")
-	cfg := models.ModsJSON{
-		GameVersion: "1.20.1",
-		ModsFolder:  "mods",
-		Mods: []models.Mod{
-			{ID: "alpha", Name: "Alpha", Type: models.MODRINTH},
-		},
-	}
-	require.NoError(t, config.WriteConfig(context.Background(), fs, meta, cfg))
-
-	writeErr := errors.New("write failed")
-
-	deps := testDeps{
-		fs:     fs,
-		output: output.New(errorWriter{err: writeErr}, io.Discard, false),
-		logger: logger.New(io.Discard, io.Discard, false, false),
-		clients: platform.Clients{
-			Modrinth: httpclient.NewRLClient(httpclient.DefaultLimiter()),
-		},
-		fetchMod: func(context.Context, models.Platform, string, platform.FetchOptions, platform.Clients) (platform.RemoteMod, error) {
-			return platform.RemoteMod{}, &platform.NoCompatibleFileError{Platform: models.MODRINTH, ProjectID: "alpha"}
-		},
-		latestVersion: func(context.Context, httpclient.Doer) (string, error) {
-			return "1.20.2", nil
-		},
-		isValidVersion: func(context.Context, string, httpclient.Doer) (bool, error) {
-			return true, nil
-		},
-		telemetry: func(telemetry.CommandTelemetry) {},
-	}
-
-	result, err := RunWithDeps(context.Background(), &cobra.Command{}, Options{
-		ConfigPath:  meta.ConfigPath,
-		GameVersion: "1.20.2",
-		Force:       true,
-	}, deps, tui.ColorDisabled)
-
-	assert.Equal(t, writeErr, err)
-	assert.Equal(t, 0, result.ExitCode)
-	assert.Equal(t, "1.20.2", result.TargetVersion)
 }
 
 func TestRunWithDepsReturnsLogError(t *testing.T) {
@@ -183,12 +85,13 @@ func TestRunWithDepsReturnsLogError(t *testing.T) {
 	deps := testDeps{
 		fs:     fs,
 		output: output.New(io.Discard, errorWriter{err: assert.AnError}, false),
-		logger: logger.New(io.Discard, io.Discard, false, false),
+		logger: logger.New(errorWriter{err: assert.AnError}, io.Discard, false, true),
 		clients: platform.Clients{
 			Modrinth: httpclient.NewRLClient(httpclient.DefaultLimiter()),
 		},
+		minecraftClient: noopDoer{},
 		fetchMod: func(context.Context, models.Platform, string, platform.FetchOptions, platform.Clients) (platform.RemoteMod, error) {
-			return platform.RemoteMod{}, assert.AnError
+			return platform.RemoteMod{}, &platform.NoCompatibleFileError{Platform: models.MODRINTH, ProjectID: "alpha"}
 		},
 		latestVersion: func(context.Context, httpclient.Doer) (string, error) {
 			return "1.20.2", nil
@@ -202,10 +105,10 @@ func TestRunWithDepsReturnsLogError(t *testing.T) {
 	result, err := RunWithDeps(context.Background(), &cobra.Command{}, Options{
 		ConfigPath:  meta.ConfigPath,
 		GameVersion: "1.20.2",
-	}, deps, tui.ColorDisabled)
+	}, deps)
 
 	assert.Equal(t, assert.AnError, err)
-	assert.Equal(t, 0, result.ExitCode)
+	assert.Equal(t, 1, result.ExitCode)
 }
 
 func TestRunWithDepsSupportedMods(t *testing.T) {
@@ -227,6 +130,7 @@ func TestRunWithDepsSupportedMods(t *testing.T) {
 		clients: platform.Clients{
 			Modrinth: httpclient.NewRLClient(httpclient.DefaultLimiter()),
 		},
+		minecraftClient: noopDoer{},
 		fetchMod: func(context.Context, models.Platform, string, platform.FetchOptions, platform.Clients) (platform.RemoteMod, error) {
 			return platform.RemoteMod{Name: "Alpha"}, nil
 		},
@@ -242,7 +146,7 @@ func TestRunWithDepsSupportedMods(t *testing.T) {
 	result, err := RunWithDeps(context.Background(), &cobra.Command{}, Options{
 		ConfigPath:  meta.ConfigPath,
 		GameVersion: "1.20.2",
-	}, deps, tui.ColorDisabled)
+	}, deps)
 
 	assert.NoError(t, err)
 	assert.Equal(t, 0, result.ExitCode)
@@ -264,6 +168,7 @@ func TestRunWithDepsInvalidVersion(t *testing.T) {
 		clients: platform.Clients{
 			Modrinth: httpclient.NewRLClient(httpclient.DefaultLimiter()),
 		},
+		minecraftClient: noopDoer{},
 		latestVersion: func(context.Context, httpclient.Doer) (string, error) {
 			return "1.20.3", nil
 		},
@@ -276,7 +181,7 @@ func TestRunWithDepsInvalidVersion(t *testing.T) {
 	_, err := RunWithDeps(context.Background(), &cobra.Command{}, Options{
 		ConfigPath:  meta.ConfigPath,
 		GameVersion: "1.20.3",
-	}, deps, tui.ColorDisabled)
+	}, deps)
 
 	assert.ErrorIs(t, err, errInvalidVersion)
 }
@@ -285,17 +190,18 @@ func TestRunWithDepsMissingConfig(t *testing.T) {
 	fs := afero.NewMemMapFs()
 
 	deps := testDeps{
-		fs:        fs,
-		output:    output.New(io.Discard, io.Discard, false),
-		logger:    logger.New(io.Discard, io.Discard, false, false),
-		clients:   platform.Clients{},
-		telemetry: func(telemetry.CommandTelemetry) {},
+		fs:              fs,
+		output:          output.New(io.Discard, io.Discard, false),
+		logger:          logger.New(io.Discard, io.Discard, false, false),
+		clients:         platform.Clients{},
+		minecraftClient: noopDoer{},
+		telemetry:       func(telemetry.CommandTelemetry) {},
 	}
 
 	_, err := RunWithDeps(context.Background(), &cobra.Command{}, Options{
 		ConfigPath:  "/cfg/modlist.json",
 		GameVersion: "1.20.1",
-	}, deps, tui.ColorDisabled)
+	}, deps)
 
 	assert.Error(t, err)
 }
@@ -313,12 +219,13 @@ func TestRunWithDepsUnsupportedMods(t *testing.T) {
 	require.NoError(t, config.WriteConfig(context.Background(), fs, meta, cfg))
 
 	deps := testDeps{
-		fs:      fs,
-		output:  output.New(io.Discard, io.Discard, false),
-		logger:  logger.New(io.Discard, io.Discard, false, false),
-		clients: platform.Clients{},
+		fs:              fs,
+		output:          output.New(io.Discard, io.Discard, false),
+		logger:          logger.New(io.Discard, io.Discard, false, false),
+		clients:         platform.Clients{},
+		minecraftClient: noopDoer{},
 		fetchMod: func(context.Context, models.Platform, string, platform.FetchOptions, platform.Clients) (platform.RemoteMod, error) {
-			return platform.RemoteMod{}, assert.AnError
+			return platform.RemoteMod{}, &platform.NoCompatibleFileError{Platform: models.MODRINTH, ProjectID: "alpha"}
 		},
 		latestVersion: func(context.Context, httpclient.Doer) (string, error) {
 			return "1.20.1", nil
@@ -332,7 +239,7 @@ func TestRunWithDepsUnsupportedMods(t *testing.T) {
 	result, err := RunWithDeps(context.Background(), &cobra.Command{}, Options{
 		ConfigPath:  meta.ConfigPath,
 		GameVersion: "1.20.2",
-	}, deps, tui.ColorDisabled)
+	}, deps)
 
 	assert.ErrorIs(t, err, errUnsupportedMods)
 	assert.Equal(t, 1, result.ExitCode)
@@ -352,11 +259,12 @@ func TestRunWithDepsContextCanceled(t *testing.T) {
 	require.NoError(t, config.WriteConfig(context.Background(), fs, meta, cfg))
 
 	deps := testDeps{
-		fs:        fs,
-		output:    output.New(io.Discard, io.Discard, false),
-		logger:    logger.New(io.Discard, io.Discard, false, false),
-		clients:   platform.Clients{},
-		telemetry: func(telemetry.CommandTelemetry) {},
+		fs:              fs,
+		output:          output.New(io.Discard, io.Discard, false),
+		logger:          logger.New(io.Discard, io.Discard, false, false),
+		clients:         platform.Clients{},
+		minecraftClient: noopDoer{},
+		telemetry:       func(telemetry.CommandTelemetry) {},
 		isValidVersion: func(context.Context, string, httpclient.Doer) (bool, error) {
 			return true, nil
 		},
@@ -374,7 +282,7 @@ func TestRunWithDepsContextCanceled(t *testing.T) {
 	_, err := RunWithDeps(ctx, &cobra.Command{}, Options{
 		ConfigPath:  meta.ConfigPath,
 		GameVersion: "1.20.2",
-	}, deps, tui.ColorDisabled)
+	}, deps)
 
 	assert.Error(t, err)
 }

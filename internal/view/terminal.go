@@ -95,7 +95,9 @@ func ProgramOptions(in io.Reader, out io.Writer) []tea.ProgramOption {
 		tea.WithOutput(out),
 	}
 
-	if !SupportsControlSequences(out) {
+	if SupportsControlSequences(out) {
+		options = append(options, tea.WithMouseCellMotion())
+	} else {
 		options = append(options, tea.WithoutRenderer())
 	}
 

@@ -100,6 +100,26 @@ Compatibility:
 ... (one row per mod, all mods shown)
 ```
 
+#### TEST-03A Failure During Running (tty)
+
+##### Command used
+`test 1.21.11`
+
+```
+Test Minecraft version 1.21.11
+
+Compatible mods:
+⠋ Inventory Sorting (inventory-sorting) [modrinth]
+⠋ Fabric API (fabric-api) [modrinth]
+⠋ Mod Menu (modmenu) [modrinth]
+✅ Mod Menu (modmenu) [modrinth]
+... (one row per compatible mod)
+
+Not compatible mods:
+❌ Some Mod (some-mod) [curseforge]
+... (one row per not compatible mod)
+```
+
 #### TEST-04 Success (tty and non-tty)
 
 ##### Command used

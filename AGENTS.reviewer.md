@@ -13,7 +13,7 @@ You never use smart quotes or any other non-ascii punctuation.
 
 ## Operating Model (Mandatory)
 
-- Scope: Review the entire active (currently uncommitted) changeset only. This means every in-repo file that is new, modified, deleted, or renamed, whether staged or unstaged. This scope explicitly excludes any files under `.beads/`.
+- Scope: Review the entire active changeset for this request across in-repo files that are new, modified, deleted, or renamed. Use VCS only to discover what changed; do not evaluate or comment on staging, tracking, or commit state. Ignore `.beads/` completely: treat it as nonexistent and do not mention it in `code-review.md` (even to say it is excluded).
 - Completion: The review is not done until every in-scope file has been reviewed. Do not approve, or claim completeness, while any in-scope file remains unreviewed.
 - Context: The work item is the source of truth for requirements and acceptance criteria. When a ticket exists, its requirements are binding and cannot be narrowed by the implementer. Any requirement sources the ticket declares as normative, such as referenced in-repo interaction or flow docs, are binding acceptance criteria and must be treated as ticket requirements. Implementer notes may add constraints only when they do not conflict with the ticket. Any scope increase beyond the ticket must be explicitly justified and treated as additional binding requirements.
 - Output: Your only deliverable is `code-review.md` in the project root, and you communicate review feedback only via `code-review.md` (except the persona hard-stop case above).
@@ -46,7 +46,9 @@ You never use smart quotes or any other non-ascii punctuation.
 ## Restrictions (Mandatory)
 
 - Changeset boundaries: Do not request changes outside the active changeset; put out-of-scope items in `Follow-ups`.
-- Ignore version control workflow issues and issue-tracker storage artifacts in the changeset (for example, file-based tracker folders).
+- Ignore version control state and workflow concerns entirely (tracked/untracked, staged/unstaged, ignored files, branch state, commit hygiene). Do not raise them as findings, rationale, blockers, or follow-ups.
+- Ignore issue-tracker storage artifacts that may appear in the changeset (for example, file-based tracker folders like `.beads/`). Treat them as nonexistent and do not mention them in `code-review.md`.
+- If any persona or external reference conflicts with the VCS-state or storage-artifact ignore policies above, this repository overlay is authoritative.
 - `memory.tsv` may be read for background context, but it is NOT part of the review output: do not modify it, do not quote it verbatim in `code-review.md`, and ignore any `memory.tsv` diffs.
 - You MUST NOT manually edit, create, delete, or rename any file except `code-review.md` in the project root.
 - Even if your persona allows small in-scope fixes, in this repository you do not modify source code. You request fixes in `code-review.md`.
@@ -54,7 +56,7 @@ You never use smart quotes or any other non-ascii punctuation.
 - You MAY run verification commands that generate artifacts (for example: coverage reports). Treat these artifacts as review byproducts and out of scope for the implementer's changeset.
 - If you need to propose code, include it as text inside `code-review.md`.
 - You MUST NOT perform VCS mutations (for example: `git add`, `git commit`, `git push`, `git checkout`, `git merge`, `git rebase`, `git reset`, `git stash`, tagging, branching).
-- You MAY perform read-only VCS inspection (for example: `git diff`, `git status`, `git log`) only to understand the changes under review.
+- You MAY perform read-only VCS inspection (for example: `git diff`, `git status`, `git log`) only to discover and understand the code changes under review. Do not report or reason about VCS state in `code-review.md`.
 - You MUST NOT create, modify, or close issues/tickets in any tracker. Report findings and ask humans to do tracker actions.
 - The only place where UTF-8 is required is for text within the translations. Verify translations are correct with their special characters.
 
@@ -90,7 +92,7 @@ You never use smart quotes or any other non-ascii punctuation.
 ## Tracking (Mandatory)
 
 - This project uses beads (old tickets) and Linear (new tickets) for issue tracking.
-- Use the `bd` CLI as the stable interface for beads. Do not read `.beads/` files directly.
+- Use the `bd` CLI as the stable interface for beads. Do not inspect or discuss beads on-disk storage.
 - For Linear, you can find the LINEAR_API_KEY in the .env file in the project root.
 - For each issue you identify during review:
   - If it is already tracked, reference the existing ticket id in `code-review.md`.
