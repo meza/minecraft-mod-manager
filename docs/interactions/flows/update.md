@@ -42,6 +42,7 @@ Success looks like (for the user):
 - If no updates are available, MMM exits successfully and reports results with only the "Already up to date" segment (and "Skipped" if applicable).
 - If the `install` prerequisite fails, MMM exits non-zero with an actionable error.
 - If writing lock updates fails, MMM exits non-zero with an actionable error.
+- If writing config updates fails, MMM exits non-zero with an actionable error.
 
 ---
 
@@ -60,8 +61,12 @@ States:
 - UPDATE-NOOP-NO-UPDATES: no updates available
 - UPDATE-ERR-INSTALL: install prerequisite failed
 - UPDATE-ERR-WRITE-LOCK: failed to write lock updates
+- UPDATE-ERR-WRITE-CONFIG: failed to write config updates
 
 ### Frame snapshots
+
+When reusing the [install](./install.md) flow, `update` reuses the same frames as install for the prerequisite step both in tty and non-tty modes.
+This includes the final frame renders for non-tty.
 
 #### UPDATE-01 Running (tty)
 
@@ -72,11 +77,42 @@ If a segment has no mods, MMM does not render that segment.
 ##### Command used
 `update`
 
+##### UPDATE-01-1 Installing prerequisite
+
+First, MMM runs the install prerequisite, reusing the install flow output:
+
 ```
-Updating:
+Installing mods:
+⏳ Inventory Sorting (inventory-sorting) [modrinth]
+⬇️ Fabric API (fabric-api) [modrinth]
+█████░░░░░
+50% (512 KB / 1 MB)
+⬇️ Mod Menu (modmenu) [modrinth]
+██░░░░░░░░
+20% (200 KB / 1 MB)
+⏳ Lithium (lithium) [modrinth]
+... (one row per mod, all mods shown)
+
+Updating (⠋ waiting for install to complete)
+```
+
+In non-tty mode, MMM prints a header before the install transcript:
+
+```
+Installing potentially missing mods:
+```
+
+##### UPDATE-01-2 Updating mods (tty)
+
+UPDATE-01-1 runs to completion, then the view transitions to updating mods:
+
+```
+Updating mods:
 ⠋ Inventory Sorting (inventory-sorting) [modrinth]
 ⠋ Fabric API (fabric-api) [modrinth]
-⏳ Mod Menu (modmenu) [modrinth]
+⬇️ Mod Menu (modmenu) [modrinth]
+██░░░░░░░░
+20% (200 KB / 1 MB)
 ⏳ Some Mod (some-mod) [curseforge]
 ... (one row per mod, all mods shown)
 ```
@@ -155,7 +191,7 @@ No mods configured.
 
 Exit code: 0
 
-#### UPDATE-NOOP-NO-UPDATES No updates available (tty and non-tty)
+#### UPDATE-NOOP-NO-UPDATES No updates available (tty)
 
 ##### Command used
 `update`
@@ -175,7 +211,23 @@ Skipped:
 
 Exit code: 0
 
-#### UPDATE-03 Partial success (tty and non-tty)
+#### UPDATE-NOOP-NO-UPDATES No updates available (non-tty)
+
+##### Command used
+`update`
+
+```
+✅ Fabric API (fabric-api) [modrinth]
+✅ Mod Menu (modmenu) [modrinth]
+📌 Pinned Mod (pinned-mod) [curseforge] pinned (skipped)
+... (one row per skipped mod)
+
+✅ Update complete.
+```
+
+Exit code: 0
+
+#### UPDATE-03 Partial success (tty)
 
 ##### Command used
 `update`
@@ -204,12 +256,32 @@ Fix the reasons and rerun `mmm update`.
 
 Exit code: 1
 
+#### UPDATE-03 Partial success (non-tty)
+
+##### Command used
+`update`
+
+```
+✅ Fabric API (fabric-api) [modrinth]
+✅ Inventory Sorting (inventory-sorting) [modrinth]
+📌 Pinned Mod (pinned-mod) [curseforge] pinned (skipped)
+❌ Mod Menu (modmenu) [modrinth] update failed: <reason>
+
+‼️ Update incomplete.
+
+Fix the reasons and rerun `mmm update`.
+```
+
+Exit code: 1
+
 ### Error frames
 
 #### UPDATE-ERR-INSTALL install prerequisite failed
 
 ##### Command used
 `update`
+
+When the install prerequisite fails, MMM prints the install failure transcript first, then the update error below.
 
 ```
 ‼️ Install prerequisite failed. Update aborted.
@@ -232,12 +304,25 @@ Fix the file permissions and rerun `mmm update`.
 
 Exit code: 1
 
+#### UPDATE-ERR-WRITE-CONFIG failed to write config updates
+
+##### Command used
+`update`
+
+```
+‼️ Could not write config file at ./modlist.json.
+
+Fix the file permissions and rerun `mmm update`.
+```
+
+Exit code: 1
+
 ### Unattended behavior
 
 Unattended mode MUST NOT prompt.
 This applies when `--unattended` is set.
 
-For `update`, `--unattended` output is identical to tty output because this flow has no prompts.
+For `update`, `--unattended` output is identical to tty output; missing-config prompts are only shown in interactive mode and fail fast in unattended.
 Message shapes and exit codes match the tty frames above.
 
 ### Non-interactive (non-tty) behavior

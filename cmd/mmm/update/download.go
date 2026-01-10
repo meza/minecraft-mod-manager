@@ -11,6 +11,7 @@ import (
 	"path/filepath"
 	"strings"
 
+	"github.com/meza/minecraft-mod-manager/internal/httpclient"
 	"github.com/meza/minecraft-mod-manager/internal/i18n"
 	"github.com/meza/minecraft-mod-manager/internal/logger"
 	"github.com/meza/minecraft-mod-manager/internal/modinstall"
@@ -19,7 +20,7 @@ import (
 	"github.com/spf13/afero"
 )
 
-func downloadAndSwap(ctx context.Context, deps updateDeps, oldPath string, newPath string, modsFolder string, downloadURL string, expectedHash string) error {
+func downloadAndSwap(ctx context.Context, deps updateDeps, oldPath string, newPath string, modsFolder string, downloadURL string, expectedHash string, sender httpclient.Sender) error {
 	if strings.TrimSpace(expectedHash) == "" {
 		return modinstall.MissingHashError{FileName: filepath.Base(newPath)}
 	}
@@ -29,7 +30,7 @@ func downloadAndSwap(ctx context.Context, deps updateDeps, oldPath string, newPa
 		return err
 	}
 
-	if err := downloadToTemp(ctx, deps, downloadURL, tempPath); err != nil {
+	if err := downloadToTemp(ctx, deps, downloadURL, tempPath, sender); err != nil {
 		return removeTempFile(deps.fs, tempPath, err)
 	}
 
@@ -58,8 +59,8 @@ func prepareDownloadPaths(fs afero.Fs, modsFolder string, newPath string) (resol
 	return resolvedNewPath, tempPath, nil
 }
 
-func downloadToTemp(ctx context.Context, deps updateDeps, downloadURL string, tempPath string) error {
-	return deps.downloader(ctx, downloadURL, tempPath, platform.PreferredDownloadClient(deps.clients), nil, deps.fs)
+func downloadToTemp(ctx context.Context, deps updateDeps, downloadURL string, tempPath string, sender httpclient.Sender) error {
+	return deps.downloader(ctx, downloadURL, tempPath, platform.PreferredDownloadClient(deps.clients), sender, deps.fs)
 }
 
 func removeOldInstall(fs afero.Fs, oldPath string, newPath string, resolvedNewPath string) error {

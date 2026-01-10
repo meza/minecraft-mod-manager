@@ -96,6 +96,40 @@ func TestRunInteractiveInstallSuccess(t *testing.T) {
 	assert.NoError(t, err)
 }
 
+func TestRunInteractiveInstallAppliesProgramOptionsFromContext(t *testing.T) {
+	marker := false
+	customOption := func(*tea.Program) {
+		marker = true
+	}
+
+	cmd := &cobra.Command{}
+	cmd.SetIn(&bytes.Buffer{})
+	cmd.SetOut(&bytes.Buffer{})
+
+	restore := runInstallProgram
+	runInstallProgram = func(model *installModel, options ...tea.ProgramOption) (tea.Model, error) {
+		baseOptions := view.ProgramOptions(cmd.InOrStdin(), cmd.OutOrStdout())
+		assert.Equal(t, len(baseOptions)+1, len(options))
+		options[len(options)-1](nil)
+		assert.True(t, marker)
+		model.outcome = installExecutionOutcome{errType: installExecutionErrorNone}
+		return model, nil
+	}
+	t.Cleanup(func() { runInstallProgram = restore })
+
+	ctx := WithInstallProgramOptions(context.Background(), customOption)
+	items, indexByKey := buildInstallItems(models.ModsJSON{})
+	_, err := runInteractiveInstall(ctx, cmd, installExecutionInput{
+		meta:       config.NewMetadata("modlist.json"),
+		cfg:        models.ModsJSON{},
+		lock:       nil,
+		deps:       installDeps{},
+		items:      items,
+		indexByKey: indexByKey,
+	}, Result{})
+	assert.NoError(t, err)
+}
+
 func TestRunInteractiveInstallExecutesRunner(t *testing.T) {
 	restore := runInstallProgram
 	runInstallProgram = func(model *installModel, _ ...tea.ProgramOption) (tea.Model, error) {
@@ -277,6 +311,54 @@ func TestRunNonTTYInstallReturnsOutputError(t *testing.T) {
 		indexByKey: indexByKey,
 	}, Result{})
 	assert.ErrorIs(t, err, writeErr)
+}
+
+func TestRunNonTTYInstallReturnsRunnerError(t *testing.T) {
+	runErr := errors.New("runner failed")
+	restore := runInstallTranscriptProgram
+	runInstallTranscriptProgram = func(model *installTranscriptModel, _ ...tea.ProgramOption) (tea.Model, error) {
+		return model, runErr
+	}
+	t.Cleanup(func() { runInstallTranscriptProgram = restore })
+
+	cmd := &cobra.Command{}
+	cmd.SetIn(&bytes.Buffer{})
+	cmd.SetOut(&bytes.Buffer{})
+
+	items, indexByKey := buildInstallItems(models.ModsJSON{})
+	_, err := runNonTTYInstall(context.Background(), cmd, installExecutionInput{
+		meta:       config.NewMetadata("modlist.json"),
+		cfg:        models.ModsJSON{},
+		lock:       nil,
+		deps:       installDeps{},
+		items:      items,
+		indexByKey: indexByKey,
+	}, Result{})
+	assert.ErrorIs(t, err, runErr)
+}
+
+func TestRunNonTTYInstallSuccess(t *testing.T) {
+	restore := runInstallTranscriptProgram
+	runInstallTranscriptProgram = func(model *installTranscriptModel, _ ...tea.ProgramOption) (tea.Model, error) {
+		model.outcome = installExecutionOutcome{err: nil, errType: installExecutionErrorNone}
+		return model, nil
+	}
+	t.Cleanup(func() { runInstallTranscriptProgram = restore })
+
+	cmd := &cobra.Command{}
+	cmd.SetIn(&bytes.Buffer{})
+	cmd.SetOut(&bytes.Buffer{})
+
+	items, indexByKey := buildInstallItems(models.ModsJSON{})
+	_, err := runNonTTYInstall(context.Background(), cmd, installExecutionInput{
+		meta:       config.NewMetadata("modlist.json"),
+		cfg:        models.ModsJSON{},
+		lock:       nil,
+		deps:       installDeps{},
+		items:      items,
+		indexByKey: indexByKey,
+	}, Result{})
+	assert.NoError(t, err)
 }
 
 func TestRunQuietInstallReturnsOutputError(t *testing.T) {

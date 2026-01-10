@@ -42,7 +42,8 @@ func TestTestCommandInteractivePTYOutput(t *testing.T) {
 	t.Cleanup(func() { closePTY(t, master) })
 	t.Cleanup(func() { closePTY(t, slave) })
 
-	require.NoError(t, pty.Setsize(master, &pty.Winsize{Cols: 120, Rows: 40}))
+	rows := uint16(40)
+	require.NoError(t, pty.Setsize(master, &pty.Winsize{Cols: 120, Rows: rows}))
 
 	cmd := commandWithRunner(func(ctx context.Context, cmd *cobra.Command, _ testOptions, _ testDeps) (Result, error) {
 		items := []testItem{
@@ -120,7 +121,7 @@ func TestTestCommandInteractivePTYOutput(t *testing.T) {
 	}
 	require.NoError(t, normalizePTYReadError(<-readErr))
 
-	snaps.MatchSnapshot(t, normalizePTYSnapshot(output.String()))
+	snaps.MatchSnapshot(t, normalizePTYSnapshot(output.String(), rows))
 }
 
 func TestTestCommandInteractivePTYRunningShowsHeadersWhenShort(t *testing.T) {
@@ -138,7 +139,8 @@ func TestTestCommandInteractivePTYRunningShowsHeadersWhenShort(t *testing.T) {
 	t.Cleanup(func() { closePTY(t, master) })
 	t.Cleanup(func() { closePTY(t, slave) })
 
-	require.NoError(t, pty.Setsize(master, &pty.Winsize{Cols: 120, Rows: 6}))
+	rows := uint16(6)
+	require.NoError(t, pty.Setsize(master, &pty.Winsize{Cols: 120, Rows: rows}))
 
 	release := make(chan struct{})
 	updatesSent := make(chan struct{})
@@ -225,7 +227,7 @@ func TestTestCommandInteractivePTYRunningShowsHeadersWhenShort(t *testing.T) {
 	}
 
 	waitForOutput(t, output, "cmd.test.section.compatible")
-	snaps.MatchSnapshot(t, normalizePTYSnapshot(output.String()))
+	snaps.MatchSnapshot(t, normalizePTYSnapshot(output.String(), rows))
 
 	close(release)
 	err = <-execErr
@@ -255,7 +257,8 @@ func TestTestCommandInteractivePTYRunningSnapshotMediumHeight(t *testing.T) {
 	t.Cleanup(func() { closePTY(t, master) })
 	t.Cleanup(func() { closePTY(t, slave) })
 
-	require.NoError(t, pty.Setsize(master, &pty.Winsize{Cols: 120, Rows: 12}))
+	rows := uint16(12)
+	require.NoError(t, pty.Setsize(master, &pty.Winsize{Cols: 120, Rows: rows}))
 
 	release := make(chan struct{})
 	updatesSent := make(chan struct{})
@@ -340,7 +343,7 @@ func TestTestCommandInteractivePTYRunningSnapshotMediumHeight(t *testing.T) {
 	}
 
 	waitForOutput(t, output, "cmd.test.section.compatibility")
-	snaps.MatchSnapshot(t, normalizePTYSnapshot(output.String()))
+	snaps.MatchSnapshot(t, normalizePTYSnapshot(output.String(), rows))
 
 	close(release)
 	err = <-execErr
@@ -370,7 +373,8 @@ func TestTestCommandInteractivePTYRunningScrollsToNotCompatible(t *testing.T) {
 	t.Cleanup(func() { closePTY(t, master) })
 	t.Cleanup(func() { closePTY(t, slave) })
 
-	require.NoError(t, pty.Setsize(master, &pty.Winsize{Cols: 60, Rows: 6}))
+	rows := uint16(6)
+	require.NoError(t, pty.Setsize(master, &pty.Winsize{Cols: 60, Rows: rows}))
 
 	release := make(chan struct{})
 	updatesSent := make(chan struct{})
@@ -469,11 +473,12 @@ func TestTestCommandInteractivePTYRunningScrollsToNotCompatible(t *testing.T) {
 	waitForOutput(t, output, "cmd.test.header")
 	waitForOutput(t, output, "cmd.test.section.compatible")
 
+	output.Reset()
 	_, writeErr := master.Write([]byte("\x1b[6~"))
 	require.NoError(t, writeErr)
 
 	waitForOutput(t, output, "cmd.test.section.not_compatible")
-	snaps.MatchSnapshot(t, normalizePTYSnapshot(output.String()))
+	snaps.MatchSnapshot(t, normalizePTYSnapshot(output.String(), rows))
 
 	close(release)
 	err = <-execErr
@@ -503,7 +508,8 @@ func TestTestCommandInteractivePTYRunningSnapshotTallHeightFailure(t *testing.T)
 	t.Cleanup(func() { closePTY(t, master) })
 	t.Cleanup(func() { closePTY(t, slave) })
 
-	require.NoError(t, pty.Setsize(master, &pty.Winsize{Cols: 120, Rows: 40}))
+	rows := uint16(40)
+	require.NoError(t, pty.Setsize(master, &pty.Winsize{Cols: 120, Rows: rows}))
 
 	release := make(chan struct{})
 	updatesSent := make(chan struct{})
@@ -592,7 +598,7 @@ func TestTestCommandInteractivePTYRunningSnapshotTallHeightFailure(t *testing.T)
 	}
 
 	waitForOutput(t, output, "cmd.test.section.not_compatible")
-	snaps.MatchSnapshot(t, normalizePTYSnapshot(output.String()))
+	snaps.MatchSnapshot(t, normalizePTYSnapshot(output.String(), rows))
 
 	close(release)
 	err = <-execErr
@@ -622,7 +628,8 @@ func TestTestCommandInteractivePTYRunningMouseScrollsToNotCompatible(t *testing.
 	t.Cleanup(func() { closePTY(t, master) })
 	t.Cleanup(func() { closePTY(t, slave) })
 
-	require.NoError(t, pty.Setsize(master, &pty.Winsize{Cols: 60, Rows: 6}))
+	rows := uint16(6)
+	require.NoError(t, pty.Setsize(master, &pty.Winsize{Cols: 60, Rows: rows}))
 
 	release := make(chan struct{})
 	updatesSent := make(chan struct{})
@@ -721,13 +728,14 @@ func TestTestCommandInteractivePTYRunningMouseScrollsToNotCompatible(t *testing.
 	waitForOutput(t, output, "cmd.test.header")
 	waitForOutput(t, output, "cmd.test.section.compatible")
 
+	output.Reset()
 	for i := 0; i < 3; i++ {
 		_, writeErr := master.Write([]byte("\x1b[<65;1;1M"))
 		require.NoError(t, writeErr)
 	}
 
 	waitForOutput(t, output, "cmd.test.section.not_compatible")
-	snaps.MatchSnapshot(t, normalizePTYSnapshot(output.String()))
+	snaps.MatchSnapshot(t, normalizePTYSnapshot(output.String(), rows))
 
 	close(release)
 	err = <-execErr
@@ -757,7 +765,8 @@ func TestTestCommandInteractivePTYFinalTranscriptSuccessShortHeight(t *testing.T
 	t.Cleanup(func() { closePTY(t, master) })
 	t.Cleanup(func() { closePTY(t, slave) })
 
-	require.NoError(t, pty.Setsize(master, &pty.Winsize{Cols: 120, Rows: 6}))
+	rows := uint16(6)
+	require.NoError(t, pty.Setsize(master, &pty.Winsize{Cols: 120, Rows: rows}))
 
 	release := make(chan struct{})
 	updatesSent := make(chan struct{})
@@ -854,7 +863,7 @@ func TestTestCommandInteractivePTYFinalTranscriptSuccessShortHeight(t *testing.T
 	}
 	require.NoError(t, normalizePTYReadError(<-readErr))
 
-	snaps.MatchSnapshot(t, normalizePTYSnapshot(output.String()))
+	snaps.MatchSnapshot(t, normalizePTYSnapshot(output.String(), rows))
 }
 
 func TestTestCommandInteractivePTYFinalTranscriptIncludesSummaryAfterScroll(t *testing.T) {
@@ -872,7 +881,8 @@ func TestTestCommandInteractivePTYFinalTranscriptIncludesSummaryAfterScroll(t *t
 	t.Cleanup(func() { closePTY(t, master) })
 	t.Cleanup(func() { closePTY(t, slave) })
 
-	require.NoError(t, pty.Setsize(master, &pty.Winsize{Cols: 60, Rows: 6}))
+	rows := uint16(6)
+	require.NoError(t, pty.Setsize(master, &pty.Winsize{Cols: 60, Rows: rows}))
 
 	release := make(chan struct{})
 	updatesSent := make(chan struct{})
@@ -987,7 +997,7 @@ func TestTestCommandInteractivePTYFinalTranscriptIncludesSummaryAfterScroll(t *t
 	}
 	require.NoError(t, normalizePTYReadError(<-readErr))
 
-	snaps.MatchSnapshot(t, normalizePTYSnapshot(output.String()))
+	snaps.MatchSnapshot(t, normalizePTYSnapshot(output.String(), rows))
 }
 
 func TestTestCommandInteractivePTYFinalTranscriptInconclusiveMediumHeight(t *testing.T) {
@@ -1005,7 +1015,8 @@ func TestTestCommandInteractivePTYFinalTranscriptInconclusiveMediumHeight(t *tes
 	t.Cleanup(func() { closePTY(t, master) })
 	t.Cleanup(func() { closePTY(t, slave) })
 
-	require.NoError(t, pty.Setsize(master, &pty.Winsize{Cols: 120, Rows: 12}))
+	rows := uint16(12)
+	require.NoError(t, pty.Setsize(master, &pty.Winsize{Cols: 120, Rows: rows}))
 
 	release := make(chan struct{})
 	updatesSent := make(chan struct{})
@@ -1103,7 +1114,7 @@ func TestTestCommandInteractivePTYFinalTranscriptInconclusiveMediumHeight(t *tes
 	}
 	require.NoError(t, normalizePTYReadError(<-readErr))
 
-	snaps.MatchSnapshot(t, normalizePTYSnapshot(output.String()))
+	snaps.MatchSnapshot(t, normalizePTYSnapshot(output.String(), rows))
 }
 
 func TestTestCommandInteractivePTYFinalTranscriptIncludesSummaryWithoutScroll(t *testing.T) {
@@ -1121,7 +1132,8 @@ func TestTestCommandInteractivePTYFinalTranscriptIncludesSummaryWithoutScroll(t 
 	t.Cleanup(func() { closePTY(t, master) })
 	t.Cleanup(func() { closePTY(t, slave) })
 
-	require.NoError(t, pty.Setsize(master, &pty.Winsize{Cols: 60, Rows: 6}))
+	rows := uint16(6)
+	require.NoError(t, pty.Setsize(master, &pty.Winsize{Cols: 60, Rows: rows}))
 
 	release := make(chan struct{})
 	updatesSent := make(chan struct{})
@@ -1229,7 +1241,7 @@ func TestTestCommandInteractivePTYFinalTranscriptIncludesSummaryWithoutScroll(t 
 	}
 	require.NoError(t, normalizePTYReadError(<-readErr))
 
-	snaps.MatchSnapshot(t, normalizePTYSnapshot(output.String()))
+	snaps.MatchSnapshot(t, normalizePTYSnapshot(output.String(), rows))
 }
 
 func waitForOutput(t *testing.T, output *lockedBuffer, needle string) {
@@ -1279,13 +1291,43 @@ func stripControlSequences(value string) string {
 	return value
 }
 
-func normalizePTYSnapshot(value string) string {
+func normalizePTYSnapshot(value string, rows uint16) string {
 	normalized := stripControlSequences(value)
+	normalized = trimToLastTestFrame(normalized)
 	lines := strings.Split(normalized, "\n")
 	for index, line := range lines {
 		lines[index] = strings.TrimRight(line, " \t")
 	}
+	lines = trimTrailingEmptyLines(lines)
+	if rows > 0 {
+		target := int(rows)
+		if len(lines) > target {
+			lines = lines[len(lines)-target:]
+		} else if len(lines) < target {
+			padding := make([]string, target-len(lines))
+			lines = append(lines, padding...)
+		}
+	}
 	return strings.TrimSpace(strings.Join(lines, "\n"))
+}
+
+func trimToLastTestFrame(value string) string {
+	header := "cmd.test.header"
+	index := strings.LastIndex(value, header)
+	if index < 0 {
+		return value
+	}
+	return value[index:]
+}
+
+func trimTrailingEmptyLines(lines []string) []string {
+	for len(lines) > 0 {
+		if strings.TrimSpace(lines[len(lines)-1]) != "" {
+			return lines
+		}
+		lines = lines[:len(lines)-1]
+	}
+	return lines
 }
 
 func finalizePTYRun(cmd *cobra.Command, result tea.Model) (testExecutionOutcome, error) {

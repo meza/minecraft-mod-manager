@@ -334,19 +334,23 @@ func runInteractiveInstall(
 ) (Result, error) {
 	execCtx, cancel := context.WithCancel(ctx)
 	defer cancel()
+	runningFooter := runningFooterFromContext(ctx)
 	model := newInstallModel(execCtx, colorModeForOutput(cmd.OutOrStdout()), executionInput.items, executionInput.indexByKey, cancel, func(ctx context.Context, sender httpclient.Sender) installExecutionOutcome {
 		return runInstallExecution(ctx, executionInput, sender)
-	})
+	}, runningFooter)
 
 	if runInstallProgram == nil {
 		return result, errors.New("missing bubble tea runner")
 	}
 
 	options := view.ProgramOptions(cmd.InOrStdin(), cmd.OutOrStdout())
+	options = append(options, installProgramOptionsFromContext(ctx)...)
 	_, err := runInstallProgram(model, options...)
 	if err != nil {
 		return result, err
 	}
+
+	NotifyInstallViewObserver(ctx, model.View())
 
 	outcome := model.outcome
 	if outcome.err != nil {

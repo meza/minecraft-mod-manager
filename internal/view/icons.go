@@ -44,3 +44,12 @@ func DownloadIcon(colorMode ColorMode) string {
 	}
 	return RenderIfColorEnabled(colorMode, QuestionStyle, icon)
 }
+
+func PinnedIcon(colorMode ColorMode) string {
+	asciiIcon := "+"
+	icon := asciiIcon
+	if SupportsUnicode() {
+		icon = "\U0001F4CC"
+	}
+	return RenderIfColorEnabled(colorMode, QuestionStyle, icon)
+}

@@ -1,0 +1,291 @@
+
+[TestUpdateCommandInteractivePTYRunningSnapshotShortHeight - 1]
+⣾ Epsilon Mod (mod-e) [modrinth]
+⣾ Zeta Mod (mod-f) [modrinth]
+⣾ Eta Mod (mod-g) [modrinth]
+⣾ Theta Mod (mod-h) [modrinth]
+⣾ Iota Mod (mod-i) [modrinth]
+⣾ Kappa Mod (mod-j) [modrinth]
+---
+
+[TestUpdateCommandInteractivePTYRunningSnapshotMediumHeight - 1]
+⣾ Alpha Mod (mod-a) [modrinth]
+⣾ Beta Mod (mod-b) [modrinth]
+⬇️ Gamma Mod (mod-c) [modrinth]
+██░░░░░░░░
+20% (200 B / 1000 B)
+⣾ Delta Mod (mod-d) [modrinth]
+⣾ Epsilon Mod (mod-e) [modrinth]
+⣾ Zeta Mod (mod-f) [modrinth]
+⣾ Eta Mod (mod-g) [modrinth]
+⣾ Theta Mod (mod-h) [modrinth]
+⣾ Iota Mod (mod-i) [modrinth]
+⣾ Kappa Mod (mod-j) [modrinth]
+---
+
+[TestUpdateCommandInteractivePTYRunningSnapshotTallHeight - 1]
+cmd.update.section.skipped
+📌 Pinned Mod (mod-k) [modrinth] cmd.update.item.skipped
+
+cmd.update.section.failed
+❌ Failed Mod (mod-l) [modrinth] cmd.update.item.failed, Arg 1: {Count: 0, Data: &map[reason:cmd.update.error.platform]}
+
+cmd.update.section.updating_label:
+⣾ Alpha Mod (mod-a) [modrinth]
+⣾ Beta Mod (mod-b) [modrinth]
+⬇️ Gamma Mod (mod-c) [modrinth]
+██░░░░░░░░
+20% (200 B / 1000 B)
+⣾ Delta Mod (mod-d) [modrinth]
+⣾ Epsilon Mod (mod-e) [modrinth]
+⣾ Zeta Mod (mod-f) [modrinth]
+⣾ Eta Mod (mod-g) [modrinth]
+⣾ Theta Mod (mod-h) [modrinth]
+⣾ Iota Mod (mod-i) [modrinth]
+⣾ Kappa Mod (mod-j) [modrinth]
+---
+
+[TestUpdateCommandInteractivePTYFinalSnapshotShortHeight - 1]
+cmd.update.section.up_to_date
+✅ Beta Mod (mod-b) [modrinth]
+✅ Delta Mod (mod-d) [modrinth]
+✅ Zeta Mod (mod-f) [modrinth]
+✅ Theta Mod (mod-h) [modrinth]
+✅ Kappa Mod (mod-j) [modrinth]
+
+cmd.update.section.updated
+✅ Alpha Mod (mod-a) [modrinth]
+✅ Gamma Mod (mod-c) [modrinth]
+✅ Epsilon Mod (mod-e) [modrinth]
+✅ Eta Mod (mod-g) [modrinth]
+✅ Iota Mod (mod-i) [modrinth]
+
+cmd.update.section.skipped
+📌 Pinned Mod (mod-k) [modrinth] cmd.update.item.skipped
+
+cmd.update.section.failed
+❌ Failed Mod (mod-l) [modrinth] cmd.update.item.failed, Arg 1: {Count: 0, Data: &map[reason:cmd.update.error.platform]}
+
+‼️ cmd.update.summary.incomplete
+
+cmd.update.summary.incomplete_hint
+---
+
+[TestUpdateCommandInteractivePTYFinalSnapshotMediumHeight - 1]
+cmd.update.section.up_to_date
+✅ Beta Mod (mod-b) [modrinth]
+✅ Delta Mod (mod-d) [modrinth]
+✅ Zeta Mod (mod-f) [modrinth]
+✅ Theta Mod (mod-h) [modrinth]
+✅ Kappa Mod (mod-j) [modrinth]
+
+cmd.update.section.updated
+✅ Alpha Mod (mod-a) [modrinth]
+✅ Gamma Mod (mod-c) [modrinth]
+✅ Epsilon Mod (mod-e) [modrinth]
+✅ Eta Mod (mod-g) [modrinth]
+✅ Iota Mod (mod-i) [modrinth]
+
+cmd.update.section.skipped
+📌 Pinned Mod (mod-k) [modrinth] cmd.update.item.skipped
+
+cmd.update.section.failed
+❌ Failed Mod (mod-l) [modrinth] cmd.update.item.failed, Arg 1: {Count: 0, Data: &map[reason:cmd.update.error.platform]}
+
+‼️ cmd.update.summary.incomplete
+
+cmd.update.summary.incomplete_hint
+---
+
+[TestUpdateCommandInteractivePTYFinalSnapshotTallHeight - 1]
+cmd.update.section.up_to_date
+✅ Beta Mod (mod-b) [modrinth]
+✅ Delta Mod (mod-d) [modrinth]
+✅ Zeta Mod (mod-f) [modrinth]
+✅ Theta Mod (mod-h) [modrinth]
+✅ Kappa Mod (mod-j) [modrinth]
+
+cmd.update.section.updated
+✅ Alpha Mod (mod-a) [modrinth]
+✅ Gamma Mod (mod-c) [modrinth]
+✅ Epsilon Mod (mod-e) [modrinth]
+✅ Eta Mod (mod-g) [modrinth]
+✅ Iota Mod (mod-i) [modrinth]
+
+cmd.update.section.skipped
+📌 Pinned Mod (mod-k) [modrinth] cmd.update.item.skipped
+
+cmd.update.section.failed
+❌ Failed Mod (mod-l) [modrinth] cmd.update.item.failed, Arg 1: {Count: 0, Data: &map[reason:cmd.update.error.platform]}
+
+‼️ cmd.update.summary.incomplete
+
+cmd.update.summary.incomplete_hint
+---
+
+[TestUpdateCommandInteractivePTYRunningSnapshotLongListShortHeight - 1]
+⣾ Tau Mod (mod-s) [modrinth]
+⣾ Upsilon Mod (mod-t) [modrinth]
+⣾ Phi Mod (mod-u) [modrinth]
+⣾ Chi Mod (mod-v) [modrinth]
+⣾ Psi Mod (mod-w) [modrinth]
+⣾ Omega Mod (mod-x) [modrinth]
+---
+
+[TestUpdateCommandInteractivePTYRunningSnapshotLongListMediumHeight - 1]
+⣾ Nu Mod (mod-m) [modrinth]
+⣾ Xi Mod (mod-n) [modrinth]
+⣾ Omicron Mod (mod-o) [modrinth]
+⣾ Pi Mod (mod-p) [modrinth]
+⣾ Rho Mod (mod-q) [modrinth]
+⣾ Sigma Mod (mod-r) [modrinth]
+⣾ Tau Mod (mod-s) [modrinth]
+⣾ Upsilon Mod (mod-t) [modrinth]
+⣾ Phi Mod (mod-u) [modrinth]
+⣾ Chi Mod (mod-v) [modrinth]
+⣾ Psi Mod (mod-w) [modrinth]
+⣾ Omega Mod (mod-x) [modrinth]
+---
+
+[TestUpdateCommandInteractivePTYRunningSnapshotLongListTallHeight - 1]
+⣾ Epsilon Mod (mod-e) [modrinth]
+⣾ Zeta Mod (mod-f) [modrinth]
+⣾ Eta Mod (mod-g) [modrinth]
+⣾ Theta Mod (mod-h) [modrinth]
+⣾ Iota Mod (mod-i) [modrinth]
+⣾ Kappa Mod (mod-j) [modrinth]
+⣾ Lambda Mod (mod-k) [modrinth]
+⣾ Mu Mod (mod-l) [modrinth]
+⣾ Nu Mod (mod-m) [modrinth]
+⣾ Xi Mod (mod-n) [modrinth]
+⣾ Omicron Mod (mod-o) [modrinth]
+⣾ Pi Mod (mod-p) [modrinth]
+⣾ Rho Mod (mod-q) [modrinth]
+⣾ Sigma Mod (mod-r) [modrinth]
+⣾ Tau Mod (mod-s) [modrinth]
+⣾ Upsilon Mod (mod-t) [modrinth]
+⣾ Phi Mod (mod-u) [modrinth]
+⣾ Chi Mod (mod-v) [modrinth]
+⣾ Psi Mod (mod-w) [modrinth]
+⣾ Omega Mod (mod-x) [modrinth]
+---
+
+[TestUpdateCommandInteractivePTYFinalSnapshotLongListShortHeight - 1]
+cmd.update.section.up_to_date
+✅ Beta Mod (mod-b) [modrinth]
+✅ Delta Mod (mod-d) [modrinth]
+✅ Zeta Mod (mod-f) [modrinth]
+✅ Theta Mod (mod-h) [modrinth]
+✅ Kappa Mod (mod-j) [modrinth]
+✅ Mu Mod (mod-l) [modrinth]
+✅ Xi Mod (mod-n) [modrinth]
+✅ Pi Mod (mod-p) [modrinth]
+✅ Sigma Mod (mod-r) [modrinth]
+✅ Upsilon Mod (mod-t) [modrinth]
+✅ Chi Mod (mod-v) [modrinth]
+✅ Omega Mod (mod-x) [modrinth]
+
+cmd.update.section.updated
+✅ Alpha Mod (mod-a) [modrinth]
+✅ Gamma Mod (mod-c) [modrinth]
+✅ Epsilon Mod (mod-e) [modrinth]
+✅ Eta Mod (mod-g) [modrinth]
+✅ Iota Mod (mod-i) [modrinth]
+✅ Lambda Mod (mod-k) [modrinth]
+✅ Nu Mod (mod-m) [modrinth]
+✅ Omicron Mod (mod-o) [modrinth]
+✅ Rho Mod (mod-q) [modrinth]
+✅ Tau Mod (mod-s) [modrinth]
+✅ Phi Mod (mod-u) [modrinth]
+✅ Psi Mod (mod-w) [modrinth]
+
+cmd.update.section.skipped
+📌 Pinned Mod (mod-y) [modrinth] cmd.update.item.skipped
+
+cmd.update.section.failed
+❌ Failed Mod (mod-z) [modrinth] cmd.update.item.failed, Arg 1: {Count: 0, Data: &map[reason:cmd.update.error.platform]}
+
+‼️ cmd.update.summary.incomplete
+
+cmd.update.summary.incomplete_hint
+---
+
+[TestUpdateCommandInteractivePTYFinalSnapshotLongListMediumHeight - 1]
+cmd.update.section.up_to_date
+✅ Beta Mod (mod-b) [modrinth]
+✅ Delta Mod (mod-d) [modrinth]
+✅ Zeta Mod (mod-f) [modrinth]
+✅ Theta Mod (mod-h) [modrinth]
+✅ Kappa Mod (mod-j) [modrinth]
+✅ Mu Mod (mod-l) [modrinth]
+✅ Xi Mod (mod-n) [modrinth]
+✅ Pi Mod (mod-p) [modrinth]
+✅ Sigma Mod (mod-r) [modrinth]
+✅ Upsilon Mod (mod-t) [modrinth]
+✅ Chi Mod (mod-v) [modrinth]
+✅ Omega Mod (mod-x) [modrinth]
+
+cmd.update.section.updated
+✅ Alpha Mod (mod-a) [modrinth]
+✅ Gamma Mod (mod-c) [modrinth]
+✅ Epsilon Mod (mod-e) [modrinth]
+✅ Eta Mod (mod-g) [modrinth]
+✅ Iota Mod (mod-i) [modrinth]
+✅ Lambda Mod (mod-k) [modrinth]
+✅ Nu Mod (mod-m) [modrinth]
+✅ Omicron Mod (mod-o) [modrinth]
+✅ Rho Mod (mod-q) [modrinth]
+✅ Tau Mod (mod-s) [modrinth]
+✅ Phi Mod (mod-u) [modrinth]
+✅ Psi Mod (mod-w) [modrinth]
+
+cmd.update.section.skipped
+📌 Pinned Mod (mod-y) [modrinth] cmd.update.item.skipped
+
+cmd.update.section.failed
+❌ Failed Mod (mod-z) [modrinth] cmd.update.item.failed, Arg 1: {Count: 0, Data: &map[reason:cmd.update.error.platform]}
+
+‼️ cmd.update.summary.incomplete
+
+cmd.update.summary.incomplete_hint
+---
+
+[TestUpdateCommandInteractivePTYFinalSnapshotLongListTallHeight - 1]
+cmd.update.section.up_to_date
+✅ Beta Mod (mod-b) [modrinth]
+✅ Delta Mod (mod-d) [modrinth]
+✅ Zeta Mod (mod-f) [modrinth]
+✅ Theta Mod (mod-h) [modrinth]
+✅ Kappa Mod (mod-j) [modrinth]
+✅ Mu Mod (mod-l) [modrinth]
+✅ Xi Mod (mod-n) [modrinth]
+✅ Pi Mod (mod-p) [modrinth]
+✅ Sigma Mod (mod-r) [modrinth]
+✅ Upsilon Mod (mod-t) [modrinth]
+✅ Chi Mod (mod-v) [modrinth]
+✅ Omega Mod (mod-x) [modrinth]
+
+cmd.update.section.updated
+✅ Alpha Mod (mod-a) [modrinth]
+✅ Gamma Mod (mod-c) [modrinth]
+✅ Epsilon Mod (mod-e) [modrinth]
+✅ Eta Mod (mod-g) [modrinth]
+✅ Iota Mod (mod-i) [modrinth]
+✅ Lambda Mod (mod-k) [modrinth]
+✅ Nu Mod (mod-m) [modrinth]
+✅ Omicron Mod (mod-o) [modrinth]
+✅ Rho Mod (mod-q) [modrinth]
+✅ Tau Mod (mod-s) [modrinth]
+✅ Phi Mod (mod-u) [modrinth]
+✅ Psi Mod (mod-w) [modrinth]
+
+cmd.update.section.skipped
+📌 Pinned Mod (mod-y) [modrinth] cmd.update.item.skipped
+
+cmd.update.section.failed
+❌ Failed Mod (mod-z) [modrinth] cmd.update.item.failed, Arg 1: {Count: 0, Data: &map[reason:cmd.update.error.platform]}
+
+‼️ cmd.update.summary.incomplete
+
+cmd.update.summary.incomplete_hint
+---

@@ -1,0 +1,360 @@
+package update
+
+import (
+	"context"
+	"errors"
+	"strings"
+	"testing"
+
+	"github.com/charmbracelet/bubbles/spinner"
+	"github.com/charmbracelet/bubbles/viewport"
+	tea "github.com/charmbracelet/bubbletea"
+	"github.com/stretchr/testify/assert"
+
+	"github.com/meza/minecraft-mod-manager/internal/models"
+	"github.com/meza/minecraft-mod-manager/internal/view"
+)
+
+func TestNewUpdateModelUsesLineSpinnerWhenUnicodeUnsupported(t *testing.T) {
+	restore := view.SetUnicodeSupportFuncForTesting(func() bool { return false })
+	t.Cleanup(restore)
+
+	model := newUpdateModel(updateModelInput{
+		ctx:        context.Background(),
+		colorMode:  view.ColorDisabled,
+		items:      []updateItem{},
+		indexByKey: map[int]int{},
+		execRunner: func(context.Context, updateExecSender) updateExecutionOutcome { return updateExecutionOutcome{} },
+	})
+	assert.Equal(t, spinner.Line, model.spinner.Spinner)
+}
+
+func TestUpdateModelInitQuitsWithoutRunner(t *testing.T) {
+	model := newUpdateModel(updateModelInput{
+		ctx:        context.Background(),
+		colorMode:  view.ColorDisabled,
+		items:      []updateItem{},
+		indexByKey: map[int]int{},
+	})
+
+	msg := model.Init()()
+	_, ok := msg.(tea.QuitMsg)
+	assert.True(t, ok)
+}
+
+func TestUpdateModelInitNonTestModeReturnsBatch(t *testing.T) {
+	model := newUpdateModel(updateModelInput{
+		ctx:        context.Background(),
+		colorMode:  view.ColorDisabled,
+		items:      []updateItem{},
+		indexByKey: map[int]int{},
+		execRunner: func(context.Context, updateExecSender) updateExecutionOutcome { return updateExecutionOutcome{} },
+	})
+	model.bindSender(func(tea.Msg) {})
+
+	msg := model.Init()()
+	_, ok := msg.(tea.BatchMsg)
+	assert.True(t, ok)
+}
+
+func TestStartUpdateCmdHandlesNilRunner(t *testing.T) {
+	model := newUpdateModel(updateModelInput{
+		ctx:        context.Background(),
+		colorMode:  view.ColorDisabled,
+		items:      []updateItem{},
+		indexByKey: map[int]int{},
+	})
+
+	msg := model.startUpdateCmd()()
+	typed, ok := msg.(updateExecutionFinishedMsg)
+	assert.True(t, ok)
+	assert.Equal(t, updateExecutionErrorCanceled, typed.outcome.errType)
+}
+
+func TestUpdateModelInitStartsUpdateInTestMode(t *testing.T) {
+	t.Setenv("MMM_TEST", "true")
+
+	model := newUpdateModel(updateModelInput{
+		ctx:        context.Background(),
+		colorMode:  view.ColorDisabled,
+		items:      []updateItem{},
+		indexByKey: map[int]int{},
+		execRunner: func(context.Context, updateExecSender) updateExecutionOutcome { return updateExecutionOutcome{} },
+	})
+	model.bindSender(func(tea.Msg) {})
+
+	msg := model.Init()()
+	_, ok := msg.(updateExecutionFinishedMsg)
+	assert.True(t, ok)
+}
+
+func TestUpdateModelUpdateHandlesMessages(t *testing.T) {
+	t.Setenv("MMM_TEST", "true")
+
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+
+	items := []updateItem{
+		{
+			ConfigIndex: 0,
+			Mod:         models.Mod{ID: "alpha", Name: "Alpha", Type: models.MODRINTH},
+			DisplayName: "Alpha",
+			Status:      updateItemStatusUpdating,
+		},
+	}
+	model := newUpdateModel(updateModelInput{
+		ctx:        ctx,
+		colorMode:  view.ColorDisabled,
+		items:      items,
+		indexByKey: map[int]int{0: 0},
+		execRunner: func(context.Context, updateExecSender) updateExecutionOutcome { return updateExecutionOutcome{} },
+	})
+
+	updated, cmd := model.Update(tea.WindowSizeMsg{Width: 80, Height: 20})
+	assert.Nil(t, cmd)
+	assert.Equal(t, 80, updated.(*updateModel).windowW)
+	assert.Equal(t, 20, updated.(*updateModel).windowH)
+
+	updated, cmd = model.Update(tea.KeyMsg{Type: tea.KeyCtrlC})
+	assert.Nil(t, cmd)
+	assert.ErrorIs(t, updated.(*updateModel).ctx.Err(), context.Canceled)
+
+	updated, cmd = model.Update(tea.KeyMsg{Type: tea.KeyUp})
+	assert.IsType(t, &updateModel{}, updated)
+	assert.Nil(t, cmd)
+
+	updated, cmd = model.Update(tea.MouseMsg{Action: tea.MouseActionPress, Button: tea.MouseButtonWheelDown})
+	assert.IsType(t, viewport.Model{}, updated.(*updateModel).viewport)
+	assert.Nil(t, cmd)
+
+	updated, cmd = model.Update(spinner.TickMsg{})
+	assert.NotNil(t, updated.(*updateModel).spinner.Spinner)
+	assert.NotNil(t, cmd)
+
+	updated, cmd = model.Update(updateItemProgressMsg{
+		index: 0,
+		progress: updateProgress{
+			ratio:      0.25,
+			downloaded: 25,
+			total:      100,
+		},
+	})
+	assert.Nil(t, cmd)
+	assert.Equal(t, updateItemStatusDownloading, updated.(*updateModel).items[0].Status)
+	assert.NotNil(t, updated.(*updateModel).items[0].Progress)
+
+	updated, cmd = model.Update(updateItemStatusMsg{
+		index:       0,
+		status:      updateItemStatusFailed,
+		failReason:  "boom",
+		displayName: "New Name",
+	})
+	assert.Nil(t, cmd)
+	assert.Equal(t, updateItemStatusFailed, updated.(*updateModel).items[0].Status)
+	assert.Equal(t, "boom", updated.(*updateModel).items[0].FailReason)
+	assert.Equal(t, "New Name", updated.(*updateModel).items[0].DisplayName)
+	assert.Nil(t, updated.(*updateModel).items[0].Progress)
+
+	outcome := updateExecutionOutcome{
+		items:   updated.(*updateModel).items,
+		errType: updateExecutionErrorNone,
+	}
+	updated, cmd = model.Update(updateExecutionFinishedMsg{outcome: outcome})
+	assert.NotNil(t, cmd)
+	assert.True(t, updated.(*updateModel).finalRender)
+
+	_, cmd = model.Update(updateFinalizeMsg{})
+	assert.NotNil(t, cmd)
+
+	updated, cmd = model.Update(struct{}{})
+	assert.Nil(t, cmd)
+	assert.IsType(t, &updateModel{}, updated)
+}
+
+func TestUpdateModelApplyItemProgressSkipsUnknownIndex(t *testing.T) {
+	model := newUpdateModel(updateModelInput{
+		ctx:        context.Background(),
+		colorMode:  view.ColorDisabled,
+		items:      []updateItem{{ConfigIndex: 0, Status: updateItemStatusPending}},
+		indexByKey: map[int]int{0: 0},
+		execRunner: func(context.Context, updateExecSender) updateExecutionOutcome { return updateExecutionOutcome{} },
+	})
+
+	model.applyItemProgress(updateItemProgressMsg{
+		index: 5,
+		progress: updateProgress{
+			ratio:      0.3,
+			downloaded: 30,
+			total:      100,
+		},
+	})
+
+	assert.Equal(t, updateItemStatusPending, model.items[0].Status)
+}
+
+func TestUpdateModelViewBranches(t *testing.T) {
+	t.Setenv("MMM_TEST", "true")
+
+	model := newUpdateModel(updateModelInput{
+		ctx:        context.Background(),
+		colorMode:  view.ColorDisabled,
+		items:      []updateItem{},
+		indexByKey: map[int]int{},
+		execRunner: func(context.Context, updateExecSender) updateExecutionOutcome { return updateExecutionOutcome{} },
+	})
+
+	model.finalRender = true
+	model.outcome = updateExecutionOutcome{errType: updateExecutionErrorWriteLock, lockPath: "/lock"}
+	assert.Contains(t, model.View(), "cmd.update.error.write_lock")
+
+	model.outcome = updateExecutionOutcome{errType: updateExecutionErrorWriteConfig, configPath: "/config"}
+	assert.Contains(t, model.View(), "cmd.update.error.write_config")
+
+	model.outcome = updateExecutionOutcome{errType: updateExecutionErrorCanceled}
+	assert.Equal(t, "", model.View())
+
+	model.outcome = updateExecutionOutcome{errType: updateExecutionErrorUnknown, err: errors.New("boom")}
+	assert.Contains(t, model.View(), "boom")
+
+	model.outcome = updateExecutionOutcome{errType: updateExecutionErrorNone, items: []updateItem{}}
+	assert.Contains(t, model.View(), "cmd.update.summary.success")
+
+	model.suppressFinal = true
+	assert.Equal(t, "", model.View())
+
+	model.finalRender = false
+	model.windowH = 0
+	model.items = []updateItem{{ConfigIndex: 0, DisplayName: "Alpha", Status: updateItemStatusUpdating}}
+	assert.Contains(t, model.View(), "cmd.update.section.updating")
+}
+
+func TestUpdateViewportAndSpinnerFrame(t *testing.T) {
+	model := newUpdateModel(updateModelInput{
+		ctx:        context.Background(),
+		colorMode:  view.ColorDisabled,
+		items:      []updateItem{},
+		indexByKey: map[int]int{},
+		execRunner: func(context.Context, updateExecSender) updateExecutionOutcome { return updateExecutionOutcome{} },
+	})
+
+	model.updateViewport("line1\nline2", -1)
+	assert.Equal(t, 0, model.viewport.Height)
+
+	model.spinner.Spinner = spinner.Spinner{Frames: []string{"(error)"}}
+	assert.Equal(t, "", strings.TrimSpace(model.spinnerFrame()))
+
+	model.spinner.Spinner = spinner.Spinner{Frames: []string{"x"}}
+	assert.Equal(t, "x", strings.TrimSpace(model.spinnerFrame()))
+}
+
+func TestUpdateModelViewUsesViewportWhenWindowHeightSet(t *testing.T) {
+	t.Setenv("MMM_TEST", "true")
+
+	model := newUpdateModel(updateModelInput{
+		ctx:       context.Background(),
+		colorMode: view.ColorDisabled,
+		items: []updateItem{
+			{
+				ConfigIndex: 0,
+				Mod:         models.Mod{ID: "alpha", Name: "Alpha", Type: models.MODRINTH},
+				DisplayName: "Alpha",
+				Status:      updateItemStatusUpdating,
+			},
+		},
+		indexByKey: map[int]int{0: 0},
+		execRunner: func(context.Context, updateExecSender) updateExecutionOutcome { return updateExecutionOutcome{} },
+	})
+
+	model.windowH = 5
+	model.windowW = 42
+
+	output := model.View()
+	assert.NotEmpty(t, output)
+	assert.Greater(t, model.viewport.Height, 0)
+	assert.Equal(t, model.windowW, model.viewport.Width)
+}
+
+func TestUpdateViewportAutoScrollsUntilUserScrolls(t *testing.T) {
+	model := newUpdateModel(updateModelInput{
+		ctx:        context.Background(),
+		colorMode:  view.ColorDisabled,
+		items:      []updateItem{},
+		indexByKey: map[int]int{},
+		execRunner: func(context.Context, updateExecSender) updateExecutionOutcome { return updateExecutionOutcome{} },
+	})
+
+	model.updateViewport("one\ntwo\nthree\nfour", 2)
+	assert.Equal(t, 2, model.viewport.Height)
+	assert.Equal(t, 2, model.viewport.YOffset)
+
+	model.userScrolled = true
+	model.viewport.YOffset = 0
+	model.updateViewport("one\ntwo\nthree\nfour", 2)
+	assert.Equal(t, 0, model.viewport.YOffset)
+}
+
+func TestUpdateViewportClampsToShortContent(t *testing.T) {
+	model := newUpdateModel(updateModelInput{
+		ctx:        context.Background(),
+		colorMode:  view.ColorDisabled,
+		items:      []updateItem{},
+		indexByKey: map[int]int{},
+		execRunner: func(context.Context, updateExecSender) updateExecutionOutcome { return updateExecutionOutcome{} },
+	})
+
+	model.windowW = 10
+	model.updateViewport("one", 5)
+	assert.Equal(t, 1, model.viewport.Height)
+	assert.Equal(t, 0, model.viewport.YOffset)
+}
+
+func TestUpdateModelMarksUserScrolledOnViewportChange(t *testing.T) {
+	model := newUpdateModel(updateModelInput{
+		ctx:        context.Background(),
+		colorMode:  view.ColorDisabled,
+		items:      []updateItem{},
+		indexByKey: map[int]int{},
+		execRunner: func(context.Context, updateExecSender) updateExecutionOutcome { return updateExecutionOutcome{} },
+	})
+
+	assert.False(t, model.userScrolled)
+
+	updated, _ := model.Update(tea.KeyMsg{Type: tea.KeyDown})
+	assert.True(t, updated.(*updateModel).userScrolled)
+}
+
+func TestUpdateModelMarksUserScrolledOnVimKeys(t *testing.T) {
+	model := newUpdateModel(updateModelInput{
+		ctx:        context.Background(),
+		colorMode:  view.ColorDisabled,
+		items:      []updateItem{},
+		indexByKey: map[int]int{},
+		execRunner: func(context.Context, updateExecSender) updateExecutionOutcome { return updateExecutionOutcome{} },
+	})
+
+	updated, _ := model.Update(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune("j")})
+	assert.True(t, updated.(*updateModel).userScrolled)
+}
+
+func TestIsViewportScrollKey(t *testing.T) {
+	assert.True(t, isViewportScrollKey(tea.KeyMsg{Type: tea.KeyDown}))
+	assert.True(t, isViewportScrollKey(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune("k")}))
+	assert.False(t, isViewportScrollKey(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune("x")}))
+}
+
+func TestIsViewportScrollMouse(t *testing.T) {
+	assert.True(t, isViewportScrollMouse(tea.MouseMsg{Action: tea.MouseActionPress, Button: tea.MouseButtonWheelDown}))
+	assert.False(t, isViewportScrollMouse(tea.MouseMsg{Action: tea.MouseActionPress, Button: tea.MouseButtonLeft}))
+	assert.False(t, isViewportScrollMouse(tea.MouseMsg{Action: tea.MouseActionRelease, Button: tea.MouseButtonWheelDown}))
+}
+
+func TestApplyItemUpdateIgnoresUnknownIndex(t *testing.T) {
+	model := newUpdateModel(updateModelInput{
+		ctx:        context.Background(),
+		colorMode:  view.ColorDisabled,
+		items:      []updateItem{},
+		indexByKey: map[int]int{},
+		execRunner: func(context.Context, updateExecSender) updateExecutionOutcome { return updateExecutionOutcome{} },
+	})
+	model.applyItemUpdate(updateItemStatusMsg{index: 99, status: updateItemStatusUpdated})
+}

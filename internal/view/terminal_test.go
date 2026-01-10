@@ -54,6 +54,27 @@ func TestProgramOptionsKeepsRendererWithTerminal(t *testing.T) {
 	assert.Len(t, opts, 3)
 }
 
+func TestSupportsDynamicRenderingRequiresPrompting(t *testing.T) {
+	restore := mockTerminalDetection(t, true)
+	defer restore()
+
+	assert.False(t, supportsDynamicRendering(strings.NewReader("data"), fakeWriter{}))
+}
+
+func TestSupportsDynamicRenderingRequiresTerminalWriter(t *testing.T) {
+	restore := mockTerminalDetection(t, true)
+	defer restore()
+
+	assert.False(t, supportsDynamicRendering(fakeReader{}, &strings.Builder{}))
+}
+
+func TestSupportsDynamicRenderingWhenPromptingAndTerminalWriter(t *testing.T) {
+	restore := mockTerminalDetection(t, true)
+	defer restore()
+
+	assert.True(t, supportsDynamicRendering(fakeReader{}, fakeWriter{}))
+}
+
 func TestIsTerminalReaderWithoutFD(t *testing.T) {
 	assert.False(t, IsTerminalReader(strings.NewReader("data")))
 }

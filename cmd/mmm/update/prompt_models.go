@@ -1,0 +1,160 @@
+package update
+
+import (
+	"fmt"
+	"strings"
+
+	"github.com/charmbracelet/bubbles/help"
+	"github.com/charmbracelet/bubbles/textinput"
+	tea "github.com/charmbracelet/bubbletea"
+
+	"github.com/meza/minecraft-mod-manager/internal/i18n"
+	"github.com/meza/minecraft-mod-manager/internal/view"
+)
+
+type confirmOption struct {
+	label string
+	short string
+}
+
+type confirmSelectedMessage struct {
+	confirmed bool
+}
+
+type confirmPromptModel struct {
+	input  textinput.Model
+	help   help.Model
+	keymap view.TranslatedInputKeyMap
+	error  error
+	value  string
+
+	yesOption confirmOption
+	noOption  confirmOption
+}
+
+func newConfirmPromptModel(question string) confirmPromptModel {
+	yesOption := confirmOption{
+		label: i18n.T("cmd.init.prompt.option.yes.label", nil),
+		short: i18n.T("cmd.init.prompt.option.yes.short", nil),
+	}
+	noOption := confirmOption{
+		label: i18n.T("cmd.init.prompt.option.no.label", nil),
+		short: i18n.T("cmd.init.prompt.option.no.short", nil),
+	}
+
+	promptText := buildConfirmPrompt(question, yesOption.short, noOption.short)
+
+	inputModel := textinput.New()
+	inputModel.Prompt = promptText
+	inputModel.Width = 10
+	inputModel.Focus()
+
+	return confirmPromptModel{
+		input:     inputModel,
+		help:      help.New(),
+		keymap:    view.TranslatedInputKeyMap{},
+		yesOption: yesOption,
+		noOption:  noOption,
+	}
+}
+
+func buildConfirmPrompt(question string, yesShort string, noShort string) string {
+	questionPrefix := view.QuestionStyle.Render("? ")
+	questionText := view.TitleStyle.Render(question)
+	suffixTemplate := i18n.T("cmd.init.prompt.confirm.suffix", nil)
+	suffix := suffixTemplate
+	if strings.Contains(suffixTemplate, "%") {
+		suffix = fmt.Sprintf(suffixTemplate, yesShort, noShort, noShort)
+	} else if !strings.HasPrefix(suffixTemplate, " ") {
+		suffix = " " + suffixTemplate
+	}
+	if !strings.HasSuffix(suffix, " ") {
+		suffix += " "
+	}
+	return questionPrefix + questionText + suffix
+}
+
+func (model confirmPromptModel) Init() tea.Cmd {
+	return nil
+}
+
+func (model confirmPromptModel) Update(msg tea.Msg) (confirmPromptModel, tea.Cmd) {
+	if keyMsg, ok := msg.(tea.KeyMsg); ok {
+		updated, cmd, handled := model.handleKeyMsg(keyMsg)
+		model = updated
+		if handled {
+			return model, cmd
+		}
+	}
+
+	var cmd tea.Cmd
+	model.input, cmd = model.input.Update(msg)
+	return model, cmd
+}
+
+func (model confirmPromptModel) View() string {
+	if model.value != "" {
+		return fmt.Sprintf("%s%s", model.input.Prompt, view.SelectedItemStyle.Render(model.value))
+	}
+
+	errorString := ""
+	if model.error != nil {
+		errorString = view.ErrorStyle.Render(" <- " + model.error.Error())
+	}
+
+	return fmt.Sprintf("%s%s\n\n%s", model.input.View(), errorString, model.help.View(model.keymap))
+}
+
+func (model confirmPromptModel) handleKeyMsg(msg tea.KeyMsg) (confirmPromptModel, tea.Cmd, bool) {
+	switch msg.String() {
+	case "enter":
+		return model.handleEnterKey()
+	default:
+		if model.input.Focused() {
+			model.error = nil
+		}
+		return model, nil, false
+	}
+}
+
+func (model confirmPromptModel) handleEnterKey() (confirmPromptModel, tea.Cmd, bool) {
+	rawValue := strings.TrimSpace(model.input.Value())
+	if rawValue == "" {
+		model.value = model.noOption.short
+		model.input.SetValue(model.value)
+		return model, model.confirmSelected(false), true
+	}
+
+	if model.matchesOption(rawValue, model.yesOption) {
+		model.value = model.yesOption.short
+		model.input.SetValue(model.value)
+		return model, model.confirmSelected(true), true
+	}
+
+	if model.matchesOption(rawValue, model.noOption) {
+		model.value = model.noOption.short
+		model.input.SetValue(model.value)
+		return model, model.confirmSelected(false), true
+	}
+
+	model.error = fmt.Errorf("%s", i18n.T("cmd.init.prompt.error.invalid_choice", &i18n.Tvars{
+		Data: &i18n.TData{
+			"yesShort": model.yesOption.short,
+			"noShort":  model.noOption.short,
+		},
+	}))
+	return model, nil, true
+}
+
+func (model confirmPromptModel) confirmSelected(confirmed bool) tea.Cmd {
+	model.input.Blur()
+	return func() tea.Msg {
+		return confirmSelectedMessage{confirmed: confirmed}
+	}
+}
+
+func (model confirmPromptModel) matchesOption(value string, option confirmOption) bool {
+	value = strings.TrimSpace(strings.ToLower(value))
+	return strings.EqualFold(value, strings.ToLower(option.short)) ||
+		strings.EqualFold(value, strings.ToLower(option.label))
+}

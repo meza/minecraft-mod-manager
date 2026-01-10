@@ -2,36 +2,33 @@ package update
 
 import (
 	"errors"
-	"fmt"
+	"io"
 	"strings"
 	"time"
 
+	"github.com/meza/minecraft-mod-manager/cmd/mmm/install"
 	"github.com/meza/minecraft-mod-manager/internal/i18n"
 	"github.com/meza/minecraft-mod-manager/internal/models"
 	"github.com/meza/minecraft-mod-manager/internal/modinstall"
 	"github.com/meza/minecraft-mod-manager/internal/modpath"
+	"github.com/meza/minecraft-mod-manager/internal/view"
 )
 
-func integrityErrorMessage(err error, modName string) (string, bool) {
+func integrityErrorMessage(err error) (string, bool) {
 	var missingHash modinstall.MissingHashError
 	if errors.As(err, &missingHash) {
-		return i18n.T("cmd.update.error.missing_hash_lock", &i18n.Tvars{
-			Data: &i18n.TData{"name": modName},
-		}), true
+		return i18n.T("cmd.update.error.missing_hash_lock", nil), true
 	}
 
 	var hashMismatch modinstall.HashMismatchError
 	if errors.As(err, &hashMismatch) {
-		return i18n.T("cmd.update.error.hash_mismatch", &i18n.Tvars{
-			Data: &i18n.TData{"name": modName},
-		}), true
+		return i18n.T("cmd.update.error.hash_mismatch", nil), true
 	}
 
 	var outsideRoot modpath.OutsideRootError
 	if errors.As(err, &outsideRoot) {
 		return i18n.T("cmd.update.error.symlink_outside_mods", &i18n.Tvars{
 			Data: &i18n.TData{
-				"name": modName,
 				"path": outsideRoot.ResolvedPath,
 				"root": outsideRoot.Root,
 			},
@@ -59,6 +56,26 @@ func parseRFC3339(value string) (time.Time, error) {
 	return parsed, nil
 }
 
+func colorModeForOutput(output io.Writer) view.ColorMode {
+	if view.SupportsColor(output) && view.SupportsControlSequences(output) {
+		return view.ColorEnabled
+	}
+	return view.ColorDisabled
+}
+
+func updateInstallRunningFooter(input install.RunningFooterInput) string {
+	return renderUpdateInstallWaitingLine(input.ColorMode, input.SpinnerFrame)
+}
+
+func renderUpdateInstallWaitingLine(colorMode view.ColorMode, spinnerFrame string) string {
+	label := i18n.T("cmd.update.section.updating_label", nil)
+	waitingText := i18n.T("cmd.update.section.updating_waiting", nil)
+	waiting := strings.TrimSpace(strings.TrimSpace(spinnerFrame) + " " + waitingText)
+	waiting = "(" + waiting + ")"
+	waiting = view.RenderIfColorEnabled(colorMode, view.ParenStyle, waiting)
+	return strings.TrimSpace(label + " " + waiting)
+}
+
 func messageWithIcon(icon string, message string) string {
-	return fmt.Sprintf("%s %s", icon, message)
+	return strings.TrimSpace(icon + " " + message)
 }

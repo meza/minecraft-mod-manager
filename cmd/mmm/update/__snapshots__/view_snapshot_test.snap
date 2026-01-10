@@ -1,0 +1,51 @@
+
+[TestUpdateViewSnapshots/running - 1]
+cmd.update.section.up_to_date
+✅ Zeta Mod (mod-f) [modrinth]
+
+cmd.update.section.updated
+✅ Gamma Mod (mod-c) [curseforge]
+
+cmd.update.section.skipped
+📌 Pinned Mod (mod-d) [modrinth] cmd.update.item.skipped
+
+cmd.update.section.failed
+❌ Failed Mod (mod-e) [modrinth] cmd.update.item.failed, Arg 1: {Count: 0, Data: &map[reason:cmd.update.error.platform]}
+
+cmd.update.section.updating_label:
+⠋ Alpha Mod (mod-a) [modrinth]
+⬇️ Beta Mod (mod-b) [modrinth]
+██░░░░░░░░
+20% (200 B / 1000 B)
+---
+
+[TestUpdateViewSnapshots/results_success - 1]
+cmd.update.section.up_to_date
+✅ Zeta Mod (mod-f) [modrinth]
+
+cmd.update.section.updated
+✅ Gamma Mod (mod-c) [curseforge]
+
+cmd.update.section.skipped
+📌 Pinned Mod (mod-d) [modrinth] cmd.update.item.skipped
+
+✅ cmd.update.summary.success
+---
+
+[TestUpdateViewSnapshots/results_partial - 1]
+cmd.update.section.up_to_date
+✅ Zeta Mod (mod-f) [modrinth]
+
+cmd.update.section.updated
+✅ Gamma Mod (mod-c) [curseforge]
+
+cmd.update.section.skipped
+📌 Pinned Mod (mod-d) [modrinth] cmd.update.item.skipped
+
+cmd.update.section.failed
+❌ Failed Mod (mod-e) [modrinth] cmd.update.item.failed, Arg 1: {Count: 0, Data: &map[reason:cmd.update.error.platform]}
+
+‼️ cmd.update.summary.incomplete
+
+cmd.update.summary.incomplete_hint
+---

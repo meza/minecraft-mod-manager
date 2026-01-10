@@ -1,13 +1,10 @@
 package update
 
 import (
-	"io"
-
 	"github.com/meza/minecraft-mod-manager/internal/clierrors"
 	"github.com/meza/minecraft-mod-manager/internal/cmddeps"
 	"github.com/meza/minecraft-mod-manager/internal/i18n"
 	"github.com/meza/minecraft-mod-manager/internal/perf"
-	"github.com/meza/minecraft-mod-manager/internal/view"
 	"github.com/spf13/cobra"
 	"go.opentelemetry.io/otel/attribute"
 )
@@ -38,34 +35,12 @@ func runUpdateCommand(cmd *cobra.Command) error {
 		return err
 	}
 
-	useView := view.SupportsPrompting(cmd.InOrStdin(), cmd.OutOrStdout()) && !opts.Unattended
-
-	outWriter := cmd.OutOrStdout()
-	errWriter := cmd.ErrOrStderr()
-	var logProgram *view.LogProgram
-	if useView {
-		logProgram = view.StartLogProgram(cmd.InOrStdin(), outWriter)
-		outWriter = logProgram.Writer()
-	}
-
-	installCmd := cmd
-	if useView {
-		installCmd = &cobra.Command{}
-		installCmd.SetOut(wrapWriterWithFD(outWriter, cmd.OutOrStdout()))
-		installCmd.SetErr(errWriter)
-	}
-
 	common := cmddeps.NewCommonDeps(cmd, cmddeps.CommonDepsOptions{
-		OutWriter: outWriter,
-		ErrWriter: errWriter,
-		Quiet:     opts.Quiet,
-		Debug:     opts.Debug,
+		Quiet: opts.Quiet,
+		Debug: opts.Debug,
 	})
-	deps := newUpdateDeps(common, installCmd)
+	deps := newUpdateDeps(common, cmd, opts)
 	counts, err := runUpdate(ctx, cmd, opts, deps)
-	if useView {
-		err = view.MergeProgramError(err, logProgram.Stop())
-	}
 	applyUpdateCommandErrorPolicy(cmd, err)
 	span.SetAttributes(attribute.Bool("success", err == nil))
 	span.End()
@@ -82,26 +57,6 @@ func applyUpdateCommandErrorPolicy(cmd *cobra.Command, err error) {
 		cmd.SilenceErrors = true
 	}
 	cmd.SilenceUsage = true
-}
-
-type writerWithFD struct {
-	io.Writer
-	fd uintptr
-}
-
-func (writer writerWithFD) Fd() uintptr {
-	return writer.fd
-}
-
-func wrapWriterWithFD(outputWriter io.Writer, terminalWriter io.Writer) io.Writer {
-	fdWriter, ok := terminalWriter.(interface{ Fd() uintptr })
-	if !ok {
-		return outputWriter
-	}
-	return writerWithFD{
-		Writer: outputWriter,
-		fd:     fdWriter.Fd(),
-	}
 }
 
 func updateOptionsFromFlags(cmd *cobra.Command) (updateOptions, error) {

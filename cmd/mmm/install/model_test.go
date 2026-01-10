@@ -28,7 +28,7 @@ func TestInstallExecSenderSendCallsHandler(t *testing.T) {
 func TestInstallModelInitQuitsWhenMissingSender(t *testing.T) {
 	model := newInstallModel(context.Background(), view.ColorDisabled, nil, nil, nil, func(context.Context, httpclient.Sender) installExecutionOutcome {
 		return installExecutionOutcome{}
-	})
+	}, nil)
 
 	cmd := model.Init()
 	msg := cmd()
@@ -37,7 +37,7 @@ func TestInstallModelInitQuitsWhenMissingSender(t *testing.T) {
 }
 
 func TestInstallModelInitQuitsWhenMissingRunner(t *testing.T) {
-	model := newInstallModel(context.Background(), view.ColorDisabled, nil, nil, nil, nil)
+	model := newInstallModel(context.Background(), view.ColorDisabled, nil, nil, nil, nil, nil)
 	model.bindSender(func(tea.Msg) {})
 
 	cmd := model.Init()
@@ -47,7 +47,7 @@ func TestInstallModelInitQuitsWhenMissingRunner(t *testing.T) {
 }
 
 func TestInstallModelStartInstallCmdReturnsFailureWhenRunnerMissing(t *testing.T) {
-	model := newInstallModel(context.Background(), view.ColorDisabled, nil, nil, nil, nil)
+	model := newInstallModel(context.Background(), view.ColorDisabled, nil, nil, nil, nil, nil)
 	msg := model.startInstallCmd()()
 	typed, ok := msg.(installExecutionFinishedMsg)
 	assert.True(t, ok)
@@ -60,7 +60,7 @@ func TestInstallModelUpdateAppliesItemMessages(t *testing.T) {
 		Mods: []models.Mod{{ID: "alpha", Name: "Alpha", Type: models.MODRINTH}},
 	}
 	items, indexByKey := buildInstallItems(cfg)
-	model := newInstallModel(context.Background(), view.ColorDisabled, items, indexByKey, nil, nil)
+	model := newInstallModel(context.Background(), view.ColorDisabled, items, indexByKey, nil, nil, nil)
 	key := installModKey(cfg.Mods[0])
 
 	model.Update(installItemProgressMsg{key: key, progress: httpclient.DownloadProgressMsg{Downloaded: 10, Total: 20, Ratio: 0.5}})
@@ -92,7 +92,7 @@ func TestInstallModelUpdateAppliesItemMessages(t *testing.T) {
 }
 
 func TestInstallModelUpdateSetsFinalState(t *testing.T) {
-	model := newInstallModel(context.Background(), view.ColorDisabled, nil, nil, nil, nil)
+	model := newInstallModel(context.Background(), view.ColorDisabled, nil, nil, nil, nil, nil)
 
 	_, cmd := model.Update(installExecutionFinishedMsg{outcome: installExecutionOutcome{errType: installExecutionErrorDownload}})
 	assert.NotNil(t, cmd)
@@ -105,7 +105,7 @@ func TestInstallModelViewRendersStates(t *testing.T) {
 		Mods: []models.Mod{{ID: "alpha", Name: "Alpha", Type: models.MODRINTH}},
 	}
 	items, indexByKey := buildInstallItems(cfg)
-	model := newInstallModel(context.Background(), view.ColorDisabled, items, indexByKey, nil, nil)
+	model := newInstallModel(context.Background(), view.ColorDisabled, items, indexByKey, nil, nil, nil)
 
 	model.state = installViewRunning
 	assert.Contains(t, model.View(), "cmd.install.header.running")
@@ -142,7 +142,7 @@ func TestViewStateFromOutcome(t *testing.T) {
 }
 
 func TestInstallModelUpdateIgnoresUnknownMessage(t *testing.T) {
-	model := newInstallModel(context.Background(), view.ColorDisabled, nil, nil, nil, nil)
+	model := newInstallModel(context.Background(), view.ColorDisabled, nil, nil, nil, nil, nil)
 	updated, cmd := model.Update(tea.KeyMsg{})
 	assert.Nil(t, cmd)
 	assert.Equal(t, model, updated)
@@ -153,7 +153,7 @@ func TestInstallModelUpdateSkipsUnknownKey(t *testing.T) {
 		Mods: []models.Mod{{ID: "alpha", Name: "Alpha", Type: models.MODRINTH}},
 	}
 	items, indexByKey := buildInstallItems(cfg)
-	model := newInstallModel(context.Background(), view.ColorDisabled, items, indexByKey, nil, nil)
+	model := newInstallModel(context.Background(), view.ColorDisabled, items, indexByKey, nil, nil, nil)
 
 	model.Update(installItemSuccessMsg{key: "missing"})
 	item := model.items[indexByKey[installModKey(cfg.Mods[0])]]
@@ -164,7 +164,7 @@ func TestInstallModelUpdateCancelsOnCtrlC(t *testing.T) {
 	canceled := false
 	model := newInstallModel(context.Background(), view.ColorDisabled, nil, nil, func() {
 		canceled = true
-	}, nil)
+	}, nil, nil)
 
 	model.Update(tea.KeyMsg{Type: tea.KeyCtrlC})
 	assert.True(t, canceled)
@@ -174,7 +174,7 @@ func TestInstallModelUpdateCancelsOnQ(t *testing.T) {
 	canceled := false
 	model := newInstallModel(context.Background(), view.ColorDisabled, nil, nil, func() {
 		canceled = true
-	}, nil)
+	}, nil, nil)
 
 	model.Update(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune{'q'}})
 	assert.True(t, canceled)
@@ -184,14 +184,14 @@ func TestInstallModelUpdateCancelsOnEsc(t *testing.T) {
 	canceled := false
 	model := newInstallModel(context.Background(), view.ColorDisabled, nil, nil, func() {
 		canceled = true
-	}, nil)
+	}, nil, nil)
 
 	model.Update(tea.KeyMsg{Type: tea.KeyEsc})
 	assert.True(t, canceled)
 }
 
 func TestInstallModelUpdateIgnoresUnknownMessageType(t *testing.T) {
-	model := newInstallModel(context.Background(), view.ColorDisabled, nil, nil, nil, nil)
+	model := newInstallModel(context.Background(), view.ColorDisabled, nil, nil, nil, nil, nil)
 	updated, cmd := model.Update(struct{}{})
 	assert.Nil(t, cmd)
 	assert.Equal(t, model, updated)

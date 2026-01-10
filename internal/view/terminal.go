@@ -37,7 +37,7 @@ func SupportsUnicode() bool {
 	return unicodeSupportFunc()
 }
 
-// SupportsColor reports whether color output should be used for the provided writer.
+// SupportsColor reports whether color output should be used for the current environment.
 func SupportsColor(writer io.Writer) bool {
 	return colorProfileFunc() != termenv.Ascii
 }
@@ -90,18 +90,27 @@ func IsTerminalWriter(writer io.Writer) bool {
 
 // ProgramOptions builds Bubble Tea program options with the provided I/O, disabling the renderer when output lacks control sequences.
 func ProgramOptions(in io.Reader, out io.Writer) []tea.ProgramOption {
+	input := in
+	if !SupportsPrompting(in, out) {
+		input = nil
+	}
+
 	options := []tea.ProgramOption{
-		tea.WithInput(in),
+		tea.WithInput(input),
 		tea.WithOutput(out),
 	}
 
-	if SupportsControlSequences(out) {
+	if supportsDynamicRendering(in, out) {
 		options = append(options, tea.WithMouseCellMotion())
 	} else {
 		options = append(options, tea.WithoutRenderer())
 	}
 
 	return options
+}
+
+func supportsDynamicRendering(in io.Reader, out io.Writer) bool {
+	return SupportsPrompting(in, out) && SupportsControlSequences(out)
 }
 
 func defaultUnicodeSupport() bool {

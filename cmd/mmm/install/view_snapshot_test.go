@@ -28,7 +28,7 @@ func TestInstallViewSnapshots(t *testing.T) {
 	}
 
 	t.Run("running", func(t *testing.T) {
-		output := renderInstallRunningView(view.ColorDisabled, items)
+		output := renderInstallRunningView(view.ColorDisabled, items, "")
 		snaps.MatchSnapshot(t, output)
 	})
 

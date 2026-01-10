@@ -16,7 +16,6 @@ import (
 
 	"github.com/meza/minecraft-mod-manager/internal/config"
 	"github.com/meza/minecraft-mod-manager/internal/models"
-	tui "github.com/meza/minecraft-mod-manager/internal/view"
 )
 
 func TestCommandMissingConfigFlagErrors(t *testing.T) {
@@ -169,9 +168,6 @@ func TestCommandSetsSilenceUsageOnError(t *testing.T) {
 func TestCommandOutputsResults(t *testing.T) {
 	t.Setenv("MMM_TEST", "true")
 
-	restore := tui.SetIsTerminalFuncForTesting(func(_ int) bool { return true })
-	defer restore()
-
 	fs := afero.NewOsFs()
 	tempDir := t.TempDir()
 	configPath := filepath.Join(tempDir, "modlist.json")
@@ -199,24 +195,7 @@ func TestCommandOutputsResults(t *testing.T) {
 	cmd.SetArgs([]string{"--config", configPath})
 
 	assert.NoError(t, cmd.Execute())
-	assert.Contains(t, output.String(), "cmd.install.summary.success")
-	assert.Contains(t, output.String(), "cmd.update.no_updates")
-}
-
-func TestWrapWriterWithFDReturnsOriginalWithoutFD(t *testing.T) {
-	output := &bytes.Buffer{}
-
-	wrapped := wrapWriterWithFD(output, io.Discard)
-	assert.Same(t, output, wrapped)
-}
-
-func TestWrapWriterWithFDReturnsFDWriter(t *testing.T) {
-	output := &bytes.Buffer{}
-
-	wrapped := wrapWriterWithFD(output, &terminalWriter{})
-	fdWriter, ok := wrapped.(interface{ Fd() uintptr })
-	assert.True(t, ok)
-	assert.Equal(t, uintptr(1), fdWriter.Fd())
+	assert.Contains(t, output.String(), "cmd.list.empty")
 }
 
 func addPersistentFlagsForTesting(cmd *cobra.Command) {

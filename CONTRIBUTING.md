@@ -92,6 +92,7 @@ Terminal interaction docs:
 - The changes don't re-invent the wheel by not using existing abstractions
 - New features and bug fixes are covered by tests
 - Snapshots exist for all user-visible behavior changes
+- Complete snapshot tests exist for short (25 rows) and tall (80 rows) terminal heights
 - All new code follows the established patterns in this repo
 - All relevant documentation is updated
 - `make fmt-check` passes (`make fmt` if not formatted)

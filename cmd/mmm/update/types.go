@@ -3,6 +3,7 @@ package update
 import (
 	"context"
 
+	tea "github.com/charmbracelet/bubbletea"
 	"github.com/meza/minecraft-mod-manager/cmd/mmm/install"
 	"github.com/meza/minecraft-mod-manager/internal/config"
 	"github.com/meza/minecraft-mod-manager/internal/httpclient"
@@ -11,7 +12,7 @@ import (
 	"github.com/meza/minecraft-mod-manager/internal/output"
 	"github.com/meza/minecraft-mod-manager/internal/platform"
 	"github.com/meza/minecraft-mod-manager/internal/telemetry"
-	tui "github.com/meza/minecraft-mod-manager/internal/view"
+	"github.com/meza/minecraft-mod-manager/internal/view"
 	"github.com/spf13/afero"
 	"github.com/spf13/cobra"
 )
@@ -32,6 +33,8 @@ type updateDeps struct {
 	downloader downloader
 	install    installer
 	telemetry  func(telemetry.CommandTelemetry)
+	runTea     teaRunner
+	runInit    initRunner
 }
 
 type fetcher func(context.Context, models.Platform, string, platform.FetchOptions, platform.Clients) (platform.RemoteMod, error)
@@ -39,6 +42,14 @@ type fetcher func(context.Context, models.Platform, string, platform.FetchOption
 type downloader func(context.Context, string, string, httpclient.Doer, httpclient.Sender, ...afero.Fs) error
 
 type installer func(context.Context, *cobra.Command, string, bool, bool) (install.Result, error)
+
+type teaRunner func(tea.Model, ...tea.ProgramOption) (tea.Model, error)
+
+type initRequest struct {
+	ConfigPath string
+}
+
+type initRunner func(context.Context, *cobra.Command, initRequest) error
 
 type modUpdateCandidate struct {
 	ConfigIndex int
@@ -50,23 +61,8 @@ type modUpdateOutcome struct {
 	LockIndex   int
 	NewName     string
 	NewInstall  models.ModInstall
-	LogEvents   []logEvent
-	Updated     bool
-	Error       error
-}
-
-type logEventKind int
-
-const (
-	logEventKindLog logEventKind = iota
-	logEventKindError
-	logEventKindDebug
-)
-
-type logEvent struct {
-	Kind      logEventKind
-	Message   string
-	ForceShow bool
+	Result      updateOutcomeResult
+	FailReason  string
 }
 
 type updateCounts struct {
@@ -78,5 +74,60 @@ type updateContext struct {
 	meta      config.Metadata
 	cfg       models.ModsJSON
 	lock      []models.ModInstall
-	colorMode tui.ColorMode
+	colorMode view.ColorMode
+}
+
+type updateItemStatus int
+
+const (
+	updateItemStatusPending updateItemStatus = iota
+	updateItemStatusUpdating
+	updateItemStatusDownloading
+	updateItemStatusUpToDate
+	updateItemStatusUpdated
+	updateItemStatusSkipped
+	updateItemStatusFailed
+)
+
+type updateProgress struct {
+	ratio      float64
+	downloaded int64
+	total      int64
+}
+
+type updateItem struct {
+	ConfigIndex int
+	LockIndex   int
+	Mod         models.Mod
+	DisplayName string
+	Status      updateItemStatus
+	FailReason  string
+	Progress    *updateProgress
+}
+
+type updateOutcomeResult int
+
+const (
+	updateOutcomeUpToDate updateOutcomeResult = iota
+	updateOutcomeUpdated
+	updateOutcomeSkipped
+	updateOutcomeFailed
+)
+
+type updateExecutionErrorType int
+
+const (
+	updateExecutionErrorNone updateExecutionErrorType = iota
+	updateExecutionErrorWriteLock
+	updateExecutionErrorWriteConfig
+	updateExecutionErrorCanceled
+	updateExecutionErrorUnknown
+)
+
+type updateExecutionOutcome struct {
+	items      []updateItem
+	err        error
+	errType    updateExecutionErrorType
+	lockPath   string
+	configPath string
 }

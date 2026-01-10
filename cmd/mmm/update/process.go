@@ -3,16 +3,17 @@ package update
 import (
 	"context"
 	"errors"
+	"fmt"
 	"path/filepath"
 	"strings"
 
 	"github.com/meza/minecraft-mod-manager/internal/clierrors"
 	"github.com/meza/minecraft-mod-manager/internal/config"
 	"github.com/meza/minecraft-mod-manager/internal/i18n"
+	"github.com/meza/minecraft-mod-manager/internal/logger"
 	"github.com/meza/minecraft-mod-manager/internal/models"
 	"github.com/meza/minecraft-mod-manager/internal/modfilename"
 	"github.com/meza/minecraft-mod-manager/internal/platform"
-	tui "github.com/meza/minecraft-mod-manager/internal/view"
 	"github.com/spf13/afero"
 )
 
@@ -23,7 +24,7 @@ func processMod(
 	lock []models.ModInstall,
 	candidate modUpdateCandidate,
 	deps updateDeps,
-	colorMode tui.ColorMode,
+	sender updateExecSender,
 ) modUpdateOutcome {
 	mod := candidate.Mod
 
@@ -32,14 +33,12 @@ func processMod(
 		return outcome
 	}
 
-	appendUpdateCheckEvent(&outcome, mod)
-
-	remote, ok := fetchRemoteForUpdate(ctx, cfg, mod, deps, colorMode, &outcome)
+	remote, ok := fetchRemoteForUpdate(ctx, cfg, mod, deps, &outcome)
 	if !ok {
 		return outcome
 	}
 
-	remote, ok = normalizeRemoteFileNameForUpdate(remote, mod, &outcome)
+	remote, ok = normalizeRemoteFileNameForUpdate(remote, &outcome)
 	if !ok {
 		return outcome
 	}
@@ -47,27 +46,30 @@ func processMod(
 	outcome.NewName = remote.Name
 
 	installed := lock[lockIndex]
-	oldPath, ok := resolveInstalledUpdatePath(meta, cfg, mod, installed, deps, &outcome)
+	oldPath, ok := resolveInstalledUpdatePath(meta, cfg, installed, deps, &outcome)
 	if !ok {
 		return outcome
 	}
 
-	shouldUpdate, ok := shouldUpdateMod(installed, remote, mod, &outcome)
+	shouldUpdate, ok := shouldUpdateMod(installed, remote, &outcome)
 	if !ok || !shouldUpdate {
 		return outcome
 	}
 
-	appendUpdateAvailableEvent(&outcome, mod)
+	sendUpdateDownloadStart(candidate, sender)
 
 	newPath := filepath.Join(meta.ModsFolderPath(cfg), remote.FileName)
 
-	if err := downloadAndSwap(ctx, deps, oldPath, newPath, meta.ModsFolderPath(cfg), remote.DownloadURL, remote.Hash); err != nil {
-		appendUpdateFailure(&outcome, err, mod.Name)
+	if err := downloadAndSwap(ctx, deps, oldPath, newPath, meta.ModsFolderPath(cfg), remote.DownloadURL, remote.Hash, updateProgressSender{
+		index:  candidate.ConfigIndex,
+		sender: sender,
+	}); err != nil {
+		appendUpdateFailure(&outcome, err)
 		return outcome
 	}
 
 	outcome.NewInstall = buildUpdatedInstall(mod, remote)
-	outcome.Updated = true
+	outcome.Result = updateOutcomeUpdated
 	return outcome
 }
 
@@ -75,42 +77,24 @@ func initializeUpdateOutcome(candidate modUpdateCandidate, lock []models.ModInst
 	mod := candidate.Mod
 	outcome := modUpdateOutcome{
 		ConfigIndex: candidate.ConfigIndex,
+		Result:      updateOutcomeFailed,
 	}
 
 	lockIndex := models.LockIndexForMod(mod, lock)
 	if lockIndex < 0 {
-		outcome.LogEvents = append(outcome.LogEvents, logEvent{
-			Kind: logEventKindError,
-			Message: i18n.T("cmd.update.error.missing_lock_entry", &i18n.Tvars{
-				Data: &i18n.TData{
-					"name": mod.Name,
-					"id":   mod.ID,
-				},
-			}),
-		})
-		outcome.Error = errUpdateFailures
+		outcome.FailReason = i18n.T("cmd.update.error.missing_lock_entry", nil)
 		return outcome, -1, false
 	}
 	outcome.LockIndex = lockIndex
 
 	if isPinned(mod) {
 		outcome.NewName = lock[lockIndex].Name
+		outcome.Result = updateOutcomeSkipped
 		return outcome, lockIndex, false
 	}
 
+	outcome.Result = updateOutcomeUpToDate
 	return outcome, lockIndex, true
-}
-
-func appendUpdateCheckEvent(outcome *modUpdateOutcome, mod models.Mod) {
-	outcome.LogEvents = append(outcome.LogEvents, logEvent{
-		Kind: logEventKindDebug,
-		Message: i18n.T("cmd.update.debug.checking", &i18n.Tvars{
-			Data: &i18n.TData{
-				"name":     mod.Name,
-				"platform": string(mod.Type),
-			},
-		}),
-	})
 }
 
 func fetchRemoteForUpdate(
@@ -118,7 +102,6 @@ func fetchRemoteForUpdate(
 	cfg models.ModsJSON,
 	mod models.Mod,
 	deps updateDeps,
-	colorMode tui.ColorMode,
 	outcome *modUpdateOutcome,
 ) (platform.RemoteMod, bool) {
 	remote, err := deps.fetchMod(ctx, mod.Type, mod.ID, platform.FetchOptions{
@@ -129,26 +112,22 @@ func fetchRemoteForUpdate(
 		FixedVersion:        "",
 	}, deps.clients)
 	if err != nil {
-		outcome.LogEvents = append(outcome.LogEvents, fetchErrorEvents(err, mod, colorMode)...)
-		outcome.Error = errUpdateFailures
+		outcome.FailReason = fetchErrorReason(err, mod, deps.logger)
+		outcome.Result = updateOutcomeFailed
 		return platform.RemoteMod{}, false
 	}
 	return remote, true
 }
 
-func normalizeRemoteFileNameForUpdate(remote platform.RemoteMod, mod models.Mod, outcome *modUpdateOutcome) (platform.RemoteMod, bool) {
+func normalizeRemoteFileNameForUpdate(remote platform.RemoteMod, outcome *modUpdateOutcome) (platform.RemoteMod, bool) {
 	normalizedRemoteFileName, err := modfilename.Normalize(remote.FileName)
 	if err != nil {
-		outcome.LogEvents = append(outcome.LogEvents, logEvent{
-			Kind: logEventKindError,
-			Message: i18n.T("cmd.update.error.invalid_filename_remote", &i18n.Tvars{
-				Data: &i18n.TData{
-					"name": mod.Name,
-					"file": modfilename.Display(remote.FileName),
-				},
-			}),
+		outcome.FailReason = i18n.T("cmd.update.error.invalid_filename_remote", &i18n.Tvars{
+			Data: &i18n.TData{
+				"file": modfilename.Display(remote.FileName),
+			},
 		})
-		outcome.Error = errUpdateFailures
+		outcome.Result = updateOutcomeFailed
 		return platform.RemoteMod{}, false
 	}
 	remote.FileName = normalizedRemoteFileName
@@ -158,85 +137,65 @@ func normalizeRemoteFileNameForUpdate(remote platform.RemoteMod, mod models.Mod,
 func resolveInstalledUpdatePath(
 	meta config.Metadata,
 	cfg models.ModsJSON,
-	mod models.Mod,
 	installed models.ModInstall,
 	deps updateDeps,
 	outcome *modUpdateOutcome,
 ) (string, bool) {
 	normalizedInstalledFileName, err := modfilename.Normalize(installed.FileName)
 	if err != nil {
-		outcome.LogEvents = append(outcome.LogEvents, logEvent{
-			Kind: logEventKindError,
-			Message: i18n.T("cmd.update.error.invalid_filename_lock", &i18n.Tvars{
-				Data: &i18n.TData{
-					"name": mod.Name,
-					"file": modfilename.Display(installed.FileName),
-				},
-			}),
+		outcome.FailReason = i18n.T("cmd.update.error.invalid_filename_lock", &i18n.Tvars{
+			Data: &i18n.TData{
+				"file": modfilename.Display(installed.FileName),
+			},
 		})
-		outcome.Error = errUpdateFailures
+		outcome.Result = updateOutcomeFailed
 		return "", false
 	}
 
 	oldPath := filepath.Join(meta.ModsFolderPath(cfg), normalizedInstalledFileName)
 	exists, err := afero.Exists(deps.fs, oldPath)
 	if err != nil {
-		outcome.LogEvents = append(outcome.LogEvents, logEvent{Kind: logEventKindError, Message: err.Error()})
-		outcome.Error = errUpdateFailures
+		outcome.FailReason = err.Error()
+		outcome.Result = updateOutcomeFailed
 		return "", false
 	}
 	if !exists {
-		outcome.LogEvents = append(outcome.LogEvents, logEvent{
-			Kind: logEventKindError,
-			Message: i18n.T("cmd.update.error.locked_file_missing", &i18n.Tvars{
-				Data: &i18n.TData{
-					"name": mod.Name,
-					"id":   mod.ID,
-					"path": oldPath,
-				},
-			}),
+		outcome.FailReason = i18n.T("cmd.update.error.locked_file_missing", &i18n.Tvars{
+			Data: &i18n.TData{
+				"path": oldPath,
+			},
 		})
-		outcome.Error = errUpdateFailures
+		outcome.Result = updateOutcomeFailed
 		return "", false
 	}
 
 	return oldPath, true
 }
 
-func shouldUpdateMod(installed models.ModInstall, remote platform.RemoteMod, mod models.Mod, outcome *modUpdateOutcome) (shouldUpdate bool, shouldCheck bool) {
+func shouldUpdateMod(installed models.ModInstall, remote platform.RemoteMod, outcome *modUpdateOutcome) (shouldUpdate bool, shouldCheck bool) {
 	installedDate, err := parseRFC3339(installed.ReleasedOn)
 	if err != nil {
-		outcome.LogEvents = append(outcome.LogEvents, logEvent{Kind: logEventKindError, Message: err.Error()})
-		outcome.Error = errUpdateFailures
+		outcome.FailReason = err.Error()
+		outcome.Result = updateOutcomeFailed
 		return false, false
 	}
 	remoteDate, err := parseRFC3339(remote.ReleaseDate)
 	if err != nil {
-		outcome.LogEvents = append(outcome.LogEvents, logEvent{Kind: logEventKindError, Message: err.Error()})
-		outcome.Error = errUpdateFailures
+		outcome.FailReason = err.Error()
+		outcome.Result = updateOutcomeFailed
 		return false, false
 	}
 	if !remoteDate.After(installedDate) {
 		return false, true
 	}
 	if strings.TrimSpace(installed.Hash) == "" {
-		outcome.LogEvents = append(outcome.LogEvents, logEvent{
-			Kind: logEventKindError,
-			Message: i18n.T("cmd.update.error.missing_hash_lock", &i18n.Tvars{
-				Data: &i18n.TData{"name": mod.Name},
-			}),
-		})
-		outcome.Error = errUpdateFailures
+		outcome.FailReason = i18n.T("cmd.update.error.missing_hash_lock", nil)
+		outcome.Result = updateOutcomeFailed
 		return false, false
 	}
 	if strings.TrimSpace(remote.Hash) == "" {
-		outcome.LogEvents = append(outcome.LogEvents, logEvent{
-			Kind: logEventKindError,
-			Message: i18n.T("cmd.update.error.missing_hash_remote", &i18n.Tvars{
-				Data: &i18n.TData{"name": mod.Name},
-			}),
-		})
-		outcome.Error = errUpdateFailures
+		outcome.FailReason = i18n.T("cmd.update.error.missing_hash_remote", nil)
+		outcome.Result = updateOutcomeFailed
 		return false, false
 	}
 	if strings.EqualFold(strings.TrimSpace(remote.Hash), strings.TrimSpace(installed.Hash)) {
@@ -245,23 +204,13 @@ func shouldUpdateMod(installed models.ModInstall, remote platform.RemoteMod, mod
 	return true, true
 }
 
-func appendUpdateAvailableEvent(outcome *modUpdateOutcome, mod models.Mod) {
-	outcome.LogEvents = append(outcome.LogEvents, logEvent{
-		Kind:      logEventKindLog,
-		ForceShow: true,
-		Message: i18n.T("cmd.update.has_update", &i18n.Tvars{
-			Data: &i18n.TData{"name": mod.Name},
-		}),
-	})
-}
-
-func appendUpdateFailure(outcome *modUpdateOutcome, err error, modName string) {
-	if message, handled := integrityErrorMessage(err, modName); handled {
-		outcome.LogEvents = append(outcome.LogEvents, logEvent{Kind: logEventKindError, Message: message})
+func appendUpdateFailure(outcome *modUpdateOutcome, err error) {
+	if message, handled := integrityErrorMessage(err); handled {
+		outcome.FailReason = message
 	} else {
-		outcome.LogEvents = append(outcome.LogEvents, logEvent{Kind: logEventKindError, Message: err.Error()})
+		outcome.FailReason = err.Error()
 	}
-	outcome.Error = errUpdateFailures
+	outcome.Result = updateOutcomeFailed
 }
 
 func buildUpdatedInstall(mod models.Mod, remote platform.RemoteMod) models.ModInstall {
@@ -276,47 +225,35 @@ func buildUpdatedInstall(mod models.Mod, remote platform.RemoteMod) models.ModIn
 	}
 }
 
-func expectedFetchErrorEvent(err error, mod models.Mod, colorMode tui.ColorMode) (logEvent, bool) {
+func expectedFetchErrorReason(err error, mod models.Mod) (string, bool) {
 	var notFound *platform.ModNotFoundError
 	if errors.As(err, &notFound) {
-		return logEvent{
-			Kind:      logEventKindLog,
-			ForceShow: true,
-			Message: messageWithIcon(tui.ErrorIcon(colorMode), i18n.T("cmd.update.error.mod_not_found", &i18n.Tvars{
-				Data: &i18n.TData{
-					"name":     mod.Name,
-					"id":       mod.ID,
-					"platform": string(mod.Type),
-				},
-			})),
-		}, true
+		return i18n.T("cmd.update.error.mod_not_found", &i18n.Tvars{
+			Data: &i18n.TData{
+				"platform": string(mod.Type),
+			},
+		}), true
 	}
 
 	var noFile *platform.NoCompatibleFileError
 	if errors.As(err, &noFile) {
-		return logEvent{
-			Kind:      logEventKindLog,
-			ForceShow: true,
-			Message: messageWithIcon(tui.ErrorIcon(colorMode), i18n.T("cmd.update.error.no_file", &i18n.Tvars{
-				Data: &i18n.TData{
-					"name":     mod.Name,
-					"id":       mod.ID,
-					"platform": string(mod.Type),
-				},
-			})),
-		}, true
+		return i18n.T("cmd.update.error.no_file", &i18n.Tvars{
+			Data: &i18n.TData{
+				"platform": string(mod.Type),
+			},
+		}), true
 	}
 
-	return logEvent{}, false
+	return "", false
 }
 
-func fetchErrorEvents(fetchErr error, mod models.Mod, colorMode tui.ColorMode) []logEvent {
+func fetchErrorReason(fetchErr error, mod models.Mod, log *logger.Logger) string {
 	if fetchErr == nil {
-		return nil
+		return ""
 	}
 
-	if event, handled := expectedFetchErrorEvent(fetchErr, mod, colorMode); handled {
-		return []logEvent{event}
+	if reason, handled := expectedFetchErrorReason(fetchErr, mod); handled {
+		return reason
 	}
 
 	summary, _ := clierrors.SummarizePlatformError(fetchErr, mod.Type)
@@ -326,30 +263,17 @@ func fetchErrorEvents(fetchErr error, mod models.Mod, colorMode tui.ColorMode) [
 		debugDetails = fetchErr.Error()
 	}
 
-	events := []logEvent{{
-		Kind: logEventKindError,
-		Message: i18n.T("cmd.update.error.platform", &i18n.Tvars{
-			Data: &i18n.TData{
-				"name":     mod.Name,
-				"platform": string(mod.Type),
-				"reason":   reason,
-			},
-		}),
-	}}
-
-	if strings.TrimSpace(debugDetails) == "" {
-		return events
+	if log != nil && strings.TrimSpace(debugDetails) != "" {
+		debugMessage := fmt.Sprintf("Debug: %s on %s failed: %s", mod.Name, mod.Type, debugDetails)
+		if err := log.Debug(debugMessage); err != nil {
+			// Debug logging must never block update outcomes.
+			_ = err
+		}
 	}
-
-	events = append(events, logEvent{
-		Kind: logEventKindDebug,
-		Message: i18n.T("cmd.update.debug.platform_error", &i18n.Tvars{
-			Data: &i18n.TData{
-				"name":     mod.Name,
-				"platform": string(mod.Type),
-				"details":  debugDetails,
-			},
-		}),
+	return i18n.T("cmd.update.error.platform", &i18n.Tvars{
+		Data: &i18n.TData{
+			"platform": string(mod.Type),
+			"reason":   reason,
+		},
 	})
-	return events
 }

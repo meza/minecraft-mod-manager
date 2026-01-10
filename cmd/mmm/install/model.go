@@ -5,7 +5,9 @@ import (
 	"errors"
 	"strings"
 
+	"github.com/charmbracelet/bubbles/spinner"
 	tea "github.com/charmbracelet/bubbletea"
+	"github.com/charmbracelet/lipgloss"
 
 	"github.com/meza/minecraft-mod-manager/internal/httpclient"
 	"github.com/meza/minecraft-mod-manager/internal/view"
@@ -33,6 +35,8 @@ type installModel struct {
 	state      installViewState
 	outcome    installExecutionOutcome
 	sender     installExecSender
+	spinner    spinner.Model
+	footer     *RunningFooter
 }
 
 type installExecSender struct {
@@ -46,8 +50,16 @@ func (sender installExecSender) Send(msg tea.Msg) {
 	sender.send(msg)
 }
 
-func newInstallModel(ctx context.Context, colorMode view.ColorMode, items []installItem, indexByKey map[string]int, cancel func(), execRunner func(context.Context, httpclient.Sender) installExecutionOutcome) *installModel {
-	return &installModel{
+func newInstallModel(
+	ctx context.Context,
+	colorMode view.ColorMode,
+	items []installItem,
+	indexByKey map[string]int,
+	cancel func(),
+	execRunner func(context.Context, httpclient.Sender) installExecutionOutcome,
+	footer *RunningFooter,
+) *installModel {
+	model := &installModel{
 		ctx:        ctx,
 		execRunner: execRunner,
 		cancel:     cancel,
@@ -55,7 +67,19 @@ func newInstallModel(ctx context.Context, colorMode view.ColorMode, items []inst
 		items:      items,
 		indexByKey: indexByKey,
 		state:      installViewRunning,
+		footer:     footer,
 	}
+	if footer != nil {
+		spin := spinner.New()
+		if view.SupportsUnicode() {
+			spin.Spinner = spinner.Dot
+		} else {
+			spin.Spinner = spinner.Line
+		}
+		spin.Style = lipgloss.NewStyle()
+		model.spinner = spin
+	}
+	return model
 }
 
 func (model *installModel) bindSender(send func(tea.Msg)) {
@@ -65,6 +89,9 @@ func (model *installModel) bindSender(send func(tea.Msg)) {
 func (model *installModel) Init() tea.Cmd {
 	if model.sender.send == nil || model.execRunner == nil {
 		return tea.Quit
+	}
+	if model.footer != nil {
+		return tea.Batch(model.spinner.Tick, model.startInstallCmd())
 	}
 	return model.startInstallCmd()
 }
@@ -102,6 +129,13 @@ func (model *installModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		model.outcome = typed.outcome
 		model.state = viewStateFromOutcome(typed.outcome.errType)
 		return model, tea.Quit
+	case spinner.TickMsg:
+		if model.footer == nil {
+			return model, nil
+		}
+		updated, cmd := model.spinner.Update(typed)
+		model.spinner = updated
+		return model, cmd
 	case tea.KeyMsg:
 		switch typed.String() {
 		case "ctrl+c", "q", "esc":
@@ -130,8 +164,27 @@ func (model *installModel) View() string {
 	case installViewFailed:
 		return renderInstallExecutionFailedView(model.colorMode, model.items, model.outcome.err)
 	default:
-		return renderInstallRunningView(model.colorMode, model.items)
+		return renderInstallRunningView(model.colorMode, model.items, model.runningFooterLine())
 	}
+}
+
+func (model *installModel) runningFooterLine() string {
+	if model.footer == nil || model.footer.Render == nil {
+		return ""
+	}
+	return model.footer.Render(RunningFooterInput{
+		SpinnerFrame: model.spinnerFrame(),
+		ColorMode:    model.colorMode,
+	})
+}
+
+func (model *installModel) spinnerFrame() string {
+	frame := model.spinner.View()
+	trimmed := strings.TrimSpace(frame)
+	if trimmed == "" || trimmed == "(error)" {
+		return ""
+	}
+	return frame
 }
 
 func (model *installModel) updateItem(key string, update func(*installItem)) {

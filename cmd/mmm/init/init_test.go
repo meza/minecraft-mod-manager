@@ -6,6 +6,7 @@ import (
 	"errors"
 	"io"
 	"net/http"
+	"os"
 	"path/filepath"
 	"runtime"
 	"strings"
@@ -1721,9 +1722,35 @@ func TestRunInitNonTTYBehavesLikeUnattended(t *testing.T) {
 func TestRunInteractiveInitWithLaunchFlagUsesDefaultProgram(t *testing.T) {
 	minecraft.ClearManifestCache()
 
+	restoreTerminal := view.SetIsTerminalFuncForTesting(func(_ int) bool { return true })
+	t.Cleanup(restoreTerminal)
+
+	reader, writer, err := os.Pipe()
+	if !assert.NoError(t, err) {
+		return
+	}
+	writerClosed := false
+	t.Cleanup(func() {
+		if !writerClosed {
+			if closeErr := writer.Close(); closeErr != nil {
+				t.Errorf("close writer: %v", closeErr)
+			}
+		}
+		if closeErr := reader.Close(); closeErr != nil {
+			t.Errorf("close reader: %v", closeErr)
+		}
+	})
+	if _, writeErr := writer.Write([]byte("\x03")); !assert.NoError(t, writeErr) {
+		return
+	}
+	if closeErr := writer.Close(); !assert.NoError(t, closeErr) {
+		return
+	}
+	writerClosed = true
+
 	cmd := &cobra.Command{}
-	cmd.SetIn(bytes.NewBufferString("\x03"))
-	cmd.SetOut(io.Discard)
+	cmd.SetIn(reader)
+	cmd.SetOut(&fakeTTYWriter{})
 	cmd.SetErr(io.Discard)
 
 	meta := config.NewMetadata(filepath.FromSlash("/cfg/modlist.json"))

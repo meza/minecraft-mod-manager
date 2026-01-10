@@ -26,7 +26,7 @@ func (unexpectedModel) View() string { return "" }
 func TestDefaultRunInstallProgram(t *testing.T) {
 	model := newInstallModel(context.Background(), view.ColorDisabled, []installItem{}, map[string]int{}, nil, func(context.Context, httpclient.Sender) installExecutionOutcome {
 		return installExecutionOutcome{errType: installExecutionErrorNone}
-	})
+	}, nil)
 
 	result, err := defaultRunInstallProgram(model,
 		tea.WithInput(bytes.NewBuffer(nil)),

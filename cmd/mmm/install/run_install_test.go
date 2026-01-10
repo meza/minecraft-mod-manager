@@ -489,10 +489,23 @@ func TestRunInstallReturnsErrorOnMkdirFailure(t *testing.T) {
 		GameVersion:                "1.20.1",
 		DefaultAllowedReleaseTypes: []models.ReleaseType{models.Release},
 		ModsFolder:                 "mods",
+		Mods: []models.Mod{
+			{ID: "alpha", Name: "Alpha", Type: models.MODRINTH},
+		},
+	}
+	lock := []models.ModInstall{
+		{
+			ID:          "alpha",
+			Name:        "Alpha",
+			Type:        models.MODRINTH,
+			FileName:    "alpha.jar",
+			DownloadURL: "https://example.invalid/alpha.jar",
+			Hash:        sha1Hex("data"),
+		},
 	}
 
 	require.NoError(t, config.WriteConfig(context.Background(), baseFs, meta, cfg))
-	require.NoError(t, config.WriteLock(context.Background(), baseFs, meta, []models.ModInstall{}))
+	require.NoError(t, config.WriteLock(context.Background(), baseFs, meta, lock))
 	require.NoError(t, baseFs.MkdirAll(meta.ModsFolderPath(cfg), 0755))
 
 	fs := mkdirErrorFs{Fs: baseFs, failPath: meta.ModsFolderPath(cfg), err: errors.New("mkdir failed")}
@@ -625,7 +638,9 @@ func TestRunInstallReturnsErrorOnLockWriteFailure(t *testing.T) {
 		GameVersion:                "1.20.1",
 		DefaultAllowedReleaseTypes: []models.ReleaseType{models.Release},
 		ModsFolder:                 "mods",
-		Mods:                       []models.Mod{},
+		Mods: []models.Mod{
+			{ID: "alpha", Name: "Alpha", Type: models.MODRINTH},
+		},
 	}
 
 	require.NoError(t, baseFs.MkdirAll(meta.ModsFolderPath(cfg), 0755))
@@ -642,6 +657,21 @@ func TestRunInstallReturnsErrorOnLockWriteFailure(t *testing.T) {
 		fs:     fs,
 		logger: logger.New(io.Discard, io.Discard, false, false),
 		output: output.New(io.Discard, io.Discard, false),
+		fetchMod: func(context.Context, models.Platform, string, platform.FetchOptions, platform.Clients) (platform.RemoteMod, error) {
+			return platform.RemoteMod{
+				Name:        "Alpha Remote",
+				FileName:    "alpha.jar",
+				Hash:        sha1Hex("data"),
+				DownloadURL: "https://example.invalid/alpha.jar",
+			}, nil
+		},
+		downloader: func(_ context.Context, _ string, destination string, _ httpclient.Doer, _ httpclient.Sender, filesystems ...afero.Fs) error {
+			var target afero.Fs = fs
+			if len(filesystems) > 0 {
+				target = filesystems[0]
+			}
+			return afero.WriteFile(target, destination, []byte("data"), 0644)
+		},
 	})
 	assert.Error(t, err)
 }

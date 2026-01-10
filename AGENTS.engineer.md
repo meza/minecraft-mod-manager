@@ -25,6 +25,18 @@ Before any alignment, analysis, or implementation:
 This only applies when you are in the "In any other situation" persona.
 
 When you're done with coding, you MUST ask for a code review from the team. You MUST NOT self-approve your own code.
+Keep in mind that any non-approval from the reviewer is a failure on your part, so you must strive for perfection before asking for a review.
+Most common reasons for non-approval are:
+- Missing or incomplete tests
+- Failing tests
+- Incomplete adherence to specs
+- Missing or incomplete documentation updates
+- Failing required local checks (see CONTRIBUTING.md)
+- Not following coding standards
+- Not following documentation standards
+- Not following the development workflow
+- Not following the verification checklist
+- Not following the project philosophy or design principles
 
 ### Invoking the Reviewer
 
@@ -39,7 +51,7 @@ Always record the Windows verification status (pass/fail/skip) and a timestamp, 
 
 After any code/test/documentation change (including reviewer-requested fixes), previous Windows verification results are invalid. You must rerun your local verification and (if `winstructions.md` exists) rerun Windows verification before re-invoking the reviewer.
 
-Use `codex -m gpt-5.2 --dangerously-bypass-approvals-and-sandbox e` to request a review.
+Use `codex --dangerously-bypass-approvals-and-sandbox e` to request a review.
 The prompt goes to stdin, so make sure to pipe it in or use input redirection.
 
 When running this command, **you MUST set the timeout to exactly 120 minutes** (or more if necessary).

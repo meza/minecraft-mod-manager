@@ -9,9 +9,12 @@ import (
 	"github.com/meza/minecraft-mod-manager/internal/view"
 )
 
-func renderInstallRunningView(colorMode view.ColorMode, items []installItem) string {
+func renderInstallRunningView(colorMode view.ColorMode, items []installItem, footerLine string) string {
 	header := i18n.T("cmd.install.header.running", nil)
 	lines := renderInstallItemLines(colorMode, items)
+	if strings.TrimSpace(footerLine) != "" {
+		lines = append(lines, footerLine)
+	}
 	return strings.Join(append([]string{header}, lines...), "\n")
 }
 

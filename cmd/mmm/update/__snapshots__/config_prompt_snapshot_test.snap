@@ -1,0 +1,28 @@
+
+[TestUpdateConfigPromptSnapshots/initial - 1]
+‼️ cmd.install.error.config_missing, Arg 1: {Count: 0, Data: &map[configPath:/cfg/modlist.json]}
+
+? cmd.install.confirm_init cmd.init.prompt.confirm.suffix            
+
+key.tab key.help.complete • key.enter key.help.accept • key.ctrl_c/key.esc key.help.quit
+---
+
+[TestUpdateConfigPromptSnapshots/invalid_choice - 1]
+‼️ cmd.install.error.config_missing, Arg 1: {Count: 0, Data: &map[configPath:/cfg/modlist.json]}
+
+? cmd.install.confirm_init cmd.init.prompt.confirm.suffix maybe       <- cmd.init.prompt.error.invalid_choice, Arg 1: {Count: 0, Data: &map[noShort:cmd.init.prompt.option.no.short yesShort:cmd.init.prompt.option.yes.short]}
+
+key.tab key.help.complete • key.enter key.help.accept • key.ctrl_c/key.esc key.help.quit
+---
+
+[TestUpdateConfigPromptSnapshots/default_no - 1]
+‼️ cmd.install.error.config_missing, Arg 1: {Count: 0, Data: &map[configPath:/cfg/modlist.json]}
+
+? cmd.install.confirm_init cmd.init.prompt.confirm.suffix cmd.init.prompt.option.no.short
+---
+
+[TestUpdateConfigPromptSnapshots/confirmed_yes - 1]
+‼️ cmd.install.error.config_missing, Arg 1: {Count: 0, Data: &map[configPath:/cfg/modlist.json]}
+
+? cmd.install.confirm_init cmd.init.prompt.confirm.suffix cmd.init.prompt.option.yes.short
+---
