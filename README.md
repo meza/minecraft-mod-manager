@@ -177,7 +177,7 @@ Paths inside the perf file are normalized to be relative to the config directory
 
 ### Telemetry
 
-Minecraft Mod Manager records anonymous command metadata with [PostHog](https://posthog.com) so we know which flows succeed and where errors cluster. Telemetry uses a stable machine identifier that is not PII to track long-term behavior. Session events include the full performance span tree; span attributes can include URLs and filesystem paths, with query strings stripped and usernames in paths redacted. Telemetry is best-effort and never blocks a command.
+Minecraft Mod Manager records anonymous command metadata with [PostHog](https://posthog.com) so we know which flows succeed and where errors cluster. Telemetry uses a stable machine identifier that is not PII to track long-term behavior. Session events include a `performance` payload (perf_summary_v1 schema: app version, OS, execution mode, ordered commands, command timings, modlist context, and request/download counts); raw perf span trees are only written to `mmm-perf.json` when you opt in with `--perf`. Telemetry is best-effort and never blocks a command.
 
 Opt out anytime by setting an environment variable before running the CLI. For example:
 

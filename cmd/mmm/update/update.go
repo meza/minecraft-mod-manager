@@ -4,6 +4,7 @@ import (
 	"github.com/meza/minecraft-mod-manager/internal/clierrors"
 	"github.com/meza/minecraft-mod-manager/internal/cmddeps"
 	"github.com/meza/minecraft-mod-manager/internal/i18n"
+	"github.com/meza/minecraft-mod-manager/internal/interaction"
 	"github.com/meza/minecraft-mod-manager/internal/perf"
 	"github.com/spf13/cobra"
 	"go.opentelemetry.io/otel/attribute"
@@ -40,12 +41,17 @@ func runUpdateCommand(cmd *cobra.Command) error {
 		Debug: opts.Debug,
 	})
 	deps := newUpdateDeps(common, cmd, opts)
+	mode := interaction.ResolveExecutionMode(interaction.ExecutionModeInput{
+		Unattended: opts.Unattended,
+		In:         cmd.InOrStdin(),
+		Out:        cmd.OutOrStdout(),
+	})
 	counts, err := runUpdate(ctx, cmd, opts, deps)
 	applyUpdateCommandErrorPolicy(cmd, err)
 	span.SetAttributes(attribute.Bool("success", err == nil))
 	span.End()
 
-	recordUpdateTelemetry(deps.telemetry, counts.updated, counts.failed, err)
+	recordUpdateTelemetry(deps.telemetry, counts.updated, counts.failed, mode, err)
 	return err
 }
 

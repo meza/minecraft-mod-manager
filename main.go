@@ -248,6 +248,7 @@ func resolveWorkingDir(getwd func() (string, error)) (string, error) {
 }
 
 func configureTelemetry(perfCfg perfExportConfig, args []string) {
+	telemetry.SetConfigPath(perfCfg.configPath)
 	telemetry.SetPerfBaseDir(perfCfg.baseDir)
 	telemetry.SetSessionNameHint(sessionNameHintFromArgs(args))
 }
@@ -275,8 +276,9 @@ type perfExportConfig struct {
 	enabled bool
 	debug   bool
 
-	baseDir string
-	outDir  string
+	configPath string
+	baseDir    string
+	outDir     string
 }
 
 func perfExportConfigFromArgs(args []string, cwd string) perfExportConfig {
@@ -294,10 +296,11 @@ func perfExportConfigFromParsedArgsWithAbs(parsedArgs perfExportArgs, cwd string
 	outDir := resolvePerfOutDir(parsedArgs, baseDir)
 
 	return perfExportConfig{
-		enabled: parsedArgs.perfEnabled,
-		debug:   parsedArgs.debug,
-		baseDir: baseDir,
-		outDir:  outDir,
+		enabled:    parsedArgs.perfEnabled,
+		debug:      parsedArgs.debug,
+		configPath: resolvedConfig,
+		baseDir:    baseDir,
+		outDir:     outDir,
 	}
 }
 

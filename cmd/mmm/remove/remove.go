@@ -88,11 +88,17 @@ func runRemoveCommand(cmd *cobra.Command, args []string) error {
 	}
 
 	deps := defaultRemoveDeps(cmd, opts)
-	removedCount, usedInteractive, runErr := runRemove(ctx, cmd, opts, deps)
+	mode := interaction.ResolveExecutionMode(interaction.ExecutionModeInput{
+		Unattended: opts.Unattended,
+		In:         cmd.InOrStdin(),
+		Out:        cmd.OutOrStdout(),
+	})
+
+	removedCount, _, runErr := runRemove(ctx, cmd, opts, deps)
 	span.SetAttributes(attribute.Bool("success", runErr == nil))
 	span.End()
 
-	recordRemoveTelemetry(deps.telemetry, opts, removedCount, usedInteractive, runErr)
+	recordRemoveTelemetry(deps.telemetry, opts, removedCount, mode, runErr)
 	applyRemoveCommandErrorPolicy(cmd, runErr)
 	return runErr
 }
@@ -173,13 +179,14 @@ func defaultRunTea(model tea.Model, options ...tea.ProgramOption) (tea.Model, er
 
 var runTeaProgram = defaultRunTea
 
-func recordRemoveTelemetry(telemetryRecorder func(telemetry.CommandTelemetry), opts removeOptions, removedCount int, usedInteractive bool, err error) {
+func recordRemoveTelemetry(telemetryRecorder func(telemetry.CommandTelemetry), opts removeOptions, removedCount int, mode interaction.ExecutionMode, err error) {
 	payload := telemetry.CommandTelemetry{
-		Command:     "remove",
-		Success:     err == nil,
-		Error:       err,
-		ExitCode:    0,
-		Interactive: usedInteractive,
+		Command:       "remove",
+		Success:       err == nil,
+		Error:         err,
+		ExitCode:      0,
+		Interactive:   mode.IsInteractive(),
+		ExecutionMode: mode.String(),
 		Arguments: map[string]interface{}{
 			"dryRun": opts.DryRun,
 			"mods":   opts.Lookups,

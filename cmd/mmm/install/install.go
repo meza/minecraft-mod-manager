@@ -6,6 +6,7 @@ import (
 	"github.com/meza/minecraft-mod-manager/internal/clierrors"
 	"github.com/meza/minecraft-mod-manager/internal/cmddeps"
 	"github.com/meza/minecraft-mod-manager/internal/i18n"
+	"github.com/meza/minecraft-mod-manager/internal/interaction"
 	"github.com/meza/minecraft-mod-manager/internal/perf"
 	"github.com/meza/minecraft-mod-manager/internal/telemetry"
 	"github.com/spf13/cobra"
@@ -60,13 +61,18 @@ func runInstallCommand(cmd *cobra.Command, runner installRunner) error {
 		Debug: opts.Debug,
 	})
 	deps := newInstallDeps(common, opts, telemetry.RecordCommand)
+	mode := interaction.ResolveExecutionMode(interaction.ExecutionModeInput{
+		Unattended: opts.Unattended,
+		In:         cmd.InOrStdin(),
+		Out:        cmd.OutOrStdout(),
+	})
 
 	result, err := runner(ctx, cmd, opts, deps)
 	applyInstallCommandErrorPolicy(cmd, err)
 	span.SetAttributes(attribute.Bool("success", err == nil))
 	span.End()
 
-	recordInstallTelemetry(deps.telemetry, result, err)
+	recordInstallTelemetry(deps.telemetry, result, mode, err)
 	return err
 }
 

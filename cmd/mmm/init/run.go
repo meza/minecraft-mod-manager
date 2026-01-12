@@ -23,13 +23,19 @@ import (
 )
 
 func runInitCommand(ctx context.Context, cmd *cobra.Command, options initOptions, deps initDeps, meta config.Metadata) error {
+	executionMode := interaction.ResolveExecutionMode(interaction.ExecutionModeInput{
+		Unattended: options.Unattended,
+		In:         cmd.InOrStdin(),
+		Out:        cmd.OutOrStdout(),
+	})
+
 	finalOptions, didUseInteractiveFlow, err := runInit(ctx, cmd, options, deps, meta)
 	if errors.Is(err, ErrInitCanceled) {
 		err = nil
 	}
 
 	if deps.telemetry != nil {
-		deps.telemetry(buildTelemetryPayload(finalOptions, didUseInteractiveFlow, err))
+		deps.telemetry(buildTelemetryPayload(finalOptions, executionMode, didUseInteractiveFlow, err))
 	}
 
 	return err

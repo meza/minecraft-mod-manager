@@ -31,10 +31,37 @@ Call `Init` once when the process starts, record command outcomes via `RecordCom
 `main.go` brackets the telemetry lifecycle inside `internal/perf` regions so perf marks can be correlated with telemetry activity:
 
 - `app.lifecycle.startup` includes `telemetry.Init()`
-- `app.lifecycle.shutdown` ends before the telemetry flush, so the perf export tree is complete when `telemetry.Shutdown(...)` uploads it
+- `app.lifecycle.shutdown` ends before the telemetry flush, so the perf export tree is complete when `telemetry.Shutdown(...)` builds the perf summary
 
-Session telemetry includes the full `internal/perf` span tree under the `performance` property, plus top-level `total_time_ms` and `work_time_ms` (total runtime minus `interaction.*.wait.*` thinking time). Perf span attributes can include URLs and filesystem paths; query strings are stripped and usernames in paths are redacted.
+Session telemetry includes a `performance` payload (perf_summary_v1 schema: app version, OS, execution mode, ordered commands, per-command timing + stage timing when available, modlist context when config is available, and request/download counts), plus top-level `total_time_ms` and `work_time_ms` (total runtime minus `interaction.*.wait.*` thinking time). The raw perf span tree is only written to `mmm-perf.json` when `--perf` is used.
 Some interactive flows use `interactive.*.wait.*` spans for thinking time as well.
+
+### performance schema (perf_summary_v1)
+
+All durations are milliseconds.
+
+Top-level fields:
+
+- `schema_version` (int)
+- `app_version` (string)
+- `os` (object: `goos` string, `goarch` string)
+- `execution_mode` (string: `interactive`, `unattended`, `non_tty`, or `unknown`)
+- `commands` (array of command summaries, in execution order)
+- `modlist` (object: `game_version` string, `loader` string, `mod_count` int; omitted if config cannot be read)
+- `counts` (object: `http_requests` int, `downloads` int, `download_bytes` int64 in bytes when available)
+
+Command summary fields:
+
+- `name` (string)
+- `success` (bool)
+- `exit_code` (int)
+- `execution_mode` (string)
+- `error_category` (string, optional)
+- `error` (string, optional)
+- `extra` (object, optional)
+- `arguments` (object, optional)
+- `duration_ms` (int64, optional)
+- `stage_durations_ms` (object map of stage name to duration, optional)
 
 ## Runtime lifecycle
 

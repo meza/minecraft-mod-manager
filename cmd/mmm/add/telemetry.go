@@ -17,34 +17,37 @@ func recordAddTelemetry(telemetryPayload telemetry.CommandTelemetry, err error) 
 	telemetry.RecordCommand(telemetryPayload)
 }
 
-func addFailureTelemetry(platformValue models.Platform, projectID string, opts addOptions, interactive bool, err error) telemetry.CommandTelemetry {
+func addFailureTelemetry(platformValue models.Platform, projectID string, opts addOptions, executionMode string, interactive bool, err error) telemetry.CommandTelemetry {
 	return telemetry.CommandTelemetry{
-		Command:     "add",
-		Success:     false,
-		Error:       err,
-		ExitCode:    1,
-		Interactive: interactive,
-		Arguments:   addTelemetryArgs(platformValue, projectID, opts),
+		Command:       "add",
+		Success:       false,
+		Error:         err,
+		ExitCode:      1,
+		Interactive:   interactive,
+		ExecutionMode: executionMode,
+		Arguments:     addTelemetryArgs(platformValue, projectID, opts),
 	}
 }
 
-func addFailureTelemetryWithoutArgs(interactive bool, err error) telemetry.CommandTelemetry {
+func addFailureTelemetryWithoutArgs(executionMode string, interactive bool, err error) telemetry.CommandTelemetry {
 	return telemetry.CommandTelemetry{
-		Command:     "add",
-		Success:     false,
-		Error:       err,
-		ExitCode:    1,
-		Interactive: interactive,
+		Command:       "add",
+		Success:       false,
+		Error:         err,
+		ExitCode:      1,
+		Interactive:   interactive,
+		ExecutionMode: executionMode,
 	}
 }
 
-func addExistingInstallTelemetry(platformValue models.Platform, projectID string, opts addOptions, interactive bool, reason modinstall.EnsureReason) telemetry.CommandTelemetry {
+func addExistingInstallTelemetry(platformValue models.Platform, projectID string, opts addOptions, executionMode string, interactive bool, reason modinstall.EnsureReason) telemetry.CommandTelemetry {
 	return telemetry.CommandTelemetry{
-		Command:     "add",
-		Success:     true,
-		ExitCode:    0,
-		Interactive: interactive,
-		Arguments:   addTelemetryArgs(platformValue, projectID, opts),
+		Command:       "add",
+		Success:       true,
+		ExitCode:      0,
+		Interactive:   interactive,
+		ExecutionMode: executionMode,
+		Arguments:     addTelemetryArgs(platformValue, projectID, opts),
 		Extra: map[string]interface{}{
 			"flag":               "already-exists",
 			"ensure_file_reason": string(reason),
@@ -52,13 +55,14 @@ func addExistingInstallTelemetry(platformValue models.Platform, projectID string
 	}
 }
 
-func addSuccessTelemetry(platformValue models.Platform, projectID string, opts addOptions, interactive bool) telemetry.CommandTelemetry {
+func addSuccessTelemetry(platformValue models.Platform, projectID string, opts addOptions, executionMode string, interactive bool) telemetry.CommandTelemetry {
 	return telemetry.CommandTelemetry{
-		Command:     "add",
-		Success:     true,
-		ExitCode:    0,
-		Interactive: interactive,
-		Arguments:   addTelemetryArgs(platformValue, projectID, opts),
+		Command:       "add",
+		Success:       true,
+		ExitCode:      0,
+		Interactive:   interactive,
+		ExecutionMode: executionMode,
+		Arguments:     addTelemetryArgs(platformValue, projectID, opts),
 	}
 }
 

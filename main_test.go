@@ -153,6 +153,7 @@ func TestPerfExportConfigFromArgs_DefaultsToConfigDir(t *testing.T) {
 	expectedConfig, err := filepath.Abs(filepath.Join(cwd, filepath.FromSlash("configs/modlist.json")))
 	assert.NoError(t, err)
 	expectedDir := filepath.Dir(expectedConfig)
+	assert.Equal(t, expectedConfig, cfg.configPath)
 	assert.Equal(t, expectedDir, cfg.baseDir)
 	assert.Equal(t, expectedDir, cfg.outDir)
 }
@@ -164,6 +165,7 @@ func TestPerfExportConfigFromArgs_PerfOutDirRelativeToConfigDir(t *testing.T) {
 	expectedConfig, err := filepath.Abs(filepath.Join(cwd, filepath.FromSlash("cfg/modlist.json")))
 	assert.NoError(t, err)
 	expectedDir := filepath.Dir(expectedConfig)
+	assert.Equal(t, expectedConfig, cfg.configPath)
 	assert.Equal(t, expectedDir, cfg.baseDir)
 	assert.Equal(t, filepath.Join(expectedDir, "perf"), cfg.outDir)
 }

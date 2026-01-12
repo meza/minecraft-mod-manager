@@ -406,3 +406,9 @@ date	time	entry
 2026-01-12	01:10	mmm-164 closed in beads per user request.
 2026-01-12	01:17	mmm-167: replaced TUI phrasing with execution-mode language in CONTRIBUTING.md, interaction-guidelines.md, flows/add.md, tty_capture_q.exp (ignored black-box-discovery and bubbletea-non-tty-fallback per user).
 2026-01-12	01:19	mmm-167: aligned terminology with interaction-guidelines (tui-lite, interactive terminal, non-interactive terminal) in CONTRIBUTING.md, interaction-guidelines.md, flows/add.md, tty_capture_q.exp.
+2026-01-12	01:25	work on MMM-26 has started
+2026-01-12	01:30	MMM-26: use perf summary only for PostHog (no raw perf upload); include app version, per-command success/failure + error category, command timings; counts ok; no sampling or hard max size yet.
+2026-01-12	02:39	MMM-26: replaced PostHog perf uploads with perf_summary_v1 (app version, OS, execution mode, command summaries with timings/stages, modlist context, request/download counts); raw perf stays in mmm-perf.json; updated docs/tests and telemetry mode reporting.
+2026-01-12	08:33	MMM-26: user instructed to skip hard size limit; Linear ticket still shows guardrail, plan to align ticket or scope.
+2026-01-12	08:34	MMM-26: updated Linear ticket to drop hard size guardrails/measurements and align summary fields (app version, per-command success/error category, counts).
+2026-01-12	08:47	MMM-26: updated telemetry docs + added test to assert no raw perf payload; local/Windows checks pass; reviewer approved (code-review.md).

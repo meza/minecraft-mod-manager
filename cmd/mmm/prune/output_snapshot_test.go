@@ -57,7 +57,7 @@ func TestPrunePromptOutputSnapshot(t *testing.T) {
 	cmd.SetOut(out)
 	cmd.SetErr(errOut)
 
-	deletedCount, _, err := runPrune(context.Background(), cmd, pruneOptions{ConfigPath: meta.ConfigPath}, pruneDeps{
+	deletedCount, err := runPrune(context.Background(), cmd, pruneOptions{ConfigPath: meta.ConfigPath}, pruneDeps{
 		fs:     fs,
 		logger: logger.New(out, errOut, false, false),
 		output: output.New(out, errOut, false),
@@ -114,7 +114,7 @@ func TestPruneConfirmDeleteOutputSnapshot(t *testing.T) {
 	cmd.SetOut(&fakeTerminalWriter{})
 	cmd.SetErr(errOut)
 
-	deletedCount, _, err := runPrune(context.Background(), cmd, pruneOptions{ConfigPath: meta.ConfigPath}, pruneDeps{
+	deletedCount, err := runPrune(context.Background(), cmd, pruneOptions{ConfigPath: meta.ConfigPath}, pruneDeps{
 		fs:     fs,
 		logger: logger.New(outputBuffer, errOut, false, false),
 		output: output.New(outputBuffer, errOut, false),
@@ -174,7 +174,7 @@ func TestPruneUnattendedOutputSnapshot(t *testing.T) {
 	cmd.SetOut(out)
 	cmd.SetErr(errOut)
 
-	deletedCount, _, err := runPrune(context.Background(), cmd, pruneOptions{
+	deletedCount, err := runPrune(context.Background(), cmd, pruneOptions{
 		ConfigPath: meta.ConfigPath,
 		Unattended: true,
 	}, pruneDeps{
@@ -224,7 +224,7 @@ func TestPrunePromptDisabledOutputSnapshot(t *testing.T) {
 	cmd.SetOut(out)
 	cmd.SetErr(errOut)
 
-	deletedCount, _, err := runPrune(context.Background(), cmd, pruneOptions{
+	deletedCount, err := runPrune(context.Background(), cmd, pruneOptions{
 		ConfigPath: meta.ConfigPath,
 	}, pruneDeps{
 		fs:     fs,
@@ -273,7 +273,7 @@ func TestPruneForceOutputSnapshot(t *testing.T) {
 	cmd.SetOut(&fakeTerminalWriter{})
 	cmd.SetErr(errOut)
 
-	deletedCount, _, err := runPrune(context.Background(), cmd, pruneOptions{ConfigPath: meta.ConfigPath, Force: true}, pruneDeps{
+	deletedCount, err := runPrune(context.Background(), cmd, pruneOptions{ConfigPath: meta.ConfigPath, Force: true}, pruneDeps{
 		fs:     fs,
 		logger: logger.New(outputBuffer, errOut, false, false),
 		output: output.New(outputBuffer, errOut, false),
@@ -339,7 +339,7 @@ func TestPruneForceDeleteFailedOutputSnapshot(t *testing.T) {
 
 	wrapped := removeErrorFs{Fs: fs, failPath: unmanagedPath, err: errors.New("delete failed")}
 
-	deletedCount, _, err := runPrune(context.Background(), cmd, pruneOptions{ConfigPath: meta.ConfigPath, Force: true}, pruneDeps{
+	deletedCount, err := runPrune(context.Background(), cmd, pruneOptions{ConfigPath: meta.ConfigPath, Force: true}, pruneDeps{
 		fs:     wrapped,
 		logger: logger.New(outputBuffer, errOut, false, false),
 		output: output.New(outputBuffer, errOut, false),
@@ -401,7 +401,7 @@ func TestPruneQuietOutputSnapshot(t *testing.T) {
 	cmd.SetOut(out)
 	cmd.SetErr(errOut)
 
-	deletedCount, _, err := runPrune(context.Background(), cmd, pruneOptions{
+	deletedCount, err := runPrune(context.Background(), cmd, pruneOptions{
 		ConfigPath: meta.ConfigPath,
 		Quiet:      true,
 	}, pruneDeps{

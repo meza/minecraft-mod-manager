@@ -271,7 +271,7 @@ func TestBuildTelemetryPayloadRedactsModsFolderUsername(t *testing.T) {
 		GameVersion:  "1.21.1",
 		ReleaseTypes: []models.ReleaseType{models.Release},
 		ModsFolder:   modsFolder,
-	}, false, nil)
+	}, interaction.ExecutionModeUnattended, false, nil)
 
 	args := payload.Arguments
 	assert.Equal(t, expected, args["modsFolder"])

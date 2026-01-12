@@ -75,8 +75,8 @@ func TestRecordPruneTelemetryExitCodes(t *testing.T) {
 		payloads = append(payloads, payload)
 	}
 
-	recordPruneTelemetry(recorder, pruneOptions{Force: true}, 2, true, nil)
-	recordPruneTelemetry(recorder, pruneOptions{}, 0, false, errors.New("boom"))
+	recordPruneTelemetry(recorder, pruneOptions{Force: true}, 2, interaction.ExecutionModeInteractive, nil)
+	recordPruneTelemetry(recorder, pruneOptions{}, 0, interaction.ExecutionModeUnattended, errors.New("boom"))
 
 	require.Len(t, payloads, 2)
 	assert.Equal(t, 0, payloads[0].ExitCode)
@@ -108,7 +108,7 @@ func TestRunPruneNoUnmanagedReturnsOutputError(t *testing.T) {
 	cmd.SetErr(io.Discard)
 
 	outErr := errors.New("write failed")
-	_, _, err := runPrune(context.Background(), cmd, pruneOptions{ConfigPath: meta.ConfigPath}, pruneDeps{
+	_, err := runPrune(context.Background(), cmd, pruneOptions{ConfigPath: meta.ConfigPath}, pruneDeps{
 		fs: fs,
 		runTea: func(tea.Model, ...tea.ProgramOption) (tea.Model, error) {
 			return view.OutputLinesModel{Err: outErr}, nil
@@ -130,7 +130,7 @@ func TestShouldDeleteUnmanagedNonInteractiveReturnsOutputError(t *testing.T) {
 		runTea: func(tea.Model, ...tea.ProgramOption) (tea.Model, error) {
 			return view.OutputLinesModel{Err: outErr}, nil
 		},
-	}, interaction.ExecutionModeNonTTY, view.ColorDisabled, []string{"/mods/unmanaged.jar"})
+	}, interaction.ExecutionModeUnattended, view.ColorDisabled, []string{"/mods/unmanaged.jar"})
 
 	assert.False(t, result)
 	assert.ErrorIs(t, err, outErr)
@@ -229,7 +229,7 @@ func TestRunPruneConfigReadError(t *testing.T) {
 	cmd.SetOut(&bytes.Buffer{})
 	cmd.SetErr(io.Discard)
 
-	_, _, err := runPrune(context.Background(), cmd, pruneOptions{ConfigPath: "/cfg/missing.json"}, pruneDeps{
+	_, err := runPrune(context.Background(), cmd, pruneOptions{ConfigPath: "/cfg/missing.json"}, pruneDeps{
 		fs: fs,
 		runTea: func(tea.Model, ...tea.ProgramOption) (tea.Model, error) {
 			return view.OutputLinesModel{}, nil
@@ -252,12 +252,12 @@ func TestEnsurePruneConfigInvalidConfigReturnsHandled(t *testing.T) {
 	cmd.SetOut(&bytes.Buffer{})
 	cmd.SetErr(io.Discard)
 
-	_, _, err := ensurePruneConfig(context.Background(), cmd, pruneOptions{}, pruneDeps{
+	_, err := ensurePruneConfig(context.Background(), cmd, pruneOptions{}, pruneDeps{
 		fs: fs,
 		runTea: func(tea.Model, ...tea.ProgramOption) (tea.Model, error) {
 			return view.OutputLinesModel{}, nil
 		},
-	}, meta, interaction.ExecutionModeInteractive)
+	}, meta)
 
 	assert.True(t, clierrors.IsHandled(err))
 }
@@ -272,12 +272,12 @@ func TestEnsurePruneConfigMissingWriteConfigMissingOutputError(t *testing.T) {
 	cmd.SetOut(&bytes.Buffer{})
 	cmd.SetErr(io.Discard)
 
-	_, _, err := ensurePruneConfig(context.Background(), cmd, pruneOptions{Unattended: true}, pruneDeps{
+	_, err := ensurePruneConfig(context.Background(), cmd, pruneOptions{Unattended: true}, pruneDeps{
 		fs: fs,
 		runTea: func(tea.Model, ...tea.ProgramOption) (tea.Model, error) {
 			return view.OutputLinesModel{Err: writeErr}, nil
 		},
-	}, meta, interaction.ExecutionModeUnattended)
+	}, meta)
 
 	assert.ErrorIs(t, err, writeErr)
 }
@@ -294,7 +294,7 @@ func TestEnsurePruneConfigRunInitError(t *testing.T) {
 	cmd.SetErr(io.Discard)
 
 	runErr := errors.New("init failed")
-	_, _, err := ensurePruneConfig(context.Background(), cmd, pruneOptions{}, pruneDeps{
+	_, err := ensurePruneConfig(context.Background(), cmd, pruneOptions{}, pruneDeps{
 		fs: afero.NewMemMapFs(),
 		runTea: func(tea.Model, ...tea.ProgramOption) (tea.Model, error) {
 			return configInitModel{confirmed: true}, nil
@@ -302,7 +302,7 @@ func TestEnsurePruneConfigRunInitError(t *testing.T) {
 		runInit: func(context.Context, *cobra.Command, initRequest) error {
 			return runErr
 		},
-	}, meta, interaction.ExecutionModeInteractive)
+	}, meta)
 
 	assert.ErrorIs(t, err, runErr)
 }
@@ -318,7 +318,7 @@ func TestEnsurePruneConfigMissingAfterInitHandled(t *testing.T) {
 	cmd.SetOut(&fakeTerminalWriter{})
 	cmd.SetErr(io.Discard)
 
-	_, _, err := ensurePruneConfig(context.Background(), cmd, pruneOptions{}, pruneDeps{
+	_, err := ensurePruneConfig(context.Background(), cmd, pruneOptions{}, pruneDeps{
 		fs: afero.NewMemMapFs(),
 		runTea: func(tea.Model, ...tea.ProgramOption) (tea.Model, error) {
 			return configInitModel{confirmed: true}, nil
@@ -326,7 +326,7 @@ func TestEnsurePruneConfigMissingAfterInitHandled(t *testing.T) {
 		runInit: func(context.Context, *cobra.Command, initRequest) error {
 			return nil
 		},
-	}, meta, interaction.ExecutionModeInteractive)
+	}, meta)
 
 	assert.True(t, clierrors.IsHandled(err))
 }
@@ -344,7 +344,7 @@ func TestEnsurePruneConfigLockMissingAfterInitHandled(t *testing.T) {
 	cmd.SetOut(&fakeTerminalWriter{})
 	cmd.SetErr(io.Discard)
 
-	_, _, err := ensurePruneConfig(context.Background(), cmd, pruneOptions{}, pruneDeps{
+	_, err := ensurePruneConfig(context.Background(), cmd, pruneOptions{}, pruneDeps{
 		fs: fs,
 		runTea: func(tea.Model, ...tea.ProgramOption) (tea.Model, error) {
 			return configInitModel{confirmed: true}, nil
@@ -355,7 +355,7 @@ func TestEnsurePruneConfigLockMissingAfterInitHandled(t *testing.T) {
 			require.NoError(t, fs.MkdirAll(meta.ModsFolderPath(cfg), 0755))
 			return nil
 		},
-	}, meta, interaction.ExecutionModeInteractive)
+	}, meta)
 
 	assert.True(t, clierrors.IsHandled(err))
 }
@@ -374,7 +374,7 @@ func TestRunPruneListUnmanagedError(t *testing.T) {
 	cmd.SetOut(&bytes.Buffer{})
 	cmd.SetErr(io.Discard)
 
-	_, _, err := runPrune(context.Background(), cmd, pruneOptions{
+	_, err := runPrune(context.Background(), cmd, pruneOptions{
 		ConfigPath: meta.ConfigPath,
 		Force:      true,
 	}, pruneDeps{
@@ -408,7 +408,7 @@ func TestRunPruneDeleteError(t *testing.T) {
 	cmd.SetOut(&bytes.Buffer{})
 	cmd.SetErr(io.Discard)
 
-	_, _, err := runPrune(context.Background(), cmd, pruneOptions{
+	_, err := runPrune(context.Background(), cmd, pruneOptions{
 		ConfigPath: meta.ConfigPath,
 		Force:      true,
 	}, pruneDeps{
@@ -442,7 +442,7 @@ func TestRunPruneForceInteractiveDeletingRunTeaError(t *testing.T) {
 	cmd.SetErr(io.Discard)
 
 	runErr := errors.New("run tea failed")
-	_, _, err := runPrune(context.Background(), cmd, pruneOptions{ConfigPath: meta.ConfigPath, Force: true}, pruneDeps{
+	_, err := runPrune(context.Background(), cmd, pruneOptions{ConfigPath: meta.ConfigPath, Force: true}, pruneDeps{
 		fs: fs,
 		runTea: func(tea.Model, ...tea.ProgramOption) (tea.Model, error) {
 			return nil, runErr
@@ -474,7 +474,7 @@ func TestRunPruneDeleteErrorOutputFailure(t *testing.T) {
 	cmd.SetErr(io.Discard)
 
 	writeErr := errors.New("write failed")
-	_, _, err := runPrune(context.Background(), cmd, pruneOptions{
+	_, err := runPrune(context.Background(), cmd, pruneOptions{
 		ConfigPath: meta.ConfigPath,
 		Force:      true,
 	}, pruneDeps{
@@ -507,7 +507,7 @@ func TestRunPruneDeleteSuccessOutputFailure(t *testing.T) {
 	cmd.SetErr(io.Discard)
 
 	writeErr := errors.New("write failed")
-	_, _, err := runPrune(context.Background(), cmd, pruneOptions{
+	_, err := runPrune(context.Background(), cmd, pruneOptions{
 		ConfigPath: meta.ConfigPath,
 		Force:      true,
 	}, pruneDeps{
@@ -537,7 +537,7 @@ func TestRunPrunePromptDisabledReturnsHandledError(t *testing.T) {
 	cmd.SetOut(&bytes.Buffer{})
 	cmd.SetErr(io.Discard)
 
-	_, _, err := runPrune(context.Background(), cmd, pruneOptions{ConfigPath: meta.ConfigPath}, pruneDeps{
+	_, err := runPrune(context.Background(), cmd, pruneOptions{ConfigPath: meta.ConfigPath}, pruneDeps{
 		fs: fs,
 		runTea: func(tea.Model, ...tea.ProgramOption) (tea.Model, error) {
 			return view.OutputLinesModel{}, nil
@@ -568,7 +568,7 @@ func TestRunPrunePromptDeclinedSkipsDelete(t *testing.T) {
 	cmd.SetOut(&fakeTerminalWriter{})
 	cmd.SetErr(io.Discard)
 
-	deletedCount, _, err := runPrune(context.Background(), cmd, pruneOptions{ConfigPath: meta.ConfigPath}, pruneDeps{
+	deletedCount, err := runPrune(context.Background(), cmd, pruneOptions{ConfigPath: meta.ConfigPath}, pruneDeps{
 		fs: fs,
 		runTea: func(tea.Model, ...tea.ProgramOption) (tea.Model, error) {
 			return pruneConfirmDeleteModel{confirmed: false}, nil
@@ -603,7 +603,7 @@ func TestRunPrunePromptErrorReturnsError(t *testing.T) {
 	cmd.SetErr(io.Discard)
 
 	promptErr := errors.New("prompt failed")
-	_, _, err := runPrune(context.Background(), cmd, pruneOptions{ConfigPath: meta.ConfigPath}, pruneDeps{
+	_, err := runPrune(context.Background(), cmd, pruneOptions{ConfigPath: meta.ConfigPath}, pruneDeps{
 		fs: fs,
 		runTea: func(tea.Model, ...tea.ProgramOption) (tea.Model, error) {
 			return nil, promptErr
@@ -634,7 +634,7 @@ func TestRunPruneConfirmDeleteRunTeaErrorReturnsError(t *testing.T) {
 	cmd.SetErr(io.Discard)
 
 	runErr := errors.New("run tea failed")
-	_, _, err := runPrune(context.Background(), cmd, pruneOptions{ConfigPath: meta.ConfigPath}, pruneDeps{
+	_, err := runPrune(context.Background(), cmd, pruneOptions{ConfigPath: meta.ConfigPath}, pruneDeps{
 		fs: fs,
 		runTea: func(tea.Model, ...tea.ProgramOption) (tea.Model, error) {
 			return nil, runErr
@@ -665,7 +665,7 @@ func TestRunPruneConfirmDeleteReturnsHandledDeleteError(t *testing.T) {
 	cmd.SetErr(io.Discard)
 
 	deleteErr := errors.New("delete failed")
-	_, _, err := runPrune(context.Background(), cmd, pruneOptions{ConfigPath: meta.ConfigPath}, pruneDeps{
+	_, err := runPrune(context.Background(), cmd, pruneOptions{ConfigPath: meta.ConfigPath}, pruneDeps{
 		fs: fs,
 		runTea: func(tea.Model, ...tea.ProgramOption) (tea.Model, error) {
 			return pruneConfirmDeleteModel{
@@ -693,7 +693,7 @@ func TestRunPruneConfigMissingPromptDeclined(t *testing.T) {
 	cmd.SetOut(&fakeTerminalWriter{})
 	cmd.SetErr(io.Discard)
 
-	deletedCount, _, err := runPrune(context.Background(), cmd, pruneOptions{ConfigPath: "/cfg/modlist.json"}, pruneDeps{
+	deletedCount, err := runPrune(context.Background(), cmd, pruneOptions{ConfigPath: "/cfg/modlist.json"}, pruneDeps{
 		fs: afero.NewMemMapFs(),
 		runTea: func(tea.Model, ...tea.ProgramOption) (tea.Model, error) {
 			return configInitModel{confirmed: false}, nil
@@ -717,12 +717,12 @@ func TestEnsurePruneConfigPromptReturnsError(t *testing.T) {
 	cmd.SetErr(io.Discard)
 
 	promptErr := errors.New("prompt failed")
-	_, _, err := ensurePruneConfig(context.Background(), cmd, pruneOptions{}, pruneDeps{
+	_, err := ensurePruneConfig(context.Background(), cmd, pruneOptions{}, pruneDeps{
 		fs: afero.NewMemMapFs(),
 		runTea: func(tea.Model, ...tea.ProgramOption) (tea.Model, error) {
 			return nil, promptErr
 		},
-	}, meta, interaction.ExecutionModeInteractive)
+	}, meta)
 
 	assert.ErrorIs(t, err, promptErr)
 }

@@ -16,15 +16,24 @@ import (
 	"github.com/spf13/cobra"
 )
 
-func scanFailureTelemetry(err error) telemetry.CommandTelemetry {
-	return telemetry.CommandTelemetry{Command: "scan", Success: false, ExitCode: 1, Error: err}
+func scanFailureTelemetry(executionMode string, interactive bool, err error) telemetry.CommandTelemetry {
+	return telemetry.CommandTelemetry{
+		Command:       "scan",
+		Success:       false,
+		ExitCode:      1,
+		Error:         err,
+		Interactive:   interactive,
+		ExecutionMode: executionMode,
+	}
 }
 
-func scanSuccessTelemetry(preferPlatform models.Platform, add bool) telemetry.CommandTelemetry {
+func scanSuccessTelemetry(preferPlatform models.Platform, add bool, executionMode string, interactive bool) telemetry.CommandTelemetry {
 	return telemetry.CommandTelemetry{
-		Command:  "scan",
-		Success:  true,
-		ExitCode: 0,
+		Command:       "scan",
+		Success:       true,
+		ExitCode:      0,
+		Interactive:   interactive,
+		ExecutionMode: executionMode,
 		Arguments: map[string]interface{}{
 			"prefer": preferPlatform,
 			"add":    add,
@@ -32,11 +41,13 @@ func scanSuccessTelemetry(preferPlatform models.Platform, add bool) telemetry.Co
 	}
 }
 
-func scanSuccessTelemetryWithoutArgs() telemetry.CommandTelemetry {
+func scanSuccessTelemetryWithoutArgs(executionMode string, interactive bool) telemetry.CommandTelemetry {
 	return telemetry.CommandTelemetry{
-		Command:  "scan",
-		Success:  true,
-		ExitCode: 0,
+		Command:       "scan",
+		Success:       true,
+		ExitCode:      0,
+		Interactive:   interactive,
+		ExecutionMode: executionMode,
 	}
 }
 

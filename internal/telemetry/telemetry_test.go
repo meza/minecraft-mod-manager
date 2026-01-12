@@ -10,13 +10,14 @@ import (
 	"testing"
 	"time"
 
+	"github.com/meza/minecraft-mod-manager/internal/config"
 	"github.com/meza/minecraft-mod-manager/internal/environment"
 	"github.com/meza/minecraft-mod-manager/internal/globalerrors"
 	"github.com/meza/minecraft-mod-manager/internal/models"
 	"github.com/meza/minecraft-mod-manager/internal/perf"
 	"github.com/posthog/posthog-go"
+	"github.com/spf13/afero"
 	"github.com/stretchr/testify/assert"
-	"go.opentelemetry.io/otel/attribute"
 )
 
 type stubClient struct {
@@ -158,14 +159,17 @@ func TestShutdownEmitsSingleSessionEvent(t *testing.T) {
 		capture := client.enqueued[0].(posthog.Capture)
 		props := capture.Properties
 		assert.Equal(t, "session", props["type"])
-		assert.NotEmpty(t, props["performance"])
+		summary, ok := props["performance"].(map[string]interface{})
+		assert.True(t, ok)
+		_, hasLegacySummary := props["perf_summary_v1"]
+		assert.False(t, hasLegacySummary)
 
-		commands := props["commands"].([]map[string]interface{})
+		commands := summary["commands"].([]map[string]interface{})
 		if assert.Len(t, commands, 1) {
 			assert.Equal(t, "list", commands[0]["name"])
 			assert.Equal(t, true, commands[0]["success"])
 			assert.Equal(t, 0, commands[0]["exit_code"])
-			assert.Equal(t, true, commands[0]["interactive"])
+			assert.Equal(t, "interactive", commands[0]["execution_mode"])
 			assert.Equal(t, map[string]interface{}{"numberOfMods": 2}, commands[0]["extra"])
 		}
 
@@ -234,7 +238,8 @@ func TestShutdown_UsesPerfSpanCommandNameWhenNoCommandRecorded(t *testing.T) {
 		assert.Equal(t, "install", capture.Event)
 
 		props := capture.Properties
-		commands := props["commands"].([]map[string]interface{})
+		summary := props["performance"].(map[string]interface{})
+		commands := summary["commands"].([]map[string]interface{})
 		assert.Empty(t, commands)
 	}
 }
@@ -262,7 +267,8 @@ func TestShutdown_CanonicalizesSingleRecordedCommandNameFromPerf(t *testing.T) {
 		assert.Equal(t, "install", capture.Event)
 
 		props := capture.Properties
-		commands := props["commands"].([]map[string]interface{})
+		summary := props["performance"].(map[string]interface{})
+		commands := summary["commands"].([]map[string]interface{})
 		if assert.Len(t, commands, 1) {
 			assert.Equal(t, "install", commands[0]["name"])
 		}
@@ -300,38 +306,37 @@ func TestSetPerfBaseDir_IgnoresEmpty(t *testing.T) {
 	})
 }
 
-func TestSetPerfBaseDir_NormalizesPerfPathsForShutdown(t *testing.T) {
+func TestSetConfigPathAddsModlistSummary(t *testing.T) {
 	resetTelemetryState(t)
 
-	perf.Reset()
-	t.Cleanup(perf.Reset)
-	assert.NoError(t, perf.Init(perf.Config{Enabled: true}))
-
+	fs := afero.NewOsFs()
 	baseDir := t.TempDir()
-	absPath := filepath.Join(baseDir, "example.jar")
+	configPath := filepath.Join(baseDir, "modlist.json")
 
-	ctx, root := perf.StartSpan(context.Background(), "app.lifecycle")
-	_, child := perf.StartSpan(ctx, "app.command.list", perf.WithAttributes(attribute.String("path", absPath)))
-	child.End()
-	root.End()
+	configMeta := config.NewMetadata(configPath)
+	configPayload := models.ModsJSON{
+		Loader:      models.FABRIC,
+		GameVersion: "1.21.1",
+		ModsFolder:  "mods",
+		Mods: []models.Mod{
+			{Type: models.MODRINTH, ID: "AANobbMI", Name: "Example Mod"},
+		},
+	}
+	assert.NoError(t, config.WriteConfig(context.Background(), fs, configMeta, configPayload))
 
 	client := &stubClient{}
 	initWithClient(t, client, "cmd-test")
 
-	SetPerfBaseDir(baseDir)
+	SetConfigPath(configPath)
 	RecordCommand(CommandTelemetry{Command: "list", Success: true})
 	Shutdown(context.Background())
 
 	capture := client.enqueued[0].(posthog.Capture)
-	tree := capture.Properties["performance"].([]*perf.ExportSpan)
-	if assert.NotEmpty(t, tree) {
-		assert.Equal(t, "app.lifecycle", tree[0].Name)
-		if assert.NotEmpty(t, tree[0].Children) {
-			path, ok := tree[0].Children[0].Attributes["path"].(string)
-			assert.True(t, ok)
-			assert.Equal(t, "example.jar", path)
-		}
-	}
+	summary := capture.Properties["performance"].(map[string]interface{})
+	modlist := summary["modlist"].(map[string]interface{})
+	assert.Equal(t, "1.21.1", modlist["game_version"])
+	assert.Equal(t, "fabric", modlist["loader"])
+	assert.Equal(t, 1, modlist["mod_count"])
 }
 
 func TestResolveSessionName_UsesHintWhenNoCommandsRecorded(t *testing.T) {
@@ -525,6 +530,253 @@ func TestCommandDurationFromPerf_ReturnsFalseOnEmptyInputs(t *testing.T) {
 	duration, ok = commandDurationFromPerf("list", nil)
 	assert.False(t, ok)
 	assert.Equal(t, time.Duration(0), duration)
+}
+
+func TestResolveExecutionModeSummary(t *testing.T) {
+	t.Parallel()
+
+	tests := []struct {
+		name     string
+		commands []recordedCommand
+		expected string
+	}{
+		{name: "empty", expected: "unknown"},
+		{name: "interactive wins", commands: []recordedCommand{{ExecutionMode: "unattended"}, {ExecutionMode: "interactive"}}, expected: "interactive"},
+		{name: "non-tty before unattended", commands: []recordedCommand{{ExecutionMode: "unattended"}, {ExecutionMode: "non_tty"}}, expected: "non_tty"},
+		{name: "unattended fallback", commands: []recordedCommand{{ExecutionMode: "unattended"}}, expected: "unattended"},
+		{name: "interactive inferred", commands: []recordedCommand{{Interactive: true}}, expected: "interactive"},
+	}
+
+	for _, testCase := range tests {
+		t.Run(testCase.name, func(t *testing.T) {
+			assert.Equal(t, testCase.expected, resolveExecutionModeSummary(testCase.commands))
+		})
+	}
+}
+
+func TestResolveCommandExecutionMode(t *testing.T) {
+	t.Parallel()
+
+	assert.Equal(t, "interactive", resolveCommandExecutionMode(recordedCommand{Interactive: true}))
+	assert.Equal(t, "unattended", resolveCommandExecutionMode(recordedCommand{}))
+	assert.Equal(t, "non_tty", resolveCommandExecutionMode(recordedCommand{ExecutionMode: "non_tty"}))
+}
+
+func TestBuildCommandSummariesV1_UsesTimingsAndStagesInOrder(t *testing.T) {
+	base := time.Now()
+
+	performance := []*perf.ExportSpan{
+		{
+			Name:       "app.command.add",
+			StartTime:  base,
+			EndTime:    base.Add(2 * time.Second),
+			DurationNS: int64(2 * time.Second),
+			Children: []*perf.ExportSpan{
+				{Name: "app.command.add.stage.download", DurationNS: int64(500 * time.Millisecond)},
+				{Name: "app.command.add.stage.persist", DurationNS: int64(300 * time.Millisecond)},
+			},
+		},
+		{
+			Name:       "app.command.add",
+			StartTime:  base.Add(3 * time.Second),
+			EndTime:    base.Add(4 * time.Second),
+			DurationNS: int64(1 * time.Second),
+		},
+		{
+			Name:       "app.command.list",
+			StartTime:  base.Add(5 * time.Second),
+			EndTime:    base.Add(5500 * time.Millisecond),
+			DurationNS: int64(500 * time.Millisecond),
+		},
+	}
+
+	commands := []recordedCommand{
+		{Name: "add", Success: true},
+		{Name: "add", Success: true},
+		{Name: "list", Success: true},
+	}
+
+	summaries := buildCommandSummariesV1(commands, performance)
+	if assert.Len(t, summaries, 3) {
+		assert.Equal(t, int64(2000), summaries[0]["duration_ms"])
+		stageDurations := summaries[0]["stage_durations_ms"].(map[string]int64)
+		assert.Equal(t, int64(500), stageDurations["download"])
+		assert.Equal(t, int64(300), stageDurations["persist"])
+
+		assert.Equal(t, int64(1000), summaries[1]["duration_ms"])
+		assert.Equal(t, int64(500), summaries[2]["duration_ms"])
+	}
+}
+
+func TestBuildStageDurationSummarySkipsZeroDurations(t *testing.T) {
+	summary := buildStageDurationSummary(map[string]time.Duration{"download": 0})
+	assert.Nil(t, summary)
+}
+
+func TestBuildPerformanceCounts(t *testing.T) {
+	performance := []*perf.ExportSpan{
+		{
+			Name: "root",
+			Children: []*perf.ExportSpan{
+				{Name: "net.http.request"},
+				{Name: "io.download.file", Attributes: map[string]interface{}{"bytes": int64(120)}},
+				{Name: "io.download.file", Attributes: map[string]interface{}{"bytes": 80}},
+				{Name: "io.download.file", Attributes: map[string]interface{}{"bytes": 50.0}},
+				{Name: "io.download.file", Attributes: map[string]interface{}{"bytes": "unknown"}},
+			},
+		},
+		{Name: "net.http.request"},
+	}
+
+	counts := buildPerformanceCounts(performance)
+	assert.Equal(t, 2, counts["http_requests"])
+	assert.Equal(t, 4, counts["downloads"])
+	assert.Equal(t, int64(250), counts["download_bytes"])
+}
+
+func TestBuildPerfSummaryV1IncludesModlist(t *testing.T) {
+	commands := []recordedCommand{{Name: "list", Success: true, ExecutionMode: "non_tty"}}
+	performance := []*perf.ExportSpan{{Name: "net.http.request"}}
+	modlist := &modlistSummary{GameVersion: "1.21.1", Loader: "fabric", ModCount: 2}
+
+	summary := buildPerfSummaryV1(commands, performance, modlist)
+	assert.Equal(t, 1, summary["schema_version"])
+	assert.Equal(t, environment.AppVersion(), summary["app_version"])
+	assert.Equal(t, "non_tty", summary["execution_mode"])
+
+	modlistEntry := summary["modlist"].(map[string]interface{})
+	assert.Equal(t, "1.21.1", modlistEntry["game_version"])
+	assert.Equal(t, "fabric", modlistEntry["loader"])
+	assert.Equal(t, 2, modlistEntry["mod_count"])
+}
+
+func TestLoadModlistSummaryEmptyPathReturnsNil(t *testing.T) {
+	summary := loadModlistSummary("", nil)
+	assert.Nil(t, summary)
+}
+
+func TestLoadModlistSummaryMissingFileReturnsNil(t *testing.T) {
+	logger := &recordingLogger{}
+	summary := loadModlistSummary(filepath.Join(t.TempDir(), "missing.json"), logger)
+	assert.Nil(t, summary)
+	assert.NotEmpty(t, logger.messages)
+}
+
+func TestLoadModlistSummaryWithNilLoggerUsesConfig(t *testing.T) {
+	fs := afero.NewOsFs()
+	baseDir := t.TempDir()
+	configPath := filepath.Join(baseDir, "modlist.json")
+
+	meta := config.NewMetadata(configPath)
+	payload := models.ModsJSON{
+		Loader:      models.FABRIC,
+		GameVersion: "1.20.1",
+		ModsFolder:  "mods",
+	}
+	assert.NoError(t, config.WriteConfig(context.Background(), fs, meta, payload))
+
+	summary := loadModlistSummary(configPath, nil)
+	if assert.NotNil(t, summary) {
+		assert.Equal(t, "1.20.1", summary.GameVersion)
+		assert.Equal(t, "fabric", summary.Loader)
+		assert.Equal(t, 0, summary.ModCount)
+	}
+}
+
+func TestResolveExecutionModeSummaryUnknownMode(t *testing.T) {
+	commands := []recordedCommand{{ExecutionMode: "unexpected"}}
+	assert.Equal(t, "unknown", resolveExecutionModeSummary(commands))
+}
+
+func TestNextCommandTimingReturnsFalseWhenMissingOrExhausted(t *testing.T) {
+	timing, ok := nextCommandTiming("list", map[string][]commandTiming{}, map[string]int{})
+	assert.False(t, ok)
+	assert.Equal(t, commandTiming{}, timing)
+
+	timingIndex := map[string][]commandTiming{"add": {{Duration: time.Second}}}
+	selectionIndex := map[string]int{"add": 2}
+	timing, ok = nextCommandTiming("add", timingIndex, selectionIndex)
+	assert.False(t, ok)
+	assert.Equal(t, commandTiming{}, timing)
+}
+
+func TestRecordCommandTimingNilSpanDoesNothing(t *testing.T) {
+	index := map[string][]commandTiming{}
+	recordCommandTiming(nil, index)
+	assert.Empty(t, index)
+}
+
+func TestBuildStageDurationsEmptyInputsReturnNil(t *testing.T) {
+	assert.Nil(t, buildStageDurations(nil, "add"))
+
+	emptySpan := &perf.ExportSpan{Name: "app.command.add"}
+	assert.Nil(t, buildStageDurations(emptySpan, "add"))
+
+	stageNameEmpty := &perf.ExportSpan{
+		Name: "app.command.add",
+		Children: []*perf.ExportSpan{
+			{Name: "app.command.add.stage."},
+		},
+	}
+	assert.Nil(t, buildStageDurations(stageNameEmpty, "add"))
+	assert.Nil(t, buildStageDurations(stageNameEmpty, ""))
+}
+
+func TestAddStageDurationsSkipsEmptyStageName(t *testing.T) {
+	stageDurations := map[string]time.Duration{}
+	addStageDurations(stageDurations, "add", &perf.ExportSpan{Name: "app.command.add.stage."})
+	assert.Empty(t, stageDurations)
+}
+
+func TestAddStageDurationsNilSpanIsNoop(t *testing.T) {
+	stageDurations := map[string]time.Duration{}
+	addStageDurations(stageDurations, "add", nil)
+	assert.Empty(t, stageDurations)
+}
+
+func TestAddStageDurationsWalksChildren(t *testing.T) {
+	stageDurations := map[string]time.Duration{}
+	parent := &perf.ExportSpan{
+		Name: "root",
+		Children: []*perf.ExportSpan{
+			{Name: "app.command.add.stage.fetch", DurationNS: int64(2 * time.Second)},
+		},
+	}
+	addStageDurations(stageDurations, "add", parent)
+	assert.Equal(t, int64(2000), stageDurations["fetch"].Milliseconds())
+}
+
+func TestAccumulateCountsIgnoresNilSpan(t *testing.T) {
+	httpCount := 0
+	downloadCount := 0
+	var downloadBytes int64
+	accumulateCounts(nil, &httpCount, &downloadCount, &downloadBytes)
+	assert.Equal(t, 0, httpCount)
+	assert.Equal(t, 0, downloadCount)
+	assert.Equal(t, int64(0), downloadBytes)
+}
+
+func TestSpanInt64AttributeMissingReturnsZero(t *testing.T) {
+	assert.Equal(t, int64(0), spanInt64Attribute(nil))
+	assert.Equal(t, int64(0), spanInt64Attribute(map[string]interface{}{}))
+	assert.Equal(t, int64(0), spanInt64Attribute(map[string]interface{}{"other": 123}))
+	assert.Equal(t, int64(0), spanInt64Attribute(map[string]interface{}{"bytes": "n/a"}))
+}
+
+func TestSetPerfBaseDirStoresValue(t *testing.T) {
+	resetTelemetryState(t)
+
+	SetPerfBaseDir("/perf")
+	snapshot := snapshotState()
+	assert.Equal(t, "/perf", snapshot.perfBaseDir)
+}
+
+func TestSetConfigPathIgnoresEmptyValue(t *testing.T) {
+	resetTelemetryState(t)
+
+	SetConfigPath(" ")
+	snapshot := snapshotState()
+	assert.Equal(t, "", snapshot.configPath)
 }
 
 func TestCommandDurationFromPerf_ReturnsFalseWhenSpanMissing(t *testing.T) {

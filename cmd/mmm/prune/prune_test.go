@@ -65,7 +65,7 @@ func TestRunPruneNoUnmanagedLogsNotice(t *testing.T) {
 	cmd.SetOut(out)
 	cmd.SetErr(errOut)
 
-	deletedCount, _, err := runPrune(context.Background(), cmd, pruneOptions{
+	deletedCount, err := runPrune(context.Background(), cmd, pruneOptions{
 		ConfigPath: meta.ConfigPath,
 	}, pruneDeps{
 		fs:     fs,
@@ -111,7 +111,7 @@ func TestRunPruneUnattendedQuietWithoutForceSkipsDeletion(t *testing.T) {
 	cmd.SetOut(out)
 	cmd.SetErr(errOut)
 
-	deletedCount, _, err := runPrune(context.Background(), cmd, pruneOptions{
+	deletedCount, err := runPrune(context.Background(), cmd, pruneOptions{
 		ConfigPath: meta.ConfigPath,
 		Unattended: true,
 		Quiet:      true,
@@ -167,7 +167,7 @@ func TestRunPrunePromptNoKeepsFiles(t *testing.T) {
 	cmd.SetOut(outputWriter)
 	cmd.SetErr(errOut)
 
-	deletedCount, _, err := runPrune(context.Background(), cmd, pruneOptions{
+	deletedCount, err := runPrune(context.Background(), cmd, pruneOptions{
 		ConfigPath: meta.ConfigPath,
 	}, pruneDeps{
 		fs:     fs,
@@ -230,7 +230,7 @@ func TestRunPrunePromptCanceledSkipsDelete(t *testing.T) {
 	cmd.SetOut(outputWriter)
 	cmd.SetErr(&bytes.Buffer{})
 
-	deletedCount, _, err := runPrune(context.Background(), cmd, pruneOptions{
+	deletedCount, err := runPrune(context.Background(), cmd, pruneOptions{
 		ConfigPath: meta.ConfigPath,
 	}, pruneDeps{
 		fs:     fs,
@@ -289,7 +289,7 @@ func TestRunPrunePromptYesDeletesFiles(t *testing.T) {
 	cmd.SetOut(outputWriter)
 	cmd.SetErr(&bytes.Buffer{})
 
-	deletedCount, _, err := runPrune(context.Background(), cmd, pruneOptions{
+	deletedCount, err := runPrune(context.Background(), cmd, pruneOptions{
 		ConfigPath: meta.ConfigPath,
 	}, pruneDeps{
 		fs:     fs,
@@ -354,7 +354,7 @@ func TestRunPruneForceDeletesAndRespectsIgnore(t *testing.T) {
 	cmd.SetOut(out)
 	cmd.SetErr(errOut)
 
-	deletedCount, _, err := runPrune(context.Background(), cmd, pruneOptions{
+	deletedCount, err := runPrune(context.Background(), cmd, pruneOptions{
 		ConfigPath: meta.ConfigPath,
 		Unattended: true,
 		Force:      true,
@@ -412,7 +412,7 @@ func TestRunPruneQuietForceIsSilent(t *testing.T) {
 	cmd.SetOut(out)
 	cmd.SetErr(errOut)
 
-	deletedCount, _, err := runPrune(context.Background(), cmd, pruneOptions{
+	deletedCount, err := runPrune(context.Background(), cmd, pruneOptions{
 		ConfigPath: meta.ConfigPath,
 		Quiet:      true,
 		Force:      true,
@@ -454,7 +454,7 @@ func TestRunPruneLockMissingErrors(t *testing.T) {
 	cmd.SetOut(out)
 	cmd.SetErr(errOut)
 
-	deletedCount, _, err := runPrune(context.Background(), cmd, pruneOptions{
+	deletedCount, err := runPrune(context.Background(), cmd, pruneOptions{
 		ConfigPath: meta.ConfigPath,
 	}, pruneDeps{
 		fs:     fs,

@@ -10,6 +10,7 @@ import (
 	"github.com/meza/minecraft-mod-manager/internal/cmddeps"
 	"github.com/meza/minecraft-mod-manager/internal/httpclient"
 	"github.com/meza/minecraft-mod-manager/internal/i18n"
+	"github.com/meza/minecraft-mod-manager/internal/interaction"
 	"github.com/meza/minecraft-mod-manager/internal/logger"
 	"github.com/meza/minecraft-mod-manager/internal/minecraft"
 	"github.com/meza/minecraft-mod-manager/internal/models"
@@ -106,13 +107,18 @@ func runTestCommand(cmd *cobra.Command, args []string, runner testRunner) error 
 	}
 
 	deps := defaultTestDeps(cmd, opts)
+	mode := interaction.ResolveExecutionMode(interaction.ExecutionModeInput{
+		Unattended: opts.Unattended,
+		In:         cmd.InOrStdin(),
+		Out:        cmd.OutOrStdout(),
+	})
 
 	result, err := runner(ctx, cmd, opts, deps)
 	span.SetAttributes(attribute.Bool("success", err == nil))
 	span.End()
 
 	handleTestCommandError(cmd, err)
-	recordTestTelemetry(deps.telemetry, result, err)
+	recordTestTelemetry(deps.telemetry, result, mode, err)
 	return err
 }
 
@@ -207,13 +213,14 @@ func handleTestCommandError(cmd *cobra.Command, err error) {
 	}
 }
 
-func recordTestTelemetry(telemetryRecorder func(telemetry.CommandTelemetry), result Result, err error) {
+func recordTestTelemetry(telemetryRecorder func(telemetry.CommandTelemetry), result Result, mode interaction.ExecutionMode, err error) {
 	payload := telemetry.CommandTelemetry{
-		Command:     "test",
-		Success:     err == nil && result.ExitCode == 0,
-		Error:       err,
-		ExitCode:    result.ExitCode,
-		Interactive: result.Interactive,
+		Command:       "test",
+		Success:       err == nil && result.ExitCode == 0,
+		Error:         err,
+		ExitCode:      result.ExitCode,
+		Interactive:   mode.IsInteractive(),
+		ExecutionMode: mode.String(),
 		Extra: map[string]interface{}{
 			"targetVersion": result.TargetVersion,
 			"exitCode":      result.ExitCode,

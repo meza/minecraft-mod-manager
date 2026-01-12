@@ -9,6 +9,7 @@ import (
 	"github.com/meza/minecraft-mod-manager/internal/clierrors"
 	"github.com/meza/minecraft-mod-manager/internal/cmddeps"
 	"github.com/meza/minecraft-mod-manager/internal/i18n"
+	"github.com/meza/minecraft-mod-manager/internal/interaction"
 	"github.com/meza/minecraft-mod-manager/internal/perf"
 )
 
@@ -51,12 +52,18 @@ func runChangeCommand(cmd *cobra.Command, args []string, runner changeRunner) er
 	})
 	deps := newChangeDeps(common)
 
+	mode := interaction.ResolveExecutionMode(interaction.ExecutionModeInput{
+		Unattended: opts.Unattended,
+		In:         cmd.InOrStdin(),
+		Out:        cmd.OutOrStdout(),
+	})
+
 	result, err := runner(ctx, cmd, opts, deps)
 	applyChangeCommandErrorPolicy(cmd, err)
 	span.SetAttributes(attribute.Bool("success", err == nil))
 	span.End()
 
-	recordChangeTelemetry(deps.telemetry, opts, result, err)
+	recordChangeTelemetry(deps.telemetry, opts, result, mode, err)
 	return err
 }
 

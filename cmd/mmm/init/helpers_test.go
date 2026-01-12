@@ -15,6 +15,7 @@ import (
 	"github.com/stretchr/testify/assert"
 
 	"github.com/meza/minecraft-mod-manager/internal/config"
+	"github.com/meza/minecraft-mod-manager/internal/interaction"
 	"github.com/meza/minecraft-mod-manager/internal/logger"
 	"github.com/meza/minecraft-mod-manager/internal/minecraft"
 	"github.com/meza/minecraft-mod-manager/internal/models"
@@ -28,11 +29,11 @@ func TestBuildTelemetryPayloadExitCode(t *testing.T) {
 		GameVersion:  "1.21.1",
 		ReleaseTypes: []models.ReleaseType{models.Release},
 		ModsFolder:   "mods",
-	}, true, nil)
+	}, interaction.ExecutionModeInteractive, true, nil)
 	assert.Equal(t, 0, payload.ExitCode)
 	assert.True(t, payload.Success)
 
-	payload = buildTelemetryPayload(initOptions{}, false, errors.New("boom"))
+	payload = buildTelemetryPayload(initOptions{}, interaction.ExecutionModeUnattended, false, errors.New("boom"))
 	assert.Equal(t, 1, payload.ExitCode)
 	assert.False(t, payload.Success)
 }
@@ -193,7 +194,7 @@ func TestBuildTelemetryPayloadRedactsModsFolderError(t *testing.T) {
 	}
 
 	inputError := fmt.Errorf("mods folder does not exist: %s", pathWithUsername)
-	payload := buildTelemetryPayload(initOptions{}, false, inputError)
+	payload := buildTelemetryPayload(initOptions{}, interaction.ExecutionModeUnattended, false, inputError)
 
 	if assert.Error(t, payload.Error) {
 		assert.Equal(t, fmt.Sprintf("mods folder does not exist: %s", expectedRedacted), payload.Error.Error())

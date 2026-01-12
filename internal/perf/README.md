@@ -5,7 +5,7 @@ This package provides lightweight performance instrumentation built on OpenTelem
 It is used to:
 
 - create spans around important operations (network calls, config I/O, downloads)
-- keep an in-memory span snapshot for tests, telemetry upload, and `--perf` export
+- keep an in-memory span snapshot for tests, telemetry summary generation, and `--perf` export
 
 ## Process lifecycle instrumentation
 

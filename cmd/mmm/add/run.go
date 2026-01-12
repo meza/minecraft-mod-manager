@@ -38,10 +38,14 @@ func (err downloadFailureError) Unwrap() error {
 func runAdd(ctx context.Context, commandSpan *perf.Span, cmd *cobra.Command, opts addOptions, deps addDeps) (telemetry.CommandTelemetry, error) {
 	runState, err := prepareAddRunState(ctx, cmd, opts, deps)
 	if err != nil {
-		return addFailureTelemetryWithoutArgs(runState.mode.IsInteractive(), err), err
+		return addFailureTelemetryWithoutArgs(runState.mode.String(), runState.mode.IsInteractive(), err), err
 	}
 	if !runState.shouldContinue {
-		return telemetry.CommandTelemetry{Command: "add", Interactive: runState.mode.IsInteractive()}, nil
+		return telemetry.CommandTelemetry{
+			Command:       "add",
+			Interactive:   runState.mode.IsInteractive(),
+			ExecutionMode: runState.mode.String(),
+		}, nil
 	}
 
 	colorMode := colorModeForOutput(cmd.OutOrStdout())
@@ -51,7 +55,7 @@ func runAdd(ctx context.Context, commandSpan *perf.Span, cmd *cobra.Command, opt
 	for {
 		outcome, attemptErr := runAddAttempt(ctx, commandSpan, cmd, opts, deps, runState, colorMode, identifiers)
 		if attemptErr != nil {
-			return addFailureTelemetry(outcome.platformValue, outcome.projectID, opts, runState.mode.IsInteractive(), attemptErr), attemptErr
+			return addFailureTelemetry(outcome.platformValue, outcome.projectID, opts, runState.mode.String(), runState.mode.IsInteractive(), attemptErr), attemptErr
 		}
 		if outcome.recovered {
 			identifiers = addIdentifiers{platformValue: outcome.platformValue, projectID: outcome.projectID}
@@ -234,13 +238,13 @@ func finishAdd(
 	}
 
 	if opts.Quiet {
-		return addSuccessTelemetry(resolveOutcome.resolved.platform, resolveOutcome.resolved.projectID, opts, runState.mode.IsInteractive()), nil
+		return addSuccessTelemetry(resolveOutcome.resolved.platform, resolveOutcome.resolved.projectID, opts, runState.mode.String(), runState.mode.IsInteractive()), nil
 	}
 
 	if outputErr := runOutputLines(cmd, deps, cmd.OutOrStdout(), []string{renderAddSuccessLine(colorMode, resolveOutcome.remoteMod.Name, resolveOutcome.resolved.projectID, resolveOutcome.resolved.platform)}); outputErr != nil {
 		return telemetry.CommandTelemetry{}, outputErr
 	}
-	return addSuccessTelemetry(resolveOutcome.resolved.platform, resolveOutcome.resolved.projectID, opts, runState.mode.IsInteractive()), nil
+	return addSuccessTelemetry(resolveOutcome.resolved.platform, resolveOutcome.resolved.projectID, opts, runState.mode.String(), runState.mode.IsInteractive()), nil
 }
 
 func prepareAddRunState(ctx context.Context, cmd *cobra.Command, opts addOptions, deps addDeps) (addRunState, error) {

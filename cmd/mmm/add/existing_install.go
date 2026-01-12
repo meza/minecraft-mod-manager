@@ -50,25 +50,25 @@ func handleExistingInstallIfPresent(input existingInstallCheckInput) (telemetry.
 func handleExistingInstall(input existingInstallInput) (telemetry.CommandTelemetry, error) {
 	install, err := normalizeExistingInstallFileName(input)
 	if err != nil {
-		return addFailureTelemetry(input.platformValue, input.projectID, input.opts, input.mode.IsInteractive(), err), err
+		return addFailureTelemetry(input.platformValue, input.projectID, input.opts, input.mode.String(), input.mode.IsInteractive(), err), err
 	}
 
 	ensureResult, ensureErr := ensureExistingInstall(input, install)
 	if ensureErr != nil {
-		return addFailureTelemetry(input.platformValue, input.projectID, input.opts, input.mode.IsInteractive(), ensureErr), ensureErr
+		return addFailureTelemetry(input.platformValue, input.projectID, input.opts, input.mode.String(), input.mode.IsInteractive(), ensureErr), ensureErr
 	}
 
 	if !input.opts.Quiet {
 		colorMode := colorModeForOutput(input.out)
 		message := renderAddSuccessLine(colorMode, modNameForConfig(input.cfg, input.platformValue, input.projectID), input.projectID, input.platformValue)
 		if outputErr := runOutputLines(nil, input.deps, input.out, []string{message}); outputErr != nil {
-			return addFailureTelemetry(input.platformValue, input.projectID, input.opts, input.mode.IsInteractive(), outputErr), outputErr
+			return addFailureTelemetry(input.platformValue, input.projectID, input.opts, input.mode.String(), input.mode.IsInteractive(), outputErr), outputErr
 		}
 	}
 
 	telemetryPayload, err := recordExistingInstallTelemetry(input, ensureResult.Reason)
 	if err != nil {
-		return addFailureTelemetry(input.platformValue, input.projectID, input.opts, input.mode.IsInteractive(), err), err
+		return addFailureTelemetry(input.platformValue, input.projectID, input.opts, input.mode.String(), input.mode.IsInteractive(), err), err
 	}
 	return telemetryPayload, nil
 }
@@ -131,5 +131,5 @@ func recordExistingInstallTelemetry(input existingInstallInput, reason modinstal
 	})); err != nil {
 		return telemetry.CommandTelemetry{}, err
 	}
-	return addExistingInstallTelemetry(input.platformValue, input.projectID, input.opts, input.mode.IsInteractive(), reason), nil
+	return addExistingInstallTelemetry(input.platformValue, input.projectID, input.opts, input.mode.String(), input.mode.IsInteractive(), reason), nil
 }

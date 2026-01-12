@@ -80,11 +80,17 @@ func runPruneCommand(cmd *cobra.Command, _ []string) error {
 	}
 
 	deps := defaultPruneDeps(cmd, options)
-	deletedCount, usedInteractive, runErr := runPrune(ctx, cmd, options, deps)
+	mode := interaction.ResolveExecutionMode(interaction.ExecutionModeInput{
+		Unattended: options.Unattended,
+		In:         cmd.InOrStdin(),
+		Out:        cmd.OutOrStdout(),
+	})
+
+	deletedCount, runErr := runPrune(ctx, cmd, options, deps)
 	span.SetAttributes(attribute.Bool("success", runErr == nil))
 	span.End()
 
-	recordPruneTelemetry(deps.telemetry, options, deletedCount, usedInteractive, runErr)
+	recordPruneTelemetry(deps.telemetry, options, deletedCount, mode, runErr)
 	applyPruneCommandErrorPolicy(cmd, runErr)
 	return runErr
 }
@@ -164,13 +170,14 @@ func defaultRunTea(model tea.Model, options ...tea.ProgramOption) (tea.Model, er
 
 var runTeaProgram = defaultRunTea
 
-func recordPruneTelemetry(record func(telemetry.CommandTelemetry), options pruneOptions, deletedCount int, usedInteractive bool, err error) {
+func recordPruneTelemetry(record func(telemetry.CommandTelemetry), options pruneOptions, deletedCount int, mode interaction.ExecutionMode, err error) {
 	payload := telemetry.CommandTelemetry{
-		Command:     "prune",
-		Success:     err == nil,
-		Error:       err,
-		ExitCode:    0,
-		Interactive: usedInteractive,
+		Command:       "prune",
+		Success:       err == nil,
+		Error:         err,
+		ExitCode:      0,
+		Interactive:   mode.IsInteractive(),
+		ExecutionMode: mode.String(),
 		Arguments: map[string]interface{}{
 			"force": options.Force,
 		},
@@ -191,7 +198,7 @@ type pruneConfigState struct {
 	ShouldContinue bool
 }
 
-func runPrune(ctx context.Context, cmd *cobra.Command, options pruneOptions, deps pruneDeps) (int, bool, error) {
+func runPrune(ctx context.Context, cmd *cobra.Command, options pruneOptions, deps pruneDeps) (int, error) {
 	meta := config.NewMetadata(options.ConfigPath)
 	mode := interaction.ResolveExecutionMode(interaction.ExecutionModeInput{
 		Unattended: options.Unattended,
@@ -199,23 +206,23 @@ func runPrune(ctx context.Context, cmd *cobra.Command, options pruneOptions, dep
 		Out:        cmd.OutOrStdout(),
 	})
 
-	configState, usedInteractive, err := ensurePruneConfig(ctx, cmd, options, deps, meta, mode)
+	configState, err := ensurePruneConfig(ctx, cmd, options, deps, meta)
 	if err != nil {
-		return 0, usedInteractive, err
+		return 0, err
 	}
 	if !configState.ShouldContinue {
-		return 0, usedInteractive, nil
+		return 0, nil
 	}
 
 	unmanagedFiles, err := listUnmanagedFiles(deps.fs, meta, configState.Config, configState.Lock)
 	if err != nil {
-		return 0, usedInteractive, handlePruneFailure(cmd, deps, err)
+		return 0, handlePruneFailure(cmd, deps, err)
 	}
 	if len(unmanagedFiles) == 0 {
 		if outputErr := writeNoUnmanagedOutput(cmd, deps); outputErr != nil {
-			return 0, usedInteractive, outputErr
+			return 0, outputErr
 		}
-		return 0, usedInteractive, nil
+		return 0, nil
 	}
 
 	sortedUnmanaged := sortUnmanagedFiles(unmanagedFiles)
@@ -223,19 +230,19 @@ func runPrune(ctx context.Context, cmd *cobra.Command, options pruneOptions, dep
 
 	if shouldUseConfirmDeleteFlow(options, mode) {
 		deletedCount, err := runInteractiveConfirmDelete(cmd, deps, colorMode, sortedUnmanaged)
-		return deletedCount, usedInteractive, err
+		return deletedCount, err
 	}
 
 	shouldDelete, promptErr := confirmPrune(cmd, deps, options, mode, colorMode, sortedUnmanaged)
 	if promptErr != nil {
-		return 0, usedInteractive, promptErr
+		return 0, promptErr
 	}
 	if !shouldDelete {
-		return 0, usedInteractive, nil
+		return 0, nil
 	}
 
 	deletedCount, deleteErr := executePruneDeletion(cmd, deps, options, mode, colorMode, sortedUnmanaged)
-	return deletedCount, usedInteractive, deleteErr
+	return deletedCount, deleteErr
 }
 
 func shouldUseConfirmDeleteFlow(options pruneOptions, mode interaction.ExecutionMode) bool {
@@ -353,58 +360,57 @@ func ensurePruneConfig(
 	options pruneOptions,
 	deps pruneDeps,
 	meta config.Metadata,
-	mode interaction.ExecutionMode,
-) (pruneConfigState, bool, error) {
+) (pruneConfigState, error) {
 	cfg, err := config.ReadConfig(ctx, deps.fs, meta)
 	if err == nil {
 		lock, lockErr := readLockRequired(ctx, deps.fs, meta)
 		if lockErr != nil {
-			return pruneConfigState{}, mode == interaction.ExecutionModeInteractive, handleLockReadError(cmd, deps, lockErr)
+			return pruneConfigState{}, handleLockReadError(cmd, deps, lockErr)
 		}
-		return pruneConfigState{Config: cfg, Lock: lock, ShouldContinue: true}, mode == interaction.ExecutionModeInteractive, nil
+		return pruneConfigState{Config: cfg, Lock: lock, ShouldContinue: true}, nil
 	}
 
 	var notFound *config.ConfigFileNotFoundException
 	if !errors.As(err, &notFound) {
-		return pruneConfigState{}, mode == interaction.ExecutionModeInteractive, handlePruneFailure(cmd, deps, err)
+		return pruneConfigState{}, handlePruneFailure(cmd, deps, err)
 	}
 
 	promptErr := configMissingPromptError(options, cmd, meta)
 	if promptErr != nil {
 		if outputErr := writeConfigMissingOutput(cmd, deps, meta); outputErr != nil {
-			return pruneConfigState{}, mode == interaction.ExecutionModeInteractive, outputErr
+			return pruneConfigState{}, outputErr
 		}
-		return pruneConfigState{}, mode == interaction.ExecutionModeInteractive, clierrors.MarkHandled(promptErr)
+		return pruneConfigState{}, clierrors.MarkHandled(promptErr)
 	}
 
 	confirmed, canceled, promptErr := runConfigInitPrompt(cmd, deps, meta)
 	if promptErr != nil {
-		return pruneConfigState{}, true, promptErr
+		return pruneConfigState{}, promptErr
 	}
 	if canceled || !confirmed {
-		return pruneConfigState{ShouldContinue: false}, true, nil
+		return pruneConfigState{ShouldContinue: false}, nil
 	}
 
 	if deps.runInit == nil {
-		return pruneConfigState{}, true, errors.New("missing init runner")
+		return pruneConfigState{}, errors.New("missing init runner")
 	}
 	if runErr := deps.runInit(ctx, cmd, initRequest{configPath: meta.ConfigPath}); runErr != nil {
 		if errors.Is(runErr, initCmd.ErrInitCanceled) {
-			return pruneConfigState{ShouldContinue: false}, true, nil
+			return pruneConfigState{ShouldContinue: false}, nil
 		}
-		return pruneConfigState{}, true, runErr
+		return pruneConfigState{}, runErr
 	}
 
 	cfg, err = config.ReadConfig(ctx, deps.fs, meta)
 	if err != nil {
-		return pruneConfigState{}, true, handlePruneFailure(cmd, deps, err)
+		return pruneConfigState{}, handlePruneFailure(cmd, deps, err)
 	}
 	lock, lockErr := readLockRequired(ctx, deps.fs, meta)
 	if lockErr != nil {
-		return pruneConfigState{}, true, handleLockReadError(cmd, deps, lockErr)
+		return pruneConfigState{}, handleLockReadError(cmd, deps, lockErr)
 	}
 
-	return pruneConfigState{Config: cfg, Lock: lock, ShouldContinue: true}, true, nil
+	return pruneConfigState{Config: cfg, Lock: lock, ShouldContinue: true}, nil
 }
 
 func configMissingPromptError(options pruneOptions, cmd *cobra.Command, meta config.Metadata) error {

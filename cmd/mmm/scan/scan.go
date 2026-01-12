@@ -201,69 +201,68 @@ type platformLookupOutcome struct {
 func runScan(ctx context.Context, cmd *cobra.Command, opts scanOptions, deps scanDeps) (telemetry.CommandTelemetry, error) {
 	meta := config.NewMetadata(opts.ConfigPath)
 	setupCoordinator := modsetup.NewSetupCoordinator(deps.fs, deps.minecraftClient, nil)
-
-	configState, err := ensureScanConfig(ctx, cmd, opts, deps, meta)
-	if err != nil {
-		return scanFailureTelemetry(err), handleScanFailure(cmd, deps, err)
-	}
-	if !configState.ShouldContinue {
-		return scanSuccessTelemetryWithoutArgs(), nil
-	}
-	return runScanWithConfig(ctx, cmd, opts, deps, meta, setupCoordinator, configState.Config, configState.Lock)
-}
-
-func runScanWithConfig(ctx context.Context, cmd *cobra.Command, opts scanOptions, deps scanDeps, meta config.Metadata, setupCoordinator *modsetup.SetupCoordinator, cfg models.ModsJSON, lock []models.ModInstall) (telemetry.CommandTelemetry, error) {
-	preferPlatform, err := resolvePreferredPlatform(opts.Prefer)
-	if err != nil {
-		return scanFailureTelemetry(err), handleScanFailure(cmd, deps, err)
-	}
-
-	files, err := listJarFiles(deps.fs, meta, cfg)
-	if err != nil {
-		return scanFailureTelemetry(err), handleScanFailure(cmd, deps, err)
-	}
-
-	unmanaged := unmanagedFiles(files, lock)
-	if len(unmanaged) == 0 {
-		return handleAllManagedScan(cmd, deps, opts)
-	}
-
-	candidates, err := sha1Candidates(ctx, deps.fs, unmanaged)
-	if err != nil {
-		return scanFailureTelemetry(err), handleScanFailure(cmd, deps, err)
-	}
-
-	executionInput := scanExecutionInput{
-		meta:             meta,
-		cfg:              cfg,
-		lock:             lock,
-		setupCoordinator: setupCoordinator,
-		candidates:       candidates,
-		preferPlatform:   preferPlatform,
-		deps:             deps,
-	}
-
 	mode := interaction.ResolveExecutionMode(interaction.ExecutionModeInput{
 		Unattended: opts.Unattended,
 		In:         cmd.InOrStdin(),
 		Out:        cmd.OutOrStdout(),
 	})
 
-	_, err = runScanByMode(ctx, cmd, executionInput, mode, opts)
+	configState, err := ensureScanConfig(ctx, cmd, opts, deps, meta)
 	if err != nil {
-		return scanFailureTelemetry(err), err
+		return scanFailureTelemetry(mode.String(), mode.IsInteractive(), err), handleScanFailure(cmd, deps, err)
 	}
-	return scanSuccessTelemetry(preferPlatform, opts.Add), nil
+	if !configState.ShouldContinue {
+		return scanSuccessTelemetryWithoutArgs(mode.String(), mode.IsInteractive()), nil
+	}
+	return runScanWithConfig(ctx, cmd, opts, deps, setupCoordinator, configState, mode)
 }
 
-func handleAllManagedScan(cmd *cobra.Command, deps scanDeps, opts scanOptions) (telemetry.CommandTelemetry, error) {
+func runScanWithConfig(ctx context.Context, cmd *cobra.Command, opts scanOptions, deps scanDeps, setupCoordinator *modsetup.SetupCoordinator, configState scanConfigState, mode interaction.ExecutionMode) (telemetry.CommandTelemetry, error) {
+	preferPlatform, err := resolvePreferredPlatform(opts.Prefer)
+	if err != nil {
+		return scanFailureTelemetry(mode.String(), mode.IsInteractive(), err), handleScanFailure(cmd, deps, err)
+	}
+
+	files, err := listJarFiles(deps.fs, configState.Meta, configState.Config)
+	if err != nil {
+		return scanFailureTelemetry(mode.String(), mode.IsInteractive(), err), handleScanFailure(cmd, deps, err)
+	}
+
+	unmanaged := unmanagedFiles(files, configState.Lock)
+	if len(unmanaged) == 0 {
+		return handleAllManagedScan(cmd, deps, opts, mode)
+	}
+
+	candidates, err := sha1Candidates(ctx, deps.fs, unmanaged)
+	if err != nil {
+		return scanFailureTelemetry(mode.String(), mode.IsInteractive(), err), handleScanFailure(cmd, deps, err)
+	}
+
+	executionInput := scanExecutionInput{
+		meta:             configState.Meta,
+		cfg:              configState.Config,
+		lock:             configState.Lock,
+		setupCoordinator: setupCoordinator,
+		candidates:       candidates,
+		preferPlatform:   preferPlatform,
+		deps:             deps,
+	}
+
+	_, err = runScanByMode(ctx, cmd, executionInput, mode, opts)
+	if err != nil {
+		return scanFailureTelemetry(mode.String(), mode.IsInteractive(), err), err
+	}
+	return scanSuccessTelemetry(preferPlatform, opts.Add, mode.String(), mode.IsInteractive()), nil
+}
+
+func handleAllManagedScan(cmd *cobra.Command, deps scanDeps, opts scanOptions, mode interaction.ExecutionMode) (telemetry.CommandTelemetry, error) {
 	if opts.Quiet {
-		return scanSuccessTelemetryWithoutArgs(), nil
+		return scanSuccessTelemetryWithoutArgs(mode.String(), mode.IsInteractive()), nil
 	}
 	if outputErr := writeScanAllManaged(cmd, deps); outputErr != nil {
-		return scanFailureTelemetry(outputErr), outputErr
+		return scanFailureTelemetry(mode.String(), mode.IsInteractive(), outputErr), outputErr
 	}
-	return scanSuccessTelemetryWithoutArgs(), nil
+	return scanSuccessTelemetryWithoutArgs(mode.String(), mode.IsInteractive()), nil
 }
 
 type initRequest struct {
@@ -273,6 +272,7 @@ type initRequest struct {
 type initRunner func(context.Context, *cobra.Command, initRequest) error
 
 type scanConfigState struct {
+	Meta           config.Metadata
 	Config         models.ModsJSON
 	Lock           []models.ModInstall
 	ShouldContinue bool
@@ -285,7 +285,7 @@ func ensureScanConfig(ctx context.Context, cmd *cobra.Command, opts scanOptions,
 		if lockErr != nil {
 			return scanConfigState{}, lockErr
 		}
-		return scanConfigState{Config: cfg, Lock: lock, ShouldContinue: true}, nil
+		return scanConfigState{Meta: meta, Config: cfg, Lock: lock, ShouldContinue: true}, nil
 	}
 
 	var notFound *config.ConfigFileNotFoundException
@@ -305,14 +305,14 @@ func ensureScanConfig(ctx context.Context, cmd *cobra.Command, opts scanOptions,
 		return scanConfigState{}, err
 	}
 	if canceled || !confirmed {
-		return scanConfigState{ShouldContinue: false}, nil
+		return scanConfigState{Meta: meta, ShouldContinue: false}, nil
 	}
 	if deps.runInit == nil {
 		return scanConfigState{}, errors.New("missing init runner")
 	}
 	if runErr := deps.runInit(ctx, cmd, initRequest{ConfigPath: meta.ConfigPath}); runErr != nil {
 		if errors.Is(runErr, initCmd.ErrInitCanceled) {
-			return scanConfigState{ShouldContinue: false}, nil
+			return scanConfigState{Meta: meta, ShouldContinue: false}, nil
 		}
 		return scanConfigState{}, runErr
 	}
@@ -325,7 +325,7 @@ func ensureScanConfig(ctx context.Context, cmd *cobra.Command, opts scanOptions,
 	if lockErr != nil {
 		return scanConfigState{}, lockErr
 	}
-	return scanConfigState{Config: cfg, Lock: lock, ShouldContinue: true}, nil
+	return scanConfigState{Meta: meta, Config: cfg, Lock: lock, ShouldContinue: true}, nil
 }
 
 func configMissingPromptError(opts scanOptions, cmd *cobra.Command, meta config.Metadata) error {

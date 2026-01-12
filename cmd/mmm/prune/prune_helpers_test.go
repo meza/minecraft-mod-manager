@@ -84,7 +84,7 @@ func TestConfirmPruneQuietReturnsOutputError(t *testing.T) {
 		runTea: func(tea.Model, ...tea.ProgramOption) (tea.Model, error) {
 			return view.OutputLinesModel{Err: writeErr}, nil
 		},
-	}, pruneOptions{Quiet: true}, interaction.ExecutionModeNonTTY, view.ColorDisabled, []string{"file.jar"})
+	}, pruneOptions{Quiet: true}, interaction.ExecutionModeUnattended, view.ColorDisabled, []string{"file.jar"})
 
 	assert.False(t, shouldDelete)
 	assert.ErrorIs(t, err, writeErr)
@@ -213,7 +213,7 @@ func TestShouldDeleteUnmanagedNonInteractiveReturnsHandled(t *testing.T) {
 		runTea: func(tea.Model, ...tea.ProgramOption) (tea.Model, error) {
 			return view.OutputLinesModel{}, nil
 		},
-	}, interaction.ExecutionModeNonTTY, view.ColorDisabled, []string{"/mods/unmanaged.jar"})
+	}, interaction.ExecutionModeUnattended, view.ColorDisabled, []string{"/mods/unmanaged.jar"})
 
 	assert.False(t, confirmed)
 	assert.True(t, clierrors.IsHandled(err))
@@ -409,14 +409,13 @@ func TestEnsurePruneConfigMissingNoPrompt(t *testing.T) {
 	cmd.SetOut(&bytes.Buffer{})
 	cmd.SetErr(io.Discard)
 
-	state, usedInteractive, err := ensurePruneConfig(context.Background(), cmd, pruneOptions{Unattended: true}, pruneDeps{
+	state, err := ensurePruneConfig(context.Background(), cmd, pruneOptions{Unattended: true}, pruneDeps{
 		fs: afero.NewMemMapFs(),
 		runTea: func(tea.Model, ...tea.ProgramOption) (tea.Model, error) {
 			return view.OutputLinesModel{}, nil
 		},
-	}, config.NewMetadata("/cfg/modlist.json"), interaction.ExecutionModeUnattended)
+	}, config.NewMetadata("/cfg/modlist.json"))
 
-	assert.False(t, usedInteractive)
 	assert.Equal(t, pruneConfigState{}, state)
 	assert.True(t, clierrors.IsHandled(err))
 }
@@ -430,14 +429,13 @@ func TestEnsurePruneConfigPromptDeclined(t *testing.T) {
 	cmd.SetOut(&fakeTerminalWriter{})
 	cmd.SetErr(io.Discard)
 
-	state, usedInteractive, err := ensurePruneConfig(context.Background(), cmd, pruneOptions{}, pruneDeps{
+	state, err := ensurePruneConfig(context.Background(), cmd, pruneOptions{}, pruneDeps{
 		fs: afero.NewMemMapFs(),
 		runTea: func(tea.Model, ...tea.ProgramOption) (tea.Model, error) {
 			return configInitModel{confirmed: false}, nil
 		},
-	}, config.NewMetadata("/cfg/modlist.json"), interaction.ExecutionModeInteractive)
+	}, config.NewMetadata("/cfg/modlist.json"))
 
-	assert.True(t, usedInteractive)
 	assert.NoError(t, err)
 	assert.False(t, state.ShouldContinue)
 }
@@ -451,7 +449,7 @@ func TestEnsurePruneConfigRunInitCanceled(t *testing.T) {
 	cmd.SetOut(&fakeTerminalWriter{})
 	cmd.SetErr(io.Discard)
 
-	state, usedInteractive, err := ensurePruneConfig(context.Background(), cmd, pruneOptions{}, pruneDeps{
+	state, err := ensurePruneConfig(context.Background(), cmd, pruneOptions{}, pruneDeps{
 		fs: afero.NewMemMapFs(),
 		runTea: func(tea.Model, ...tea.ProgramOption) (tea.Model, error) {
 			return configInitModel{confirmed: true}, nil
@@ -459,9 +457,8 @@ func TestEnsurePruneConfigRunInitCanceled(t *testing.T) {
 		runInit: func(context.Context, *cobra.Command, initRequest) error {
 			return initCmd.ErrInitCanceled
 		},
-	}, config.NewMetadata("/cfg/modlist.json"), interaction.ExecutionModeInteractive)
+	}, config.NewMetadata("/cfg/modlist.json"))
 
-	assert.True(t, usedInteractive)
 	assert.NoError(t, err)
 	assert.False(t, state.ShouldContinue)
 }
@@ -475,14 +472,13 @@ func TestEnsurePruneConfigRunInitMissingRunner(t *testing.T) {
 	cmd.SetOut(&fakeTerminalWriter{})
 	cmd.SetErr(io.Discard)
 
-	state, usedInteractive, err := ensurePruneConfig(context.Background(), cmd, pruneOptions{}, pruneDeps{
+	state, err := ensurePruneConfig(context.Background(), cmd, pruneOptions{}, pruneDeps{
 		fs: afero.NewMemMapFs(),
 		runTea: func(tea.Model, ...tea.ProgramOption) (tea.Model, error) {
 			return configInitModel{confirmed: true}, nil
 		},
-	}, config.NewMetadata("/cfg/modlist.json"), interaction.ExecutionModeInteractive)
+	}, config.NewMetadata("/cfg/modlist.json"))
 
-	assert.True(t, usedInteractive)
 	assert.Error(t, err)
 	assert.Equal(t, pruneConfigState{}, state)
 }
@@ -500,14 +496,13 @@ func TestEnsurePruneConfigConfigPresentLockMissing(t *testing.T) {
 	cmd.SetOut(&bytes.Buffer{})
 	cmd.SetErr(io.Discard)
 
-	state, usedInteractive, err := ensurePruneConfig(context.Background(), cmd, pruneOptions{}, pruneDeps{
+	state, err := ensurePruneConfig(context.Background(), cmd, pruneOptions{}, pruneDeps{
 		fs: fs,
 		runTea: func(tea.Model, ...tea.ProgramOption) (tea.Model, error) {
 			return view.OutputLinesModel{}, nil
 		},
-	}, meta, interaction.ExecutionModeInteractive)
+	}, meta)
 
-	assert.True(t, usedInteractive)
 	assert.Equal(t, pruneConfigState{}, state)
 	assert.True(t, clierrors.IsHandled(err))
 }
@@ -525,7 +520,7 @@ func TestEnsurePruneConfigSuccessAfterInit(t *testing.T) {
 	cmd.SetOut(&fakeTerminalWriter{})
 	cmd.SetErr(io.Discard)
 
-	state, usedInteractive, err := ensurePruneConfig(context.Background(), cmd, pruneOptions{}, pruneDeps{
+	state, err := ensurePruneConfig(context.Background(), cmd, pruneOptions{}, pruneDeps{
 		fs: fs,
 		runTea: func(tea.Model, ...tea.ProgramOption) (tea.Model, error) {
 			return configInitModel{confirmed: true}, nil
@@ -537,9 +532,8 @@ func TestEnsurePruneConfigSuccessAfterInit(t *testing.T) {
 			require.NoError(t, config.WriteLock(context.Background(), fs, meta, []models.ModInstall{}))
 			return nil
 		},
-	}, meta, interaction.ExecutionModeInteractive)
+	}, meta)
 
-	assert.True(t, usedInteractive)
 	assert.NoError(t, err)
 	assert.True(t, state.ShouldContinue)
 }
@@ -584,7 +578,7 @@ func TestRunPruneForceInteractiveWritesDeleting(t *testing.T) {
 		return model, nil
 	}
 
-	_, _, err := runPrune(context.Background(), cmd, pruneOptions{ConfigPath: meta.ConfigPath, Force: true}, pruneDeps{
+	_, err := runPrune(context.Background(), cmd, pruneOptions{ConfigPath: meta.ConfigPath, Force: true}, pruneDeps{
 		fs:     fs,
 		runTea: runner,
 	})
@@ -609,7 +603,7 @@ func TestRunPruneQuietSkipsSuccessOutput(t *testing.T) {
 	cmd.SetOut(&bytes.Buffer{})
 	cmd.SetErr(io.Discard)
 
-	_, _, err := runPrune(context.Background(), cmd, pruneOptions{ConfigPath: meta.ConfigPath, Force: true, Quiet: true}, pruneDeps{
+	_, err := runPrune(context.Background(), cmd, pruneOptions{ConfigPath: meta.ConfigPath, Force: true, Quiet: true}, pruneDeps{
 		fs: fs,
 		runTea: func(tea.Model, ...tea.ProgramOption) (tea.Model, error) {
 			t.Fatal("unexpected output in quiet mode")

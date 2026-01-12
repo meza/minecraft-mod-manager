@@ -63,12 +63,18 @@ func runListCommand(cmd *cobra.Command, _ []string) error {
 	}
 
 	deps := defaultListDeps(cmd, options)
-	entriesCount, usedInteractive, runErr := runList(ctx, cmd, options.configPath, runListOptions{
+	mode := interaction.ResolveExecutionMode(interaction.ExecutionModeInput{
+		Unattended: options.unattended,
+		In:         cmd.InOrStdin(),
+		Out:        cmd.OutOrStdout(),
+	})
+
+	entriesCount, _, runErr := runList(ctx, cmd, options.configPath, runListOptions{
 		unattended: options.unattended,
 		quiet:      options.quiet,
 	}, deps)
 	finishListSpan(span, runErr == nil)
-	recordListTelemetry(deps.telemetry, entriesCount, usedInteractive, runErr)
+	recordListTelemetry(deps.telemetry, entriesCount, mode, runErr)
 	applyListCommandErrorPolicy(cmd, runErr)
 
 	return runErr
@@ -164,13 +170,14 @@ func finishListSpan(span *perf.Span, success bool) {
 	span.End()
 }
 
-func recordListTelemetry(telemetryRecorder func(telemetry.CommandTelemetry), entriesCount int, usedInteractive bool, err error) {
+func recordListTelemetry(telemetryRecorder func(telemetry.CommandTelemetry), entriesCount int, mode interaction.ExecutionMode, err error) {
 	payload := telemetry.CommandTelemetry{
-		Command:     "list",
-		Success:     err == nil,
-		Error:       err,
-		ExitCode:    0,
-		Interactive: usedInteractive,
+		Command:       "list",
+		Success:       err == nil,
+		Error:         err,
+		ExitCode:      0,
+		Interactive:   mode.IsInteractive(),
+		ExecutionMode: mode.String(),
 	}
 	if err != nil {
 		payload.ExitCode = 1

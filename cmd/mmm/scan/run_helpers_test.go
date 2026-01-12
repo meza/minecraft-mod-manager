@@ -1335,16 +1335,16 @@ func TestColorModeForOutputNilWriter(t *testing.T) {
 }
 
 func TestHandleAllManagedScanQuiet(t *testing.T) {
-	result, err := handleAllManagedScan(&cobra.Command{}, scanDeps{}, scanOptions{Quiet: true})
+	result, err := handleAllManagedScan(&cobra.Command{}, scanDeps{}, scanOptions{Quiet: true}, interaction.ExecutionModeUnattended)
 	assert.NoError(t, err)
-	assert.Equal(t, scanSuccessTelemetryWithoutArgs(), result)
+	assert.Equal(t, scanSuccessTelemetryWithoutArgs(interaction.ExecutionModeUnattended.String(), false), result)
 }
 
 func TestHandleAllManagedScanOutputError(t *testing.T) {
 	cmd := &cobra.Command{}
 	deps := scanDeps{runTea: runTeaStub(runTeaScenario{err: errors.New("write failed")})}
 
-	_, err := handleAllManagedScan(cmd, deps, scanOptions{})
+	_, err := handleAllManagedScan(cmd, deps, scanOptions{}, interaction.ExecutionModeInteractive)
 	assert.Error(t, err)
 }
 

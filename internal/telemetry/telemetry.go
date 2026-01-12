@@ -63,6 +63,7 @@ type telemetryState struct {
 
 	sessionNameHint string
 	perfBaseDir     string
+	configPath      string
 	commands        []recordedCommand
 }
 
@@ -151,6 +152,17 @@ func SetPerfBaseDir(baseDir string) {
 	state.mu.Unlock()
 }
 
+// SetConfigPath configures the resolved modlist path for telemetry summaries.
+func SetConfigPath(configPath string) {
+	configPath = strings.TrimSpace(configPath)
+	if configPath == "" {
+		return
+	}
+	state.mu.Lock()
+	state.configPath = configPath
+	state.mu.Unlock()
+}
+
 // Capture sends an arbitrary event to PostHog.
 func Capture(event string, properties map[string]interface{}) {
 	if event == "" {
@@ -177,15 +189,16 @@ func Capture(event string, properties map[string]interface{}) {
 
 // CommandTelemetry captures high-level command execution metadata.
 type CommandTelemetry struct {
-	Command     string                 `json:"command"`
-	Success     bool                   `json:"success"`
-	Config      *models.ModsJSON       `json:"config,omitempty"`
-	Error       error                  `json:"error,omitempty"`
-	Extra       map[string]interface{} `json:"extra,omitempty"`
-	Arguments   map[string]interface{} `json:"arguments,omitempty"`
-	Duration    time.Duration          `json:"duration,omitempty"`
-	ExitCode    int                    `json:"exit_code,omitempty"`
-	Interactive bool                   `json:"interactive,omitempty"`
+	Command       string                 `json:"command"`
+	Success       bool                   `json:"success"`
+	Config        *models.ModsJSON       `json:"config,omitempty"`
+	Error         error                  `json:"error,omitempty"`
+	Extra         map[string]interface{} `json:"extra,omitempty"`
+	Arguments     map[string]interface{} `json:"arguments,omitempty"`
+	Duration      time.Duration          `json:"duration,omitempty"`
+	ExitCode      int                    `json:"exit_code,omitempty"`
+	Interactive   bool                   `json:"interactive,omitempty"`
+	ExecutionMode string                 `json:"execution_mode,omitempty"`
 }
 
 type recordedCommand struct {
@@ -197,8 +210,9 @@ type recordedCommand struct {
 	ErrorCategory string
 	ErrorMessage  string
 
-	Extra     map[string]interface{}
-	Arguments map[string]interface{}
+	Extra         map[string]interface{}
+	Arguments     map[string]interface{}
+	ExecutionMode string
 }
 
 // RecordCommand stores structured command telemetry to be sent once per session
@@ -214,10 +228,11 @@ func RecordCommand(command CommandTelemetry) {
 	}
 
 	record := recordedCommand{
-		Name:        command.Command,
-		Success:     command.Success,
-		ExitCode:    commandExitCode(command),
-		Interactive: command.Interactive,
+		Name:          command.Command,
+		Success:       command.Success,
+		ExitCode:      commandExitCode(command),
+		Interactive:   command.Interactive,
+		ExecutionMode: command.ExecutionMode,
 	}
 
 	if command.Error != nil {
@@ -352,7 +367,9 @@ func Shutdown(ctx context.Context) {
 		canonicalCommand, _ := topCommandNameFromPerformance(performance)
 		commands := applyCanonicalCommandName(stateSnapshot.commands, canonicalCommand)
 
-		properties := buildSessionProperties(commands, performance)
+		modlistSummary := loadModlistSummary(stateSnapshot.configPath, snapshot.logger)
+		perfSummary := buildPerfSummaryV1(commands, performance, modlistSummary)
+		properties := buildSessionProperties(perfSummary)
 		addSessionDurations(properties)
 
 		sessionName := resolveSessionName(stateSnapshot.sessionNameHint, canonicalCommand, commands)
@@ -390,6 +407,7 @@ type telemetryStateSnapshot struct {
 	commands        []recordedCommand
 	sessionNameHint string
 	perfBaseDir     string
+	configPath      string
 }
 
 func snapshotState() telemetryStateSnapshot {
@@ -401,6 +419,7 @@ func snapshotState() telemetryStateSnapshot {
 		commands:        commands,
 		sessionNameHint: state.sessionNameHint,
 		perfBaseDir:     state.perfBaseDir,
+		configPath:      state.configPath,
 	}
 }
 
@@ -423,11 +442,10 @@ func applyCanonicalCommandName(commands []recordedCommand, canonicalCommand stri
 	return commands
 }
 
-func buildSessionProperties(commands []recordedCommand, performance []*perf.ExportSpan) map[string]interface{} {
+func buildSessionProperties(perfSummary map[string]interface{}) map[string]interface{} {
 	return map[string]interface{}{
 		"type":        "session",
-		"performance": performance,
-		"commands":    buildCommandSummaries(commands, performance),
+		"performance": perfSummary,
 	}
 }
 
@@ -495,42 +513,7 @@ func resolveSessionName(sessionNameHint string, canonicalCommand string, command
 }
 
 func buildCommandSummaries(commands []recordedCommand, performance []*perf.ExportSpan) []map[string]interface{} {
-	if len(commands) == 0 {
-		return []map[string]interface{}{}
-	}
-
-	out := make([]map[string]interface{}, 0, len(commands))
-	for _, cmd := range commands {
-		summary := map[string]interface{}{
-			"name":        cmd.Name,
-			"success":     cmd.Success,
-			"exit_code":   cmd.ExitCode,
-			"interactive": cmd.Interactive,
-		}
-
-		if cmd.ErrorCategory != "" {
-			summary["error_category"] = cmd.ErrorCategory
-		}
-		if cmd.ErrorMessage != "" {
-			summary["error"] = cmd.ErrorMessage
-		}
-
-		if len(cmd.Extra) > 0 {
-			summary["extra"] = cmd.Extra
-		}
-		if len(cmd.Arguments) > 0 {
-			summary["arguments"] = cmd.Arguments
-		}
-
-		duration, ok := commandDurationFromPerf(cmd.Name, performance)
-		if ok {
-			summary["duration_ms"] = duration.Milliseconds()
-		}
-
-		out = append(out, summary)
-	}
-
-	return out
+	return buildCommandSummariesV1(commands, performance)
 }
 
 func errorCategory(err error) string {

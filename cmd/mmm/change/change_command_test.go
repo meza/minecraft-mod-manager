@@ -13,6 +13,7 @@ import (
 
 	"github.com/meza/minecraft-mod-manager/internal/clierrors"
 	"github.com/meza/minecraft-mod-manager/internal/cmddeps"
+	"github.com/meza/minecraft-mod-manager/internal/interaction"
 	"github.com/meza/minecraft-mod-manager/internal/models"
 	"github.com/meza/minecraft-mod-manager/internal/telemetry"
 	"github.com/meza/minecraft-mod-manager/internal/view"
@@ -217,7 +218,7 @@ func TestRecordChangeTelemetry(t *testing.T) {
 		DownloadedMods: 1,
 		ExitCode:       0,
 		Interactive:    true,
-	}, nil)
+	}, interaction.ExecutionModeInteractive, nil)
 
 	assert.True(t, captured.Success)
 	assert.Equal(t, 0, captured.ExitCode)
@@ -233,7 +234,7 @@ func TestRecordChangeTelemetryFailure(t *testing.T) {
 	var captured telemetry.CommandTelemetry
 	recordChangeTelemetry(func(payload telemetry.CommandTelemetry) {
 		captured = payload
-	}, changeOptions{}, changeResult{ExitCode: 2}, assert.AnError)
+	}, changeOptions{}, changeResult{ExitCode: 2}, interaction.ExecutionModeUnattended, assert.AnError)
 
 	assert.False(t, captured.Success)
 	assert.Equal(t, 2, captured.ExitCode)
@@ -243,7 +244,7 @@ func TestRecordChangeTelemetryExitCodeOnly(t *testing.T) {
 	var captured telemetry.CommandTelemetry
 	recordChangeTelemetry(func(payload telemetry.CommandTelemetry) {
 		captured = payload
-	}, changeOptions{}, changeResult{ExitCode: 3}, nil)
+	}, changeOptions{}, changeResult{ExitCode: 3}, interaction.ExecutionModeUnattended, nil)
 
 	assert.False(t, captured.Success)
 	assert.Equal(t, 3, captured.ExitCode)

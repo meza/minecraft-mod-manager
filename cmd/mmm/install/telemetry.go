@@ -1,14 +1,18 @@
 package install
 
-import "github.com/meza/minecraft-mod-manager/internal/telemetry"
+import (
+	"github.com/meza/minecraft-mod-manager/internal/interaction"
+	"github.com/meza/minecraft-mod-manager/internal/telemetry"
+)
 
-func recordInstallTelemetry(telemetryRecorder func(telemetry.CommandTelemetry), result Result, err error) {
+func recordInstallTelemetry(telemetryRecorder func(telemetry.CommandTelemetry), result Result, mode interaction.ExecutionMode, err error) {
 	payload := telemetry.CommandTelemetry{
-		Command:     "install",
-		Success:     err == nil,
-		Error:       err,
-		ExitCode:    0,
-		Interactive: false,
+		Command:       "install",
+		Success:       err == nil,
+		Error:         err,
+		ExitCode:      0,
+		Interactive:   mode.IsInteractive(),
+		ExecutionMode: mode.String(),
 		Extra: map[string]interface{}{
 			"numberOfMods": result.InstalledCount,
 		},
