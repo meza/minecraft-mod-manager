@@ -13,4 +13,4 @@ Canonical URL:
 https://raw.githubusercontent.com/meza/agent-docs/refs/heads/main/skills/writing-good-tickets.md
 ```
 
-Download MUST succeed. If you cannot download it, STOP and do not proceed with Beads work.
+Download MUST succeed. If you cannot download it, STOP and do not proceed with work.

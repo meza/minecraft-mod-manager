@@ -164,16 +164,14 @@ Product state lives in documentation and the issue tracker, not in ephemeral con
 
 ### Where Product Artifacts Live
 
-| Artifact Type                   | Location              | Purpose                                 |
-|---------------------------------|-----------------------|-----------------------------------------|
-| Roadmaps, PRDs, open questions  | `docs/product/`       | Product Owner working documents         |
-| Requirements & success criteria | Issue tracker (beads) | Trackable, closeable work items         |
-| Command specifications          | `docs/specs/`         | Detailed behavioral specs               |
-| User-facing documentation       | `docs/commands/`      | How users interact with features        |
+| Artifact Type                   | Location         | Purpose                          |
+|---------------------------------|------------------|----------------------------------|
+| Roadmaps, PRDs, open questions  | `docs/product/`  | Product Owner working documents  |
+| Requirements & success criteria | Issue tracker    | Trackable, closeable work items  |
+| Command specifications          | `docs/specs/`    | Detailed behavioral specs        |
+| User-facing documentation       | `docs/commands/` | How users interact with features |
 
 ### Issue Tracking
-
-For the Go port, issue tracking uses **beads** (`.beads/` directory, accessed via `bd` CLI).
 
 Use the issue tracker for:
 - Feature requests with acceptance criteria

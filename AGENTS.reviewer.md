@@ -13,7 +13,7 @@ You never use smart quotes or any other non-ascii punctuation.
 
 ## Operating Model (Mandatory)
 
-- Scope: Review the entire active changeset for this request across in-repo files that are new, modified, deleted, or renamed. Use VCS only to discover what changed; do not evaluate or comment on staging, tracking, or commit state. Ignore `.beads/` completely: treat it as nonexistent and do not mention it in `code-review.md` (even to say it is excluded).
+- Scope: Review the entire active changeset for this request across in-repo files that are new, modified, deleted, or renamed. Use VCS only to discover what changed; do not evaluate or comment on staging, tracking, or commit state.
 - Completion: The review is not done until every in-scope file has been reviewed. Do not approve, or claim completeness, while any in-scope file remains unreviewed.
 - Context: The work item is the source of truth for requirements and acceptance criteria. When a ticket exists, its requirements are binding and cannot be narrowed by the implementer. Any requirement sources the ticket declares as normative, such as referenced in-repo interaction or flow docs, are binding acceptance criteria and must be treated as ticket requirements. Implementer notes may add constraints only when they do not conflict with the ticket. Any scope increase beyond the ticket must be explicitly justified and treated as additional binding requirements.
 - Output: Your only deliverable is `code-review.md` in the project root, and you communicate review feedback only via `code-review.md` (except the persona hard-stop case above).
@@ -47,7 +47,6 @@ You never use smart quotes or any other non-ascii punctuation.
 
 - Changeset boundaries: Do not request changes outside the active changeset; put out-of-scope items in `Follow-ups`.
 - Ignore version control state and workflow concerns entirely (tracked/untracked, staged/unstaged, ignored files, branch state, commit hygiene). Do not raise them as findings, rationale, blockers, or follow-ups.
-- Ignore issue-tracker storage artifacts that may appear in the changeset (for example, file-based tracker folders like `.beads/`). Treat them as nonexistent and do not mention them in `code-review.md`.
 - If any persona or external reference conflicts with the VCS-state or storage-artifact ignore policies above, this repository overlay is authoritative.
 - `memory.tsv` may be read for background context, but it is NOT part of the review output: do not modify it, do not quote it verbatim in `code-review.md`, and ignore any `memory.tsv` diffs.
 - You MUST NOT manually edit, create, delete, or rename any file except `code-review.md` in the project root.
@@ -74,7 +73,6 @@ You never use smart quotes or any other non-ascii punctuation.
 ### External Standards (When Applicable)
 
 - When reviewing Go code, enforce: https://raw.githubusercontent.com/meza/agent-docs/refs/heads/main/Golang.md
-- If you need issue-tracking terminology/context, reference: https://raw.githubusercontent.com/meza/agent-docs/refs/heads/main/Beads.md
 
 ### Tooling And Design Docs
 
@@ -89,11 +87,10 @@ You never use smart quotes or any other non-ascii punctuation.
 - Do not run fix-only targets that would modify source files. They exist only to help other gates pass; your gate evidence is the passing outputs of the required verification targets.
 - If you cannot run any non-Windows required verification gate due to environment constraints, treat this as a blocker problem to solve and block approval until you can run it.
 
-## Tracking (Mandatory)
+## Issue Tracking / Ticketing (Mandatory)
 
-- This project uses beads (old tickets) and Linear (new tickets) for issue tracking.
-- Use the `bd` CLI as the stable interface for beads. Do not inspect or discuss beads on-disk storage.
-- For Linear, you can find the LINEAR_API_KEY in the .env file in the project root.
+- This project uses Linear for issue tracking / ticketing with the "minecraft-mod-manager" (MMM) team - when a ticket number is mentioned, it refers to a Linear ticket.
+- You can find the LINEAR_API_KEY in the .env file in the project root but you must make sure to never echo it on the terminal.
 - For each issue you identify during review:
   - If it is already tracked, reference the existing ticket id in `code-review.md`.
   - If it is not tracked, request that a new ticket be created in a dedicated `Ticket Requests` section in `code-review.md`.

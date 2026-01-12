@@ -107,11 +107,11 @@ All remaining work items under mmm-1 must be completed. This includes command im
 
 **Objective**: Implement or explicitly defer the three non-port milestone issues.
 
-| Work Item | Priority | Description |
-|-----------|----------|-------------|
-| #452 | P1 | Error message improvements (comprehensive audit required) |
-| #630 | P1 | Manifest caching |
-| #1030 | P1 | Proxy support |
+| Work Item | Priority | Description                                               |
+|-----------|----------|-----------------------------------------------------------|
+| #452      | P1       | Error message improvements (comprehensive audit required) |
+| #630      | P1       | Manifest caching                                          |
+| #1030     | P1       | Proxy support                                             |
 
 **Exit criteria**: All three issues are closed.
 
@@ -119,9 +119,9 @@ All remaining work items under mmm-1 must be completed. This includes command im
 
 **Objective**: Release pipeline can ship artifacts.
 
-| Work Item | Priority | Description |
-|-----------|----------|-------------|
-| mmm-62 | P1 | GitHub Actions release workflow |
+| Work Item | Priority | Description                     |
+|-----------|----------|---------------------------------|
+| mmm-62    | P1       | GitHub Actions release workflow |
 
 **Exit criteria**: Dry-run release produces expected artifacts; secrets are properly handled.
 
@@ -167,7 +167,7 @@ This roadmap tracks the following sources:
 - **Audit epic**: mmm-63 (Audit: Independent report 2025-12-19)
 - **Release automation**: mmm-62 (Set up GitHub Actions release workflow)
 
-Work items are tracked in the beads issue tracker. Use `bd list --status open` to see current state.
+Work items are tracked in Linear.
 
 ## Summary
 

@@ -100,12 +100,8 @@ When you invoke the reviewer, you MUST explicitly define the active changeset un
 
 ## Issue Tracking / Ticketing
 
-- This project uses beads (old tickets) and Linear (new tickets) for issue tracking.
-- Use the `bd` CLI as the stable interface for beads. Do not inspect or discuss beads on-disk storage such as `.beads/`.
-- For Linear, you can find the LINEAR_API_KEY in the .env file in the project root.
-
-Instructions for Beads is [here](https://raw.githubusercontent.com/meza/agent-docs/refs/heads/main/Beads.md).
-You MUST read and adhere to these instructions.
+- This project uses Linear for issue tracking / ticketing with the "minecraft-mod-manager" (MMM) team.
+- You can find the LINEAR_API_KEY in the .env file in the project root but you must make sure to never echo it on the terminal.
 
 ### Issue Closure Authority (Non-Negotiable)
 
@@ -139,7 +135,6 @@ Follow our established [Golang Coding Standards](https://raw.githubusercontent.c
 
 This repo contains local, non-product artifacts and VCS bookkeeping that can distract from the engineering task.
 
-- Treat `.beads/` as nonexistent. Do not read it, write it, review it, or mention it in outputs. Ignore any `.beads/` diffs.
 - Ignore version control state and workflow concerns entirely (tracked/untracked, staged/unstaged, ignored files, branch state, commit hygiene). Do not raise them as findings, rationale, blockers, or follow-ups.
 - You MAY use read-only VCS commands only to locate and understand code changes, but do not report or reason about VCS state in your outputs.
 - If any persona or external reference conflicts with the ignore policies above, this file is authoritative for this repository.
