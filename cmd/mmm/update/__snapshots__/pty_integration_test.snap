@@ -1,5 +1,18 @@
 
 [TestUpdateCommandInteractivePTYRunningSnapshotShortHeight - 1]
+cmd.update.section.skipped
+📌 Pinned Mod (mod-k) [modrinth] cmd.update.item.skipped
+
+cmd.update.section.failed
+❌ Failed Mod (mod-l) [modrinth] cmd.update.item.failed, Arg 1: {Count: 0, Data: &map[reason:cmd.update.error.platform]}
+
+cmd.update.section.updating_label:
+⣾ Alpha Mod (mod-a) [modrinth]
+⣾ Beta Mod (mod-b) [modrinth]
+⬇️ Gamma Mod (mod-c) [modrinth]
+██░░░░░░░░
+20% (200 B / 1000 B)
+⣾ Delta Mod (mod-d) [modrinth]
 ⣾ Epsilon Mod (mod-e) [modrinth]
 ⣾ Zeta Mod (mod-f) [modrinth]
 ⣾ Eta Mod (mod-g) [modrinth]
@@ -28,7 +41,7 @@ cmd.update.section.skipped
 📌 Pinned Mod (mod-k) [modrinth] cmd.update.item.skipped
 
 cmd.update.section.failed
-❌ Failed Mod (mod-l) [modrinth] cmd.update.item.failed, Arg 1: {Count: 0, Data: &map[reason:cmd.update.error.platform]}
+❌ Failed Mod (mod-l) [modrinth] cmd.update.item.failed, Arg 1: {Count: 0, Data:
 
 cmd.update.section.updating_label:
 ⣾ Alpha Mod (mod-a) [modrinth]
@@ -124,6 +137,25 @@ cmd.update.summary.incomplete_hint
 ---
 
 [TestUpdateCommandInteractivePTYRunningSnapshotLongListShortHeight - 1]
+⣾ Beta Mod (mod-b) [modrinth]
+⬇️ Gamma Mod (mod-c) [modrinth]
+██░░░░░░░░
+20% (200 B / 1000 B)
+⣾ Delta Mod (mod-d) [modrinth]
+⣾ Epsilon Mod (mod-e) [modrinth]
+⣾ Zeta Mod (mod-f) [modrinth]
+⣾ Eta Mod (mod-g) [modrinth]
+⣾ Theta Mod (mod-h) [modrinth]
+⣾ Iota Mod (mod-i) [modrinth]
+⣾ Kappa Mod (mod-j) [modrinth]
+⣾ Lambda Mod (mod-k) [modrinth]
+⣾ Mu Mod (mod-l) [modrinth]
+⣾ Nu Mod (mod-m) [modrinth]
+⣾ Xi Mod (mod-n) [modrinth]
+⣾ Omicron Mod (mod-o) [modrinth]
+⣾ Pi Mod (mod-p) [modrinth]
+⣾ Rho Mod (mod-q) [modrinth]
+⣾ Sigma Mod (mod-r) [modrinth]
 ⣾ Tau Mod (mod-s) [modrinth]
 ⣾ Upsilon Mod (mod-t) [modrinth]
 ⣾ Phi Mod (mod-u) [modrinth]
@@ -148,6 +180,19 @@ cmd.update.summary.incomplete_hint
 ---
 
 [TestUpdateCommandInteractivePTYRunningSnapshotLongListTallHeight - 1]
+cmd.update.section.skipped
+📌 Pinned Mod (mod-y) [modrinth] cmd.update.item.skipped
+
+cmd.update.section.failed
+❌ Failed Mod (mod-z) [modrinth] cmd.update.item.failed, Arg 1: {Count: 0, Data:
+
+cmd.update.section.updating_label:
+⣾ Alpha Mod (mod-a) [modrinth]
+⣾ Beta Mod (mod-b) [modrinth]
+⬇️ Gamma Mod (mod-c) [modrinth]
+██░░░░░░░░
+20% (200 B / 1000 B)
+⣾ Delta Mod (mod-d) [modrinth]
 ⣾ Epsilon Mod (mod-e) [modrinth]
 ⣾ Zeta Mod (mod-f) [modrinth]
 ⣾ Eta Mod (mod-g) [modrinth]

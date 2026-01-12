@@ -1,34 +1,27 @@
-//go:build !windows
-
 package update
 
 import (
-	"bytes"
 	"context"
 	"errors"
 	"fmt"
-	"io"
-	"os"
-	"regexp"
+	"runtime"
 	"strings"
-	"sync"
-	"syscall"
 	"testing"
 	"time"
 
 	tea "github.com/charmbracelet/bubbletea"
-	"github.com/creack/pty"
 	"github.com/gkampitakis/go-snaps/snaps"
-	"github.com/muesli/termenv"
 	"github.com/spf13/cobra"
 	"github.com/stretchr/testify/require"
 
 	"github.com/meza/minecraft-mod-manager/internal/models"
 	"github.com/meza/minecraft-mod-manager/internal/view"
+	"github.com/meza/minecraft-mod-manager/testutil/terminal"
+	terminalpty "github.com/meza/minecraft-mod-manager/testutil/terminal/pty"
 )
 
 func TestUpdateCommandInteractivePTYRunningSnapshotShortHeight(t *testing.T) {
-	runUpdatePTYRunningSnapshot(t, 6)
+	runUpdatePTYRunningSnapshot(t, 25)
 }
 
 func TestUpdateCommandInteractivePTYRunningSnapshotMediumHeight(t *testing.T) {
@@ -36,11 +29,11 @@ func TestUpdateCommandInteractivePTYRunningSnapshotMediumHeight(t *testing.T) {
 }
 
 func TestUpdateCommandInteractivePTYRunningSnapshotTallHeight(t *testing.T) {
-	runUpdatePTYRunningSnapshot(t, 20)
+	runUpdatePTYRunningSnapshot(t, tallSnapshotRows())
 }
 
 func TestUpdateCommandInteractivePTYFinalSnapshotShortHeight(t *testing.T) {
-	runUpdatePTYFinalSnapshot(t, 6)
+	runUpdatePTYFinalSnapshot(t, 25)
 }
 
 func TestUpdateCommandInteractivePTYFinalSnapshotMediumHeight(t *testing.T) {
@@ -48,11 +41,11 @@ func TestUpdateCommandInteractivePTYFinalSnapshotMediumHeight(t *testing.T) {
 }
 
 func TestUpdateCommandInteractivePTYFinalSnapshotTallHeight(t *testing.T) {
-	runUpdatePTYFinalSnapshot(t, 20)
+	runUpdatePTYFinalSnapshot(t, tallSnapshotRows())
 }
 
 func TestUpdateCommandInteractivePTYFinalSnapshotLongListShortHeight(t *testing.T) {
-	runUpdatePTYFinalSnapshotWithItems(t, 6, sampleUpdateItemsLongList())
+	runUpdatePTYFinalSnapshotWithItems(t, 25, sampleUpdateItemsLongList())
 }
 
 func TestUpdateCommandInteractivePTYFinalSnapshotLongListMediumHeight(t *testing.T) {
@@ -60,7 +53,7 @@ func TestUpdateCommandInteractivePTYFinalSnapshotLongListMediumHeight(t *testing
 }
 
 func TestUpdateCommandInteractivePTYFinalSnapshotLongListTallHeight(t *testing.T) {
-	runUpdatePTYFinalSnapshotWithItems(t, 20, sampleUpdateItemsLongList())
+	runUpdatePTYFinalSnapshotWithItems(t, tallSnapshotRows(), sampleUpdateItemsLongList())
 }
 
 func TestExtractPTYTranscriptSnapshotReportsMissingTranscript(t *testing.T) {
@@ -73,7 +66,7 @@ func runUpdatePTYRunningSnapshot(t *testing.T, rows uint16) {
 }
 
 func TestUpdateCommandInteractivePTYRunningSnapshotLongListShortHeight(t *testing.T) {
-	runUpdatePTYRunningSnapshotWithItems(t, 6, sampleUpdateItemsLongList())
+	runUpdatePTYRunningSnapshotWithItems(t, 25, sampleUpdateItemsLongList())
 }
 
 func TestUpdateCommandInteractivePTYRunningSnapshotLongListMediumHeight(t *testing.T) {
@@ -81,27 +74,29 @@ func TestUpdateCommandInteractivePTYRunningSnapshotLongListMediumHeight(t *testi
 }
 
 func TestUpdateCommandInteractivePTYRunningSnapshotLongListTallHeight(t *testing.T) {
-	runUpdatePTYRunningSnapshotWithItems(t, 20, sampleUpdateItemsLongList())
+	runUpdatePTYRunningSnapshotWithItems(t, tallSnapshotRows(), sampleUpdateItemsLongList())
+}
+
+func tallSnapshotRows() uint16 {
+	if runtime.GOOS == "windows" {
+		return 40
+	}
+	return 80
 }
 
 func runUpdatePTYRunningSnapshotWithItems(t *testing.T, rows uint16, items []updateItem) {
-	t.Setenv("MMM_TEST", "true")
-
-	restoreColors := view.SetColorProfileFuncForTesting(func() termenv.Profile { return termenv.Ascii })
-	t.Cleanup(restoreColors)
-	restoreUnicode := view.SetUnicodeSupportFuncForTesting(func() bool { return true })
-	t.Cleanup(restoreUnicode)
+	terminal.ApplyFixtures(t)
 
 	originalRunUpdateProgram := runUpdateProgram
 	runUpdateProgram = defaultRunUpdateProgram
 	t.Cleanup(func() { runUpdateProgram = originalRunUpdateProgram })
 
-	master, slave, err := pty.Open()
-	require.NoError(t, err)
-	t.Cleanup(func() { closePTY(t, master) })
-	t.Cleanup(func() { closePTY(t, slave) })
-
-	require.NoError(t, pty.Setsize(master, &pty.Winsize{Cols: 120, Rows: rows}))
+	columns := 120
+	if rows == tallSnapshotRows() {
+		columns = 80
+	}
+	session := terminalpty.NewSession(t, terminalpty.WithSize(terminal.Size{Columns: columns, Rows: int(rows)}))
+	require.NotNil(t, session)
 
 	release := make(chan struct{})
 	updatesSent := make(chan struct{})
@@ -135,18 +130,9 @@ func runUpdatePTYRunningSnapshotWithItems(t *testing.T, rows uint16, items []upd
 		return outcomeErr
 	})
 
-	cmd.SetIn(slave)
-	cmd.SetOut(slave)
-	cmd.SetErr(slave)
-
-	output := &lockedBuffer{}
-	readDone := make(chan struct{})
-	readErr := make(chan error, 1)
-	go func() {
-		_, copyErr := io.Copy(output, master)
-		readErr <- copyErr
-		close(readDone)
-	}()
+	cmd.SetIn(session.Input())
+	cmd.SetOut(session.Output())
+	cmd.SetErr(session.Output())
 
 	execErr := make(chan error, 1)
 	go func() {
@@ -159,12 +145,18 @@ func runUpdatePTYRunningSnapshotWithItems(t *testing.T, rows uint16, items []upd
 		t.Fatal("timed out waiting for running updates")
 	}
 
-	require.Eventually(t, func() bool {
-		contents := output.String()
-		return strings.Contains(contents, "(mod-")
-	}, 2*time.Second, 10*time.Millisecond)
+	session.WaitForOutput(t, func(output []byte) bool {
+		return strings.Contains(string(output), "(mod-")
+	}, terminalpty.WithWaitDuration(2*time.Second))
 
-	snaps.MatchSnapshot(t, normalizePTYSnapshot(output.String(), rows))
+	snaps.MatchSnapshot(t, terminal.NormalizeOutput(session.OutputString(), terminal.NormalizeOptions{
+		StripControlSequences:  true,
+		TrimTrailingWhitespace: true,
+		TrimTrailingEmptyLines: true,
+		TrimSpace:              true,
+		RowLimit:               int(rows),
+		PadRows:                true,
+	}))
 
 	close(release)
 	select {
@@ -172,10 +164,7 @@ func runUpdatePTYRunningSnapshotWithItems(t *testing.T, rows uint16, items []upd
 	case <-time.After(2 * time.Second):
 		t.Fatal("timed out waiting for update command to finish")
 	}
-	closePTY(t, slave)
-	<-readDone
-	require.NoError(t, normalizePTYReadError(<-readErr))
-	closePTY(t, master)
+	require.NoError(t, session.Close())
 }
 
 func runUpdatePTYFinalSnapshot(t *testing.T, rows uint16) {
@@ -183,23 +172,18 @@ func runUpdatePTYFinalSnapshot(t *testing.T, rows uint16) {
 }
 
 func runUpdatePTYFinalSnapshotWithItems(t *testing.T, rows uint16, items []updateItem) {
-	t.Setenv("MMM_TEST", "true")
-
-	restoreColors := view.SetColorProfileFuncForTesting(func() termenv.Profile { return termenv.Ascii })
-	t.Cleanup(restoreColors)
-	restoreUnicode := view.SetUnicodeSupportFuncForTesting(func() bool { return true })
-	t.Cleanup(restoreUnicode)
+	terminal.ApplyFixtures(t)
 
 	originalRunUpdateProgram := runUpdateProgram
 	runUpdateProgram = defaultRunUpdateProgram
 	t.Cleanup(func() { runUpdateProgram = originalRunUpdateProgram })
 
-	master, slave, err := pty.Open()
-	require.NoError(t, err)
-	t.Cleanup(func() { closePTY(t, master) })
-	t.Cleanup(func() { closePTY(t, slave) })
-
-	require.NoError(t, pty.Setsize(master, &pty.Winsize{Cols: 120, Rows: rows}))
+	columns := 120
+	if rows == tallSnapshotRows() {
+		columns = 80
+	}
+	session := terminalpty.NewSession(t, terminalpty.WithSize(terminal.Size{Columns: columns, Rows: int(rows)}))
+	require.NotNil(t, session)
 
 	cmd := commandWithUpdateRunner(func(ctx context.Context, cmd *cobra.Command) error {
 		indexByKey := updateIndexByConfig(items)
@@ -234,18 +218,9 @@ func runUpdatePTYFinalSnapshotWithItems(t *testing.T, rows uint16, items []updat
 		return typed.outcome.err
 	})
 
-	cmd.SetIn(slave)
-	cmd.SetOut(slave)
-	cmd.SetErr(slave)
-
-	output := &lockedBuffer{}
-	readDone := make(chan struct{})
-	readErr := make(chan error, 1)
-	go func() {
-		_, copyErr := io.Copy(output, master)
-		readErr <- copyErr
-		close(readDone)
-	}()
+	cmd.SetIn(session.Input())
+	cmd.SetOut(session.Output())
+	cmd.SetErr(session.Output())
 
 	execErr := make(chan error, 1)
 	go func() {
@@ -258,16 +233,13 @@ func runUpdatePTYFinalSnapshotWithItems(t *testing.T, rows uint16, items []updat
 		t.Fatal("timed out waiting for update command to finish")
 	}
 
-	closePTY(t, slave)
-	<-readDone
-	require.NoError(t, normalizePTYReadError(<-readErr))
-	closePTY(t, master)
-
 	expectedTranscript := renderUpdateResultsView(updateResultsViewInput{
 		items:     finalizeUpdateItems(items),
 		colorMode: view.ColorDisabled,
 	})
-	transcript, err := extractPTYTranscriptSnapshot(output.String(), expectedTranscript)
+
+	require.NoError(t, session.Close())
+	transcript, err := extractPTYTranscriptSnapshot(session.OutputString(), expectedTranscript)
 	require.NoError(t, err)
 	snaps.MatchSnapshot(t, transcript)
 }
@@ -413,65 +385,19 @@ func updateIndexByConfig(items []updateItem) map[int]int {
 	return index
 }
 
-type lockedBuffer struct {
-	mu  sync.Mutex
-	buf bytes.Buffer
-}
-
-func (buffer *lockedBuffer) Write(p []byte) (int, error) {
-	buffer.mu.Lock()
-	defer buffer.mu.Unlock()
-	return buffer.buf.Write(p)
-}
-
-func (buffer *lockedBuffer) String() string {
-	buffer.mu.Lock()
-	defer buffer.mu.Unlock()
-	return buffer.buf.String()
-}
-
-func stripControlSequences(value string) string {
-	value = strings.ReplaceAll(value, "\r\n", "\n")
-	value = strings.ReplaceAll(value, "\r", "\n")
-
-	value = stripOSCSequences(value)
-	value = stripCSISequences(value)
-
-	return value
-}
-
-func normalizePTYSnapshot(value string, rows uint16) string {
-	normalized := stripControlSequences(value)
-	lines := strings.Split(normalized, "\n")
-	for index, line := range lines {
-		lines[index] = strings.TrimRight(line, " \t")
-	}
-	lines = trimTrailingEmptyLines(lines)
-	if rows > 0 {
-		target := int(rows)
-		if len(lines) > target {
-			lines = lines[len(lines)-target:]
-		} else if len(lines) < target {
-			padding := make([]string, target-len(lines))
-			lines = append(lines, padding...)
-		}
-	}
-	return strings.TrimSpace(strings.Join(lines, "\n"))
-}
-
-func normalizePTYTranscriptSnapshot(value string) string {
-	normalized := stripControlSequences(value)
-	lines := strings.Split(normalized, "\n")
-	for index, line := range lines {
-		lines[index] = strings.TrimRight(line, " \t")
-	}
-	lines = trimTrailingEmptyLines(lines)
-	return strings.TrimSpace(strings.Join(lines, "\n"))
-}
-
 func extractPTYTranscriptSnapshot(output string, expectedTranscript string) (string, error) {
-	normalized := normalizePTYTranscriptSnapshot(output)
-	expected := normalizePTYTranscriptSnapshot(expectedTranscript)
+	normalized := terminal.NormalizeOutput(output, terminal.NormalizeOptions{
+		StripControlSequences:  true,
+		TrimTrailingWhitespace: true,
+		TrimTrailingEmptyLines: true,
+		TrimSpace:              true,
+	})
+	expected := terminal.NormalizeOutput(expectedTranscript, terminal.NormalizeOptions{
+		StripControlSequences:  true,
+		TrimTrailingWhitespace: true,
+		TrimTrailingEmptyLines: true,
+		TrimSpace:              true,
+	})
 	if expected == "" {
 		return "", errors.New("expected transcript is empty")
 	}
@@ -511,42 +437,4 @@ func countSummaryLines(normalized string, summaryKey string) int {
 		count++
 	}
 	return count
-}
-
-func trimTrailingEmptyLines(lines []string) []string {
-	for len(lines) > 0 {
-		if strings.TrimSpace(lines[len(lines)-1]) != "" {
-			return lines
-		}
-		lines = lines[:len(lines)-1]
-	}
-	return lines
-}
-
-func closePTY(t *testing.T, file *os.File) {
-	if file == nil {
-		return
-	}
-	if err := file.Close(); err != nil && !errors.Is(err, os.ErrClosed) {
-		require.NoError(t, err)
-	}
-}
-
-func normalizePTYReadError(err error) error {
-	if err == nil || errors.Is(err, os.ErrClosed) || errors.Is(err, syscall.EIO) {
-		return nil
-	}
-	return err
-}
-
-var oscSequence = regexp.MustCompile(`\x1b\][^\x07]*(\x07|\x1b\\)`)
-
-func stripOSCSequences(value string) string {
-	return oscSequence.ReplaceAllString(value, "")
-}
-
-var csiSequence = regexp.MustCompile(`\x1b\[[0-9;?]*[ -/]*[@-~]`)
-
-func stripCSISequences(value string) string {
-	return csiSequence.ReplaceAllString(value, "")
 }

@@ -130,6 +130,8 @@ The `cmd/mmm/init/interactive_flow_snapshot_test.go` tests show the preferred st
 - snapshot `View()` output for each state using go-snaps
 - assert key telemetry events if the flow records them
 
+See `docs/testing/terminal-harness.md` for the shared PTY and in-process harness APIs and usage examples.
+
 For command wrapper behavior, use output snapshots that capture stdout and stderr, see `cmd/mmm/init/output_snapshot_test.go`.
 
 See `docs/interactions/interaction-guidelines.md#validation-plan` for how to validate behavior across execution contexts.

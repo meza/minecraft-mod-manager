@@ -412,3 +412,13 @@ date	time	entry
 2026-01-12	08:33	MMM-26: user instructed to skip hard size limit; Linear ticket still shows guardrail, plan to align ticket or scope.
 2026-01-12	08:34	MMM-26: updated Linear ticket to drop hard size guardrails/measurements and align summary fields (app version, per-command success/error category, counts).
 2026-01-12	08:47	MMM-26: updated telemetry docs + added test to assert no raw perf payload; local/Windows checks pass; reviewer approved (code-review.md).
+2026-01-12	10:28	work on MMM-38 has started
+2026-01-12	11:40	MMM-38: migrated scan PTY tests to terminal harness, added docs/testing/terminal-harness.md with guide link, and updated ticket to clarify size is set by tests and in-process coverage.
+2026-01-12	13:28	MMM-38: added harness coverage tests + fatalf/cleanup hooks, added !windows tag for PTY harness, reran local checks (fmt-check, lint, vuln, coverage, build) and Windows verification (PSReadLine VT warning).
+2026-01-12	14:47	MMM-38: Windows PTY tests failed with invalid handle on Session.Close; fix in progress to avoid double-closing shared pipes and guard console restore when stdout is not a console.
+2026-01-12	15:16	MMM-38: Windows PTY backend fixed with close semantics + injectable Windows calls; added Windows-only PTY backend tests to reach 100% coverage; local gates and winhost lint/build/coverage/test-race pass.
+2026-01-12	15:36	MMM-38: guarded ApplyTerminalDetectionWithFDs against nil test to avoid global leak; updated terminal tests; re-ran local checks and winhost lint/build/coverage/test-race all pass.
+2026-01-12	17:03	MMM-38: fixed Windows PTY mixed resize handling, aligned tall snapshot columns across platforms, added Windows resize branch/error tests; local checks pass; Windows verification pass (PSReadLine VT warning).
+2026-01-12	17:24	MMM-38: updated docs/testing/terminal-harness.md example to send i18n yes-short key under MMM_TEST; reran local checks and Windows verification (PSReadLine VT warning).
+2026-01-12	17:38	MMM-38: reviewer approved after doc example fix and full ticket context; code-review.md updated.
+2026-01-12	17:50	MMM-38: expanded docs/testing/terminal-harness.md with snapshot conventions and FAQ; reran local checks and Windows verification (PSReadLine VT warning).

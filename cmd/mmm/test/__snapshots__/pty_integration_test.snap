@@ -19,6 +19,9 @@ cmd.test.header, Arg 1: {Count: 0, Data: &map[version:1.21.11]}
 cmd.test.section.compatible
 ✅ Alpha (alpha) [modrinth]
 ⣽  Gamma (gamma) [modrinth]
+
+cmd.test.section.not_compatible
+❌ Beta (beta) [modrinth]
 ---
 
 [TestTestCommandInteractivePTYRunningScrollsToNotCompatible - 1]
@@ -31,6 +34,11 @@ cmd.test.section.not_compatible
 ---
 
 [TestTestCommandInteractivePTYRunningMouseScrollsToNotCompatible - 1]
+cmd.test.header, Arg 1: {Count: 0, Data: &map[version:1.21.1
+
+cmd.test.section.compatible
+✅ Alpha (alpha) [modrinth]
+✅ Beta (beta) [modrinth]
 ✅ Gamma (gamma) [modrinth]
 ✅ Delta (delta) [modrinth]
 ✅ Epsilon (epsilon) [modrinth]

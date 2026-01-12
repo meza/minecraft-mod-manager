@@ -1,50 +1,38 @@
-//go:build !windows
-
 package scan
 
 import (
-	"bytes"
 	"context"
 	"errors"
-	"io"
-	"os"
 	"regexp"
+	"runtime"
 	"strings"
-	"sync"
-	"syscall"
 	"testing"
 	"time"
 
 	tea "github.com/charmbracelet/bubbletea"
-	"github.com/creack/pty"
 	"github.com/gkampitakis/go-snaps/snaps"
-	"github.com/muesli/termenv"
 	"github.com/spf13/afero"
 	"github.com/spf13/cobra"
 	"github.com/stretchr/testify/require"
 
 	"github.com/meza/minecraft-mod-manager/internal/config"
+	"github.com/meza/minecraft-mod-manager/internal/i18n"
 	"github.com/meza/minecraft-mod-manager/internal/models"
 	"github.com/meza/minecraft-mod-manager/internal/modsetup"
 	"github.com/meza/minecraft-mod-manager/internal/view"
+	"github.com/meza/minecraft-mod-manager/testutil/terminal"
+	terminalpty "github.com/meza/minecraft-mod-manager/testutil/terminal/pty"
 )
 
 func TestScanCommandInteractivePTYRunningSnapshotShortHeight(t *testing.T) {
-	t.Setenv("MMM_TEST", "true")
-
-	restoreColors := view.SetColorProfileFuncForTesting(func() termenv.Profile { return termenv.Ascii })
-	t.Cleanup(restoreColors)
+	terminal.ApplyFixtures(t)
 
 	originalRunScanProgram := runScanProgram
 	runScanProgram = defaultRunScanProgram
 	t.Cleanup(func() { runScanProgram = originalRunScanProgram })
 
-	master, slave, err := pty.Open()
-	require.NoError(t, err)
-	t.Cleanup(func() { closePTY(t, master) })
-	t.Cleanup(func() { closePTY(t, slave) })
-
-	require.NoError(t, pty.Setsize(master, &pty.Winsize{Cols: 120, Rows: 6}))
+	session := terminalpty.NewSession(t, terminalpty.WithSize(terminal.Size{Columns: 120, Rows: 25}))
+	require.NotNil(t, session)
 
 	release := make(chan struct{})
 	updatesSent := make(chan struct{})
@@ -176,18 +164,9 @@ func TestScanCommandInteractivePTYRunningSnapshotShortHeight(t *testing.T) {
 		return outcomeErr
 	})
 
-	cmd.SetIn(slave)
-	cmd.SetOut(slave)
-	cmd.SetErr(slave)
-
-	output := &lockedBuffer{}
-	readDone := make(chan struct{})
-	readErr := make(chan error, 1)
-	go func() {
-		_, copyErr := io.Copy(output, master)
-		readErr <- copyErr
-		close(readDone)
-	}()
+	cmd.SetIn(session.Input())
+	cmd.SetOut(session.Output())
+	cmd.SetErr(session.Output())
 
 	execErr := make(chan error, 1)
 	go func() {
@@ -200,40 +179,26 @@ func TestScanCommandInteractivePTYRunningSnapshotShortHeight(t *testing.T) {
 		t.Fatal("timed out waiting for running updates")
 	}
 
-	waitForOutput(t, output, "cmd.scan.header.running")
+	waitForOutput(t, session, "cmd.scan.header.running")
 	require.NotNil(t, runningModel)
 	snaps.MatchSnapshot(t, normalizeViewportSnapshot(runningModel.View()))
 
 	close(release)
-	err = <-execErr
-	require.NoError(t, err)
-	waitForOutput(t, output, "cmd.scan.header.results")
-	closePTY(t, slave)
-
-	select {
-	case <-readDone:
-	case <-time.After(2 * time.Second):
-		t.Fatal("timed out waiting for PTY output")
-	}
-	require.NoError(t, normalizePTYReadError(<-readErr))
+	execErrValue := <-execErr
+	require.NoError(t, execErrValue)
+	waitForOutput(t, session, "cmd.scan.header.results")
+	require.NoError(t, session.Close())
 }
 
 func TestScanCommandInteractivePTYRunningSnapshotShortHeightManyMods(t *testing.T) {
-	t.Setenv("MMM_TEST", "true")
-
-	restoreColors := view.SetColorProfileFuncForTesting(func() termenv.Profile { return termenv.Ascii })
-	t.Cleanup(restoreColors)
+	terminal.ApplyFixtures(t)
 
 	originalRunScanProgram := runScanProgram
 	runScanProgram = defaultRunScanProgram
 	t.Cleanup(func() { runScanProgram = originalRunScanProgram })
 
-	master, slave, err := pty.Open()
-	require.NoError(t, err)
-	t.Cleanup(func() { closePTY(t, master) })
-	t.Cleanup(func() { closePTY(t, slave) })
-
-	require.NoError(t, pty.Setsize(master, &pty.Winsize{Cols: 120, Rows: 6}))
+	session := terminalpty.NewSession(t, terminalpty.WithSize(terminal.Size{Columns: 120, Rows: 25}))
+	require.NotNil(t, session)
 
 	release := make(chan struct{})
 	updatesSent := make(chan struct{})
@@ -270,18 +235,9 @@ func TestScanCommandInteractivePTYRunningSnapshotShortHeightManyMods(t *testing.
 		return outcomeErr
 	})
 
-	cmd.SetIn(slave)
-	cmd.SetOut(slave)
-	cmd.SetErr(slave)
-
-	output := &lockedBuffer{}
-	readDone := make(chan struct{})
-	readErr := make(chan error, 1)
-	go func() {
-		_, copyErr := io.Copy(output, master)
-		readErr <- copyErr
-		close(readDone)
-	}()
+	cmd.SetIn(session.Input())
+	cmd.SetOut(session.Output())
+	cmd.SetErr(session.Output())
 
 	execErr := make(chan error, 1)
 	go func() {
@@ -294,40 +250,26 @@ func TestScanCommandInteractivePTYRunningSnapshotShortHeightManyMods(t *testing.
 		t.Fatal("timed out waiting for running updates")
 	}
 
-	waitForOutput(t, output, "cmd.scan.header.running")
+	waitForOutput(t, session, "cmd.scan.header.running")
 	require.NotNil(t, runningModel)
 	snaps.MatchSnapshot(t, normalizeViewportSnapshot(runningModel.View()))
 
 	close(release)
-	err = <-execErr
-	require.NoError(t, err)
-	waitForOutput(t, output, "cmd.scan.header.results")
-	closePTY(t, slave)
-
-	select {
-	case <-readDone:
-	case <-time.After(2 * time.Second):
-		t.Fatal("timed out waiting for PTY output")
-	}
-	require.NoError(t, normalizePTYReadError(<-readErr))
+	execErrValue := <-execErr
+	require.NoError(t, execErrValue)
+	waitForOutput(t, session, "cmd.scan.header.results")
+	require.NoError(t, session.Close())
 }
 
 func TestScanCommandInteractivePTYRunningSnapshotMediumHeight(t *testing.T) {
-	t.Setenv("MMM_TEST", "true")
-
-	restoreColors := view.SetColorProfileFuncForTesting(func() termenv.Profile { return termenv.Ascii })
-	t.Cleanup(restoreColors)
+	terminal.ApplyFixtures(t)
 
 	originalRunScanProgram := runScanProgram
 	runScanProgram = defaultRunScanProgram
 	t.Cleanup(func() { runScanProgram = originalRunScanProgram })
 
-	master, slave, err := pty.Open()
-	require.NoError(t, err)
-	t.Cleanup(func() { closePTY(t, master) })
-	t.Cleanup(func() { closePTY(t, slave) })
-
-	require.NoError(t, pty.Setsize(master, &pty.Winsize{Cols: 120, Rows: 12}))
+	session := terminalpty.NewSession(t, terminalpty.WithSize(terminal.Size{Columns: 120, Rows: 12}))
+	require.NotNil(t, session)
 
 	release := make(chan struct{})
 	updatesSent := make(chan struct{})
@@ -450,18 +392,9 @@ func TestScanCommandInteractivePTYRunningSnapshotMediumHeight(t *testing.T) {
 		return outcomeErr
 	})
 
-	cmd.SetIn(slave)
-	cmd.SetOut(slave)
-	cmd.SetErr(slave)
-
-	output := &lockedBuffer{}
-	readDone := make(chan struct{})
-	readErr := make(chan error, 1)
-	go func() {
-		_, copyErr := io.Copy(output, master)
-		readErr <- copyErr
-		close(readDone)
-	}()
+	cmd.SetIn(session.Input())
+	cmd.SetOut(session.Output())
+	cmd.SetErr(session.Output())
 
 	execErr := make(chan error, 1)
 	go func() {
@@ -474,40 +407,26 @@ func TestScanCommandInteractivePTYRunningSnapshotMediumHeight(t *testing.T) {
 		t.Fatal("timed out waiting for running updates")
 	}
 
-	waitForOutput(t, output, "cmd.scan.section.recognized")
+	waitForOutput(t, session, "cmd.scan.section.recognized")
 	require.NotNil(t, runningModel)
 	snaps.MatchSnapshot(t, normalizeViewportSnapshot(runningModel.View()))
 
 	close(release)
-	err = <-execErr
-	require.NoError(t, err)
-	waitForOutput(t, output, "cmd.scan.header.results")
-	closePTY(t, slave)
-
-	select {
-	case <-readDone:
-	case <-time.After(2 * time.Second):
-		t.Fatal("timed out waiting for PTY output")
-	}
-	require.NoError(t, normalizePTYReadError(<-readErr))
+	execErrValue := <-execErr
+	require.NoError(t, execErrValue)
+	waitForOutput(t, session, "cmd.scan.header.results")
+	require.NoError(t, session.Close())
 }
 
 func TestScanCommandInteractivePTYFinalTranscriptShortHeight(t *testing.T) {
-	t.Setenv("MMM_TEST", "true")
-
-	restoreColors := view.SetColorProfileFuncForTesting(func() termenv.Profile { return termenv.Ascii })
-	t.Cleanup(restoreColors)
+	terminal.ApplyFixtures(t)
 
 	originalRunScanProgram := runScanProgram
 	runScanProgram = defaultRunScanProgram
 	t.Cleanup(func() { runScanProgram = originalRunScanProgram })
 
-	master, slave, err := pty.Open()
-	require.NoError(t, err)
-	t.Cleanup(func() { closePTY(t, master) })
-	t.Cleanup(func() { closePTY(t, slave) })
-
-	require.NoError(t, pty.Setsize(master, &pty.Winsize{Cols: 120, Rows: 6}))
+	session := terminalpty.NewSession(t, terminalpty.WithSize(terminal.Size{Columns: 120, Rows: 25}))
+	require.NotNil(t, session)
 
 	release := make(chan struct{})
 	updatesSent := make(chan struct{})
@@ -684,18 +603,9 @@ func TestScanCommandInteractivePTYFinalTranscriptShortHeight(t *testing.T) {
 		return outcomeErr
 	})
 
-	cmd.SetIn(slave)
-	cmd.SetOut(slave)
-	cmd.SetErr(slave)
-
-	output := &lockedBuffer{}
-	readDone := make(chan struct{})
-	readErr := make(chan error, 1)
-	go func() {
-		_, copyErr := io.Copy(output, master)
-		readErr <- copyErr
-		close(readDone)
-	}()
+	cmd.SetIn(session.Input())
+	cmd.SetOut(session.Output())
+	cmd.SetErr(session.Output())
 
 	execErr := make(chan error, 1)
 	go func() {
@@ -709,37 +619,28 @@ func TestScanCommandInteractivePTYFinalTranscriptShortHeight(t *testing.T) {
 	}
 
 	close(release)
-	err = <-execErr
-	require.NoError(t, err)
-	waitForOutput(t, output, "cmd.scan.header.results")
-	closePTY(t, slave)
+	execErrValue := <-execErr
+	require.NoError(t, execErrValue)
+	waitForOutput(t, session, "cmd.scan.header.results")
+	require.NoError(t, session.Close())
 
-	select {
-	case <-readDone:
-	case <-time.After(2 * time.Second):
-		t.Fatal("timed out waiting for PTY output")
-	}
-	require.NoError(t, normalizePTYReadError(<-readErr))
-
-	snaps.MatchSnapshot(t, normalizePTYSnapshot(output.String()))
+	snaps.MatchSnapshot(t, normalizePTYSnapshot(session.OutputString()))
 }
 
 func TestScanCommandInteractivePTYRunningSnapshotTallHeight(t *testing.T) {
-	t.Setenv("MMM_TEST", "true")
-
-	restoreColors := view.SetColorProfileFuncForTesting(func() termenv.Profile { return termenv.Ascii })
-	t.Cleanup(restoreColors)
+	terminal.ApplyFixtures(t)
 
 	originalRunScanProgram := runScanProgram
 	runScanProgram = defaultRunScanProgram
 	t.Cleanup(func() { runScanProgram = originalRunScanProgram })
 
-	master, slave, err := pty.Open()
-	require.NoError(t, err)
-	t.Cleanup(func() { closePTY(t, master) })
-	t.Cleanup(func() { closePTY(t, slave) })
-
-	require.NoError(t, pty.Setsize(master, &pty.Winsize{Cols: 120, Rows: 40}))
+	rows := tallSnapshotRows()
+	columns := 120
+	if rows == tallSnapshotRows() {
+		columns = 80
+	}
+	session := terminalpty.NewSession(t, terminalpty.WithSize(terminal.Size{Columns: columns, Rows: int(rows)}))
+	require.NotNil(t, session)
 
 	release := make(chan struct{})
 	updatesSent := make(chan struct{})
@@ -862,18 +763,9 @@ func TestScanCommandInteractivePTYRunningSnapshotTallHeight(t *testing.T) {
 		return outcomeErr
 	})
 
-	cmd.SetIn(slave)
-	cmd.SetOut(slave)
-	cmd.SetErr(slave)
-
-	output := &lockedBuffer{}
-	readDone := make(chan struct{})
-	readErr := make(chan error, 1)
-	go func() {
-		_, copyErr := io.Copy(output, master)
-		readErr <- copyErr
-		close(readDone)
-	}()
+	cmd.SetIn(session.Input())
+	cmd.SetOut(session.Output())
+	cmd.SetErr(session.Output())
 
 	execErr := make(chan error, 1)
 	go func() {
@@ -886,39 +778,25 @@ func TestScanCommandInteractivePTYRunningSnapshotTallHeight(t *testing.T) {
 		t.Fatal("timed out waiting for running updates")
 	}
 
-	waitForOutput(t, output, "cmd.scan.section.unsure")
+	waitForOutput(t, session, "cmd.scan.section.unsure")
 	require.NotNil(t, runningModel)
 	snaps.MatchSnapshot(t, normalizeViewportSnapshot(runningModel.View()))
 
 	close(release)
-	err = <-execErr
-	require.NoError(t, err)
-	closePTY(t, slave)
-
-	select {
-	case <-readDone:
-	case <-time.After(2 * time.Second):
-		t.Fatal("timed out waiting for PTY output")
-	}
-	require.NoError(t, normalizePTYReadError(<-readErr))
+	execErrValue := <-execErr
+	require.NoError(t, execErrValue)
+	require.NoError(t, session.Close())
 }
 
 func TestScanCommandInteractivePTYFinalTranscriptMediumHeight(t *testing.T) {
-	t.Setenv("MMM_TEST", "true")
-
-	restoreColors := view.SetColorProfileFuncForTesting(func() termenv.Profile { return termenv.Ascii })
-	t.Cleanup(restoreColors)
+	terminal.ApplyFixtures(t)
 
 	originalRunScanProgram := runScanProgram
 	runScanProgram = defaultRunScanProgram
 	t.Cleanup(func() { runScanProgram = originalRunScanProgram })
 
-	master, slave, err := pty.Open()
-	require.NoError(t, err)
-	t.Cleanup(func() { closePTY(t, master) })
-	t.Cleanup(func() { closePTY(t, slave) })
-
-	require.NoError(t, pty.Setsize(master, &pty.Winsize{Cols: 120, Rows: 12}))
+	session := terminalpty.NewSession(t, terminalpty.WithSize(terminal.Size{Columns: 120, Rows: 12}))
+	require.NotNil(t, session)
 
 	release := make(chan struct{})
 	updatesSent := make(chan struct{})
@@ -1095,18 +973,9 @@ func TestScanCommandInteractivePTYFinalTranscriptMediumHeight(t *testing.T) {
 		return outcomeErr
 	})
 
-	cmd.SetIn(slave)
-	cmd.SetOut(slave)
-	cmd.SetErr(slave)
-
-	output := &lockedBuffer{}
-	readDone := make(chan struct{})
-	readErr := make(chan error, 1)
-	go func() {
-		_, copyErr := io.Copy(output, master)
-		readErr <- copyErr
-		close(readDone)
-	}()
+	cmd.SetIn(session.Input())
+	cmd.SetOut(session.Output())
+	cmd.SetErr(session.Output())
 
 	execErr := make(chan error, 1)
 	go func() {
@@ -1120,36 +989,27 @@ func TestScanCommandInteractivePTYFinalTranscriptMediumHeight(t *testing.T) {
 	}
 
 	close(release)
-	err = <-execErr
-	require.NoError(t, err)
-	closePTY(t, slave)
+	execErrValue := <-execErr
+	require.NoError(t, execErrValue)
+	require.NoError(t, session.Close())
 
-	select {
-	case <-readDone:
-	case <-time.After(2 * time.Second):
-		t.Fatal("timed out waiting for PTY output")
-	}
-	require.NoError(t, normalizePTYReadError(<-readErr))
-
-	snaps.MatchSnapshot(t, normalizePTYSnapshot(output.String()))
+	snaps.MatchSnapshot(t, normalizePTYSnapshot(session.OutputString()))
 }
 
 func TestScanCommandInteractivePTYFinalTranscriptTallHeight(t *testing.T) {
-	t.Setenv("MMM_TEST", "true")
-
-	restoreColors := view.SetColorProfileFuncForTesting(func() termenv.Profile { return termenv.Ascii })
-	t.Cleanup(restoreColors)
+	terminal.ApplyFixtures(t)
 
 	originalRunScanProgram := runScanProgram
 	runScanProgram = defaultRunScanProgram
 	t.Cleanup(func() { runScanProgram = originalRunScanProgram })
 
-	master, slave, err := pty.Open()
-	require.NoError(t, err)
-	t.Cleanup(func() { closePTY(t, master) })
-	t.Cleanup(func() { closePTY(t, slave) })
-
-	require.NoError(t, pty.Setsize(master, &pty.Winsize{Cols: 120, Rows: 40}))
+	rows := tallSnapshotRows()
+	columns := 120
+	if rows == tallSnapshotRows() {
+		columns = 80
+	}
+	session := terminalpty.NewSession(t, terminalpty.WithSize(terminal.Size{Columns: columns, Rows: int(rows)}))
+	require.NotNil(t, session)
 
 	release := make(chan struct{})
 	updatesSent := make(chan struct{})
@@ -1326,18 +1186,9 @@ func TestScanCommandInteractivePTYFinalTranscriptTallHeight(t *testing.T) {
 		return outcomeErr
 	})
 
-	cmd.SetIn(slave)
-	cmd.SetOut(slave)
-	cmd.SetErr(slave)
-
-	output := &lockedBuffer{}
-	readDone := make(chan struct{})
-	readErr := make(chan error, 1)
-	go func() {
-		_, copyErr := io.Copy(output, master)
-		readErr <- copyErr
-		close(readDone)
-	}()
+	cmd.SetIn(session.Input())
+	cmd.SetOut(session.Output())
+	cmd.SetErr(session.Output())
 
 	execErr := make(chan error, 1)
 	go func() {
@@ -1351,34 +1202,18 @@ func TestScanCommandInteractivePTYFinalTranscriptTallHeight(t *testing.T) {
 	}
 
 	close(release)
-	err = <-execErr
-	require.NoError(t, err)
-	closePTY(t, slave)
+	execErrValue := <-execErr
+	require.NoError(t, execErrValue)
+	require.NoError(t, session.Close())
 
-	select {
-	case <-readDone:
-	case <-time.After(2 * time.Second):
-		t.Fatal("timed out waiting for PTY output")
-	}
-	require.NoError(t, normalizePTYReadError(<-readErr))
-
-	snaps.MatchSnapshot(t, normalizePTYSnapshot(output.String()))
+	snaps.MatchSnapshot(t, normalizePTYSnapshot(session.OutputString()))
 }
 
 func TestScanCommandInteractivePTYPromptConfirmAddedOnly(t *testing.T) {
 	t.Setenv("LANG", "en_GB.UTF-8")
-
-	restoreColors := view.SetColorProfileFuncForTesting(func() termenv.Profile { return termenv.Ascii })
-	t.Cleanup(restoreColors)
-	restoreTerminal := view.SetIsTerminalFuncForTesting(func(int) bool { return true })
-	t.Cleanup(restoreTerminal)
-
-	master, slave, err := pty.Open()
-	require.NoError(t, err)
-	t.Cleanup(func() { closePTY(t, master) })
-	t.Cleanup(func() { closePTY(t, slave) })
-
-	require.NoError(t, pty.Setsize(master, &pty.Winsize{Cols: 120, Rows: 12}))
+	terminal.ApplyFixtures(t)
+	session := terminalpty.NewSession(t, terminalpty.WithSize(terminal.Size{Columns: 120, Rows: 12}))
+	require.NotNil(t, session)
 
 	cmd := commandWithRunner(func(ctx context.Context, cmd *cobra.Command) error {
 		fs := afero.NewMemMapFs()
@@ -1403,60 +1238,36 @@ func TestScanCommandInteractivePTYPromptConfirmAddedOnly(t *testing.T) {
 		return runErr
 	})
 
-	cmd.SetIn(slave)
-	cmd.SetOut(slave)
-	cmd.SetErr(slave)
-
-	output := &lockedBuffer{}
-	readDone := make(chan struct{})
-	readErr := make(chan error, 1)
-	go func() {
-		_, copyErr := io.Copy(output, master)
-		readErr <- copyErr
-		close(readDone)
-	}()
+	cmd.SetIn(session.Input())
+	cmd.SetOut(session.Output())
+	cmd.SetErr(session.Output())
 
 	execErr := make(chan error, 1)
 	go func() {
 		execErr <- cmd.Execute()
 	}()
 
-	waitForOutput(t, output, "Add recognized mods to your configuration?")
-	_, err = master.Write([]byte("y\r"))
-	require.NoError(t, err)
+	waitForOutput(t, session, "cmd.scan.prompt.add")
+	yesShort := i18n.T("cmd.init.prompt.option.yes.short", nil)
+	_, writeErr := session.SendInput([]byte(yesShort + "\r"))
+	require.NoError(t, writeErr)
 
 	select {
-	case err = <-execErr:
-		require.NoError(t, err)
+	case execErrValue := <-execErr:
+		require.NoError(t, execErrValue)
 	case <-time.After(2 * time.Second):
 		t.Fatal("timed out waiting for prompt acceptance to finish")
 	}
-	closePTY(t, slave)
+	require.NoError(t, session.Close())
 
-	select {
-	case <-readDone:
-	case <-time.After(2 * time.Second):
-		t.Fatal("timed out waiting for PTY output")
-	}
-	require.NoError(t, normalizePTYReadError(<-readErr))
-
-	snaps.MatchSnapshot(t, normalizePromptPTYSnapshot(output.String()))
+	snaps.MatchSnapshot(t, normalizePromptPTYSnapshot(session.OutputString()))
 }
 
 func TestScanCommandInteractivePTYPromptDeclineCancelledOnly(t *testing.T) {
 	t.Setenv("LANG", "en_GB.UTF-8")
-
-	restoreColors := view.SetColorProfileFuncForTesting(func() termenv.Profile { return termenv.Ascii })
-	t.Cleanup(restoreColors)
-	restoreTerminal := view.SetIsTerminalFuncForTesting(func(int) bool { return true })
-	t.Cleanup(restoreTerminal)
-
-	master, slave, err := pty.Open()
-	require.NoError(t, err)
-	t.Cleanup(func() { closePTY(t, master) })
-	t.Cleanup(func() { closePTY(t, slave) })
-
-	require.NoError(t, pty.Setsize(master, &pty.Winsize{Cols: 120, Rows: 12}))
+	terminal.ApplyFixtures(t)
+	session := terminalpty.NewSession(t, terminalpty.WithSize(terminal.Size{Columns: 120, Rows: 12}))
+	require.NotNil(t, session)
 
 	cmd := commandWithRunner(func(ctx context.Context, cmd *cobra.Command) error {
 		input := scanExecutionInput{
@@ -1468,44 +1279,29 @@ func TestScanCommandInteractivePTYPromptDeclineCancelledOnly(t *testing.T) {
 		return runErr
 	})
 
-	cmd.SetIn(slave)
-	cmd.SetOut(slave)
-	cmd.SetErr(slave)
-
-	output := &lockedBuffer{}
-	readDone := make(chan struct{})
-	readErr := make(chan error, 1)
-	go func() {
-		_, copyErr := io.Copy(output, master)
-		readErr <- copyErr
-		close(readDone)
-	}()
+	cmd.SetIn(session.Input())
+	cmd.SetOut(session.Output())
+	cmd.SetErr(session.Output())
 
 	execErr := make(chan error, 1)
 	go func() {
 		execErr <- cmd.Execute()
 	}()
 
-	waitForOutput(t, output, "Add recognized mods to your configuration?")
-	_, err = master.Write([]byte("n\r"))
-	require.NoError(t, err)
+	waitForOutput(t, session, "cmd.scan.prompt.add")
+	noShort := i18n.T("cmd.init.prompt.option.no.short", nil)
+	_, writeErr := session.SendInput([]byte(noShort + "\r"))
+	require.NoError(t, writeErr)
 
 	select {
-	case err = <-execErr:
-		require.NoError(t, err)
+	case execErrValue := <-execErr:
+		require.NoError(t, execErrValue)
 	case <-time.After(2 * time.Second):
 		t.Fatal("timed out waiting for prompt decline to finish")
 	}
-	closePTY(t, slave)
+	require.NoError(t, session.Close())
 
-	select {
-	case <-readDone:
-	case <-time.After(2 * time.Second):
-		t.Fatal("timed out waiting for PTY output")
-	}
-	require.NoError(t, normalizePTYReadError(<-readErr))
-
-	snaps.MatchSnapshot(t, normalizePromptPTYSnapshot(output.String()))
+	snaps.MatchSnapshot(t, normalizePromptPTYSnapshot(session.OutputString()))
 }
 
 func commandWithRunner(run func(context.Context, *cobra.Command) error) *cobra.Command {
@@ -1532,57 +1328,33 @@ func finalizePTYRun(cmd *cobra.Command, result tea.Model) (scanExecutionOutcome,
 	return model.outcome, nil
 }
 
-func waitForOutput(t *testing.T, output *lockedBuffer, needle string) {
+func waitForOutput(t *testing.T, session *terminalpty.Session, needle string) {
 	t.Helper()
 
-	deadline := time.Now().Add(2 * time.Second)
-	for time.Now().Before(deadline) {
-		normalized := stripControlSequences(output.String())
-		if strings.Contains(normalized, needle) {
-			return
-		}
-		time.Sleep(25 * time.Millisecond)
+	session.WaitForOutput(t, func(data []byte) bool {
+		normalized := terminal.NormalizeOutput(string(data), terminal.NormalizeOptions{
+			StripControlSequences: true,
+		})
+		return strings.Contains(normalized, needle)
+	}, terminalpty.WithWaitDuration(2*time.Second))
+}
+
+func tallSnapshotRows() uint16 {
+	if runtime.GOOS == "windows" {
+		return 40
 	}
-	t.Fatalf("timed out waiting for output to contain %q", needle)
-}
-
-type lockedBuffer struct {
-	mu  sync.Mutex
-	buf bytes.Buffer
-}
-
-func (buffer *lockedBuffer) Write(p []byte) (int, error) {
-	buffer.mu.Lock()
-	defer buffer.mu.Unlock()
-	return buffer.buf.Write(p)
-}
-
-func (buffer *lockedBuffer) String() string {
-	buffer.mu.Lock()
-	defer buffer.mu.Unlock()
-	return buffer.buf.String()
-}
-
-func stripControlSequences(value string) string {
-	value = strings.ReplaceAll(value, "\r\n", "\n")
-	value = strings.ReplaceAll(value, "\r", "\n")
-
-	value = stripOSCSequences(value)
-	value = stripCSISequences(value)
-
-	return value
+	return 80
 }
 
 func normalizePTYSnapshot(value string) string {
-	normalized := stripControlSequences(trimToLastFrame(value))
-	lines := strings.Split(normalized, "\n")
-	for index, line := range lines {
-		lines[index] = strings.TrimRight(line, " \t")
-	}
-	normalized = strings.TrimSpace(strings.Join(lines, "\n"))
+	normalized := terminal.NormalizeOutput(trimToLastFrame(value), terminal.NormalizeOptions{
+		StripControlSequences:  true,
+		TrimTrailingWhitespace: true,
+		TrimTrailingEmptyLines: true,
+		TrimSpace:              true,
+	})
 	if headerIndex := strings.LastIndex(normalized, "cmd.scan.header.results"); headerIndex >= 0 {
-		normalized = strings.TrimSpace(normalized[headerIndex:])
-		return normalized
+		return strings.TrimSpace(normalized[headerIndex:])
 	}
 	if headerIndex := strings.LastIndex(normalized, "cmd.scan.header.running"); headerIndex >= 0 {
 		normalized = strings.TrimSpace(normalized[headerIndex:])
@@ -1591,12 +1363,12 @@ func normalizePTYSnapshot(value string) string {
 }
 
 func normalizePromptPTYSnapshot(value string) string {
-	normalized := stripControlSequences(trimAfterAltScreenExit(value))
-	lines := strings.Split(normalized, "\n")
-	for index, line := range lines {
-		lines[index] = strings.TrimRight(line, " \t")
-	}
-	return strings.TrimSpace(strings.Join(lines, "\n"))
+	return terminal.NormalizeOutput(trimAfterAltScreenExit(value), terminal.NormalizeOptions{
+		StripControlSequences:  true,
+		TrimTrailingWhitespace: true,
+		TrimTrailingEmptyLines: true,
+		TrimSpace:              true,
+	})
 }
 
 func trimAfterAltScreenExit(value string) string {
@@ -1670,32 +1442,4 @@ func sampleModFileNames() []string {
 	}
 }
 
-func closePTY(t *testing.T, file *os.File) {
-	if file == nil {
-		return
-	}
-	if err := file.Close(); err != nil && !errors.Is(err, os.ErrClosed) {
-		require.NoError(t, err)
-	}
-}
-
-func normalizePTYReadError(err error) error {
-	if err == nil || errors.Is(err, os.ErrClosed) || errors.Is(err, syscall.EIO) {
-		return nil
-	}
-	return err
-}
-
 var cursorHomeSequence = regexp.MustCompile(`\x1b\[[0-9;]*H`)
-
-var oscSequence = regexp.MustCompile(`\x1b\][^\x07]*(\x07|\x1b\\)`)
-
-func stripOSCSequences(value string) string {
-	return oscSequence.ReplaceAllString(value, "")
-}
-
-var csiSequence = regexp.MustCompile(`\x1b\[[0-9;?]*[ -/]*[@-~]`)
-
-func stripCSISequences(value string) string {
-	return csiSequence.ReplaceAllString(value, "")
-}

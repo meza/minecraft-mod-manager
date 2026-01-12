@@ -1,49 +1,35 @@
-//go:build !windows
-
 package test
 
 import (
-	"bytes"
 	"context"
 	"errors"
-	"io"
-	"os"
-	"regexp"
+	"runtime"
 	"strings"
-	"sync"
-	"syscall"
 	"testing"
 	"time"
 
 	tea "github.com/charmbracelet/bubbletea"
-	"github.com/creack/pty"
 	"github.com/gkampitakis/go-snaps/snaps"
-	"github.com/muesli/termenv"
 	"github.com/spf13/cobra"
 	"github.com/stretchr/testify/require"
 
 	"github.com/meza/minecraft-mod-manager/internal/clierrors"
 	"github.com/meza/minecraft-mod-manager/internal/models"
 	"github.com/meza/minecraft-mod-manager/internal/view"
+	"github.com/meza/minecraft-mod-manager/testutil/terminal"
+	terminalpty "github.com/meza/minecraft-mod-manager/testutil/terminal/pty"
 )
 
 func TestTestCommandInteractivePTYOutput(t *testing.T) {
-	t.Setenv("MMM_TEST", "true")
-
-	restoreColors := view.SetColorProfileFuncForTesting(func() termenv.Profile { return termenv.Ascii })
-	t.Cleanup(restoreColors)
+	terminal.ApplyFixtures(t)
 
 	originalRunTestProgram := runTestProgram
 	runTestProgram = defaultRunTestProgram
 	t.Cleanup(func() { runTestProgram = originalRunTestProgram })
 
-	master, slave, err := pty.Open()
-	require.NoError(t, err)
-	t.Cleanup(func() { closePTY(t, master) })
-	t.Cleanup(func() { closePTY(t, slave) })
-
 	rows := uint16(40)
-	require.NoError(t, pty.Setsize(master, &pty.Winsize{Cols: 120, Rows: rows}))
+	session := terminalpty.NewSession(t, terminalpty.WithSize(terminal.Size{Columns: 80, Rows: int(rows)}))
+	require.NotNil(t, session)
 
 	cmd := commandWithRunner(func(ctx context.Context, cmd *cobra.Command, _ testOptions, _ testDeps) (Result, error) {
 		items := []testItem{
@@ -96,51 +82,28 @@ func TestTestCommandInteractivePTYOutput(t *testing.T) {
 	cmd.Flags().Bool("quiet", false, "")
 	cmd.Flags().Bool("debug", false, "")
 
-	cmd.SetIn(slave)
-	cmd.SetOut(slave)
-	cmd.SetErr(slave)
+	cmd.SetIn(session.Input())
+	cmd.SetOut(session.Output())
+	cmd.SetErr(session.Output())
 	cmd.SetArgs([]string{"1.21.1"})
-
-	output := &lockedBuffer{}
-	readDone := make(chan struct{})
-	readErr := make(chan error, 1)
-	go func() {
-		_, copyErr := io.Copy(output, master)
-		readErr <- copyErr
-		close(readDone)
-	}()
 
 	execErr := cmd.Execute()
 	require.ErrorIs(t, execErr, errUnsupportedMods)
-	closePTY(t, slave)
+	require.NoError(t, session.Close())
 
-	select {
-	case <-readDone:
-	case <-time.After(2 * time.Second):
-		t.Fatal("timed out waiting for PTY output")
-	}
-	require.NoError(t, normalizePTYReadError(<-readErr))
-
-	snaps.MatchSnapshot(t, normalizePTYSnapshot(output.String(), rows))
+	snaps.MatchSnapshot(t, normalizeTestPTYOutput(session.OutputString(), rows))
 }
 
 func TestTestCommandInteractivePTYRunningShowsHeadersWhenShort(t *testing.T) {
-	t.Setenv("MMM_TEST", "true")
-
-	restoreColors := view.SetColorProfileFuncForTesting(func() termenv.Profile { return termenv.Ascii })
-	t.Cleanup(restoreColors)
+	terminal.ApplyFixtures(t)
 
 	originalRunTestProgram := runTestProgram
 	runTestProgram = defaultRunTestProgram
 	t.Cleanup(func() { runTestProgram = originalRunTestProgram })
 
-	master, slave, err := pty.Open()
-	require.NoError(t, err)
-	t.Cleanup(func() { closePTY(t, master) })
-	t.Cleanup(func() { closePTY(t, slave) })
-
-	rows := uint16(6)
-	require.NoError(t, pty.Setsize(master, &pty.Winsize{Cols: 120, Rows: rows}))
+	rows := uint16(25)
+	session := terminalpty.NewSession(t, terminalpty.WithSize(terminal.Size{Columns: 120, Rows: int(rows)}))
+	require.NotNil(t, session)
 
 	release := make(chan struct{})
 	updatesSent := make(chan struct{})
@@ -201,19 +164,10 @@ func TestTestCommandInteractivePTYRunningShowsHeadersWhenShort(t *testing.T) {
 	cmd.Flags().Bool("quiet", false, "")
 	cmd.Flags().Bool("debug", false, "")
 
-	cmd.SetIn(slave)
-	cmd.SetOut(slave)
-	cmd.SetErr(slave)
+	cmd.SetIn(session.Input())
+	cmd.SetOut(session.Output())
+	cmd.SetErr(session.Output())
 	cmd.SetArgs([]string{"1.21.11"})
-
-	output := &lockedBuffer{}
-	readDone := make(chan struct{})
-	readErr := make(chan error, 1)
-	go func() {
-		_, copyErr := io.Copy(output, master)
-		readErr <- copyErr
-		close(readDone)
-	}()
 
 	execErr := make(chan error, 1)
 	go func() {
@@ -226,39 +180,27 @@ func TestTestCommandInteractivePTYRunningShowsHeadersWhenShort(t *testing.T) {
 		t.Fatal("timed out waiting for running updates")
 	}
 
-	waitForOutput(t, output, "cmd.test.section.compatible")
-	snaps.MatchSnapshot(t, normalizePTYSnapshot(output.String(), rows))
+	session.WaitForOutput(t, func(output []byte) bool {
+		return strings.Contains(string(output), "cmd.test.section.compatible")
+	}, terminalpty.WithWaitDuration(2*time.Second))
+	snaps.MatchSnapshot(t, normalizeTestPTYOutput(session.OutputString(), rows))
 
 	close(release)
-	err = <-execErr
-	require.ErrorIs(t, err, errUnsupportedMods)
-	closePTY(t, slave)
-
-	select {
-	case <-readDone:
-	case <-time.After(2 * time.Second):
-		t.Fatal("timed out waiting for PTY output")
-	}
-	require.NoError(t, normalizePTYReadError(<-readErr))
+	execErrValue := <-execErr
+	require.ErrorIs(t, execErrValue, errUnsupportedMods)
+	require.NoError(t, session.Close())
 }
 
 func TestTestCommandInteractivePTYRunningSnapshotMediumHeight(t *testing.T) {
-	t.Setenv("MMM_TEST", "true")
-
-	restoreColors := view.SetColorProfileFuncForTesting(func() termenv.Profile { return termenv.Ascii })
-	t.Cleanup(restoreColors)
+	terminal.ApplyFixtures(t)
 
 	originalRunTestProgram := runTestProgram
 	runTestProgram = defaultRunTestProgram
 	t.Cleanup(func() { runTestProgram = originalRunTestProgram })
 
-	master, slave, err := pty.Open()
-	require.NoError(t, err)
-	t.Cleanup(func() { closePTY(t, master) })
-	t.Cleanup(func() { closePTY(t, slave) })
-
 	rows := uint16(12)
-	require.NoError(t, pty.Setsize(master, &pty.Winsize{Cols: 120, Rows: rows}))
+	session := terminalpty.NewSession(t, terminalpty.WithSize(terminal.Size{Columns: 120, Rows: int(rows)}))
+	require.NotNil(t, session)
 
 	release := make(chan struct{})
 	updatesSent := make(chan struct{})
@@ -317,19 +259,10 @@ func TestTestCommandInteractivePTYRunningSnapshotMediumHeight(t *testing.T) {
 	cmd.Flags().Bool("quiet", false, "")
 	cmd.Flags().Bool("debug", false, "")
 
-	cmd.SetIn(slave)
-	cmd.SetOut(slave)
-	cmd.SetErr(slave)
+	cmd.SetIn(session.Input())
+	cmd.SetOut(session.Output())
+	cmd.SetErr(session.Output())
 	cmd.SetArgs([]string{"1.21.11"})
-
-	output := &lockedBuffer{}
-	readDone := make(chan struct{})
-	readErr := make(chan error, 1)
-	go func() {
-		_, copyErr := io.Copy(output, master)
-		readErr <- copyErr
-		close(readDone)
-	}()
 
 	execErr := make(chan error, 1)
 	go func() {
@@ -342,39 +275,27 @@ func TestTestCommandInteractivePTYRunningSnapshotMediumHeight(t *testing.T) {
 		t.Fatal("timed out waiting for running updates")
 	}
 
-	waitForOutput(t, output, "cmd.test.section.compatibility")
-	snaps.MatchSnapshot(t, normalizePTYSnapshot(output.String(), rows))
+	session.WaitForOutput(t, func(output []byte) bool {
+		return strings.Contains(string(output), "cmd.test.section.compatibility")
+	}, terminalpty.WithWaitDuration(2*time.Second))
+	snaps.MatchSnapshot(t, normalizeTestPTYOutput(session.OutputString(), rows))
 
 	close(release)
-	err = <-execErr
-	require.NoError(t, err)
-	closePTY(t, slave)
-
-	select {
-	case <-readDone:
-	case <-time.After(2 * time.Second):
-		t.Fatal("timed out waiting for PTY output")
-	}
-	require.NoError(t, normalizePTYReadError(<-readErr))
+	execErrValue := <-execErr
+	require.NoError(t, execErrValue)
+	require.NoError(t, session.Close())
 }
 
 func TestTestCommandInteractivePTYRunningScrollsToNotCompatible(t *testing.T) {
-	t.Setenv("MMM_TEST", "true")
-
-	restoreColors := view.SetColorProfileFuncForTesting(func() termenv.Profile { return termenv.Ascii })
-	t.Cleanup(restoreColors)
+	terminal.ApplyFixtures(t)
 
 	originalRunTestProgram := runTestProgram
 	runTestProgram = defaultRunTestProgram
 	t.Cleanup(func() { runTestProgram = originalRunTestProgram })
 
-	master, slave, err := pty.Open()
-	require.NoError(t, err)
-	t.Cleanup(func() { closePTY(t, master) })
-	t.Cleanup(func() { closePTY(t, slave) })
-
 	rows := uint16(6)
-	require.NoError(t, pty.Setsize(master, &pty.Winsize{Cols: 60, Rows: rows}))
+	session := terminalpty.NewSession(t, terminalpty.WithSize(terminal.Size{Columns: 60, Rows: int(rows)}))
+	require.NotNil(t, session)
 
 	release := make(chan struct{})
 	updatesSent := make(chan struct{})
@@ -445,19 +366,10 @@ func TestTestCommandInteractivePTYRunningScrollsToNotCompatible(t *testing.T) {
 	cmd.Flags().Bool("quiet", false, "")
 	cmd.Flags().Bool("debug", false, "")
 
-	cmd.SetIn(slave)
-	cmd.SetOut(slave)
-	cmd.SetErr(slave)
+	cmd.SetIn(session.Input())
+	cmd.SetOut(session.Output())
+	cmd.SetErr(session.Output())
 	cmd.SetArgs([]string{"1.21.11"})
-
-	output := &lockedBuffer{}
-	readDone := make(chan struct{})
-	readErr := make(chan error, 1)
-	go func() {
-		_, copyErr := io.Copy(output, master)
-		readErr <- copyErr
-		close(readDone)
-	}()
 
 	execErr := make(chan error, 1)
 	go func() {
@@ -470,46 +382,41 @@ func TestTestCommandInteractivePTYRunningScrollsToNotCompatible(t *testing.T) {
 		t.Fatal("timed out waiting for running updates")
 	}
 
-	waitForOutput(t, output, "cmd.test.header")
-	waitForOutput(t, output, "cmd.test.section.compatible")
+	session.WaitForOutput(t, func(output []byte) bool {
+		return strings.Contains(string(output), "cmd.test.header")
+	}, terminalpty.WithWaitDuration(2*time.Second))
+	session.WaitForOutput(t, func(output []byte) bool {
+		return strings.Contains(string(output), "cmd.test.section.compatible")
+	}, terminalpty.WithWaitDuration(2*time.Second))
 
-	output.Reset()
-	_, writeErr := master.Write([]byte("\x1b[6~"))
+	_, writeErr := session.SendInput([]byte("\x1b[6~"))
 	require.NoError(t, writeErr)
 
-	waitForOutput(t, output, "cmd.test.section.not_compatible")
-	snaps.MatchSnapshot(t, normalizePTYSnapshot(output.String(), rows))
+	session.WaitForOutput(t, func(output []byte) bool {
+		return strings.Contains(string(output), "cmd.test.section.not_compatible")
+	}, terminalpty.WithWaitDuration(2*time.Second))
+	snaps.MatchSnapshot(t, normalizeTestPTYOutput(session.OutputString(), rows))
 
 	close(release)
-	err = <-execErr
-	require.ErrorIs(t, err, errUnsupportedMods)
-	closePTY(t, slave)
-
-	select {
-	case <-readDone:
-	case <-time.After(2 * time.Second):
-		t.Fatal("timed out waiting for PTY output")
-	}
-	require.NoError(t, normalizePTYReadError(<-readErr))
+	execErrValue := <-execErr
+	require.ErrorIs(t, execErrValue, errUnsupportedMods)
+	require.NoError(t, session.Close())
 }
 
 func TestTestCommandInteractivePTYRunningSnapshotTallHeightFailure(t *testing.T) {
-	t.Setenv("MMM_TEST", "true")
-
-	restoreColors := view.SetColorProfileFuncForTesting(func() termenv.Profile { return termenv.Ascii })
-	t.Cleanup(restoreColors)
+	terminal.ApplyFixtures(t)
 
 	originalRunTestProgram := runTestProgram
 	runTestProgram = defaultRunTestProgram
 	t.Cleanup(func() { runTestProgram = originalRunTestProgram })
 
-	master, slave, err := pty.Open()
-	require.NoError(t, err)
-	t.Cleanup(func() { closePTY(t, master) })
-	t.Cleanup(func() { closePTY(t, slave) })
-
-	rows := uint16(40)
-	require.NoError(t, pty.Setsize(master, &pty.Winsize{Cols: 120, Rows: rows}))
+	rows := tallSnapshotRows()
+	columns := 120
+	if rows == tallSnapshotRows() {
+		columns = 80
+	}
+	session := terminalpty.NewSession(t, terminalpty.WithSize(terminal.Size{Columns: columns, Rows: int(rows)}))
+	require.NotNil(t, session)
 
 	release := make(chan struct{})
 	updatesSent := make(chan struct{})
@@ -572,19 +479,10 @@ func TestTestCommandInteractivePTYRunningSnapshotTallHeightFailure(t *testing.T)
 	cmd.Flags().Bool("quiet", false, "")
 	cmd.Flags().Bool("debug", false, "")
 
-	cmd.SetIn(slave)
-	cmd.SetOut(slave)
-	cmd.SetErr(slave)
+	cmd.SetIn(session.Input())
+	cmd.SetOut(session.Output())
+	cmd.SetErr(session.Output())
 	cmd.SetArgs([]string{"1.21.11"})
-
-	output := &lockedBuffer{}
-	readDone := make(chan struct{})
-	readErr := make(chan error, 1)
-	go func() {
-		_, copyErr := io.Copy(output, master)
-		readErr <- copyErr
-		close(readDone)
-	}()
 
 	execErr := make(chan error, 1)
 	go func() {
@@ -597,39 +495,27 @@ func TestTestCommandInteractivePTYRunningSnapshotTallHeightFailure(t *testing.T)
 		t.Fatal("timed out waiting for running updates")
 	}
 
-	waitForOutput(t, output, "cmd.test.section.not_compatible")
-	snaps.MatchSnapshot(t, normalizePTYSnapshot(output.String(), rows))
+	session.WaitForOutput(t, func(output []byte) bool {
+		return strings.Contains(string(output), "cmd.test.section.not_compatible")
+	}, terminalpty.WithWaitDuration(2*time.Second))
+	snaps.MatchSnapshot(t, normalizeTestPTYOutput(session.OutputString(), rows))
 
 	close(release)
-	err = <-execErr
-	require.ErrorIs(t, err, errUnsupportedMods)
-	closePTY(t, slave)
-
-	select {
-	case <-readDone:
-	case <-time.After(2 * time.Second):
-		t.Fatal("timed out waiting for PTY output")
-	}
-	require.NoError(t, normalizePTYReadError(<-readErr))
+	execErrValue := <-execErr
+	require.ErrorIs(t, execErrValue, errUnsupportedMods)
+	require.NoError(t, session.Close())
 }
 
 func TestTestCommandInteractivePTYRunningMouseScrollsToNotCompatible(t *testing.T) {
-	t.Setenv("MMM_TEST", "true")
-
-	restoreColors := view.SetColorProfileFuncForTesting(func() termenv.Profile { return termenv.Ascii })
-	t.Cleanup(restoreColors)
+	terminal.ApplyFixtures(t)
 
 	originalRunTestProgram := runTestProgram
 	runTestProgram = defaultRunTestProgram
 	t.Cleanup(func() { runTestProgram = originalRunTestProgram })
 
-	master, slave, err := pty.Open()
-	require.NoError(t, err)
-	t.Cleanup(func() { closePTY(t, master) })
-	t.Cleanup(func() { closePTY(t, slave) })
-
-	rows := uint16(6)
-	require.NoError(t, pty.Setsize(master, &pty.Winsize{Cols: 60, Rows: rows}))
+	rows := uint16(25)
+	session := terminalpty.NewSession(t, terminalpty.WithSize(terminal.Size{Columns: 60, Rows: int(rows)}))
+	require.NotNil(t, session)
 
 	release := make(chan struct{})
 	updatesSent := make(chan struct{})
@@ -700,19 +586,10 @@ func TestTestCommandInteractivePTYRunningMouseScrollsToNotCompatible(t *testing.
 	cmd.Flags().Bool("quiet", false, "")
 	cmd.Flags().Bool("debug", false, "")
 
-	cmd.SetIn(slave)
-	cmd.SetOut(slave)
-	cmd.SetErr(slave)
+	cmd.SetIn(session.Input())
+	cmd.SetOut(session.Output())
+	cmd.SetErr(session.Output())
 	cmd.SetArgs([]string{"1.21.11"})
-
-	output := &lockedBuffer{}
-	readDone := make(chan struct{})
-	readErr := make(chan error, 1)
-	go func() {
-		_, copyErr := io.Copy(output, master)
-		readErr <- copyErr
-		close(readDone)
-	}()
 
 	execErr := make(chan error, 1)
 	go func() {
@@ -725,48 +602,39 @@ func TestTestCommandInteractivePTYRunningMouseScrollsToNotCompatible(t *testing.
 		t.Fatal("timed out waiting for running updates")
 	}
 
-	waitForOutput(t, output, "cmd.test.header")
-	waitForOutput(t, output, "cmd.test.section.compatible")
+	session.WaitForOutput(t, func(output []byte) bool {
+		return strings.Contains(string(output), "cmd.test.header")
+	}, terminalpty.WithWaitDuration(2*time.Second))
+	session.WaitForOutput(t, func(output []byte) bool {
+		return strings.Contains(string(output), "cmd.test.section.compatible")
+	}, terminalpty.WithWaitDuration(2*time.Second))
 
-	output.Reset()
-	for i := 0; i < 3; i++ {
-		_, writeErr := master.Write([]byte("\x1b[<65;1;1M"))
+	for scrollStep := 0; scrollStep < 3; scrollStep++ {
+		_, writeErr := session.SendInput([]byte("\x1b[<65;1;1M"))
 		require.NoError(t, writeErr)
 	}
 
-	waitForOutput(t, output, "cmd.test.section.not_compatible")
-	snaps.MatchSnapshot(t, normalizePTYSnapshot(output.String(), rows))
+	session.WaitForOutput(t, func(output []byte) bool {
+		return strings.Contains(string(output), "cmd.test.section.not_compatible")
+	}, terminalpty.WithWaitDuration(2*time.Second))
+	snaps.MatchSnapshot(t, normalizeTestPTYOutput(session.OutputString(), rows))
 
 	close(release)
-	err = <-execErr
-	require.ErrorIs(t, err, errUnsupportedMods)
-	closePTY(t, slave)
-
-	select {
-	case <-readDone:
-	case <-time.After(2 * time.Second):
-		t.Fatal("timed out waiting for PTY output")
-	}
-	require.NoError(t, normalizePTYReadError(<-readErr))
+	execErrValue := <-execErr
+	require.ErrorIs(t, execErrValue, errUnsupportedMods)
+	require.NoError(t, session.Close())
 }
 
 func TestTestCommandInteractivePTYFinalTranscriptSuccessShortHeight(t *testing.T) {
-	t.Setenv("MMM_TEST", "true")
-
-	restoreColors := view.SetColorProfileFuncForTesting(func() termenv.Profile { return termenv.Ascii })
-	t.Cleanup(restoreColors)
+	terminal.ApplyFixtures(t)
 
 	originalRunTestProgram := runTestProgram
 	runTestProgram = defaultRunTestProgram
 	t.Cleanup(func() { runTestProgram = originalRunTestProgram })
 
-	master, slave, err := pty.Open()
-	require.NoError(t, err)
-	t.Cleanup(func() { closePTY(t, master) })
-	t.Cleanup(func() { closePTY(t, slave) })
-
 	rows := uint16(6)
-	require.NoError(t, pty.Setsize(master, &pty.Winsize{Cols: 120, Rows: rows}))
+	session := terminalpty.NewSession(t, terminalpty.WithSize(terminal.Size{Columns: 120, Rows: int(rows)}))
+	require.NotNil(t, session)
 
 	release := make(chan struct{})
 	updatesSent := make(chan struct{})
@@ -826,19 +694,10 @@ func TestTestCommandInteractivePTYFinalTranscriptSuccessShortHeight(t *testing.T
 	cmd.Flags().Bool("quiet", false, "")
 	cmd.Flags().Bool("debug", false, "")
 
-	cmd.SetIn(slave)
-	cmd.SetOut(slave)
-	cmd.SetErr(slave)
+	cmd.SetIn(session.Input())
+	cmd.SetOut(session.Output())
+	cmd.SetErr(session.Output())
 	cmd.SetArgs([]string{"1.21.11"})
-
-	output := &lockedBuffer{}
-	readDone := make(chan struct{})
-	readErr := make(chan error, 1)
-	go func() {
-		_, copyErr := io.Copy(output, master)
-		readErr <- copyErr
-		close(readDone)
-	}()
 
 	execErr := make(chan error, 1)
 	go func() {
@@ -852,37 +711,23 @@ func TestTestCommandInteractivePTYFinalTranscriptSuccessShortHeight(t *testing.T
 	}
 
 	close(release)
-	err = <-execErr
-	require.NoError(t, err)
-	closePTY(t, slave)
+	execErrValue := <-execErr
+	require.NoError(t, execErrValue)
+	require.NoError(t, session.Close())
 
-	select {
-	case <-readDone:
-	case <-time.After(2 * time.Second):
-		t.Fatal("timed out waiting for PTY output")
-	}
-	require.NoError(t, normalizePTYReadError(<-readErr))
-
-	snaps.MatchSnapshot(t, normalizePTYSnapshot(output.String(), rows))
+	snaps.MatchSnapshot(t, normalizeTestPTYOutput(session.OutputString(), rows))
 }
 
 func TestTestCommandInteractivePTYFinalTranscriptIncludesSummaryAfterScroll(t *testing.T) {
-	t.Setenv("MMM_TEST", "true")
-
-	restoreColors := view.SetColorProfileFuncForTesting(func() termenv.Profile { return termenv.Ascii })
-	t.Cleanup(restoreColors)
+	terminal.ApplyFixtures(t)
 
 	originalRunTestProgram := runTestProgram
 	runTestProgram = defaultRunTestProgram
 	t.Cleanup(func() { runTestProgram = originalRunTestProgram })
 
-	master, slave, err := pty.Open()
-	require.NoError(t, err)
-	t.Cleanup(func() { closePTY(t, master) })
-	t.Cleanup(func() { closePTY(t, slave) })
-
 	rows := uint16(6)
-	require.NoError(t, pty.Setsize(master, &pty.Winsize{Cols: 60, Rows: rows}))
+	session := terminalpty.NewSession(t, terminalpty.WithSize(terminal.Size{Columns: 60, Rows: int(rows)}))
+	require.NotNil(t, session)
 
 	release := make(chan struct{})
 	updatesSent := make(chan struct{})
@@ -953,19 +798,10 @@ func TestTestCommandInteractivePTYFinalTranscriptIncludesSummaryAfterScroll(t *t
 	cmd.Flags().Bool("quiet", false, "")
 	cmd.Flags().Bool("debug", false, "")
 
-	cmd.SetIn(slave)
-	cmd.SetOut(slave)
-	cmd.SetErr(slave)
+	cmd.SetIn(session.Input())
+	cmd.SetOut(session.Output())
+	cmd.SetErr(session.Output())
 	cmd.SetArgs([]string{"1.21.11"})
-
-	output := &lockedBuffer{}
-	readDone := make(chan struct{})
-	readErr := make(chan error, 1)
-	go func() {
-		_, copyErr := io.Copy(output, master)
-		readErr <- copyErr
-		close(readDone)
-	}()
 
 	execErr := make(chan error, 1)
 	go func() {
@@ -978,45 +814,33 @@ func TestTestCommandInteractivePTYFinalTranscriptIncludesSummaryAfterScroll(t *t
 		t.Fatal("timed out waiting for running updates")
 	}
 
-	waitForOutput(t, output, "cmd.test.section.compatible")
+	session.WaitForOutput(t, func(output []byte) bool {
+		return strings.Contains(string(output), "cmd.test.section.compatible")
+	}, terminalpty.WithWaitDuration(2*time.Second))
 
-	for i := 0; i < 3; i++ {
-		_, writeErr := master.Write([]byte("\x1b[<65;1;1M"))
+	for scrollStep := 0; scrollStep < 3; scrollStep++ {
+		_, writeErr := session.SendInput([]byte("\x1b[<65;1;1M"))
 		require.NoError(t, writeErr)
 	}
 
 	close(release)
-	err = <-execErr
-	require.ErrorIs(t, err, errUnsupportedMods)
-	closePTY(t, slave)
+	execErrValue := <-execErr
+	require.ErrorIs(t, execErrValue, errUnsupportedMods)
+	require.NoError(t, session.Close())
 
-	select {
-	case <-readDone:
-	case <-time.After(2 * time.Second):
-		t.Fatal("timed out waiting for PTY output")
-	}
-	require.NoError(t, normalizePTYReadError(<-readErr))
-
-	snaps.MatchSnapshot(t, normalizePTYSnapshot(output.String(), rows))
+	snaps.MatchSnapshot(t, normalizeTestPTYOutput(session.OutputString(), rows))
 }
 
 func TestTestCommandInteractivePTYFinalTranscriptInconclusiveMediumHeight(t *testing.T) {
-	t.Setenv("MMM_TEST", "true")
-
-	restoreColors := view.SetColorProfileFuncForTesting(func() termenv.Profile { return termenv.Ascii })
-	t.Cleanup(restoreColors)
+	terminal.ApplyFixtures(t)
 
 	originalRunTestProgram := runTestProgram
 	runTestProgram = defaultRunTestProgram
 	t.Cleanup(func() { runTestProgram = originalRunTestProgram })
 
-	master, slave, err := pty.Open()
-	require.NoError(t, err)
-	t.Cleanup(func() { closePTY(t, master) })
-	t.Cleanup(func() { closePTY(t, slave) })
-
 	rows := uint16(12)
-	require.NoError(t, pty.Setsize(master, &pty.Winsize{Cols: 120, Rows: rows}))
+	session := terminalpty.NewSession(t, terminalpty.WithSize(terminal.Size{Columns: 120, Rows: int(rows)}))
+	require.NotNil(t, session)
 
 	release := make(chan struct{})
 	updatesSent := make(chan struct{})
@@ -1077,19 +901,10 @@ func TestTestCommandInteractivePTYFinalTranscriptInconclusiveMediumHeight(t *tes
 	cmd.Flags().Bool("quiet", false, "")
 	cmd.Flags().Bool("debug", false, "")
 
-	cmd.SetIn(slave)
-	cmd.SetOut(slave)
-	cmd.SetErr(slave)
+	cmd.SetIn(session.Input())
+	cmd.SetOut(session.Output())
+	cmd.SetErr(session.Output())
 	cmd.SetArgs([]string{"1.21.11"})
-
-	output := &lockedBuffer{}
-	readDone := make(chan struct{})
-	readErr := make(chan error, 1)
-	go func() {
-		_, copyErr := io.Copy(output, master)
-		readErr <- copyErr
-		close(readDone)
-	}()
 
 	execErr := make(chan error, 1)
 	go func() {
@@ -1103,37 +918,23 @@ func TestTestCommandInteractivePTYFinalTranscriptInconclusiveMediumHeight(t *tes
 	}
 
 	close(release)
-	err = <-execErr
-	require.ErrorIs(t, err, errUnsupportedMods)
-	closePTY(t, slave)
+	execErrValue := <-execErr
+	require.ErrorIs(t, execErrValue, errUnsupportedMods)
+	require.NoError(t, session.Close())
 
-	select {
-	case <-readDone:
-	case <-time.After(2 * time.Second):
-		t.Fatal("timed out waiting for PTY output")
-	}
-	require.NoError(t, normalizePTYReadError(<-readErr))
-
-	snaps.MatchSnapshot(t, normalizePTYSnapshot(output.String(), rows))
+	snaps.MatchSnapshot(t, normalizeTestPTYOutput(session.OutputString(), rows))
 }
 
 func TestTestCommandInteractivePTYFinalTranscriptIncludesSummaryWithoutScroll(t *testing.T) {
-	t.Setenv("MMM_TEST", "true")
-
-	restoreColors := view.SetColorProfileFuncForTesting(func() termenv.Profile { return termenv.Ascii })
-	t.Cleanup(restoreColors)
+	terminal.ApplyFixtures(t)
 
 	originalRunTestProgram := runTestProgram
 	runTestProgram = defaultRunTestProgram
 	t.Cleanup(func() { runTestProgram = originalRunTestProgram })
 
-	master, slave, err := pty.Open()
-	require.NoError(t, err)
-	t.Cleanup(func() { closePTY(t, master) })
-	t.Cleanup(func() { closePTY(t, slave) })
-
 	rows := uint16(6)
-	require.NoError(t, pty.Setsize(master, &pty.Winsize{Cols: 60, Rows: rows}))
+	session := terminalpty.NewSession(t, terminalpty.WithSize(terminal.Size{Columns: 60, Rows: int(rows)}))
+	require.NotNil(t, session)
 
 	release := make(chan struct{})
 	updatesSent := make(chan struct{})
@@ -1204,19 +1005,10 @@ func TestTestCommandInteractivePTYFinalTranscriptIncludesSummaryWithoutScroll(t 
 	cmd.Flags().Bool("quiet", false, "")
 	cmd.Flags().Bool("debug", false, "")
 
-	cmd.SetIn(slave)
-	cmd.SetOut(slave)
-	cmd.SetErr(slave)
+	cmd.SetIn(session.Input())
+	cmd.SetOut(session.Output())
+	cmd.SetErr(session.Output())
 	cmd.SetArgs([]string{"1.21.11"})
-
-	output := &lockedBuffer{}
-	readDone := make(chan struct{})
-	readErr := make(chan error, 1)
-	go func() {
-		_, copyErr := io.Copy(output, master)
-		readErr <- copyErr
-		close(readDone)
-	}()
 
 	execErr := make(chan error, 1)
 	go func() {
@@ -1230,85 +1022,30 @@ func TestTestCommandInteractivePTYFinalTranscriptIncludesSummaryWithoutScroll(t 
 	}
 
 	close(release)
-	err = <-execErr
-	require.ErrorIs(t, err, errUnsupportedMods)
-	closePTY(t, slave)
+	execErrValue := <-execErr
+	require.ErrorIs(t, execErrValue, errUnsupportedMods)
+	require.NoError(t, session.Close())
 
-	select {
-	case <-readDone:
-	case <-time.After(2 * time.Second):
-		t.Fatal("timed out waiting for PTY output")
+	snaps.MatchSnapshot(t, normalizeTestPTYOutput(session.OutputString(), rows))
+}
+
+func normalizeTestPTYOutput(output string, rows uint16) string {
+	trimmed := trimToLastTestFrame(output)
+	return terminal.NormalizeOutput(trimmed, terminal.NormalizeOptions{
+		StripControlSequences:  true,
+		TrimTrailingWhitespace: true,
+		TrimTrailingEmptyLines: true,
+		TrimSpace:              true,
+		RowLimit:               int(rows),
+		PadRows:                true,
+	})
+}
+
+func tallSnapshotRows() uint16 {
+	if runtime.GOOS == "windows" {
+		return 40
 	}
-	require.NoError(t, normalizePTYReadError(<-readErr))
-
-	snaps.MatchSnapshot(t, normalizePTYSnapshot(output.String(), rows))
-}
-
-func waitForOutput(t *testing.T, output *lockedBuffer, needle string) {
-	t.Helper()
-
-	deadline := time.Now().Add(2 * time.Second)
-	for time.Now().Before(deadline) {
-		normalized := stripControlSequences(output.String())
-		if strings.Contains(normalized, needle) {
-			return
-		}
-		time.Sleep(25 * time.Millisecond)
-	}
-	t.Fatalf("timed out waiting for output to contain %q", needle)
-}
-
-type lockedBuffer struct {
-	mu  sync.Mutex
-	buf bytes.Buffer
-}
-
-func (buffer *lockedBuffer) Write(p []byte) (int, error) {
-	buffer.mu.Lock()
-	defer buffer.mu.Unlock()
-	return buffer.buf.Write(p)
-}
-
-func (buffer *lockedBuffer) String() string {
-	buffer.mu.Lock()
-	defer buffer.mu.Unlock()
-	return buffer.buf.String()
-}
-
-func (buffer *lockedBuffer) Reset() {
-	buffer.mu.Lock()
-	defer buffer.mu.Unlock()
-	buffer.buf.Reset()
-}
-
-func stripControlSequences(value string) string {
-	value = strings.ReplaceAll(value, "\r\n", "\n")
-	value = strings.ReplaceAll(value, "\r", "\n")
-
-	value = stripOSCSequences(value)
-	value = stripCSISequences(value)
-
-	return value
-}
-
-func normalizePTYSnapshot(value string, rows uint16) string {
-	normalized := stripControlSequences(value)
-	normalized = trimToLastTestFrame(normalized)
-	lines := strings.Split(normalized, "\n")
-	for index, line := range lines {
-		lines[index] = strings.TrimRight(line, " \t")
-	}
-	lines = trimTrailingEmptyLines(lines)
-	if rows > 0 {
-		target := int(rows)
-		if len(lines) > target {
-			lines = lines[len(lines)-target:]
-		} else if len(lines) < target {
-			padding := make([]string, target-len(lines))
-			lines = append(lines, padding...)
-		}
-	}
-	return strings.TrimSpace(strings.Join(lines, "\n"))
+	return 80
 }
 
 func trimToLastTestFrame(value string) string {
@@ -1318,16 +1055,6 @@ func trimToLastTestFrame(value string) string {
 		return value
 	}
 	return value[index:]
-}
-
-func trimTrailingEmptyLines(lines []string) []string {
-	for len(lines) > 0 {
-		if strings.TrimSpace(lines[len(lines)-1]) != "" {
-			return lines
-		}
-		lines = lines[:len(lines)-1]
-	}
-	return lines
 }
 
 func finalizePTYRun(cmd *cobra.Command, result tea.Model) (testExecutionOutcome, error) {
@@ -1342,32 +1069,4 @@ func finalizePTYRun(cmd *cobra.Command, result tea.Model) (testExecutionOutcome,
 		return model.outcome, model.outcome.err
 	}
 	return model.outcome, nil
-}
-
-func closePTY(t *testing.T, file *os.File) {
-	if file == nil {
-		return
-	}
-	if err := file.Close(); err != nil && !errors.Is(err, os.ErrClosed) {
-		require.NoError(t, err)
-	}
-}
-
-func normalizePTYReadError(err error) error {
-	if err == nil || errors.Is(err, os.ErrClosed) || errors.Is(err, syscall.EIO) {
-		return nil
-	}
-	return err
-}
-
-var oscSequence = regexp.MustCompile(`\x1b\][^\x07]*(\x07|\x1b\\)`)
-
-func stripOSCSequences(value string) string {
-	return oscSequence.ReplaceAllString(value, "")
-}
-
-var csiSequence = regexp.MustCompile(`\x1b\[[0-9;?]*[ -/]*[@-~]`)
-
-func stripCSISequences(value string) string {
-	return csiSequence.ReplaceAllString(value, "")
 }

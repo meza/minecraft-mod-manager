@@ -1,46 +1,28 @@
-//go:build !windows
-
 package remove
 
 import (
-	"bytes"
 	"context"
-	"errors"
-	"io"
-	"os"
 	"path/filepath"
-	"regexp"
-	"strings"
-	"syscall"
 	"testing"
-	"time"
 
-	"github.com/creack/pty"
-	"github.com/muesli/termenv"
 	"github.com/spf13/afero"
 	"github.com/stretchr/testify/require"
 
 	"github.com/meza/minecraft-mod-manager/internal/config"
 	"github.com/meza/minecraft-mod-manager/internal/models"
-	"github.com/meza/minecraft-mod-manager/internal/view"
+	"github.com/meza/minecraft-mod-manager/testutil/terminal"
+	terminalpty "github.com/meza/minecraft-mod-manager/testutil/terminal/pty"
 )
 
 func TestRemoveCommandInteractivePTYIncludesSummary(t *testing.T) {
-	t.Setenv("MMM_TEST", "true")
-
-	restoreColors := view.SetColorProfileFuncForTesting(func() termenv.Profile { return termenv.Ascii })
-	t.Cleanup(restoreColors)
+	terminal.ApplyFixtures(t)
 
 	originalRunRemoveProgram := runRemoveProgram
 	runRemoveProgram = defaultRunRemoveProgram
 	t.Cleanup(func() { runRemoveProgram = originalRunRemoveProgram })
 
-	master, slave, err := pty.Open()
-	require.NoError(t, err)
-	t.Cleanup(func() { closePTY(t, master) })
-	t.Cleanup(func() { closePTY(t, slave) })
-
-	require.NoError(t, pty.Setsize(master, &pty.Winsize{Cols: 120, Rows: 40}))
+	session := terminalpty.NewSession(t, terminalpty.WithSize(terminal.Size{Columns: 120, Rows: 40}))
+	require.NotNil(t, session)
 
 	tempDir := t.TempDir()
 	configPath := filepath.Join(tempDir, "modlist.json")
@@ -67,69 +49,15 @@ func TestRemoveCommandInteractivePTYIncludesSummary(t *testing.T) {
 
 	cmd := Command()
 	addPersistentFlagsForTesting(cmd)
-	cmd.SetIn(slave)
-	cmd.SetOut(slave)
-	cmd.SetErr(slave)
+	cmd.SetIn(session.Input())
+	cmd.SetOut(session.Output())
+	cmd.SetErr(session.Output())
 	cmd.SetArgs([]string{"--config", configPath, "mod-a"})
-
-	var output bytes.Buffer
-	readDone := make(chan struct{})
-	readErr := make(chan error, 1)
-	go func() {
-		_, copyErr := io.Copy(&output, master)
-		readErr <- copyErr
-		close(readDone)
-	}()
 
 	execErr := cmd.Execute()
 	require.NoError(t, execErr)
-	closePTY(t, slave)
+	require.NoError(t, session.Close())
 
-	select {
-	case <-readDone:
-	case <-time.After(2 * time.Second):
-		t.Fatal("timed out waiting for PTY output")
-	}
-	require.NoError(t, normalizePTYReadError(<-readErr))
-
-	normalized := stripControlSequences(output.String())
+	normalized := terminal.NormalizeOutput(session.OutputString(), terminal.NormalizeOptions{StripControlSequences: true})
 	require.Contains(t, normalized, "cmd.remove.summary.success")
-}
-
-func stripControlSequences(value string) string {
-	value = strings.ReplaceAll(value, "\r\n", "\n")
-	value = strings.ReplaceAll(value, "\r", "\n")
-
-	value = stripOSCSequences(value)
-	value = stripCSISequences(value)
-
-	return value
-}
-
-func closePTY(t *testing.T, file *os.File) {
-	if file == nil {
-		return
-	}
-	if err := file.Close(); err != nil && !errors.Is(err, os.ErrClosed) {
-		require.NoError(t, err)
-	}
-}
-
-func normalizePTYReadError(err error) error {
-	if err == nil || errors.Is(err, syscall.EIO) {
-		return nil
-	}
-	return err
-}
-
-var oscSequence = regexp.MustCompile(`\x1b\][^\x07]*(\x07|\x1b\\)`)
-
-func stripOSCSequences(value string) string {
-	return oscSequence.ReplaceAllString(value, "")
-}
-
-var csiSequence = regexp.MustCompile(`\x1b\[[0-9;?]*[ -/]*[@-~]`)
-
-func stripCSISequences(value string) string {
-	return csiSequence.ReplaceAllString(value, "")
 }
