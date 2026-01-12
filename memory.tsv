@@ -404,3 +404,5 @@ date	time	entry
 2026-01-12	00:25	mmm-164: reverted unapproved update doc edits; install now accepts program options via context and update runs install in alt-screen for tty to avoid scrollback; added install program-options tests; reran local checks and Windows verification.
 2026-01-12	01:00	mmm-164: doc approval applied; restored update flow/spec header mention; reran local checks and Windows verification.
 2026-01-12	01:10	mmm-164 closed in beads per user request.
+2026-01-12	01:17	mmm-167: replaced TUI phrasing with execution-mode language in CONTRIBUTING.md, interaction-guidelines.md, flows/add.md, tty_capture_q.exp (ignored black-box-discovery and bubbletea-non-tty-fallback per user).
+2026-01-12	01:19	mmm-167: aligned terminology with interaction-guidelines (tui-lite, interactive terminal, non-interactive terminal) in CONTRIBUTING.md, interaction-guidelines.md, flows/add.md, tty_capture_q.exp.

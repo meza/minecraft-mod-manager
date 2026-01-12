@@ -72,13 +72,13 @@ We treat automated tests as the primary contract for behavior and user experienc
   not stub core behavior to "make coverage green".
 - Snapshot tests are the primary guardrail against UX regressions (hard requirement):
   - All user-facing behavior paths MUST be covered by snapshot tests. If a user can observe a difference, it needs a snapshot.
-  - For any user-visible output (TUI or non-TUI), add snapshot coverage of the rendered output.
-  - If it has an interface (a TUI screen/view/prompt/menu/table), it MUST have snapshot tests that cover all branches and states of
+  - For any user-visible output (interactive terminal (tui-lite) or non-interactive terminal), add snapshot coverage of the rendered output.
+  - If it has an interface (a tui-lite screen/view/prompt/menu/table), it MUST have snapshot tests that cover all branches and states of
     the UI.
   - "All branches and states" includes (at minimum): success, empty/no results, loading, validation errors, recoverable errors,
     fatal errors, and any conditional rendering (for example: selected vs unselected, focused vs unfocused, enabled vs disabled,
     expanded vs collapsed, pagination).
-  - When possible, drive TUIs with `teatest` and snapshot the output/view so we catch regressions in interaction and presentation.
+  - When possible, drive tui-lite flows with `teatest` and snapshot the output/view so we catch regressions in interaction and presentation.
   - Update snapshots only when the user-visible behavior is intentionally changed.
 - Every user-facing behavior change must be backed by at least one automated test that would fail if the behavior regressed.
 

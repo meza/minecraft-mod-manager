@@ -50,7 +50,7 @@ States:
 
 #### ADD-01 Platform selection list (waiting for input)
 
-With bubbletea tui-lite platform selector.
+With a Bubble Tea tui-lite platform selector.
 
 ##### Command used
 
@@ -67,7 +67,7 @@ This frame is only reachable from error recovery flows.
 
 #### ADD-02 Platform selected -> id prompt
 
-With bubbletea tui-lite input field
+With a Bubble Tea tui-lite input field.
 
 ##### Command used
 No command, this state is not reachable from the CLI currently.
@@ -82,7 +82,7 @@ tab complete • enter accept • ctrl+c/esc quit
 
 #### ADD-03 Success
 
-With bubbletea tui-lite mod progress display.
+With a Bubble Tea tui-lite mod progress display.
 
 ##### Command used
 This frame can be reached directly from the CLI.

@@ -34,7 +34,7 @@ set timed_out 0
 set exited 0
 after [expr {int($seconds) * 1000}] { set done 1 ; set timed_out 1 }
 
-# Best effort quit for TUI list style screens.
+# Best effort quit for tui-lite list style screens.
 after 700 { catch {send -- "q"} }
 
 while {!$done} {
