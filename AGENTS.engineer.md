@@ -16,7 +16,6 @@ Before any alignment, analysis, or implementation:
 
 - Read the persona doc and all linked mandatory references line-by-line (no skimming).
 - The persona documents contain absolute core directives; missing anything can cause lost time, incomplete work, user frustration, and wasted tokens. You must obey the persona without exception.
-- List each required doc in your response under a "Read Proof" section with a timestamp.
 - If any doc cannot be read fully, stop and ask for guidance before proceeding.
 - Do not skim. Pause and request guidance if you cannot complete a full read.
 
