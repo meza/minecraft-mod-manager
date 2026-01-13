@@ -145,8 +145,21 @@ func runUpdatePTYRunningSnapshotWithItems(t *testing.T, rows uint16, items []upd
 		t.Fatal("timed out waiting for running updates")
 	}
 
+	lastUpdatingName := ""
+	for index := len(items) - 1; index >= 0; index-- {
+		if !isTerminalUpdateStatus(items[index].Status) {
+			lastUpdatingName = items[index].DisplayName
+			break
+		}
+	}
+	if lastUpdatingName == "" {
+		lastUpdatingName = items[len(items)-1].DisplayName
+	}
 	session.WaitForOutput(t, func(output []byte) bool {
-		return strings.Contains(string(output), "(mod-")
+		normalized := terminal.NormalizeOutput(string(output), terminal.NormalizeOptions{
+			StripControlSequences: true,
+		})
+		return strings.Contains(normalized, lastUpdatingName)
 	}, terminalpty.WithWaitDuration(2*time.Second))
 
 	snaps.MatchSnapshot(t, terminal.NormalizeOutput(session.OutputString(), terminal.NormalizeOptions{
@@ -238,7 +251,15 @@ func runUpdatePTYFinalSnapshotWithItems(t *testing.T, rows uint16, items []updat
 		colorMode: view.ColorDisabled,
 	})
 
-	require.NoError(t, session.Close())
+	summaryKey := summaryLineKey(expectedTranscript)
+	if summaryKey != "" {
+		session.WaitForOutput(t, func(output []byte) bool {
+			normalized := terminal.NormalizeOutput(string(output), terminal.NormalizeOptions{
+				StripControlSequences: true,
+			})
+			return strings.Contains(normalized, summaryKey)
+		}, terminalpty.WithWaitDuration(2*time.Second))
+	}
 	transcript, err := extractPTYTranscriptSnapshot(session.OutputString(), expectedTranscript)
 	require.NoError(t, err)
 	snaps.MatchSnapshot(t, transcript)

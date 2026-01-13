@@ -2,7 +2,9 @@ package change
 
 import (
 	"context"
+	"strings"
 	"testing"
+	"time"
 
 	"github.com/spf13/cobra"
 	"github.com/stretchr/testify/require"
@@ -100,7 +102,9 @@ func TestChangeCommandInteractivePTYOutput(t *testing.T) {
 
 	execErr := cmd.Execute()
 	require.NoError(t, execErr)
-	require.NoError(t, session.Close())
+	session.WaitForOutputAndClose(t, func(output []byte) bool {
+		return strings.Contains(string(output), "cmd.change.header")
+	}, terminalpty.WithWaitDuration(2*time.Second))
 
 	normalized := terminal.NormalizeOutput(session.OutputString(), terminal.NormalizeOptions{StripControlSequences: true})
 

@@ -105,6 +105,8 @@ Terminal interaction docs:
 
 Run the repo `make` targets (do not call go test/go build directly):
 
+If you need to record HTTP cassettes for scenario tests, use `make vcr-record`.
+See `docs/testing/http-vcr.md` for the workflow and cassette conventions.
 
 ### Optional checks
 

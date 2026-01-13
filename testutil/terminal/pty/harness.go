@@ -254,6 +254,17 @@ func (session *Session) WaitForOutput(test testing.TB, predicate func([]byte) bo
 	charmteatest.WaitFor(test, session.OutputReader(), predicate, waitForOptions...)
 }
 
+// WaitForOutputAndClose waits until the output satisfies the predicate, then closes the session.
+func (session *Session) WaitForOutputAndClose(test testing.TB, predicate func([]byte) bool, options ...WaitOption) {
+	if session == nil || test == nil {
+		return
+	}
+	session.WaitForOutput(test, predicate, options...)
+	if closeErr := session.Close(); closeErr != nil {
+		cleanupErrorHandler(test, closeErr)
+	}
+}
+
 // Close shuts down the PTY and waits for output capture.
 func (session *Session) Close() error {
 	if session == nil {

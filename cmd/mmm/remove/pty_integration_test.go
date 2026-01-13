@@ -3,7 +3,9 @@ package remove
 import (
 	"context"
 	"path/filepath"
+	"strings"
 	"testing"
+	"time"
 
 	"github.com/spf13/afero"
 	"github.com/stretchr/testify/require"
@@ -56,7 +58,9 @@ func TestRemoveCommandInteractivePTYIncludesSummary(t *testing.T) {
 
 	execErr := cmd.Execute()
 	require.NoError(t, execErr)
-	require.NoError(t, session.Close())
+	session.WaitForOutputAndClose(t, func(output []byte) bool {
+		return strings.Contains(string(output), "cmd.remove.summary.success")
+	}, terminalpty.WithWaitDuration(2*time.Second))
 
 	normalized := terminal.NormalizeOutput(session.OutputString(), terminal.NormalizeOptions{StripControlSequences: true})
 	require.Contains(t, normalized, "cmd.remove.summary.success")

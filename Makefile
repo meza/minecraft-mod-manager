@@ -8,6 +8,7 @@ METADATA_DIR := $(BUILD_DIR)/metadata
 NOTICES_FILE := $(METADATA_DIR)/THIRD_PARTY_NOTICES.txt
 SBOM_FILE := $(METADATA_DIR)/mmm-sbom.json
 VERSION ?= dev
+TEST ?= ./...
 GOLANGCI_LINT_TOOLCHAIN := go1.25.5
 GOVULNCHECK_TOOLCHAIN := go1.25.5
 
@@ -57,7 +58,7 @@ endef
 endif
 
 # Targets
-.PHONY: all clean fmt fmt-check lint lint-fix vuln build dist prepare test test-race coverage mod-download notices sbom
+.PHONY: all clean fmt fmt-check lint lint-fix vuln build dist prepare test test-race coverage mod-download notices sbom vcr-record e2e
 
 # Build for all platforms
 all: clean build
@@ -137,6 +138,12 @@ prepare:
 
 test:
 	go test ./...
+
+vcr-record:
+	MMM_RECORD_HTTP=1 go test -count=1 $(TEST)
+
+e2e:
+	go test $(TEST)
 
 test-race:
 	go test -race ./...

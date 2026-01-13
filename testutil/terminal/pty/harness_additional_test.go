@@ -176,6 +176,7 @@ func TestSessionNilGuards(t *testing.T) {
 	require.Nil(t, session.Slave())
 
 	session.WaitForOutput(t, func(_ []byte) bool { return true })
+	session.WaitForOutputAndClose(t, func(_ []byte) bool { return true })
 	require.NoError(t, session.Close())
 }
 
@@ -322,4 +323,37 @@ func TestWaitForIntervalOption(t *testing.T) {
 
 	session.WaitForOutput(t, func(_ []byte) bool { return true }, WithWaitInterval(time.Millisecond))
 	require.NoError(t, session.Close())
+}
+
+func TestWaitForOutputAndClose(t *testing.T) {
+	terminal.ApplyFixtures(t)
+
+	session := NewSession(t, WithSize(terminal.Size{Columns: 80, Rows: 25}))
+	require.NotNil(t, session)
+
+	session.WaitForOutputAndClose(t, func(_ []byte) bool { return true })
+	require.NoError(t, session.Close())
+}
+
+func TestWaitForOutputAndCloseReportsCloseError(t *testing.T) {
+	session := &Session{
+		outputReader: terminal.NewSnapshotReader(func() []byte { return []byte("ready") }),
+		readDone:     make(chan struct{}),
+		readError:    make(chan error, 1),
+	}
+	close(session.readDone)
+	session.readError <- errors.New("boom")
+
+	originalHandler := cleanupErrorHandler
+	called := false
+	cleanupErrorHandler = func(test testing.TB, err error) {
+		called = true
+	}
+	t.Cleanup(func() {
+		cleanupErrorHandler = originalHandler
+		require.True(t, called)
+	})
+
+	session.WaitForOutputAndClose(t, func(data []byte) bool { return len(data) > 0 })
+	require.Error(t, session.Close())
 }

@@ -7,6 +7,8 @@ import (
 	"github.com/muesli/termenv"
 
 	"github.com/meza/minecraft-mod-manager/internal/view"
+	// Ensure live HTTP calls are blocked for tests using the terminal harness.
+	_ "github.com/meza/minecraft-mod-manager/testutil/vcr"
 )
 
 // FixtureOptions controls shared terminal test setup.

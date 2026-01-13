@@ -3,6 +3,7 @@ package terminal
 import (
 	"io"
 	"math/rand"
+	"net/http"
 	"os"
 	"strings"
 	"testing"
@@ -239,4 +240,18 @@ func TestApplyFixturesDefault(t *testing.T) {
 	value, present := os.LookupEnv("MMM_TEST")
 	require.True(t, present)
 	require.Equal(t, "true", value)
+}
+
+func TestApplyFixturesBlocksLiveHTTP(t *testing.T) {
+	ApplyFixtures(t)
+
+	request, err := http.NewRequest(http.MethodGet, "https://example.invalid", nil)
+	require.NoError(t, err)
+
+	response, err := http.DefaultTransport.RoundTrip(request)
+	if response != nil {
+		require.NoError(t, response.Body.Close())
+	}
+	require.Error(t, err)
+	require.Contains(t, err.Error(), "vcr: live HTTP disabled in tests")
 }

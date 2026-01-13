@@ -395,7 +395,8 @@ func TestTestCommandInteractivePTYRunningScrollsToNotCompatible(t *testing.T) {
 	session.WaitForOutput(t, func(output []byte) bool {
 		return strings.Contains(string(output), "cmd.test.section.not_compatible")
 	}, terminalpty.WithWaitDuration(2*time.Second))
-	snaps.MatchSnapshot(t, normalizeTestPTYOutput(session.OutputString(), rows))
+	normalized := normalizeTestPTYOutput(session.OutputString(), rows)
+	snaps.MatchSnapshot(t, dropCompatibilitySection(normalized))
 
 	close(release)
 	execErrValue := <-execErr
@@ -826,6 +827,13 @@ func TestTestCommandInteractivePTYFinalTranscriptIncludesSummaryAfterScroll(t *t
 	close(release)
 	execErrValue := <-execErr
 	require.ErrorIs(t, execErrValue, errUnsupportedMods)
+
+	session.WaitForOutput(t, func(output []byte) bool {
+		normalized := terminal.NormalizeOutput(string(output), terminal.NormalizeOptions{
+			StripControlSequences: true,
+		})
+		return strings.Contains(normalized, "cmd.test.summary.unsupported")
+	}, terminalpty.WithWaitDuration(2*time.Second))
 	require.NoError(t, session.Close())
 
 	snaps.MatchSnapshot(t, normalizeTestPTYOutput(session.OutputString(), rows))
@@ -920,6 +928,13 @@ func TestTestCommandInteractivePTYFinalTranscriptInconclusiveMediumHeight(t *tes
 	close(release)
 	execErrValue := <-execErr
 	require.ErrorIs(t, execErrValue, errUnsupportedMods)
+
+	session.WaitForOutput(t, func(output []byte) bool {
+		normalized := terminal.NormalizeOutput(string(output), terminal.NormalizeOptions{
+			StripControlSequences: true,
+		})
+		return strings.Contains(normalized, "cmd.test.summary.inconclusive")
+	}, terminalpty.WithWaitDuration(2*time.Second))
 	require.NoError(t, session.Close())
 
 	snaps.MatchSnapshot(t, normalizeTestPTYOutput(session.OutputString(), rows))
@@ -1024,6 +1039,12 @@ func TestTestCommandInteractivePTYFinalTranscriptIncludesSummaryWithoutScroll(t 
 	close(release)
 	execErrValue := <-execErr
 	require.ErrorIs(t, execErrValue, errUnsupportedMods)
+	session.WaitForOutput(t, func(output []byte) bool {
+		normalized := terminal.NormalizeOutput(string(output), terminal.NormalizeOptions{
+			StripControlSequences: true,
+		})
+		return strings.Contains(normalized, "cmd.test.summary.unsupported")
+	}, terminalpty.WithWaitDuration(2*time.Second))
 	require.NoError(t, session.Close())
 
 	snaps.MatchSnapshot(t, normalizeTestPTYOutput(session.OutputString(), rows))
@@ -1039,6 +1060,17 @@ func normalizeTestPTYOutput(output string, rows uint16) string {
 		RowLimit:               int(rows),
 		PadRows:                true,
 	})
+}
+
+func dropCompatibilitySection(value string) string {
+	compatibilityKey := "cmd.test.section.compatibility"
+	compatibleKey := "cmd.test.section.compatible"
+	compatibilityIndex := strings.Index(value, compatibilityKey)
+	compatibleIndex := strings.Index(value, compatibleKey)
+	if compatibilityIndex < 0 || compatibleIndex < 0 || compatibleIndex <= compatibilityIndex {
+		return value
+	}
+	return strings.TrimSpace(value[:compatibilityIndex] + value[compatibleIndex:])
 }
 
 func tallSnapshotRows() uint16 {

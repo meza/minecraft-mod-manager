@@ -422,3 +422,27 @@ date	time	entry
 2026-01-12	17:24	MMM-38: updated docs/testing/terminal-harness.md example to send i18n yes-short key under MMM_TEST; reran local checks and Windows verification (PSReadLine VT warning).
 2026-01-12	17:38	MMM-38: reviewer approved after doc example fix and full ticket context; code-review.md updated.
 2026-01-12	17:50	MMM-38: expanded docs/testing/terminal-harness.md with snapshot conventions and FAQ; reran local checks and Windows verification (PSReadLine VT warning).
+2026-01-12	18:25	work on MMM-39 has started
+2026-01-12	18:48	MMM-39: user prefers one cassette per scenario (scenario-level grouping), record via make target only, tests fail on missing cassette, redaction limited to API keys/tokens, scope is all outbound HTTP, MMM_TEST hook ok; doc updates approved.
+2026-01-12	19:41	MMM-39: Windows verification failed on winhost (make lint/build/coverage ok; test-race failed) with snapshot mismatches in cmd/mmm/test PTY tests: TestTestCommandInteractivePTYRunningSnapshotMediumHeight and TestTestCommandInteractivePTYRunningMouseScrollsToNotCompatible; PSReadLine VT warning appears.
+2026-01-12	20:16	MMM-39: tightened cmd/mmm/test PTY running snapshot waits for \u2705 Alpha to avoid Windows race; local make fmt/lint/vuln/coverage/build pass; Windows winhost lint/build/coverage/test-race pass (PSReadLine VT warning).
+2026-01-12	20:42	MMM-39: updated docs/testing/http-vcr.md to match truthy MMM_RECORD_HTTP values and scenario name sanitization; local fmt-check/lint/vuln/coverage/build pass; Windows winhost lint/build/coverage/test-race pass (PSReadLine VT warning).
+2026-01-12	20:55	MMM-39: ran make test-race locally; all packages passed.
+2026-01-12	21:02	MMM-39: user reported make test-race failure in cmd/mmm/update with go test output showing FAIL; needs repro output/details.
+2026-01-12	21:05	MMM-39: Windows verification (winhost make lint/build/coverage/test-race) passed; PSReadLine VT warning observed.
+2026-01-12	21:16	MMM-39: added wait-for-output guards in cmd/mmm/scan + cmd/mmm/test + cmd/mmm/change PTY tests to prevent Windows truncation; winhost make lint/build/coverage/test-race with GOFLAGS=-count=1 now passes (PSReadLine VT warning).
+2026-01-12	21:23	MMM-39: added PTY harness WaitForOutputAndClose helper and updated scan/test/change PTY tests plus terminal harness docs to reduce output-race boilerplate.
+2026-01-12	23:33	MMM-39: in MMM_TEST mode, spinner frames now render as [spinner] and spinner ticks are skipped for interactive models; updated PTY wait in remove test; local gates and Windows winhost lint/build/coverage/test-race pass (PSReadLine VT warning).
+2026-01-13	00:09	MMM-39: fixed Windows PTY wait in TestTestCommandInteractivePTYRunningShowsHeadersWhenShort; local gates and Windows winhost lint/build/coverage/test-race pass (PSReadLine VT warning).
+2026-01-13	00:59	MMM-39: Windows test-race failed on winhost in cmd/mmm/test PTY mouse scroll snapshot due to extra blank line; added collapseBlankLines normalization in mouse scroll PTY test and Windows winhost lint/build/coverage/test-race now passes (PSReadLine VT warning).
+2026-01-13	01:04	MMM-39: user clarified scenario must be explicit in test code; no MMM_VCR_SCENARIO. LoadCassette(path) is required with cross-platform paths; vcr-record should record all cassettes; e2e runs all tests with replay.
+2026-01-13	01:10	MMM-39: expanded docs/testing/http-vcr.md with matching rules, cassette customization, and timeout/error simulation guidance (custom transport) per user request.
+2026-01-13	01:11	MMM-39: added http-vcr.md section on simulating file downloads (trusted hosts, Content-Length for progress, cassette examples, and when to use custom Doer).
+2026-01-13	01:12	MMM-39: rewrote http-vcr.md download section with constraints, record/edit examples, and custom Doer failure simulation guidance.
+2026-01-13	01:13	MMM-39: clarified http-vcr.md download section by defining httpclient.DownloadFile and its role in install/update flows.
+2026-01-13	01:39	MMM-39: removed production test-mode branches; spinner normalization now happens in testutil/terminal.NormalizeOutput (replaces spinner frames with [spinner]); added docs/testing/test-mode.md to list MMM_TEST (i18n only) and spinner normalization policy.
+2026-01-13	02:21	MMM-39: reverted all spinner-related edits (models/output/view, mod_item, normalization, snapshots) per user request; kept VCR changes only.
+2026-01-13	02:56	MMM-39: read ticket/docs/code, updated http-vcr download record instruction to use make vcr-record, ran local checks (fmt-check/lint/vuln/coverage/build/test-race) and Windows verification pass (PSReadLine VT warning); ready to re-invoke reviewer.
+2026-01-13	04:14	MMM-39: removed httpclient transport factory, added vcr live HTTP blocker (local hosts allowed), updated vcr tests/docs, stabilized cmd/mmm/test PTY waits/normalization, and removed update PTY early close; local fmt-check/lint/vuln/coverage/build/test-race pass; Windows winhost lint/build/coverage/test-race pass (PSReadLine VT warning); ready to re-invoke reviewer.
+2026-01-13	04:52	MMM-39: added VCR import in terminal fixtures with live-HTTP block test, added Modrinth VCR contract test + cassette, updated vcr-record to -count=1 and docs; local checks and Windows verification pass (PSReadLine VT warning).
+2026-01-13	10:14	MMM-39: removed Modrinth VCR cassette and contract test per user request; local checks and Windows verification pass (PSReadLine VT warning).

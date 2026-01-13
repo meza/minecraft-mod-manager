@@ -220,6 +220,7 @@ require (
 	github.com/mitchellh/go-homedir v1.1.0 // indirect
 	github.com/mitchellh/mapstructure v1.5.0 // indirect
 	github.com/mitchellh/reflectwalk v1.0.2 // indirect
+	github.com/modocache/gover v0.0.0-20171022184752-b58185e213c5 // indirect
 	github.com/montanaflynn/stats v0.0.0-20151014174947-eeaced052adb // indirect
 	github.com/moricho/tparallel v0.3.2 // indirect
 	github.com/muesli/ansi v0.0.0-20230316100256-276c6243b2f6 // indirect
@@ -316,6 +317,7 @@ require (
 	golang.org/x/tools v0.40.0 // indirect
 	gonum.org/v1/gonum v0.7.0 // indirect
 	google.golang.org/protobuf v1.36.8 // indirect
+	gopkg.in/dnaeon/go-vcr.v2 v2.3.0 // indirect
 	gopkg.in/ini.v1 v1.67.0 // indirect
 	gopkg.in/neurosnap/sentences.v1 v1.0.6 // indirect
 	gopkg.in/src-d/go-billy.v4 v4.3.2 // indirect

@@ -621,8 +621,12 @@ func TestScanCommandInteractivePTYFinalTranscriptShortHeight(t *testing.T) {
 	close(release)
 	execErrValue := <-execErr
 	require.NoError(t, execErrValue)
-	waitForOutput(t, session, "cmd.scan.header.results")
-	require.NoError(t, session.Close())
+	session.WaitForOutputAndClose(t, func(data []byte) bool {
+		normalized := terminal.NormalizeOutput(string(data), terminal.NormalizeOptions{
+			StripControlSequences: true,
+		})
+		return strings.Contains(normalized, "cmd.scan.header.results")
+	}, terminalpty.WithWaitDuration(2*time.Second))
 
 	snaps.MatchSnapshot(t, normalizePTYSnapshot(session.OutputString()))
 }
@@ -991,6 +995,7 @@ func TestScanCommandInteractivePTYFinalTranscriptMediumHeight(t *testing.T) {
 	close(release)
 	execErrValue := <-execErr
 	require.NoError(t, execErrValue)
+	waitForOutput(t, session, "cmd.scan.header.results")
 	require.NoError(t, session.Close())
 
 	snaps.MatchSnapshot(t, normalizePTYSnapshot(session.OutputString()))
@@ -1204,7 +1209,12 @@ func TestScanCommandInteractivePTYFinalTranscriptTallHeight(t *testing.T) {
 	close(release)
 	execErrValue := <-execErr
 	require.NoError(t, execErrValue)
-	require.NoError(t, session.Close())
+	session.WaitForOutputAndClose(t, func(data []byte) bool {
+		normalized := terminal.NormalizeOutput(string(data), terminal.NormalizeOptions{
+			StripControlSequences: true,
+		})
+		return strings.Contains(normalized, "cmd.scan.header.results")
+	}, terminalpty.WithWaitDuration(2*time.Second))
 
 	snaps.MatchSnapshot(t, normalizePTYSnapshot(session.OutputString()))
 }

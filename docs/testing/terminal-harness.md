@@ -100,6 +100,10 @@ Call `terminal.ApplyFixtures(t)` at the start of terminal tests.
 It sets `MMM_TEST=true`, disables color by default, and locks unicode support to deterministic values.
 Use options when you need a specific color profile or unicode behavior.
 
+If your scenario makes external HTTP calls, call `vcr.LoadCassette` in the test to attach a cassette.
+See `docs/testing/http-vcr.md` for the workflow and cassette conventions.
+Because `terminal.ApplyFixtures` imports `vcr`, live external HTTP is blocked by default unless a cassette is active.
+
 ```go
 terminal.ApplyFixtures(t,
 	terminal.WithColorProfile(termenv.TrueColor),
@@ -187,6 +191,21 @@ It polls the captured output until a predicate is true.
 session.WaitForOutput(t, func(data []byte) bool {
 	return strings.Contains(string(data), "cmd.scan.header.results")
 })
+```
+
+If you just need to wait for a known token before closing the PTY, use `WaitForOutputAndClose` to reduce boilerplate.
+
+```go
+session.WaitForOutputAndClose(t, func(data []byte) bool {
+	return strings.Contains(string(data), "cmd.scan.header.results")
+})
+normalized := terminal.NormalizeOutput(session.OutputString(), terminal.NormalizeOptions{
+	StripControlSequences:  true,
+	TrimTrailingWhitespace: true,
+	TrimTrailingEmptyLines: true,
+	TrimSpace:              true,
+})
+snaps.MatchSnapshot(t, normalized)
 ```
 
 ## FAQ
