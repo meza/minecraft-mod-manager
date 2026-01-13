@@ -435,7 +435,7 @@ func writeInteractiveTranscriptIfNeeded(cmd *cobra.Command, input changeExecutio
 		target:           model.target,
 		items:            model.items,
 		colorMode:        model.colorMode,
-		spinnerFrame:     model.spinnerFrame(),
+		spinner:          &model.spinner,
 		forcePolicy:      model.forcePolicy,
 		waitingForPolicy: model.policyPrompt != nil,
 	})

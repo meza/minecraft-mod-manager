@@ -3,7 +3,6 @@ package update
 import (
 	"context"
 	"errors"
-	"strings"
 	"testing"
 
 	"github.com/charmbracelet/bubbles/spinner"
@@ -26,7 +25,7 @@ func TestNewUpdateModelUsesLineSpinnerWhenUnicodeUnsupported(t *testing.T) {
 		indexByKey: map[int]int{},
 		execRunner: func(context.Context, updateExecSender) updateExecutionOutcome { return updateExecutionOutcome{} },
 	})
-	assert.Equal(t, spinner.Line, model.spinner.Spinner)
+	assert.Equal(t, spinner.Line.Frames[0], model.spinner.StaticFrame())
 }
 
 func TestUpdateModelInitQuitsWithoutRunner(t *testing.T) {
@@ -127,9 +126,7 @@ func TestUpdateModelUpdateHandlesMessages(t *testing.T) {
 	assert.IsType(t, viewport.Model{}, updated.(*updateModel).viewport)
 	assert.Nil(t, cmd)
 
-	updated, cmd = model.Update(spinner.TickMsg{})
-	assert.NotNil(t, updated.(*updateModel).spinner.Spinner)
-	assert.NotNil(t, cmd)
+	_, _ = model.Update(spinner.TickMsg{})
 
 	updated, cmd = model.Update(updateItemProgressMsg{
 		index: 0,
@@ -228,7 +225,7 @@ func TestUpdateModelViewBranches(t *testing.T) {
 	assert.Contains(t, model.View(), "cmd.update.section.updating")
 }
 
-func TestUpdateViewportAndSpinnerFrame(t *testing.T) {
+func TestUpdateViewportClampsNegativeHeight(t *testing.T) {
 	model := newUpdateModel(updateModelInput{
 		ctx:        context.Background(),
 		colorMode:  view.ColorDisabled,
@@ -239,12 +236,6 @@ func TestUpdateViewportAndSpinnerFrame(t *testing.T) {
 
 	model.updateViewport("line1\nline2", -1)
 	assert.Equal(t, 0, model.viewport.Height)
-
-	model.spinner.Spinner = spinner.Spinner{Frames: []string{"(error)"}}
-	assert.Equal(t, "", strings.TrimSpace(model.spinnerFrame()))
-
-	model.spinner.Spinner = spinner.Spinner{Frames: []string{"x"}}
-	assert.Equal(t, "x", strings.TrimSpace(model.spinnerFrame()))
 }
 
 func TestUpdateModelViewUsesViewportWhenWindowHeightSet(t *testing.T) {

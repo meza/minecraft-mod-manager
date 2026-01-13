@@ -28,7 +28,7 @@ func TestTestCommandInteractivePTYOutput(t *testing.T) {
 	t.Cleanup(func() { runTestProgram = originalRunTestProgram })
 
 	rows := uint16(40)
-	session := terminalpty.NewSession(t, terminalpty.WithSize(terminal.Size{Columns: 80, Rows: int(rows)}))
+	session := terminalpty.NewSession(t, terminalpty.WithSize(terminal.Size{Columns: 120, Rows: int(rows)}))
 	require.NotNil(t, session)
 
 	cmd := commandWithRunner(func(ctx context.Context, cmd *cobra.Command, _ testOptions, _ testDeps) (Result, error) {

@@ -5,9 +5,7 @@ import (
 	"errors"
 	"strings"
 
-	"github.com/charmbracelet/bubbles/spinner"
 	tea "github.com/charmbracelet/bubbletea"
-	"github.com/charmbracelet/lipgloss"
 
 	"github.com/meza/minecraft-mod-manager/internal/httpclient"
 	"github.com/meza/minecraft-mod-manager/internal/view"
@@ -35,7 +33,7 @@ type installModel struct {
 	state      installViewState
 	outcome    installExecutionOutcome
 	sender     installExecSender
-	spinner    spinner.Model
+	spinner    view.Spinner
 	footer     *RunningFooter
 }
 
@@ -70,14 +68,7 @@ func newInstallModel(
 		footer:     footer,
 	}
 	if footer != nil {
-		spin := spinner.New()
-		if view.SupportsUnicode() {
-			spin.Spinner = spinner.Dot
-		} else {
-			spin.Spinner = spinner.Line
-		}
-		spin.Style = lipgloss.NewStyle()
-		model.spinner = spin
+		model.spinner = view.NewSpinner()
 	}
 	return model
 }
@@ -90,10 +81,7 @@ func (model *installModel) Init() tea.Cmd {
 	if model.sender.send == nil || model.execRunner == nil {
 		return tea.Quit
 	}
-	if model.footer != nil {
-		return tea.Batch(model.spinner.Tick, model.startInstallCmd())
-	}
-	return model.startInstallCmd()
+	return tea.Batch(model.spinner.InitCmd(), model.startInstallCmd())
 }
 
 func (model *installModel) startInstallCmd() tea.Cmd {
@@ -109,6 +97,10 @@ func (model *installModel) startInstallCmd() tea.Cmd {
 }
 
 func (model *installModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
+	if updated, cmd, handled := model.spinner.Update(msg); handled {
+		model.spinner = updated
+		return model, cmd
+	}
 	switch typed := msg.(type) {
 	case installItemProgressMsg:
 		model.applyProgress(typed)
@@ -129,13 +121,6 @@ func (model *installModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		model.outcome = typed.outcome
 		model.state = viewStateFromOutcome(typed.outcome.errType)
 		return model, tea.Quit
-	case spinner.TickMsg:
-		if model.footer == nil {
-			return model, nil
-		}
-		updated, cmd := model.spinner.Update(typed)
-		model.spinner = updated
-		return model, cmd
 	case tea.KeyMsg:
 		switch typed.String() {
 		case "ctrl+c", "q", "esc":
@@ -173,18 +158,9 @@ func (model *installModel) runningFooterLine() string {
 		return ""
 	}
 	return model.footer.Render(RunningFooterInput{
-		SpinnerFrame: model.spinnerFrame(),
+		SpinnerFrame: model.spinner.Frame(),
 		ColorMode:    model.colorMode,
 	})
-}
-
-func (model *installModel) spinnerFrame() string {
-	frame := model.spinner.View()
-	trimmed := strings.TrimSpace(frame)
-	if trimmed == "" || trimmed == "(error)" {
-		return ""
-	}
-	return frame
 }
 
 func (model *installModel) updateItem(key string, update func(*installItem)) {

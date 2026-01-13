@@ -13,7 +13,7 @@ type testViewInput struct {
 	targetVersion string
 	items         []testItem
 	colorMode     view.ColorMode
-	spinnerFrame  string
+	spinner       *view.Spinner
 }
 
 func renderTestHeader(version string) string {
@@ -153,9 +153,9 @@ func renderTestRunningItemLine(input testViewInput, item testItem) string {
 		return fmt.Sprintf("%s %s", inconclusiveIcon(input.colorMode), label)
 	default:
 		return view.RenderModItemLine(view.ModItemLine{
-			Label:        label,
-			Status:       view.ModItemStatusSpinning,
-			SpinnerFrame: input.spinnerFrame,
+			Label:   label,
+			Status:  view.ModItemStatusSpinning,
+			Spinner: input.spinner,
 		}, input.colorMode)
 	}
 }

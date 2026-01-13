@@ -3,7 +3,6 @@ package change
 import (
 	"strings"
 
-	"github.com/charmbracelet/bubbles/spinner"
 	"github.com/meza/minecraft-mod-manager/internal/i18n"
 	"github.com/meza/minecraft-mod-manager/internal/interaction"
 	"github.com/meza/minecraft-mod-manager/internal/view"
@@ -12,18 +11,19 @@ import (
 
 func writeChangeOutcome(cmd *cobra.Command, deps changeDeps, outcome changeOutcome, targetVersion string, mode interaction.ExecutionMode) error {
 	colorMode := colorModeForOutput(cmd.OutOrStdout())
-	spinnerFrame := defaultSpinnerFrame()
-	if mode == interaction.ExecutionModeNonTTY {
-		spinnerFrame = ""
+	spin := view.NewSpinner()
+	var spinner *view.Spinner
+	if mode != interaction.ExecutionModeNonTTY {
+		spinner = &spin
 	}
 
 	sections := buildChangeSections(changeViewInput{
-		stage:        outcome.Stage,
-		target:       targetVersion,
-		items:        outcome.Items,
-		colorMode:    colorMode,
-		spinnerFrame: spinnerFrame,
-		forcePolicy:  outcome.ForcePolicy,
+		stage:       outcome.Stage,
+		target:      targetVersion,
+		items:       outcome.Items,
+		colorMode:   colorMode,
+		spinner:     spinner,
+		forcePolicy: outcome.ForcePolicy,
 	})
 	if mode == interaction.ExecutionModeNonTTY && outcome.Stage == changeStageCompatibilityFailed {
 		sections = buildNonTTYCompatibilityFailureSections(changeViewInput{
@@ -184,15 +184,4 @@ func renderQuietSkippedSection(items []changeItem, targetVersion string, colorMo
 		}, colorMode))
 	}
 	return strings.Join(lines, "\n")
-}
-
-func defaultSpinnerFrame() string {
-	spin := spinner.Line
-	if view.SupportsUnicode() {
-		spin = spinner.Dot
-	}
-	if len(spin.Frames) == 0 {
-		return ""
-	}
-	return spin.Frames[0]
 }

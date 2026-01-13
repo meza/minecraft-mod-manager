@@ -4,6 +4,7 @@ import (
 	"testing"
 
 	"github.com/charmbracelet/bubbles/progress"
+	"github.com/charmbracelet/bubbles/spinner"
 	"github.com/stretchr/testify/assert"
 )
 
@@ -68,10 +69,13 @@ func TestRenderModItemLineUsesDownloadIcon(t *testing.T) {
 }
 
 func TestRenderModItemLineUsesSpinnerFrame(t *testing.T) {
+	spin := NewSpinner()
+	spin.model.Spinner = spinner.Spinner{Frames: []string{"."}}
+
 	line := RenderModItemLine(ModItemLine{
-		Label:        "Example (abc) [modrinth]",
-		Status:       ModItemStatusSpinning,
-		SpinnerFrame: ".",
+		Label:   "Example (abc) [modrinth]",
+		Status:  ModItemStatusSpinning,
+		Spinner: &spin,
 	}, ColorDisabled)
 
 	assert.Contains(t, line, ". Example (abc) [modrinth]")
@@ -81,10 +85,13 @@ func TestRenderModItemLineUsesPendingIconWhenSpinnerEmpty(t *testing.T) {
 	restore := SetUnicodeSupportFuncForTesting(func() bool { return false })
 	t.Cleanup(restore)
 
+	spin := NewSpinner()
+	spin.model.Spinner = spinner.Spinner{Frames: []string{" "}}
+
 	line := RenderModItemLine(ModItemLine{
-		Label:        "Example (abc) [modrinth]",
-		Status:       ModItemStatusSpinning,
-		SpinnerFrame: " ",
+		Label:   "Example (abc) [modrinth]",
+		Status:  ModItemStatusSpinning,
+		Spinner: &spin,
 	}, ColorDisabled)
 
 	assert.Contains(t, line, "[~] Example (abc) [modrinth]")

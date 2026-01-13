@@ -10,6 +10,7 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/charmbracelet/bubbles/spinner"
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/muesli/termenv"
 	"github.com/spf13/afero"
@@ -406,8 +407,7 @@ func TestRemoveModelUpdateHandlesSpinnerTick(t *testing.T) {
 	model := newRemoveModel(context.Background(), view.ColorDisabled, nil, nil, func(context.Context, removeExecSender) removeExecutionOutcome {
 		return removeExecutionOutcome{}
 	})
-	tickMsg := model.spinner.Tick()
-	updated, _ := model.Update(tickMsg)
+	updated, _ := model.Update(spinner.TickMsg{})
 	assert.NotNil(t, updated)
 }
 
@@ -488,7 +488,8 @@ func TestRemoveModelViewFinalWriteFailureIncludesSummary(t *testing.T) {
 
 func TestRenderRemoveRunningSectionIncludesHeader(t *testing.T) {
 	items := []removeItem{{Mod: models.Mod{Name: "Sodium", ID: "sodium"}, Status: removeItemPending}}
-	viewText := renderRemoveRunningSection(view.ColorDisabled, items, ".")
+	spin := view.NewSpinner()
+	viewText := renderRemoveRunningSection(view.ColorDisabled, items, &spin)
 	assert.Contains(t, viewText, "Removing mods:")
 }
 

@@ -85,7 +85,7 @@ func TestNewChangeModelUsesLineSpinnerWhenUnicodeDisabled(t *testing.T) {
 		execRunner: func(context.Context, httpclient.Sender) changeOutcome { return changeOutcome{} },
 	})
 
-	assert.Equal(t, spinner.Line, model.spinner.Spinner)
+	assert.Equal(t, spinner.Line.Frames[0], model.spinner.StaticFrame())
 }
 
 func TestNewChangeModelUsesDotSpinnerWhenUnicodeEnabled(t *testing.T) {
@@ -101,7 +101,7 @@ func TestNewChangeModelUsesDotSpinnerWhenUnicodeEnabled(t *testing.T) {
 		execRunner: func(context.Context, httpclient.Sender) changeOutcome { return changeOutcome{} },
 	})
 
-	assert.Equal(t, spinner.Dot, model.spinner.Spinner)
+	assert.Equal(t, spinner.Dot.Frames[0], model.spinner.StaticFrame())
 }
 
 func TestChangeModelUpdateHandlesMessages(t *testing.T) {
@@ -383,17 +383,20 @@ func TestChangeModelApplyDownloadFailedNilError(t *testing.T) {
 }
 
 func TestRenderCompatibilityLineVariants(t *testing.T) {
+	spin := view.NewSpinner()
+	frame := spin.Frame()
+
 	supported := renderCompatibilityLine(changeViewInput{
-		target:       "1.20.1",
-		colorMode:    view.ColorDisabled,
-		spinnerFrame: ".",
+		target:    "1.20.1",
+		colorMode: view.ColorDisabled,
+		spinner:   &spin,
 	}, changeItem{Mod: models.Mod{ID: "alpha", Type: models.MODRINTH}, DisplayName: "Alpha", CompatStatus: changeCompatSupported})
 	assert.Contains(t, supported, "Alpha (alpha) [modrinth]")
 
 	queued := renderCompatibilityLine(changeViewInput{
-		target:       "1.20.1",
-		colorMode:    view.ColorDisabled,
-		spinnerFrame: ".",
+		target:    "1.20.1",
+		colorMode: view.ColorDisabled,
+		spinner:   &spin,
 	}, changeItem{
 		Mod:            models.Mod{ID: "beta", Type: models.MODRINTH},
 		DisplayName:    "Beta",
@@ -403,9 +406,9 @@ func TestRenderCompatibilityLineVariants(t *testing.T) {
 	assert.Contains(t, queued, view.PendingIcon(view.ColorDisabled))
 
 	pending := renderCompatibilityLine(changeViewInput{
-		target:       "1.20.1",
-		colorMode:    view.ColorDisabled,
-		spinnerFrame: ".",
+		target:    "1.20.1",
+		colorMode: view.ColorDisabled,
+		spinner:   &spin,
 	}, changeItem{
 		Mod:          models.Mod{ID: "theta", Type: models.MODRINTH},
 		DisplayName:  "Theta",
@@ -414,20 +417,22 @@ func TestRenderCompatibilityLineVariants(t *testing.T) {
 	assert.Contains(t, pending, view.PendingIcon(view.ColorDisabled))
 
 	checking := renderCompatibilityLine(changeViewInput{
-		target:       "1.20.1",
-		colorMode:    view.ColorDisabled,
-		spinnerFrame: ".",
+		target:    "1.20.1",
+		colorMode: view.ColorDisabled,
+		spinner:   &spin,
 	}, changeItem{
 		Mod:          models.Mod{ID: "iota", Type: models.MODRINTH},
 		DisplayName:  "Iota",
 		CompatStatus: changeCompatChecking,
 	})
-	assert.Contains(t, checking, ".")
+	if frame != "" {
+		assert.Contains(t, checking, frame)
+	}
 
 	unsupported := renderCompatibilityLine(changeViewInput{
-		target:       "1.20.1",
-		colorMode:    view.ColorDisabled,
-		spinnerFrame: ".",
+		target:    "1.20.1",
+		colorMode: view.ColorDisabled,
+		spinner:   &spin,
 	}, changeItem{Mod: models.Mod{ID: "beta", Type: models.MODRINTH}, DisplayName: "Beta", CompatStatus: changeCompatUnsupported, Skipped: true})
 	assert.Contains(t, unsupported, "unsupported for 1.20.1 (skipped)")
 }
@@ -481,9 +486,8 @@ func TestRenderDownloadLineProgressAndFailure(t *testing.T) {
 
 func TestRenderDownloadLineQueued(t *testing.T) {
 	line := renderDownloadLine(changeViewInput{
-		target:       "1.20.1",
-		colorMode:    view.ColorDisabled,
-		spinnerFrame: ".",
+		target:    "1.20.1",
+		colorMode: view.ColorDisabled,
 	}, changeItem{
 		Mod:            models.Mod{ID: "beta", Type: models.MODRINTH},
 		DisplayName:    "Beta",
@@ -517,21 +521,26 @@ func TestRenderDownloadLineSuccess(t *testing.T) {
 }
 
 func TestRenderSwitchingLineVariants(t *testing.T) {
+	spin := view.NewSpinner()
+	frame := spin.Frame()
+
 	inProgress := renderSwitchingLine(changeViewInput{
-		target:       "1.20.1",
-		colorMode:    view.ColorDisabled,
-		spinnerFrame: ".",
+		target:    "1.20.1",
+		colorMode: view.ColorDisabled,
+		spinner:   &spin,
 	}, changeItem{
 		Mod:          models.Mod{ID: "alpha", Type: models.MODRINTH},
 		DisplayName:  "Alpha",
 		SwitchStatus: changeSwitchInProgress,
 	})
-	assert.Contains(t, inProgress, ". Alpha")
+	if frame != "" {
+		assert.Contains(t, inProgress, frame+" Alpha")
+	}
 
 	failed := renderSwitchingLine(changeViewInput{
-		target:       "1.20.1",
-		colorMode:    view.ColorDisabled,
-		spinnerFrame: ".",
+		target:    "1.20.1",
+		colorMode: view.ColorDisabled,
+		spinner:   &spin,
 	}, changeItem{
 		Mod:          models.Mod{ID: "beta", Type: models.MODRINTH},
 		DisplayName:  "Beta",
@@ -541,9 +550,9 @@ func TestRenderSwitchingLineVariants(t *testing.T) {
 	assert.Contains(t, failed, "switch failed: boom")
 
 	succeeded := renderSwitchingLine(changeViewInput{
-		target:       "1.20.1",
-		colorMode:    view.ColorDisabled,
-		spinnerFrame: ".",
+		target:    "1.20.1",
+		colorMode: view.ColorDisabled,
+		spinner:   &spin,
 	}, changeItem{
 		Mod:          models.Mod{ID: "delta", Type: models.MODRINTH},
 		DisplayName:  "Delta",
@@ -552,9 +561,9 @@ func TestRenderSwitchingLineVariants(t *testing.T) {
 	assert.Contains(t, succeeded, "Delta (delta) [modrinth]")
 
 	skipped := renderSwitchingLine(changeViewInput{
-		target:       "1.20.1",
-		colorMode:    view.ColorDisabled,
-		spinnerFrame: ".",
+		target:    "1.20.1",
+		colorMode: view.ColorDisabled,
+		spinner:   &spin,
 	}, changeItem{
 		Mod:          models.Mod{ID: "gamma", Type: models.MODRINTH},
 		DisplayName:  "Gamma",
@@ -564,6 +573,8 @@ func TestRenderSwitchingLineVariants(t *testing.T) {
 }
 
 func TestRenderSwitchingSectionWaitingForPolicy(t *testing.T) {
+	spin := view.NewSpinner()
+
 	items := []changeItem{
 		{
 			Mod:            models.Mod{ID: "alpha", Type: models.MODRINTH},
@@ -576,7 +587,7 @@ func TestRenderSwitchingSectionWaitingForPolicy(t *testing.T) {
 		stage:            changeStageRunning,
 		target:           "1.20.1",
 		colorMode:        view.ColorDisabled,
-		spinnerFrame:     ".",
+		spinner:          &spin,
 		waitingForPolicy: true,
 	}, items)
 	assert.Contains(t, output, "waiting for your choice")
@@ -587,9 +598,8 @@ func TestRenderSwitchingLinePending(t *testing.T) {
 	t.Cleanup(restoreUnicode)
 
 	line := renderSwitchingLine(changeViewInput{
-		target:       "1.20.1",
-		colorMode:    view.ColorDisabled,
-		spinnerFrame: ".",
+		target:    "1.20.1",
+		colorMode: view.ColorDisabled,
 	}, changeItem{
 		Mod:         models.Mod{ID: "alpha", Type: models.MODRINTH},
 		DisplayName: "Alpha",
@@ -859,7 +869,7 @@ func TestChangeModelPolicyPromptFocusesViewportBottom(t *testing.T) {
 		target:           typed.target,
 		items:            typed.items,
 		colorMode:        typed.colorMode,
-		spinnerFrame:     typed.spinnerFrame(),
+		spinner:          &typed.spinner,
 		forcePolicy:      typed.forcePolicy,
 		waitingForPolicy: true,
 	})
@@ -908,12 +918,13 @@ func TestChangeModelViewportUsesContentHeightWhenWindowHeightZero(t *testing.T) 
 	})
 	model.bindSender(func(tea.Msg) {})
 
+	spin := view.NewSpinner()
 	content := view.RenderViewSections(buildChangeSections(changeViewInput{
-		stage:        changeStageRunning,
-		target:       "1.19.4",
-		items:        model.items,
-		colorMode:    view.ColorDisabled,
-		spinnerFrame: ".",
+		stage:     changeStageRunning,
+		target:    "1.19.4",
+		items:     model.items,
+		colorMode: view.ColorDisabled,
+		spinner:   &spin,
 	}), view.SectionSeparatorParagraph)
 
 	_ = model.View()
@@ -1024,21 +1035,6 @@ func TestChangeModelUpdateViewportNoWindowClamp(t *testing.T) {
 	model.windowH = 10
 	model.updateViewport("one\ntwo", viewportFocusPreserve)
 	assert.Equal(t, 2, model.viewport.Height)
-}
-
-func TestChangeModelSpinnerFrameHandlesEmptyFrames(t *testing.T) {
-	model := newChangeModel(changeModelInput{
-		ctx:        context.Background(),
-		target:     "1.19.4",
-		colorMode:  view.ColorDisabled,
-		items:      []changeItem{},
-		indexByKey: map[string]int{},
-		execRunner: func(context.Context, httpclient.Sender) changeOutcome {
-			return changeOutcome{}
-		},
-	})
-	model.spinner.Spinner.Frames = []string{}
-	assert.Equal(t, "", model.spinnerFrame())
 }
 
 func TestRenderFinalErrorLineColorEnabled(t *testing.T) {

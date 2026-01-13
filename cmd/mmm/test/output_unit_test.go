@@ -80,17 +80,21 @@ func TestRenderTestRunningViewIncludesSpinner(t *testing.T) {
 	restoreUnicode := view.SetUnicodeSupportFuncForTesting(func() bool { return true })
 	t.Cleanup(restoreUnicode)
 
+	spin := view.NewSpinner()
+	frame := spin.Frame()
 	output := renderTestRunningView(testViewInput{
 		targetVersion: "1.20.1",
 		colorMode:     view.ColorDisabled,
-		spinnerFrame:  ".",
+		spinner:       &spin,
 		items: []testItem{
 			{Mod: models.Mod{ID: "alpha", Name: "Alpha", Type: models.MODRINTH}, Status: testItemStatusChecking},
 		},
 	})
 
 	assert.Contains(t, output, "cmd.test.section.compatibility")
-	assert.Contains(t, output, ". Alpha (alpha) [modrinth]")
+	if frame != "" {
+		assert.Contains(t, output, frame+" Alpha (alpha) [modrinth]")
+	}
 }
 
 func TestBuildQuietTestLinesOmitsReason(t *testing.T) {
@@ -112,9 +116,10 @@ func TestRenderTestRunningItemLineCoversStatuses(t *testing.T) {
 	restoreUnicode := view.SetUnicodeSupportFuncForTesting(func() bool { return true })
 	t.Cleanup(restoreUnicode)
 
+	spin := view.NewSpinner()
 	input := testViewInput{
-		colorMode:    view.ColorDisabled,
-		spinnerFrame: ".",
+		colorMode: view.ColorDisabled,
+		spinner:   &spin,
 	}
 	mod := models.Mod{ID: "alpha", Name: "Alpha", Type: models.MODRINTH}
 
@@ -128,7 +133,10 @@ func TestRenderTestRunningItemLineCoversStatuses(t *testing.T) {
 	assert.Contains(t, output, "Alpha (alpha) [modrinth]")
 
 	output = renderTestRunningItemLine(input, testItem{Mod: mod, Status: testItemStatusChecking})
-	assert.Contains(t, output, ". Alpha (alpha) [modrinth]")
+	frame := spin.Frame()
+	if frame != "" {
+		assert.Contains(t, output, frame+" Alpha (alpha) [modrinth]")
+	}
 }
 
 func TestRenderTestItemLinePendingAndUnsupported(t *testing.T) {

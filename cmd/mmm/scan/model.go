@@ -2,10 +2,7 @@ package scan
 
 import (
 	"context"
-	"os"
-	"strings"
 
-	"github.com/charmbracelet/bubbles/spinner"
 	"github.com/charmbracelet/bubbles/viewport"
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/lipgloss"
@@ -37,7 +34,7 @@ type scanModel struct {
 	colorMode   view.ColorMode
 	items       []scanItem
 	indexByKey  map[string]int
-	spinner     spinner.Model
+	spinner     view.Spinner
 	viewport    viewport.Model
 	windowW     int
 	windowH     int
@@ -67,13 +64,7 @@ type scanFinalizeMsg struct{}
 
 func newScanModel(input scanModelInput) *scanModel {
 	ctx, cancel := context.WithCancel(input.ctx)
-	spin := spinner.New()
-	if view.SupportsUnicode() {
-		spin.Spinner = spinner.Dot
-	} else {
-		spin.Spinner = spinner.Line
-	}
-	spin.Style = lipgloss.NewStyle()
+	spin := view.NewSpinner()
 
 	model := &scanModel{
 		ctx:        ctx,
@@ -97,10 +88,7 @@ func (model *scanModel) Init() tea.Cmd {
 	if model.sender.send == nil || model.execRunner == nil {
 		return tea.Quit
 	}
-	if scanTestModeEnabled() {
-		return model.startScanCmd()
-	}
-	return tea.Batch(model.spinner.Tick, model.startScanCmd())
+	return tea.Batch(model.spinner.InitCmd(), model.startScanCmd())
 }
 
 func (model *scanModel) startScanCmd() tea.Cmd {
@@ -110,6 +98,10 @@ func (model *scanModel) startScanCmd() tea.Cmd {
 }
 
 func (model *scanModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
+	if updated, cmd, handled := model.spinner.Update(msg); handled {
+		model.spinner = updated
+		return model, cmd
+	}
 	switch typed := msg.(type) {
 	case tea.WindowSizeMsg:
 		model.windowW = typed.Width
@@ -130,10 +122,6 @@ func (model *scanModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		updated, cmd := model.viewport.Update(typed)
 		model.viewport = updated
 		return model, cmd
-	case spinner.TickMsg:
-		updated, cmd := model.spinner.Update(typed)
-		model.spinner = updated
-		return model, cmd
 	case scanItemUpdateMsg:
 		model.applyItemUpdate(typed)
 		return model, nil
@@ -151,9 +139,9 @@ func (model *scanModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 
 func (model *scanModel) View() string {
 	content := renderScanRunningView(scanRunningViewInput{
-		items:        model.items,
-		colorMode:    model.colorMode,
-		spinnerFrame: model.spinnerFrame(),
+		items:     model.items,
+		colorMode: model.colorMode,
+		spinner:   &model.spinner,
 	})
 	if model.finalRender {
 		content = renderScanResultsView(scanResultsViewInput{
@@ -188,20 +176,6 @@ func (model *scanModel) updateViewport(content string, height int) {
 		model.viewport.Width = model.windowW
 	}
 	model.viewport.SetYOffset(model.viewport.YOffset)
-}
-
-func (model *scanModel) spinnerFrame() string {
-	frame := model.spinner.View()
-	trimmed := strings.TrimSpace(frame)
-	if trimmed == "" || trimmed == "(error)" {
-		return ""
-	}
-	return frame
-}
-
-func scanTestModeEnabled() bool {
-	_, present := os.LookupEnv("MMM_TEST")
-	return present
 }
 
 func (model *scanModel) applyItemUpdate(msg scanItemUpdateMsg) {

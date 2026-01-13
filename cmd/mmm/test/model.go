@@ -3,7 +3,6 @@ package test
 import (
 	"context"
 
-	"github.com/charmbracelet/bubbles/spinner"
 	"github.com/charmbracelet/bubbles/viewport"
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/lipgloss"
@@ -20,7 +19,7 @@ type testModel struct {
 	targetVersion     string
 	items             []testItem
 	indexByKey        map[string]int
-	spinner           spinner.Model
+	spinner           view.Spinner
 	viewport          viewport.Model
 	showCompatibility bool
 	done              bool
@@ -55,12 +54,7 @@ type testFinalizeMsg struct{}
 
 func newTestModel(input testModelInput) *testModel {
 	ctx, cancel := context.WithCancel(input.ctx)
-	spin := spinner.New()
-	if view.SupportsUnicode() {
-		spin.Spinner = spinner.Dot
-	} else {
-		spin.Spinner = spinner.Line
-	}
+	spin := view.NewSpinner()
 	model := &testModel{
 		ctx:               ctx,
 		cancel:            cancel,
@@ -85,10 +79,14 @@ func (model *testModel) Init() tea.Cmd {
 	if model.sender.send == nil || model.execRunner == nil {
 		return tea.Quit
 	}
-	return tea.Batch(model.spinner.Tick, model.startTestCmd(), model.startViewCmd())
+	return tea.Batch(model.spinner.InitCmd(), model.startTestCmd(), model.startViewCmd())
 }
 
 func (model *testModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
+	if updated, cmd, handled := model.spinner.Update(msg); handled {
+		model.spinner = updated
+		return model, cmd
+	}
 	switch typed := msg.(type) {
 	case tea.WindowSizeMsg:
 		model.windowW = typed.Width
@@ -101,10 +99,6 @@ func (model *testModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	case tea.MouseMsg:
 		updated, cmd := model.viewport.Update(typed)
 		model.viewport = updated
-		return model, cmd
-	case spinner.TickMsg:
-		updated, cmd := model.spinner.Update(typed)
-		model.spinner = updated
 		return model, cmd
 	case testStartMsg:
 		model.showCompatibility = true
@@ -147,10 +141,6 @@ func (model *testModel) startViewCmd() tea.Cmd {
 	return func() tea.Msg { return testStartMsg{} }
 }
 
-func (model *testModel) spinnerFrame() string {
-	return model.spinner.View()
-}
-
 func (model *testModel) updateItem(key string, update func(*testItem)) {
 	index, ok := model.indexByKey[key]
 	if !ok || index < 0 || index >= len(model.items) {
@@ -167,7 +157,7 @@ func (model *testModel) renderRunningView() string {
 			targetVersion: model.targetVersion,
 			items:         model.items,
 			colorMode:     model.colorMode,
-			spinnerFrame:  model.spinnerFrame(),
+			spinner:       &model.spinner,
 		})
 	}
 
@@ -175,7 +165,7 @@ func (model *testModel) renderRunningView() string {
 		targetVersion: model.targetVersion,
 		items:         model.items,
 		colorMode:     model.colorMode,
-		spinnerFrame:  model.spinnerFrame(),
+		spinner:       &model.spinner,
 	})
 	if viewText == "" {
 		return viewText

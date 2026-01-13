@@ -17,11 +17,11 @@ const (
 )
 
 type ModItemLine struct {
-	Label        string
-	Suffix       string
-	Status       ModItemStatus
-	SpinnerFrame string
-	Progress     *ProgressDetails
+	Label    string
+	Suffix   string
+	Status   ModItemStatus
+	Spinner  *Spinner
+	Progress *ProgressDetails
 }
 
 func RenderModLabel(colorMode ColorMode, name string, id string, platform string) string {
@@ -58,8 +58,11 @@ func iconForModItem(line ModItemLine, colorMode ColorMode) string {
 	case ModItemStatusDownloading:
 		return DownloadIcon(colorMode)
 	case ModItemStatusSpinning:
-		if strings.TrimSpace(line.SpinnerFrame) != "" {
-			return RenderIfColorEnabled(colorMode, QuestionStyle, line.SpinnerFrame)
+		if line.Spinner != nil {
+			frame := line.Spinner.Frame()
+			if strings.TrimSpace(frame) != "" {
+				return RenderIfColorEnabled(colorMode, QuestionStyle, frame)
+			}
 		}
 		return PendingIcon(colorMode)
 	default:

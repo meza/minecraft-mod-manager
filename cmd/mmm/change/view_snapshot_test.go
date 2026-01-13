@@ -11,6 +11,10 @@ import (
 
 func TestChangeViewSnapshots(t *testing.T) {
 	t.Setenv("MMM_TEST", "true")
+	restore := view.SetUnicodeSupportFuncForTesting(func() bool { return true })
+	t.Cleanup(restore)
+
+	spin := view.NewSpinner()
 
 	items := []changeItem{
 		{Mod: models.Mod{ID: "alpha", Name: "Alpha", Type: models.MODRINTH}, DisplayName: "Alpha"},
@@ -36,11 +40,11 @@ func TestChangeViewSnapshots(t *testing.T) {
 
 	t.Run("running", func(t *testing.T) {
 		output := view.RenderViewSections(buildChangeSections(changeViewInput{
-			stage:        changeStageRunning,
-			target:       "1.21.1",
-			items:        items,
-			colorMode:    view.ColorDisabled,
-			spinnerFrame: ".",
+			stage:     changeStageRunning,
+			target:    "1.21.1",
+			items:     items,
+			colorMode: view.ColorDisabled,
+			spinner:   &spin,
 		}), view.SectionSeparatorParagraph)
 		snaps.MatchSnapshot(t, output)
 	})
@@ -51,11 +55,11 @@ func TestChangeViewSnapshots(t *testing.T) {
 			{Mod: models.Mod{ID: "beta", Name: "Beta", Type: models.CURSEFORGE}, DisplayName: "Beta", CompatStatus: changeCompatSupported},
 		}
 		output := view.RenderViewSections(buildChangeSections(changeViewInput{
-			stage:        changeStageCompatibilityFailed,
-			target:       "1.21.1",
-			items:        failedItems,
-			colorMode:    view.ColorDisabled,
-			spinnerFrame: ".",
+			stage:     changeStageCompatibilityFailed,
+			target:    "1.21.1",
+			items:     failedItems,
+			colorMode: view.ColorDisabled,
+			spinner:   &spin,
 		}), view.SectionSeparatorParagraph)
 		snaps.MatchSnapshot(t, output)
 	})
@@ -67,11 +71,11 @@ func TestChangeViewSnapshots(t *testing.T) {
 			{Mod: models.Mod{ID: "gamma", Name: "Gamma", Type: models.MODRINTH}, DisplayName: "Gamma", CompatStatus: changeCompatSupported},
 		}
 		output := view.RenderViewSections(buildChangeSections(changeViewInput{
-			stage:        changeStageCompatibilityFailureDetected,
-			target:       "1.21.1",
-			items:        items,
-			colorMode:    view.ColorDisabled,
-			spinnerFrame: ".",
+			stage:     changeStageCompatibilityFailureDetected,
+			target:    "1.21.1",
+			items:     items,
+			colorMode: view.ColorDisabled,
+			spinner:   &spin,
 		}), view.SectionSeparatorParagraph)
 		snaps.MatchSnapshot(t, output)
 	})
@@ -91,11 +95,11 @@ func TestChangeViewSnapshots(t *testing.T) {
 			},
 		}
 		output := view.RenderViewSections(buildChangeSections(changeViewInput{
-			stage:        changeStageRunning,
-			target:       "1.21.1",
-			items:        downloadItems,
-			colorMode:    view.ColorDisabled,
-			spinnerFrame: ".",
+			stage:     changeStageRunning,
+			target:    "1.21.1",
+			items:     downloadItems,
+			colorMode: view.ColorDisabled,
+			spinner:   &spin,
 		}), view.SectionSeparatorParagraph)
 		snaps.MatchSnapshot(t, output)
 	})
@@ -111,11 +115,11 @@ func TestChangeViewSnapshots(t *testing.T) {
 			},
 		}
 		output := view.RenderViewSections(buildChangeSections(changeViewInput{
-			stage:        changeStageSwitching,
-			target:       "1.21.1",
-			items:        switchItems,
-			colorMode:    view.ColorDisabled,
-			spinnerFrame: ".",
+			stage:     changeStageSwitching,
+			target:    "1.21.1",
+			items:     switchItems,
+			colorMode: view.ColorDisabled,
+			spinner:   &spin,
 		}), view.SectionSeparatorParagraph)
 		snaps.MatchSnapshot(t, output)
 	})
@@ -132,11 +136,11 @@ func TestChangeViewSnapshots(t *testing.T) {
 			},
 		}
 		output := view.RenderViewSections(buildChangeSections(changeViewInput{
-			stage:        changeStageSuccess,
-			target:       "1.21.1",
-			items:        successItems,
-			colorMode:    view.ColorDisabled,
-			spinnerFrame: ".",
+			stage:     changeStageSuccess,
+			target:    "1.21.1",
+			items:     successItems,
+			colorMode: view.ColorDisabled,
+			spinner:   &spin,
 		}), view.SectionSeparatorParagraph)
 		snaps.MatchSnapshot(t, output)
 	})
@@ -156,7 +160,7 @@ func TestChangeViewSnapshots(t *testing.T) {
 			target:           "1.21.1",
 			items:            promptItems,
 			colorMode:        view.ColorDisabled,
-			spinnerFrame:     ".",
+			spinner:          &spin,
 			waitingForPolicy: true,
 		})
 		prompt := newChangePolicyPromptModel()
@@ -176,11 +180,11 @@ func TestChangeViewSnapshots(t *testing.T) {
 			},
 		}
 		sections := buildChangeSections(changeViewInput{
-			stage:        changeStageRunning,
-			target:       "1.21.1",
-			items:        answeredItems,
-			colorMode:    view.ColorDisabled,
-			spinnerFrame: ".",
+			stage:     changeStageRunning,
+			target:    "1.21.1",
+			items:     answeredItems,
+			colorMode: view.ColorDisabled,
+			spinner:   &spin,
 		})
 		sections = append(sections, forcePolicyAnswerLine(changeForcePolicyKeepConfig))
 		output := view.RenderViewSections(sections, view.SectionSeparatorParagraph)

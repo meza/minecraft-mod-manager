@@ -6,7 +6,6 @@ import (
 	"fmt"
 	"strings"
 
-	"github.com/charmbracelet/bubbles/spinner"
 	"github.com/charmbracelet/bubbles/viewport"
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/lipgloss"
@@ -96,7 +95,7 @@ type changeModel struct {
 	target          string
 	items           []changeItem
 	indexByKey      map[string]int
-	spinner         spinner.Model
+	spinner         view.Spinner
 	viewport        viewport.Model
 	windowW         int
 	windowH         int
@@ -191,13 +190,7 @@ type changePolicySelectedMsg struct {
 
 func newChangeModel(input changeModelInput) *changeModel {
 	ctx, cancel := context.WithCancel(input.ctx)
-	spin := spinner.New()
-	if view.SupportsUnicode() {
-		spin.Spinner = spinner.Dot
-	} else {
-		spin.Spinner = spinner.Line
-	}
-	spin.Style = lipgloss.NewStyle()
+	spin := view.NewSpinner()
 
 	model := &changeModel{
 		ctx:             ctx,
@@ -237,7 +230,7 @@ func (model *changeModel) Init() tea.Cmd {
 	if model.sender == nil || model.execRunner == nil {
 		return tea.Quit
 	}
-	return tea.Batch(model.spinner.Tick, model.startChangeCmd())
+	return tea.Batch(model.spinner.InitCmd(), model.startChangeCmd())
 }
 
 func (model *changeModel) startChangeCmd() tea.Cmd {
@@ -312,12 +305,12 @@ func (model *changeModel) updateChangeMessage(msg tea.Msg) (tea.Model, tea.Cmd) 
 	if handled := model.updateSwitchMessage(msg); handled {
 		return model, nil
 	}
-
-	switch typed := msg.(type) {
-	case spinner.TickMsg:
-		updated, cmd := model.spinner.Update(typed)
+	if updated, cmd, handled := model.spinner.Update(msg); handled {
 		model.spinner = updated
 		return model, cmd
+	}
+
+	switch typed := msg.(type) {
 	case changePolicyPromptMsg:
 		model.policyPrompt = newChangePolicyPromptModel()
 		if model.windowW > 0 {
@@ -406,13 +399,12 @@ func (model *changeModel) updateSwitchMessage(msg tea.Msg) bool {
 }
 
 func (model *changeModel) View() string {
-	spinnerFrame := model.spinnerFrame()
 	sections := buildChangeSections(changeViewInput{
 		stage:            model.stage,
 		target:           model.target,
 		items:            model.items,
 		colorMode:        model.colorMode,
-		spinnerFrame:     spinnerFrame,
+		spinner:          &model.spinner,
 		forcePolicy:      model.forcePolicy,
 		waitingForPolicy: model.policyPrompt != nil,
 	})
@@ -453,16 +445,6 @@ func (model *changeModel) updateViewport(content string, focusMode viewportFocus
 		return
 	}
 	model.viewport.SetYOffset(model.viewport.YOffset)
-}
-
-func (model *changeModel) spinnerFrame() string {
-	frame := model.spinner.View()
-	trimmed := strings.TrimSpace(frame)
-	if trimmed == "" || trimmed == "(error)" {
-		// Bubbles returns "(error)" when spinner frames are missing.
-		return ""
-	}
-	return frame
 }
 
 func (model *changeModel) applyCompatResult(msg changeCompatResultMsg) {
@@ -601,7 +583,7 @@ type changeViewInput struct {
 	target           string
 	items            []changeItem
 	colorMode        view.ColorMode
-	spinnerFrame     string
+	spinner          *view.Spinner
 	forcePolicy      changeForcePolicy
 	waitingForPolicy bool
 }
@@ -739,10 +721,10 @@ func renderCompatibilityLine(input changeViewInput, item changeItem) string {
 		suffix = i18n.T(suffixKey, &i18n.Tvars{Data: &i18n.TData{"version": input.target}})
 	}
 	return view.RenderModItemLine(view.ModItemLine{
-		Label:        label,
-		Suffix:       suffix,
-		Status:       status,
-		SpinnerFrame: input.spinnerFrame,
+		Label:   label,
+		Suffix:  suffix,
+		Status:  status,
+		Spinner: input.spinner,
 	}, input.colorMode)
 }
 
@@ -817,8 +799,12 @@ func renderSwitchingSection(input changeViewInput, sectionItems []changeItem) st
 		if input.waitingForPolicy {
 			waitingKey = "cmd.change.section.switching_waiting_choice"
 		}
+		spinnerFrame := ""
+		if input.spinner != nil {
+			spinnerFrame = input.spinner.Frame()
+		}
 		waiting := i18n.T(waitingKey, &i18n.Tvars{
-			Data: &i18n.TData{"spinner": input.spinnerFrame},
+			Data: &i18n.TData{"spinner": spinnerFrame},
 		})
 		title = title + " " + view.RenderIfColorEnabled(input.colorMode, view.ParenStyle, waiting)
 	}
@@ -864,10 +850,10 @@ func renderSwitchingLine(input changeViewInput, item changeItem) string {
 	}
 
 	return view.RenderModItemLine(view.ModItemLine{
-		Label:        label,
-		Suffix:       suffix,
-		Status:       status,
-		SpinnerFrame: input.spinnerFrame,
+		Label:   label,
+		Suffix:  suffix,
+		Status:  status,
+		Spinner: input.spinner,
 	}, input.colorMode)
 }
 

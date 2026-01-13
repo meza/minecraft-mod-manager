@@ -13,8 +13,10 @@ import (
 
 func TestScanViewSnapshots(t *testing.T) {
 	t.Setenv("MMM_TEST", "true")
+	restore := view.SetUnicodeSupportFuncForTesting(func() bool { return true })
+	t.Cleanup(restore)
 
-	spinnerFrame := "\u280B"
+	spin := view.NewSpinner()
 
 	t.Run("running", func(t *testing.T) {
 		items := []scanItem{
@@ -32,9 +34,9 @@ func TestScanViewSnapshots(t *testing.T) {
 		}
 
 		output := renderScanRunningView(scanRunningViewInput{
-			items:        items,
-			colorMode:    view.ColorDisabled,
-			spinnerFrame: spinnerFrame,
+			items:     items,
+			colorMode: view.ColorDisabled,
+			spinner:   &spin,
 		})
 		snaps.MatchSnapshot(t, output)
 	})
@@ -102,9 +104,9 @@ func TestScanViewSnapshots(t *testing.T) {
 		}
 
 		output := renderScanRunningView(scanRunningViewInput{
-			items:        items,
-			colorMode:    view.ColorDisabled,
-			spinnerFrame: spinnerFrame,
+			items:     items,
+			colorMode: view.ColorDisabled,
+			spinner:   &spin,
 		})
 		snaps.MatchSnapshot(t, output)
 	})

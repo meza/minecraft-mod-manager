@@ -306,7 +306,7 @@ func TestTestModelViewUsesViewportWhenWindowSized(t *testing.T) {
 		targetVersion: model.targetVersion,
 		items:         items,
 		colorMode:     model.colorMode,
-		spinnerFrame:  model.spinnerFrame(),
+		spinner:       &model.spinner,
 	}
 	headerHeight := lipgloss.Height(renderTestHeader(model.targetVersion))
 	compatHeight := lipgloss.Height(renderCompatibilitySection(input))
@@ -558,7 +558,7 @@ func TestNewTestModelUsesLineSpinnerWhenUnicodeDisabled(t *testing.T) {
 		},
 	})
 
-	assert.Equal(t, spinner.Line, model.spinner.Spinner)
+	assert.Equal(t, spinner.Line.Frames[0], model.spinner.StaticFrame())
 }
 
 func TestTestModelUpdateFinishes(t *testing.T) {

@@ -715,12 +715,6 @@ func TestRunRemoveWriteConfigFailureOutputsError(t *testing.T) {
 	assert.Equal(t, "sodium", updatedLock[0].ID)
 }
 
-func TestRemoveModelSpinnerFrameHandlesError(t *testing.T) {
-	model := newRemoveModel(context.Background(), view.ColorDisabled, nil, nil, nil)
-	model.spinner.Spinner.Frames = []string{}
-	assert.Equal(t, "", model.spinnerFrame())
-}
-
 func TestRemoveModelViewFinalFailureIncludesSummary(t *testing.T) {
 	model := newRemoveModel(context.Background(), view.ColorDisabled, []removeItem{{
 		Mod:           models.Mod{Name: "Sodium", ID: "sodium"},

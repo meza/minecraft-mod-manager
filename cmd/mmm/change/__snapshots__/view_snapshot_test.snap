@@ -11,7 +11,7 @@ cmd.change.section.downloading
 █████░░░░░
 50% (512 KB / 1 MB)
 
-cmd.change.section.switching cmd.change.section.switching_waiting, Arg 1: {Count: 0, Data: &map[spinner:.]}
+cmd.change.section.switching cmd.change.section.switching_waiting, Arg 1: {Count: 0, Data: &map[spinner:⣾ ]}
 ⏳ Gamma (gamma) [modrinth]
 ---
 
@@ -40,7 +40,7 @@ cmd.change.section.downloading
 
 [TestChangeViewSnapshots/switching - 1]
 cmd.change.section.switching
-. Alpha (alpha) [modrinth]
+⣾  Alpha (alpha) [modrinth]
 ---
 
 [TestChangeViewSnapshots/success - 1]
@@ -55,7 +55,7 @@ cmd.change.notice
 
 cmd.change.section.compatibility
 ❌ Alpha (alpha) [modrinth] cmd.change.item.unsupported, Arg 1: {Count: 0, Data: &map[version:1.21.1]}
-. Beta (beta) [curseforge]
+⣾  Beta (beta) [curseforge]
 
 cmd.change.section.downloading cmd.change.section.cancelled_incompatibility
 
@@ -66,7 +66,7 @@ cmd.change.section.switching cmd.change.section.cancelled_incompatibility
 cmd.change.header, Arg 1: {Count: 0, Data: &map[version:1.21.1]}
 cmd.change.notice
 
-cmd.change.section.switching cmd.change.section.switching_waiting_choice, Arg 1: {Count: 0, Data: &map[spinner:.]}
+cmd.change.section.switching cmd.change.section.switching_waiting_choice, Arg 1: {Count: 0, Data: &map[spinner:⣾ ]}
 ⏳ Alpha (alpha) [modrinth]
 
 ? cmd.change.force_policy.prompt                                                                                                                                                         
@@ -83,7 +83,7 @@ cmd.change.section.switching cmd.change.section.switching_waiting_choice, Arg 1:
 cmd.change.header, Arg 1: {Count: 0, Data: &map[version:1.21.1]}
 cmd.change.notice
 
-cmd.change.section.switching cmd.change.section.switching_waiting, Arg 1: {Count: 0, Data: &map[spinner:.]}
+cmd.change.section.switching cmd.change.section.switching_waiting, Arg 1: {Count: 0, Data: &map[spinner:⣾ ]}
 ⏳ Alpha (alpha) [modrinth]
 
 ? cmd.change.force_policy.prompt cmd.change.force_policy.answer.keep

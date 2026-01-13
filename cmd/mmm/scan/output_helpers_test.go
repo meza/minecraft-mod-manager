@@ -18,9 +18,10 @@ func TestRenderScanFailureLineColorEnabled(t *testing.T) {
 }
 
 func TestRenderScanRunningItemLineStatuses(t *testing.T) {
+	spin := view.NewSpinner()
 	input := scanRunningViewInput{
-		colorMode:    view.ColorDisabled,
-		spinnerFrame: "*",
+		colorMode: view.ColorDisabled,
+		spinner:   &spin,
 	}
 
 	scanning := renderScanRunningItemLine(input, scanItem{FileName: "alpha.jar", Status: scanItemStatusScanning})

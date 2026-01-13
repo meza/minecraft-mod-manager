@@ -14,7 +14,7 @@ func renderRemoveLabel(colorMode view.ColorMode, mod models.Mod) string {
 	return fmt.Sprintf("%s (%s)", mod.Name, idPart)
 }
 
-func renderRemoveItemLine(colorMode view.ColorMode, item removeItem, spinnerFrame string) string {
+func renderRemoveItemLine(colorMode view.ColorMode, item removeItem, spinner *view.Spinner) string {
 	status := view.ModItemStatusPending
 	suffix := ""
 	line := view.ModItemLine{
@@ -24,7 +24,7 @@ func renderRemoveItemLine(colorMode view.ColorMode, item removeItem, spinnerFram
 	switch item.Status {
 	case removeItemPending:
 		status = view.ModItemStatusSpinning
-		line.SpinnerFrame = spinnerFrame
+		line.Spinner = spinner
 	case removeItemSuccess:
 		status = view.ModItemStatusSuccess
 	case removeItemFailed:
@@ -39,14 +39,14 @@ func renderRemoveItemLine(colorMode view.ColorMode, item removeItem, spinnerFram
 	return view.RenderModItemLine(line, colorMode)
 }
 
-func renderRemoveRunningSection(colorMode view.ColorMode, items []removeItem, spinnerFrame string) string {
+func renderRemoveRunningSection(colorMode view.ColorMode, items []removeItem, spinner *view.Spinner) string {
 	header := i18n.T("cmd.remove.header.removing", nil)
-	lines := renderRemoveItems(colorMode, items, spinnerFrame)
+	lines := renderRemoveItems(colorMode, items, spinner)
 	return strings.Join(append([]string{header}, lines...), "\n")
 }
 
 func renderRemoveResultSection(colorMode view.ColorMode, items []removeItem) string {
-	lines := renderRemoveItems(colorMode, items, "")
+	lines := renderRemoveItems(colorMode, items, nil)
 	return strings.Join(lines, "\n")
 }
 
@@ -94,10 +94,10 @@ func renderRemoveFailureLine(colorMode view.ColorMode, err error) string {
 	return strings.Join([]string{headline, hint}, "\n")
 }
 
-func renderRemoveItems(colorMode view.ColorMode, items []removeItem, spinnerFrame string) []string {
+func renderRemoveItems(colorMode view.ColorMode, items []removeItem, spinner *view.Spinner) []string {
 	lines := make([]string, 0, len(items))
 	for _, item := range items {
-		lines = append(lines, renderRemoveItemLine(colorMode, item, spinnerFrame))
+		lines = append(lines, renderRemoveItemLine(colorMode, item, spinner))
 	}
 	return lines
 }

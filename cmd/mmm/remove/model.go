@@ -3,7 +3,6 @@ package remove
 import (
 	"context"
 
-	"github.com/charmbracelet/bubbles/spinner"
 	tea "github.com/charmbracelet/bubbletea"
 
 	"github.com/meza/minecraft-mod-manager/internal/view"
@@ -30,7 +29,7 @@ type removeModel struct {
 	colorMode  view.ColorMode
 	items      []removeItem
 	indexByKey map[string]int
-	spinner    spinner.Model
+	spinner    view.Spinner
 	outcome    removeExecutionOutcome
 	done       bool
 	sender     removeExecSender
@@ -43,12 +42,7 @@ func newRemoveModel(
 	indexByKey map[string]int,
 	execRunner func(context.Context, removeExecSender) removeExecutionOutcome,
 ) *removeModel {
-	spin := spinner.New()
-	if view.SupportsUnicode() {
-		spin.Spinner = spinner.Dot
-	} else {
-		spin.Spinner = spinner.Line
-	}
+	spin := view.NewSpinner()
 
 	return &removeModel{
 		ctx:        ctx,
@@ -68,7 +62,7 @@ func (model *removeModel) Init() tea.Cmd {
 	if model.sender.send == nil || model.execRunner == nil {
 		return tea.Quit
 	}
-	return tea.Batch(model.spinner.Tick, model.startRemoveCmd())
+	return tea.Batch(model.spinner.InitCmd(), model.startRemoveCmd())
 }
 
 func (model *removeModel) startRemoveCmd() tea.Cmd {
@@ -78,11 +72,11 @@ func (model *removeModel) startRemoveCmd() tea.Cmd {
 }
 
 func (model *removeModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
-	switch typed := msg.(type) {
-	case spinner.TickMsg:
-		updated, cmd := model.spinner.Update(typed)
+	if updated, cmd, handled := model.spinner.Update(msg); handled {
 		model.spinner = updated
 		return model, cmd
+	}
+	switch typed := msg.(type) {
 	case removeItemSuccessMsg:
 		model.updateItem(typed.key, func(item *removeItem) {
 			item.Status = removeItemSuccess
@@ -111,7 +105,7 @@ func (model *removeModel) View() string {
 	if model.done {
 		return model.renderFinalView()
 	}
-	return renderRemoveRunningSection(model.colorMode, model.items, model.spinnerFrame())
+	return renderRemoveRunningSection(model.colorMode, model.items, &model.spinner)
 }
 
 func (model *removeModel) updateItem(key string, update func(*removeItem)) {
@@ -138,12 +132,4 @@ func (model *removeModel) renderFinalView() string {
 	}
 
 	return view.RenderViewSectionsWithTrailingNewline(sections, view.SectionSeparatorParagraph)
-}
-
-func (model *removeModel) spinnerFrame() string {
-	frame := model.spinner.View()
-	if frame == "(error)" {
-		return ""
-	}
-	return frame
 }

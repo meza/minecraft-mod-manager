@@ -10,9 +10,9 @@ import (
 )
 
 type scanRunningViewInput struct {
-	items        []scanItem
-	colorMode    view.ColorMode
-	spinnerFrame string
+	items     []scanItem
+	colorMode view.ColorMode
+	spinner   *view.Spinner
 }
 
 type scanResultsViewInput struct {
@@ -168,9 +168,9 @@ func renderScanRunningItemLine(input scanRunningViewInput, item scanItem) string
 	switch item.Status {
 	case scanItemStatusScanning:
 		return view.RenderModItemLine(view.ModItemLine{
-			Label:        label,
-			Status:       view.ModItemStatusSpinning,
-			SpinnerFrame: input.spinnerFrame,
+			Label:   label,
+			Status:  view.ModItemStatusSpinning,
+			Spinner: input.spinner,
 		}, input.colorMode)
 	case scanItemStatusPending:
 		return view.RenderModItemLine(view.ModItemLine{

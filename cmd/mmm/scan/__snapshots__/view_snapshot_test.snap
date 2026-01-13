@@ -1,22 +1,22 @@
 [TestScanViewSnapshots/running - 1]
 cmd.scan.header.running
-⠋ appleskin.jar
-⠋ bc.jar
-⠋ delta.jar
-⠋ flaky.jar
-⠋ inventorysorter.jar
-⠋ lithium-123.23.jar
-⠋ shulkerbox.jar
-⠋ sodium.jar
-⠋ soundsbegone.jar
-⠋ unmanaged.jar
-⠋ zeta.jar
+⣾  appleskin.jar
+⣾  bc.jar
+⣾  delta.jar
+⣾  flaky.jar
+⣾  inventorysorter.jar
+⣾  lithium-123.23.jar
+⣾  shulkerbox.jar
+⣾  sodium.jar
+⣾  soundsbegone.jar
+⣾  unmanaged.jar
+⣾  zeta.jar
 ---
 
 [TestScanViewSnapshots/running_with_sections - 1]
 cmd.scan.header.running
-⠋ lithium-123.23.jar
-⠋ sodium.jar
+⣾  lithium-123.23.jar
+⣾  sodium.jar
 
 cmd.scan.section.recognized
 ✅ appleskin.jar -> AppleSkin (appleskin) [modrinth]

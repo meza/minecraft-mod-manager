@@ -5,7 +5,6 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/charmbracelet/bubbles/spinner"
 	"github.com/spf13/cobra"
 	"github.com/stretchr/testify/assert"
 
@@ -356,17 +355,6 @@ func TestWriteChangeOutcomeUnattendedCompatibilityFailedKeepsSections(t *testing
 	assert.NotContains(t, rendered, "Switching:")
 }
 
-func TestDefaultSpinnerFrameReturnsEmptyWhenMissingFrames(t *testing.T) {
-	restoreUnicode := view.SetUnicodeSupportFuncForTesting(func() bool { return false })
-	t.Cleanup(restoreUnicode)
-
-	originalFrames := spinner.Line.Frames
-	t.Cleanup(func() { spinner.Line.Frames = originalFrames })
-	spinner.Line.Frames = []string{}
-
-	assert.Equal(t, "", defaultSpinnerFrame())
-}
-
 func TestWriteQuietChangeOutcomeUsesOutputLines(t *testing.T) {
 	output := &bytes.Buffer{}
 	cmd := &cobra.Command{}
@@ -380,22 +368,6 @@ func TestWriteQuietChangeOutcomeUsesOutputLines(t *testing.T) {
 	}
 
 	assert.NoError(t, writeQuietChangeOutcome(cmd, deps, outcome, "1.19.4"))
-}
-
-func TestDefaultSpinnerFrameUsesUnicodeWhenAvailable(t *testing.T) {
-	restore := view.SetUnicodeSupportFuncForTesting(func() bool { return true })
-	t.Cleanup(restore)
-
-	frame := defaultSpinnerFrame()
-	assert.NotEmpty(t, frame)
-}
-
-func TestDefaultSpinnerFrameUsesAsciiWhenUnicodeUnavailable(t *testing.T) {
-	restore := view.SetUnicodeSupportFuncForTesting(func() bool { return false })
-	t.Cleanup(restore)
-
-	frame := defaultSpinnerFrame()
-	assert.NotEmpty(t, frame)
 }
 
 func modFixture(id string) models.Mod {

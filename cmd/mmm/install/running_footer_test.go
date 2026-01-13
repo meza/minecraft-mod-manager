@@ -43,7 +43,7 @@ func TestInstallModelRunningFooterRendersLine(t *testing.T) {
 
 	output := model.View()
 	assert.Contains(t, output, "waiting")
-	assert.Equal(t, spinner.Line, model.spinner.Spinner)
+	assert.Equal(t, spinner.Line.Frames[0], model.spinner.StaticFrame())
 }
 
 func TestInstallModelSpinnerTickUpdatesFooter(t *testing.T) {
@@ -92,19 +92,4 @@ func TestInstallModelUpdateSpinnerTickWithoutFooter(t *testing.T) {
 	updated, cmd := model.Update(spinner.TickMsg{})
 	assert.Nil(t, cmd)
 	assert.Equal(t, model, updated)
-}
-
-func TestInstallModelSpinnerFrameReturnsEmptyOnError(t *testing.T) {
-	model := newInstallModel(
-		context.Background(),
-		view.ColorDisabled,
-		nil,
-		nil,
-		nil,
-		func(context.Context, httpclient.Sender) installExecutionOutcome { return installExecutionOutcome{} },
-		&RunningFooter{Render: func(RunningFooterInput) string { return "waiting" }},
-	)
-
-	model.spinner.Spinner = spinner.Spinner{}
-	assert.Equal(t, "", model.spinnerFrame())
 }

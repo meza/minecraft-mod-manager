@@ -2,10 +2,8 @@ package update
 
 import (
 	"context"
-	"os"
 	"strings"
 
-	"github.com/charmbracelet/bubbles/spinner"
 	"github.com/charmbracelet/bubbles/viewport"
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/lipgloss"
@@ -20,7 +18,7 @@ type updateModel struct {
 	colorMode     view.ColorMode
 	items         []updateItem
 	indexByKey    map[int]int
-	spinner       spinner.Model
+	spinner       view.Spinner
 	viewport      viewport.Model
 	windowW       int
 	windowH       int
@@ -71,13 +69,7 @@ type updateFinalizeMsg struct{}
 
 func newUpdateModel(input updateModelInput) *updateModel {
 	ctx, cancel := context.WithCancel(input.ctx)
-	spin := spinner.New()
-	if view.SupportsUnicode() {
-		spin.Spinner = spinner.Dot
-	} else {
-		spin.Spinner = spinner.Line
-	}
-	spin.Style = lipgloss.NewStyle()
+	spin := view.NewSpinner()
 
 	model := &updateModel{
 		ctx:           ctx,
@@ -102,10 +94,7 @@ func (model *updateModel) Init() tea.Cmd {
 	if model.sender.send == nil || model.execRunner == nil {
 		return tea.Quit
 	}
-	if updateTestModeEnabled() {
-		return model.startUpdateCmd()
-	}
-	return tea.Batch(model.spinner.Tick, model.startUpdateCmd())
+	return tea.Batch(model.spinner.InitCmd(), model.startUpdateCmd())
 }
 
 func (model *updateModel) startUpdateCmd() tea.Cmd {
@@ -118,6 +107,10 @@ func (model *updateModel) startUpdateCmd() tea.Cmd {
 }
 
 func (model *updateModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
+	if updated, cmd, handled := model.spinner.Update(msg); handled {
+		model.spinner = updated
+		return model, cmd
+	}
 	switch typed := msg.(type) {
 	case tea.WindowSizeMsg:
 		model.windowW = typed.Width
@@ -163,7 +156,7 @@ func (model *updateModel) View() string {
 	content := renderUpdateRunningView(updateRunningViewInput{
 		items:        model.items,
 		colorMode:    model.colorMode,
-		spinnerFrame: model.spinnerFrame(),
+		spinnerFrame: model.spinner.Frame(),
 	})
 	if model.windowH <= 0 || content == "" {
 		return content
@@ -196,15 +189,6 @@ func (model *updateModel) updateViewport(content string, height int) {
 	model.viewport.SetYOffset(targetOffset)
 }
 
-func (model *updateModel) spinnerFrame() string {
-	frame := model.spinner.View()
-	trimmed := strings.TrimSpace(frame)
-	if trimmed == "" || trimmed == "(error)" {
-		return ""
-	}
-	return frame
-}
-
 func (model *updateModel) handleViewportKey(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 	switch msg.String() {
 	case "ctrl+c", "q", "esc":
@@ -234,10 +218,6 @@ func (model *updateModel) handleViewportMouse(msg tea.MouseMsg) (tea.Model, tea.
 
 func (model *updateModel) handleUpdateMessage(msg tea.Msg) (tea.Model, tea.Cmd) {
 	switch typed := msg.(type) {
-	case spinner.TickMsg:
-		updated, cmd := model.spinner.Update(typed)
-		model.spinner = updated
-		return model, cmd
 	case updateItemStatusMsg:
 		model.applyItemUpdate(typed)
 		return model, nil
@@ -283,11 +263,6 @@ func isViewportScrollMouse(msg tea.MouseMsg) bool {
 	default:
 		return false
 	}
-}
-
-func updateTestModeEnabled() bool {
-	_, present := os.LookupEnv("MMM_TEST")
-	return present
 }
 
 func (model *updateModel) applyItemUpdate(msg updateItemStatusMsg) {

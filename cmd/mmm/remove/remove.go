@@ -415,7 +415,7 @@ func renderRemoveQuietDeleteFailure(colorMode view.ColorMode, items []removeItem
 	if len(failed) == 0 {
 		return []string{renderRemoveFailureSummary(colorMode)}
 	}
-	return []string{strings.Join(renderRemoveItems(colorMode, failed, ""), "\n"), renderRemoveFailureSummary(colorMode)}
+	return []string{strings.Join(renderRemoveItems(colorMode, failed, nil), "\n"), renderRemoveFailureSummary(colorMode)}
 }
 
 func filterRemoveItems(items []removeItem, status removeItemStatus) []removeItem {

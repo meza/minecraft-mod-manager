@@ -123,7 +123,7 @@ func (model *removeTranscriptModel) applyTranscriptSuccess(msg removeItemSuccess
 	if !ok || isTerminalRemoveStatus(previousStatus) {
 		return "", false
 	}
-	return renderRemoveItemLine(model.colorMode, model.items[model.indexByKey[msg.key]], ""), true
+	return renderRemoveItemLine(model.colorMode, model.items[model.indexByKey[msg.key]], nil), true
 }
 
 func (model *removeTranscriptModel) applyTranscriptFailure(msg removeItemFailureMsg) (string, bool) {
@@ -134,7 +134,7 @@ func (model *removeTranscriptModel) applyTranscriptFailure(msg removeItemFailure
 	if !ok || isTerminalRemoveStatus(previousStatus) {
 		return "", false
 	}
-	return renderRemoveItemLine(model.colorMode, model.items[model.indexByKey[msg.key]], ""), true
+	return renderRemoveItemLine(model.colorMode, model.items[model.indexByKey[msg.key]], nil), true
 }
 
 func (model *removeTranscriptModel) summaryLines() []string {
@@ -164,7 +164,7 @@ func missingTranscriptLines(colorMode view.ColorMode, currentItems []removeItem,
 		if index < len(currentItems) && isTerminalRemoveStatus(currentItems[index].Status) {
 			continue
 		}
-		lines = append(lines, renderRemoveItemLine(colorMode, item, ""))
+		lines = append(lines, renderRemoveItemLine(colorMode, item, nil))
 	}
 	return lines
 }
