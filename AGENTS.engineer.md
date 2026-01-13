@@ -63,14 +63,15 @@ The prompt MUST begin with: "You are now acting as the code reviewer."
 Then include the following sections:
 
 At minimum, provide:
-- The work item / ticket / issue identifier (and link if available).
+- The work item / ticket / issue identifier. Must not use a link - provide the raw ID only.
 - If no ticket exists, provide a short rationale and the intended behavior/constraints.
-- A 1-3 sentence intent statement (what you changed and why).
-- Any known risks, edge cases, or follow-ups.
+- Any known risks, edge cases, or uncertainties that need special attention.
 - Windows verification status: pass/fail from `winstructions.md`, or `Skipped: no winstructions.md` (include timestamp). (MANDATORY)
 
 Exclude:
 - Any make or build output. The reviewer must run the commands themselves if needed.
+- Any commentary on your work, scope changes, or process. The reviewer must evaluate the changes independently.
+- List of files changed. The reviewer can get this from the VCS.
 
 ### Review Collaboration (Non-Negotiable)
 
