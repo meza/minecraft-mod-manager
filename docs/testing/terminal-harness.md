@@ -100,6 +100,8 @@ Call `terminal.ApplyFixtures(t)` at the start of terminal tests.
 It sets `MMM_TEST=true`, disables color by default, and locks unicode support to deterministic values.
 Use options when you need a specific color profile or unicode behavior.
 
+If you need a temporary `modlist.json`/`modlist-lock.json` setup for tests, see `testutil/modlistfixture/README.md` for the helper API and examples.
+
 If your scenario makes external HTTP calls, call `vcr.LoadCassette` in the test to attach a cassette.
 See `docs/testing/http-vcr.md` for the workflow and cassette conventions.
 Because `terminal.ApplyFixtures` imports `vcr`, live external HTTP is blocked by default unless a cassette is active.

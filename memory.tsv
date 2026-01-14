@@ -473,3 +473,5 @@ date	time	entry
 2026-01-14	17:17	MMM-31: reviewer approved after restoring init/test-specific hint/question keys and rerunning local+Windows verification (PSReadLine VT warning).
 2026-01-14	17:20	MMM-31 marked Done in Linear per user request.
 2026-01-14	17:26	work on MMM-40 has started
+2026-01-14	20:53	work on MMM-46 has started
+2026-01-14	21:02	MMM-46: aligned on minimal fixture helper (Option A); cleanup hook only for real filesystem mode; memfs default with optional OS fs.

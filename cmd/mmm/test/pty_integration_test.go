@@ -196,7 +196,7 @@ func TestTestCommandInteractivePTYRunningShowsHeadersWhenShort(t *testing.T) {
 	session.WaitForOutput(t, func(output []byte) bool {
 		return strings.Contains(string(output), "❌ Beta (beta) [modrinth]")
 	}, terminalpty.WithWaitDuration(2*time.Second))
-	snaps.MatchSnapshot(t, normalizeTestPTYOutputSection(session.OutputString(), "cmd.test.section.not_compatible"))
+	snaps.MatchSnapshot(t, normalizeTestPTYOutput(session.OutputString(), rows))
 
 	close(release)
 	execErrValue := <-execErr
@@ -1143,9 +1143,9 @@ func normalizeTestPTYOutputSection(output string, section string) string {
 	})
 	normalized = dropCompatibilitySection(normalized)
 	if block := trimToLastSectionBlock(normalized, section); block != "" {
-		return normalizeTestLines(block, 0)
+		return normalizeTestLines(trimToSectionValue(block, section), 0)
 	}
-	return normalizeTestLines(normalized, 0)
+	return normalizeTestLines(trimToSectionValue(normalized, section), 0)
 }
 
 func preferredTestFrameMarkers(value string) []string {

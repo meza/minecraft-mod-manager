@@ -176,6 +176,21 @@ func runUpdatePTYRunningSnapshotWithItems(t *testing.T, rows uint16, items []upd
 			})
 			return strings.Contains(normalized, "cmd.update.section.failed")
 		}, terminalpty.WithWaitDuration(2*time.Second))
+		failedItemName := ""
+		for _, item := range items {
+			if item.Status == updateItemStatusFailed {
+				failedItemName = item.DisplayName
+				break
+			}
+		}
+		if failedItemName != "" {
+			session.WaitForOutput(t, func(output []byte) bool {
+				normalized := terminal.NormalizeOutput(string(output), terminal.NormalizeOptions{
+					StripControlSequences: true,
+				})
+				return strings.Contains(normalized, failedItemName)
+			}, terminalpty.WithWaitDuration(2*time.Second))
+		}
 	}
 
 	snaps.MatchSnapshot(t, normalizeUpdatePTYOutput(session.OutputString(), rows))
