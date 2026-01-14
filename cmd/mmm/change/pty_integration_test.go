@@ -110,7 +110,7 @@ func TestChangeCommandInteractivePTYOutput(t *testing.T) {
 
 	require.Contains(t, normalized, "cmd.change.header")
 	require.Contains(t, normalized, "cmd.change.notice")
-	require.Contains(t, normalized, "cmd.change.section.compatibility")
+	require.Contains(t, normalized, "cmd.compatibility.section")
 	require.Contains(t, normalized, "cmd.change.section.downloading")
 	require.NotContains(t, normalized, "cmd.change.section.switching")
 }

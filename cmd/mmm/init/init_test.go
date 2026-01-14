@@ -530,7 +530,7 @@ func TestValidateUnattendedInputsGameVersionUnavailableReportsError(t *testing.T
 	assert.Error(t, err)
 	var outputErr *unattendedOutputError
 	if assert.ErrorAs(t, err, &outputErr) {
-		assert.Equal(t, "cmd.init.error.game-version.unavailable", outputErr.messageKey)
+		assert.Equal(t, "cmd.minecraft.version.unavailable", outputErr.messageKey)
 		assert.Empty(t, outputErr.hintKey)
 	}
 }

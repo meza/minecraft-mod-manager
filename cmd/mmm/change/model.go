@@ -690,7 +690,7 @@ func renderCompatibilitySection(input changeViewInput, sectionItems []changeItem
 	if len(sectionItems) == 0 {
 		return ""
 	}
-	lines := []string{i18n.T("cmd.change.section.compatibility", nil)}
+	lines := []string{i18n.T("cmd.compatibility.section", nil)}
 	for _, item := range sectionItems {
 		lines = append(lines, renderCompatibilityLine(input, item))
 	}
@@ -772,7 +772,7 @@ func renderDownloadLine(input changeViewInput, item changeItem) string {
 	case changeDownloadFailed:
 		status = view.ModItemStatusError
 		if strings.TrimSpace(item.ErrorReason) != "" {
-			suffix = i18n.T("cmd.change.item.download_failed", &i18n.Tvars{
+			suffix = i18n.T("cmd.download.item.failed", &i18n.Tvars{
 				Data: &i18n.TData{"reason": item.ErrorReason},
 			})
 		}

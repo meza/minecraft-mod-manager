@@ -3,7 +3,7 @@
 cmd.change.header, Arg 1: {Count: 0, Data: &map[version:1.21.1]}
 cmd.change.notice
 
-cmd.change.section.compatibility
+cmd.compatibility.section
 ⏳ Alpha (alpha) [modrinth]
 
 cmd.change.section.downloading
@@ -19,7 +19,7 @@ cmd.change.section.switching cmd.change.section.switching_waiting, Arg 1: {Count
 cmd.change.header, Arg 1: {Count: 0, Data: &map[version:1.21.1]}
 cmd.change.notice
 
-cmd.change.section.compatibility
+cmd.compatibility.section
 ❌ Alpha (alpha) [modrinth] cmd.change.item.unsupported, Arg 1: {Count: 0, Data: &map[version:1.21.1]}
 
 ‼️ cmd.change.error.compatibility_failed, Arg 1: {Count: 0, Data: &map[version:1.21.1]}
@@ -53,7 +53,7 @@ cmd.change.section.switching
 cmd.change.header, Arg 1: {Count: 0, Data: &map[version:1.21.1]}
 cmd.change.notice
 
-cmd.change.section.compatibility
+cmd.compatibility.section
 ❌ Alpha (alpha) [modrinth] cmd.change.item.unsupported, Arg 1: {Count: 0, Data: &map[version:1.21.1]}
 ⣾  Beta (beta) [curseforge]
 
@@ -69,14 +69,14 @@ cmd.change.notice
 cmd.change.section.switching cmd.change.section.switching_waiting_choice, Arg 1: {Count: 0, Data: &map[spinner:⣾ ]}
 ⏳ Alpha (alpha) [modrinth]
 
-? cmd.change.force_policy.prompt                                                                                                                                                         
-❯ cmd.change.force_policy.option.keep                                                                                                                                                    
-  cmd.change.force_policy.option.prune                                                                                                                                                   
-  cmd.change.force_policy.option.disable                                                                                                                                                 
-                                                                                                                                                                                         
-                                                                                                                                                                                         
-  ↑/k key.help.up • ↓/j key.help.down • / key.help.filter • key.esc key.help.clear_filter • key.enter key.help.apply_filter • key.esc key.help.cancel • q key.help.quit • ? key.help.more
-                                                                                                                                                                                         
+? cmd.change.force_policy.prompt                                                                                                                                                                   
+❯ cmd.change.force_policy.option.keep                                                                                                                                                              
+  cmd.change.force_policy.option.prune                                                                                                                                                             
+  cmd.change.force_policy.option.disable                                                                                                                                                           
+                                                                                                                                                                                                   
+                                                                                                                                                                                                   
+  ↑/k key.direction.up • ↓/j key.direction.down • / key.help.filter • key.esc key.help.clear_filter • key.enter key.help.apply_filter • key.esc key.help.cancel • q key.help.quit • ? key.help.more
+                                                                                                                                                                                                   
 ---
 
 [TestChangeViewSnapshots/force_policy_answered - 1]

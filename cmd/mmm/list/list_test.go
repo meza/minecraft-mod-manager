@@ -437,8 +437,8 @@ func TestRunListMissingConfigUnattendedOutputsError(t *testing.T) {
 
 	assert.Error(t, err)
 	assert.True(t, clierrors.IsHandled(err))
-	assert.Contains(t, outBuffer.String(), "cmd.list.error.config_missing")
-	assert.Contains(t, outBuffer.String(), "cmd.list.error.config_missing_hint")
+	assert.Contains(t, outBuffer.String(), "cmd.config.error.missing")
+	assert.Contains(t, outBuffer.String(), "cmd.config.error.missing_hint")
 }
 
 func TestRunListMissingConfigOutputWriteFails(t *testing.T) {
@@ -1651,8 +1651,8 @@ func TestWriteConfigMissingOutputWritesHint(t *testing.T) {
 
 	err := writeConfigMissingOutput(command, listDeps{runTea: defaultRunTea}, config.NewMetadata("/cfg/modlist.json"))
 	assert.NoError(t, err)
-	assert.Contains(t, outBuffer.String(), "cmd.list.error.config_missing")
-	assert.Contains(t, outBuffer.String(), "cmd.list.error.config_missing_hint")
+	assert.Contains(t, outBuffer.String(), "cmd.config.error.missing")
+	assert.Contains(t, outBuffer.String(), "cmd.config.error.missing_hint")
 }
 
 func TestResolveExecutionModeUnattended(t *testing.T) {

@@ -419,12 +419,12 @@ func configMissingPromptError(options pruneOptions, cmd *cobra.Command, meta con
 		In:         cmd.InOrStdin(),
 		Out:        cmd.OutOrStdout(),
 		UnattendedError: func(meta config.Metadata) error {
-			return errors.New(i18n.T("cmd.prune.error.config_missing", &i18n.Tvars{
+			return errors.New(i18n.T("cmd.config.error.missing", &i18n.Tvars{
 				Data: &i18n.TData{"configPath": meta.ConfigPath},
 			}))
 		},
 		NoTTYError: func(meta config.Metadata) error {
-			return errors.New(i18n.T("cmd.prune.error.config_missing", &i18n.Tvars{
+			return errors.New(i18n.T("cmd.config.error.missing", &i18n.Tvars{
 				Data: &i18n.TData{"configPath": meta.ConfigPath},
 			}))
 		},
@@ -653,14 +653,14 @@ func writePruneFailureOutput(cmd *cobra.Command, deps pruneDeps, err error) erro
 
 func writeConfigMissingOutput(cmd *cobra.Command, deps pruneDeps, meta config.Metadata) error {
 	colorMode := colorModeForWriter(cmd)
-	headline := messageWithIcon(view.FinalErrorIcon(colorMode), i18n.T("cmd.prune.error.config_missing", &i18n.Tvars{
+	headline := messageWithIcon(view.FinalErrorIcon(colorMode), i18n.T("cmd.config.error.missing", &i18n.Tvars{
 		Data: &i18n.TData{"configPath": meta.ConfigPath},
 	}))
 	if colorMode.Enabled() {
 		headline = view.ErrorStyle.Render(headline)
 	}
 
-	hint := i18n.T("cmd.prune.error.config_missing_hint", nil)
+	hint := i18n.T("cmd.config.error.missing_hint", nil)
 	if colorMode.Enabled() {
 		hint = view.CtaStyle.Render(hint)
 	}
@@ -778,7 +778,7 @@ func renderPruneFileLine(colorMode view.ColorMode, result pruneFileResult) strin
 
 	suffix := ""
 	if result.Status == pruneFileStatusFailed && result.Err != nil {
-		suffix = i18n.T("cmd.prune.item.delete_failed", &i18n.Tvars{
+		suffix = i18n.T("cmd.file.delete_failed", &i18n.Tvars{
 			Data: &i18n.TData{"reason": result.Err.Error()},
 		})
 	}

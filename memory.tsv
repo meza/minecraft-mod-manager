@@ -468,3 +468,7 @@ date	time	entry
 2026-01-14	12:32	MMM-29: account for wrapped title height in add platform list sizing; normalized test PTY section snapshots with compatibility section drop + fallback to full output; local checks pass; Windows verification pass (PSReadLine VT warning).
 2026-01-14	13:15	MMM-29: stabilized cmd/mmm/test PTY normalization and final-transcript wait; local make fmt/lint/coverage/build pass; Windows winhost lint/build/coverage/test-race pass (PSReadLine VT warning).
 2026-01-14	13:56	MMM-29: reviewer approved; code-review.md updated; local make fmt/lint/vuln/coverage/build pass; Windows winhost lint/build/coverage/test-race pass (PSReadLine VT warning).
+2026-01-14	14:10	work on MMM-31 has started
+2026-01-14	16:45	MMM-31: de-duplicated i18n keys with shared semantic names across locales, updated call sites and snapshots; added PTY wait to stabilize cmd/mmm/test scroll snapshot; local + Windows verification pass (PSReadLine VT warning).
+2026-01-14	17:17	MMM-31: reviewer approved after restoring init/test-specific hint/question keys and rerunning local+Windows verification (PSReadLine VT warning).
+2026-01-14	17:20	MMM-31 marked Done in Linear per user request.

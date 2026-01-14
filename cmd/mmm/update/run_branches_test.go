@@ -380,8 +380,8 @@ func TestRunUpdateMissingConfigNonTTYOutputsConfigMissing(t *testing.T) {
 	})
 
 	assert.Error(t, err)
-	assert.Contains(t, out.String(), "cmd.install.error.config_missing")
-	assert.Contains(t, out.String(), "cmd.install.error.config_missing_hint")
+	assert.Contains(t, out.String(), "cmd.config.error.missing")
+	assert.Contains(t, out.String(), "cmd.config.error.missing_hint")
 }
 
 func TestRunUpdateMissingConfigInteractiveRunsInitAndContinues(t *testing.T) {
@@ -478,8 +478,8 @@ func TestRunUpdateMissingConfigUnattendedSkipsPrompt(t *testing.T) {
 	})
 
 	assert.Error(t, err)
-	assert.Contains(t, out.String(), "cmd.install.error.config_missing")
-	assert.Contains(t, out.String(), "cmd.install.error.config_missing_hint")
+	assert.Contains(t, out.String(), "cmd.config.error.missing")
+	assert.Contains(t, out.String(), "cmd.config.error.missing_hint")
 }
 
 func TestEnsureUpdateConfigReturnsErrorWhenInitRunnerMissing(t *testing.T) {

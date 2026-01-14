@@ -12,7 +12,7 @@ import (
 func renderAddSuccessLine(colorMode view.ColorMode, name string, id string, platformValue models.Platform) string {
 	idValue := view.RenderIfColorEnabled(colorMode, view.ParenStyle, id)
 	platformText := view.RenderIfColorEnabled(colorMode, view.ParenStyle, string(platformValue))
-	message := i18n.T("cmd.add.success", &i18n.Tvars{
+	message := i18n.T("cmd.mod.display", &i18n.Tvars{
 		Data: &i18n.TData{
 			"name":     name,
 			"id":       idValue,

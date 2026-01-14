@@ -304,7 +304,7 @@ func TestTestModelViewUsesViewportWhenWindowSized(t *testing.T) {
 	expectedHeight := model.windowH
 
 	assert.Contains(t, viewOutput, "cmd.test.header")
-	assert.Contains(t, viewOutput, "cmd.test.section.compatibility")
+	assert.Contains(t, viewOutput, "cmd.compatibility.section")
 	assert.Contains(t, viewOutput, "alpha")
 	assert.Equal(t, expectedHeight, model.viewport.Height)
 	assert.Equal(t, 80, model.viewport.Width)
@@ -339,7 +339,7 @@ func TestTestModelViewKeepsHeaderWithViewport(t *testing.T) {
 
 	viewOutput := model.View()
 	assert.Contains(t, viewOutput, "cmd.test.header")
-	assert.Contains(t, viewOutput, "cmd.test.section.compatibility")
+	assert.Contains(t, viewOutput, "cmd.compatibility.section")
 }
 
 func TestTestModelRenderRunningViewUsesDefaults(t *testing.T) {
@@ -587,7 +587,7 @@ func TestTestModelViewHeaderOnlyWhenCompatibilityHidden(t *testing.T) {
 
 	viewOutput := model.View()
 	assert.Contains(t, viewOutput, renderTestHeader("1.20.1"))
-	assert.NotContains(t, viewOutput, i18n.T("cmd.test.section.compatibility", nil))
+	assert.NotContains(t, viewOutput, i18n.T("cmd.compatibility.section", nil))
 }
 
 func TestDefaultRunTestProgramReturnsModel(t *testing.T) {

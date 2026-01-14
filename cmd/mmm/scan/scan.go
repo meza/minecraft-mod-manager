@@ -339,7 +339,7 @@ func configMissingPromptError(opts scanOptions, cmd *cobra.Command, meta config.
 }
 
 func configMissingError(meta config.Metadata) error {
-	return errors.New(i18n.T("cmd.scan.error.config_missing", &i18n.Tvars{
+	return errors.New(i18n.T("cmd.config.error.missing", &i18n.Tvars{
 		Data: &i18n.TData{"configPath": meta.ConfigPath},
 	}))
 }

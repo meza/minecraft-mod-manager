@@ -98,7 +98,7 @@ func TestIntegrityErrorMessage(t *testing.T) {
 
 	message, ok := integrityErrorMessage(modinstall.MissingHashError{FileName: "mod.jar"}, "Example")
 	assert.True(t, ok)
-	assert.Contains(t, message, "cmd.add.error.missing_hash_remote")
+	assert.Contains(t, message, "cmd.mods.error.missing_hash_remote")
 
 	message, ok = integrityErrorMessage(modinstall.HashMismatchError{FileName: "mod.jar"}, "Example")
 	assert.True(t, ok)
@@ -106,7 +106,7 @@ func TestIntegrityErrorMessage(t *testing.T) {
 
 	message, ok = integrityErrorMessage(modpath.OutsideRootError{ResolvedPath: "/tmp/mod.jar", Root: "/mods"}, "Example")
 	assert.True(t, ok)
-	assert.Contains(t, message, "cmd.add.error.symlink_outside_mods")
+	assert.Contains(t, message, "cmd.mods.error.symlink_outside_mods")
 
 	message, ok = integrityErrorMessage(errors.New("boom"), "Example")
 	assert.False(t, ok)
@@ -472,7 +472,7 @@ func TestHandleExistingInstallNonInteractiveWritesOutput(t *testing.T) {
 
 	assert.NoError(t, err)
 	assert.Equal(t, "add", telemetryPayload.Command)
-	assert.Contains(t, output.String(), "cmd.add.success")
+	assert.Contains(t, output.String(), "cmd.mod.display")
 }
 
 func TestHandleExistingInstallInteractiveWritesOutput(t *testing.T) {
@@ -520,7 +520,7 @@ func TestHandleExistingInstallInteractiveWritesOutput(t *testing.T) {
 
 	assert.NoError(t, err)
 	assert.Equal(t, "add", telemetryPayload.Command)
-	assert.Contains(t, output.String(), "cmd.add.success")
+	assert.Contains(t, output.String(), "cmd.mod.display")
 }
 
 func TestHandleExistingInstallEnsureError(t *testing.T) {

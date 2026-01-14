@@ -61,7 +61,7 @@ func TestRunScan_ConfigMissingUnattendedFails(t *testing.T) {
 		},
 	})
 
-	assert.ErrorContains(t, err, "cmd.scan.error.config_missing")
+	assert.ErrorContains(t, err, "cmd.config.error.missing")
 	exists, existsErr := afero.Exists(fs, meta.ConfigPath)
 	assert.NoError(t, existsErr)
 	assert.False(t, exists)
@@ -89,7 +89,7 @@ func TestRunScan_ConfigMissingNoTTYFails(t *testing.T) {
 		},
 	})
 
-	assert.ErrorContains(t, err, "cmd.scan.error.config_missing")
+	assert.ErrorContains(t, err, "cmd.config.error.missing")
 }
 
 func TestRunScan_ConfigMissingPromptDeclineExits(t *testing.T) {

@@ -18,12 +18,12 @@ key.enter key.help.accept • key.ctrl_c/key.esc key.help.quit
 ---
 
 [TestRecoveryFlowSnapshots/platform_list - 1]
-? cmd.add.prompt.platform_list                             
-❯ curseforge                                               
-  modrinth                                                 
-                                                           
-  ↑/k key.help.up • ↓/j key.help.down • / key.help.filter …
-                                                           
+? cmd.add.prompt.platform_list                   
+❯ curseforge                                     
+  modrinth                                       
+                                                 
+  ↑/k key.direction.up • ↓/j key.direction.down …
+                                                 
 ---
 
 [TestRecoveryFlowSnapshots/project_id_prompt - 1]
@@ -34,12 +34,12 @@ key.tab key.help.complete • key.enter key.help.accept • key.ctrl_c/key.esc k
 ---
 
 [TestRecoveryFlowSnapshots/platform_list_narrow - 1]
-? cmd.add.prompt.p…
-❯ curseforge       
-  modrinth         
-                   
-                   
-                   
-  ↑/k key.help.up …
-                   
+? cmd.add.prompt.p…                                                                                                                                                                                
+❯ curseforge                                                                                                                                                                                       
+  modrinth                                                                                                                                                                                         
+                                                                                                                                                                                                   
+                                                                                                                                                                                                   
+                                                                                                                                                                                                   
+  ↑/k key.direction.up • ↓/j key.direction.down • / key.help.filter • key.esc key.help.clear_filter • key.enter key.help.apply_filter • key.esc key.help.cancel • q key.help.quit • ? key.help.more
+                                                                                                                                                                                                   
 ---

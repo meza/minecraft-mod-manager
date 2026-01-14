@@ -52,7 +52,7 @@ stderr:
 [TestPruneForceDeleteFailedOutputSnapshot - 1]
 stdout:
 cmd.prune.header.deleting
-❌ extra.jar cmd.prune.item.delete_failed, Arg 1: {Count: 0, Data: &map[reason:delete failed]}
+❌ extra.jar cmd.file.delete_failed, Arg 1: {Count: 0, Data: &map[reason:delete failed]}
 
 ‼️ cmd.prune.summary.incomplete
 cmd.prune.summary.incomplete_hint

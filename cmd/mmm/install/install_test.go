@@ -616,7 +616,7 @@ func TestRunInstallReportsMissingHashWithoutHalting(t *testing.T) {
 	_, err = runInstall(context.Background(), cmd, installOptions{ConfigPath: meta.ConfigPath}, deps)
 	assert.ErrorIs(t, err, errInstallFailures)
 	assert.Contains(t, out.String(), "cmd.install.summary.download_failed")
-	assert.Contains(t, out.String(), "cmd.install.error.missing_hash_remote")
+	assert.Contains(t, out.String(), "cmd.mods.error.missing_hash_remote")
 
 	updatedLock, lockErr := config.ReadLock(context.Background(), fs, meta)
 	assert.NoError(t, lockErr)
@@ -1065,7 +1065,7 @@ func TestRunInstallReportsSymlinkOutsideMods(t *testing.T) {
 
 	_, err := runInstall(context.Background(), cmd, installOptions{ConfigPath: meta.ConfigPath}, deps)
 	assert.ErrorIs(t, err, errInstallFailures)
-	assert.Contains(t, out.String(), "cmd.install.error.symlink_outside_mods")
+	assert.Contains(t, out.String(), "cmd.mods.error.symlink_outside_mods")
 	assert.Contains(t, out.String(), "cmd.install.summary.download_failed")
 }
 
@@ -1144,7 +1144,7 @@ func TestInstallFailureReason_SymlinkOutsideMods(t *testing.T) {
 		Root:         rootPath,
 	}, "Example Mod")
 	assert.True(t, ok)
-	assert.Contains(t, message, "cmd.install.error.symlink_outside_mods")
+	assert.Contains(t, message, "cmd.mods.error.symlink_outside_mods")
 }
 
 type fakeTTYWriter struct {

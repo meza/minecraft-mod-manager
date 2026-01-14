@@ -91,7 +91,7 @@ func TestRenderTestRunningViewIncludesSpinner(t *testing.T) {
 		},
 	})
 
-	assert.Contains(t, output, "cmd.test.section.compatibility")
+	assert.Contains(t, output, "cmd.compatibility.section")
 	if frame != "" {
 		assert.Contains(t, output, frame+" Alpha (alpha) [modrinth]")
 	}

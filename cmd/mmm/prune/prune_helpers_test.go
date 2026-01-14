@@ -146,7 +146,7 @@ func TestRenderPruneFileLineStatusVariants(t *testing.T) {
 
 	failed := renderPruneFileLine(view.ColorDisabled, pruneFileResult{Path: "file.jar", Status: pruneFileStatusFailed, Err: errors.New("boom")})
 	assert.Contains(t, failed, "\u274C")
-	assert.Contains(t, failed, i18n.T("cmd.prune.item.delete_failed", &i18n.Tvars{
+	assert.Contains(t, failed, i18n.T("cmd.file.delete_failed", &i18n.Tvars{
 		Data: &i18n.TData{"reason": "boom"},
 	}))
 }

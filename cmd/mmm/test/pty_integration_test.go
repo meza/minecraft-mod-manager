@@ -289,7 +289,7 @@ func TestTestCommandInteractivePTYRunningSnapshotMediumHeight(t *testing.T) {
 	}
 
 	session.WaitForOutput(t, func(output []byte) bool {
-		return outputHasLine(output, "cmd.test.section.compatibility")
+		return outputHasLine(output, "cmd.compatibility.section")
 	}, terminalpty.WithWaitDuration(2*time.Second))
 	session.WaitForOutput(t, func(output []byte) bool {
 		return strings.Contains(string(output), "✅ Alpha (alpha) [modrinth]")
@@ -640,6 +640,9 @@ func TestTestCommandInteractivePTYRunningMouseScrollsToNotCompatible(t *testing.
 	}, terminalpty.WithWaitDuration(2*time.Second))
 	session.WaitForOutput(t, func(output []byte) bool {
 		return outputHasLine(output, "cmd.test.section.compatible")
+	}, terminalpty.WithWaitDuration(2*time.Second))
+	session.WaitForOutput(t, func(output []byte) bool {
+		return strings.Contains(string(output), "✅ Delta (delta) [modrinth]")
 	}, terminalpty.WithWaitDuration(2*time.Second))
 
 	for scrollStep := 0; scrollStep < 3; scrollStep++ {
@@ -1170,7 +1173,7 @@ func outputHasLine(output []byte, line string) bool {
 }
 
 func dropCompatibilitySection(value string) string {
-	compatibilityKey := "cmd.test.section.compatibility"
+	compatibilityKey := "cmd.compatibility.section"
 	compatibleKey := "cmd.test.section.compatible"
 	lines := strings.Split(value, "\n")
 	compatibilityIndex := -1
@@ -1253,7 +1256,7 @@ func containsTestSection(value string) bool {
 	if normalizedHasLine(value, "cmd.test.section.compatible") {
 		return true
 	}
-	return normalizedHasLine(value, "cmd.test.section.compatibility")
+	return normalizedHasLine(value, "cmd.compatibility.section")
 }
 
 var cursorHomeSequence = regexp.MustCompile(`\x1b\[[0-9;]*H`)

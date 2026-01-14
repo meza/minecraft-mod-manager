@@ -153,7 +153,7 @@ func TestRunAdd_SuccessLogsAsciiIconWhenNotTerminal(t *testing.T) {
 	})
 
 	assert.NoError(t, err)
-	assert.Contains(t, out.String(), "\u2705 cmd.add.success")
+	assert.Contains(t, out.String(), "\u2705 cmd.mod.display")
 }
 
 func TestRunAdd_SuccessLogsEmojiIconWhenTerminal(t *testing.T) {
@@ -211,7 +211,7 @@ func TestRunAdd_SuccessLogsEmojiIconWhenTerminal(t *testing.T) {
 
 	assert.NoError(t, err)
 	assert.Contains(t, out.String(), "\u2705")
-	assert.Contains(t, out.String(), "cmd.add.success")
+	assert.Contains(t, out.String(), "cmd.mod.display")
 }
 
 func TestRunAdd_SkipsDownloadWhenFileAlreadyMatchesRemoteHash(t *testing.T) {
@@ -407,7 +407,7 @@ func TestRunAdd_DuplicateDownloadsWhenFileMissing(t *testing.T) {
 	})
 
 	assert.NoError(t, err)
-	assert.Contains(t, cmd.OutOrStdout().(*bytes.Buffer).String(), "cmd.add.success")
+	assert.Contains(t, cmd.OutOrStdout().(*bytes.Buffer).String(), "cmd.mod.display")
 }
 
 func TestRunAdd_PersistFailureReturnsError(t *testing.T) {
@@ -1108,7 +1108,7 @@ func TestRunAdd_MissingHashReturnsFriendlyError(t *testing.T) {
 	})
 
 	assert.Error(t, err)
-	assert.Contains(t, err.Error(), "cmd.add.error.missing_hash_remote")
+	assert.Contains(t, err.Error(), "cmd.mods.error.missing_hash_remote")
 }
 
 func TestRunAdd_InvalidFileNameReturnsFriendlyError(t *testing.T) {

@@ -91,7 +91,7 @@ func addInitFlags(cmd *cobra.Command, loader *loaderFlag) {
 	cmd.Flags().StringSliceP("release-types", "r", []string{"release"}, i18n.T("cmd.init.usage.release-types", &i18n.Tvars{
 		Data: &i18n.TData{"releaseTypes": getAllReleaseTypes()},
 	}))
-	cmd.Flags().StringP("game-version", "g", "latest", i18n.T("cmd.init.usage.game-version", nil))
+	cmd.Flags().StringP("game-version", "g", "latest", i18n.T("cmd.minecraft.version.question", nil))
 	cmd.Flags().StringP("mods-folder", "m", "mods", i18n.T("cmd.init.usage.mods-folder", nil))
 	cmd.Flags().BoolP("force", "f", false, i18n.T("cmd.init.flag.force", nil))
 }

@@ -15,7 +15,7 @@ func TestRenderAddSuccessLine(t *testing.T) {
 	restoreUnicode := view.SetUnicodeSupportFuncForTesting(func() bool { return true })
 	t.Cleanup(restoreUnicode)
 	line := renderAddSuccessLine(view.ColorDisabled, "Example", "abc", models.MODRINTH)
-	assert.Contains(t, line, "cmd.add.success")
+	assert.Contains(t, line, "cmd.mod.display")
 	assert.Contains(t, line, "\u2705")
 }
 

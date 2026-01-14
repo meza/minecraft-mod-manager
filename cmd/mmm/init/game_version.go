@@ -144,7 +144,7 @@ func (model GameVersionModel) gameVersionSelected() tea.Cmd {
 // NewGameVersionModel builds a game version prompt model.
 func NewGameVersionModel(ctx context.Context, minecraftClient httpclient.Doer, gameVersion string) GameVersionModel {
 	return NewGameVersionPromptModel(ctx, minecraftClient, gameVersion, GameVersionPromptOptions{
-		Question: i18n.T("cmd.init.prompt.game-version.question", nil),
+		Question: i18n.T("cmd.minecraft.version.question", nil),
 		Messages: defaultGameVersionPromptMessages(),
 	})
 }
@@ -185,7 +185,7 @@ func NewGameVersionPromptModel(
 
 func normalizeGameVersionPromptOptions(options GameVersionPromptOptions) GameVersionPromptOptions {
 	if strings.TrimSpace(options.Question) == "" {
-		options.Question = i18n.T("cmd.init.prompt.game-version.question", nil)
+		options.Question = i18n.T("cmd.minecraft.version.question", nil)
 	}
 
 	defaultMessages := defaultGameVersionPromptMessages()
@@ -256,9 +256,9 @@ func applyInitialGameVersion(model *GameVersionModel, gameVersion string) {
 func defaultGameVersionPromptMessages() GameVersionPromptMessages {
 	return GameVersionPromptMessages{
 		Empty:             i18n.T("cmd.init.prompt.game-version.error", nil),
-		Invalid:           i18n.T("cmd.init.prompt.game-version.invalid", nil),
-		Unavailable:       i18n.T("cmd.init.prompt.game-version.unavailable", nil),
-		LatestUnavailable: i18n.T("cmd.init.prompt.game-version.latest-unavailable", nil),
+		Invalid:           i18n.T("cmd.minecraft.version.invalid", nil),
+		Unavailable:       i18n.T("cmd.minecraft.version.unavailable", nil),
+		LatestUnavailable: i18n.T("cmd.minecraft.version.latest_unavailable_prompt", nil),
 	}
 }
 

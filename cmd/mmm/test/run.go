@@ -311,12 +311,12 @@ func configMissingPromptError(opts testOptions, cmd *cobra.Command, meta config.
 		In:         cmd.InOrStdin(),
 		Out:        cmd.OutOrStdout(),
 		UnattendedError: func(meta config.Metadata) error {
-			return errors.New(i18n.T("cmd.test.error.config_missing", &i18n.Tvars{
+			return errors.New(i18n.T("cmd.config.error.missing", &i18n.Tvars{
 				Data: &i18n.TData{"configPath": meta.ConfigPath},
 			}))
 		},
 		NoTTYError: func(meta config.Metadata) error {
-			return errors.New(i18n.T("cmd.test.error.config_missing", &i18n.Tvars{
+			return errors.New(i18n.T("cmd.config.error.missing", &i18n.Tvars{
 				Data: &i18n.TData{"configPath": meta.ConfigPath},
 			}))
 		},
@@ -325,12 +325,12 @@ func configMissingPromptError(opts testOptions, cmd *cobra.Command, meta config.
 
 func writeConfigMissingOutput(cmd *cobra.Command, deps testDeps, meta config.Metadata) error {
 	colorMode := colorModeForOutput(cmd.OutOrStdout())
-	hint := i18n.T("cmd.test.error.config_missing_hint", nil)
+	hint := i18n.T("cmd.config.error.missing_hint", nil)
 	if colorMode.Enabled() {
 		hint = view.CtaStyle.Render(hint)
 	}
 	lines := []string{
-		renderFinalErrorLine(colorMode, i18n.T("cmd.test.error.config_missing", &i18n.Tvars{
+		renderFinalErrorLine(colorMode, i18n.T("cmd.config.error.missing", &i18n.Tvars{
 			Data: &i18n.TData{"configPath": meta.ConfigPath},
 		})),
 		hint,
@@ -387,7 +387,7 @@ func resolveLatestVersion(
 	}
 
 	if mode.IsInteractive() {
-		headline := renderFinalErrorLine(colorMode, i18n.T("cmd.test.error.latest_unavailable", nil))
+		headline := renderFinalErrorLine(colorMode, i18n.T("cmd.minecraft.version.latest_unavailable", nil))
 		version, canceled, promptErr := runTestVersionPrompt(ctx, cmd, deps, testVersionPromptInput{
 			headline: headline,
 			question: i18n.T("cmd.test.prompt.version.latest_question", nil),
@@ -436,7 +436,7 @@ func handleLatestUnavailableNonInteractive(
 	deps testDeps,
 	colorMode view.ColorMode,
 ) (targetVersionResolution, error) {
-	headline := renderFinalErrorLine(colorMode, i18n.T("cmd.test.error.latest_unavailable", nil))
+	headline := renderFinalErrorLine(colorMode, i18n.T("cmd.minecraft.version.latest_unavailable", nil))
 	hint := i18n.T("cmd.test.error.latest_unavailable_hint", nil)
 	if colorMode.Enabled() {
 		hint = view.CtaStyle.Render(hint)
@@ -452,7 +452,7 @@ func handleVersionValidationUnavailable(
 	deps testDeps,
 	colorMode view.ColorMode,
 ) (targetVersionResolution, error) {
-	headline := renderFinalErrorLine(colorMode, i18n.T("cmd.test.error.version_unavailable", nil))
+	headline := renderFinalErrorLine(colorMode, i18n.T("cmd.minecraft.version.unavailable", nil))
 	if outputErr := runOutputLines(cmd, deps, cmd.OutOrStdout(), []string{headline}); outputErr != nil {
 		return targetVersionResolution{exitCode: 1}, outputErr
 	}
@@ -475,7 +475,7 @@ func resolveInvalidVersion(
 			headline:     headline,
 			question:     i18n.T("cmd.test.prompt.version.invalid_question", nil),
 			initialValue: targetVersion,
-			initialError: i18n.T("cmd.test.prompt.version.invalid", nil),
+			initialError: i18n.T("cmd.minecraft.version.invalid", nil),
 		})
 		if promptErr != nil {
 			return "", &targetVersionResolution{exitCode: 1}, promptErr

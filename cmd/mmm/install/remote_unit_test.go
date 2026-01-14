@@ -59,7 +59,7 @@ func TestInstallFromRemoteHandlesMissingHash(t *testing.T) {
 
 	assert.NoError(t, err)
 	assert.True(t, outcome.failed)
-	assert.Contains(t, outcome.failureReason, "cmd.install.error.missing_hash_remote")
+	assert.Contains(t, outcome.failureReason, "cmd.mods.error.missing_hash_remote")
 }
 
 func TestInstallFromRemoteHandlesNotFound(t *testing.T) {
@@ -218,7 +218,7 @@ func TestInstallFromRemoteHandlesResolveOutsideRoot(t *testing.T) {
 
 	assert.NoError(t, err)
 	assert.True(t, outcome.failed)
-	assert.Contains(t, outcome.failureReason, "cmd.install.error.symlink_outside_mods")
+	assert.Contains(t, outcome.failureReason, "cmd.mods.error.symlink_outside_mods")
 }
 
 func TestInstallFromRemoteReturnsDownloadError(t *testing.T) {

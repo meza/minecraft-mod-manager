@@ -1044,7 +1044,7 @@ func TestCommandModelViewGameVersionState(t *testing.T) {
 	}
 
 	view := model.View()
-	assert.Contains(t, view, "cmd.init.prompt.game-version.question")
+	assert.Contains(t, view, "cmd.minecraft.version.question")
 }
 
 func TestCommandModelViewReleaseTypesState(t *testing.T) {
@@ -1323,7 +1323,7 @@ func TestNormalizeGameVersionPromptOptionsDefaults(t *testing.T) {
 	options := normalizeGameVersionPromptOptions(GameVersionPromptOptions{})
 	defaultMessages := defaultGameVersionPromptMessages()
 
-	assert.Equal(t, i18n.T("cmd.init.prompt.game-version.question", nil), options.Question)
+	assert.Equal(t, i18n.T("cmd.minecraft.version.question", nil), options.Question)
 	assert.Equal(t, defaultMessages, options.Messages)
 }
 

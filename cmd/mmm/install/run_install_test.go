@@ -181,7 +181,7 @@ func TestRunInstallQuietOutputsDownloadFailures(t *testing.T) {
 	})
 	assert.Error(t, err)
 	assert.Contains(t, outBuffer.String(), "cmd.install.quiet.download_failed")
-	assert.Contains(t, outBuffer.String(), "cmd.install.item.download_failed")
+	assert.Contains(t, outBuffer.String(), "cmd.download.item.failed")
 }
 
 func TestRunInstallEnsuresExistingLockEntry(t *testing.T) {

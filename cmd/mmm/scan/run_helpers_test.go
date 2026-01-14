@@ -1271,7 +1271,7 @@ func TestWriteConfigMissingOutputSuccess(t *testing.T) {
 
 	err := writeConfigMissingOutput(cmd, deps, meta)
 	assert.NoError(t, err)
-	assert.Contains(t, out.String(), "cmd.scan.error.config_missing")
+	assert.Contains(t, out.String(), "cmd.config.error.missing")
 }
 
 func TestWriteConfigMissingOutputColorEnabled(t *testing.T) {

@@ -111,7 +111,7 @@ func renderInstallItemLine(colorMode view.ColorMode, item installItem) string {
 	case installItemFailed:
 		status = view.ModItemStatusError
 		if strings.TrimSpace(item.FailureReason) != "" {
-			suffix = i18n.T("cmd.install.item.download_failed", &i18n.Tvars{
+			suffix = i18n.T("cmd.download.item.failed", &i18n.Tvars{
 				Data: &i18n.TData{"reason": item.FailureReason},
 			})
 		}

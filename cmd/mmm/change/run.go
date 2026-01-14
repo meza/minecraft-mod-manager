@@ -219,12 +219,12 @@ func configMissingPromptError(opts changeOptions, cmd *cobra.Command, meta confi
 		In:         cmd.InOrStdin(),
 		Out:        cmd.OutOrStdout(),
 		UnattendedError: func(meta config.Metadata) error {
-			return errors.New(i18n.T("cmd.change.error.config_missing", &i18n.Tvars{
+			return errors.New(i18n.T("cmd.config.error.missing", &i18n.Tvars{
 				Data: &i18n.TData{"configPath": meta.ConfigPath},
 			}))
 		},
 		NoTTYError: func(meta config.Metadata) error {
-			return errors.New(i18n.T("cmd.change.error.config_missing", &i18n.Tvars{
+			return errors.New(i18n.T("cmd.config.error.missing", &i18n.Tvars{
 				Data: &i18n.TData{"configPath": meta.ConfigPath},
 			}))
 		},
@@ -258,7 +258,7 @@ func resolveTargetVersion(ctx context.Context, cmd *cobra.Command, opts changeOp
 
 	valid, validationErr := deps.isValidVersion(ctx, targetVersion, deps.minecraftClient)
 	if validationErr != nil {
-		return "", false, outputAndHandleChangeError(cmd, deps, i18n.T("cmd.change.error.version_unavailable", nil), errVersionValidationUnavailable)
+		return "", false, outputAndHandleChangeError(cmd, deps, i18n.T("cmd.minecraft.version.unavailable", nil), errVersionValidationUnavailable)
 	}
 	if !valid {
 		message := i18n.T("cmd.change.error.invalid_version", &i18n.Tvars{Data: &i18n.TData{"version": targetVersion}})
@@ -413,11 +413,11 @@ func writeChangeFailureOutput(cmd *cobra.Command, deps changeDeps, err error) er
 
 func writeConfigMissingOutput(cmd *cobra.Command, deps changeDeps, meta config.Metadata) error {
 	colorMode := colorModeForOutput(cmd.OutOrStdout())
-	headline := renderFinalErrorLine(colorMode, i18n.T("cmd.change.error.config_missing", &i18n.Tvars{
+	headline := renderFinalErrorLine(colorMode, i18n.T("cmd.config.error.missing", &i18n.Tvars{
 		Data: &i18n.TData{"configPath": meta.ConfigPath},
 	}))
 
-	hint := i18n.T("cmd.change.error.config_missing_hint", nil)
+	hint := i18n.T("cmd.config.error.missing_hint", nil)
 	if colorMode.Enabled() {
 		hint = view.CtaStyle.Render(hint)
 	}

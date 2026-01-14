@@ -48,7 +48,7 @@ func TestInstallTranscriptModelOutputsCompletionLines(t *testing.T) {
 		_ = cmd()
 	}
 	assert.Contains(t, buffer.String(), "beta")
-	assert.Contains(t, buffer.String(), "cmd.install.item.download_failed")
+	assert.Contains(t, buffer.String(), "cmd.download.item.failed")
 
 	_, cmd = model.Update(installExecutionFinishedMsg{outcome: installExecutionOutcome{errType: installExecutionErrorDownload}})
 	runTeaCmd(cmd)

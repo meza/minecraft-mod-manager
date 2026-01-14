@@ -18,7 +18,7 @@ cmd.install.header.running
 [TestInstallViewSnapshots/download_failed - 1]
 cmd.install.header.running
 ✅ Alpha (alpha) [modrinth]
-❌ Beta (beta) [curseforge] cmd.install.item.download_failed, Arg 1: {Count: 0, Data: &map[reason:network]}
+❌ Beta (beta) [curseforge] cmd.download.item.failed, Arg 1: {Count: 0, Data: &map[reason:network]}
 
 ‼️ cmd.install.summary.download_failed
 cmd.install.summary.partial, Arg 1: {Count: 0, Data: &map[errorIcon:❌]}

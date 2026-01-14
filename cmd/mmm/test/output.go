@@ -84,7 +84,7 @@ func buildTestSections(input testViewInput) []string {
 
 func renderCompatibilitySection(input testViewInput) string {
 	lines := make([]string, 0, len(input.items)+1)
-	lines = append(lines, i18n.T("cmd.test.section.compatibility", nil))
+	lines = append(lines, i18n.T("cmd.compatibility.section", nil))
 	for _, item := range input.items {
 		lines = append(lines, renderTestRunningItemLine(input, item))
 	}

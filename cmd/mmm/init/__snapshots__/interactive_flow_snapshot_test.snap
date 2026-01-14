@@ -1,50 +1,50 @@
 
 [TestInitInteractiveFlowStateSnapshots/loader - 1]
-? cmd.init.prompt.loader.question                          
-❯ bukkit                                                   
-  bungeecord                                               
-  cauldron                                                 
-  datapack                                                 
-  fabric                                                   
-  folia                                                    
-  forge                                                    
-  liteloader                                               
-                                                           
-  •••                                                      
-                                                           
-  ↑/k key.help.up • ↓/j key.help.down • / key.help.filter …
-                                                           
+? cmd.init.prompt.loader.question                
+❯ bukkit                                         
+  bungeecord                                     
+  cauldron                                       
+  datapack                                       
+  fabric                                         
+  folia                                          
+  forge                                          
+  liteloader                                     
+                                                 
+  •••                                            
+                                                 
+  ↑/k key.direction.up • ↓/j key.direction.down …
+                                                 
 ---
 
 [TestInitInteractiveFlowStateSnapshots/game_version - 1]
 ? cmd.init.prompt.loader.question fabric
-? cmd.init.prompt.game-version.question 1.21.1     
+? cmd.minecraft.version.question 1.21.1     
 
 key.tab key.help.complete • key.enter key.help.accept • key.ctrl_c/key.esc key.help.quit
 ---
 
 [TestInitInteractiveFlowStateSnapshots/release_types - 1]
 ? cmd.init.prompt.loader.question fabric
-? cmd.init.prompt.game-version.question 1.21.1
-? cmd.init.prompt.release-types.question                   
-❯   alpha                                                  
-    beta                                                   
-  ✓ release                                                
-                                                           
-                                                           
-                                                           
-                                                           
-                                                           
-                                                           
-                                                           
-                                                           
-  ↑/k key.help.up • ↓/j key.help.down • / key.help.filter …
-                                                           
+? cmd.minecraft.version.question 1.21.1
+? cmd.init.prompt.release-types.question         
+❯   alpha                                        
+    beta                                         
+  ✓ release                                      
+                                                 
+                                                 
+                                                 
+                                                 
+                                                 
+                                                 
+                                                 
+                                                 
+  ↑/k key.direction.up • ↓/j key.direction.down …
+                                                 
 ---
 
 [TestInitInteractiveFlowStateSnapshots/mods_folder - 1]
 ? cmd.init.prompt.loader.question fabric
-? cmd.init.prompt.game-version.question 1.21.1
+? cmd.minecraft.version.question 1.21.1
 ? cmd.init.prompt.release-types.question release
 ? cmd.init.prompt.mods-folder.question mods        
 
@@ -53,7 +53,7 @@ key.tab key.help.complete • key.enter key.help.accept • key.ctrl_c/key.esc k
 
 [TestInitInteractiveFlowStateSnapshots/done - 1]
 ? cmd.init.prompt.loader.question fabric
-? cmd.init.prompt.game-version.question 1.21.1
+? cmd.minecraft.version.question 1.21.1
 ? cmd.init.prompt.release-types.question release
 ? cmd.init.prompt.mods-folder.question mods
 ? cmd.init.prompt.confirm-write.question cmd.init.prompt.confirm.suffix cmd.init.prompt.option.yes.short
@@ -62,34 +62,34 @@ key.tab key.help.complete • key.enter key.help.accept • key.ctrl_c/key.esc k
 
 [TestInitInteractiveFlowErrorSnapshots/game_version_invalid - 1]
 ? cmd.init.prompt.loader.question fabric
-? cmd.init.prompt.game-version.question invalid     <- cmd.init.prompt.game-version.invalid
+? cmd.minecraft.version.question invalid     <- cmd.minecraft.version.invalid
 
 key.tab key.help.complete • key.enter key.help.accept • key.ctrl_c/key.esc key.help.quit
 ---
 
 [TestInitInteractiveFlowErrorSnapshots/release_types_empty - 1]
 ? cmd.init.prompt.loader.question fabric
-? cmd.init.prompt.game-version.question 1.21.1
-? cmd.init.prompt.release-types.question                   
-❯   alpha                                                  
-    beta                                                   
-  ✓ release                                                
-                                                           
-                                                           
-                                                           
-                                                           
-                                                           
-                                                           
-                                                           
-                                                           
-  ↑/k key.help.up • ↓/j key.help.down • / key.help.filter …
-                                                           
+? cmd.minecraft.version.question 1.21.1
+? cmd.init.prompt.release-types.question         
+❯   alpha                                        
+    beta                                         
+  ✓ release                                      
+                                                 
+                                                 
+                                                 
+                                                 
+                                                 
+                                                 
+                                                 
+                                                 
+  ↑/k key.direction.up • ↓/j key.direction.down …
+                                                 
 cmd.init.error.release-types.empty
 ---
 
 [TestInitInteractiveFlowErrorSnapshots/mods_folder_missing - 1]
 ? cmd.init.prompt.loader.question fabric
-? cmd.init.prompt.game-version.question 1.21.1
+? cmd.minecraft.version.question 1.21.1
 ? cmd.init.prompt.release-types.question release
 ? cmd.init.prompt.mods-folder.question missing         <- cmd.init.prompt.mods-folder.missing
 
@@ -110,38 +110,38 @@ key.tab key.help.complete • key.enter key.help.accept • key.ctrl_c/key.esc k
                                                                                                                                                                                          
   1/2                                                                                                                                                                                    
                                                                                                                                                                                          
-  ↑/k key.help.up • ↓/j key.help.down • / key.help.filter • key.esc key.help.clear_filter • key.enter key.help.apply_filter • key.esc key.help.cancel • q key.help.quit • ? key.help.more
+  ↑/k key.direction.up • ↓/j key.direction.down • / key.help.filter • key.esc key.help.clear_filter • key.enter key.help.apply_filter • key.esc key.help.cancel • q key.help.quit • ? key.help.more
                                                                                                                                                                                          
 ---
 
 [TestInitInteractiveFlowErrorSnapshots/game_version_unavailable - 1]
 ? cmd.init.prompt.loader.question fabric
-? cmd.init.prompt.game-version.question 1.21.1      <- cmd.init.prompt.game-version.unavailable
+? cmd.minecraft.version.question 1.21.1      <- cmd.minecraft.version.unavailable
 
 key.tab key.help.complete • key.enter key.help.accept • key.ctrl_c/key.esc key.help.quit
 ---
 
 [TestInitInteractiveFlowUnattendedNoTTYSnapshot - 1]
-                                                                                                                                                                                         
-❯ bukkit                                                                                                                                                                                 
-  bungeecord                                                                                                                                                                             
-  cauldron                                                                                                                                                                               
-  datapack                                                                                                                                                                               
-  fabric                                                                                                                                                                                 
-  folia                                                                                                                                                                                  
-  forge                                                                                                                                                                                  
-  liteloader                                                                                                                                                                             
-  modloader                                                                                                                                                                              
-                                                                                                                                                                                         
-  1/2                                                                                                                                                                                    
-                                                                                                                                                                                         
-  ↑/k key.help.up • ↓/j key.help.down • / key.help.filter • key.esc key.help.clear_filter • key.enter key.help.apply_filter • key.esc key.help.cancel • q key.help.quit • ? key.help.more
-                                                                                                                                                                                         
+                                                                                                                                                                                                   
+❯ bukkit                                                                                                                                                                                           
+  bungeecord                                                                                                                                                                                       
+  cauldron                                                                                                                                                                                         
+  datapack                                                                                                                                                                                         
+  fabric                                                                                                                                                                                           
+  folia                                                                                                                                                                                            
+  forge                                                                                                                                                                                            
+  liteloader                                                                                                                                                                                       
+  modloader                                                                                                                                                                                        
+                                                                                                                                                                                                   
+  1/2                                                                                                                                                                                              
+                                                                                                                                                                                                   
+  ↑/k key.direction.up • ↓/j key.direction.down • / key.help.filter • key.esc key.help.clear_filter • key.enter key.help.apply_filter • key.esc key.help.cancel • q key.help.quit • ? key.help.more
+                                                                                                                                                                                                   
 ---
 
 [TestInitInteractiveFlowStateSnapshots/confirm_write - 1]
 ? cmd.init.prompt.loader.question fabric
-? cmd.init.prompt.game-version.question 1.21.1
+? cmd.minecraft.version.question 1.21.1
 ? cmd.init.prompt.release-types.question release
 ? cmd.init.prompt.mods-folder.question mods
 ? cmd.init.prompt.confirm-write.question cmd.init.prompt.confirm.suffix            

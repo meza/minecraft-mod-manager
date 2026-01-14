@@ -3,12 +3,12 @@
 list.KeyMap{
     CursorUp: key.Binding{
         keys:     {"up", "k"},
-        help:     key.Help{Key:"↑/k", Desc:"key.help.up"},
+        help:     key.Help{Key:"↑/k", Desc:"key.direction.up"},
         disabled: false,
     },
     CursorDown: key.Binding{
         keys:     {"down", "j"},
-        help:     key.Help{Key:"↓/j", Desc:"key.help.down"},
+        help:     key.Help{Key:"↓/j", Desc:"key.direction.down"},
         disabled: false,
     },
     NextPage: key.Binding{

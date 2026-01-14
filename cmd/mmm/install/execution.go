@@ -366,7 +366,7 @@ func installFailureReason(err error, modName string) (string, bool) {
 
 	var outsideRoot modpath.OutsideRootError
 	if errors.As(err, &outsideRoot) {
-		return i18n.T("cmd.install.error.symlink_outside_mods", &i18n.Tvars{
+		return i18n.T("cmd.mods.error.symlink_outside_mods", &i18n.Tvars{
 			Data: &i18n.TData{
 				"name": modName,
 				"path": outsideRoot.ResolvedPath,

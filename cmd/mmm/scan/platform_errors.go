@@ -36,7 +36,7 @@ func logPlatformDebug(log *logger.Logger, platform models.Platform, details stri
 	if log == nil || strings.TrimSpace(details) == "" {
 		return nil
 	}
-	if err := log.Debug(i18n.T("cmd.scan.debug.platform_error", &i18n.Tvars{
+	if err := log.Debug(i18n.T("cmd.platform.debug.lookup_failed", &i18n.Tvars{
 		Data: &i18n.TData{
 			"platform": string(platform),
 			"details":  details,

@@ -44,14 +44,14 @@ func Complete() key.Binding {
 func CursorDown() key.Binding {
 	return key.NewBinding(
 		key.WithKeys("down", "j"),
-		key.WithHelp("↓/j", i18n.T("key.help.down", nil)),
+		key.WithHelp("↓/j", i18n.T("key.direction.down", nil)),
 	)
 }
 
 func CursorUp() key.Binding {
 	return key.NewBinding(
 		key.WithKeys("up", "k"),
-		key.WithHelp("↑/k", i18n.T("key.help.up", nil)),
+		key.WithHelp("↑/k", i18n.T("key.direction.up", nil)),
 	)
 }
 

@@ -379,7 +379,7 @@ func TestVersionValidationFailureReturnsError(t *testing.T) {
 
 	assert.Error(t, err)
 	assert.ErrorIs(t, err, errVersionValidationUnavailable)
-	assert.Contains(t, out.String(), "cmd.test.error.version_unavailable")
+	assert.Contains(t, out.String(), "cmd.minecraft.version.unavailable")
 }
 
 func TestQuietFlagBehavior(t *testing.T) {
@@ -708,8 +708,8 @@ func TestConfigFileNotFound(t *testing.T) {
 	})
 
 	assert.Error(t, err)
-	assert.Contains(t, out.String(), "cmd.test.error.config_missing")
-	assert.Contains(t, out.String(), "cmd.test.error.config_missing_hint")
+	assert.Contains(t, out.String(), "cmd.config.error.missing")
+	assert.Contains(t, out.String(), "cmd.config.error.missing_hint")
 }
 
 func TestLatestVersionResolutionError(t *testing.T) {
@@ -766,7 +766,7 @@ func TestLatestVersionResolutionError(t *testing.T) {
 
 	assert.Error(t, err)
 	assert.ErrorIs(t, err, errLatestVersionRequired)
-	assert.Contains(t, out.String(), "cmd.test.error.latest_unavailable")
+	assert.Contains(t, out.String(), "cmd.minecraft.version.latest_unavailable")
 	assert.Contains(t, out.String(), "cmd.test.error.latest_unavailable_hint")
 }
 

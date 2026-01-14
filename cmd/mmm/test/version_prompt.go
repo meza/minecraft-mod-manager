@@ -31,9 +31,9 @@ func newTestVersionPromptModel(ctx context.Context, client httpclient.Doer, inpu
 		Question: input.question,
 		Messages: initCmd.GameVersionPromptMessages{
 			Empty:             i18n.T("cmd.init.prompt.game-version.error", nil),
-			Invalid:           i18n.T("cmd.test.prompt.version.invalid", nil),
-			Unavailable:       i18n.T("cmd.test.prompt.version.unavailable", nil),
-			LatestUnavailable: i18n.T("cmd.test.prompt.version.latest_unavailable", nil),
+			Invalid:           i18n.T("cmd.minecraft.version.invalid", nil),
+			Unavailable:       i18n.T("cmd.minecraft.version.unavailable", nil),
+			LatestUnavailable: i18n.T("cmd.minecraft.version.latest_unavailable_prompt", nil),
 		},
 		InitialError: input.initialError,
 	})

@@ -1932,8 +1932,8 @@ func TestRunUpdateReturnsErrorWhenConfigMissing(t *testing.T) {
 		telemetry: func(telemetry.CommandTelemetry) {},
 	})
 	assert.Error(t, err)
-	assert.Contains(t, out.String(), "cmd.install.error.config_missing")
-	assert.Contains(t, out.String(), "cmd.install.error.config_missing_hint")
+	assert.Contains(t, out.String(), "cmd.config.error.missing")
+	assert.Contains(t, out.String(), "cmd.config.error.missing_hint")
 }
 
 func TestRunUpdateReturnsErrorWhenLockMissing(t *testing.T) {

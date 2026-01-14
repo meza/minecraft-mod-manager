@@ -106,8 +106,8 @@ func TestWriteConfigMissingOutputWrites(t *testing.T) {
 	deps := addDeps{runTea: runTeaProgram}
 	meta := config.NewMetadata("modlist.json")
 	assert.NoError(t, writeConfigMissingOutput(cmd, deps, meta))
-	assert.Contains(t, buffer.String(), "cmd.add.error.config_missing")
-	assert.Contains(t, buffer.String(), "cmd.add.error.config_missing_hint")
+	assert.Contains(t, buffer.String(), "cmd.config.error.missing")
+	assert.Contains(t, buffer.String(), "cmd.config.error.missing_hint")
 }
 
 func TestWriteConfigMissingOutputColorEnabled(t *testing.T) {
@@ -125,7 +125,7 @@ func TestWriteConfigMissingOutputColorEnabled(t *testing.T) {
 	deps := addDeps{runTea: runTeaProgram}
 	meta := config.NewMetadata("modlist.json")
 	assert.NoError(t, writeConfigMissingOutput(cmd, deps, meta))
-	assert.Contains(t, outputBuffer.String(), "cmd.add.error.config_missing")
+	assert.Contains(t, outputBuffer.String(), "cmd.config.error.missing")
 }
 
 func TestConfigMissingPromptErrorUnattended(t *testing.T) {
@@ -136,7 +136,7 @@ func TestConfigMissingPromptErrorUnattended(t *testing.T) {
 
 	err := configMissingPromptError(addOptions{Unattended: true}, cmd, config.NewMetadata("modlist.json"))
 	assert.Error(t, err)
-	assert.Contains(t, err.Error(), "cmd.add.error.config_missing")
+	assert.Contains(t, err.Error(), "cmd.config.error.missing")
 }
 
 func TestConfigMissingPromptErrorNoTTY(t *testing.T) {
@@ -150,7 +150,7 @@ func TestConfigMissingPromptErrorNoTTY(t *testing.T) {
 
 	err := configMissingPromptError(addOptions{}, cmd, config.NewMetadata("modlist.json"))
 	assert.Error(t, err)
-	assert.Contains(t, err.Error(), "cmd.add.error.config_missing")
+	assert.Contains(t, err.Error(), "cmd.config.error.missing")
 }
 
 func TestLoadAddConfigLockError(t *testing.T) {
@@ -236,7 +236,7 @@ func TestHandleMissingAddConfigUnattendedWrites(t *testing.T) {
 	runState := addRunState{meta: config.NewMetadata("modlist.json")}
 	_, err := handleMissingAddConfig(context.Background(), cmd, addOptions{Unattended: true}, addDeps{runTea: runTeaProgram}, runState)
 	assert.True(t, clierrors.IsHandled(err))
-	assert.Contains(t, buffer.String(), "cmd.add.error.config_missing")
+	assert.Contains(t, buffer.String(), "cmd.config.error.missing")
 }
 
 func TestHandleMissingAddConfigOutputError(t *testing.T) {

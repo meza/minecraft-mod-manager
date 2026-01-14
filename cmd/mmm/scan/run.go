@@ -361,14 +361,14 @@ func writeFullAdoptionOutput(
 
 func writeConfigMissingOutput(cmd *cobra.Command, deps scanDeps, meta config.Metadata) error {
 	colorMode := colorModeForOutput(cmd.OutOrStdout())
-	headline := messageWithIcon(view.FinalErrorIcon(colorMode), i18n.T("cmd.scan.error.config_missing", &i18n.Tvars{
+	headline := messageWithIcon(view.FinalErrorIcon(colorMode), i18n.T("cmd.config.error.missing", &i18n.Tvars{
 		Data: &i18n.TData{"configPath": meta.ConfigPath},
 	}))
 	if colorMode.Enabled() {
 		headline = view.ErrorStyle.Render(headline)
 	}
 
-	hint := i18n.T("cmd.scan.error.config_missing_hint", nil)
+	hint := i18n.T("cmd.config.error.missing_hint", nil)
 	if colorMode.Enabled() {
 		hint = view.CtaStyle.Render(hint)
 	}

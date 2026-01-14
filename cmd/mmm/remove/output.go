@@ -29,7 +29,7 @@ func renderRemoveItemLine(colorMode view.ColorMode, item removeItem, spinner *vi
 		status = view.ModItemStatusSuccess
 	case removeItemFailed:
 		status = view.ModItemStatusError
-		suffix = i18n.T("cmd.remove.item.delete_failed", &i18n.Tvars{
+		suffix = i18n.T("cmd.file.delete_failed", &i18n.Tvars{
 			Data: &i18n.TData{"reason": item.FailureReason},
 		})
 	}

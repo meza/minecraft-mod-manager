@@ -142,7 +142,7 @@ func renderQuietDownloadFailures(items []changeItem, colorMode view.ColorMode) s
 	return renderQuietFailures(items, colorMode, func(item changeItem) bool {
 		return item.DownloadStatus == changeDownloadFailed
 	}, func(item changeItem) string {
-		return i18n.T("cmd.change.item.download_failed", &i18n.Tvars{Data: &i18n.TData{"reason": item.ErrorReason}})
+		return i18n.T("cmd.download.item.failed", &i18n.Tvars{Data: &i18n.TData{"reason": item.ErrorReason}})
 	})
 }
 

@@ -171,7 +171,7 @@ func platformLookupFailureLines(log *logger.Logger, failure *platformLookupFailu
 		if log == nil {
 			return nil, errors.New("missing logger for platform debug output")
 		}
-		if err := log.Debug(i18n.T("cmd.install.debug.platform_error", &i18n.Tvars{
+		if err := log.Debug(i18n.T("cmd.platform.debug.lookup_failed", &i18n.Tvars{
 			Data: &i18n.TData{
 				"platform": string(failure.Platform),
 				"details":  failure.DebugDetails,

@@ -138,7 +138,7 @@ func normalizeRemoteForInstall(remote platform.RemoteMod, mod models.Mod) (platf
 	if strings.TrimSpace(remote.Hash) == "" {
 		return platform.RemoteMod{}, modInstallOutcome{
 			failed: true,
-			failureReason: i18n.T("cmd.install.error.missing_hash_remote", &i18n.Tvars{
+			failureReason: i18n.T("cmd.mods.error.missing_hash_remote", &i18n.Tvars{
 				Data: &i18n.TData{
 					"name": mod.Name,
 				},

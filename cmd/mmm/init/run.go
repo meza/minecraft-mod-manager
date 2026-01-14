@@ -335,7 +335,7 @@ func reportUnattendedConfigExists(cmd *cobra.Command, deps initDeps, meta config
 
 func reportUnattendedLatestUnavailable(cmd *cobra.Command, deps initDeps) error {
 	return reportUnattendedError(cmd, deps,
-		"cmd.init.error.unattended.latest_unavailable",
+		"cmd.minecraft.version.latest_unavailable",
 		nil,
 		"cmd.init.error.unattended.latest_unavailable_hint",
 	)
@@ -343,7 +343,7 @@ func reportUnattendedLatestUnavailable(cmd *cobra.Command, deps initDeps) error 
 
 func reportUnattendedGameVersionUnavailable(cmd *cobra.Command, deps initDeps) error {
 	return reportUnattendedError(cmd, deps,
-		"cmd.init.error.game-version.unavailable",
+		"cmd.minecraft.version.unavailable",
 		nil,
 		"",
 	)
@@ -367,14 +367,14 @@ func reportUnattendedMissingModsFolder(cmd *cobra.Command, deps initDeps, err er
 		return reportUnattendedError(cmd, deps,
 			"cmd.init.error.unattended.mods-folder-not-directory",
 			&i18n.Tvars{Data: &i18n.TData{"path": modsFolderErr.path}},
-			"cmd.init.error.unattended.mods-folder-not-directory_hint",
+			"cmd.init.error.unattended.mods-folder.hint",
 		)
 	}
 	if errors.As(err, &modsFolderErr) && modsFolderErr.Kind() == modsFolderEmpty {
 		return reportUnattendedError(cmd, deps,
 			"cmd.init.error.unattended.mods-folder.empty",
 			nil,
-			"cmd.init.error.unattended.mods-folder.empty_hint",
+			"cmd.init.error.unattended.mods-folder.hint",
 		)
 	}
 

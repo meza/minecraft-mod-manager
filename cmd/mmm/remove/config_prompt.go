@@ -206,14 +206,14 @@ func (model configInitModel) View() string {
 
 func runConfigInitPrompt(cmd *cobra.Command, deps removeDeps, meta config.Metadata) (confirmed bool, canceled bool, err error) {
 	colorMode := colorModeForWriter(cmd)
-	headline := messageWithIcon(view.FinalErrorIcon(colorMode), i18n.T("cmd.remove.error.config_missing", &i18n.Tvars{
+	headline := messageWithIcon(view.FinalErrorIcon(colorMode), i18n.T("cmd.config.error.missing", &i18n.Tvars{
 		Data: &i18n.TData{"configPath": meta.ConfigPath},
 	}))
 	if colorMode.Enabled() {
 		headline = view.ErrorStyle.Render(headline)
 	}
 
-	question := i18n.T("cmd.remove.confirm_init", nil)
+	question := i18n.T("cmd.config.confirm_init_short", nil)
 	model := newConfigInitModel(headline, question)
 
 	runTea := deps.runTea

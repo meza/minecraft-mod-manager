@@ -1015,7 +1015,7 @@ func TestPlatformLookupFailureLinesOutputsMessages(t *testing.T) {
 
 	lines, err := platformLookupFailureLines(log, failure, view.ColorDisabled)
 	assert.NoError(t, err)
-	assert.Contains(t, out.String(), "cmd.install.debug.platform_error")
+	assert.Contains(t, out.String(), "cmd.platform.debug.lookup_failed")
 	assert.Len(t, lines, 2)
 	assert.Contains(t, lines[0], "cmd.install.unsure.platform_error")
 	assert.Contains(t, lines[0], "a.jar")
@@ -1103,7 +1103,7 @@ func TestPreflightUnknownFilesLogsPlatformErrors(t *testing.T) {
 
 	assert.NoError(t, err)
 	assert.True(t, outcome.unresolved)
-	assert.Contains(t, out.String(), "cmd.install.debug.platform_error")
+	assert.Contains(t, out.String(), "cmd.platform.debug.lookup_failed")
 	assert.Len(t, outcome.lines, 2)
 	assert.Contains(t, outcome.lines[0], "cmd.install.unsure.platform_error")
 	assert.Contains(t, outcome.lines[0], "cmd.platform.error.reason.auth")
@@ -1231,7 +1231,7 @@ func TestInstallFromRemoteReturnsFailedOutcomeOnMissingHash(t *testing.T) {
 	})
 	assert.NoError(t, err)
 	assert.True(t, outcome.failed)
-	assert.Contains(t, outcome.failureReason, "cmd.install.error.missing_hash_remote")
+	assert.Contains(t, outcome.failureReason, "cmd.mods.error.missing_hash_remote")
 }
 
 func TestInstallFromRemoteReturnsFailedOutcomeOnNoFile(t *testing.T) {
@@ -1277,7 +1277,7 @@ func TestNormalizeRemoteForInstallReturnsFailureOnMissingHash(t *testing.T) {
 		Hash:     "",
 	}, models.Mod{Name: "Example"})
 	assert.True(t, outcome.failed)
-	assert.Contains(t, outcome.failureReason, "cmd.install.error.missing_hash_remote")
+	assert.Contains(t, outcome.failureReason, "cmd.mods.error.missing_hash_remote")
 }
 
 func TestRunInstallDoesNotWriteOnSuccess(t *testing.T) {
