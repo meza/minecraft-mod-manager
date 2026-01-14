@@ -461,3 +461,10 @@ date	time	entry
 2026-01-13	22:10	MMM-44: manual sanity check via script PTY (stty rows 25 cols 100) running ./build/linux/amd64/mmm test 1.20.2 --config ./modlist.json; saw viewport output filling 25-row screen and final output; recorded /tmp/mmm_manual.txt.
 2026-01-14	00:03	MMM-44: stabilized test PTY snapshot normalization (prefer section markers/checkmarks), added scan prompt decline wait, reran local gates; Windows winhost lint/build/coverage/test-race pass (PSReadLine VT warning).
 2026-01-14	00:42	MMM-44: adjusted test PTY section normalization (per-test section trim for scroll), reordered marker preference, updated snapshots; local gates pass; Windows winhost lint/build/coverage/test-race pass (PSReadLine VT warning, coverage.profile removal warning).
+2026-01-14	10:37	work on MMM-29 has started
+2026-01-14	11:10	MMM-29: resized add recovery platform list based on help-style height and window size; added sizing tests and updated snapshots; make fmt/lint/coverage/build pass.
+2026-01-14	11:11	MMM-29: Windows verification failed at winhost make test-race due to TestTestCommandInteractivePTYRunningShowsHeadersWhenShort snapshot mismatch in cmd/mmm/test (extra running list lines).
+2026-01-14	11:58	MMM-29: Windows verification passed (winhost make lint/build/coverage/test-race; PSReadLine VT warning).
+2026-01-14	12:32	MMM-29: account for wrapped title height in add platform list sizing; normalized test PTY section snapshots with compatibility section drop + fallback to full output; local checks pass; Windows verification pass (PSReadLine VT warning).
+2026-01-14	13:15	MMM-29: stabilized cmd/mmm/test PTY normalization and final-transcript wait; local make fmt/lint/coverage/build pass; Windows winhost lint/build/coverage/test-race pass (PSReadLine VT warning).
+2026-01-14	13:56	MMM-29: reviewer approved; code-review.md updated; local make fmt/lint/vuln/coverage/build pass; Windows winhost lint/build/coverage/test-race pass (PSReadLine VT warning).

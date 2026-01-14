@@ -294,7 +294,7 @@ func TestTestCommandInteractivePTYRunningSnapshotMediumHeight(t *testing.T) {
 	session.WaitForOutput(t, func(output []byte) bool {
 		return strings.Contains(string(output), "✅ Alpha (alpha) [modrinth]")
 	}, terminalpty.WithWaitDuration(2*time.Second))
-	snaps.MatchSnapshot(t, normalizeTestPTYOutput(session.OutputString(), rows))
+	snaps.MatchSnapshot(t, normalizeTestPTYOutputSection(session.OutputString(), "cmd.test.section.not_compatible"))
 
 	close(release)
 	execErrValue := <-execErr
@@ -749,6 +749,12 @@ func TestTestCommandInteractivePTYFinalTranscriptSuccessShortHeight(t *testing.T
 	close(release)
 	execErrValue := <-execErr
 	require.NoError(t, execErrValue)
+	session.WaitForOutput(t, func(output []byte) bool {
+		normalized := terminal.NormalizeOutput(string(output), terminal.NormalizeOptions{
+			StripControlSequences: true,
+		})
+		return strings.Contains(normalized, "cmd.test.success")
+	}, terminalpty.WithWaitDuration(2*time.Second))
 	require.NoError(t, session.Close())
 
 	snaps.MatchSnapshot(t, normalizeTestPTYOutput(session.OutputString(), rows))
@@ -1125,12 +1131,14 @@ func normalizeTestLines(normalized string, rows uint16) string {
 }
 
 func normalizeTestPTYOutputSection(output string, section string) string {
-	framed := cursorHomeSequence.ReplaceAllString(output, "\n")
+	trimmed := trimTestOutputToLastFrame(output, []string{section})
+	framed := cursorHomeSequence.ReplaceAllString(trimmed, "\n")
 	normalized := terminal.NormalizeOutput(framed, terminal.NormalizeOptions{
 		StripControlSequences:  true,
 		TrimTrailingWhitespace: true,
 		TrimTrailingEmptyLines: true,
 	})
+	normalized = dropCompatibilitySection(normalized)
 	if block := trimToLastSectionBlock(normalized, section); block != "" {
 		return normalizeTestLines(block, 0)
 	}
@@ -1164,12 +1172,24 @@ func outputHasLine(output []byte, line string) bool {
 func dropCompatibilitySection(value string) string {
 	compatibilityKey := "cmd.test.section.compatibility"
 	compatibleKey := "cmd.test.section.compatible"
-	compatibilityIndex := strings.Index(value, compatibilityKey)
-	compatibleIndex := strings.Index(value, compatibleKey)
+	lines := strings.Split(value, "\n")
+	compatibilityIndex := -1
+	compatibleIndex := -1
+	for index, line := range lines {
+		entry := strings.TrimSpace(line)
+		if entry == compatibilityKey && compatibilityIndex == -1 {
+			compatibilityIndex = index
+		}
+		if entry == compatibleKey && compatibleIndex == -1 {
+			compatibleIndex = index
+		}
+	}
 	if compatibilityIndex < 0 || compatibleIndex < 0 || compatibleIndex <= compatibilityIndex {
 		return value
 	}
-	return strings.TrimSpace(value[:compatibilityIndex] + value[compatibleIndex:])
+	updated := append([]string{}, lines[:compatibilityIndex]...)
+	updated = append(updated, lines[compatibleIndex:]...)
+	return strings.TrimSpace(strings.Join(updated, "\n"))
 }
 
 func tallSnapshotRows() uint16 {

@@ -50,7 +50,20 @@ func TestRecoveryFlowSnapshots(t *testing.T) {
 			colorMode: view.ColorDisabled,
 		})
 		model.state = recoveryStateSelectPlatform
-		model.platformList.SetSize(60, 10)
+		applyPlatformListSizing(&model.platformList, 60)
+
+		snaps.MatchSnapshot(t, model.View())
+	})
+
+	t.Run("platform_list_narrow", func(t *testing.T) {
+		model := newRecoveryFlowModel(recoveryFlowInput{
+			reason:    recoveryReasonNotFound,
+			platform:  models.MODRINTH,
+			projectID: "abc",
+			colorMode: view.ColorDisabled,
+		})
+		model.state = recoveryStateSelectPlatform
+		applyPlatformListSizing(&model.platformList, 20)
 
 		snaps.MatchSnapshot(t, model.View())
 	})

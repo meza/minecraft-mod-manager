@@ -7,6 +7,8 @@ import (
 
 	"github.com/charmbracelet/bubbles/list"
 	tea "github.com/charmbracelet/bubbletea"
+	"github.com/charmbracelet/lipgloss"
+	"github.com/charmbracelet/x/ansi"
 
 	"github.com/meza/minecraft-mod-manager/internal/i18n"
 	"github.com/meza/minecraft-mod-manager/internal/models"
@@ -50,17 +52,18 @@ type recoveryFlowResult struct {
 }
 
 type recoveryFlowModel struct {
-	state            recoveryState
-	prompt           confirmPromptModel
-	platformList     list.Model
-	projectIDPrompt  textInputPromptModel
-	reason           recoveryReason
-	selectedPlatform models.Platform
-	selectedProject  string
-	aborted          bool
-	declined         bool
-	headlineLines    []string
-	colorMode        view.ColorMode
+	state             recoveryState
+	prompt            confirmPromptModel
+	platformList      list.Model
+	projectIDPrompt   textInputPromptModel
+	reason            recoveryReason
+	selectedPlatform  models.Platform
+	selectedProject   string
+	aborted           bool
+	declined          bool
+	headlineLines     []string
+	colorMode         view.ColorMode
+	platformListWidth int
 }
 
 type platformListItem struct {
@@ -148,6 +151,13 @@ func (model recoveryFlowModel) Init() tea.Cmd {
 }
 
 func (model recoveryFlowModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
+	if sizeMsg, ok := msg.(tea.WindowSizeMsg); ok {
+		if sizeMsg.Width > 0 {
+			model.platformListWidth = sizeMsg.Width
+			applyPlatformListSizing(&model.platformList, model.platformListWidth)
+		}
+		return model, nil
+	}
 	if keyMsg, ok := msg.(tea.KeyMsg); ok {
 		skipAbort := model.state == recoveryStateSelectPlatform && model.platformList.SettingFilter()
 		switch keyMsg.String() {
@@ -228,6 +238,7 @@ func (model recoveryFlowModel) updatePlatformList(msg tea.Msg) (tea.Model, tea.C
 
 	var cmd tea.Cmd
 	model.platformList, cmd = model.platformList.Update(msg)
+	applyPlatformListSizing(&model.platformList, model.platformListWidth)
 	return model, cmd
 }
 
@@ -290,6 +301,45 @@ func newPlatformListModel() list.Model {
 	model.Styles.HelpStyle = view.HelpStyle
 	model.KeyMap = view.TranslatedListKeyMap()
 	return model
+}
+
+func applyPlatformListSizing(listModel *list.Model, width int) {
+	if listModel == nil || width <= 0 {
+		return
+	}
+	listModel.SetWidth(width)
+	requiredHeight := platformListRequiredHeight(*listModel)
+	listModel.SetSize(width, requiredHeight)
+}
+
+func platformListRequiredHeight(listModel list.Model) int {
+	itemCount := len(listModel.VisibleItems())
+	titleHeight := platformListTitleHeight(listModel)
+	if listModel.SettingFilter() {
+		titleHeight = platformListFilterHeight(listModel)
+	}
+	helpView := listModel.Styles.HelpStyle.Render(listModel.Help.View(listModel))
+	helpHeight := lipgloss.Height(helpView)
+	requiredHeight := itemCount + titleHeight + helpHeight
+	return requiredHeight
+}
+
+func platformListTitleHeight(listModel list.Model) int {
+	titleView := listModel.Styles.Title.Render(listModel.Title)
+	return wrappedHeight(titleView, listModel.Width())
+}
+
+func platformListFilterHeight(listModel list.Model) int {
+	filterView := listModel.FilterInput.View()
+	return wrappedHeight(filterView, listModel.Width())
+}
+
+func wrappedHeight(value string, width int) int {
+	if width <= 0 {
+		return 1
+	}
+	wrapped := ansi.Wrap(value, width, "")
+	return lipgloss.Height(wrapped)
 }
 
 func listPointer() string {

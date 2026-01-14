@@ -22,10 +22,6 @@ key.enter key.help.accept • key.ctrl_c/key.esc key.help.quit
 ❯ curseforge                                               
   modrinth                                                 
                                                            
-                                                           
-                                                           
-                                                           
-                                                           
   ↑/k key.help.up • ↓/j key.help.down • / key.help.filter …
                                                            
 ---
@@ -35,4 +31,15 @@ key.enter key.help.accept • key.ctrl_c/key.esc key.help.quit
 ? cmd.add.prompt.project_id abc        
 
 key.tab key.help.complete • key.enter key.help.accept • key.ctrl_c/key.esc key.help.quit
+---
+
+[TestRecoveryFlowSnapshots/platform_list_narrow - 1]
+? cmd.add.prompt.p…
+❯ curseforge       
+  modrinth         
+                   
+                   
+                   
+  ↑/k key.help.up …
+                   
 ---

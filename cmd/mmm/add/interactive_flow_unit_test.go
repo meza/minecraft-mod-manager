@@ -8,6 +8,7 @@ import (
 
 	"github.com/charmbracelet/bubbles/list"
 	tea "github.com/charmbracelet/bubbletea"
+	"github.com/charmbracelet/lipgloss"
 	"github.com/stretchr/testify/assert"
 
 	"github.com/meza/minecraft-mod-manager/internal/models"
@@ -137,6 +138,76 @@ func TestPlatformListDelegateRenderHandlesWriteErrorUnselected(t *testing.T) {
 	assert.Empty(t, buffer.String())
 }
 
+func TestPlatformListRequiredHeightAccountsForHelpHeight(t *testing.T) {
+	listModel := newPlatformListModel()
+	listModel.SetWidth(20)
+
+	requiredHeight := platformListRequiredHeight(listModel)
+	helpView := listModel.Styles.HelpStyle.Render(listModel.Help.View(listModel))
+	helpHeight := lipgloss.Height(helpView)
+	titleHeight := platformListTitleHeight(listModel)
+	expectedHeight := len(listModel.VisibleItems()) + titleHeight + helpHeight
+
+	assert.Equal(t, expectedHeight, requiredHeight)
+}
+
+func TestPlatformListRequiredHeightUsesFilterTitleHeight(t *testing.T) {
+	listModel := newPlatformListModel()
+	listModel.SetFilterState(list.Filtering)
+	listModel.SetWidth(20)
+
+	requiredHeight := platformListRequiredHeight(listModel)
+	helpView := listModel.Styles.HelpStyle.Render(listModel.Help.View(listModel))
+	helpHeight := lipgloss.Height(helpView)
+	titleHeight := platformListFilterHeight(listModel)
+	expectedHeight := len(listModel.VisibleItems()) + titleHeight + helpHeight
+
+	assert.Equal(t, expectedHeight, requiredHeight)
+}
+
+func TestPlatformListRequiredHeightWrapsTitle(t *testing.T) {
+	listModel := newPlatformListModel()
+	listModel.Title = "This is a very long title that should wrap"
+	listModel.SetWidth(10)
+
+	requiredHeight := platformListRequiredHeight(listModel)
+	helpView := listModel.Styles.HelpStyle.Render(listModel.Help.View(listModel))
+	helpHeight := lipgloss.Height(helpView)
+	baseHeight := len(listModel.VisibleItems()) + 1 + helpHeight
+
+	assert.Greater(t, requiredHeight, baseHeight)
+}
+
+func TestApplyPlatformListSizingUsesRequiredHeight(t *testing.T) {
+	listModel := newPlatformListModel()
+	applyPlatformListSizing(&listModel, 20)
+
+	expectedHeight := platformListRequiredHeight(listModel)
+
+	assert.Equal(t, expectedHeight, listModel.Height())
+}
+
+func TestApplyPlatformListSizingNoOpForNilModel(t *testing.T) {
+	applyPlatformListSizing(nil, 80)
+}
+
+func TestApplyPlatformListSizingNoOpForInvalidWidth(t *testing.T) {
+	listModel := newPlatformListModel()
+	initialView := listModel.View()
+
+	applyPlatformListSizing(&listModel, 0)
+
+	assert.Equal(t, initialView, listModel.View())
+}
+
+func TestWrappedHeightDefaultsForInvalidWidth(t *testing.T) {
+	assert.Equal(t, 1, wrappedHeight("value", 0))
+}
+
+func TestWrappedHeightDefaultsForEmptyContent(t *testing.T) {
+	assert.Equal(t, 1, wrappedHeight("", 10))
+}
+
 func TestRenderSelectedPlatformLineIncludesPromptAndAnswer(t *testing.T) {
 	t.Setenv("MMM_TEST", "true")
 	line := renderSelectedPlatformLine(models.MODRINTH)
@@ -193,6 +264,26 @@ func TestRecoveryFlowUpdateConfirmTransitions(t *testing.T) {
 	typed = updated.(recoveryFlowModel)
 	assert.True(t, typed.declined)
 	assert.Equal(t, recoveryStateDone, typed.state)
+}
+
+func TestRecoveryFlowUpdateWindowSizeUpdatesListWidth(t *testing.T) {
+	model := newRecoveryFlowModel(recoveryFlowInput{colorMode: view.ColorDisabled})
+	updated, _ := model.Update(tea.WindowSizeMsg{Width: 60, Height: 10})
+	typed := updated.(recoveryFlowModel)
+
+	assert.Equal(t, 60, typed.platformListWidth)
+	assert.Equal(t, 60, typed.platformList.Width())
+}
+
+func TestRecoveryFlowUpdateWindowSizeSkipsInvalidWidth(t *testing.T) {
+	model := newRecoveryFlowModel(recoveryFlowInput{colorMode: view.ColorDisabled})
+	initialWidth := model.platformList.Width()
+
+	updated, _ := model.Update(tea.WindowSizeMsg{Width: 0, Height: 10})
+	typed := updated.(recoveryFlowModel)
+
+	assert.Equal(t, 0, typed.platformListWidth)
+	assert.Equal(t, initialWidth, typed.platformList.Width())
 }
 
 func TestRecoveryFlowUpdatePassesThroughPrompt(t *testing.T) {
