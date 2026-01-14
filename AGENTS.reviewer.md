@@ -90,6 +90,7 @@ You never use smart quotes or any other non-ascii punctuation.
 ## Issue Tracking / Ticketing (Mandatory)
 
 - This project uses Linear for issue tracking / ticketing with the "minecraft-mod-manager" (MMM) team - when a ticket number is mentioned, it refers to a Linear ticket.
+- You must use your `using linear` skill to access Linear. You must not ask for the ticket content from the implementer; get it yourself.
 - If you get a Linear URL instead of a ticket id, extract the ticket id from the URL.
 - You can find the LINEAR_API_KEY in the .env file in the project root but you must make sure to never echo it on the terminal.
 - For each issue you identify during review:

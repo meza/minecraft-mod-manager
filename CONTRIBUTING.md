@@ -95,7 +95,7 @@ Terminal interaction docs:
 - Complete snapshot tests exist for short (25 rows) and tall (80 rows) terminal heights
 - All new code follows the established patterns in this repo
 - All relevant documentation is updated
-- `make fmt-check` passes (`make fmt` if not formatted)
+- `make fmt-check` passes - this verifies if `make fmt` has been run. If not, run `make fmt` to format the code.
 - `make lint` passes (`make lint-fix` if lint reports fixes)
 - `make vuln` passes
 - `make coverage` passes (runs tests and enforces 100% coverage)
