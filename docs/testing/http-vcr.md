@@ -236,3 +236,4 @@ If you add a new secret-bearing header, update the redaction list in `testutil/v
 ## Related docs
 
 - `docs/testing/terminal-harness.md` for PTY and in-process harness usage.
+- `docs/testing/bdd.md` for the BDD driver and scenario layout.

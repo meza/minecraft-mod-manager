@@ -472,3 +472,4 @@ date	time	entry
 2026-01-14	16:45	MMM-31: de-duplicated i18n keys with shared semantic names across locales, updated call sites and snapshots; added PTY wait to stabilize cmd/mmm/test scroll snapshot; local + Windows verification pass (PSReadLine VT warning).
 2026-01-14	17:17	MMM-31: reviewer approved after restoring init/test-specific hint/question keys and rerunning local+Windows verification (PSReadLine VT warning).
 2026-01-14	17:20	MMM-31 marked Done in Linear per user request.
+2026-01-14	17:26	work on MMM-40 has started
