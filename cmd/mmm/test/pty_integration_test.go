@@ -3,6 +3,7 @@ package test
 import (
 	"context"
 	"errors"
+	"regexp"
 	"runtime"
 	"strings"
 	"testing"
@@ -89,9 +90,15 @@ func TestTestCommandInteractivePTYOutput(t *testing.T) {
 
 	execErr := cmd.Execute()
 	require.ErrorIs(t, execErr, errUnsupportedMods)
+	session.WaitForOutput(t, func(output []byte) bool {
+		normalized := terminal.NormalizeOutput(string(output), terminal.NormalizeOptions{
+			StripControlSequences: true,
+		})
+		return strings.Contains(normalized, "cmd.test.summary.inconclusive")
+	}, terminalpty.WithWaitDuration(2*time.Second))
 	require.NoError(t, session.Close())
 
-	snaps.MatchSnapshot(t, normalizeTestPTYOutput(session.OutputString(), rows))
+	snaps.MatchSnapshot(t, normalizeTestPTYOutput(session.OutputString(), 0))
 }
 
 func TestTestCommandInteractivePTYRunningShowsHeadersWhenShort(t *testing.T) {
@@ -181,9 +188,15 @@ func TestTestCommandInteractivePTYRunningShowsHeadersWhenShort(t *testing.T) {
 	}
 
 	session.WaitForOutput(t, func(output []byte) bool {
-		return strings.Contains(string(output), "cmd.test.section.compatible")
+		return outputHasLine(output, "cmd.test.section.compatible")
 	}, terminalpty.WithWaitDuration(2*time.Second))
-	snaps.MatchSnapshot(t, normalizeTestPTYOutput(session.OutputString(), rows))
+	session.WaitForOutput(t, func(output []byte) bool {
+		return outputHasLine(output, "cmd.test.section.not_compatible")
+	}, terminalpty.WithWaitDuration(2*time.Second))
+	session.WaitForOutput(t, func(output []byte) bool {
+		return strings.Contains(string(output), "❌ Beta (beta) [modrinth]")
+	}, terminalpty.WithWaitDuration(2*time.Second))
+	snaps.MatchSnapshot(t, normalizeTestPTYOutputSection(session.OutputString(), "cmd.test.section.not_compatible"))
 
 	close(release)
 	execErrValue := <-execErr
@@ -276,13 +289,22 @@ func TestTestCommandInteractivePTYRunningSnapshotMediumHeight(t *testing.T) {
 	}
 
 	session.WaitForOutput(t, func(output []byte) bool {
-		return strings.Contains(string(output), "cmd.test.section.compatibility")
+		return outputHasLine(output, "cmd.test.section.compatibility")
+	}, terminalpty.WithWaitDuration(2*time.Second))
+	session.WaitForOutput(t, func(output []byte) bool {
+		return strings.Contains(string(output), "✅ Alpha (alpha) [modrinth]")
 	}, terminalpty.WithWaitDuration(2*time.Second))
 	snaps.MatchSnapshot(t, normalizeTestPTYOutput(session.OutputString(), rows))
 
 	close(release)
 	execErrValue := <-execErr
 	require.NoError(t, execErrValue)
+	session.WaitForOutput(t, func(output []byte) bool {
+		normalized := terminal.NormalizeOutput(string(output), terminal.NormalizeOptions{
+			StripControlSequences: true,
+		})
+		return strings.Contains(normalized, "cmd.test.success")
+	}, terminalpty.WithWaitDuration(2*time.Second))
 	require.NoError(t, session.Close())
 }
 
@@ -386,17 +408,24 @@ func TestTestCommandInteractivePTYRunningScrollsToNotCompatible(t *testing.T) {
 		return strings.Contains(string(output), "cmd.test.header")
 	}, terminalpty.WithWaitDuration(2*time.Second))
 	session.WaitForOutput(t, func(output []byte) bool {
-		return strings.Contains(string(output), "cmd.test.section.compatible")
+		return outputHasLine(output, "cmd.test.section.compatible")
 	}, terminalpty.WithWaitDuration(2*time.Second))
 
 	_, writeErr := session.SendInput([]byte("\x1b[6~"))
 	require.NoError(t, writeErr)
 
 	session.WaitForOutput(t, func(output []byte) bool {
-		return strings.Contains(string(output), "cmd.test.section.not_compatible")
+		return outputHasLine(output, "cmd.test.section.not_compatible")
 	}, terminalpty.WithWaitDuration(2*time.Second))
-	normalized := normalizeTestPTYOutput(session.OutputString(), rows)
-	snaps.MatchSnapshot(t, dropCompatibilitySection(normalized))
+	session.WaitForOutput(t, func(output []byte) bool {
+		return strings.Contains(string(output), "❌ Zeta (zeta) [modrinth]")
+	}, terminalpty.WithWaitDuration(2*time.Second))
+	normalized := terminal.NormalizeOutput(session.OutputString(), terminal.NormalizeOptions{
+		StripControlSequences:  true,
+		TrimTrailingWhitespace: true,
+		TrimTrailingEmptyLines: true,
+	})
+	snaps.MatchSnapshot(t, trimToSectionValue(normalized, "cmd.test.section.not_compatible"))
 
 	close(release)
 	execErrValue := <-execErr
@@ -497,7 +526,10 @@ func TestTestCommandInteractivePTYRunningSnapshotTallHeightFailure(t *testing.T)
 	}
 
 	session.WaitForOutput(t, func(output []byte) bool {
-		return strings.Contains(string(output), "cmd.test.section.not_compatible")
+		return outputHasLine(output, "cmd.test.section.not_compatible")
+	}, terminalpty.WithWaitDuration(2*time.Second))
+	session.WaitForOutput(t, func(output []byte) bool {
+		return strings.Contains(string(output), "❌ Beta (beta) [modrinth]")
 	}, terminalpty.WithWaitDuration(2*time.Second))
 	snaps.MatchSnapshot(t, normalizeTestPTYOutput(session.OutputString(), rows))
 
@@ -607,7 +639,7 @@ func TestTestCommandInteractivePTYRunningMouseScrollsToNotCompatible(t *testing.
 		return strings.Contains(string(output), "cmd.test.header")
 	}, terminalpty.WithWaitDuration(2*time.Second))
 	session.WaitForOutput(t, func(output []byte) bool {
-		return strings.Contains(string(output), "cmd.test.section.compatible")
+		return outputHasLine(output, "cmd.test.section.compatible")
 	}, terminalpty.WithWaitDuration(2*time.Second))
 
 	for scrollStep := 0; scrollStep < 3; scrollStep++ {
@@ -616,9 +648,12 @@ func TestTestCommandInteractivePTYRunningMouseScrollsToNotCompatible(t *testing.
 	}
 
 	session.WaitForOutput(t, func(output []byte) bool {
-		return strings.Contains(string(output), "cmd.test.section.not_compatible")
+		return outputHasLine(output, "cmd.test.section.not_compatible")
 	}, terminalpty.WithWaitDuration(2*time.Second))
-	snaps.MatchSnapshot(t, normalizeTestPTYOutput(session.OutputString(), rows))
+	session.WaitForOutput(t, func(output []byte) bool {
+		return strings.Contains(string(output), "❌ Zeta (zeta) [modrinth]")
+	}, terminalpty.WithWaitDuration(2*time.Second))
+	snaps.MatchSnapshot(t, normalizeTestPTYOutputSection(session.OutputString(), "cmd.test.section.not_compatible"))
 
 	close(release)
 	execErrValue := <-execErr
@@ -816,7 +851,7 @@ func TestTestCommandInteractivePTYFinalTranscriptIncludesSummaryAfterScroll(t *t
 	}
 
 	session.WaitForOutput(t, func(output []byte) bool {
-		return strings.Contains(string(output), "cmd.test.section.compatible")
+		return outputHasLine(output, "cmd.test.section.compatible")
 	}, terminalpty.WithWaitDuration(2*time.Second))
 
 	for scrollStep := 0; scrollStep < 3; scrollStep++ {
@@ -1051,15 +1086,79 @@ func TestTestCommandInteractivePTYFinalTranscriptIncludesSummaryWithoutScroll(t 
 }
 
 func normalizeTestPTYOutput(output string, rows uint16) string {
-	trimmed := trimToLastTestFrame(output)
-	return terminal.NormalizeOutput(trimmed, terminal.NormalizeOptions{
+	normalizedAll := terminal.NormalizeOutput(output, terminal.NormalizeOptions{
 		StripControlSequences:  true,
 		TrimTrailingWhitespace: true,
 		TrimTrailingEmptyLines: true,
-		TrimSpace:              true,
-		RowLimit:               int(rows),
-		PadRows:                true,
 	})
+	if transcript, ok := extractTestTranscript(normalizedAll); ok {
+		return normalizeTestLines(transcript, 0)
+	}
+
+	preferredMarkers := preferredTestFrameMarkers(normalizedAll)
+
+	trimmed := trimTestOutputToLastFrame(output, preferredMarkers)
+	trimmed = cursorHomeSequence.ReplaceAllString(trimmed, "\n")
+	normalized := terminal.NormalizeOutput(trimmed, terminal.NormalizeOptions{
+		StripControlSequences:  true,
+		TrimTrailingWhitespace: true,
+		TrimTrailingEmptyLines: true,
+	})
+	normalized = adjustNormalizedForSectionMarker(normalized, normalizedAll, preferredMarkers)
+	normalized = trimToFirstHeaderBlock(normalized)
+	return normalizeTestLines(normalized, rows)
+}
+
+func normalizeTestLines(normalized string, rows uint16) string {
+	lines := strings.Split(normalized, "\n")
+	lines = trimLeadingEmptyLines(lines)
+	if rows > 0 {
+		limit := int(rows)
+		if len(lines) > limit {
+			lines = lines[:limit]
+		} else if len(lines) < limit {
+			padding := make([]string, limit-len(lines))
+			lines = append(lines, padding...)
+		}
+	}
+	return strings.TrimSpace(strings.Join(lines, "\n"))
+}
+
+func normalizeTestPTYOutputSection(output string, section string) string {
+	framed := cursorHomeSequence.ReplaceAllString(output, "\n")
+	normalized := terminal.NormalizeOutput(framed, terminal.NormalizeOptions{
+		StripControlSequences:  true,
+		TrimTrailingWhitespace: true,
+		TrimTrailingEmptyLines: true,
+	})
+	if block := trimToLastSectionBlock(normalized, section); block != "" {
+		return normalizeTestLines(block, 0)
+	}
+	return normalizeTestLines(normalized, 0)
+}
+
+func preferredTestFrameMarkers(value string) []string {
+	switch {
+	case strings.Contains(value, "cmd.test.section.not_compatible"):
+		return []string{"cmd.test.section.not_compatible"}
+	case strings.Contains(value, "❌ "):
+		return []string{"❌ "}
+	case strings.Contains(value, "✅ "):
+		return []string{"✅ "}
+	case strings.Contains(value, "❔ "):
+		return []string{"❔ "}
+	case strings.Contains(value, "cmd.test.section.compatible"):
+		return []string{"cmd.test.section.compatible"}
+	default:
+		return nil
+	}
+}
+
+func outputHasLine(output []byte, line string) bool {
+	return normalizedHasLine(terminal.NormalizeOutput(string(output), terminal.NormalizeOptions{
+		StripControlSequences:  true,
+		TrimTrailingWhitespace: true,
+	}), line)
 }
 
 func dropCompatibilitySection(value string) string {
@@ -1080,13 +1179,190 @@ func tallSnapshotRows() uint16 {
 	return 80
 }
 
-func trimToLastTestFrame(value string) string {
-	header := "cmd.test.header"
-	index := strings.LastIndex(value, header)
-	if index < 0 {
+func trimTestOutputToLastFrame(value string, preferredMarkers []string) string {
+	indices := cursorHomeSequence.FindAllStringIndex(value, -1)
+	if len(indices) == 0 {
 		return value
 	}
-	return value[index:]
+	var fallback string
+	for index := len(indices) - 1; index >= 0; index-- {
+		start := indices[index][0]
+		end := len(value)
+		if index+1 < len(indices) {
+			end = indices[index+1][0]
+		}
+		candidate := cursorHomeSequence.ReplaceAllString(value[start:end], "\n")
+		normalized := terminal.NormalizeOutput(candidate, terminal.NormalizeOptions{
+			StripControlSequences:  true,
+			TrimTrailingWhitespace: true,
+			TrimTrailingEmptyLines: true,
+		})
+		if len(preferredMarkers) > 0 {
+			for _, marker := range preferredMarkers {
+				if strings.Contains(normalized, marker) {
+					return value[start:end]
+				}
+			}
+		}
+		if containsTestSection(normalized) {
+			return value[start:end]
+		}
+		if strings.Contains(normalized, "cmd.test.header") {
+			fallback = value[start:end]
+		}
+	}
+	if fallback != "" {
+		return fallback
+	}
+	return value
+}
+
+func normalizedHasLine(value string, line string) bool {
+	for _, entry := range strings.Split(value, "\n") {
+		if strings.TrimSpace(entry) == line {
+			return true
+		}
+	}
+	return false
+}
+
+func containsTestSection(value string) bool {
+	if normalizedHasLine(value, "cmd.test.section.not_compatible") {
+		return true
+	}
+	if normalizedHasLine(value, "cmd.test.section.compatible") {
+		return true
+	}
+	return normalizedHasLine(value, "cmd.test.section.compatibility")
+}
+
+var cursorHomeSequence = regexp.MustCompile(`\x1b\[[0-9;]*H`)
+
+func extractTestTranscript(normalized string) (string, bool) {
+	summaryMarkers := []string{
+		"cmd.test.summary.unsupported",
+		"cmd.test.summary.inconclusive",
+		"cmd.test.success",
+	}
+	lines := strings.Split(normalized, "\n")
+	summaryIndex := lastLineIndexContaining(lines, summaryMarkers)
+	if summaryIndex == -1 {
+		return "", false
+	}
+	headerIndex := lastLineIndexWithPrefix(lines[:summaryIndex], "cmd.test.header")
+	if headerIndex == -1 {
+		headerIndex = lastLineIndexWithPrefix(lines, "cmd.test.header")
+		if headerIndex == -1 {
+			return "", false
+		}
+	}
+	return strings.Join(lines[headerIndex:], "\n"), true
+}
+
+func lastLineIndexContaining(lines []string, markers []string) int {
+	for index := len(lines) - 1; index >= 0; index-- {
+		for _, marker := range markers {
+			if strings.Contains(lines[index], marker) {
+				return index
+			}
+		}
+	}
+	return -1
+}
+
+func lastLineIndexWithPrefix(lines []string, prefix string) int {
+	for index := len(lines) - 1; index >= 0; index-- {
+		if strings.Contains(strings.TrimSpace(lines[index]), prefix) {
+			return index
+		}
+	}
+	return -1
+}
+
+func trimLeadingEmptyLines(lines []string) []string {
+	for len(lines) > 0 {
+		if strings.TrimSpace(lines[0]) != "" {
+			return lines
+		}
+		lines = lines[1:]
+	}
+	return lines
+}
+
+func trimToFirstHeaderBlock(value string) string {
+	lines := strings.Split(value, "\n")
+	headerPrefix := "cmd.test.header"
+	firstHeader := -1
+	for index, line := range lines {
+		if strings.HasPrefix(strings.TrimSpace(line), headerPrefix) {
+			firstHeader = index
+			break
+		}
+	}
+	if firstHeader == -1 {
+		return value
+	}
+	for index := firstHeader + 1; index < len(lines); index++ {
+		if strings.HasPrefix(strings.TrimSpace(lines[index]), headerPrefix) {
+			return strings.Join(lines[:index], "\n")
+		}
+	}
+	return value
+}
+
+func trimToSectionValue(value string, section string) string {
+	index := strings.Index(value, section)
+	if index == -1 {
+		return strings.TrimSpace(value)
+	}
+	return strings.TrimSpace(value[index:])
+}
+
+func trimToLastSectionBlock(value string, section string) string {
+	lines := strings.Split(value, "\n")
+	sectionIndex := lastLineIndexContaining(lines, []string{section})
+	if sectionIndex == -1 {
+		return ""
+	}
+	headerIndex := -1
+	for index := sectionIndex; index >= 0; index-- {
+		if strings.Contains(strings.TrimSpace(lines[index]), "cmd.test.header") {
+			headerIndex = index
+			break
+		}
+	}
+	if headerIndex == -1 {
+		return ""
+	}
+	return strings.Join(lines[headerIndex:], "\n")
+}
+
+func adjustNormalizedForSectionMarker(normalized string, normalizedAll string, preferredMarkers []string) string {
+	sectionMarker := preferredSectionMarker(preferredMarkers)
+	if sectionMarker == "" {
+		return normalized
+	}
+	if strings.Contains(normalized, sectionMarker) {
+		return normalized
+	}
+	if !strings.Contains(normalizedAll, sectionMarker) {
+		return normalized
+	}
+	if sectionBlock := trimToLastSectionBlock(normalizedAll, sectionMarker); sectionBlock != "" {
+		return sectionBlock
+	}
+	return normalized
+}
+
+func preferredSectionMarker(preferredMarkers []string) string {
+	if len(preferredMarkers) == 0 {
+		return ""
+	}
+	marker := preferredMarkers[0]
+	if strings.HasPrefix(marker, "cmd.test.section.") {
+		return marker
+	}
+	return ""
 }
 
 func finalizePTYRun(cmd *cobra.Command, result tea.Model) (testExecutionOutcome, error) {

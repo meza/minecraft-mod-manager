@@ -4,12 +4,14 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"regexp"
 	"runtime"
 	"strings"
 	"testing"
 	"time"
 
 	tea "github.com/charmbracelet/bubbletea"
+	"github.com/charmbracelet/lipgloss"
 	"github.com/gkampitakis/go-snaps/snaps"
 	"github.com/spf13/cobra"
 	"github.com/stretchr/testify/require"
@@ -161,15 +163,22 @@ func runUpdatePTYRunningSnapshotWithItems(t *testing.T, rows uint16, items []upd
 		})
 		return strings.Contains(normalized, lastUpdatingName)
 	}, terminalpty.WithWaitDuration(2*time.Second))
-
-	snaps.MatchSnapshot(t, terminal.NormalizeOutput(session.OutputString(), terminal.NormalizeOptions{
-		StripControlSequences:  true,
-		TrimTrailingWhitespace: true,
-		TrimTrailingEmptyLines: true,
-		TrimSpace:              true,
-		RowLimit:               int(rows),
-		PadRows:                true,
+	spinner := view.NewSpinner()
+	contentHeight := lipgloss.Height(renderUpdateRunningView(updateRunningViewInput{
+		items:        items,
+		colorMode:    view.ColorDisabled,
+		spinnerFrame: spinner.StaticFrame(),
 	}))
+	if int(rows) >= contentHeight {
+		session.WaitForOutput(t, func(output []byte) bool {
+			normalized := terminal.NormalizeOutput(string(output), terminal.NormalizeOptions{
+				StripControlSequences: true,
+			})
+			return strings.Contains(normalized, "cmd.update.section.failed")
+		}, terminalpty.WithWaitDuration(2*time.Second))
+	}
+
+	snaps.MatchSnapshot(t, normalizeUpdatePTYOutput(session.OutputString(), rows))
 
 	close(release)
 	select {
@@ -178,6 +187,38 @@ func runUpdatePTYRunningSnapshotWithItems(t *testing.T, rows uint16, items []upd
 		t.Fatal("timed out waiting for update command to finish")
 	}
 	require.NoError(t, session.Close())
+}
+
+func normalizeUpdatePTYOutput(output string, rows uint16) string {
+	trimmed := trimToLastUpdateFrame(output)
+	trimmed = cursorHomeSequence.ReplaceAllString(trimmed, "\n")
+	return terminal.NormalizeOutput(trimmed, terminal.NormalizeOptions{
+		StripControlSequences:  true,
+		TrimTrailingWhitespace: true,
+		TrimTrailingEmptyLines: true,
+		TrimSpace:              true,
+		RowLimit:               int(rows),
+		PadRows:                true,
+	})
+}
+
+func trimToLastUpdateFrame(value string) string {
+	indices := cursorHomeSequence.FindAllStringIndex(value, -1)
+	if len(indices) == 0 {
+		return value
+	}
+	for index := len(indices) - 1; index >= 0; index-- {
+		candidate := value[indices[index][0]:]
+		normalized := terminal.NormalizeOutput(candidate, terminal.NormalizeOptions{
+			StripControlSequences:  true,
+			TrimTrailingWhitespace: true,
+			TrimTrailingEmptyLines: true,
+		})
+		if strings.Contains(normalized, "cmd.update.section") {
+			return candidate
+		}
+	}
+	return value
 }
 
 func runUpdatePTYFinalSnapshot(t *testing.T, rows uint16) {
@@ -459,3 +500,5 @@ func countSummaryLines(normalized string, summaryKey string) int {
 	}
 	return count
 }
+
+var cursorHomeSequence = regexp.MustCompile(`\x1b\[[0-9;]*H`)

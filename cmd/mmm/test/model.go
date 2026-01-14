@@ -5,7 +5,6 @@ import (
 
 	"github.com/charmbracelet/bubbles/viewport"
 	tea "github.com/charmbracelet/bubbletea"
-	"github.com/charmbracelet/lipgloss"
 
 	"github.com/meza/minecraft-mod-manager/internal/view"
 )
@@ -186,14 +185,7 @@ func (model *testModel) renderFinalView() string {
 func (model *testModel) updateViewport(content string, height int) {
 	model.viewport.SetContent(content)
 
-	contentHeight := lipgloss.Height(content)
-	viewportHeight := height
-	if viewportHeight > contentHeight {
-		viewportHeight = contentHeight
-	}
-	if viewportHeight < 0 {
-		viewportHeight = 0
-	}
+	viewportHeight := view.ClampViewportHeight(height)
 
 	model.viewport.Height = viewportHeight
 	if model.windowW > 0 {

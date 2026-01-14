@@ -284,7 +284,7 @@ func TestUpdateViewportAutoScrollsUntilUserScrolls(t *testing.T) {
 	assert.Equal(t, 0, model.viewport.YOffset)
 }
 
-func TestUpdateViewportClampsToShortContent(t *testing.T) {
+func TestUpdateViewportUsesWindowHeight(t *testing.T) {
 	model := newUpdateModel(updateModelInput{
 		ctx:        context.Background(),
 		colorMode:  view.ColorDisabled,
@@ -295,7 +295,7 @@ func TestUpdateViewportClampsToShortContent(t *testing.T) {
 
 	model.windowW = 10
 	model.updateViewport("one", 5)
-	assert.Equal(t, 1, model.viewport.Height)
+	assert.Equal(t, 5, model.viewport.Height)
 	assert.Equal(t, 0, model.viewport.YOffset)
 }
 

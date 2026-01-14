@@ -25,10 +25,6 @@ cmd.test.section.not_compatible
 ---
 
 [TestTestCommandInteractivePTYRunningScrollsToNotCompatible - 1]
-✅ Gamma (gamma) [modrinth]
-✅ Delta (delta) [modrinth]
-✅ Epsilon (epsilon) [modrinth]
-
 cmd.test.section.not_compatible
 ❌ Zeta (zeta) [modrinth]
 ---
@@ -48,6 +44,13 @@ cmd.test.section.not_compatible
 ---
 
 [TestTestCommandInteractivePTYFinalTranscriptIncludesSummaryAfterScroll - 1]
+cmd.test.header, Arg 1: {Count: 0, Data: &map[version:1.21.11]}
+
+cmd.test.section.compatible
+✅ Alpha (alpha) [modrinth]
+✅ Beta (beta) [modrinth]
+✅ Gamma (gamma) [modrinth]
+✅ Delta (delta) [modrinth]
 ✅ Epsilon (epsilon) [modrinth]
 
 cmd.test.section.not_compatible
@@ -57,6 +60,13 @@ cmd.test.section.not_compatible
 ---
 
 [TestTestCommandInteractivePTYFinalTranscriptIncludesSummaryWithoutScroll - 1]
+cmd.test.header, Arg 1: {Count: 0, Data: &map[version:1.21.11]}
+
+cmd.test.section.compatible
+✅ Alpha (alpha) [modrinth]
+✅ Beta (beta) [modrinth]
+✅ Gamma (gamma) [modrinth]
+✅ Delta (delta) [modrinth]
 ✅ Epsilon (epsilon) [modrinth]
 
 cmd.test.section.not_compatible
@@ -87,6 +97,8 @@ cmd.test.section.not_compatible
 ---
 
 [TestTestCommandInteractivePTYFinalTranscriptSuccessShortHeight - 1]
+cmd.test.header, Arg 1: {Count: 0, Data: &map[version:1.21.11]}
+
 cmd.test.section.compatible
 ✅ Alpha (alpha) [modrinth]
 ✅ Beta (beta) [modrinth]

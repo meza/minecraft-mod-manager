@@ -241,19 +241,13 @@ func (model *scanAdoptionPromptModel) updateViewport(content string, height int)
 	model.viewport.SetContent(content)
 
 	contentHeight := lipgloss.Height(content)
-	viewportHeight := height
-	if viewportHeight > contentHeight {
-		viewportHeight = contentHeight
-	}
-	if viewportHeight < 0 {
-		viewportHeight = 0
-	}
+	viewportHeight := view.ClampViewportHeight(height)
 
 	model.viewport.Height = viewportHeight
 	if model.windowW > 0 {
 		model.viewport.Width = model.windowW
 	}
-	maxOffset := contentHeight - viewportHeight
+	maxOffset := view.MaxViewportOffset(contentHeight, viewportHeight)
 	if model.focusBottom {
 		model.viewport.SetYOffset(maxOffset)
 		model.focusBottom = false

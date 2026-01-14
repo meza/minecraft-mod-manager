@@ -1020,7 +1020,7 @@ func TestChangeModelUpdateUnknownMessageKeepsState(t *testing.T) {
 	assert.Nil(t, cmd)
 }
 
-func TestChangeModelUpdateViewportNoWindowClamp(t *testing.T) {
+func TestChangeModelUpdateViewportUsesWindowHeight(t *testing.T) {
 	model := newChangeModel(changeModelInput{
 		ctx:        context.Background(),
 		target:     "1.19.4",
@@ -1034,7 +1034,7 @@ func TestChangeModelUpdateViewportNoWindowClamp(t *testing.T) {
 
 	model.windowH = 10
 	model.updateViewport("one\ntwo", viewportFocusPreserve)
-	assert.Equal(t, 2, model.viewport.Height)
+	assert.Equal(t, 10, model.viewport.Height)
 }
 
 func TestRenderFinalErrorLineColorEnabled(t *testing.T) {

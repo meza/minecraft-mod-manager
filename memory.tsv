@@ -448,5 +448,16 @@ date	time	entry
 2026-01-13	10:14	MMM-39: removed Modrinth VCR cassette and contract test per user request; local checks and Windows verification pass (PSReadLine VT warning).
 2026-01-13	11:47	User requested inventory of spinner usage; collecting occurrences for consolidation discussion.
 2026-01-13	12:40	MMM-42 created in Linear and in progress: centralize spinner widget, move MMM_TEST gating into view; refactor models/outputs/tests and update snapshots. Ran make fmt/fmt-check/lint/vuln/coverage (UPDATE_SNAPS=true)/build.
-2026-01-13\t14:18	MMM-42 ticket fetched from Linear: centralize spinner widget in internal/view, move MMM_TEST gating into widget, replace model-level spinner usage across commands, update tests/snapshots.
-2026-01-13\t14:47	MMM-42 reviewer invocation produced code-review.md with Not Approved due to missing ticket text and claimed Windows snapshot failure; plan to re-invoke reviewer with full ticket text and verified Windows run.
+2026-01-13  14:18	MMM-42 ticket fetched from Linear: centralize spinner widget in internal/view, move MMM_TEST gating into widget, replace model-level spinner usage across commands, update tests/snapshots.
+2026-01-13  14:47	MMM-42 reviewer invocation produced code-review.md with Not Approved due to missing ticket text and claimed Windows snapshot failure; plan to re-invoke reviewer with full ticket text and verified Windows run.
+2026-01-13  15:18	Closed MMM-42 in Linear per user request (state set to Done).
+2026-01-13  15:20	Created Linear MMM-44 bug: viewport height detection underestimates terminal size; added Bug label and verification steps.
+2026-01-13  15:21	Closed MMM-43 in Linear per user request (state set to Done).
+2026-01-13	15:29	Checked for codex CLI: command not found on PATH.
+2026-01-13	15:40	Checked for codex CLI in this session: codex command not found on PATH.
+2026-01-13	16:13	MMM-44: resumed after compaction; set ticket In Progress; reviewing viewport height handling in scan/test/change/update models and terminal docs.
+2026-01-13	16:25	MMM-44: updated viewport heights to use full window height, clamped offsets to >=0 in scan/update/change/prompt/test models; adjusted unit tests; make fmt/lint/coverage/build pass.
+2026-01-13	19:22	MMM-44: stabilized test PTY normalization and scan short-height snapshot trimming; local gates pass; Windows verification (winhost make lint/build/coverage/test-race) pass with PSReadLine VT warning.
+2026-01-13	22:10	MMM-44: manual sanity check via script PTY (stty rows 25 cols 100) running ./build/linux/amd64/mmm test 1.20.2 --config ./modlist.json; saw viewport output filling 25-row screen and final output; recorded /tmp/mmm_manual.txt.
+2026-01-14	00:03	MMM-44: stabilized test PTY snapshot normalization (prefer section markers/checkmarks), added scan prompt decline wait, reran local gates; Windows winhost lint/build/coverage/test-race pass (PSReadLine VT warning).
+2026-01-14	00:42	MMM-44: adjusted test PTY section normalization (per-test section trim for scroll), reordered marker preference, updated snapshots; local gates pass; Windows winhost lint/build/coverage/test-race pass (PSReadLine VT warning, coverage.profile removal warning).

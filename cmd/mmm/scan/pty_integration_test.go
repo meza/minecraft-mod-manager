@@ -181,7 +181,8 @@ func TestScanCommandInteractivePTYRunningSnapshotShortHeight(t *testing.T) {
 
 	waitForOutput(t, session, "cmd.scan.header.running")
 	require.NotNil(t, runningModel)
-	snaps.MatchSnapshot(t, normalizeViewportSnapshot(runningModel.View()))
+	snapshot := normalizeViewportSnapshot(runningModel.View())
+	snaps.MatchSnapshot(t, trimBeforeSection(snapshot, "cmd.scan.section.unknown"))
 
 	close(release)
 	execErrValue := <-execErr
@@ -1309,6 +1310,12 @@ func TestScanCommandInteractivePTYPromptDeclineCancelledOnly(t *testing.T) {
 	case <-time.After(2 * time.Second):
 		t.Fatal("timed out waiting for prompt decline to finish")
 	}
+	session.WaitForOutput(t, func(output []byte) bool {
+		normalized := terminal.NormalizeOutput(string(output), terminal.NormalizeOptions{
+			StripControlSequences: true,
+		})
+		return strings.Contains(normalized, "cmd.scan.adoption.cancelled")
+	}, terminalpty.WithWaitDuration(2*time.Second))
 	require.NoError(t, session.Close())
 
 	snaps.MatchSnapshot(t, normalizePromptPTYSnapshot(session.OutputString()))
@@ -1396,6 +1403,14 @@ func normalizeViewportSnapshot(value string) string {
 		lines[index] = strings.TrimRight(line, " \t")
 	}
 	return strings.TrimSpace(strings.Join(lines, "\n"))
+}
+
+func trimBeforeSection(value string, section string) string {
+	index := strings.Index(value, section)
+	if index == -1 {
+		return value
+	}
+	return strings.TrimSpace(value[:index])
 }
 
 func trimToLastFrame(value string) string {

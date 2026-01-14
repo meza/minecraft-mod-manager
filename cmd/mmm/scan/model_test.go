@@ -367,7 +367,7 @@ func TestNewScanModelUsesLineSpinnerWhenUnicodeDisabled(t *testing.T) {
 	assert.Equal(t, spinner.Line.Frames[0], model.spinner.StaticFrame())
 }
 
-func TestScanModelUpdateViewportUsesContentHeight(t *testing.T) {
+func TestScanModelUpdateViewportUsesWindowHeight(t *testing.T) {
 	model := newScanModel(scanModelInput{
 		ctx:        context.Background(),
 		colorMode:  view.ColorDisabled,
@@ -379,6 +379,6 @@ func TestScanModelUpdateViewportUsesContentHeight(t *testing.T) {
 	model.windowH = 10
 
 	model.updateViewport("one", model.windowH)
-	assert.Equal(t, 1, model.viewport.Height)
+	assert.Equal(t, 10, model.viewport.Height)
 	assert.Equal(t, 100, model.viewport.Width)
 }

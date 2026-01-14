@@ -9,7 +9,6 @@ import (
 
 	"github.com/charmbracelet/bubbles/spinner"
 	tea "github.com/charmbracelet/bubbletea"
-	"github.com/charmbracelet/lipgloss"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
@@ -214,7 +213,7 @@ func TestTestModelUpdateMouseMsgScrollsViewport(t *testing.T) {
 	assert.Equal(t, 2, updated.(*testModel).viewport.YOffset)
 }
 
-func TestTestModelUpdateViewportClampsToContentHeight(t *testing.T) {
+func TestTestModelUpdateViewportUsesWindowHeight(t *testing.T) {
 	model := newTestModel(testModelInput{
 		ctx:           context.Background(),
 		targetVersion: "1.20.1",
@@ -230,7 +229,7 @@ func TestTestModelUpdateViewportClampsToContentHeight(t *testing.T) {
 
 	model.updateViewport("one\ntwo", 5)
 
-	assert.Equal(t, 2, model.viewport.Height)
+	assert.Equal(t, 5, model.viewport.Height)
 	assert.Equal(t, 12, model.viewport.Width)
 }
 
@@ -302,19 +301,7 @@ func TestTestModelViewUsesViewportWhenWindowSized(t *testing.T) {
 	model.windowH = 5
 
 	viewOutput := model.View()
-	input := testViewInput{
-		targetVersion: model.targetVersion,
-		items:         items,
-		colorMode:     model.colorMode,
-		spinner:       &model.spinner,
-	}
-	headerHeight := lipgloss.Height(renderTestHeader(model.targetVersion))
-	compatHeight := lipgloss.Height(renderCompatibilitySection(input))
-	contentHeight := headerHeight + 1 + compatHeight
 	expectedHeight := model.windowH
-	if contentHeight < expectedHeight {
-		expectedHeight = contentHeight
-	}
 
 	assert.Contains(t, viewOutput, "cmd.test.header")
 	assert.Contains(t, viewOutput, "cmd.test.section.compatibility")

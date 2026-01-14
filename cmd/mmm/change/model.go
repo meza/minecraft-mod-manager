@@ -429,17 +429,14 @@ func (model *changeModel) updateViewport(content string, focusMode viewportFocus
 	model.viewport.SetContent(content)
 
 	contentHeight := lipgloss.Height(content)
-	height := contentHeight
-	if model.windowH > 0 && height > model.windowH {
-		height = model.windowH
-	}
+	height := view.ViewportHeightOrContent(model.windowH, contentHeight)
 
 	model.viewport.Height = height
 	if model.windowW > 0 {
 		model.viewport.Width = model.windowW
 	}
 
-	maxOffset := contentHeight - height
+	maxOffset := view.MaxViewportOffset(contentHeight, height)
 	if focusMode == viewportFocusBottom {
 		model.viewport.SetYOffset(maxOffset)
 		return

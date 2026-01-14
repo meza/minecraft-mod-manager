@@ -219,12 +219,19 @@ func TestScanAdoptionPromptViewUsesViewportHeight(t *testing.T) {
 	assert.NotContains(t, viewText, "section")
 }
 
-func TestScanAdoptionPromptUpdateViewportClampsHeight(t *testing.T) {
+func TestScanAdoptionPromptUpdateViewportUsesWindowHeight(t *testing.T) {
 	model := newScanAdoptionPromptModel([]string{"one"}, "Question?")
 	model.windowW = 40
 	model.updateViewport("line-one", 10)
-	assert.Equal(t, 1, model.viewport.Height)
+	assert.Equal(t, 10, model.viewport.Height)
 	assert.Equal(t, 40, model.viewport.Width)
+}
+
+func TestScanAdoptionPromptUpdateViewportFocusBottomShortContent(t *testing.T) {
+	model := newScanAdoptionPromptModel([]string{"one"}, "Question?")
+	model.updateViewport("line-one", 10)
+	assert.False(t, model.focusBottom)
+	assert.Equal(t, 0, model.viewport.YOffset)
 }
 
 func TestScanAdoptionPromptUpdateViewportPreservesOffset(t *testing.T) {
