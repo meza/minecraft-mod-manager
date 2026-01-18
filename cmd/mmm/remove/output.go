@@ -50,14 +50,21 @@ func renderRemoveResultSection(colorMode view.ColorMode, items []removeItem) str
 	return strings.Join(lines, "\n")
 }
 
-func renderRemoveDryRunSection(colorMode view.ColorMode, items []removeItem) string {
-	header := i18n.T("cmd.remove.header.would_remove", nil)
-	lines := renderRemoveDryRunItems(colorMode, items)
+func renderRemoveConfirmSection(colorMode view.ColorMode, items []removeItem) string {
+	header := i18n.T("cmd.remove.header.confirm", nil)
+	lines := make([]string, 0, len(items))
+	for _, item := range items {
+		lines = append(lines, renderRemoveConfirmLine(colorMode, item.Mod))
+	}
 	return strings.Join(append([]string{header}, lines...), "\n")
 }
 
 func renderRemoveNoMatchesLine() string {
 	return i18n.T("cmd.remove.no_matches", nil)
+}
+
+func renderRemoveCanceledLine() string {
+	return i18n.T("cmd.remove.cancelled", nil)
 }
 
 func renderRemoveSuccessSummary(colorMode view.ColorMode) string {
@@ -94,6 +101,20 @@ func renderRemoveFailureLine(colorMode view.ColorMode, err error) string {
 	return strings.Join([]string{headline, hint}, "\n")
 }
 
+func renderRemoveForceRequiredLine(colorMode view.ColorMode) string {
+	headline := messageWithIcon(view.FinalErrorIcon(colorMode), i18n.T("cmd.remove.error.confirm_required", nil))
+	if colorMode.Enabled() {
+		headline = view.ErrorStyle.Render(headline)
+	}
+
+	hint := i18n.T("cmd.remove.error.confirm_required_hint", nil)
+	if colorMode.Enabled() {
+		hint = view.CtaStyle.Render(hint)
+	}
+
+	return strings.Join([]string{headline, hint}, "\n")
+}
+
 func renderRemoveItems(colorMode view.ColorMode, items []removeItem, spinner *view.Spinner) []string {
 	lines := make([]string, 0, len(items))
 	for _, item := range items {
@@ -102,15 +123,7 @@ func renderRemoveItems(colorMode view.ColorMode, items []removeItem, spinner *vi
 	return lines
 }
 
-func renderRemoveDryRunItems(colorMode view.ColorMode, items []removeItem) []string {
-	lines := make([]string, 0, len(items))
-	for _, item := range items {
-		lines = append(lines, renderRemoveDryRunLine(colorMode, item.Mod))
-	}
-	return lines
-}
-
-func renderRemoveDryRunLine(colorMode view.ColorMode, mod models.Mod) string {
+func renderRemoveConfirmLine(colorMode view.ColorMode, mod models.Mod) string {
 	icon := uncertaintyIcon(colorMode)
 	label := renderRemoveLabel(colorMode, mod)
 	return fmt.Sprintf("%s %s", icon, label)

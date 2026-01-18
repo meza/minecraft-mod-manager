@@ -34,7 +34,7 @@ type removeOptions struct {
 	Unattended bool
 	Quiet      bool
 	Debug      bool
-	DryRun     bool
+	Force      bool
 	Lookups    []string
 }
 
@@ -72,7 +72,7 @@ func Command() *cobra.Command {
 		},
 	}
 
-	cmd.Flags().BoolP("dry-run", "n", false, i18n.T("cmd.remove.flag.dry_run", nil))
+	cmd.Flags().BoolP("force", "f", false, i18n.T("cmd.remove.flag.force", nil))
 
 	return cmd
 }
@@ -130,7 +130,7 @@ func removeOptionsFromFlags(cmd *cobra.Command, args []string) (removeOptions, e
 	if err != nil {
 		return removeOptions{}, err
 	}
-	dryRun, err := cmd.Flags().GetBool("dry-run")
+	force, err := cmd.Flags().GetBool("force")
 	if err != nil {
 		return removeOptions{}, err
 	}
@@ -140,7 +140,7 @@ func removeOptionsFromFlags(cmd *cobra.Command, args []string) (removeOptions, e
 		Unattended: unattended,
 		Quiet:      quiet,
 		Debug:      debug,
-		DryRun:     dryRun,
+		Force:      force,
 		Lookups:    args,
 	}, nil
 }
@@ -188,8 +188,8 @@ func recordRemoveTelemetry(telemetryRecorder func(telemetry.CommandTelemetry), o
 		Interactive:   mode.IsInteractive(),
 		ExecutionMode: mode.String(),
 		Arguments: map[string]interface{}{
-			"dryRun": opts.DryRun,
-			"mods":   opts.Lookups,
+			"force": opts.Force,
+			"mods":  opts.Lookups,
 		},
 	}
 	if err != nil {
@@ -238,10 +238,13 @@ func runRemoveWithMatches(
 	items := buildRemoveItems(matches)
 	indexByKey := removeIndexByKey(items)
 	colorMode := colorModeForWriter(cmd)
-
-	if opts.DryRun {
-		if err := runRemoveDryRun(cmd, deps, opts, colorMode, items); err != nil {
-			return 0, interactive, err
+	confirmed, confirmErr := confirmRemove(cmd, deps, opts, runState.mode, colorMode, items)
+	if confirmErr != nil {
+		return 0, interactive, confirmErr
+	}
+	if !confirmed {
+		if outputErr := runOutputLines(cmd, deps, cmd.OutOrStdout(), []string{renderRemoveCanceledLine()}); outputErr != nil {
+			return 0, interactive, outputErr
 		}
 		return 0, interactive, nil
 	}
@@ -278,15 +281,36 @@ func handleRemoveNoMatches(cmd *cobra.Command, deps removeDeps, opts removeOptio
 	return nil
 }
 
-func runRemoveDryRun(cmd *cobra.Command, deps removeDeps, opts removeOptions, colorMode view.ColorMode, items []removeItem) error {
-	if opts.Quiet {
-		return nil
+func confirmRemove(
+	cmd *cobra.Command,
+	deps removeDeps,
+	opts removeOptions,
+	mode interaction.ExecutionMode,
+	colorMode view.ColorMode,
+	items []removeItem,
+) (bool, error) {
+	if opts.Force || mode == interaction.ExecutionModeUnattended {
+		return true, nil
 	}
-	lines := []string{renderRemoveDryRunSection(colorMode, items)}
-	if outputErr := runOutputLines(cmd, deps, cmd.OutOrStdout(), lines); outputErr != nil {
+	if mode != interaction.ExecutionModeInteractive {
+		return false, handleRemoveForceRequired(cmd, deps, colorMode)
+	}
+
+	confirmed, canceled, promptErr := runRemoveConfirmPrompt(cmd, deps, colorMode, items)
+	if promptErr != nil {
+		return false, promptErr
+	}
+	if canceled || !confirmed {
+		return false, nil
+	}
+	return true, nil
+}
+
+func handleRemoveForceRequired(cmd *cobra.Command, deps removeDeps, colorMode view.ColorMode) error {
+	if outputErr := runOutputLines(cmd, deps, cmd.OutOrStdout(), []string{renderRemoveForceRequiredLine(colorMode)}); outputErr != nil {
 		return outputErr
 	}
-	return nil
+	return clierrors.MarkHandled(errors.New(i18n.T("cmd.remove.error.confirm_required", nil)))
 }
 
 func runRemoveQuiet(ctx context.Context, cmd *cobra.Command, execInput removeExecutionInput, colorMode view.ColorMode) (int, error) {
@@ -441,7 +465,7 @@ func prepareRemoveRunState(ctx context.Context, cmd *cobra.Command, opts removeO
 		shouldContinue: true,
 	}
 
-	state, err := loadRemoveConfigState(ctx, deps, runState.meta, opts.DryRun)
+	state, err := loadRemoveConfigState(ctx, deps, runState.meta)
 	if err == nil {
 		runState.cfg = state.cfg
 		runState.lock = state.lock
@@ -461,8 +485,8 @@ type removeConfigState struct {
 	lock []models.ModInstall
 }
 
-func loadRemoveConfigState(ctx context.Context, deps removeDeps, meta config.Metadata, dryRun bool) (removeConfigState, error) {
-	cfg, lock, err := readRemoveConfig(ctx, deps, meta, dryRun)
+func loadRemoveConfigState(ctx context.Context, deps removeDeps, meta config.Metadata) (removeConfigState, error) {
+	cfg, lock, err := readRemoveConfig(ctx, deps, meta)
 	if err != nil {
 		return removeConfigState{}, err
 	}
@@ -504,7 +528,7 @@ func handleMissingRemoveConfig(
 		return runState, runErr
 	}
 
-	state, err := loadRemoveConfigState(ctx, deps, runState.meta, opts.DryRun)
+	state, err := loadRemoveConfigState(ctx, deps, runState.meta)
 	if err != nil {
 		return runState, handleRemoveFailure(cmd, deps, err)
 	}
@@ -555,12 +579,12 @@ func handleRemoveFailure(cmd *cobra.Command, deps removeDeps, err error) error {
 	return clierrors.MarkHandled(err)
 }
 
-func readRemoveConfig(ctx context.Context, deps removeDeps, meta config.Metadata, dryRun bool) (models.ModsJSON, []models.ModInstall, error) {
+func readRemoveConfig(ctx context.Context, deps removeDeps, meta config.Metadata) (models.ModsJSON, []models.ModInstall, error) {
 	cfg, err := config.ReadConfig(ctx, deps.fs, meta)
 	if err != nil {
 		return models.ModsJSON{}, nil, err
 	}
-	lock, err := readLockForRemove(ctx, deps.fs, meta, removeLockOptions{dryRun: dryRun})
+	lock, err := config.ReadLockOrEmpty(ctx, deps.fs, meta)
 	if err != nil {
 		return models.ModsJSON{}, nil, err
 	}
@@ -849,26 +873,6 @@ func configIndexFor(mod models.Mod, mods []models.Mod) int {
 		}
 	}
 	return -1
-}
-
-func readLockForRemove(ctx context.Context, fs afero.Fs, meta config.Metadata, options removeLockOptions) ([]models.ModInstall, error) {
-	if !options.dryRun {
-		return config.EnsureLock(ctx, fs, meta)
-	}
-
-	lockPath := meta.LockPath()
-	exists, err := afero.Exists(fs, lockPath)
-	if err != nil {
-		return nil, err
-	}
-	if !exists {
-		return []models.ModInstall{}, nil
-	}
-	return config.ReadLock(ctx, fs, meta)
-}
-
-type removeLockOptions struct {
-	dryRun bool
 }
 
 func resolveMatchesForRemove(lookups []string, cfg models.ModsJSON, lock []models.ModInstall) ([]removeMatch, error) {

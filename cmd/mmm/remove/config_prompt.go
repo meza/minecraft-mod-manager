@@ -238,3 +238,73 @@ func configInitResult(result tea.Model) (confirmed bool, canceled bool, err erro
 		return false, false, errors.New("unexpected prompt model")
 	}
 }
+
+type removeConfirmModel struct {
+	listView  string
+	prompt    confirmPromptModel
+	canceled  bool
+	confirmed bool
+}
+
+func newRemoveConfirmModel(listView string, question string) removeConfirmModel {
+	return removeConfirmModel{
+		listView: listView,
+		prompt:   newConfirmPromptModel(question),
+	}
+}
+
+func (model removeConfirmModel) Init() tea.Cmd {
+	return nil
+}
+
+func (model removeConfirmModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
+	switch typed := msg.(type) {
+	case tea.KeyMsg:
+		if typed.String() == "ctrl+c" || typed.String() == "esc" {
+			model.canceled = true
+			return model, tea.Quit
+		}
+	case confirmSelectedMessage:
+		model.confirmed = typed.confirmed
+		return model, tea.Quit
+	}
+
+	updatedPrompt, cmd := model.prompt.Update(msg)
+	model.prompt = updatedPrompt
+	return model, cmd
+}
+
+func (model removeConfirmModel) View() string {
+	if model.listView == "" {
+		return model.prompt.View()
+	}
+	return model.listView + "\n\n" + model.prompt.View()
+}
+
+func runRemoveConfirmPrompt(cmd *cobra.Command, deps removeDeps, colorMode view.ColorMode, items []removeItem) (confirmed bool, canceled bool, err error) {
+	listView := renderRemoveConfirmSection(colorMode, items)
+	question := i18n.T("cmd.remove.confirm.question", nil)
+	model := newRemoveConfirmModel(listView, question)
+
+	runTea := deps.runTea
+	if runTea == nil {
+		runTea = runTeaProgram
+	}
+
+	result, err := runTea(model, view.ProgramOptions(cmd.InOrStdin(), cmd.OutOrStdout())...)
+	if err != nil {
+		return false, false, err
+	}
+	return removeConfirmResult(result)
+}
+
+func removeConfirmResult(result tea.Model) (confirmed bool, canceled bool, err error) {
+	switch typed := result.(type) {
+	case removeConfirmModel:
+		return typed.confirmed, typed.canceled, nil
+	case *removeConfirmModel:
+		return typed.confirmed, typed.canceled, nil
+	default:
+		return false, false, errors.New("unexpected remove confirm model")
+	}
+}

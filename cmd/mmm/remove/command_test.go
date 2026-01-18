@@ -46,7 +46,7 @@ func TestCommandMissingDebugFlagErrors(t *testing.T) {
 	assert.Error(t, runE(cmd, []string{"mod"}))
 }
 
-func TestCommandMissingDryRunFlagErrors(t *testing.T) {
+func TestCommandMissingForceFlagErrors(t *testing.T) {
 	runE := Command().RunE
 	cmd := &cobra.Command{}
 	cmd.SetContext(context.Background())
@@ -93,7 +93,7 @@ func TestCommandSuccessRemovesFiles(t *testing.T) {
 	cmd.SetIn(&bytes.Buffer{})
 	cmd.SetOut(output)
 	cmd.SetErr(errOut)
-	cmd.SetArgs([]string{"--config", configPath, "mod-a"})
+	cmd.SetArgs([]string{"--config", configPath, "--force", "mod-a"})
 
 	assert.NoError(t, cmd.Execute())
 

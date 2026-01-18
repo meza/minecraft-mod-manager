@@ -23,8 +23,9 @@ If the mod file is already missing on disk, MMM skips the file removal and still
 
 When a lock entry matches, MMM removes the config entry with the same ID and then removes the lock entry.
 
-If you use `--dry-run`, MMM prints what it would remove without changing any files (it will not delete jars, and it will
-not create a missing lock file).
+In interactive terminals, MMM lists the matched mods and asks you to confirm before it removes anything.
+Use `--force` to skip the confirmation. In unattended or non-tty runs, MMM only removes when you pass `--force` or `--unattended`.
+The confirmation prompt still appears when `--quiet` is set.
 
 ## Examples
 
@@ -45,9 +46,9 @@ Tip: quote your patterns so your shell does not expand them before MMM sees them
 
 ## Flags
 
-| Short | Long        | Meaning                                               | Allowed values | Example                |
-|------:|-------------|-------------------------------------------------------|----------------|------------------------|
-|  `-n` | `--dry-run` | Show what would be removed without deleting anything  | true/false     | `mmm remove -n sodium` |
+| Short | Long        | Meaning                              | Allowed values | Example                   |
+|------:|-------------|--------------------------------------|----------------|---------------------------|
+|  `-f` | `--force`   | Skip the confirmation prompt         | true/false     | `mmm remove --force sodium` |
 
 
 ## Glob primer

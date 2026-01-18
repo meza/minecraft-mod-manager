@@ -3,14 +3,18 @@ package remove
 import (
 	"context"
 	"path/filepath"
+	"regexp"
+	"runtime"
 	"strings"
 	"testing"
 	"time"
 
+	"github.com/gkampitakis/go-snaps/snaps"
 	"github.com/spf13/afero"
 	"github.com/stretchr/testify/require"
 
 	"github.com/meza/minecraft-mod-manager/internal/config"
+	"github.com/meza/minecraft-mod-manager/internal/i18n"
 	"github.com/meza/minecraft-mod-manager/internal/models"
 	"github.com/meza/minecraft-mod-manager/testutil/terminal"
 	terminalpty "github.com/meza/minecraft-mod-manager/testutil/terminal/pty"
@@ -54,7 +58,7 @@ func TestRemoveCommandInteractivePTYIncludesSummary(t *testing.T) {
 	cmd.SetIn(session.Input())
 	cmd.SetOut(session.Output())
 	cmd.SetErr(session.Output())
-	cmd.SetArgs([]string{"--config", configPath, "mod-a"})
+	cmd.SetArgs([]string{"--config", configPath, "--force", "mod-a"})
 
 	execErr := cmd.Execute()
 	require.NoError(t, execErr)
@@ -65,3 +69,190 @@ func TestRemoveCommandInteractivePTYIncludesSummary(t *testing.T) {
 	normalized := terminal.NormalizeOutput(session.OutputString(), terminal.NormalizeOptions{StripControlSequences: true})
 	require.Contains(t, normalized, "cmd.remove.summary.success")
 }
+
+func TestRemoveCommandInteractivePTYConfirmSnapshotShortHeight(t *testing.T) {
+	runRemovePTYConfirmSnapshot(t, 25)
+}
+
+func TestRemoveCommandInteractivePTYConfirmSnapshotTallHeight(t *testing.T) {
+	runRemovePTYConfirmSnapshot(t, tallSnapshotRows())
+}
+
+func TestRemoveCommandInteractivePTYSuccessSnapshotShortHeight(t *testing.T) {
+	runRemovePTYSuccessSnapshot(t, 25)
+}
+
+func TestRemoveCommandInteractivePTYSuccessSnapshotTallHeight(t *testing.T) {
+	runRemovePTYSuccessSnapshot(t, tallSnapshotRows())
+}
+
+func runRemovePTYConfirmSnapshot(t *testing.T, rows uint16) {
+	t.Setenv("LANG", "en_GB.UTF-8")
+	terminal.ApplyFixtures(t)
+
+	originalRunRemoveProgram := runRemoveProgram
+	runRemoveProgram = defaultRunRemoveProgram
+	t.Cleanup(func() { runRemoveProgram = originalRunRemoveProgram })
+
+	session := terminalpty.NewSession(t, terminalpty.WithSize(terminal.Size{Columns: 120, Rows: int(rows)}))
+	require.NotNil(t, session)
+
+	configPath := writeRemoveFixture(t)
+
+	cmd := Command()
+	addPersistentFlagsForTesting(cmd)
+	cmd.SetIn(session.Input())
+	cmd.SetOut(session.Output())
+	cmd.SetErr(session.Output())
+	cmd.SetArgs([]string{"--config", configPath, "mod-a"})
+
+	execErr := make(chan error, 1)
+	go func() {
+		execErr <- cmd.Execute()
+	}()
+
+	waitForRemoveOutput(t, session, "cmd.remove.confirm.question")
+	_, writeErr := session.SendInput([]byte("\r"))
+	require.NoError(t, writeErr)
+
+	waitForRemoveOutput(t, session, "cmd.remove.cancelled")
+
+	select {
+	case err := <-execErr:
+		require.NoError(t, err)
+	case <-time.After(2 * time.Second):
+		t.Fatal("timed out waiting for remove cancel")
+	}
+	require.NoError(t, session.Close())
+
+	snaps.MatchSnapshot(t, normalizeRemovePromptSnapshot(session.OutputString()))
+}
+
+func runRemovePTYSuccessSnapshot(t *testing.T, rows uint16) {
+	t.Setenv("LANG", "en_GB.UTF-8")
+	terminal.ApplyFixtures(t)
+
+	originalRunRemoveProgram := runRemoveProgram
+	runRemoveProgram = defaultRunRemoveProgram
+	t.Cleanup(func() { runRemoveProgram = originalRunRemoveProgram })
+
+	session := terminalpty.NewSession(t, terminalpty.WithSize(terminal.Size{Columns: 120, Rows: int(rows)}))
+	require.NotNil(t, session)
+
+	configPath := writeRemoveFixture(t)
+
+	cmd := Command()
+	addPersistentFlagsForTesting(cmd)
+	cmd.SetIn(session.Input())
+	cmd.SetOut(session.Output())
+	cmd.SetErr(session.Output())
+	cmd.SetArgs([]string{"--config", configPath, "mod-a"})
+
+	execErr := make(chan error, 1)
+	go func() {
+		execErr <- cmd.Execute()
+	}()
+
+	waitForRemoveOutput(t, session, "cmd.remove.confirm.question")
+	yesShort := i18n.T("cmd.init.prompt.option.yes.short", nil)
+	_, writeErr := session.SendInput([]byte(yesShort + "\r"))
+	require.NoError(t, writeErr)
+
+	waitForRemoveOutput(t, session, "cmd.remove.summary.success")
+
+	select {
+	case err := <-execErr:
+		require.NoError(t, err)
+	case <-time.After(2 * time.Second):
+		t.Fatal("timed out waiting for remove success")
+	}
+	require.NoError(t, session.Close())
+
+	snaps.MatchSnapshot(t, normalizeRemoveSuccessSnapshot(session.OutputString()))
+}
+
+func writeRemoveFixture(t *testing.T) string {
+	t.Helper()
+
+	tempDir := t.TempDir()
+	configPath := filepath.Join(tempDir, "modlist.json")
+	meta := config.NewMetadata(configPath)
+	cfg := models.ModsJSON{
+		Loader:                     models.FABRIC,
+		GameVersion:                "1.20.1",
+		DefaultAllowedReleaseTypes: []models.ReleaseType{models.Release},
+		ModsFolder:                 "mods",
+		Mods: []models.Mod{
+			{ID: "mod-a", Name: "Mod A", Type: models.MODRINTH},
+			{ID: "mod-b", Name: "Mod B", Type: models.MODRINTH},
+		},
+	}
+	lock := []models.ModInstall{
+		{ID: "mod-a", Type: models.MODRINTH, FileName: "mod-a.jar"},
+		{ID: "mod-b", Type: models.MODRINTH, FileName: "mod-b.jar"},
+	}
+
+	fs := afero.NewOsFs()
+	require.NoError(t, fs.MkdirAll(meta.Dir(), 0755))
+	require.NoError(t, fs.MkdirAll(meta.ModsFolderPath(cfg), 0755))
+	require.NoError(t, config.WriteConfig(context.Background(), fs, meta, cfg))
+	require.NoError(t, config.WriteLock(context.Background(), fs, meta, lock))
+	require.NoError(t, afero.WriteFile(fs, filepath.Join(meta.ModsFolderPath(cfg), "mod-a.jar"), []byte("mod"), 0644))
+	require.NoError(t, afero.WriteFile(fs, filepath.Join(meta.ModsFolderPath(cfg), "mod-b.jar"), []byte("mod"), 0644))
+
+	return configPath
+}
+
+func waitForRemoveOutput(t *testing.T, session *terminalpty.Session, needle string) {
+	t.Helper()
+
+	session.WaitForOutput(t, func(output []byte) bool {
+		normalized := terminal.NormalizeOutput(string(output), terminal.NormalizeOptions{
+			StripControlSequences: true,
+		})
+		return strings.Contains(normalized, needle)
+	}, terminalpty.WithWaitDuration(2*time.Second))
+}
+
+func normalizeRemovePromptSnapshot(value string) string {
+	normalized := terminal.NormalizeOutput(trimToLastFrame(value), terminal.NormalizeOptions{
+		StripControlSequences:  true,
+		TrimTrailingWhitespace: true,
+		TrimTrailingEmptyLines: true,
+		TrimSpace:              true,
+	})
+	if headerIndex := strings.LastIndex(normalized, "cmd.remove.header.confirm"); headerIndex >= 0 {
+		return strings.TrimSpace(normalized[headerIndex:])
+	}
+	return normalized
+}
+
+func normalizeRemoveSuccessSnapshot(value string) string {
+	normalized := terminal.NormalizeOutput(trimToLastFrame(value), terminal.NormalizeOptions{
+		StripControlSequences:  true,
+		TrimTrailingWhitespace: true,
+		TrimTrailingEmptyLines: true,
+		TrimSpace:              true,
+	})
+	if headerIndex := strings.LastIndex(normalized, "cmd.remove.header.removing"); headerIndex >= 0 {
+		return strings.TrimSpace(normalized[headerIndex:])
+	}
+	return normalized
+}
+
+func trimToLastFrame(value string) string {
+	indices := cursorHomeSequence.FindAllStringIndex(value, -1)
+	if len(indices) == 0 {
+		return value
+	}
+	return value[indices[len(indices)-1][0]:]
+}
+
+func tallSnapshotRows() uint16 {
+	if runtime.GOOS == "windows" {
+		return 40
+	}
+	return 80
+}
+
+var cursorHomeSequence = regexp.MustCompile(`\x1b\[[0-9;]*H`)

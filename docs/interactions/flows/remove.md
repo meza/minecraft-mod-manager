@@ -22,12 +22,13 @@ Success looks like (for the user):
 
 1. You run `mmm remove <mods...>`.
 2. MMM resolves each lookup against the lockfile by ID and name, and also removes any matching config entries that do not have lock entries.
-3. MMM deletes jar files when possible, removes the matching config entries by ID, and then removes the lock entries.
+3. MMM lists the matched mods and asks for confirmation unless `--force` or `--unattended` is set.
+4. When confirmed, MMM deletes jar files when possible, removes the matching config entries by ID, and then removes the lock entries.
 
 ### Alternate and error flows
 
 - If no config is found, MMM follows the missing-config gate as defined in the [guidelines](../interaction-guidelines.md#missing-config).
-- When `--dry-run` is set, MMM prints what would be removed and makes no changes.
+- If you decline or cancel the confirmation, MMM exits without changing files and prints a cancellation message.
 - If a lookup matches nothing, MMM skips it.
 - Missing jars MUST NOT block config and lock updates.
 - If a file delete fails, MMM reports it and exits non-zero.
@@ -41,15 +42,32 @@ This document specifies `remove` as state-by-state terminal frame snapshots.
 ### State model
 
 States:
-- REMOVE-01: running (deleting)
-- REMOVE-02: success
-- REMOVE-DRY-RUN: dry run
+- REMOVE-01: confirmation prompt
+- REMOVE-02: running (deleting)
+- REMOVE-03: success
 - REMOVE-NOOP: no matches
+- REMOVE-CANCEL: canceled
 - REMOVE-ERR-DELETE: delete failed
 
 ### Frame snapshots
 
-#### REMOVE-01 Running (tty)
+#### REMOVE-01 Confirmation (tty)
+
+##### Command used
+`remove inventory-sorting soundsbegone`
+
+```
+Mods to remove:
+❔ Inventory Sorting (inventory-sorting)
+❔ Sounds Be Gone! (soundsbegone)
+... (one row per mod, all matched mods shown)
+
+? Remove these mods? (<yesShort>/<noShort>) [default: <noShort>]:
+
+enter accept • ctrl+c/esc quit
+```
+
+#### REMOVE-02 Running (tty)
 
 ##### Command used
 `remove inventory-sorting soundsbegone`
@@ -64,7 +82,7 @@ Removing mods:
 ... (one row per mod, all matched mods shown)
 ```
 
-#### REMOVE-02 Success (tty and non-tty)
+#### REMOVE-03 Success (tty and non-tty)
 
 ##### Command used
 `remove inventory-sorting soundsbegone`
@@ -86,16 +104,13 @@ Removing mods:
 No matching mods found.
 ```
 
-#### REMOVE-DRY-RUN Dry run (tty and non-tty)
+#### REMOVE-CANCEL Canceled (tty)
 
 ##### Command used
-`remove --dry-run inventory-sorting soundsbegone`
+`remove inventory-sorting soundsbegone`
 
 ```
-Would remove:
-❔ Inventory Sorting (inventory-sorting)
-❔ Sounds Be Gone! (soundsbegone)
-... (one row per mod, all matched mods shown)
+Remove canceled. No changes were made.
 ```
 
 ### Error frames
@@ -119,7 +134,7 @@ Fix the reason and rerun mmm remove.
 Unattended mode MUST NOT prompt.
 This applies when `--unattended` is set.
 
-For `remove`, `--unattended` output is identical to tty output because this flow has no prompts.
+For `remove`, `--unattended` output matches the tty running/success frames (no prompt).
 Message shapes and exit codes match the tty frames above.
 
 ### Non-interactive (non-tty) behavior
@@ -130,6 +145,7 @@ In non-tty mode:
 - MMM MUST NOT prompt.
 - MMM MUST NOT emit terminal control sequences.
 - Output is rendered as a plain transcript.
+- If `--force` is not set, MMM refuses to remove mods and prints an actionable error.
 
 ### Quiet flag
 
@@ -145,3 +161,4 @@ Exit code: 0
 
 `--quiet` failure:
 - Errors still print.
+In interactive terminals, `--quiet` still prompts for confirmation.

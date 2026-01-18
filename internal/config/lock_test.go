@@ -79,6 +79,41 @@ func TestEnsureLockReadsExisting(t *testing.T) {
 	assert.Equal(t, expected, actual)
 }
 
+func TestReadLockOrEmptyReturnsEmptyWhenMissing(t *testing.T) {
+	fs := afero.NewMemMapFs()
+	meta := NewMetadata(filepath.FromSlash("/modlist.json"))
+
+	lock, err := ReadLockOrEmpty(context.Background(), fs, meta)
+	assert.NoError(t, err)
+	assert.Empty(t, lock)
+
+	exists, err := afero.Exists(fs, meta.LockPath())
+	assert.NoError(t, err)
+	assert.False(t, exists)
+}
+
+func TestReadLockOrEmptyReadsExisting(t *testing.T) {
+	fs := afero.NewMemMapFs()
+	meta := NewMetadata(filepath.FromSlash("/modlist.json"))
+
+	expected := []models.ModInstall{{ID: "1", Name: "Example", Type: models.MODRINTH}}
+	err := WriteLock(context.Background(), fs, meta, expected)
+	assert.NoError(t, err)
+
+	actual, err := ReadLockOrEmpty(context.Background(), fs, meta)
+	assert.NoError(t, err)
+	assert.Equal(t, expected, actual)
+}
+
+func TestReadLockOrEmptyReturnsErrorWhenExistsCheckFails(t *testing.T) {
+	base := afero.NewMemMapFs()
+	meta := NewMetadata(filepath.FromSlash("/modlist.json"))
+	fs := statErrorFs{Fs: base, failPath: meta.LockPath(), err: errors.New("stat failed")}
+
+	_, err := ReadLockOrEmpty(context.Background(), fs, meta)
+	assert.Error(t, err)
+}
+
 func TestReadLockReturnsErrorWhenPathIsDirectory(t *testing.T) {
 	fs := afero.NewMemMapFs()
 	meta := NewMetadata(filepath.FromSlash("/modlist.json"))

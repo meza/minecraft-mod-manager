@@ -6,7 +6,7 @@ files recorded in `modlist-lock.json`, and update both files accordingly.
 The implementation is intentionally small and follows the existing command patterns:
 
 - `cmd/mmm/remove/remove.go`: cobra wiring + `runRemove` implementation
-- `cmd/mmm/remove/remove_test.go`: behavior tests (glob resolution, dry-run output, deletion, missing files)
+- `cmd/mmm/remove/remove_test.go`: behavior tests (glob resolution, confirmation, deletion, missing files)
 
 ## Glob semantics
 

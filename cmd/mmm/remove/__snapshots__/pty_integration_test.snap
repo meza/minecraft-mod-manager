@@ -1,0 +1,66 @@
+
+[TestRemoveCommandInteractivePTYConfirmSnapshotShortHeight - 1]
+cmd.remove.header.confirm
+❔ Mod A (mod-a)
+
+? cmd.remove.confirm.question cmd.init.prompt.confirm.suffix
+
+key.tab key.help.complete • key.enter key.help.accept • key.ctrl_c/key.esc key.help.quit
+
+
+
+? cmd.remove.confirm.question cmd.init.prompt.confirm.suffix cmd.init.prompt.option.no.short
+
+cmd.remove.cancelled
+---
+
+[TestRemoveCommandInteractivePTYConfirmSnapshotTallHeight - 1]
+cmd.remove.header.confirm
+❔ Mod A (mod-a)
+
+? cmd.remove.confirm.question cmd.init.prompt.confirm.suffix
+
+key.tab key.help.complete • key.enter key.help.accept • key.ctrl_c/key.esc key.help.quit
+
+
+
+? cmd.remove.confirm.question cmd.init.prompt.confirm.suffix cmd.init.prompt.option.no.short
+
+cmd.remove.cancelled
+---
+
+[TestRemoveCommandInteractivePTYSuccessSnapshotShortHeight - 1]
+cmd.remove.header.confirm
+❔ Mod A (mod-a)
+
+? cmd.remove.confirm.question cmd.init.prompt.confirm.suffix
+
+key.tab key.help.complete • key.enter key.help.accept • key.ctrl_c/key.esc key.help.quit
+
+
+
+? cmd.remove.confirm.question cmd.init.prompt.confirm.suffix cmd.init.prompt.option.yes.short
+
+
+✅ Mod A (mod-a)
+
+✅ cmd.remove.summary.success
+---
+
+[TestRemoveCommandInteractivePTYSuccessSnapshotTallHeight - 1]
+cmd.remove.header.confirm
+❔ Mod A (mod-a)
+
+? cmd.remove.confirm.question cmd.init.prompt.confirm.suffix
+
+key.tab key.help.complete • key.enter key.help.accept • key.ctrl_c/key.esc key.help.quit
+
+
+
+? cmd.remove.confirm.question cmd.init.prompt.confirm.suffix cmd.init.prompt.option.yes.short
+
+
+✅ Mod A (mod-a)
+
+✅ cmd.remove.summary.success
+---

@@ -9,6 +9,7 @@ import (
 	"strings"
 	"testing"
 
+	tea "github.com/charmbracelet/bubbletea"
 	"github.com/spf13/afero"
 	"github.com/spf13/cobra"
 	"github.com/stretchr/testify/assert"
@@ -19,6 +20,7 @@ import (
 	"github.com/meza/minecraft-mod-manager/internal/logger"
 	"github.com/meza/minecraft-mod-manager/internal/models"
 	"github.com/meza/minecraft-mod-manager/internal/view"
+	"github.com/meza/minecraft-mod-manager/testutil/terminal"
 )
 
 type errorWriter struct {
@@ -138,13 +140,15 @@ func TestBuildRemoveItemsSortsByNameThenPlatformThenID(t *testing.T) {
 	assert.Equal(t, "a", items[2].Mod.ID)
 }
 
-func TestRunRemoveDryRunOutputsWouldRemoveAndDoesNotCreateLock(t *testing.T) {
+func TestRunRemoveNonTTYRequiresForce(t *testing.T) {
 	restoreUnicode := view.SetUnicodeSupportFuncForTesting(func() bool { return false })
 	t.Cleanup(restoreUnicode)
 
+	t.Setenv("LANG", "en_GB.UTF-8")
+	terminal.ApplyFixtures(t, terminal.WithoutMMMTestEnv())
+
 	fs := afero.NewMemMapFs()
-	var out bytes.Buffer
-	log := logger.New(&out, &out, false, false)
+	log := logger.New(io.Discard, io.Discard, false, false)
 
 	cfg := models.ModsJSON{
 		Loader:                     models.FABRIC,
@@ -158,10 +162,15 @@ func TestRunRemoveDryRunOutputsWouldRemoveAndDoesNotCreateLock(t *testing.T) {
 
 	meta := config.NewMetadata("modlist.json")
 	require.NoError(t, config.WriteConfig(context.Background(), fs, meta, cfg))
+	require.NoError(t, config.WriteLock(context.Background(), fs, meta, []models.ModInstall{{Type: models.MODRINTH, ID: "sodium", FileName: "sodium.jar"}}))
+	require.NoError(t, afero.WriteFile(fs, filepath.Join(meta.ModsFolderPath(cfg), "sodium.jar"), []byte("mod"), 0644))
 
 	cmd := &cobra.Command{}
-	cmd.SetIn(strings.NewReader(""))
-	cmd.SetOut(&out)
+	input := terminal.NewDevice()
+	output := terminal.NewDevice()
+	terminal.ApplyTerminalDetection(t, input, output, terminal.NonTTYCapabilities())
+	cmd.SetIn(input)
+	cmd.SetOut(output)
 
 	deps := removeDeps{
 		fs:     fs,
@@ -169,20 +178,111 @@ func TestRunRemoveDryRunOutputsWouldRemoveAndDoesNotCreateLock(t *testing.T) {
 		runTea: defaultRunTea,
 	}
 
+	_, usedInteractive, err := runRemove(context.Background(), cmd, removeOptions{
+		ConfigPath: meta.ConfigPath,
+		Lookups:    []string{"*"},
+	}, deps)
+	assert.Error(t, err)
+	assert.False(t, usedInteractive)
+	assert.Contains(t, output.String(), "Non-interactive terminal detected")
+	assert.Contains(t, output.String(), "--force")
+
+	exists, err := afero.Exists(fs, filepath.Join(meta.ModsFolderPath(cfg), "sodium.jar"))
+	require.NoError(t, err)
+	assert.True(t, exists)
+}
+
+func TestRunRemoveCancelDoesNotCreateLockFile(t *testing.T) {
+	terminal.ApplyFixtures(t)
+
+	fs := afero.NewMemMapFs()
+	output := terminal.NewDevice()
+	input := terminal.NewDevice()
+	terminal.ApplyTerminalDetection(t, input, output, terminal.TTYCapabilities())
+	log := logger.New(io.Discard, io.Discard, false, false)
+
+	cfg := models.ModsJSON{
+		Loader:                     models.FABRIC,
+		GameVersion:                "1.20.1",
+		DefaultAllowedReleaseTypes: []models.ReleaseType{models.Release},
+		ModsFolder:                 "mods",
+		Mods:                       []models.Mod{{Type: models.MODRINTH, ID: "sodium", Name: "Sodium"}},
+	}
+	meta := config.NewMetadata("modlist.json")
+	require.NoError(t, config.WriteConfig(context.Background(), fs, meta, cfg))
+	originalConfig, err := afero.ReadFile(fs, meta.ConfigPath)
+	require.NoError(t, err)
+
+	cmd := &cobra.Command{}
+	cmd.SetIn(input)
+	cmd.SetOut(output)
+
+	deps := removeDeps{
+		fs:     fs,
+		logger: log,
+		runTea: func(model tea.Model, _ ...tea.ProgramOption) (tea.Model, error) {
+			return removeConfirmModel{confirmed: false}, nil
+		},
+	}
+
 	removed, usedInteractive, err := runRemove(context.Background(), cmd, removeOptions{
 		ConfigPath: meta.ConfigPath,
-		DryRun:     true,
-		Lookups:    []string{"*"},
+		Lookups:    []string{"sod*"},
 	}, deps)
 	require.NoError(t, err)
 	assert.Equal(t, 0, removed)
+	assert.True(t, usedInteractive)
+
+	exists, err := afero.Exists(fs, meta.LockPath())
+	require.NoError(t, err)
+	assert.False(t, exists)
+
+	updatedConfig, err := afero.ReadFile(fs, meta.ConfigPath)
+	require.NoError(t, err)
+	assert.Equal(t, originalConfig, updatedConfig)
+}
+
+func TestRunRemoveNonTTYRefusalDoesNotCreateLockFile(t *testing.T) {
+	terminal.ApplyFixtures(t)
+
+	fs := afero.NewMemMapFs()
+	output := terminal.NewDevice()
+	input := terminal.NewDevice()
+	terminal.ApplyTerminalDetection(t, input, output, terminal.NonTTYCapabilities())
+	log := logger.New(io.Discard, io.Discard, false, false)
+
+	cfg := models.ModsJSON{
+		Loader:                     models.FABRIC,
+		GameVersion:                "1.20.1",
+		DefaultAllowedReleaseTypes: []models.ReleaseType{models.Release},
+		ModsFolder:                 "mods",
+		Mods:                       []models.Mod{{Type: models.MODRINTH, ID: "sodium", Name: "Sodium"}},
+	}
+	meta := config.NewMetadata("modlist.json")
+	require.NoError(t, config.WriteConfig(context.Background(), fs, meta, cfg))
+	originalConfig, err := afero.ReadFile(fs, meta.ConfigPath)
+	require.NoError(t, err)
+
+	cmd := &cobra.Command{}
+	cmd.SetIn(input)
+	cmd.SetOut(output)
+
+	deps := removeDeps{fs: fs, logger: log, runTea: defaultRunTea}
+
+	_, usedInteractive, err := runRemove(context.Background(), cmd, removeOptions{
+		ConfigPath: meta.ConfigPath,
+		Lookups:    []string{"sod*"},
+	}, deps)
+	assert.Error(t, err)
 	assert.False(t, usedInteractive)
 
-	assert.Equal(t, "Would remove:\n? Sodium (sodium)\n", out.String())
-
-	lockExists, err := afero.Exists(fs, meta.LockPath())
+	exists, err := afero.Exists(fs, meta.LockPath())
 	require.NoError(t, err)
-	assert.False(t, lockExists)
+	assert.False(t, exists)
+
+	updatedConfig, err := afero.ReadFile(fs, meta.ConfigPath)
+	require.NoError(t, err)
+	assert.Equal(t, originalConfig, updatedConfig)
 }
 
 func TestRunRemoveNoMatchesOutputsMessage(t *testing.T) {
@@ -248,6 +348,7 @@ func TestRunRemoveSuccessRemovesConfigAndLockAndDeletesFile(t *testing.T) {
 
 	removed, _, err := runRemove(context.Background(), cmd, removeOptions{
 		ConfigPath: meta.ConfigPath,
+		Force:      true,
 		Lookups:    []string{"sod*"},
 	}, deps)
 	require.NoError(t, err)
@@ -305,6 +406,7 @@ func TestRunRemoveUsesLockNameAndRemovesConfigByID(t *testing.T) {
 
 	removed, _, err := runRemove(context.Background(), cmd, removeOptions{
 		ConfigPath: meta.ConfigPath,
+		Force:      true,
 		Lookups:    []string{"lock*"},
 	}, deps)
 	require.NoError(t, err)
@@ -347,6 +449,7 @@ func TestRunRemoveRemovesConfigWhenLockEntryMissing(t *testing.T) {
 
 	removed, _, err := runRemove(context.Background(), cmd, removeOptions{
 		ConfigPath: meta.ConfigPath,
+		Force:      true,
 		Lookups:    []string{"sod*"},
 	}, deps)
 	require.NoError(t, err)
@@ -390,6 +493,7 @@ func TestRunRemoveSkipsMissingFileStillUpdatesConfigAndLock(t *testing.T) {
 
 	removed, _, err := runRemove(context.Background(), cmd, removeOptions{
 		ConfigPath: meta.ConfigPath,
+		Force:      true,
 		Lookups:    []string{"sod*"},
 	}, deps)
 	require.NoError(t, err)
@@ -445,6 +549,7 @@ func TestRunRemoveDeleteFailureKeepsEntries(t *testing.T) {
 
 	_, _, err := runRemove(context.Background(), cmd, removeOptions{
 		ConfigPath: meta.ConfigPath,
+		Force:      true,
 		Lookups:    []string{"sod*"},
 	}, deps)
 	assert.Error(t, err)
@@ -492,6 +597,7 @@ func TestRunRemoveInvalidLockFilenameKeepsEntries(t *testing.T) {
 
 	_, _, err := runRemove(context.Background(), cmd, removeOptions{
 		ConfigPath: meta.ConfigPath,
+		Force:      true,
 		Lookups:    []string{"sod*"},
 	}, deps)
 	assert.Error(t, err)
@@ -537,6 +643,7 @@ func TestRunRemoveQuietSuccessSuppressesOutput(t *testing.T) {
 	removed, _, err := runRemove(context.Background(), cmd, removeOptions{
 		ConfigPath: meta.ConfigPath,
 		Quiet:      true,
+		Force:      true,
 		Lookups:    []string{"sod*"},
 	}, deps)
 	require.NoError(t, err)
@@ -584,6 +691,7 @@ func TestRunRemoveQuietFailureOutputsOnlyFailed(t *testing.T) {
 	_, _, err := runRemove(context.Background(), cmd, removeOptions{
 		ConfigPath: meta.ConfigPath,
 		Quiet:      true,
+		Force:      true,
 		Lookups:    []string{"sod*"},
 	}, deps)
 	assert.Error(t, err)
@@ -650,6 +758,7 @@ func TestRunRemoveWriteLockFailureOutputsError(t *testing.T) {
 
 	_, _, err := runRemove(context.Background(), cmd, removeOptions{
 		ConfigPath: meta.ConfigPath,
+		Force:      true,
 		Lookups:    []string{"sod*"},
 	}, deps)
 	assert.Error(t, err)
@@ -699,6 +808,7 @@ func TestRunRemoveWriteConfigFailureOutputsError(t *testing.T) {
 
 	_, _, err := runRemove(context.Background(), cmd, removeOptions{
 		ConfigPath: meta.ConfigPath,
+		Force:      true,
 		Lookups:    []string{"sod*"},
 	}, deps)
 	assert.Error(t, err)

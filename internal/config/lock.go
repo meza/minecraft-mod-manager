@@ -31,6 +31,24 @@ func EnsureLock(ctx context.Context, fs afero.Fs, meta Metadata) ([]models.ModIn
 	return ReadLock(ctx, fs, meta)
 }
 
+// ReadLockOrEmpty returns the lock file contents when present.
+// If the lock file is missing, it returns an empty lock without creating a file.
+func ReadLockOrEmpty(ctx context.Context, fs afero.Fs, meta Metadata) ([]models.ModInstall, error) {
+	_, span := perf.StartSpan(ctx, "io.config.lock.read_or_empty", perf.WithAttributes(attribute.String("lock_path", meta.LockPath())))
+	defer span.End()
+
+	lockPath := meta.LockPath()
+	exists, err := afero.Exists(fs, lockPath)
+	if err != nil {
+		return nil, fmt.Errorf("failed to check lock file: %w", err)
+	}
+	if !exists {
+		return []models.ModInstall{}, nil
+	}
+
+	return ReadLock(ctx, fs, meta)
+}
+
 func ReadLock(ctx context.Context, fs afero.Fs, meta Metadata) ([]models.ModInstall, error) {
 	_, span := perf.StartSpan(ctx, "io.config.lock.read", perf.WithAttributes(attribute.String("lock_path", meta.LockPath())))
 	defer span.End()

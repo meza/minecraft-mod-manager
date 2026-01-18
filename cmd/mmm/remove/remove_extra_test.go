@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"context"
 	"errors"
+	"fmt"
 	"io"
 	"os"
 	"path/filepath"
@@ -216,6 +217,306 @@ func TestConfigInitResultHandlesModelPointer(t *testing.T) {
 	assert.False(t, canceled)
 }
 
+func TestRemoveConfirmModelCancel(t *testing.T) {
+	model := newRemoveConfirmModel("list", "question")
+	updated, _ := model.Update(tea.KeyMsg{Type: tea.KeyEsc})
+	typed := updated.(removeConfirmModel)
+	assert.True(t, typed.canceled)
+}
+
+func TestRemoveConfirmModelConfirmSelected(t *testing.T) {
+	model := newRemoveConfirmModel("list", "question")
+	updated, _ := model.Update(confirmSelectedMessage{confirmed: true})
+	typed := updated.(removeConfirmModel)
+	assert.True(t, typed.confirmed)
+}
+
+func TestRemoveConfirmModelInitReturnsNil(t *testing.T) {
+	model := newRemoveConfirmModel("list", "question")
+	assert.Nil(t, model.Init())
+}
+
+func TestRemoveConfirmModelUpdateFallsThroughToPrompt(t *testing.T) {
+	model := newRemoveConfirmModel("list", "question")
+	updated, _ := model.Update(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune("y")})
+	typed := updated.(removeConfirmModel)
+	assert.False(t, typed.canceled)
+}
+
+func TestRemoveConfirmModelViewUsesList(t *testing.T) {
+	model := newRemoveConfirmModel("list", "question")
+	assert.Contains(t, model.View(), "list")
+}
+
+func TestRemoveConfirmModelViewWithoutListUsesPrompt(t *testing.T) {
+	model := newRemoveConfirmModel("", "question")
+	assert.Contains(t, model.View(), "question")
+}
+
+func TestRunRemoveConfirmPromptUsesRunTea(t *testing.T) {
+	cmd := &cobra.Command{}
+	cmd.SetIn(strings.NewReader(""))
+	cmd.SetOut(io.Discard)
+
+	deps := removeDeps{
+		runTea: func(model tea.Model, _ ...tea.ProgramOption) (tea.Model, error) {
+			return removeConfirmModel{confirmed: true}, nil
+		},
+	}
+
+	confirmed, canceled, err := runRemoveConfirmPrompt(cmd, deps, view.ColorDisabled, []removeItem{{Mod: models.Mod{Name: "Sodium", ID: "sodium"}}})
+	require.NoError(t, err)
+	assert.True(t, confirmed)
+	assert.False(t, canceled)
+}
+
+func TestRunRemoveConfirmPromptUsesFallbackRunner(t *testing.T) {
+	original := runTeaProgram
+	runTeaProgram = func(model tea.Model, _ ...tea.ProgramOption) (tea.Model, error) {
+		return removeConfirmModel{confirmed: true}, nil
+	}
+	t.Cleanup(func() { runTeaProgram = original })
+
+	cmd := &cobra.Command{}
+	cmd.SetIn(strings.NewReader(""))
+	cmd.SetOut(io.Discard)
+
+	confirmed, canceled, err := runRemoveConfirmPrompt(cmd, removeDeps{}, view.ColorDisabled, []removeItem{{Mod: models.Mod{Name: "Sodium", ID: "sodium"}}})
+	require.NoError(t, err)
+	assert.True(t, confirmed)
+	assert.False(t, canceled)
+}
+
+func TestRunRemoveConfirmPromptRunTeaErrorReturnsError(t *testing.T) {
+	cmd := &cobra.Command{}
+	cmd.SetIn(strings.NewReader(""))
+	cmd.SetOut(io.Discard)
+
+	deps := removeDeps{
+		runTea: func(model tea.Model, _ ...tea.ProgramOption) (tea.Model, error) {
+			return nil, errors.New("run failed")
+		},
+	}
+
+	_, _, err := runRemoveConfirmPrompt(cmd, deps, view.ColorDisabled, []removeItem{{Mod: models.Mod{Name: "Sodium", ID: "sodium"}}})
+	assert.Error(t, err)
+}
+
+func TestRemoveConfirmResultUnexpectedModel(t *testing.T) {
+	_, _, err := removeConfirmResult(dummyModel{})
+	assert.Error(t, err)
+}
+
+func TestRemoveConfirmResultHandlesPointer(t *testing.T) {
+	confirmed, canceled, err := removeConfirmResult(&removeConfirmModel{confirmed: true})
+	require.NoError(t, err)
+	assert.True(t, confirmed)
+	assert.False(t, canceled)
+}
+
+func TestConfirmRemoveNonTTYRequiresForce(t *testing.T) {
+	restoreUnicode := view.SetUnicodeSupportFuncForTesting(func() bool { return false })
+	t.Cleanup(restoreUnicode)
+
+	var out bytes.Buffer
+	cmd := &cobra.Command{}
+	cmd.SetIn(strings.NewReader(""))
+	cmd.SetOut(&out)
+
+	confirmed, err := confirmRemove(cmd, removeDeps{}, removeOptions{}, interaction.ExecutionModeNonTTY, view.ColorDisabled, []removeItem{{Mod: models.Mod{Name: "Sodium", ID: "sodium"}}})
+	assert.False(t, confirmed)
+	assert.Error(t, err)
+	assert.True(t, clierrors.IsHandled(err))
+	assert.Contains(t, out.String(), "force")
+}
+
+func TestConfirmRemoveUnattendedSkipsPrompt(t *testing.T) {
+	cmd := &cobra.Command{}
+	cmd.SetIn(strings.NewReader(""))
+	cmd.SetOut(io.Discard)
+
+	confirmed, err := confirmRemove(cmd, removeDeps{}, removeOptions{}, interaction.ExecutionModeUnattended, view.ColorDisabled, []removeItem{{Mod: models.Mod{Name: "Sodium", ID: "sodium"}}})
+	require.NoError(t, err)
+	assert.True(t, confirmed)
+}
+
+func TestConfirmRemoveForceSkipsPrompt(t *testing.T) {
+	called := false
+	deps := removeDeps{
+		runTea: func(model tea.Model, _ ...tea.ProgramOption) (tea.Model, error) {
+			called = true
+			return removeConfirmModel{confirmed: false}, nil
+		},
+	}
+	cmd := &cobra.Command{}
+	cmd.SetIn(strings.NewReader(""))
+	cmd.SetOut(io.Discard)
+
+	confirmed, err := confirmRemove(cmd, deps, removeOptions{Force: true}, interaction.ExecutionModeNonTTY, view.ColorDisabled, []removeItem{{Mod: models.Mod{Name: "Sodium", ID: "sodium"}}})
+	require.NoError(t, err)
+	assert.True(t, confirmed)
+	assert.False(t, called)
+}
+
+func TestConfirmRemoveInteractivePromptRunsWhenQuiet(t *testing.T) {
+	called := false
+	deps := removeDeps{
+		runTea: func(model tea.Model, _ ...tea.ProgramOption) (tea.Model, error) {
+			called = true
+			return removeConfirmModel{confirmed: true}, nil
+		},
+	}
+	cmd := &cobra.Command{}
+	cmd.SetIn(strings.NewReader(""))
+	cmd.SetOut(io.Discard)
+
+	confirmed, err := confirmRemove(cmd, deps, removeOptions{Quiet: true}, interaction.ExecutionModeInteractive, view.ColorDisabled, []removeItem{{Mod: models.Mod{Name: "Sodium", ID: "sodium"}}})
+	require.NoError(t, err)
+	assert.True(t, confirmed)
+	assert.True(t, called)
+}
+
+func TestConfirmRemoveInteractiveDeclined(t *testing.T) {
+	deps := removeDeps{
+		runTea: func(model tea.Model, _ ...tea.ProgramOption) (tea.Model, error) {
+			return removeConfirmModel{confirmed: false}, nil
+		},
+	}
+	cmd := &cobra.Command{}
+	cmd.SetIn(strings.NewReader(""))
+	cmd.SetOut(io.Discard)
+
+	confirmed, err := confirmRemove(cmd, deps, removeOptions{}, interaction.ExecutionModeInteractive, view.ColorDisabled, []removeItem{{Mod: models.Mod{Name: "Sodium", ID: "sodium"}}})
+	require.NoError(t, err)
+	assert.False(t, confirmed)
+}
+
+func TestConfirmRemoveInteractiveCanceled(t *testing.T) {
+	deps := removeDeps{
+		runTea: func(model tea.Model, _ ...tea.ProgramOption) (tea.Model, error) {
+			return removeConfirmModel{canceled: true}, nil
+		},
+	}
+	cmd := &cobra.Command{}
+	cmd.SetIn(strings.NewReader(""))
+	cmd.SetOut(io.Discard)
+
+	confirmed, err := confirmRemove(cmd, deps, removeOptions{}, interaction.ExecutionModeInteractive, view.ColorDisabled, []removeItem{{Mod: models.Mod{Name: "Sodium", ID: "sodium"}}})
+	require.NoError(t, err)
+	assert.False(t, confirmed)
+}
+
+func TestConfirmRemovePromptError(t *testing.T) {
+	deps := removeDeps{
+		runTea: func(model tea.Model, _ ...tea.ProgramOption) (tea.Model, error) {
+			return nil, errors.New("prompt failed")
+		},
+	}
+	cmd := &cobra.Command{}
+	cmd.SetIn(strings.NewReader(""))
+	cmd.SetOut(io.Discard)
+
+	confirmed, err := confirmRemove(cmd, deps, removeOptions{}, interaction.ExecutionModeInteractive, view.ColorDisabled, []removeItem{{Mod: models.Mod{Name: "Sodium", ID: "sodium"}}})
+	assert.False(t, confirmed)
+	assert.Error(t, err)
+}
+
+func TestHandleRemoveForceRequiredOutputError(t *testing.T) {
+	cmd := &cobra.Command{}
+	cmd.SetIn(strings.NewReader(""))
+	cmd.SetOut(io.Discard)
+
+	deps := removeDeps{
+		runTea: func(model tea.Model, _ ...tea.ProgramOption) (tea.Model, error) {
+			return nil, errors.New("run failed")
+		},
+	}
+
+	err := handleRemoveForceRequired(cmd, deps, view.ColorDisabled)
+	assert.Error(t, err)
+}
+
+func TestRenderRemoveCanceledLine(t *testing.T) {
+	assert.Contains(t, renderRemoveCanceledLine(), "Remove")
+}
+
+func TestRenderRemoveForceRequiredLineColorized(t *testing.T) {
+	restoreUnicode := view.SetUnicodeSupportFuncForTesting(func() bool { return false })
+	t.Cleanup(restoreUnicode)
+
+	line := renderRemoveForceRequiredLine(view.ColorEnabled)
+	assert.Contains(t, line, "Remove")
+}
+
+func TestRunRemoveWithMatchesCancelledOutputsMessage(t *testing.T) {
+	var out bytes.Buffer
+	cmd := &cobra.Command{}
+	cmd.SetIn(strings.NewReader(""))
+	cmd.SetOut(&out)
+
+	runState := removeRunState{
+		meta: config.NewMetadata("modlist.json"),
+		mode: interaction.ExecutionModeInteractive,
+	}
+
+	deps := removeDeps{
+		runTea: func(model tea.Model, _ ...tea.ProgramOption) (tea.Model, error) {
+			switch typed := model.(type) {
+			case removeConfirmModel:
+				return removeConfirmModel{confirmed: false}, nil
+			case view.OutputLinesModel:
+				for _, line := range typed.Lines {
+					if _, err := fmt.Fprintln(typed.Output, line); err != nil {
+						return typed, err
+					}
+				}
+				return typed, nil
+			default:
+				return model, nil
+			}
+		},
+	}
+
+	matches := []removeMatch{{mod: models.Mod{Type: models.MODRINTH, ID: "sodium", Name: "Sodium"}}}
+	removed, _, err := runRemoveWithMatches(context.Background(), cmd, removeOptions{}, deps, runState, matches)
+	require.NoError(t, err)
+	assert.Equal(t, 0, removed)
+	assert.Contains(t, out.String(), "Remove canceled")
+}
+
+func TestRunRemoveWithMatchesCancelOutputError(t *testing.T) {
+	cmd := &cobra.Command{}
+	cmd.SetIn(strings.NewReader(""))
+	cmd.SetOut(errorWriter{err: errors.New("write failed")})
+
+	runState := removeRunState{
+		meta: config.NewMetadata("modlist.json"),
+		mode: interaction.ExecutionModeInteractive,
+	}
+
+	deps := removeDeps{
+		runTea: func(model tea.Model, _ ...tea.ProgramOption) (tea.Model, error) {
+			switch typed := model.(type) {
+			case removeConfirmModel:
+				return removeConfirmModel{confirmed: false}, nil
+			case view.OutputLinesModel:
+				for _, line := range typed.Lines {
+					if _, err := fmt.Fprintln(typed.Output, line); err != nil {
+						return typed, err
+					}
+				}
+				return typed, nil
+			default:
+				return model, nil
+			}
+		},
+	}
+
+	matches := []removeMatch{{mod: models.Mod{Type: models.MODRINTH, ID: "sodium", Name: "Sodium"}}}
+	_, _, err := runRemoveWithMatches(context.Background(), cmd, removeOptions{}, deps, runState, matches)
+	assert.Error(t, err)
+}
+
 func TestRunConfigInitPromptUsesRunTea(t *testing.T) {
 	cmd := &cobra.Command{}
 	cmd.SetIn(strings.NewReader(""))
@@ -331,7 +632,7 @@ func TestRemoveOptionsFromFlagsSuccess(t *testing.T) {
 	cmd.Flags().Bool("unattended", true, "")
 	cmd.Flags().Bool("quiet", true, "")
 	cmd.Flags().Bool("debug", true, "")
-	cmd.Flags().Bool("dry-run", true, "")
+	cmd.Flags().Bool("force", true, "")
 
 	opts, err := removeOptionsFromFlags(cmd, []string{"mod-a"})
 	require.NoError(t, err)
@@ -339,7 +640,7 @@ func TestRemoveOptionsFromFlagsSuccess(t *testing.T) {
 	assert.True(t, opts.Unattended)
 	assert.True(t, opts.Quiet)
 	assert.True(t, opts.Debug)
-	assert.True(t, opts.DryRun)
+	assert.True(t, opts.Force)
 }
 
 func TestDefaultRemoveDepsRunInitUsesStub(t *testing.T) {
@@ -649,12 +950,6 @@ func TestHandleRemoveNoMatchesQuiet(t *testing.T) {
 	assert.NoError(t, err)
 }
 
-func TestRunRemoveDryRunQuiet(t *testing.T) {
-	cmd := &cobra.Command{}
-	err := runRemoveDryRun(cmd, removeDeps{}, removeOptions{Quiet: true}, view.ColorDisabled, nil)
-	assert.NoError(t, err)
-}
-
 func TestRunOutputLinesUsesDefaultRunner(t *testing.T) {
 	cmd := &cobra.Command{}
 	cmd.SetOut(io.Discard)
@@ -667,15 +962,6 @@ func TestHandleRemoveNoMatchesOutputError(t *testing.T) {
 	cmd.SetOut(errorWriter{err: errors.New("write failed")})
 
 	err := handleRemoveNoMatches(cmd, removeDeps{runTea: defaultRunTea}, removeOptions{})
-	assert.Error(t, err)
-}
-
-func TestRunRemoveDryRunOutputError(t *testing.T) {
-	cmd := &cobra.Command{}
-	cmd.SetOut(errorWriter{err: errors.New("write failed")})
-
-	items := []removeItem{{Mod: models.Mod{Name: "Sodium", ID: "sodium"}}}
-	err := runRemoveDryRun(cmd, removeDeps{runTea: defaultRunTea}, removeOptions{}, view.ColorDisabled, items)
 	assert.Error(t, err)
 }
 
@@ -820,7 +1106,13 @@ func TestRunRemoveWithMatchesUsesInteractiveOutput(t *testing.T) {
 	}
 	matches := []removeMatch{{mod: models.Mod{Type: models.MODRINTH, ID: "sodium", Name: "Sodium"}}}
 
-	removed, interactive, err := runRemoveWithMatches(context.Background(), cmd, removeOptions{}, removeDeps{}, runState, matches)
+	deps := removeDeps{
+		runTea: func(model tea.Model, _ ...tea.ProgramOption) (tea.Model, error) {
+			return removeConfirmModel{confirmed: true}, nil
+		},
+	}
+
+	removed, interactive, err := runRemoveWithMatches(context.Background(), cmd, removeOptions{}, deps, runState, matches)
 	require.NoError(t, err)
 	assert.True(t, interactive)
 	assert.Equal(t, 1, removed)
@@ -921,21 +1213,6 @@ func TestRunRemoveStopsWhenPromptDeclined(t *testing.T) {
 	assert.Equal(t, 0, removed)
 }
 
-func TestRunRemoveWithMatchesDryRunOutputError(t *testing.T) {
-	cmd := &cobra.Command{}
-	cmd.SetIn(strings.NewReader(""))
-	cmd.SetOut(errorWriter{err: errors.New("write failed")})
-
-	runState := removeRunState{
-		meta: config.NewMetadata("modlist.json"),
-		mode: interaction.ExecutionModeNonTTY,
-	}
-	matches := []removeMatch{{mod: models.Mod{Type: models.MODRINTH, ID: "sodium", Name: "Sodium"}}}
-
-	_, _, err := runRemoveWithMatches(context.Background(), cmd, removeOptions{DryRun: true}, removeDeps{runTea: defaultRunTea}, runState, matches)
-	assert.Error(t, err)
-}
-
 func TestRunRemoveWithMatchesTranscriptError(t *testing.T) {
 	original := runRemoveTranscriptProgram
 	runRemoveTranscriptProgram = func(model *removeTranscriptModel, _ ...tea.ProgramOption) (tea.Model, error) {
@@ -953,7 +1230,7 @@ func TestRunRemoveWithMatchesTranscriptError(t *testing.T) {
 	}
 	matches := []removeMatch{{mod: models.Mod{Type: models.MODRINTH, ID: "sodium", Name: "Sodium"}}}
 
-	_, _, err := runRemoveWithMatches(context.Background(), cmd, removeOptions{}, removeDeps{}, runState, matches)
+	_, _, err := runRemoveWithMatches(context.Background(), cmd, removeOptions{Force: true}, removeDeps{}, runState, matches)
 	assert.Error(t, err)
 }
 
@@ -977,7 +1254,7 @@ func TestRunRemoveWithMatchesQuietOutputError(t *testing.T) {
 		lockFileName: "",
 	}}
 
-	_, _, err := runRemoveWithMatches(context.Background(), cmd, removeOptions{Quiet: true}, removeDeps{runTea: defaultRunTea}, runState, matches)
+	_, _, err := runRemoveWithMatches(context.Background(), cmd, removeOptions{Quiet: true, Force: true}, removeDeps{runTea: defaultRunTea}, runState, matches)
 	assert.Error(t, err)
 }
 
@@ -1001,7 +1278,13 @@ func TestRunRemoveWithMatchesInteractiveError(t *testing.T) {
 	}
 	matches := []removeMatch{{mod: models.Mod{Type: models.MODRINTH, ID: "sodium", Name: "Sodium"}}}
 
-	_, _, err := runRemoveWithMatches(context.Background(), cmd, removeOptions{}, removeDeps{}, runState, matches)
+	deps := removeDeps{
+		runTea: func(model tea.Model, _ ...tea.ProgramOption) (tea.Model, error) {
+			return removeConfirmModel{confirmed: true}, nil
+		},
+	}
+
+	_, _, err := runRemoveWithMatches(context.Background(), cmd, removeOptions{}, deps, runState, matches)
 	assert.Error(t, err)
 }
 
@@ -1273,12 +1556,26 @@ func TestConfigIndexForMatch(t *testing.T) {
 	assert.Equal(t, 0, configIndexFor(models.Mod{Type: models.MODRINTH, ID: "sodium"}, cfg.Mods))
 }
 
-func TestReadLockForRemoveCreatesLockWhenMissing(t *testing.T) {
+func TestReadRemoveConfigDoesNotCreateLockWhenMissing(t *testing.T) {
 	fs := afero.NewMemMapFs()
 	meta := config.NewMetadata("modlist.json")
-	lock, err := readLockForRemove(context.Background(), fs, meta, removeLockOptions{dryRun: false})
+
+	cfg := models.ModsJSON{
+		Loader:                     models.FABRIC,
+		GameVersion:                "1.20.1",
+		DefaultAllowedReleaseTypes: []models.ReleaseType{models.Release},
+		ModsFolder:                 "mods",
+	}
+
+	require.NoError(t, config.WriteConfig(context.Background(), fs, meta, cfg))
+
+	_, lock, err := readRemoveConfig(context.Background(), removeDeps{fs: fs}, meta)
 	require.NoError(t, err)
 	assert.Empty(t, lock)
+
+	exists, err := afero.Exists(fs, meta.LockPath())
+	require.NoError(t, err)
+	assert.False(t, exists)
 }
 
 func TestReadRemoveConfigReturnsLockReadError(t *testing.T) {
@@ -1295,31 +1592,25 @@ func TestReadRemoveConfigReturnsLockReadError(t *testing.T) {
 	require.NoError(t, config.WriteConfig(context.Background(), fs, meta, cfg))
 	require.NoError(t, afero.WriteFile(fs, meta.LockPath(), []byte("{"), 0644))
 
-	_, _, err := readRemoveConfig(context.Background(), removeDeps{fs: fs}, meta, true)
+	_, _, err := readRemoveConfig(context.Background(), removeDeps{fs: fs}, meta)
 	assert.Error(t, err)
 }
 
-func TestReadLockForRemoveDryRunReadsExistingLock(t *testing.T) {
-	fs := afero.NewMemMapFs()
+func TestReadRemoveConfigReturnsLockCheckError(t *testing.T) {
+	base := afero.NewMemMapFs()
 	meta := config.NewMetadata("modlist.json")
-	lock := []models.ModInstall{{Type: models.MODRINTH, ID: "sodium"}}
 
-	require.NoError(t, config.WriteLock(context.Background(), fs, meta, lock))
-
-	loaded, err := readLockForRemove(context.Background(), fs, meta, removeLockOptions{dryRun: true})
-	require.NoError(t, err)
-	assert.Len(t, loaded, 1)
-}
-
-func TestReadLockForRemoveDryRunReturnsExistsError(t *testing.T) {
-	fs := statErrorFs{
-		Fs:       afero.NewMemMapFs(),
-		failPath: filepath.Clean("modlist-lock.json"),
-		err:      errors.New("stat failed"),
+	cfg := models.ModsJSON{
+		Loader:                     models.FABRIC,
+		GameVersion:                "1.20.1",
+		DefaultAllowedReleaseTypes: []models.ReleaseType{models.Release},
+		ModsFolder:                 "mods",
 	}
-	meta := config.NewMetadata("modlist.json")
 
-	_, err := readLockForRemove(context.Background(), fs, meta, removeLockOptions{dryRun: true})
+	require.NoError(t, config.WriteConfig(context.Background(), base, meta, cfg))
+
+	fs := statErrorFs{Fs: base, failPath: meta.LockPath(), err: errors.New("stat failed")}
+	_, _, err := readRemoveConfig(context.Background(), removeDeps{fs: fs}, meta)
 	assert.Error(t, err)
 }
 

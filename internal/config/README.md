@@ -37,6 +37,7 @@ if err != nil {
 ### Lock file (`modlist-lock.json`)
 
 - `EnsureLock(fs afero.Fs, meta Metadata) ([]models.ModInstall, error)` (create empty lock if missing)
+- `ReadLockOrEmpty(fs afero.Fs, meta Metadata) ([]models.ModInstall, error)` (return empty lock in memory if missing)
 - `ReadLock(fs afero.Fs, meta Metadata) ([]models.ModInstall, error)`
 - `WriteLock(fs afero.Fs, meta Metadata, lock []models.ModInstall) error`
 
