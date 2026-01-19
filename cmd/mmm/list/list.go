@@ -23,6 +23,7 @@ import (
 	"github.com/meza/minecraft-mod-manager/internal/config"
 	"github.com/meza/minecraft-mod-manager/internal/i18n"
 	"github.com/meza/minecraft-mod-manager/internal/interaction"
+	"github.com/meza/minecraft-mod-manager/internal/locksync"
 	"github.com/meza/minecraft-mod-manager/internal/logger"
 	"github.com/meza/minecraft-mod-manager/internal/mmmignore"
 	"github.com/meza/minecraft-mod-manager/internal/models"
@@ -51,6 +52,7 @@ type listCommandOptions struct {
 	unattended bool
 	quiet      bool
 	debug      bool
+	lockSync   locksync.PolicyFlags
 }
 
 func runListCommand(cmd *cobra.Command, _ []string) error {
@@ -72,6 +74,7 @@ func runListCommand(cmd *cobra.Command, _ []string) error {
 	entriesCount, _, runErr := runList(ctx, cmd, options.configPath, runListOptions{
 		unattended: options.unattended,
 		quiet:      options.quiet,
+		lockSync:   options.lockSync,
 	}, deps)
 	finishListSpan(span, runErr == nil)
 	recordListTelemetry(deps.telemetry, entriesCount, mode, runErr)
@@ -107,12 +110,17 @@ func listOptionsFromFlags(cmd *cobra.Command) (listCommandOptions, error) {
 	if err != nil {
 		return listCommandOptions{}, err
 	}
+	lockSync, err := locksync.PolicyFlagsFromFlags(cmd.Flags())
+	if err != nil {
+		return listCommandOptions{}, err
+	}
 
 	return listCommandOptions{
 		configPath: configPath,
 		unattended: unattended,
 		quiet:      quiet,
 		debug:      debug,
+		lockSync:   lockSync,
 	}, nil
 }
 
@@ -221,6 +229,7 @@ func (err *modsFolderReadError) Unwrap() error {
 type runListOptions struct {
 	unattended bool
 	quiet      bool
+	lockSync   locksync.PolicyFlags
 }
 
 type listConfigState struct {
@@ -277,24 +286,79 @@ func runList(ctx context.Context, cmd *cobra.Command, configPath string, options
 func ensureListConfig(ctx context.Context, cmd *cobra.Command, options runListOptions, deps listDeps, meta config.Metadata, mode interaction.ExecutionMode) (listConfigState, bool, error) {
 	cfg, err := config.ReadConfig(ctx, deps.fs, meta)
 	if err == nil {
-		lock, lockErr := readLockRequired(ctx, deps.fs, meta)
-		if lockErr != nil {
-			return listConfigState{}, mode == interaction.ExecutionModeInteractive, handleListFailure(cmd, deps, lockErr)
-		}
-		return listConfigState{Config: cfg, Lock: lock, ShouldContinue: true}, mode == interaction.ExecutionModeInteractive, nil
+		return loadListConfigWithLockSync(ctx, cmd, options, deps, meta, mode, cfg)
 	}
 
+	return handleListConfigReadError(ctx, cmd, options, deps, meta, mode, err)
+}
+
+func loadListConfigWithLockSync(
+	ctx context.Context,
+	cmd *cobra.Command,
+	options runListOptions,
+	deps listDeps,
+	meta config.Metadata,
+	mode interaction.ExecutionMode,
+	cfg models.ModsJSON,
+) (listConfigState, bool, error) {
+	lock, lockErr := readLockRequired(ctx, deps.fs, meta)
+	if lockErr != nil {
+		return listConfigState{}, mode == interaction.ExecutionModeInteractive, handleListFailure(cmd, deps, lockErr)
+	}
+	syncOutcome, syncErr := locksync.RunLockSyncGate(locksync.GateInput{
+		Ctx:         ctx,
+		Fs:          deps.fs,
+		Meta:        meta,
+		Config:      cfg,
+		Lock:        lock,
+		Mode:        mode,
+		CommandName: cmd.Name(),
+		ColorMode:   colorModeForWriter(cmd),
+		In:          cmd.InOrStdin(),
+		Out:         cmd.OutOrStdout(),
+		RunTea:      deps.runTea,
+		PolicyFlags: options.lockSync,
+	})
+	if syncErr != nil {
+		return listConfigState{}, mode == interaction.ExecutionModeInteractive, handleListFailure(cmd, deps, syncErr)
+	}
+	if !syncOutcome.ShouldContinue {
+		return listConfigState{ShouldContinue: false}, mode == interaction.ExecutionModeInteractive, nil
+	}
+	return listConfigState{Config: syncOutcome.Config, Lock: syncOutcome.Lock, ShouldContinue: true}, mode == interaction.ExecutionModeInteractive, nil
+}
+
+func handleListConfigReadError(
+	ctx context.Context,
+	cmd *cobra.Command,
+	options runListOptions,
+	deps listDeps,
+	meta config.Metadata,
+	mode interaction.ExecutionMode,
+	err error,
+) (listConfigState, bool, error) {
 	var notFound *config.ConfigFileNotFoundException
 	if !errors.As(err, &notFound) {
 		return listConfigState{}, mode == interaction.ExecutionModeInteractive, handleListFailure(cmd, deps, err)
 	}
 
+	return handleListConfigMissing(ctx, cmd, options, deps, meta, mode)
+}
+
+func handleListConfigMissing(
+	ctx context.Context,
+	cmd *cobra.Command,
+	options runListOptions,
+	deps listDeps,
+	meta config.Metadata,
+	mode interaction.ExecutionMode,
+) (listConfigState, bool, error) {
 	promptErr := configMissingPromptError(options, cmd, meta)
 	if promptErr != nil {
 		if outputErr := writeConfigMissingOutput(cmd, deps, meta); outputErr != nil {
-			return listConfigState{}, mode == interaction.ExecutionModeInteractive, outputErr
+			return listConfigState{}, true, outputErr
 		}
-		return listConfigState{}, mode == interaction.ExecutionModeInteractive, clierrors.MarkHandled(promptErr)
+		return listConfigState{}, true, clierrors.MarkHandled(promptErr)
 	}
 
 	confirmed, canceled, err := runConfigInitPrompt(cmd, deps, meta)
@@ -315,16 +379,15 @@ func ensureListConfig(ctx context.Context, cmd *cobra.Command, options runListOp
 		return listConfigState{}, true, runErr
 	}
 
-	cfg, err = config.ReadConfig(ctx, deps.fs, meta)
+	cfg, err := config.ReadConfig(ctx, deps.fs, meta)
 	if err != nil {
 		return listConfigState{}, true, handleListFailure(cmd, deps, err)
 	}
-	lock, lockErr := readLockRequired(ctx, deps.fs, meta)
-	if lockErr != nil {
-		return listConfigState{}, true, handleListFailure(cmd, deps, lockErr)
+	configState, usedInteractive, loadErr := loadListConfigWithLockSync(ctx, cmd, options, deps, meta, mode, cfg)
+	if loadErr != nil {
+		return listConfigState{}, usedInteractive, loadErr
 	}
-
-	return listConfigState{Config: cfg, Lock: lock, ShouldContinue: true}, true, nil
+	return configState, usedInteractive, nil
 }
 
 func configMissingPromptError(options runListOptions, cmd *cobra.Command, meta config.Metadata) error {

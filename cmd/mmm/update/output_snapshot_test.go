@@ -63,7 +63,7 @@ func TestUpdateNonTTYInstallHeaderSnapshot(t *testing.T) {
 		fs:     fs,
 		logger: logger.New(out, errOut, false, false),
 		output: output.New(out, errOut, false),
-		install: func(context.Context, *cobra.Command, string, bool, bool) (install.Result, error) {
+		install: func(context.Context, *cobra.Command, install.RunOptions) (install.Result, error) {
 			_, writeErr := cmd.OutOrStdout().Write([]byte("install output\n"))
 			require.NoError(t, writeErr)
 			return install.Result{}, nil

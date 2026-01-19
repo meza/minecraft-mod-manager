@@ -19,6 +19,7 @@ import (
 	"github.com/meza/minecraft-mod-manager/internal/httpclient"
 	"github.com/meza/minecraft-mod-manager/internal/i18n"
 	"github.com/meza/minecraft-mod-manager/internal/interaction"
+	"github.com/meza/minecraft-mod-manager/internal/locksync"
 	"github.com/meza/minecraft-mod-manager/internal/logger"
 	"github.com/meza/minecraft-mod-manager/internal/models"
 	"github.com/meza/minecraft-mod-manager/internal/modrinth"
@@ -37,6 +38,7 @@ type scanOptions struct {
 	Debug      bool
 	Prefer     string
 	Add        bool
+	LockSync   locksync.PolicyFlags
 }
 
 type scanDeps struct {
@@ -126,6 +128,10 @@ func scanOptionsFromFlags(cmd *cobra.Command) (scanOptions, error) {
 	if err != nil {
 		return scanOptions{}, err
 	}
+	lockSync, err := locksync.PolicyFlagsFromFlags(cmd.Flags())
+	if err != nil {
+		return scanOptions{}, err
+	}
 
 	return scanOptions{
 		ConfigPath: configPath,
@@ -134,6 +140,7 @@ func scanOptionsFromFlags(cmd *cobra.Command) (scanOptions, error) {
 		Debug:      debug,
 		Prefer:     prefer,
 		Add:        add,
+		LockSync:   lockSync,
 	}, nil
 }
 
@@ -281,18 +288,78 @@ type scanConfigState struct {
 func ensureScanConfig(ctx context.Context, cmd *cobra.Command, opts scanOptions, deps scanDeps, meta config.Metadata) (scanConfigState, error) {
 	cfg, err := config.ReadConfig(ctx, deps.fs, meta)
 	if err == nil {
-		lock, lockErr := config.EnsureLock(ctx, deps.fs, meta)
-		if lockErr != nil {
-			return scanConfigState{}, lockErr
-		}
-		return scanConfigState{Meta: meta, Config: cfg, Lock: lock, ShouldContinue: true}, nil
+		return runScanLockSync(ctx, cmd, opts, deps, meta, cfg)
 	}
 
+	return handleScanConfigReadError(ctx, cmd, opts, deps, meta, err)
+}
+
+func runScanLockSync(
+	ctx context.Context,
+	cmd *cobra.Command,
+	opts scanOptions,
+	deps scanDeps,
+	meta config.Metadata,
+	cfg models.ModsJSON,
+) (scanConfigState, error) {
+	lock, lockErr := config.EnsureLock(ctx, deps.fs, meta)
+	if lockErr != nil {
+		return scanConfigState{}, lockErr
+	}
+	syncOutcome, syncErr := locksync.RunLockSyncGate(locksync.GateInput{
+		Ctx:         ctx,
+		Fs:          deps.fs,
+		Meta:        meta,
+		Config:      cfg,
+		Lock:        lock,
+		Mode:        resolveScanMode(cmd, opts),
+		CommandName: cmd.Name(),
+		ColorMode:   colorModeForOutput(cmd.OutOrStdout()),
+		In:          cmd.InOrStdin(),
+		Out:         cmd.OutOrStdout(),
+		RunTea:      deps.runTea,
+		PolicyFlags: opts.LockSync,
+	})
+	if syncErr != nil {
+		return scanConfigState{}, syncErr
+	}
+	if !syncOutcome.ShouldContinue {
+		return scanConfigState{Meta: meta, ShouldContinue: false}, nil
+	}
+	return scanConfigState{Meta: meta, Config: syncOutcome.Config, Lock: syncOutcome.Lock, ShouldContinue: true}, nil
+}
+
+func resolveScanMode(cmd *cobra.Command, opts scanOptions) interaction.ExecutionMode {
+	return interaction.ResolveExecutionMode(interaction.ExecutionModeInput{
+		Unattended: opts.Unattended,
+		In:         cmd.InOrStdin(),
+		Out:        cmd.OutOrStdout(),
+	})
+}
+
+func handleScanConfigReadError(
+	ctx context.Context,
+	cmd *cobra.Command,
+	opts scanOptions,
+	deps scanDeps,
+	meta config.Metadata,
+	err error,
+) (scanConfigState, error) {
 	var notFound *config.ConfigFileNotFoundException
 	if !errors.As(err, &notFound) {
 		return scanConfigState{}, err
 	}
 
+	return handleScanConfigMissing(ctx, cmd, opts, deps, meta)
+}
+
+func handleScanConfigMissing(
+	ctx context.Context,
+	cmd *cobra.Command,
+	opts scanOptions,
+	deps scanDeps,
+	meta config.Metadata,
+) (scanConfigState, error) {
 	if promptErr := configMissingPromptError(opts, cmd, meta); promptErr != nil {
 		if outputErr := writeConfigMissingOutput(cmd, deps, meta); outputErr != nil {
 			return scanConfigState{}, outputErr
@@ -317,15 +384,11 @@ func ensureScanConfig(ctx context.Context, cmd *cobra.Command, opts scanOptions,
 		return scanConfigState{}, runErr
 	}
 
-	cfg, err = config.ReadConfig(ctx, deps.fs, meta)
+	cfg, err := config.ReadConfig(ctx, deps.fs, meta)
 	if err != nil {
 		return scanConfigState{}, err
 	}
-	lock, lockErr := config.EnsureLock(ctx, deps.fs, meta)
-	if lockErr != nil {
-		return scanConfigState{}, lockErr
-	}
-	return scanConfigState{Meta: meta, Config: cfg, Lock: lock, ShouldContinue: true}, nil
+	return runScanLockSync(ctx, cmd, opts, deps, meta, cfg)
 }
 
 func configMissingPromptError(opts scanOptions, cmd *cobra.Command, meta config.Metadata) error {

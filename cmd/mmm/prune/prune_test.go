@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"context"
 	"fmt"
+	"io"
 	"path/filepath"
 	"regexp"
 	"strings"
@@ -17,6 +18,7 @@ import (
 
 	"github.com/meza/minecraft-mod-manager/internal/clierrors"
 	"github.com/meza/minecraft-mod-manager/internal/config"
+	"github.com/meza/minecraft-mod-manager/internal/locksync"
 	"github.com/meza/minecraft-mod-manager/internal/logger"
 	"github.com/meza/minecraft-mod-manager/internal/models"
 	"github.com/meza/minecraft-mod-manager/internal/output"
@@ -369,7 +371,20 @@ func TestRunPruneForceDeletesAndRespectsIgnore(t *testing.T) {
 	require.NoError(t, err)
 	assert.Equal(t, 1, deletedCount)
 
-	expectedLine := "cmd.prune.header.deleted\n\u2705 unmanaged.jar\n\n\u2705 cmd.prune.summary.success\ncmd.prune.summary.success_hint\n"
+	expectedLine := strings.Join([]string{
+		"cmd.lock_sync.header",
+		"cmd.lock_sync.header.detail",
+		"",
+		"\u2754 mod-a (mod-a) [modrinth] cmd.lock_sync.entry.present_suffix, Arg 1: {Count: 0, Data: &map[file:managed.jar]}",
+		"",
+		"\u23F3 cmd.common.no_changes",
+		"-------------------------------------------------------------",
+		"cmd.prune.header.deleted",
+		"\u2705 unmanaged.jar",
+		"",
+		"\u2705 cmd.prune.summary.success",
+		"cmd.prune.summary.success_hint",
+	}, "\n") + "\n"
 	assert.Equal(t, expectedLine, stripANSI(out.String()))
 	assert.Empty(t, errOut.String())
 
@@ -429,6 +444,65 @@ func TestRunPruneQuietForceIsSilent(t *testing.T) {
 	assert.Empty(t, out.String())
 	assert.Empty(t, errOut.String())
 }
+
+func TestRunPruneLockSyncReturnsPolicyError(t *testing.T) {
+	fs := afero.NewMemMapFs()
+	meta := config.NewMetadata(filepath.FromSlash("/cfg/modlist.json"))
+	cfg := models.ModsJSON{ModsFolder: "mods"}
+	lock := []models.ModInstall{{ID: "alpha", Type: models.MODRINTH, FileName: "alpha.jar"}}
+	require.NoError(t, fs.MkdirAll(meta.Dir(), 0o755))
+	require.NoError(t, config.WriteConfig(context.Background(), fs, meta, cfg))
+	require.NoError(t, config.WriteLock(context.Background(), fs, meta, lock))
+
+	cmd := &cobra.Command{}
+	cmd.SetIn(bytes.NewBuffer(nil))
+	cmd.SetOut(io.Discard)
+
+	_, err := runPruneLockSync(context.Background(), cmd, pruneOptions{
+		LockSync: locksync.PolicyFlags{Add: true, Delete: true},
+	}, pruneDeps{
+		fs:     fs,
+		logger: logger.New(io.Discard, io.Discard, false, false),
+		output: output.New(io.Discard, io.Discard, false),
+		runTea: runTeaProgram,
+	}, meta, cfg)
+	assert.Error(t, err)
+}
+
+func TestRunPruneLockSyncStopsOnPromptCancel(t *testing.T) {
+	restore := view.SetIsTerminalFuncForTesting(func(int) bool { return true })
+	t.Cleanup(restore)
+
+	fs := afero.NewMemMapFs()
+	meta := config.NewMetadata(filepath.FromSlash("/cfg/modlist.json"))
+	cfg := models.ModsJSON{ModsFolder: "mods"}
+	lock := []models.ModInstall{{ID: "alpha", Type: models.MODRINTH, FileName: "alpha.jar"}}
+	require.NoError(t, fs.MkdirAll(meta.Dir(), 0o755))
+	require.NoError(t, config.WriteConfig(context.Background(), fs, meta, cfg))
+	require.NoError(t, config.WriteLock(context.Background(), fs, meta, lock))
+
+	cmd := &cobra.Command{}
+	cmd.SetIn(fakeTTY{Buffer: bytes.NewBuffer(nil)})
+	cmd.SetOut(fakeTTY{Buffer: bytes.NewBuffer(nil)})
+
+	state, err := runPruneLockSync(context.Background(), cmd, pruneOptions{}, pruneDeps{
+		fs:     fs,
+		logger: logger.New(io.Discard, io.Discard, false, false),
+		output: output.New(io.Discard, io.Discard, false),
+		runTea: func(model tea.Model, _ ...tea.ProgramOption) (tea.Model, error) {
+			updated, _ := model.Update(tea.KeyMsg{Type: tea.KeyEsc})
+			return updated, nil
+		},
+	}, meta, cfg)
+	require.NoError(t, err)
+	assert.False(t, state.ShouldContinue)
+}
+
+type fakeTTY struct {
+	*bytes.Buffer
+}
+
+func (tty fakeTTY) Fd() uintptr { return 0 }
 
 func TestRunPruneLockMissingErrors(t *testing.T) {
 	t.Setenv("MMM_TEST", "true")

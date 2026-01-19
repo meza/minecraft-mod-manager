@@ -8,6 +8,7 @@ import (
 	"testing"
 
 	"github.com/meza/minecraft-mod-manager/internal/clierrors"
+	"github.com/meza/minecraft-mod-manager/internal/locksync"
 	"github.com/spf13/afero"
 	"github.com/spf13/cobra"
 	"github.com/stretchr/testify/assert"
@@ -46,6 +47,18 @@ func TestCommandWithRunner_ErrorReturnsError(t *testing.T) {
 
 	cmd.SetArgs([]string{})
 	assert.Error(t, cmd.Execute())
+}
+
+func TestInstallOptionsFromFlagsReturnsLockSyncFlagError(t *testing.T) {
+	cmd := &cobra.Command{}
+	cmd.Flags().String("config", "./modlist.json", "")
+	cmd.Flags().Bool("unattended", false, "")
+	cmd.Flags().Bool("quiet", false, "")
+	cmd.Flags().Bool("debug", false, "")
+	cmd.Flags().String(locksync.FlagAdd, "", "")
+
+	_, err := installOptionsFromFlags(cmd)
+	assert.Error(t, err)
 }
 
 func TestCommandWithRunner_HandledErrorSilencesCobra(t *testing.T) {
@@ -156,7 +169,9 @@ func TestRun_ReturnsErrorWhenConfigMissing(t *testing.T) {
 	cmd.SetOut(io.Discard)
 	cmd.SetErr(io.Discard)
 
-	_, err := Run(context.Background(), cmd, filepath.Join(t.TempDir(), "missing.json"), false, false)
+	_, err := Run(context.Background(), cmd, RunOptions{
+		ConfigPath: filepath.Join(t.TempDir(), "missing.json"),
+	})
 	assert.Error(t, err)
 }
 
@@ -185,7 +200,10 @@ func TestRun_ReturnsZeroWhenNoMods(t *testing.T) {
 	cmd.SetOut(io.Discard)
 	cmd.SetErr(io.Discard)
 
-	result, err := Run(context.Background(), cmd, configPath, true, false)
+	result, err := Run(context.Background(), cmd, RunOptions{
+		ConfigPath: configPath,
+		Quiet:      true,
+	})
 	assert.NoError(t, err)
 	assert.Equal(t, 0, result.InstalledCount)
 	assert.False(t, result.UnmanagedFound)

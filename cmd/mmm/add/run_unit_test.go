@@ -12,6 +12,7 @@ import (
 	"github.com/spf13/afero"
 	"github.com/spf13/cobra"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 	"golang.org/x/time/rate"
 
 	initCmd "github.com/meza/minecraft-mod-manager/cmd/mmm/init"
@@ -19,6 +20,7 @@ import (
 	"github.com/meza/minecraft-mod-manager/internal/config"
 	"github.com/meza/minecraft-mod-manager/internal/httpclient"
 	"github.com/meza/minecraft-mod-manager/internal/interaction"
+	"github.com/meza/minecraft-mod-manager/internal/locksync"
 	"github.com/meza/minecraft-mod-manager/internal/logger"
 	"github.com/meza/minecraft-mod-manager/internal/models"
 	"github.com/meza/minecraft-mod-manager/internal/modinstall"
@@ -160,8 +162,71 @@ func TestLoadAddConfigLockError(t *testing.T) {
 	assert.NoError(t, config.WriteConfig(context.Background(), fs, meta, cfg))
 
 	readOnly := afero.NewReadOnlyFs(fs)
-	_, err := loadAddConfig(context.Background(), addDeps{fs: readOnly}, meta)
+	cmd := &cobra.Command{}
+	cmd.SetIn(bytes.NewBuffer(nil))
+	cmd.SetOut(bytes.NewBuffer(nil))
+	runState := addRunState{
+		meta: meta,
+		mode: interaction.ExecutionModeUnattended,
+	}
+	_, err := loadAddConfig(context.Background(), cmd, addOptions{}, addDeps{fs: readOnly, runTea: runTeaProgram}, runState)
 	assert.Error(t, err)
+}
+
+func TestLoadAddConfigReturnsPolicyError(t *testing.T) {
+	fs := afero.NewMemMapFs()
+	meta := config.NewMetadata(filepath.FromSlash("/cfg/modlist.json"))
+	cfg := models.ModsJSON{ModsFolder: "mods"}
+	lock := []models.ModInstall{{Type: models.MODRINTH, ID: "alpha", Name: "Alpha", FileName: "alpha.jar"}}
+	require.NoError(t, config.WriteConfig(context.Background(), fs, meta, cfg))
+	require.NoError(t, config.WriteLock(context.Background(), fs, meta, lock))
+
+	cmd := &cobra.Command{}
+	cmd.SetIn(bytes.NewBuffer(nil))
+	cmd.SetOut(bytes.NewBuffer(nil))
+
+	runState := addRunState{
+		meta: meta,
+		mode: interaction.ExecutionModeNonTTY,
+	}
+	opts := addOptions{
+		LockSync: locksync.PolicyFlags{Add: true, Delete: true},
+	}
+
+	_, err := loadAddConfig(context.Background(), cmd, opts, addDeps{fs: fs, runTea: runTeaProgram}, runState)
+	assert.Error(t, err)
+}
+
+func TestLoadAddConfigStopsOnPromptCancel(t *testing.T) {
+	restore := view.SetIsTerminalFuncForTesting(func(int) bool { return true })
+	t.Cleanup(restore)
+
+	fs := afero.NewMemMapFs()
+	meta := config.NewMetadata(filepath.FromSlash("/cfg/modlist.json"))
+	cfg := models.ModsJSON{ModsFolder: "mods"}
+	lock := []models.ModInstall{{Type: models.MODRINTH, ID: "alpha", Name: "Alpha", FileName: "alpha.jar"}}
+	require.NoError(t, config.WriteConfig(context.Background(), fs, meta, cfg))
+	require.NoError(t, config.WriteLock(context.Background(), fs, meta, lock))
+
+	cmd := &cobra.Command{}
+	cmd.SetIn(fakeTTYReader{Buffer: bytes.NewBuffer(nil)})
+	cmd.SetOut(fakeTTYWriter{Buffer: bytes.NewBuffer(nil)})
+
+	runState := addRunState{
+		meta: meta,
+		mode: interaction.ExecutionModeInteractive,
+	}
+	deps := addDeps{
+		fs: fs,
+		runTea: func(model tea.Model, _ ...tea.ProgramOption) (tea.Model, error) {
+			updated, _ := model.Update(tea.KeyMsg{Type: tea.KeyEsc})
+			return updated, nil
+		},
+	}
+
+	state, err := loadAddConfig(context.Background(), cmd, addOptions{}, deps, runState)
+	require.NoError(t, err)
+	assert.False(t, state.shouldContinue)
 }
 
 func TestEnsureAddConfigCanceled(t *testing.T) {

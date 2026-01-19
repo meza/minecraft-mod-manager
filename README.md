@@ -293,6 +293,8 @@ commands.
 
 **You don't have to do anything with it!**
 
+If the lockfile contains mods that are missing from your config, MMM will stop and ask how to reconcile them (add to config, delete from disk, ignore, or do nothing). In non-interactive or unattended runs, it defaults to add unless you pass a lockfile sync policy flag like `--lock-sync-ignore`. See [lockfile sync](docs/commands/lockfile-sync.md) for the full flow.
+
 If you use version control to manage your server/modpack/configuration then make sure to commit **both**
 the `modlist.json` and the `modlist-lock.json`. Together they ensure that you are in full control of what gets
 installed.

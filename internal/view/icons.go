@@ -36,6 +36,15 @@ func PendingIcon(colorMode ColorMode) string {
 	return RenderIfColorEnabled(colorMode, QuestionStyle, icon)
 }
 
+func QuestionIcon(colorMode ColorMode) string {
+	asciiIcon := "?"
+	icon := asciiIcon
+	if SupportsUnicode() {
+		icon = "\u2754"
+	}
+	return RenderIfColorEnabled(colorMode, QuestionStyle, icon)
+}
+
 func DownloadIcon(colorMode ColorMode) string {
 	asciiIcon := "->"
 	icon := asciiIcon

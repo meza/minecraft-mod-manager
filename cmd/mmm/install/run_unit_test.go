@@ -18,6 +18,8 @@ import (
 
 	"github.com/meza/minecraft-mod-manager/internal/clierrors"
 	"github.com/meza/minecraft-mod-manager/internal/config"
+	"github.com/meza/minecraft-mod-manager/internal/interaction"
+	"github.com/meza/minecraft-mod-manager/internal/locksync"
 	"github.com/meza/minecraft-mod-manager/internal/logger"
 	"github.com/meza/minecraft-mod-manager/internal/models"
 	"github.com/meza/minecraft-mod-manager/internal/output"
@@ -436,4 +438,86 @@ func TestRenderInstallQuietDownloadFailureWithoutFailedItems(t *testing.T) {
 	})
 	assert.Len(t, lines, 1)
 	assert.Contains(t, lines[0], "cmd.install.quiet.download_failed")
+}
+
+func TestReadConfigAndLockReturnsPolicyError(t *testing.T) {
+	fs := afero.NewMemMapFs()
+	meta := config.NewMetadata(filepath.FromSlash("/cfg/modlist.json"))
+	cfg := models.ModsJSON{ModsFolder: "mods"}
+	lock := []models.ModInstall{{ID: "alpha", Type: models.MODRINTH, FileName: "alpha.jar"}}
+	require.NoError(t, fs.MkdirAll(meta.Dir(), 0o755))
+	require.NoError(t, config.WriteConfig(context.Background(), fs, meta, cfg))
+	require.NoError(t, config.WriteLock(context.Background(), fs, meta, lock))
+
+	cmd := &cobra.Command{}
+	cmd.SetOut(io.Discard)
+
+	_, err := readConfigAndLock(context.Background(), cmd, installOptions{
+		LockSync: locksync.PolicyFlags{Add: true, Delete: true},
+	}, installDeps{
+		fs:     fs,
+		runTea: defaultRunTea,
+	}, installRunState{
+		meta: meta,
+		mode: interaction.ExecutionModeNonTTY,
+	})
+	assert.Error(t, err)
+}
+
+func TestReadConfigAndLockStopsOnPromptCancel(t *testing.T) {
+	fs := afero.NewMemMapFs()
+	meta := config.NewMetadata(filepath.FromSlash("/cfg/modlist.json"))
+	cfg := models.ModsJSON{ModsFolder: "mods"}
+	lock := []models.ModInstall{{ID: "alpha", Type: models.MODRINTH, FileName: "alpha.jar"}}
+	require.NoError(t, fs.MkdirAll(meta.Dir(), 0o755))
+	require.NoError(t, config.WriteConfig(context.Background(), fs, meta, cfg))
+	require.NoError(t, config.WriteLock(context.Background(), fs, meta, lock))
+
+	cmd := &cobra.Command{}
+	cmd.SetIn(bytes.NewBuffer(nil))
+	cmd.SetOut(bytes.NewBuffer(nil))
+
+	state, err := readConfigAndLock(context.Background(), cmd, installOptions{}, installDeps{
+		fs: fs,
+		runTea: func(model tea.Model, _ ...tea.ProgramOption) (tea.Model, error) {
+			updated, _ := model.Update(tea.KeyMsg{Type: tea.KeyEsc})
+			return updated, nil
+		},
+	}, installRunState{
+		meta: meta,
+		mode: interaction.ExecutionModeInteractive,
+	})
+	require.NoError(t, err)
+	assert.False(t, state.shouldContinue)
+}
+
+func TestReadConfigAndLockSkipsLockSyncWhenDisabled(t *testing.T) {
+	fs := afero.NewMemMapFs()
+	meta := config.NewMetadata(filepath.FromSlash("/cfg/modlist.json"))
+	cfg := models.ModsJSON{ModsFolder: "mods"}
+	lock := []models.ModInstall{{ID: "alpha", Type: models.MODRINTH, FileName: "alpha.jar"}}
+	require.NoError(t, fs.MkdirAll(meta.Dir(), 0o755))
+	require.NoError(t, config.WriteConfig(context.Background(), fs, meta, cfg))
+	require.NoError(t, config.WriteLock(context.Background(), fs, meta, lock))
+
+	cmd := &cobra.Command{}
+	cmd.SetOut(io.Discard)
+
+	runTeaCalled := false
+	state, err := readConfigAndLock(context.Background(), cmd, installOptions{
+		SkipLockSync: true,
+	}, installDeps{
+		fs: fs,
+		runTea: func(model tea.Model, _ ...tea.ProgramOption) (tea.Model, error) {
+			runTeaCalled = true
+			return model, nil
+		},
+	}, installRunState{
+		meta: meta,
+		mode: interaction.ExecutionModeInteractive,
+	})
+	require.NoError(t, err)
+	assert.True(t, state.shouldContinue)
+	assert.False(t, runTeaCalled)
+	assert.Equal(t, lock, state.lock)
 }

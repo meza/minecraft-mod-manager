@@ -9,6 +9,7 @@ import (
 	"testing"
 
 	"github.com/meza/minecraft-mod-manager/internal/clierrors"
+	"github.com/meza/minecraft-mod-manager/internal/locksync"
 	"github.com/spf13/afero"
 	"github.com/spf13/cobra"
 	"github.com/stretchr/testify/assert"
@@ -196,6 +197,18 @@ func TestCommandOutputsResults(t *testing.T) {
 
 	assert.NoError(t, cmd.Execute())
 	assert.Contains(t, output.String(), "cmd.list.empty")
+}
+
+func TestUpdateOptionsFromFlagsReturnsLockSyncFlagError(t *testing.T) {
+	cmd := &cobra.Command{}
+	cmd.Flags().String("config", "./modlist.json", "")
+	cmd.Flags().Bool("unattended", false, "")
+	cmd.Flags().Bool("quiet", false, "")
+	cmd.Flags().Bool("debug", false, "")
+	cmd.Flags().String(locksync.FlagAdd, "", "")
+
+	_, err := updateOptionsFromFlags(cmd)
+	assert.Error(t, err)
 }
 
 func addPersistentFlagsForTesting(cmd *cobra.Command) {

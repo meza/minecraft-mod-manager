@@ -14,6 +14,7 @@ import (
 	"github.com/meza/minecraft-mod-manager/internal/httpclient"
 	"github.com/meza/minecraft-mod-manager/internal/i18n"
 	"github.com/meza/minecraft-mod-manager/internal/interaction"
+	"github.com/meza/minecraft-mod-manager/internal/locksync"
 	"github.com/meza/minecraft-mod-manager/internal/models"
 	"github.com/meza/minecraft-mod-manager/internal/view"
 )
@@ -30,56 +31,103 @@ type changeRunState struct {
 	shouldContinue bool
 }
 
+type changeCommonFlags struct {
+	configPath string
+	unattended bool
+	quiet      bool
+	debug      bool
+	force      bool
+}
+
+type changePolicyFlagValues struct {
+	keepConfig     bool
+	pruneConfig    bool
+	disableSkipped bool
+	lockSync       locksync.PolicyFlags
+}
+
 func changeOptionsFromFlags(cmd *cobra.Command, args []string) (changeOptions, error) {
-	configPath, err := cmd.Flags().GetString("config")
+	common, err := readChangeCommonFlags(cmd)
 	if err != nil {
 		return changeOptions{}, err
 	}
-	unattended, err := cmd.Flags().GetBool("unattended")
-	if err != nil {
-		return changeOptions{}, err
-	}
-	quiet, err := cmd.Flags().GetBool("quiet")
-	if err != nil {
-		return changeOptions{}, err
-	}
-	debug, err := cmd.Flags().GetBool("debug")
-	if err != nil {
-		return changeOptions{}, err
-	}
-	force, err := cmd.Flags().GetBool("force")
-	if err != nil {
-		return changeOptions{}, err
-	}
-	keepConfig, err := cmd.Flags().GetBool("keep-config")
-	if err != nil {
-		return changeOptions{}, err
-	}
-	pruneConfig, err := cmd.Flags().GetBool("prune-config")
-	if err != nil {
-		return changeOptions{}, err
-	}
-	disableSkipped, err := cmd.Flags().GetBool("disable-skipped")
+	policyFlags, err := readChangePolicyFlags(cmd)
 	if err != nil {
 		return changeOptions{}, err
 	}
 
 	forcePolicy, resolveErr := resolveForcePolicy(changeForcePolicyFlags{
-		force:          force,
-		keepConfig:     keepConfig,
-		pruneConfig:    pruneConfig,
-		disableSkipped: disableSkipped,
+		force:          common.force,
+		keepConfig:     policyFlags.keepConfig,
+		pruneConfig:    policyFlags.pruneConfig,
+		disableSkipped: policyFlags.disableSkipped,
 	})
 
 	return changeOptions{
-		ConfigPath:  configPath,
+		ConfigPath:  common.configPath,
 		GameVersion: resolveGameVersion(args),
-		Unattended:  unattended,
-		Quiet:       quiet,
-		Debug:       debug,
-		Force:       force,
+		Unattended:  common.unattended,
+		Quiet:       common.quiet,
+		Debug:       common.debug,
+		Force:       common.force,
 		ForcePolicy: forcePolicy,
+		LockSync:    policyFlags.lockSync,
 	}, resolveErr
+}
+
+func readChangeCommonFlags(cmd *cobra.Command) (changeCommonFlags, error) {
+	configPath, err := cmd.Flags().GetString("config")
+	if err != nil {
+		return changeCommonFlags{}, err
+	}
+	unattended, err := cmd.Flags().GetBool("unattended")
+	if err != nil {
+		return changeCommonFlags{}, err
+	}
+	quiet, err := cmd.Flags().GetBool("quiet")
+	if err != nil {
+		return changeCommonFlags{}, err
+	}
+	debug, err := cmd.Flags().GetBool("debug")
+	if err != nil {
+		return changeCommonFlags{}, err
+	}
+	force, err := cmd.Flags().GetBool("force")
+	if err != nil {
+		return changeCommonFlags{}, err
+	}
+	return changeCommonFlags{
+		configPath: configPath,
+		unattended: unattended,
+		quiet:      quiet,
+		debug:      debug,
+		force:      force,
+	}, nil
+}
+
+func readChangePolicyFlags(cmd *cobra.Command) (changePolicyFlagValues, error) {
+	keepConfig, err := cmd.Flags().GetBool("keep-config")
+	if err != nil {
+		return changePolicyFlagValues{}, err
+	}
+	pruneConfig, err := cmd.Flags().GetBool("prune-config")
+	if err != nil {
+		return changePolicyFlagValues{}, err
+	}
+	disableSkipped, err := cmd.Flags().GetBool("disable-skipped")
+	if err != nil {
+		return changePolicyFlagValues{}, err
+	}
+	lockSync, err := locksync.PolicyFlagsFromFlags(cmd.Flags())
+	if err != nil {
+		return changePolicyFlagValues{}, err
+	}
+	return changePolicyFlagValues{
+		keepConfig:     keepConfig,
+		pruneConfig:    pruneConfig,
+		disableSkipped: disableSkipped,
+		lockSync:       lockSync,
+	}, nil
 }
 
 func resolveGameVersion(args []string) string {
@@ -155,7 +203,11 @@ type changeConfigState struct {
 func ensureChangeConfig(ctx context.Context, cmd *cobra.Command, opts changeOptions, deps changeDeps, runState changeRunState) (changeConfigState, error) {
 	configState, err := loadChangeConfig(ctx, deps, runState.meta)
 	if err == nil {
-		return configState, nil
+		synced, syncErr := runChangeLockSync(ctx, cmd, opts, deps, runState, configState)
+		if syncErr != nil {
+			return changeConfigState{}, syncErr
+		}
+		return synced, nil
 	}
 
 	var notFound *config.ConfigFileNotFoundException
@@ -210,7 +262,11 @@ func handleMissingChangeConfig(ctx context.Context, cmd *cobra.Command, opts cha
 	if err != nil {
 		return changeConfigState{}, handleChangeFailure(cmd, deps, err)
 	}
-	return configState, nil
+	synced, syncErr := runChangeLockSync(ctx, cmd, opts, deps, runState, configState)
+	if syncErr != nil {
+		return changeConfigState{}, syncErr
+	}
+	return synced, nil
 }
 
 func configMissingPromptError(opts changeOptions, cmd *cobra.Command, meta config.Metadata) error {
@@ -229,6 +285,42 @@ func configMissingPromptError(opts changeOptions, cmd *cobra.Command, meta confi
 			}))
 		},
 	})
+}
+
+func runChangeLockSync(
+	ctx context.Context,
+	cmd *cobra.Command,
+	opts changeOptions,
+	deps changeDeps,
+	runState changeRunState,
+	configState changeConfigState,
+) (changeConfigState, error) {
+	syncOutcome, syncErr := locksync.RunLockSyncGate(locksync.GateInput{
+		Ctx:         ctx,
+		Fs:          deps.fs,
+		Meta:        runState.meta,
+		Config:      configState.cfg,
+		Lock:        configState.lock,
+		Mode:        runState.mode,
+		CommandName: cmd.Name(),
+		ColorMode:   colorModeForOutput(cmd.OutOrStdout()),
+		In:          cmd.InOrStdin(),
+		Out:         cmd.OutOrStdout(),
+		RunTea:      deps.runTea,
+		PolicyFlags: opts.LockSync,
+		Force:       opts.Force,
+	})
+	if syncErr != nil {
+		return changeConfigState{}, handleChangeFailure(cmd, deps, syncErr)
+	}
+	if !syncOutcome.ShouldContinue {
+		return changeConfigState{shouldContinue: false}, nil
+	}
+	return changeConfigState{
+		cfg:            syncOutcome.Config,
+		lock:           syncOutcome.Lock,
+		shouldContinue: true,
+	}, nil
 }
 
 func resolveTargetVersion(ctx context.Context, cmd *cobra.Command, opts changeOptions, deps changeDeps, runState changeRunState) (string, bool, error) {

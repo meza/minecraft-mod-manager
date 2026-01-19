@@ -7,6 +7,7 @@ import (
 	"github.com/meza/minecraft-mod-manager/cmd/mmm/install"
 	"github.com/meza/minecraft-mod-manager/internal/config"
 	"github.com/meza/minecraft-mod-manager/internal/httpclient"
+	"github.com/meza/minecraft-mod-manager/internal/locksync"
 	"github.com/meza/minecraft-mod-manager/internal/logger"
 	"github.com/meza/minecraft-mod-manager/internal/models"
 	"github.com/meza/minecraft-mod-manager/internal/output"
@@ -22,6 +23,7 @@ type updateOptions struct {
 	Unattended bool
 	Quiet      bool
 	Debug      bool
+	LockSync   locksync.PolicyFlags
 }
 
 type updateDeps struct {
@@ -41,7 +43,7 @@ type fetcher func(context.Context, models.Platform, string, platform.FetchOption
 
 type downloader func(context.Context, string, string, httpclient.Doer, httpclient.Sender, ...afero.Fs) error
 
-type installer func(context.Context, *cobra.Command, string, bool, bool) (install.Result, error)
+type installer func(context.Context, *cobra.Command, install.RunOptions) (install.Result, error)
 
 type teaRunner func(tea.Model, ...tea.ProgramOption) (tea.Model, error)
 
@@ -71,10 +73,11 @@ type updateCounts struct {
 }
 
 type updateContext struct {
-	meta      config.Metadata
-	cfg       models.ModsJSON
-	lock      []models.ModInstall
-	colorMode view.ColorMode
+	meta           config.Metadata
+	cfg            models.ModsJSON
+	lock           []models.ModInstall
+	colorMode      view.ColorMode
+	shouldContinue bool
 }
 
 type updateItemStatus int

@@ -9,6 +9,7 @@ import (
 	"github.com/meza/minecraft-mod-manager/internal/config"
 	"github.com/meza/minecraft-mod-manager/internal/httpclient"
 	"github.com/meza/minecraft-mod-manager/internal/interaction"
+	"github.com/meza/minecraft-mod-manager/internal/locksync"
 	"github.com/meza/minecraft-mod-manager/internal/logger"
 	"github.com/meza/minecraft-mod-manager/internal/models"
 	"github.com/meza/minecraft-mod-manager/internal/modinstall"
@@ -31,6 +32,7 @@ type addOptions struct {
 	Debug                bool
 	Version              string
 	AllowVersionFallback bool
+	LockSync             locksync.PolicyFlags
 }
 
 type addDeps struct {

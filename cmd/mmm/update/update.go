@@ -5,6 +5,7 @@ import (
 	"github.com/meza/minecraft-mod-manager/internal/cmddeps"
 	"github.com/meza/minecraft-mod-manager/internal/i18n"
 	"github.com/meza/minecraft-mod-manager/internal/interaction"
+	"github.com/meza/minecraft-mod-manager/internal/locksync"
 	"github.com/meza/minecraft-mod-manager/internal/perf"
 	"github.com/spf13/cobra"
 	"go.opentelemetry.io/otel/attribute"
@@ -82,11 +83,16 @@ func updateOptionsFromFlags(cmd *cobra.Command) (updateOptions, error) {
 	if err != nil {
 		return updateOptions{}, err
 	}
+	lockSync, err := locksync.PolicyFlagsFromFlags(cmd.Flags())
+	if err != nil {
+		return updateOptions{}, err
+	}
 
 	return updateOptions{
 		ConfigPath: configPath,
 		Unattended: unattended,
 		Quiet:      quiet,
 		Debug:      debug,
+		LockSync:   lockSync,
 	}, nil
 }

@@ -1,0 +1,176 @@
+
+[TestLockSyncSummarySnapshots/add - 1]
+cmd.lock_sync.header
+cmd.lock_sync.header.detail
+
+❔ Alpha (alpha) [modrinth] cmd.lock_sync.entry.missing_suffix, Arg 1: {Count: 0, Data: &map[file:alpha.jar]}
+❌ Beta (beta) [curseforge] cmd.lock_sync.entry.invalid_suffix, Arg 1: {Count: 0, Data: &map[file:mods/beta.jar]}
+❔ Gamma (gamma) [modrinth] cmd.lock_sync.entry.present_suffix, Arg 1: {Count: 0, Data: &map[file:gamma.jar]}
+
+✅ cmd.lock_sync.result.add
+cmd.lock_sync.continue, Arg 1: {Count: 0, Data: &map[command:install]}
+-------------------------------------------------------------
+---
+
+[TestLockSyncSummarySnapshots/delete - 1]
+cmd.lock_sync.header
+cmd.lock_sync.header.detail
+
+❔ Alpha (alpha) [modrinth] cmd.lock_sync.entry.missing_suffix, Arg 1: {Count: 0, Data: &map[file:alpha.jar]}
+❌ Beta (beta) [curseforge] cmd.lock_sync.entry.invalid_suffix, Arg 1: {Count: 0, Data: &map[file:mods/beta.jar]}
+❔ Gamma (gamma) [modrinth] cmd.lock_sync.entry.present_suffix, Arg 1: {Count: 0, Data: &map[file:gamma.jar]}
+
+✅ cmd.lock_sync.result.delete
+cmd.lock_sync.continue, Arg 1: {Count: 0, Data: &map[command:install]}
+-------------------------------------------------------------
+---
+
+[TestLockSyncSummarySnapshots/ignore - 1]
+cmd.lock_sync.header
+cmd.lock_sync.header.detail
+
+❔ Alpha (alpha) [modrinth] cmd.lock_sync.entry.missing_suffix, Arg 1: {Count: 0, Data: &map[file:alpha.jar]}
+❌ Beta (beta) [curseforge] cmd.lock_sync.entry.invalid_suffix, Arg 1: {Count: 0, Data: &map[file:mods/beta.jar]}
+❔ Gamma (gamma) [modrinth] cmd.lock_sync.entry.present_suffix, Arg 1: {Count: 0, Data: &map[file:gamma.jar]}
+
+✅ cmd.lock_sync.result.ignore
+cmd.lock_sync.continue, Arg 1: {Count: 0, Data: &map[command:install]}
+-------------------------------------------------------------
+---
+
+[TestLockSyncSummarySnapshots/skip - 1]
+cmd.lock_sync.header
+cmd.lock_sync.header.detail
+
+❔ Alpha (alpha) [modrinth] cmd.lock_sync.entry.missing_suffix, Arg 1: {Count: 0, Data: &map[file:alpha.jar]}
+❌ Beta (beta) [curseforge] cmd.lock_sync.entry.invalid_suffix, Arg 1: {Count: 0, Data: &map[file:mods/beta.jar]}
+❔ Gamma (gamma) [modrinth] cmd.lock_sync.entry.present_suffix, Arg 1: {Count: 0, Data: &map[file:gamma.jar]}
+
+⏳ cmd.common.no_changes
+cmd.lock_sync.continue, Arg 1: {Count: 0, Data: &map[command:install]}
+-------------------------------------------------------------
+---
+
+[TestLockSyncPromptSnapshots/short - 1]
+cmd.lock_sync.header
+cmd.lock_sync.header.detail
+
+❔ Alpha (alpha) [modrinth] cmd.lock_sync.entry.missing_suffix, Arg 1: {Count: 0, Data: &map[file:alpha.jar]}
+❌ Beta (beta) [curseforge] cmd.lock_sync.entry.invalid_suffix, Arg 1: {Count: 0, Data: &map[file:mods/beta.jar]}
+❔ Gamma (gamma) [modrinth] cmd.lock_sync.entry.present_suffix, Arg 1: {Count: 0, Data: &map[file:gamma.jar]}
+
+? cmd.lock_sync.prompt
+❯ cmd.lock_sync.option.add
+  cmd.lock_sync.option.delete
+  cmd.lock_sync.option.ignore
+  cmd.lock_sync.answer.skip
+
+
+  ↑/k key.direction.up • ↓/j key.direction.down • / key.help.filter …
+---
+
+[TestLockSyncPromptSnapshots/short/add - 1]
+cmd.lock_sync.header
+cmd.lock_sync.header.detail
+
+❔ Alpha (alpha) [modrinth] cmd.lock_sync.entry.missing_suffix, Arg 1: {Count: 0, Data: &map[file:alpha.jar]}
+❌ Beta (beta) [curseforge] cmd.lock_sync.entry.invalid_suffix, Arg 1: {Count: 0, Data: &map[file:mods/beta.jar]}
+❔ Gamma (gamma) [modrinth] cmd.lock_sync.entry.present_suffix, Arg 1: {Count: 0, Data: &map[file:gamma.jar]}
+
+? cmd.lock_sync.prompt cmd.lock_sync.answer.add
+---
+
+[TestLockSyncPromptSnapshots/short/delete - 1]
+cmd.lock_sync.header
+cmd.lock_sync.header.detail
+
+❔ Alpha (alpha) [modrinth] cmd.lock_sync.entry.missing_suffix, Arg 1: {Count: 0, Data: &map[file:alpha.jar]}
+❌ Beta (beta) [curseforge] cmd.lock_sync.entry.invalid_suffix, Arg 1: {Count: 0, Data: &map[file:mods/beta.jar]}
+❔ Gamma (gamma) [modrinth] cmd.lock_sync.entry.present_suffix, Arg 1: {Count: 0, Data: &map[file:gamma.jar]}
+
+? cmd.lock_sync.prompt cmd.lock_sync.answer.delete
+---
+
+[TestLockSyncPromptSnapshots/short/ignore - 1]
+cmd.lock_sync.header
+cmd.lock_sync.header.detail
+
+❔ Alpha (alpha) [modrinth] cmd.lock_sync.entry.missing_suffix, Arg 1: {Count: 0, Data: &map[file:alpha.jar]}
+❌ Beta (beta) [curseforge] cmd.lock_sync.entry.invalid_suffix, Arg 1: {Count: 0, Data: &map[file:mods/beta.jar]}
+❔ Gamma (gamma) [modrinth] cmd.lock_sync.entry.present_suffix, Arg 1: {Count: 0, Data: &map[file:gamma.jar]}
+
+? cmd.lock_sync.prompt cmd.lock_sync.answer.ignore
+---
+
+[TestLockSyncPromptSnapshots/short/skip - 1]
+cmd.lock_sync.header
+cmd.lock_sync.header.detail
+
+❔ Alpha (alpha) [modrinth] cmd.lock_sync.entry.missing_suffix, Arg 1: {Count: 0, Data: &map[file:alpha.jar]}
+❌ Beta (beta) [curseforge] cmd.lock_sync.entry.invalid_suffix, Arg 1: {Count: 0, Data: &map[file:mods/beta.jar]}
+❔ Gamma (gamma) [modrinth] cmd.lock_sync.entry.present_suffix, Arg 1: {Count: 0, Data: &map[file:gamma.jar]}
+
+? cmd.lock_sync.prompt cmd.lock_sync.answer.skip
+---
+
+[TestLockSyncPromptSnapshots/tall - 1]
+cmd.lock_sync.header
+cmd.lock_sync.header.detail
+
+❔ Alpha (alpha) [modrinth] cmd.lock_sync.entry.missing_suffix, Arg 1: {Count: 0, Data: &map[file:alpha.jar]}
+❌ Beta (beta) [curseforge] cmd.lock_sync.entry.invalid_suffix, Arg 1: {Count: 0, Data: &map[file:mods/beta.jar]}
+❔ Gamma (gamma) [modrinth] cmd.lock_sync.entry.present_suffix, Arg 1: {Count: 0, Data: &map[file:gamma.jar]}
+
+? cmd.lock_sync.prompt
+❯ cmd.lock_sync.option.add
+  cmd.lock_sync.option.delete
+  cmd.lock_sync.option.ignore
+  cmd.lock_sync.answer.skip
+
+
+  ↑/k key.direction.up • ↓/j key.direction.down • / key.help.filter …
+---
+
+[TestLockSyncPromptSnapshots/tall/add - 1]
+cmd.lock_sync.header
+cmd.lock_sync.header.detail
+
+❔ Alpha (alpha) [modrinth] cmd.lock_sync.entry.missing_suffix, Arg 1: {Count: 0, Data: &map[file:alpha.jar]}
+❌ Beta (beta) [curseforge] cmd.lock_sync.entry.invalid_suffix, Arg 1: {Count: 0, Data: &map[file:mods/beta.jar]}
+❔ Gamma (gamma) [modrinth] cmd.lock_sync.entry.present_suffix, Arg 1: {Count: 0, Data: &map[file:gamma.jar]}
+
+? cmd.lock_sync.prompt cmd.lock_sync.answer.add
+---
+
+[TestLockSyncPromptSnapshots/tall/delete - 1]
+cmd.lock_sync.header
+cmd.lock_sync.header.detail
+
+❔ Alpha (alpha) [modrinth] cmd.lock_sync.entry.missing_suffix, Arg 1: {Count: 0, Data: &map[file:alpha.jar]}
+❌ Beta (beta) [curseforge] cmd.lock_sync.entry.invalid_suffix, Arg 1: {Count: 0, Data: &map[file:mods/beta.jar]}
+❔ Gamma (gamma) [modrinth] cmd.lock_sync.entry.present_suffix, Arg 1: {Count: 0, Data: &map[file:gamma.jar]}
+
+? cmd.lock_sync.prompt cmd.lock_sync.answer.delete
+---
+
+[TestLockSyncPromptSnapshots/tall/ignore - 1]
+cmd.lock_sync.header
+cmd.lock_sync.header.detail
+
+❔ Alpha (alpha) [modrinth] cmd.lock_sync.entry.missing_suffix, Arg 1: {Count: 0, Data: &map[file:alpha.jar]}
+❌ Beta (beta) [curseforge] cmd.lock_sync.entry.invalid_suffix, Arg 1: {Count: 0, Data: &map[file:mods/beta.jar]}
+❔ Gamma (gamma) [modrinth] cmd.lock_sync.entry.present_suffix, Arg 1: {Count: 0, Data: &map[file:gamma.jar]}
+
+? cmd.lock_sync.prompt cmd.lock_sync.answer.ignore
+---
+
+[TestLockSyncPromptSnapshots/tall/skip - 1]
+cmd.lock_sync.header
+cmd.lock_sync.header.detail
+
+❔ Alpha (alpha) [modrinth] cmd.lock_sync.entry.missing_suffix, Arg 1: {Count: 0, Data: &map[file:alpha.jar]}
+❌ Beta (beta) [curseforge] cmd.lock_sync.entry.invalid_suffix, Arg 1: {Count: 0, Data: &map[file:mods/beta.jar]}
+❔ Gamma (gamma) [modrinth] cmd.lock_sync.entry.present_suffix, Arg 1: {Count: 0, Data: &map[file:gamma.jar]}
+
+? cmd.lock_sync.prompt cmd.lock_sync.answer.skip
+---

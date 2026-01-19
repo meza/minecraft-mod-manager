@@ -9,6 +9,7 @@ type ModItemStatus int
 
 const (
 	ModItemStatusPending ModItemStatus = iota
+	ModItemStatusQuestion
 	ModItemStatusSpinning
 	ModItemStatusDownloading
 	ModItemStatusSuccess
@@ -57,6 +58,8 @@ func iconForModItem(line ModItemLine, colorMode ColorMode) string {
 		return ErrorIcon(colorMode)
 	case ModItemStatusDownloading:
 		return DownloadIcon(colorMode)
+	case ModItemStatusQuestion:
+		return QuestionIcon(colorMode)
 	case ModItemStatusSpinning:
 		if line.Spinner != nil {
 			frame := line.Spinner.Frame()

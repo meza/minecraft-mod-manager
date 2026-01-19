@@ -24,6 +24,7 @@ import (
 	"github.com/meza/minecraft-mod-manager/internal/config"
 	"github.com/meza/minecraft-mod-manager/internal/i18n"
 	"github.com/meza/minecraft-mod-manager/internal/interaction"
+	"github.com/meza/minecraft-mod-manager/internal/locksync"
 	"github.com/meza/minecraft-mod-manager/internal/logger"
 	"github.com/meza/minecraft-mod-manager/internal/models"
 	"github.com/meza/minecraft-mod-manager/internal/view"
@@ -601,12 +602,14 @@ func TestRunConfigInitPromptWithColorEnabled(t *testing.T) {
 func TestRemoveOptionsFromFlagsMissingFlags(t *testing.T) {
 	cmd := &cobra.Command{}
 	cmd.Flags().String("config", "", "")
+	locksync.RegisterPolicyFlags(cmd.Flags())
 	_, err := removeOptionsFromFlags(cmd, nil)
 	assert.Error(t, err)
 
 	cmd = &cobra.Command{}
 	cmd.Flags().String("config", "", "")
 	cmd.Flags().Bool("unattended", false, "")
+	locksync.RegisterPolicyFlags(cmd.Flags())
 	_, err = removeOptionsFromFlags(cmd, nil)
 	assert.Error(t, err)
 
@@ -614,6 +617,7 @@ func TestRemoveOptionsFromFlagsMissingFlags(t *testing.T) {
 	cmd.Flags().String("config", "", "")
 	cmd.Flags().Bool("unattended", false, "")
 	cmd.Flags().Bool("quiet", false, "")
+	locksync.RegisterPolicyFlags(cmd.Flags())
 	_, err = removeOptionsFromFlags(cmd, nil)
 	assert.Error(t, err)
 
@@ -622,6 +626,7 @@ func TestRemoveOptionsFromFlagsMissingFlags(t *testing.T) {
 	cmd.Flags().Bool("unattended", false, "")
 	cmd.Flags().Bool("quiet", false, "")
 	cmd.Flags().Bool("debug", false, "")
+	locksync.RegisterPolicyFlags(cmd.Flags())
 	_, err = removeOptionsFromFlags(cmd, nil)
 	assert.Error(t, err)
 }
@@ -633,6 +638,7 @@ func TestRemoveOptionsFromFlagsSuccess(t *testing.T) {
 	cmd.Flags().Bool("quiet", true, "")
 	cmd.Flags().Bool("debug", true, "")
 	cmd.Flags().Bool("force", true, "")
+	locksync.RegisterPolicyFlags(cmd.Flags())
 
 	opts, err := removeOptionsFromFlags(cmd, []string{"mod-a"})
 	require.NoError(t, err)
@@ -641,6 +647,57 @@ func TestRemoveOptionsFromFlagsSuccess(t *testing.T) {
 	assert.True(t, opts.Quiet)
 	assert.True(t, opts.Debug)
 	assert.True(t, opts.Force)
+}
+
+func TestLoadRemoveConfigStateReturnsPolicyError(t *testing.T) {
+	fs := afero.NewMemMapFs()
+	meta := config.NewMetadata(filepath.FromSlash("/cfg/modlist.json"))
+	cfg := models.ModsJSON{ModsFolder: "mods"}
+	lock := []models.ModInstall{{ID: "alpha", Type: models.MODRINTH, FileName: "alpha.jar"}}
+	require.NoError(t, fs.MkdirAll(meta.Dir(), 0o755))
+	require.NoError(t, config.WriteConfig(context.Background(), fs, meta, cfg))
+	require.NoError(t, config.WriteLock(context.Background(), fs, meta, lock))
+
+	cmd := &cobra.Command{}
+	cmd.SetOut(io.Discard)
+
+	_, err := loadRemoveConfigState(context.Background(), cmd, removeOptions{
+		LockSync: locksync.PolicyFlags{Add: true, Delete: true},
+	}, removeDeps{
+		fs:     fs,
+		runTea: runTeaProgram,
+	}, removeRunState{
+		meta: meta,
+		mode: interaction.ExecutionModeNonTTY,
+	})
+	assert.Error(t, err)
+}
+
+func TestLoadRemoveConfigStateStopsOnPromptCancel(t *testing.T) {
+	fs := afero.NewMemMapFs()
+	meta := config.NewMetadata(filepath.FromSlash("/cfg/modlist.json"))
+	cfg := models.ModsJSON{ModsFolder: "mods"}
+	lock := []models.ModInstall{{ID: "alpha", Type: models.MODRINTH, FileName: "alpha.jar"}}
+	require.NoError(t, fs.MkdirAll(meta.Dir(), 0o755))
+	require.NoError(t, config.WriteConfig(context.Background(), fs, meta, cfg))
+	require.NoError(t, config.WriteLock(context.Background(), fs, meta, lock))
+
+	cmd := &cobra.Command{}
+	cmd.SetIn(strings.NewReader(""))
+	cmd.SetOut(io.Discard)
+
+	state, err := loadRemoveConfigState(context.Background(), cmd, removeOptions{}, removeDeps{
+		fs: fs,
+		runTea: func(model tea.Model, _ ...tea.ProgramOption) (tea.Model, error) {
+			updated, _ := model.Update(tea.KeyMsg{Type: tea.KeyEsc})
+			return updated, nil
+		},
+	}, removeRunState{
+		meta: meta,
+		mode: interaction.ExecutionModeInteractive,
+	})
+	require.NoError(t, err)
+	assert.False(t, state.shouldContinue)
 }
 
 func TestDefaultRemoveDepsRunInitUsesStub(t *testing.T) {

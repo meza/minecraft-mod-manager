@@ -56,6 +56,18 @@ func TestRenderModItemLineUsesPendingIcon(t *testing.T) {
 	assert.Contains(t, line, "[~] Example (abc) [modrinth]")
 }
 
+func TestRenderModItemLineUsesQuestionIcon(t *testing.T) {
+	restore := SetUnicodeSupportFuncForTesting(func() bool { return false })
+	t.Cleanup(restore)
+
+	line := RenderModItemLine(ModItemLine{
+		Label:  "Example (abc) [modrinth]",
+		Status: ModItemStatusQuestion,
+	}, ColorDisabled)
+
+	assert.Contains(t, line, "? Example (abc) [modrinth]")
+}
+
 func TestRenderModItemLineUsesDownloadIcon(t *testing.T) {
 	restore := SetUnicodeSupportFuncForTesting(func() bool { return false })
 	t.Cleanup(restore)

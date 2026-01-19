@@ -50,6 +50,117 @@ func ListPatterns(fs afero.Fs, rootDir string) ([]string, error) {
 	return patterns, nil
 }
 
+// AppendPatterns appends new patterns to the .mmmignore file when missing.
+// It preserves existing contents and avoids duplicating trimmed patterns.
+func AppendPatterns(fs afero.Fs, rootDir string, patterns []string) error {
+	cleaned := normalizePatterns(patterns)
+	if len(cleaned) == 0 {
+		return nil
+	}
+
+	ignoreFile := filepath.Join(rootDir, ".mmmignore")
+	existingData, existing, err := readExistingIgnoreFile(fs, ignoreFile)
+	if err != nil {
+		return err
+	}
+
+	additions := filterNewPatterns(cleaned, existing)
+	if len(additions) == 0 {
+		return nil
+	}
+
+	contents, err := buildIgnoreFileContents(existingData, additions)
+	if err != nil {
+		return err
+	}
+
+	return afero.WriteFile(fs, ignoreFile, []byte(contents), 0o644)
+}
+
+func normalizePatterns(patterns []string) []string {
+	cleaned := make([]string, 0, len(patterns))
+	for _, pattern := range patterns {
+		trimmed := strings.TrimSpace(pattern)
+		if trimmed == "" {
+			continue
+		}
+		cleaned = append(cleaned, trimmed)
+	}
+	return cleaned
+}
+
+func readExistingIgnoreFile(fs afero.Fs, ignoreFile string) (string, map[string]struct{}, error) {
+	exists, err := afero.Exists(fs, ignoreFile)
+	if err != nil {
+		return "", nil, err
+	}
+
+	existing := make(map[string]struct{})
+	if !exists {
+		return "", existing, nil
+	}
+
+	data, err := afero.ReadFile(fs, ignoreFile)
+	if err != nil {
+		return "", nil, err
+	}
+
+	existingData := string(data)
+	for _, line := range strings.Split(existingData, "\n") {
+		trimmed := strings.TrimSpace(line)
+		if trimmed == "" {
+			continue
+		}
+		existing[trimmed] = struct{}{}
+	}
+
+	return existingData, existing, nil
+}
+
+func filterNewPatterns(cleaned []string, existing map[string]struct{}) []string {
+	additions := make([]string, 0, len(cleaned))
+	for _, pattern := range cleaned {
+		if _, ok := existing[pattern]; ok {
+			continue
+		}
+		existing[pattern] = struct{}{}
+		additions = append(additions, pattern)
+	}
+	return additions
+}
+
+func buildIgnoreFileContents(existingData string, additions []string) (string, error) {
+	var builder strings.Builder
+	if err := appendExistingData(&builder, existingData); err != nil {
+		return "", err
+	}
+	if err := writeString(&builder, strings.Join(additions, "\n")); err != nil {
+		return "", err
+	}
+	if err := writeString(&builder, "\n"); err != nil {
+		return "", err
+	}
+	return builder.String(), nil
+}
+
+func appendExistingData(builder *strings.Builder, existingData string) error {
+	if existingData == "" {
+		return nil
+	}
+	if err := writeString(builder, existingData); err != nil {
+		return err
+	}
+	if strings.HasSuffix(existingData, "\n") {
+		return nil
+	}
+	return writeString(builder, "\n")
+}
+
+var writeString = func(builder *strings.Builder, value string) error {
+	_, err := builder.WriteString(value)
+	return err
+}
+
 func IsIgnored(matchRoot string, absolutePath string, patterns []string) bool {
 	relativePath, ok := pathRelativeToRoot(matchRoot, absolutePath)
 	if !ok {

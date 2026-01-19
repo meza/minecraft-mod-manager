@@ -23,7 +23,7 @@ cmd.compatibility.section
 ❌ Alpha (alpha) [modrinth] cmd.change.item.unsupported, Arg 1: {Count: 0, Data: &map[version:1.21.1]}
 
 ‼️ cmd.change.error.compatibility_failed, Arg 1: {Count: 0, Data: &map[version:1.21.1]}
-cmd.change.error.no_changes
+cmd.common.no_changes
 
 cmd.change.error.compatibility_hint, Arg 1: {Count: 0, Data: &map[version:1.21.1]}
 ---

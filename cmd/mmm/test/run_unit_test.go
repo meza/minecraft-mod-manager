@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"context"
 	"errors"
+	"os"
 	"testing"
 
 	tea "github.com/charmbracelet/bubbletea"
@@ -17,6 +18,7 @@ import (
 	"github.com/meza/minecraft-mod-manager/internal/config"
 	"github.com/meza/minecraft-mod-manager/internal/httpclient"
 	"github.com/meza/minecraft-mod-manager/internal/interaction"
+	"github.com/meza/minecraft-mod-manager/internal/locksync"
 	"github.com/meza/minecraft-mod-manager/internal/models"
 	"github.com/meza/minecraft-mod-manager/internal/output"
 	"github.com/meza/minecraft-mod-manager/internal/platform"
@@ -829,7 +831,7 @@ func TestEnsureTestConfigRunsInitWhenConfirmed(t *testing.T) {
 		},
 	}
 
-	state, err := ensureTestConfig(context.Background(), cmd, testOptions{}, deps, meta)
+	state, err := ensureTestConfig(context.Background(), cmd, testOptions{}, deps, meta, interaction.ExecutionModeInteractive)
 	require.NoError(t, err)
 	assert.True(t, state.shouldContinue)
 	assert.Equal(t, "1.20.1", state.cfg.GameVersion)
@@ -855,7 +857,7 @@ func TestEnsureTestConfigStopsWhenPromptCanceled(t *testing.T) {
 		},
 	}
 
-	state, err := ensureTestConfig(context.Background(), cmd, testOptions{}, deps, meta)
+	state, err := ensureTestConfig(context.Background(), cmd, testOptions{}, deps, meta, interaction.ExecutionModeInteractive)
 	require.NoError(t, err)
 	assert.False(t, state.shouldContinue)
 }
@@ -883,7 +885,7 @@ func TestEnsureTestConfigStopsWhenInitCanceled(t *testing.T) {
 		},
 	}
 
-	state, err := ensureTestConfig(context.Background(), cmd, testOptions{}, deps, meta)
+	state, err := ensureTestConfig(context.Background(), cmd, testOptions{}, deps, meta, interaction.ExecutionModeInteractive)
 	require.NoError(t, err)
 	assert.False(t, state.shouldContinue)
 }
@@ -898,7 +900,7 @@ func TestEnsureTestConfigReturnsPromptErrorWhenUnattended(t *testing.T) {
 	_, err := ensureTestConfig(context.Background(), cmd, testOptions{Unattended: true}, testDeps{
 		fs:     fs,
 		runTea: runTeaProgram,
-	}, meta)
+	}, meta, interaction.ExecutionModeUnattended)
 	assert.Error(t, err)
 }
 
@@ -912,7 +914,7 @@ func TestEnsureTestConfigReturnsOutputErrorOnPromptError(t *testing.T) {
 	_, err := ensureTestConfig(context.Background(), cmd, testOptions{Unattended: true}, testDeps{
 		fs:     fs,
 		runTea: runTeaProgram,
-	}, meta)
+	}, meta, interaction.ExecutionModeUnattended)
 	assert.Error(t, err)
 }
 
@@ -930,7 +932,7 @@ func TestEnsureTestConfigReturnsConfigWhenPresent(t *testing.T) {
 	cmd := &cobra.Command{}
 	cmd.SetOut(&bytes.Buffer{})
 
-	state, err := ensureTestConfig(context.Background(), cmd, testOptions{}, testDeps{fs: fs}, meta)
+	state, err := ensureTestConfig(context.Background(), cmd, testOptions{}, testDeps{fs: fs}, meta, interaction.ExecutionModeUnattended)
 	require.NoError(t, err)
 	assert.True(t, state.shouldContinue)
 	assert.Equal(t, "1.20.1", state.cfg.GameVersion)
@@ -955,7 +957,7 @@ func TestEnsureTestConfigReturnsRunInitError(t *testing.T) {
 		runInit: func(context.Context, *cobra.Command, initRequest) error {
 			return errors.New("boom")
 		},
-	}, meta)
+	}, meta, interaction.ExecutionModeInteractive)
 	assert.Error(t, err)
 }
 
@@ -978,7 +980,7 @@ func TestEnsureTestConfigReturnsReadErrorAfterInit(t *testing.T) {
 		runInit: func(context.Context, *cobra.Command, initRequest) error {
 			return nil
 		},
-	}, meta)
+	}, meta, interaction.ExecutionModeInteractive)
 	assert.Error(t, err)
 }
 
@@ -991,7 +993,7 @@ func TestEnsureTestConfigReturnsReadError(t *testing.T) {
 	cmd := &cobra.Command{}
 	cmd.SetOut(&bytes.Buffer{})
 
-	_, err := ensureTestConfig(context.Background(), cmd, testOptions{}, testDeps{fs: fs}, meta)
+	_, err := ensureTestConfig(context.Background(), cmd, testOptions{}, testDeps{fs: fs}, meta, interaction.ExecutionModeUnattended)
 	assert.Error(t, err)
 }
 
@@ -1023,7 +1025,7 @@ func TestEnsureTestConfigReturnsInitRunnerMissingError(t *testing.T) {
 		runTea: func(tea.Model, ...tea.ProgramOption) (tea.Model, error) {
 			return configInitModel{confirmed: true}, nil
 		},
-	}, meta)
+	}, meta, interaction.ExecutionModeInteractive)
 	assert.Error(t, err)
 }
 
@@ -1043,7 +1045,7 @@ func TestEnsureTestConfigStopsWhenPromptDeclined(t *testing.T) {
 		runTea: func(tea.Model, ...tea.ProgramOption) (tea.Model, error) {
 			return configInitModel{confirmed: false}, nil
 		},
-	}, meta)
+	}, meta, interaction.ExecutionModeInteractive)
 	require.NoError(t, err)
 	assert.False(t, state.shouldContinue)
 }
@@ -1065,7 +1067,7 @@ func TestEnsureTestConfigReturnsPromptError(t *testing.T) {
 		runTea: func(tea.Model, ...tea.ProgramOption) (tea.Model, error) {
 			return nil, runErr
 		},
-	}, meta)
+	}, meta, interaction.ExecutionModeInteractive)
 	assert.ErrorIs(t, err, runErr)
 }
 
@@ -1105,4 +1107,102 @@ func TestWriteConfigMissingOutputReturnsError(t *testing.T) {
 
 	err := writeConfigMissingOutput(cmd, testDeps{runTea: runTeaProgram}, config.NewMetadata("/cfg/modlist.json"))
 	assert.Error(t, err)
+}
+
+func TestRunTestLockSyncReturnsPolicyError(t *testing.T) {
+	fs := afero.NewMemMapFs()
+	meta := config.NewMetadata("/cfg/modlist.json")
+	cfg := models.ModsJSON{ModsFolder: "mods"}
+	lock := []models.ModInstall{{ID: "alpha", Type: models.MODRINTH, FileName: "alpha.jar"}}
+	require.NoError(t, fs.MkdirAll(meta.Dir(), 0o755))
+	require.NoError(t, config.WriteConfig(context.Background(), fs, meta, cfg))
+	require.NoError(t, config.WriteLock(context.Background(), fs, meta, lock))
+
+	cmd := &cobra.Command{}
+	cmd.SetOut(&bytes.Buffer{})
+
+	_, err := runTestLockSync(context.Background(), cmd, testOptions{
+		LockSync: locksync.PolicyFlags{Add: true, Delete: true},
+	}, testDeps{
+		fs:     fs,
+		runTea: runTeaProgram,
+	}, meta, interaction.ExecutionModeNonTTY, cfg)
+	assert.Error(t, err)
+}
+
+func TestRunTestLockSyncReturnsErrorOnLockEnsureFailure(t *testing.T) {
+	fs := afero.NewMemMapFs()
+	meta := config.NewMetadata("/cfg/modlist.json")
+	cfg := models.ModsJSON{ModsFolder: "mods"}
+	require.NoError(t, fs.MkdirAll(meta.Dir(), 0o755))
+
+	errFs := lockStatErrorFs{Fs: fs, failPath: meta.LockPath(), err: errors.New("stat failed")}
+
+	cmd := &cobra.Command{}
+	cmd.SetOut(&bytes.Buffer{})
+
+	_, err := runTestLockSync(context.Background(), cmd, testOptions{}, testDeps{
+		fs: errFs,
+	}, meta, interaction.ExecutionModeNonTTY, cfg)
+	assert.Error(t, err)
+	assert.Contains(t, err.Error(), "stat failed")
+}
+
+func TestRunTestLockSyncStopsOnPromptCancel(t *testing.T) {
+	fs := afero.NewMemMapFs()
+	meta := config.NewMetadata("/cfg/modlist.json")
+	cfg := models.ModsJSON{ModsFolder: "mods"}
+	lock := []models.ModInstall{{ID: "alpha", Type: models.MODRINTH, FileName: "alpha.jar"}}
+	require.NoError(t, fs.MkdirAll(meta.Dir(), 0o755))
+	require.NoError(t, config.WriteConfig(context.Background(), fs, meta, cfg))
+	require.NoError(t, config.WriteLock(context.Background(), fs, meta, lock))
+
+	cmd := &cobra.Command{}
+	cmd.SetIn(&bytes.Buffer{})
+	cmd.SetOut(&bytes.Buffer{})
+
+	state, err := runTestLockSync(context.Background(), cmd, testOptions{}, testDeps{
+		fs: fs,
+		runTea: func(model tea.Model, _ ...tea.ProgramOption) (tea.Model, error) {
+			updated, _ := model.Update(tea.KeyMsg{Type: tea.KeyEsc})
+			return updated, nil
+		},
+	}, meta, interaction.ExecutionModeInteractive, cfg)
+	require.NoError(t, err)
+	assert.False(t, state.shouldContinue)
+}
+
+func TestRunTestLockSyncReturnsConfigWhenNoExtras(t *testing.T) {
+	fs := afero.NewMemMapFs()
+	meta := config.NewMetadata("/cfg/modlist.json")
+	cfg := models.ModsJSON{
+		ModsFolder: "mods",
+		Mods:       []models.Mod{{ID: "alpha", Type: models.MODRINTH}},
+	}
+	lock := []models.ModInstall{{ID: "alpha", Type: models.MODRINTH, FileName: "alpha.jar"}}
+	require.NoError(t, fs.MkdirAll(meta.Dir(), 0o755))
+	require.NoError(t, config.WriteConfig(context.Background(), fs, meta, cfg))
+	require.NoError(t, config.WriteLock(context.Background(), fs, meta, lock))
+
+	cmd := &cobra.Command{}
+	cmd.SetOut(&bytes.Buffer{})
+
+	state, err := runTestLockSync(context.Background(), cmd, testOptions{}, testDeps{
+		fs: fs,
+	}, meta, interaction.ExecutionModeNonTTY, cfg)
+	require.NoError(t, err)
+	assert.True(t, state.shouldContinue)
+}
+
+type lockStatErrorFs struct {
+	afero.Fs
+	failPath string
+	err      error
+}
+
+func (fs lockStatErrorFs) Stat(name string) (os.FileInfo, error) {
+	if name == fs.failPath {
+		return nil, fs.err
+	}
+	return fs.Fs.Stat(name)
 }

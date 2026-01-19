@@ -7,6 +7,7 @@ import (
 	"github.com/meza/minecraft-mod-manager/internal/cmddeps"
 	"github.com/meza/minecraft-mod-manager/internal/i18n"
 	"github.com/meza/minecraft-mod-manager/internal/interaction"
+	"github.com/meza/minecraft-mod-manager/internal/locksync"
 	"github.com/meza/minecraft-mod-manager/internal/perf"
 	"github.com/meza/minecraft-mod-manager/internal/telemetry"
 	"github.com/spf13/cobra"
@@ -30,19 +31,25 @@ func commandWithRunner(runner installRunner) *cobra.Command {
 	return cmd
 }
 
+// RunOptions configures the install preflight used by other commands.
+type RunOptions struct {
+	ConfigPath   string
+	Unattended   bool
+	Quiet        bool
+	Debug        bool
+	LockSync     locksync.PolicyFlags
+	SkipLockSync bool
+}
+
 // Run executes the install consistency check without emitting install telemetry.
 // It is used by other commands (for example `update`) that need install semantics
 // as a prerequisite.
-func Run(ctx context.Context, cmd *cobra.Command, configPath string, quiet bool, debug bool) (Result, error) {
-	opts := installOptions{
-		ConfigPath: configPath,
-		Quiet:      quiet,
-		Debug:      debug,
-	}
+func Run(ctx context.Context, cmd *cobra.Command, options RunOptions) (Result, error) {
+	opts := installOptions(options)
 
 	common := cmddeps.NewCommonDeps(cmd, cmddeps.CommonDepsOptions{
-		Quiet: quiet,
-		Debug: debug,
+		Quiet: options.Quiet,
+		Debug: options.Debug,
 	})
 	return runInstall(ctx, cmd, opts, newInstallDeps(common, opts, func(telemetry.CommandTelemetry) {}))
 }
@@ -103,11 +110,16 @@ func installOptionsFromFlags(cmd *cobra.Command) (installOptions, error) {
 	if err != nil {
 		return installOptions{}, err
 	}
+	lockSync, err := locksync.PolicyFlagsFromFlags(cmd.Flags())
+	if err != nil {
+		return installOptions{}, err
+	}
 
 	return installOptions{
 		ConfigPath: configPath,
 		Unattended: unattended,
 		Quiet:      quiet,
 		Debug:      debug,
+		LockSync:   lockSync,
 	}, nil
 }

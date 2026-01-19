@@ -56,6 +56,7 @@ func TestIconsFallbackToAsciiWhenUnicodeUnsupported(t *testing.T) {
 	assert.Equal(t, "X", ErrorIcon(ColorDisabled))
 	assert.Equal(t, "!!", FinalErrorIcon(ColorDisabled))
 	assert.Equal(t, "[~]", PendingIcon(ColorDisabled))
+	assert.Equal(t, "?", QuestionIcon(ColorDisabled))
 	assert.Equal(t, "->", DownloadIcon(ColorDisabled))
 	assert.Equal(t, "+", PinnedIcon(ColorDisabled))
 }
@@ -65,6 +66,13 @@ func TestPendingIconUsesUnicodeWhenAvailable(t *testing.T) {
 	defer restore()
 
 	assert.Equal(t, QuestionStyle.Render("\u23F3"), PendingIcon(ColorEnabled))
+}
+
+func TestQuestionIconUsesUnicodeWhenAvailable(t *testing.T) {
+	restore := SetUnicodeSupportFuncForTesting(func() bool { return true })
+	defer restore()
+
+	assert.Equal(t, QuestionStyle.Render("\u2754"), QuestionIcon(ColorEnabled))
 }
 
 func TestDownloadIconUsesUnicodeWhenAvailable(t *testing.T) {

@@ -21,6 +21,7 @@ import (
 	"github.com/meza/minecraft-mod-manager/internal/config"
 	"github.com/meza/minecraft-mod-manager/internal/i18n"
 	"github.com/meza/minecraft-mod-manager/internal/interaction"
+	"github.com/meza/minecraft-mod-manager/internal/locksync"
 	"github.com/meza/minecraft-mod-manager/internal/logger"
 	"github.com/meza/minecraft-mod-manager/internal/models"
 	"github.com/meza/minecraft-mod-manager/internal/modfilename"
@@ -36,6 +37,7 @@ type removeOptions struct {
 	Debug      bool
 	Force      bool
 	Lookups    []string
+	LockSync   locksync.PolicyFlags
 }
 
 type initRequest struct {
@@ -134,6 +136,10 @@ func removeOptionsFromFlags(cmd *cobra.Command, args []string) (removeOptions, e
 	if err != nil {
 		return removeOptions{}, err
 	}
+	lockSync, err := locksync.PolicyFlagsFromFlags(cmd.Flags())
+	if err != nil {
+		return removeOptions{}, err
+	}
 
 	return removeOptions{
 		ConfigPath: configPath,
@@ -142,6 +148,7 @@ func removeOptionsFromFlags(cmd *cobra.Command, args []string) (removeOptions, e
 		Debug:      debug,
 		Force:      force,
 		Lookups:    args,
+		LockSync:   lockSync,
 	}, nil
 }
 
@@ -465,10 +472,11 @@ func prepareRemoveRunState(ctx context.Context, cmd *cobra.Command, opts removeO
 		shouldContinue: true,
 	}
 
-	state, err := loadRemoveConfigState(ctx, deps, runState.meta)
+	state, err := loadRemoveConfigState(ctx, cmd, opts, deps, runState)
 	if err == nil {
 		runState.cfg = state.cfg
 		runState.lock = state.lock
+		runState.shouldContinue = state.shouldContinue
 		return runState, nil
 	}
 
@@ -481,16 +489,39 @@ func prepareRemoveRunState(ctx context.Context, cmd *cobra.Command, opts removeO
 }
 
 type removeConfigState struct {
-	cfg  models.ModsJSON
-	lock []models.ModInstall
+	cfg            models.ModsJSON
+	lock           []models.ModInstall
+	shouldContinue bool
 }
 
-func loadRemoveConfigState(ctx context.Context, deps removeDeps, meta config.Metadata) (removeConfigState, error) {
-	cfg, lock, err := readRemoveConfig(ctx, deps, meta)
+func loadRemoveConfigState(ctx context.Context, cmd *cobra.Command, opts removeOptions, deps removeDeps, runState removeRunState) (removeConfigState, error) {
+	cfg, lock, err := readRemoveConfig(ctx, deps, runState.meta)
 	if err != nil {
 		return removeConfigState{}, err
 	}
-	return removeConfigState{cfg: cfg, lock: lock}, nil
+	syncOutcome, syncErr := locksync.RunLockSyncGate(locksync.GateInput{
+		Ctx:         ctx,
+		Fs:          deps.fs,
+		Meta:        runState.meta,
+		Config:      cfg,
+		Lock:        lock,
+		Mode:        runState.mode,
+		CommandName: cmd.Name(),
+		ColorMode:   colorModeForWriter(cmd),
+		In:          cmd.InOrStdin(),
+		Out:         cmd.OutOrStdout(),
+		RunTea:      deps.runTea,
+		PolicyFlags: opts.LockSync,
+		Force:       opts.Force,
+	})
+	if syncErr != nil {
+		return removeConfigState{}, syncErr
+	}
+	return removeConfigState{
+		cfg:            syncOutcome.Config,
+		lock:           syncOutcome.Lock,
+		shouldContinue: syncOutcome.ShouldContinue,
+	}, nil
 }
 
 func handleMissingRemoveConfig(
@@ -528,12 +559,13 @@ func handleMissingRemoveConfig(
 		return runState, runErr
 	}
 
-	state, err := loadRemoveConfigState(ctx, deps, runState.meta)
+	state, err := loadRemoveConfigState(ctx, cmd, opts, deps, runState)
 	if err != nil {
 		return runState, handleRemoveFailure(cmd, deps, err)
 	}
 	runState.cfg = state.cfg
 	runState.lock = state.lock
+	runState.shouldContinue = state.shouldContinue
 	return runState, nil
 }
 

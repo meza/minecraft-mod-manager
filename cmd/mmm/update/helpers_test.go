@@ -586,7 +586,7 @@ func TestEnsureInstallForUpdateReturnsOutputError(t *testing.T) {
 	cmd.SetOut(errorWriter{err: writeErr})
 
 	err := ensureInstallForUpdate(context.Background(), cmd, updateOptions{}, updateDeps{
-		install: func(context.Context, *cobra.Command, string, bool, bool) (install.Result, error) {
+		install: func(context.Context, *cobra.Command, install.RunOptions) (install.Result, error) {
 			return install.Result{UnmanagedFound: true}, nil
 		},
 	}, interaction.ExecutionModeNonTTY)
@@ -599,7 +599,7 @@ func TestEnsureInstallForUpdateReturnsHeaderWriteError(t *testing.T) {
 	cmd.SetOut(errorWriter{err: writeErr})
 
 	err := ensureInstallForUpdate(context.Background(), cmd, updateOptions{}, updateDeps{
-		install: func(context.Context, *cobra.Command, string, bool, bool) (install.Result, error) {
+		install: func(context.Context, *cobra.Command, install.RunOptions) (install.Result, error) {
 			_, outputErr := cmd.OutOrStdout().Write([]byte("install output\n"))
 			assert.ErrorIs(t, outputErr, writeErr)
 			return install.Result{}, nil
@@ -621,7 +621,7 @@ func TestEnsureInstallForUpdatePassesThroughInstallOutputOnFailure(t *testing.T)
 
 	installErr := errors.New("install failed")
 	err := ensureInstallForUpdate(context.Background(), cmd, updateOptions{}, updateDeps{
-		install: func(ctx context.Context, _ *cobra.Command, _ string, _ bool, _ bool) (install.Result, error) {
+		install: func(ctx context.Context, _ *cobra.Command, _ install.RunOptions) (install.Result, error) {
 			install.NotifyInstallViewObserver(ctx, "install output")
 			return install.Result{}, installErr
 		},
@@ -694,7 +694,7 @@ func TestRunUpdateSkipsInstallFailureViewOnCanceledInstall(t *testing.T) {
 	_, err := runUpdate(context.Background(), cmd, updateOptions{ConfigPath: meta.ConfigPath}, updateDeps{
 		fs:     fs,
 		logger: logger.New(io.Discard, io.Discard, false, false),
-		install: func(context.Context, *cobra.Command, string, bool, bool) (install.Result, error) {
+		install: func(context.Context, *cobra.Command, install.RunOptions) (install.Result, error) {
 			return install.Result{}, context.Canceled
 		},
 	})
@@ -719,7 +719,7 @@ func TestRunUpdateQuietSkipsInstallFailureViewOnCanceledInstall(t *testing.T) {
 	_, err := runUpdate(context.Background(), cmd, updateOptions{ConfigPath: meta.ConfigPath, Quiet: true}, updateDeps{
 		fs:     fs,
 		logger: logger.New(io.Discard, io.Discard, false, false),
-		install: func(context.Context, *cobra.Command, string, bool, bool) (install.Result, error) {
+		install: func(context.Context, *cobra.Command, install.RunOptions) (install.Result, error) {
 			return install.Result{}, context.Canceled
 		},
 	})
@@ -743,7 +743,7 @@ func TestRunUpdateReturnsOutputErrorWhenNoModsConfigured(t *testing.T) {
 	_, err := runUpdate(context.Background(), cmd, updateOptions{ConfigPath: meta.ConfigPath}, updateDeps{
 		fs:     fs,
 		logger: logger.New(io.Discard, io.Discard, false, false),
-		install: func(context.Context, *cobra.Command, string, bool, bool) (install.Result, error) {
+		install: func(context.Context, *cobra.Command, install.RunOptions) (install.Result, error) {
 			return install.Result{}, nil
 		},
 	})
@@ -770,7 +770,7 @@ func TestRunUpdateReturnsCanceledErrorOnCanceledContext(t *testing.T) {
 	_, err := runUpdate(ctx, cmd, updateOptions{ConfigPath: meta.ConfigPath}, updateDeps{
 		fs:     fs,
 		logger: logger.New(io.Discard, io.Discard, false, false),
-		install: func(context.Context, *cobra.Command, string, bool, bool) (install.Result, error) {
+		install: func(context.Context, *cobra.Command, install.RunOptions) (install.Result, error) {
 			return install.Result{}, nil
 		},
 	})
@@ -814,7 +814,7 @@ func TestRunUpdateReturnsErrorOnPersistFailure(t *testing.T) {
 		fs:     fs,
 		logger: logger.New(io.Discard, io.Discard, false, false),
 		output: output.New(io.Discard, io.Discard, false),
-		install: func(context.Context, *cobra.Command, string, bool, bool) (install.Result, error) {
+		install: func(context.Context, *cobra.Command, install.RunOptions) (install.Result, error) {
 			return install.Result{}, nil
 		},
 		fetchMod: func(context.Context, models.Platform, string, platform.FetchOptions, platform.Clients) (platform.RemoteMod, error) {

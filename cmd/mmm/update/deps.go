@@ -22,8 +22,8 @@ func newUpdateDeps(common cmddeps.CommonDeps, command *cobra.Command, opts updat
 		clients:    common.Clients,
 		fetchMod:   platform.FetchMod,
 		downloader: httpclient.DownloadFile,
-		install: func(ctx context.Context, _ *cobra.Command, configPath string, quiet bool, debug bool) (install.Result, error) {
-			return install.Run(ctx, command, configPath, quiet, debug)
+		install: func(ctx context.Context, _ *cobra.Command, options install.RunOptions) (install.Result, error) {
+			return install.Run(ctx, command, options)
 		},
 		telemetry: telemetry.RecordCommand,
 		runTea:    runTeaProgram,

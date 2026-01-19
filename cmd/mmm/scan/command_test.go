@@ -14,6 +14,7 @@ import (
 
 	"github.com/meza/minecraft-mod-manager/internal/clierrors"
 	"github.com/meza/minecraft-mod-manager/internal/config"
+	"github.com/meza/minecraft-mod-manager/internal/locksync"
 	"github.com/meza/minecraft-mod-manager/internal/models"
 )
 
@@ -70,6 +71,20 @@ func TestCommandMissingPreferFlagErrors(t *testing.T) {
 	setCommandOutputForTesting(cmd)
 
 	assert.Error(t, runE(cmd, []string{}))
+}
+
+func TestScanOptionsFromFlagsReturnsLockSyncFlagError(t *testing.T) {
+	cmd := &cobra.Command{}
+	cmd.Flags().String("config", "./modlist.json", "")
+	cmd.Flags().Bool("unattended", false, "")
+	cmd.Flags().Bool("quiet", false, "")
+	cmd.Flags().Bool("debug", false, "")
+	cmd.Flags().Bool("add", false, "")
+	cmd.Flags().String("prefer", "modrinth", "")
+	cmd.Flags().String(locksync.FlagAdd, "", "")
+
+	_, err := scanOptionsFromFlags(cmd)
+	assert.Error(t, err)
 }
 
 func TestCommandMissingAddFlagErrors(t *testing.T) {

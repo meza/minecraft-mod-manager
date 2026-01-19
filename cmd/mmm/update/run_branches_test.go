@@ -65,7 +65,7 @@ func TestRunUpdateQuietNoFailures(t *testing.T) {
 		fs:     fs,
 		logger: logger.New(io.Discard, io.Discard, false, false),
 		output: output.New(io.Discard, io.Discard, false),
-		install: func(context.Context, *cobra.Command, string, bool, bool) (install.Result, error) {
+		install: func(context.Context, *cobra.Command, install.RunOptions) (install.Result, error) {
 			return install.Result{}, nil
 		},
 		fetchMod: func(context.Context, models.Platform, string, platform.FetchOptions, platform.Clients) (platform.RemoteMod, error) {
@@ -109,7 +109,7 @@ func TestRunUpdateQuietWithFailure(t *testing.T) {
 		fs:     fs,
 		logger: logger.New(io.Discard, io.Discard, false, false),
 		output: output.New(io.Discard, io.Discard, false),
-		install: func(context.Context, *cobra.Command, string, bool, bool) (install.Result, error) {
+		install: func(context.Context, *cobra.Command, install.RunOptions) (install.Result, error) {
 			return install.Result{}, nil
 		},
 		fetchMod: func(context.Context, models.Platform, string, platform.FetchOptions, platform.Clients) (platform.RemoteMod, error) {
@@ -138,7 +138,7 @@ func TestRunUpdateNoModsConfiguredSuccess(t *testing.T) {
 	_, err := runUpdate(context.Background(), cmd, updateOptions{ConfigPath: meta.ConfigPath}, updateDeps{
 		fs:     fs,
 		logger: logger.New(io.Discard, io.Discard, false, false),
-		install: func(context.Context, *cobra.Command, string, bool, bool) (install.Result, error) {
+		install: func(context.Context, *cobra.Command, install.RunOptions) (install.Result, error) {
 			t.Fatal("install should not run when no mods are configured")
 			return install.Result{}, nil
 		},
@@ -164,13 +164,36 @@ func TestRunUpdateQuietNoModsConfiguredIsSilent(t *testing.T) {
 	_, err := runUpdate(context.Background(), cmd, updateOptions{ConfigPath: meta.ConfigPath, Quiet: true}, updateDeps{
 		fs:     fs,
 		logger: logger.New(io.Discard, io.Discard, false, false),
-		install: func(context.Context, *cobra.Command, string, bool, bool) (install.Result, error) {
+		install: func(context.Context, *cobra.Command, install.RunOptions) (install.Result, error) {
 			t.Fatal("install should not run when no mods are configured")
 			return install.Result{}, nil
 		},
 	})
 	assert.NoError(t, err)
 	assert.Empty(t, out.String())
+}
+
+func TestRunUpdateStopsWhenInitCanceled(t *testing.T) {
+	restoreTerminal := view.SetIsTerminalFuncForTesting(func(_ int) bool { return true })
+	t.Cleanup(restoreTerminal)
+
+	fs := afero.NewMemMapFs()
+	meta := config.NewMetadata(filepath.FromSlash("/cfg/modlist.json"))
+	cmd := &cobra.Command{}
+	cmd.SetIn(terminalReader{Reader: bytes.NewBuffer(nil)})
+	cmd.SetOut(&terminalWriter{})
+
+	counts, err := runUpdate(context.Background(), cmd, updateOptions{ConfigPath: meta.ConfigPath}, updateDeps{
+		fs: fs,
+		runTea: func(model tea.Model, _ ...tea.ProgramOption) (tea.Model, error) {
+			return configInitModel{confirmed: true}, nil
+		},
+		runInit: func(context.Context, *cobra.Command, initRequest) error {
+			return initCmd.ErrInitCanceled
+		},
+	})
+	assert.NoError(t, err)
+	assert.Equal(t, updateCounts{}, counts)
 }
 
 func TestRunUpdateTranscriptErrorPropagation(t *testing.T) {
@@ -196,7 +219,7 @@ func TestRunUpdateTranscriptErrorPropagation(t *testing.T) {
 	_, err := runUpdate(context.Background(), cmd, updateOptions{ConfigPath: meta.ConfigPath}, updateDeps{
 		fs:     fs,
 		logger: logger.New(io.Discard, io.Discard, false, false),
-		install: func(context.Context, *cobra.Command, string, bool, bool) (install.Result, error) {
+		install: func(context.Context, *cobra.Command, install.RunOptions) (install.Result, error) {
 			return install.Result{}, nil
 		},
 	})
@@ -227,7 +250,7 @@ func TestRunUpdateUsesInteractiveModeWhenPromptingSupported(t *testing.T) {
 	_, err := runUpdate(context.Background(), cmd, updateOptions{ConfigPath: meta.ConfigPath}, updateDeps{
 		fs:     fs,
 		logger: logger.New(io.Discard, io.Discard, false, false),
-		install: func(context.Context, *cobra.Command, string, bool, bool) (install.Result, error) {
+		install: func(context.Context, *cobra.Command, install.RunOptions) (install.Result, error) {
 			return install.Result{}, nil
 		},
 		fetchMod: func(context.Context, models.Platform, string, platform.FetchOptions, platform.Clients) (platform.RemoteMod, error) {
@@ -245,7 +268,7 @@ func TestEnsureInstallForUpdateHandlesUnmanagedFiles(t *testing.T) {
 	cmd.SetOut(out)
 
 	err := ensureInstallForUpdate(context.Background(), cmd, updateOptions{}, updateDeps{
-		install: func(context.Context, *cobra.Command, string, bool, bool) (install.Result, error) {
+		install: func(context.Context, *cobra.Command, install.RunOptions) (install.Result, error) {
 			_, writeErr := cmd.OutOrStdout().Write([]byte("install output\n"))
 			require.NoError(t, writeErr)
 			return install.Result{UnmanagedFound: true}, nil
@@ -262,7 +285,7 @@ func TestEnsureInstallForUpdateReturnsOutputErrorOnInstallFailure(t *testing.T) 
 	cmd.SetOut(errorWriter{err: installErr})
 
 	err := ensureInstallForUpdate(context.Background(), cmd, updateOptions{}, updateDeps{
-		install: func(context.Context, *cobra.Command, string, bool, bool) (install.Result, error) {
+		install: func(context.Context, *cobra.Command, install.RunOptions) (install.Result, error) {
 			return install.Result{}, installErr
 		},
 	}, interaction.ExecutionModeNonTTY)
@@ -288,7 +311,7 @@ func TestRunUpdateInstallFailureOutputsInstallAndUpdateErrorsNonTTY(t *testing.T
 	_, err := runUpdate(context.Background(), cmd, updateOptions{ConfigPath: meta.ConfigPath}, updateDeps{
 		fs:     fs,
 		logger: logger.New(io.Discard, io.Discard, false, false),
-		install: func(context.Context, *cobra.Command, string, bool, bool) (install.Result, error) {
+		install: func(context.Context, *cobra.Command, install.RunOptions) (install.Result, error) {
 			_, writeErr := cmd.OutOrStdout().Write([]byte("install failed output\n"))
 			require.NoError(t, writeErr)
 			return install.Result{}, errors.New("install failed")
@@ -324,7 +347,7 @@ func TestRunUpdateInstallFailureOutputsInstallAndUpdateErrorsTTY(t *testing.T) {
 	_, err := runUpdate(context.Background(), cmd, updateOptions{ConfigPath: meta.ConfigPath}, updateDeps{
 		fs:     fs,
 		logger: logger.New(io.Discard, io.Discard, false, false),
-		install: func(context.Context, *cobra.Command, string, bool, bool) (install.Result, error) {
+		install: func(context.Context, *cobra.Command, install.RunOptions) (install.Result, error) {
 			_, writeErr := cmd.OutOrStdout().Write([]byte("install failed output\n"))
 			require.NoError(t, writeErr)
 			return install.Result{}, errors.New("install failed")
@@ -351,7 +374,7 @@ func TestRunUpdateReturnsConfigReadError(t *testing.T) {
 	_, err := runUpdate(context.Background(), cmd, updateOptions{ConfigPath: meta.ConfigPath}, updateDeps{
 		fs:     fs,
 		logger: logger.New(io.Discard, io.Discard, false, false),
-		install: func(context.Context, *cobra.Command, string, bool, bool) (install.Result, error) {
+		install: func(context.Context, *cobra.Command, install.RunOptions) (install.Result, error) {
 			return install.Result{}, nil
 		},
 	})
@@ -373,7 +396,7 @@ func TestRunUpdateMissingConfigNonTTYOutputsConfigMissing(t *testing.T) {
 
 	_, err := runUpdate(context.Background(), cmd, updateOptions{ConfigPath: "missing.json"}, updateDeps{
 		fs: fs,
-		install: func(context.Context, *cobra.Command, string, bool, bool) (install.Result, error) {
+		install: func(context.Context, *cobra.Command, install.RunOptions) (install.Result, error) {
 			t.Fatal("install should not run when config is missing")
 			return install.Result{}, nil
 		},
@@ -412,7 +435,7 @@ func TestRunUpdateMissingConfigInteractiveRunsInitAndContinues(t *testing.T) {
 			}
 			return config.WriteConfig(ctx, fs, config.NewMetadata(request.ConfigPath), cfg)
 		},
-		install: func(context.Context, *cobra.Command, string, bool, bool) (install.Result, error) {
+		install: func(context.Context, *cobra.Command, install.RunOptions) (install.Result, error) {
 			t.Fatal("install should not run when no mods are configured")
 			return install.Result{}, nil
 		},
@@ -439,7 +462,7 @@ func TestRunUpdateStopsWhenConfigInitDeclined(t *testing.T) {
 		runTea: func(model tea.Model, _ ...tea.ProgramOption) (tea.Model, error) {
 			return configInitModel{confirmed: false, canceled: false}, nil
 		},
-		install: func(context.Context, *cobra.Command, string, bool, bool) (install.Result, error) {
+		install: func(context.Context, *cobra.Command, install.RunOptions) (install.Result, error) {
 			t.Fatal("install should not run when config init is declined")
 			return install.Result{}, nil
 		},
@@ -471,7 +494,7 @@ func TestRunUpdateMissingConfigUnattendedSkipsPrompt(t *testing.T) {
 			t.Fatal("init should not run in unattended mode")
 			return nil
 		},
-		install: func(context.Context, *cobra.Command, string, bool, bool) (install.Result, error) {
+		install: func(context.Context, *cobra.Command, install.RunOptions) (install.Result, error) {
 			t.Fatal("install should not run when config is missing")
 			return install.Result{}, nil
 		},

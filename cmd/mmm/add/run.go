@@ -12,6 +12,7 @@ import (
 	"github.com/meza/minecraft-mod-manager/internal/httpclient"
 	"github.com/meza/minecraft-mod-manager/internal/i18n"
 	"github.com/meza/minecraft-mod-manager/internal/interaction"
+	"github.com/meza/minecraft-mod-manager/internal/locksync"
 	"github.com/meza/minecraft-mod-manager/internal/models"
 	"github.com/meza/minecraft-mod-manager/internal/modinstall"
 	"github.com/meza/minecraft-mod-manager/internal/modsetup"
@@ -271,7 +272,7 @@ func prepareAddRunState(ctx context.Context, cmd *cobra.Command, opts addOptions
 }
 
 func ensureAddConfig(ctx context.Context, cmd *cobra.Command, opts addOptions, deps addDeps, runState addRunState) (addConfigState, error) {
-	configState, err := loadAddConfig(ctx, deps, runState.meta)
+	configState, err := loadAddConfig(ctx, cmd, opts, deps, runState)
 	if err == nil {
 		return configState, nil
 	}
@@ -284,18 +285,38 @@ func ensureAddConfig(ctx context.Context, cmd *cobra.Command, opts addOptions, d
 	return handleMissingAddConfig(ctx, cmd, opts, deps, runState)
 }
 
-func loadAddConfig(ctx context.Context, deps addDeps, meta config.Metadata) (addConfigState, error) {
-	cfg, err := config.ReadConfig(ctx, deps.fs, meta)
+func loadAddConfig(ctx context.Context, cmd *cobra.Command, opts addOptions, deps addDeps, runState addRunState) (addConfigState, error) {
+	cfg, err := config.ReadConfig(ctx, deps.fs, runState.meta)
 	if err != nil {
 		return addConfigState{}, err
 	}
-	lock, lockErr := config.EnsureLock(ctx, deps.fs, meta)
+	lock, lockErr := config.EnsureLock(ctx, deps.fs, runState.meta)
 	if lockErr != nil {
 		return addConfigState{}, lockErr
 	}
+	syncOutcome, syncErr := locksync.RunLockSyncGate(locksync.GateInput{
+		Ctx:         ctx,
+		Fs:          deps.fs,
+		Meta:        runState.meta,
+		Config:      cfg,
+		Lock:        lock,
+		Mode:        runState.mode,
+		CommandName: cmd.Name(),
+		ColorMode:   colorModeForOutput(cmd.OutOrStdout()),
+		In:          cmd.InOrStdin(),
+		Out:         cmd.OutOrStdout(),
+		RunTea:      deps.runTea,
+		PolicyFlags: opts.LockSync,
+	})
+	if syncErr != nil {
+		return addConfigState{}, syncErr
+	}
+	if !syncOutcome.ShouldContinue {
+		return addConfigState{shouldContinue: false}, nil
+	}
 	return addConfigState{
-		cfg:            cfg,
-		lock:           lock,
+		cfg:            syncOutcome.Config,
+		lock:           syncOutcome.Lock,
 		shouldContinue: true,
 	}, nil
 }
@@ -324,7 +345,7 @@ func handleMissingAddConfig(ctx context.Context, cmd *cobra.Command, opts addOpt
 		return addConfigState{}, initErr
 	}
 
-	configState, err := loadAddConfig(ctx, deps, runState.meta)
+	configState, err := loadAddConfig(ctx, cmd, opts, deps, runState)
 	if err != nil {
 		return addConfigState{}, handleAddFailure(cmd, deps, err)
 	}

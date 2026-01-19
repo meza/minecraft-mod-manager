@@ -20,6 +20,7 @@ import (
 	"github.com/meza/minecraft-mod-manager/internal/config"
 	"github.com/meza/minecraft-mod-manager/internal/i18n"
 	"github.com/meza/minecraft-mod-manager/internal/interaction"
+	"github.com/meza/minecraft-mod-manager/internal/locksync"
 	"github.com/meza/minecraft-mod-manager/internal/logger"
 	"github.com/meza/minecraft-mod-manager/internal/mmmignore"
 	"github.com/meza/minecraft-mod-manager/internal/models"
@@ -35,6 +36,7 @@ type pruneOptions struct {
 	Quiet      bool
 	Debug      bool
 	Force      bool
+	LockSync   locksync.PolicyFlags
 }
 
 type initRequest struct {
@@ -126,6 +128,10 @@ func pruneOptionsFromFlags(cmd *cobra.Command) (pruneOptions, error) {
 	if err != nil {
 		return pruneOptions{}, err
 	}
+	lockSync, err := locksync.PolicyFlagsFromFlags(cmd.Flags())
+	if err != nil {
+		return pruneOptions{}, err
+	}
 
 	return pruneOptions{
 		ConfigPath: configPath,
@@ -133,6 +139,7 @@ func pruneOptionsFromFlags(cmd *cobra.Command) (pruneOptions, error) {
 		Quiet:      quiet,
 		Debug:      debug,
 		Force:      force,
+		LockSync:   lockSync,
 	}, nil
 }
 
@@ -363,18 +370,79 @@ func ensurePruneConfig(
 ) (pruneConfigState, error) {
 	cfg, err := config.ReadConfig(ctx, deps.fs, meta)
 	if err == nil {
-		lock, lockErr := readLockRequired(ctx, deps.fs, meta)
-		if lockErr != nil {
-			return pruneConfigState{}, handleLockReadError(cmd, deps, lockErr)
-		}
-		return pruneConfigState{Config: cfg, Lock: lock, ShouldContinue: true}, nil
+		return runPruneLockSync(ctx, cmd, options, deps, meta, cfg)
 	}
 
+	return handlePruneConfigReadError(ctx, cmd, options, deps, meta, err)
+}
+
+func runPruneLockSync(
+	ctx context.Context,
+	cmd *cobra.Command,
+	options pruneOptions,
+	deps pruneDeps,
+	meta config.Metadata,
+	cfg models.ModsJSON,
+) (pruneConfigState, error) {
+	lock, lockErr := readLockRequired(ctx, deps.fs, meta)
+	if lockErr != nil {
+		return pruneConfigState{}, handleLockReadError(cmd, deps, lockErr)
+	}
+	syncOutcome, syncErr := locksync.RunLockSyncGate(locksync.GateInput{
+		Ctx:         ctx,
+		Fs:          deps.fs,
+		Meta:        meta,
+		Config:      cfg,
+		Lock:        lock,
+		Mode:        resolvePruneMode(cmd, options),
+		CommandName: cmd.Name(),
+		ColorMode:   colorModeForWriter(cmd),
+		In:          cmd.InOrStdin(),
+		Out:         cmd.OutOrStdout(),
+		RunTea:      deps.runTea,
+		PolicyFlags: options.LockSync,
+		Force:       options.Force,
+	})
+	if syncErr != nil {
+		return pruneConfigState{}, handlePruneFailure(cmd, deps, syncErr)
+	}
+	if !syncOutcome.ShouldContinue {
+		return pruneConfigState{ShouldContinue: false}, nil
+	}
+	return pruneConfigState{Config: syncOutcome.Config, Lock: syncOutcome.Lock, ShouldContinue: true}, nil
+}
+
+func resolvePruneMode(cmd *cobra.Command, options pruneOptions) interaction.ExecutionMode {
+	return interaction.ResolveExecutionMode(interaction.ExecutionModeInput{
+		Unattended: options.Unattended,
+		In:         cmd.InOrStdin(),
+		Out:        cmd.OutOrStdout(),
+	})
+}
+
+func handlePruneConfigReadError(
+	ctx context.Context,
+	cmd *cobra.Command,
+	options pruneOptions,
+	deps pruneDeps,
+	meta config.Metadata,
+	err error,
+) (pruneConfigState, error) {
 	var notFound *config.ConfigFileNotFoundException
 	if !errors.As(err, &notFound) {
 		return pruneConfigState{}, handlePruneFailure(cmd, deps, err)
 	}
 
+	return handlePruneConfigMissing(ctx, cmd, options, deps, meta)
+}
+
+func handlePruneConfigMissing(
+	ctx context.Context,
+	cmd *cobra.Command,
+	options pruneOptions,
+	deps pruneDeps,
+	meta config.Metadata,
+) (pruneConfigState, error) {
 	promptErr := configMissingPromptError(options, cmd, meta)
 	if promptErr != nil {
 		if outputErr := writeConfigMissingOutput(cmd, deps, meta); outputErr != nil {
@@ -401,16 +469,11 @@ func ensurePruneConfig(
 		return pruneConfigState{}, runErr
 	}
 
-	cfg, err = config.ReadConfig(ctx, deps.fs, meta)
+	cfg, err := config.ReadConfig(ctx, deps.fs, meta)
 	if err != nil {
 		return pruneConfigState{}, handlePruneFailure(cmd, deps, err)
 	}
-	lock, lockErr := readLockRequired(ctx, deps.fs, meta)
-	if lockErr != nil {
-		return pruneConfigState{}, handleLockReadError(cmd, deps, lockErr)
-	}
-
-	return pruneConfigState{Config: cfg, Lock: lock, ShouldContinue: true}, nil
+	return runPruneLockSync(ctx, cmd, options, deps, meta, cfg)
 }
 
 func configMissingPromptError(options pruneOptions, cmd *cobra.Command, meta config.Metadata) error {

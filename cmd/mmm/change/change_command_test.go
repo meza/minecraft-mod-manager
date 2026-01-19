@@ -14,6 +14,7 @@ import (
 	"github.com/meza/minecraft-mod-manager/internal/clierrors"
 	"github.com/meza/minecraft-mod-manager/internal/cmddeps"
 	"github.com/meza/minecraft-mod-manager/internal/interaction"
+	"github.com/meza/minecraft-mod-manager/internal/locksync"
 	"github.com/meza/minecraft-mod-manager/internal/models"
 	"github.com/meza/minecraft-mod-manager/internal/telemetry"
 	"github.com/meza/minecraft-mod-manager/internal/view"
@@ -29,6 +30,7 @@ func TestChangeOptionsFromFlags(t *testing.T) {
 	cmd.Flags().Bool("keep-config", false, "")
 	cmd.Flags().Bool("prune-config", false, "")
 	cmd.Flags().Bool("disable-skipped", false, "")
+	locksync.RegisterPolicyFlags(cmd.Flags())
 
 	assert.NoError(t, cmd.Flags().Set("config", "/custom/modlist.json"))
 	assert.NoError(t, cmd.Flags().Set("unattended", "true"))
@@ -144,6 +146,7 @@ func TestChangeOptionsFromFlagsErrors(t *testing.T) {
 		t.Run(testCase.name, func(t *testing.T) {
 			cmd := &cobra.Command{}
 			testCase.flags(cmd)
+			locksync.RegisterPolicyFlags(cmd.Flags())
 			_, err := changeOptionsFromFlags(cmd, nil)
 			assert.Error(t, err)
 		})
@@ -160,6 +163,7 @@ func TestChangeOptionsFromFlagsRejectsMultipleForcePolicies(t *testing.T) {
 	cmd.Flags().Bool("keep-config", false, "")
 	cmd.Flags().Bool("prune-config", false, "")
 	cmd.Flags().Bool("disable-skipped", false, "")
+	locksync.RegisterPolicyFlags(cmd.Flags())
 
 	assert.NoError(t, cmd.Flags().Set("force", "true"))
 	assert.NoError(t, cmd.Flags().Set("keep-config", "true"))
@@ -181,6 +185,7 @@ func TestChangeOptionsFromFlagsRejectsPolicyWithoutForce(t *testing.T) {
 	cmd.Flags().Bool("keep-config", false, "")
 	cmd.Flags().Bool("prune-config", false, "")
 	cmd.Flags().Bool("disable-skipped", false, "")
+	locksync.RegisterPolicyFlags(cmd.Flags())
 
 	assert.NoError(t, cmd.Flags().Set("prune-config", "true"))
 
@@ -188,6 +193,22 @@ func TestChangeOptionsFromFlagsRejectsPolicyWithoutForce(t *testing.T) {
 	var policyErr changePolicyFlagError
 	assert.ErrorAs(t, err, &policyErr)
 	assert.Equal(t, changePolicyFlagErrorRequiresForce, policyErr.kind)
+}
+
+func TestChangeOptionsFromFlagsReturnsLockSyncFlagError(t *testing.T) {
+	cmd := &cobra.Command{}
+	cmd.Flags().String("config", "./modlist.json", "")
+	cmd.Flags().Bool("unattended", false, "")
+	cmd.Flags().Bool("quiet", false, "")
+	cmd.Flags().Bool("debug", false, "")
+	cmd.Flags().Bool("force", false, "")
+	cmd.Flags().Bool("keep-config", false, "")
+	cmd.Flags().Bool("prune-config", false, "")
+	cmd.Flags().Bool("disable-skipped", false, "")
+	cmd.Flags().String(locksync.FlagAdd, "", "")
+
+	_, err := changeOptionsFromFlags(cmd, []string{"1.21.1"})
+	assert.Error(t, err)
 }
 
 func TestApplyChangeCommandErrorPolicy(t *testing.T) {

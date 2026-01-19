@@ -13,6 +13,7 @@ import (
 	"github.com/stretchr/testify/require"
 
 	"github.com/meza/minecraft-mod-manager/internal/config"
+	"github.com/meza/minecraft-mod-manager/internal/locksync"
 	"github.com/meza/minecraft-mod-manager/internal/models"
 )
 
@@ -145,6 +146,18 @@ func TestCommandMissingLockDoesNotPrintUsage(t *testing.T) {
 	assert.Empty(t, errOut.String())
 	assert.NotContains(t, errOut.String(), "Usage:")
 	assert.NotContains(t, errOut.String(), "Error:")
+}
+
+func TestListOptionsFromFlagsReturnsLockSyncFlagError(t *testing.T) {
+	cmd := &cobra.Command{}
+	cmd.Flags().String("config", "./modlist.json", "")
+	cmd.Flags().Bool("unattended", false, "")
+	cmd.Flags().Bool("quiet", false, "")
+	cmd.Flags().Bool("debug", false, "")
+	cmd.Flags().String(locksync.FlagAdd, "", "")
+
+	_, err := listOptionsFromFlags(cmd)
+	assert.Error(t, err)
 }
 
 func addPersistentFlagsForTesting(cmd *cobra.Command) {

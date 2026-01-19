@@ -7,6 +7,7 @@ import (
 	"encoding/hex"
 	"errors"
 	"hash"
+	"io"
 	"net/http"
 	"path/filepath"
 	"strings"
@@ -18,12 +19,14 @@ import (
 	"github.com/spf13/afero"
 	"github.com/spf13/cobra"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 
 	initCmd "github.com/meza/minecraft-mod-manager/cmd/mmm/init"
 	"github.com/meza/minecraft-mod-manager/internal/clierrors"
 	"github.com/meza/minecraft-mod-manager/internal/config"
 	"github.com/meza/minecraft-mod-manager/internal/curseforge"
 	"github.com/meza/minecraft-mod-manager/internal/httpclient"
+	"github.com/meza/minecraft-mod-manager/internal/locksync"
 	"github.com/meza/minecraft-mod-manager/internal/logger"
 	"github.com/meza/minecraft-mod-manager/internal/models"
 	"github.com/meza/minecraft-mod-manager/internal/modrinth"
@@ -1429,6 +1432,54 @@ func TestRunScan_AllManagedReturnsEarly(t *testing.T) {
 
 	assert.NoError(t, err)
 	assert.Contains(t, out.String(), "cmd.scan.all_managed")
+}
+
+func TestRunScanLockSyncReturnsPolicyError(t *testing.T) {
+	fs := afero.NewMemMapFs()
+	meta := config.NewMetadata(filepath.FromSlash("/cfg/modlist.json"))
+	cfg := models.ModsJSON{ModsFolder: "mods"}
+	lock := []models.ModInstall{{ID: "alpha", Type: models.MODRINTH, FileName: "alpha.jar"}}
+	require.NoError(t, fs.MkdirAll(meta.Dir(), 0o755))
+	require.NoError(t, config.WriteConfig(context.Background(), fs, meta, cfg))
+	require.NoError(t, config.WriteLock(context.Background(), fs, meta, lock))
+
+	cmd := &cobra.Command{}
+	cmd.SetOut(io.Discard)
+
+	_, err := runScanLockSync(context.Background(), cmd, scanOptions{
+		LockSync: locksync.PolicyFlags{Add: true, Delete: true},
+	}, scanDeps{
+		fs:     fs,
+		runTea: runTeaProgram,
+	}, meta, cfg)
+	assert.Error(t, err)
+}
+
+func TestRunScanLockSyncStopsOnPromptCancel(t *testing.T) {
+	restore := view.SetIsTerminalFuncForTesting(func(int) bool { return true })
+	t.Cleanup(restore)
+
+	fs := afero.NewMemMapFs()
+	meta := config.NewMetadata(filepath.FromSlash("/cfg/modlist.json"))
+	cfg := models.ModsJSON{ModsFolder: "mods"}
+	lock := []models.ModInstall{{ID: "alpha", Type: models.MODRINTH, FileName: "alpha.jar"}}
+	require.NoError(t, fs.MkdirAll(meta.Dir(), 0o755))
+	require.NoError(t, config.WriteConfig(context.Background(), fs, meta, cfg))
+	require.NoError(t, config.WriteLock(context.Background(), fs, meta, lock))
+
+	cmd := &cobra.Command{}
+	cmd.SetIn(fakeTTY{Buffer: bytes.NewBuffer(nil)})
+	cmd.SetOut(fakeTTY{Buffer: bytes.NewBuffer(nil)})
+
+	state, err := runScanLockSync(context.Background(), cmd, scanOptions{}, scanDeps{
+		fs: fs,
+		runTea: func(model tea.Model, _ ...tea.ProgramOption) (tea.Model, error) {
+			updated, _ := model.Update(tea.KeyMsg{Type: tea.KeyEsc})
+			return updated, nil
+		},
+	}, meta, cfg)
+	require.NoError(t, err)
+	assert.False(t, state.ShouldContinue)
 }
 
 func TestRunScan_ReturnsErrorOnEnsureConfigFailure(t *testing.T) {

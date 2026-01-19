@@ -7,6 +7,7 @@ import (
 	"github.com/meza/minecraft-mod-manager/internal/config"
 	"github.com/meza/minecraft-mod-manager/internal/curseforge"
 	"github.com/meza/minecraft-mod-manager/internal/httpclient"
+	"github.com/meza/minecraft-mod-manager/internal/locksync"
 	"github.com/meza/minecraft-mod-manager/internal/logger"
 	"github.com/meza/minecraft-mod-manager/internal/models"
 	"github.com/meza/minecraft-mod-manager/internal/modrinth"
@@ -40,10 +41,12 @@ type fetcher func(context.Context, models.Platform, string, platform.FetchOption
 type downloader func(context.Context, string, string, httpclient.Doer, httpclient.Sender, ...afero.Fs) error
 
 type installOptions struct {
-	ConfigPath string
-	Unattended bool
-	Quiet      bool
-	Debug      bool
+	ConfigPath   string
+	Unattended   bool
+	Quiet        bool
+	Debug        bool
+	LockSync     locksync.PolicyFlags
+	SkipLockSync bool
 }
 
 type Result struct {

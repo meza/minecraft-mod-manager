@@ -11,6 +11,7 @@ import (
 	"github.com/meza/minecraft-mod-manager/internal/config"
 	"github.com/meza/minecraft-mod-manager/internal/i18n"
 	"github.com/meza/minecraft-mod-manager/internal/interaction"
+	"github.com/meza/minecraft-mod-manager/internal/locksync"
 	"github.com/meza/minecraft-mod-manager/internal/models"
 	"github.com/meza/minecraft-mod-manager/internal/view"
 	"github.com/spf13/cobra"
@@ -35,7 +36,7 @@ func runTest(ctx context.Context, cmd *cobra.Command, opts testOptions, deps tes
 	})
 
 	meta := config.NewMetadata(opts.ConfigPath)
-	configState, err := ensureTestConfig(ctx, cmd, opts, deps, meta)
+	configState, err := ensureTestConfig(ctx, cmd, opts, deps, meta, mode)
 	if err != nil {
 		return Result{ExitCode: 1, Interactive: mode.IsInteractive()}, err
 	}
@@ -261,17 +262,77 @@ func ensureTestConfig(
 	opts testOptions,
 	deps testDeps,
 	meta config.Metadata,
+	mode interaction.ExecutionMode,
 ) (testConfigState, error) {
 	cfg, err := config.ReadConfig(ctx, deps.fs, meta)
 	if err == nil {
-		return testConfigState{cfg: cfg, shouldContinue: true}, nil
+		return runTestLockSync(ctx, cmd, opts, deps, meta, mode, cfg)
 	}
 
+	return handleTestConfigReadError(ctx, cmd, opts, deps, meta, mode, err)
+}
+
+func runTestLockSync(
+	ctx context.Context,
+	cmd *cobra.Command,
+	opts testOptions,
+	deps testDeps,
+	meta config.Metadata,
+	mode interaction.ExecutionMode,
+	cfg models.ModsJSON,
+) (testConfigState, error) {
+	lock, lockErr := config.EnsureLock(ctx, deps.fs, meta)
+	if lockErr != nil {
+		return testConfigState{}, lockErr
+	}
+	syncOutcome, syncErr := locksync.RunLockSyncGate(locksync.GateInput{
+		Ctx:         ctx,
+		Fs:          deps.fs,
+		Meta:        meta,
+		Config:      cfg,
+		Lock:        lock,
+		Mode:        mode,
+		CommandName: cmd.Name(),
+		ColorMode:   colorModeForOutput(cmd.OutOrStdout()),
+		In:          cmd.InOrStdin(),
+		Out:         cmd.OutOrStdout(),
+		RunTea:      deps.runTea,
+		PolicyFlags: opts.LockSync,
+	})
+	if syncErr != nil {
+		return testConfigState{}, syncErr
+	}
+	if !syncOutcome.ShouldContinue {
+		return testConfigState{shouldContinue: false}, nil
+	}
+	return testConfigState{cfg: syncOutcome.Config, shouldContinue: true}, nil
+}
+
+func handleTestConfigReadError(
+	ctx context.Context,
+	cmd *cobra.Command,
+	opts testOptions,
+	deps testDeps,
+	meta config.Metadata,
+	mode interaction.ExecutionMode,
+	err error,
+) (testConfigState, error) {
 	var notFound *config.ConfigFileNotFoundException
 	if !errors.As(err, &notFound) {
 		return testConfigState{}, err
 	}
 
+	return handleTestConfigMissing(ctx, cmd, opts, deps, meta, mode)
+}
+
+func handleTestConfigMissing(
+	ctx context.Context,
+	cmd *cobra.Command,
+	opts testOptions,
+	deps testDeps,
+	meta config.Metadata,
+	mode interaction.ExecutionMode,
+) (testConfigState, error) {
 	promptErr := configMissingPromptError(opts, cmd, meta)
 	if promptErr != nil {
 		if outputErr := writeConfigMissingOutput(cmd, deps, meta); outputErr != nil {
@@ -298,11 +359,11 @@ func ensureTestConfig(
 		return testConfigState{}, runErr
 	}
 
-	cfg, err = config.ReadConfig(ctx, deps.fs, meta)
+	cfg, err := config.ReadConfig(ctx, deps.fs, meta)
 	if err != nil {
 		return testConfigState{}, err
 	}
-	return testConfigState{cfg: cfg, shouldContinue: true}, nil
+	return runTestLockSync(ctx, cmd, opts, deps, meta, mode, cfg)
 }
 
 func configMissingPromptError(opts testOptions, cmd *cobra.Command, meta config.Metadata) error {

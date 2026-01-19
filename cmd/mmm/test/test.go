@@ -11,6 +11,7 @@ import (
 	"github.com/meza/minecraft-mod-manager/internal/httpclient"
 	"github.com/meza/minecraft-mod-manager/internal/i18n"
 	"github.com/meza/minecraft-mod-manager/internal/interaction"
+	"github.com/meza/minecraft-mod-manager/internal/locksync"
 	"github.com/meza/minecraft-mod-manager/internal/logger"
 	"github.com/meza/minecraft-mod-manager/internal/minecraft"
 	"github.com/meza/minecraft-mod-manager/internal/models"
@@ -33,6 +34,7 @@ type testOptions struct {
 	Unattended  bool
 	Quiet       bool
 	Debug       bool
+	LockSync    locksync.PolicyFlags
 }
 
 type initRequest struct {
@@ -139,6 +141,10 @@ func testOptionsFromFlags(cmd *cobra.Command, args []string) (testOptions, error
 	if err != nil {
 		return testOptions{}, err
 	}
+	lockSync, err := locksync.PolicyFlagsFromFlags(cmd.Flags())
+	if err != nil {
+		return testOptions{}, err
+	}
 
 	return testOptions{
 		ConfigPath:  configPath,
@@ -146,6 +152,7 @@ func testOptionsFromFlags(cmd *cobra.Command, args []string) (testOptions, error
 		Unattended:  unattended,
 		Quiet:       quiet,
 		Debug:       debug,
+		LockSync:    lockSync,
 	}, nil
 }
 

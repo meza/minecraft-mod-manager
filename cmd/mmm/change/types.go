@@ -11,6 +11,7 @@ import (
 
 	"github.com/meza/minecraft-mod-manager/internal/config"
 	"github.com/meza/minecraft-mod-manager/internal/httpclient"
+	"github.com/meza/minecraft-mod-manager/internal/locksync"
 	"github.com/meza/minecraft-mod-manager/internal/logger"
 	"github.com/meza/minecraft-mod-manager/internal/models"
 	"github.com/meza/minecraft-mod-manager/internal/output"
@@ -26,6 +27,7 @@ type changeOptions struct {
 	Debug       bool
 	Force       bool
 	ForcePolicy changeForcePolicy
+	LockSync    locksync.PolicyFlags
 }
 
 type changeResult struct {

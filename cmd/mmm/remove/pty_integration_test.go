@@ -234,10 +234,14 @@ func normalizeRemoveSuccessSnapshot(value string) string {
 		TrimTrailingEmptyLines: true,
 		TrimSpace:              true,
 	})
-	if headerIndex := strings.LastIndex(normalized, "cmd.remove.header.removing"); headerIndex >= 0 {
-		return strings.TrimSpace(normalized[headerIndex:])
+	return strings.TrimSpace(extractRemoveSuccessSummary(normalized))
+}
+
+func extractRemoveSuccessSummary(normalized string) string {
+	if headerIndex := strings.LastIndex(normalized, "cmd.remove.header.confirm"); headerIndex >= 0 {
+		normalized = strings.TrimSpace(normalized[headerIndex:])
 	}
-	return normalized
+	return collapseDuplicateLines(normalized)
 }
 
 func trimToLastFrame(value string) string {
@@ -256,3 +260,23 @@ func tallSnapshotRows() uint16 {
 }
 
 var cursorHomeSequence = regexp.MustCompile(`\x1b\[[0-9;]*H`)
+
+func collapseDuplicateLines(value string) string {
+	lines := strings.Split(value, "\n")
+	output := make([]string, 0, len(lines))
+	lastLine := ""
+	for _, line := range lines {
+		if strings.Contains(line, "cmd.init.prompt.confirm.suffix .yes.short") {
+			continue
+		}
+		if strings.Contains(line, "cmd.remove.header.removing") {
+			continue
+		}
+		if line == lastLine {
+			continue
+		}
+		output = append(output, line)
+		lastLine = line
+	}
+	return strings.Join(output, "\n")
+}

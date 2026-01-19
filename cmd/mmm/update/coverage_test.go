@@ -22,6 +22,8 @@ import (
 	"github.com/meza/minecraft-mod-manager/internal/cmddeps"
 	"github.com/meza/minecraft-mod-manager/internal/config"
 	"github.com/meza/minecraft-mod-manager/internal/httpclient"
+	"github.com/meza/minecraft-mod-manager/internal/interaction"
+	"github.com/meza/minecraft-mod-manager/internal/locksync"
 	"github.com/meza/minecraft-mod-manager/internal/models"
 	"github.com/meza/minecraft-mod-manager/internal/view"
 )
@@ -344,7 +346,7 @@ func TestLoadUpdateContextSuccess(t *testing.T) {
 
 	ctx, err := loadUpdateContext(context.Background(), cmd, updateOptions{ConfigPath: meta.ConfigPath}, updateDeps{
 		fs: fs,
-	})
+	}, interaction.ExecutionModeInteractive, updateLockSyncPhase)
 	require.NoError(t, err)
 	assert.Len(t, ctx.cfg.Mods, 1)
 	assert.Len(t, ctx.lock, 1)
@@ -366,8 +368,56 @@ func TestLoadUpdateContextReturnsLockReadError(t *testing.T) {
 
 	_, err := loadUpdateContext(context.Background(), cmd, updateOptions{ConfigPath: meta.ConfigPath}, updateDeps{
 		fs: failFs,
-	})
+	}, interaction.ExecutionModeUnattended, updateReadPhase)
 	assert.ErrorIs(t, err, readErr)
+}
+
+func TestLoadUpdateContextReturnsPolicyError(t *testing.T) {
+	fs := afero.NewMemMapFs()
+	meta := config.NewMetadata(filepath.FromSlash("/cfg/modlist.json"))
+	cfg := models.ModsJSON{ModsFolder: "mods"}
+	lock := []models.ModInstall{{ID: "alpha", Type: models.MODRINTH, FileName: "alpha.jar"}}
+	require.NoError(t, fs.MkdirAll(meta.Dir(), 0o755))
+	require.NoError(t, config.WriteConfig(context.Background(), fs, meta, cfg))
+	require.NoError(t, config.WriteLock(context.Background(), fs, meta, lock))
+
+	cmd := &cobra.Command{}
+	cmd.SetOut(io.Discard)
+
+	_, err := loadUpdateContext(context.Background(), cmd, updateOptions{
+		ConfigPath: meta.ConfigPath,
+		LockSync:   locksync.PolicyFlags{Add: true, Delete: true},
+	}, updateDeps{
+		fs:     fs,
+		runTea: runTeaProgram,
+	}, interaction.ExecutionModeNonTTY, updateLockSyncPhase)
+	assert.Error(t, err)
+}
+
+func TestLoadUpdateContextStopsOnPromptCancel(t *testing.T) {
+	fs := afero.NewMemMapFs()
+	meta := config.NewMetadata(filepath.FromSlash("/cfg/modlist.json"))
+	cfg := models.ModsJSON{ModsFolder: "mods"}
+	lock := []models.ModInstall{{ID: "alpha", Type: models.MODRINTH, FileName: "alpha.jar"}}
+	require.NoError(t, fs.MkdirAll(meta.Dir(), 0o755))
+	require.NoError(t, config.WriteConfig(context.Background(), fs, meta, cfg))
+	require.NoError(t, config.WriteLock(context.Background(), fs, meta, lock))
+
+	cmd := &cobra.Command{}
+	cmd.SetIn(bytes.NewBuffer(nil))
+	cmd.SetOut(bytes.NewBuffer(nil))
+
+	ctx, err := loadUpdateContext(context.Background(), cmd, updateOptions{
+		ConfigPath: meta.ConfigPath,
+	}, updateDeps{
+		fs: fs,
+		runTea: func(model tea.Model, _ ...tea.ProgramOption) (tea.Model, error) {
+			updated, _ := model.Update(tea.KeyMsg{Type: tea.KeyEsc})
+			return updated, nil
+		},
+	}, interaction.ExecutionModeInteractive, updateLockSyncPhase)
+	require.NoError(t, err)
+	assert.False(t, ctx.shouldContinue)
 }
 
 func TestNewUpdateDepsWiresDefaults(t *testing.T) {
@@ -400,7 +450,10 @@ func TestNewUpdateDepsWiresDefaults(t *testing.T) {
 	require.NoError(t, config.WriteConfig(context.Background(), fs, meta, cfg))
 	require.NoError(t, config.WriteLock(context.Background(), fs, meta, []models.ModInstall{}))
 
-	_, err := deps.install(context.Background(), installCommand, meta.ConfigPath, true, false)
+	_, err := deps.install(context.Background(), installCommand, install.RunOptions{
+		ConfigPath: meta.ConfigPath,
+		Quiet:      true,
+	})
 	assert.NoError(t, err)
 }
 
@@ -497,7 +550,7 @@ func TestLoadUpdateContextReturnsConfigReadError(t *testing.T) {
 
 	_, err := loadUpdateContext(context.Background(), cmd, updateOptions{ConfigPath: meta.ConfigPath}, updateDeps{
 		fs: failFs,
-	})
+	}, interaction.ExecutionModeUnattended, updateLockSyncPhase)
 	assert.ErrorIs(t, err, readErr)
 }
 

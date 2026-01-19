@@ -13,6 +13,7 @@ import (
 	"github.com/stretchr/testify/require"
 
 	"github.com/meza/minecraft-mod-manager/internal/config"
+	"github.com/meza/minecraft-mod-manager/internal/locksync"
 	"github.com/meza/minecraft-mod-manager/internal/models"
 )
 
@@ -44,6 +45,19 @@ func TestCommandMissingQuietFlagErrors(t *testing.T) {
 	setCommandOutputForTesting(cmd)
 
 	assert.Error(t, runE(cmd, []string{}))
+}
+
+func TestPruneOptionsFromFlagsReturnsLockSyncFlagError(t *testing.T) {
+	cmd := &cobra.Command{}
+	cmd.Flags().String("config", "./modlist.json", "")
+	cmd.Flags().Bool("unattended", false, "")
+	cmd.Flags().Bool("quiet", false, "")
+	cmd.Flags().Bool("debug", false, "")
+	cmd.Flags().Bool("force", false, "")
+	cmd.Flags().String(locksync.FlagAdd, "", "")
+
+	_, err := pruneOptionsFromFlags(cmd)
+	assert.Error(t, err)
 }
 
 func TestCommandMissingDebugFlagErrors(t *testing.T) {

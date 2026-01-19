@@ -22,6 +22,7 @@ import (
 	"github.com/meza/minecraft-mod-manager/internal/clierrors"
 	"github.com/meza/minecraft-mod-manager/internal/config"
 	"github.com/meza/minecraft-mod-manager/internal/interaction"
+	"github.com/meza/minecraft-mod-manager/internal/locksync"
 	"github.com/meza/minecraft-mod-manager/internal/logger"
 	"github.com/meza/minecraft-mod-manager/internal/models"
 	"github.com/meza/minecraft-mod-manager/internal/output"
@@ -744,6 +745,66 @@ func TestRunListMissingConfigRunsInitAndContinues(t *testing.T) {
 	assert.True(t, usedInteractive)
 	assert.Equal(t, 0, entriesCount)
 	assert.Contains(t, outBuffer.String(), "cmd.list.empty")
+}
+
+func TestRunListMissingConfigInitRunsLockSyncGate(t *testing.T) {
+	t.Setenv("MMM_TEST", "true")
+
+	restore := view.SetIsTerminalFuncForTesting(func(int) bool { return true })
+	t.Cleanup(restore)
+
+	fileSystem := afero.NewMemMapFs()
+	meta := config.NewMetadata(filepath.FromSlash("/cfg/modlist.json"))
+
+	command := &cobra.Command{}
+	command.SetIn(fakeTTY{Buffer: &bytes.Buffer{}})
+	command.SetOut(fakeTTY{Buffer: &bytes.Buffer{}})
+	command.SetErr(&bytes.Buffer{})
+
+	runInit := func(ctx context.Context, _ *cobra.Command, request initRequest) error {
+		cfg := models.ModsJSON{
+			Loader:                     models.FABRIC,
+			GameVersion:                "1.20.1",
+			DefaultAllowedReleaseTypes: []models.ReleaseType{models.Release},
+			ModsFolder:                 "mods",
+			Mods:                       []models.Mod{},
+		}
+		requestMeta := config.NewMetadata(request.configPath)
+		if err := fileSystem.MkdirAll(requestMeta.Dir(), 0755); err != nil {
+			return err
+		}
+		if err := fileSystem.MkdirAll(requestMeta.ModsFolderPath(cfg), 0755); err != nil {
+			return err
+		}
+		if err := config.WriteConfig(ctx, fileSystem, requestMeta, cfg); err != nil {
+			return err
+		}
+		lock := []models.ModInstall{{
+			ID:       "alpha",
+			Name:     "Alpha",
+			Type:     models.MODRINTH,
+			FileName: "alpha.jar",
+		}}
+		return config.WriteLock(ctx, fileSystem, requestMeta, lock)
+	}
+
+	entriesCount, usedInteractive, err := runList(context.Background(), command, meta.ConfigPath, runListOptions{
+		lockSync: locksync.PolicyFlags{Add: true},
+	}, listDeps{
+		fs:        fileSystem,
+		telemetry: func(telemetry.CommandTelemetry) {},
+		runTea: func(model tea.Model, options ...tea.ProgramOption) (tea.Model, error) {
+			if _, ok := model.(configInitModel); ok {
+				return configInitModel{confirmed: true}, nil
+			}
+			return defaultRunTea(model, options...)
+		},
+		runInit: runInit,
+	})
+
+	assert.NoError(t, err)
+	assert.True(t, usedInteractive)
+	assert.Equal(t, 1, entriesCount)
 }
 
 func TestRunListIncludesUnmanagedNotice(t *testing.T) {
@@ -1756,3 +1817,51 @@ type fakeTTY struct {
 }
 
 func (tty fakeTTY) Fd() uintptr { return 0 }
+
+func TestLoadListConfigWithLockSyncReturnsPolicyError(t *testing.T) {
+	fs := afero.NewMemMapFs()
+	meta := config.NewMetadata(filepath.FromSlash("/cfg/modlist.json"))
+	cfg := models.ModsJSON{ModsFolder: "mods"}
+	lock := []models.ModInstall{{ID: "alpha", Type: models.MODRINTH, FileName: "alpha.jar"}}
+	require.NoError(t, fs.MkdirAll(meta.Dir(), 0o755))
+	require.NoError(t, config.WriteConfig(context.Background(), fs, meta, cfg))
+	require.NoError(t, config.WriteLock(context.Background(), fs, meta, lock))
+
+	cmd := &cobra.Command{}
+	cmd.SetOut(io.Discard)
+
+	_, _, err := loadListConfigWithLockSync(context.Background(), cmd, runListOptions{
+		lockSync: locksync.PolicyFlags{Add: true, Delete: true},
+	}, listDeps{
+		fs:     fs,
+		runTea: runTeaProgram,
+		logger: logger.New(io.Discard, io.Discard, false, false),
+		output: output.New(io.Discard, io.Discard, false),
+	}, meta, interaction.ExecutionModeNonTTY, cfg)
+	assert.Error(t, err)
+}
+
+func TestLoadListConfigWithLockSyncStopsOnPromptCancel(t *testing.T) {
+	fs := afero.NewMemMapFs()
+	meta := config.NewMetadata(filepath.FromSlash("/cfg/modlist.json"))
+	cfg := models.ModsJSON{ModsFolder: "mods"}
+	lock := []models.ModInstall{{ID: "alpha", Type: models.MODRINTH, FileName: "alpha.jar"}}
+	require.NoError(t, fs.MkdirAll(meta.Dir(), 0o755))
+	require.NoError(t, config.WriteConfig(context.Background(), fs, meta, cfg))
+	require.NoError(t, config.WriteLock(context.Background(), fs, meta, lock))
+
+	cmd := &cobra.Command{}
+	cmd.SetOut(io.Discard)
+
+	state, _, err := loadListConfigWithLockSync(context.Background(), cmd, runListOptions{}, listDeps{
+		fs: fs,
+		runTea: func(model tea.Model, _ ...tea.ProgramOption) (tea.Model, error) {
+			updated, _ := model.Update(tea.KeyMsg{Type: tea.KeyEsc})
+			return updated, nil
+		},
+		logger: logger.New(io.Discard, io.Discard, false, false),
+		output: output.New(io.Discard, io.Discard, false),
+	}, meta, interaction.ExecutionModeInteractive, cfg)
+	require.NoError(t, err)
+	assert.False(t, state.ShouldContinue)
+}

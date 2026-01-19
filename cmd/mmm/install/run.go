@@ -14,6 +14,7 @@ import (
 	"github.com/meza/minecraft-mod-manager/internal/httpclient"
 	"github.com/meza/minecraft-mod-manager/internal/i18n"
 	"github.com/meza/minecraft-mod-manager/internal/interaction"
+	"github.com/meza/minecraft-mod-manager/internal/locksync"
 	"github.com/meza/minecraft-mod-manager/internal/models"
 	"github.com/meza/minecraft-mod-manager/internal/view"
 	"github.com/spf13/cobra"
@@ -85,10 +86,11 @@ func handleInstallPreflightError(cmd *cobra.Command, deps installDeps, preflight
 func prepareInstallRunState(ctx context.Context, cmd *cobra.Command, opts installOptions, deps installDeps) (installRunState, error) {
 	runState := newInstallRunState(cmd, opts)
 
-	cfg, lock, err := readConfigAndLock(ctx, deps, runState.meta)
+	configState, err := readConfigAndLock(ctx, cmd, opts, deps, runState)
 	if err == nil {
-		runState.cfg = cfg
-		runState.lock = lock
+		runState.cfg = configState.cfg
+		runState.lock = configState.lock
+		runState.shouldContinue = configState.shouldContinue
 		return runState, nil
 	}
 
@@ -114,16 +116,50 @@ func newInstallRunState(cmd *cobra.Command, opts installOptions) installRunState
 	}
 }
 
-func readConfigAndLock(ctx context.Context, deps installDeps, meta config.Metadata) (models.ModsJSON, []models.ModInstall, error) {
-	cfg, err := config.ReadConfig(ctx, deps.fs, meta)
+type installConfigState struct {
+	cfg            models.ModsJSON
+	lock           []models.ModInstall
+	shouldContinue bool
+}
+
+func readConfigAndLock(ctx context.Context, cmd *cobra.Command, opts installOptions, deps installDeps, runState installRunState) (installConfigState, error) {
+	cfg, err := config.ReadConfig(ctx, deps.fs, runState.meta)
 	if err != nil {
-		return models.ModsJSON{}, nil, err
+		return installConfigState{}, err
 	}
-	lock, err := config.EnsureLock(ctx, deps.fs, meta)
+	lock, err := config.EnsureLock(ctx, deps.fs, runState.meta)
 	if err != nil {
-		return models.ModsJSON{}, nil, err
+		return installConfigState{}, err
 	}
-	return cfg, lock, nil
+	if opts.SkipLockSync {
+		return installConfigState{
+			cfg:            cfg,
+			lock:           lock,
+			shouldContinue: true,
+		}, nil
+	}
+	syncOutcome, syncErr := locksync.RunLockSyncGate(locksync.GateInput{
+		Ctx:         ctx,
+		Fs:          deps.fs,
+		Meta:        runState.meta,
+		Config:      cfg,
+		Lock:        lock,
+		Mode:        runState.mode,
+		CommandName: cmd.Name(),
+		ColorMode:   colorModeForOutput(cmd.OutOrStdout()),
+		In:          cmd.InOrStdin(),
+		Out:         cmd.OutOrStdout(),
+		RunTea:      deps.runTea,
+		PolicyFlags: opts.LockSync,
+	})
+	if syncErr != nil {
+		return installConfigState{}, syncErr
+	}
+	return installConfigState{
+		cfg:            syncOutcome.Config,
+		lock:           syncOutcome.Lock,
+		shouldContinue: syncOutcome.ShouldContinue,
+	}, nil
 }
 
 func resolveInstallConfigAfterPrompt(ctx context.Context, cmd *cobra.Command, opts installOptions, deps installDeps, runState installRunState) (installRunState, error) {
@@ -152,12 +188,13 @@ func resolveInstallConfigAfterPrompt(ctx context.Context, cmd *cobra.Command, op
 		return runState, nil
 	}
 
-	cfg, lock, err := readConfigAndLock(ctx, deps, runState.meta)
+	configState, err := readConfigAndLock(ctx, cmd, opts, deps, runState)
 	if err != nil {
 		return runState, handleInstallFailure(cmd, deps, err)
 	}
-	runState.cfg = cfg
-	runState.lock = lock
+	runState.cfg = configState.cfg
+	runState.lock = configState.lock
+	runState.shouldContinue = configState.shouldContinue
 	return runState, nil
 }
 

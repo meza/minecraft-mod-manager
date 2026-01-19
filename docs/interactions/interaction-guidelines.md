@@ -182,6 +182,43 @@ Message shape:
 - "No configuration file found at `<path>`."
 - "Run `mmm init` to create one."
 
+### Lockfile sync
+
+Aside from the `init` command, commands MUST gate when the lockfile contains entries that are missing from the config file.
+The config file is authoritative.
+
+The only disconnect handled in this gate is lockfile-only entries.
+
+Policy:
+- When extra lock entries are detected in interactive mode, MMM MUST show the mod item list and indicate whether each file is present or missing, then ask what to do.
+- Add to config uses the lock entry name as the display name; the lock entry stays unchanged.
+- Delete from disk removes the file (if present) and removes the lock entry.
+- Ignore removes the lock entry and appends only existing filenames to `.mmmignore`.
+
+#### Interactive (tty)
+
+MMM MUST offer these choices after showing the list:
+- add the mods to the config
+- delete the mods from disk
+- ignore the mods
+- do nothing
+
+#### Unattended and non-interactive
+
+This applies when `--unattended` is set, or when stdin or stdout is not a TTY.
+
+Default policy:
+- add the mods to the config
+
+Policy flags map to the choices above:
+- `--lock-sync-add`
+- `--lock-sync-delete`
+- `--lock-sync-ignore`
+- `--lock-sync-skip`
+
+`--force` selects the do nothing policy unless a policy flag is set.
+Policy flags take priority over `--force`.
+
 ### Predictable exit codes
 
 - Exit codes MUST be stable and documented for automation.

@@ -17,6 +17,7 @@ import (
 	"github.com/meza/minecraft-mod-manager/internal/constants"
 	"github.com/meza/minecraft-mod-manager/internal/environment"
 	"github.com/meza/minecraft-mod-manager/internal/i18n"
+	"github.com/meza/minecraft-mod-manager/internal/locksync"
 	"github.com/spf13/cobra"
 	"golang.org/x/term"
 	"os"
@@ -36,6 +37,7 @@ func Command() *cobra.Command {
 	rootCmd.PersistentFlags().BoolP("debug", "d", false, "Enable debug messages")
 	rootCmd.PersistentFlags().Bool("perf", false, "Write a performance log (mmm-perf.json) when the command exits")
 	rootCmd.PersistentFlags().String("perf-out-dir", "", "Directory to write mmm-perf.json (defaults to the config file directory)")
+	locksync.RegisterPolicyFlags(rootCmd.PersistentFlags())
 
 	rootCmd.SetVersionTemplate("{{.Version}}\n")
 	rootCmd.AddCommand(addCmd.Command())

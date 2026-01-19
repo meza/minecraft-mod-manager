@@ -886,7 +886,7 @@ func partitionChangeItems(items []changeItem) changePartition {
 
 func renderCompatibilityErrorFooter(input changeViewInput) string {
 	headline := renderFinalErrorLine(input.colorMode, i18n.T("cmd.change.error.compatibility_failed", &i18n.Tvars{Data: &i18n.TData{"version": input.target}}))
-	body := i18n.T("cmd.change.error.no_changes", nil)
+	body := i18n.T("cmd.common.no_changes", nil)
 	hint := i18n.T("cmd.change.error.compatibility_hint", &i18n.Tvars{Data: &i18n.TData{"version": input.target}})
 	return strings.Join([]string{headline, body, "", hint}, "\n")
 }

@@ -265,7 +265,7 @@ func TestRunUpdateAbortsWhenInstallReportsUnmanagedFiles(t *testing.T) {
 		fs:     fs,
 		logger: logger.New(out, errOut, false, false),
 		output: output.New(out, errOut, false),
-		install: func(context.Context, *cobra.Command, string, bool, bool) (install.Result, error) {
+		install: func(context.Context, *cobra.Command, install.RunOptions) (install.Result, error) {
 			return install.Result{UnmanagedFound: true}, nil
 		},
 		fetchMod: func(context.Context, models.Platform, string, platform.FetchOptions, platform.Clients) (platform.RemoteMod, error) {
@@ -316,7 +316,7 @@ func TestRunUpdateReturnsErrorWhenInstallFails(t *testing.T) {
 		fs:     fs,
 		logger: logger.New(out, errOut, false, false),
 		output: output.New(out, errOut, false),
-		install: func(context.Context, *cobra.Command, string, bool, bool) (install.Result, error) {
+		install: func(context.Context, *cobra.Command, install.RunOptions) (install.Result, error) {
 			return install.Result{}, sentinel
 		},
 		fetchMod: func(context.Context, models.Platform, string, platform.FetchOptions, platform.Clients) (platform.RemoteMod, error) {
@@ -380,7 +380,7 @@ func TestRunUpdateSkipsPinnedModsWithoutNetwork(t *testing.T) {
 		fs:     fs,
 		logger: logger.New(out, errOut, false, false),
 		output: output.New(out, errOut, false),
-		install: func(context.Context, *cobra.Command, string, bool, bool) (install.Result, error) {
+		install: func(context.Context, *cobra.Command, install.RunOptions) (install.Result, error) {
 			return install.Result{}, nil
 		},
 		fetchMod: func(context.Context, models.Platform, string, platform.FetchOptions, platform.Clients) (platform.RemoteMod, error) {
@@ -438,7 +438,7 @@ func TestRunUpdateFailsWhenLockEntryIsMissing(t *testing.T) {
 		fs:     fs,
 		logger: logger.New(out, errOut, false, false),
 		output: output.New(out, errOut, false),
-		install: func(context.Context, *cobra.Command, string, bool, bool) (install.Result, error) {
+		install: func(context.Context, *cobra.Command, install.RunOptions) (install.Result, error) {
 			return install.Result{}, nil
 		},
 		fetchMod: func(context.Context, models.Platform, string, platform.FetchOptions, platform.Clients) (platform.RemoteMod, error) {
@@ -498,7 +498,7 @@ func TestRunUpdateReturnsNonZeroWhenFetchReturnsExpectedErrors(t *testing.T) {
 		fs:     fs,
 		logger: logger.New(out, errOut, false, false),
 		output: output.New(out, errOut, false),
-		install: func(context.Context, *cobra.Command, string, bool, bool) (install.Result, error) {
+		install: func(context.Context, *cobra.Command, install.RunOptions) (install.Result, error) {
 			return install.Result{}, nil
 		},
 		fetchMod: func(_ context.Context, _ models.Platform, id string, _ platform.FetchOptions, _ platform.Clients) (platform.RemoteMod, error) {
@@ -579,7 +579,7 @@ func TestRunUpdateFailsWhenLockedFileIsMissing(t *testing.T) {
 		fs:     fs,
 		logger: logger.New(out, errOut, false, false),
 		output: output.New(out, errOut, false),
-		install: func(context.Context, *cobra.Command, string, bool, bool) (install.Result, error) {
+		install: func(context.Context, *cobra.Command, install.RunOptions) (install.Result, error) {
 			return install.Result{}, nil
 		},
 		fetchMod: func(context.Context, models.Platform, string, platform.FetchOptions, platform.Clients) (platform.RemoteMod, error) {
@@ -652,7 +652,7 @@ func TestRunUpdateFailsWhenInstalledTimestampIsInvalid(t *testing.T) {
 		fs:     fs,
 		logger: logger.New(out, errOut, false, false),
 		output: output.New(out, errOut, false),
-		install: func(context.Context, *cobra.Command, string, bool, bool) (install.Result, error) {
+		install: func(context.Context, *cobra.Command, install.RunOptions) (install.Result, error) {
 			return install.Result{}, nil
 		},
 		fetchMod: func(context.Context, models.Platform, string, platform.FetchOptions, platform.Clients) (platform.RemoteMod, error) {
@@ -726,7 +726,7 @@ func TestRunUpdateDownloadsAndSwapsWhenNewerReleaseExists(t *testing.T) {
 		fs:     fs,
 		logger: logger.New(out, errOut, false, false),
 		output: output.New(out, errOut, false),
-		install: func(context.Context, *cobra.Command, string, bool, bool) (install.Result, error) {
+		install: func(context.Context, *cobra.Command, install.RunOptions) (install.Result, error) {
 			return install.Result{}, nil
 		},
 		fetchMod: func(context.Context, models.Platform, string, platform.FetchOptions, platform.Clients) (platform.RemoteMod, error) {
@@ -822,7 +822,7 @@ func TestRunUpdateKeepsPreviousFileAndLockWhenDownloadFails(t *testing.T) {
 		fs:     fs,
 		logger: logger.New(out, errOut, false, false),
 		output: output.New(out, errOut, false),
-		install: func(context.Context, *cobra.Command, string, bool, bool) (install.Result, error) {
+		install: func(context.Context, *cobra.Command, install.RunOptions) (install.Result, error) {
 			return install.Result{}, nil
 		},
 		fetchMod: func(context.Context, models.Platform, string, platform.FetchOptions, platform.Clients) (platform.RemoteMod, error) {
@@ -907,7 +907,7 @@ func TestRunUpdateReportsMissingHash(t *testing.T) {
 		fs:     fs,
 		logger: logger.New(out, errOut, false, false),
 		output: output.New(out, errOut, false),
-		install: func(context.Context, *cobra.Command, string, bool, bool) (install.Result, error) {
+		install: func(context.Context, *cobra.Command, install.RunOptions) (install.Result, error) {
 			return install.Result{}, nil
 		},
 		fetchMod: func(context.Context, models.Platform, string, platform.FetchOptions, platform.Clients) (platform.RemoteMod, error) {
@@ -979,7 +979,7 @@ func TestRunUpdateReportsInvalidRemoteFileName(t *testing.T) {
 		fs:     fs,
 		logger: logger.New(out, errOut, false, false),
 		output: output.New(out, errOut, false),
-		install: func(context.Context, *cobra.Command, string, bool, bool) (install.Result, error) {
+		install: func(context.Context, *cobra.Command, install.RunOptions) (install.Result, error) {
 			return install.Result{}, nil
 		},
 		fetchMod: func(context.Context, models.Platform, string, platform.FetchOptions, platform.Clients) (platform.RemoteMod, error) {
@@ -1051,7 +1051,7 @@ func TestRunUpdateReportsInvalidLockFileName(t *testing.T) {
 		fs:     fs,
 		logger: logger.New(out, errOut, false, false),
 		output: output.New(out, errOut, false),
-		install: func(context.Context, *cobra.Command, string, bool, bool) (install.Result, error) {
+		install: func(context.Context, *cobra.Command, install.RunOptions) (install.Result, error) {
 			return install.Result{}, nil
 		},
 		fetchMod: func(context.Context, models.Platform, string, platform.FetchOptions, platform.Clients) (platform.RemoteMod, error) {
@@ -1124,7 +1124,7 @@ func TestRunUpdateReportsMissingInstalledHash(t *testing.T) {
 		fs:     fs,
 		logger: logger.New(out, errOut, false, false),
 		output: output.New(out, errOut, false),
-		install: func(context.Context, *cobra.Command, string, bool, bool) (install.Result, error) {
+		install: func(context.Context, *cobra.Command, install.RunOptions) (install.Result, error) {
 			return install.Result{}, nil
 		},
 		fetchMod: func(context.Context, models.Platform, string, platform.FetchOptions, platform.Clients) (platform.RemoteMod, error) {
@@ -1198,7 +1198,7 @@ func TestRunUpdateReportsHashMismatch(t *testing.T) {
 		fs:     fs,
 		logger: logger.New(out, errOut, false, false),
 		output: output.New(out, errOut, false),
-		install: func(context.Context, *cobra.Command, string, bool, bool) (install.Result, error) {
+		install: func(context.Context, *cobra.Command, install.RunOptions) (install.Result, error) {
 			return install.Result{}, nil
 		},
 		fetchMod: func(context.Context, models.Platform, string, platform.FetchOptions, platform.Clients) (platform.RemoteMod, error) {
@@ -1620,7 +1620,7 @@ func TestRunUpdateLogsNoUpdatesWhenNothingChanges(t *testing.T) {
 		fs:     fs,
 		logger: logger.New(out, errOut, false, false),
 		output: output.New(out, errOut, false),
-		install: func(context.Context, *cobra.Command, string, bool, bool) (install.Result, error) {
+		install: func(context.Context, *cobra.Command, install.RunOptions) (install.Result, error) {
 			return install.Result{}, nil
 		},
 		fetchMod: func(context.Context, models.Platform, string, platform.FetchOptions, platform.Clients) (platform.RemoteMod, error) {
@@ -1681,7 +1681,7 @@ func TestRunUpdateReturnsErrorOnUnexpectedFetchError(t *testing.T) {
 		fs:     fs,
 		logger: logger.New(out, errOut, false, false),
 		output: output.New(out, errOut, false),
-		install: func(context.Context, *cobra.Command, string, bool, bool) (install.Result, error) {
+		install: func(context.Context, *cobra.Command, install.RunOptions) (install.Result, error) {
 			return install.Result{}, nil
 		},
 		fetchMod: func(context.Context, models.Platform, string, platform.FetchOptions, platform.Clients) (platform.RemoteMod, error) {
@@ -1751,7 +1751,7 @@ func TestRunUpdateReturnsErrorOnRemoteTimestampInvalid(t *testing.T) {
 		fs:     fs,
 		logger: logger.New(out, errOut, false, false),
 		output: output.New(out, errOut, false),
-		install: func(context.Context, *cobra.Command, string, bool, bool) (install.Result, error) {
+		install: func(context.Context, *cobra.Command, install.RunOptions) (install.Result, error) {
 			return install.Result{}, nil
 		},
 		fetchMod: func(context.Context, models.Platform, string, platform.FetchOptions, platform.Clients) (platform.RemoteMod, error) {
@@ -1822,7 +1822,7 @@ func TestRunUpdateReturnsErrorWhenLockWriteFails(t *testing.T) {
 		fs:     fs,
 		logger: logger.New(out, errOut, false, false),
 		output: output.New(out, errOut, false),
-		install: func(context.Context, *cobra.Command, string, bool, bool) (install.Result, error) {
+		install: func(context.Context, *cobra.Command, install.RunOptions) (install.Result, error) {
 			return install.Result{}, nil
 		},
 		fetchMod: func(context.Context, models.Platform, string, platform.FetchOptions, platform.Clients) (platform.RemoteMod, error) {
@@ -1893,7 +1893,7 @@ func TestRunUpdateReturnsErrorWhenConfigWriteFails(t *testing.T) {
 		fs:     fs,
 		logger: logger.New(out, errOut, false, false),
 		output: output.New(out, errOut, false),
-		install: func(context.Context, *cobra.Command, string, bool, bool) (install.Result, error) {
+		install: func(context.Context, *cobra.Command, install.RunOptions) (install.Result, error) {
 			return install.Result{}, nil
 		},
 		fetchMod: func(context.Context, models.Platform, string, platform.FetchOptions, platform.Clients) (platform.RemoteMod, error) {
@@ -1925,7 +1925,7 @@ func TestRunUpdateReturnsErrorWhenConfigMissing(t *testing.T) {
 		fs:     fs,
 		logger: logger.New(out, errOut, false, false),
 		output: output.New(out, errOut, false),
-		install: func(context.Context, *cobra.Command, string, bool, bool) (install.Result, error) {
+		install: func(context.Context, *cobra.Command, install.RunOptions) (install.Result, error) {
 			t.Fatal("install should not run when config is missing")
 			return install.Result{}, nil
 		},
@@ -1961,7 +1961,7 @@ func TestRunUpdateReturnsErrorWhenLockMissing(t *testing.T) {
 		fs:     fs,
 		logger: logger.New(out, errOut, false, false),
 		output: output.New(out, errOut, false),
-		install: func(context.Context, *cobra.Command, string, bool, bool) (install.Result, error) {
+		install: func(context.Context, *cobra.Command, install.RunOptions) (install.Result, error) {
 			return install.Result{}, nil
 		},
 		telemetry: func(telemetry.CommandTelemetry) {},
@@ -2485,7 +2485,7 @@ func TestRunUpdateReturnsContextErrorWhenCanceled(t *testing.T) {
 		fs:     fs,
 		logger: logger.New(io.Discard, io.Discard, true, false),
 		output: output.New(io.Discard, io.Discard, true),
-		install: func(context.Context, *cobra.Command, string, bool, bool) (install.Result, error) {
+		install: func(context.Context, *cobra.Command, install.RunOptions) (install.Result, error) {
 			return install.Result{}, nil
 		},
 		fetchMod: func(context.Context, models.Platform, string, platform.FetchOptions, platform.Clients) (platform.RemoteMod, error) {
@@ -2559,7 +2559,7 @@ func TestRunUpdatePersistsCompletedUpdatesWhenCanceled(t *testing.T) {
 		fs:     fs,
 		logger: logger.New(io.Discard, io.Discard, true, false),
 		output: output.New(io.Discard, io.Discard, true),
-		install: func(context.Context, *cobra.Command, string, bool, bool) (install.Result, error) {
+		install: func(context.Context, *cobra.Command, install.RunOptions) (install.Result, error) {
 			return install.Result{}, nil
 		},
 		fetchMod: func(ctx context.Context, platformName models.Platform, projectID string, opts platform.FetchOptions, clients platform.Clients) (platform.RemoteMod, error) {
@@ -2705,7 +2705,7 @@ func TestRunUpdateNonTTYStreamsInstallThenUpdate(t *testing.T) {
 		fs:     fs,
 		logger: logger.New(out, io.Discard, false, false),
 		output: output.New(out, io.Discard, false),
-		install: func(_ context.Context, cmd *cobra.Command, _ string, _ bool, _ bool) (install.Result, error) {
+		install: func(_ context.Context, cmd *cobra.Command, _ install.RunOptions) (install.Result, error) {
 			_, writeErr := cmd.OutOrStdout().Write([]byte("install output\n"))
 			require.NoError(t, writeErr)
 			return install.Result{}, nil

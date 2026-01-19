@@ -13,6 +13,7 @@ import (
 	"github.com/meza/minecraft-mod-manager/internal/config"
 	"github.com/meza/minecraft-mod-manager/internal/httpclient"
 	"github.com/meza/minecraft-mod-manager/internal/interaction"
+	"github.com/meza/minecraft-mod-manager/internal/locksync"
 	"github.com/meza/minecraft-mod-manager/internal/models"
 	"github.com/meza/minecraft-mod-manager/internal/platform"
 	"github.com/meza/minecraft-mod-manager/internal/view"
@@ -20,6 +21,7 @@ import (
 	"github.com/spf13/afero"
 	"github.com/spf13/cobra"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
 
 func TestResolveGameVersionDefaultsToLatest(t *testing.T) {
@@ -312,7 +314,9 @@ func TestHandleMissingChangeConfigCanceled(t *testing.T) {
 	}
 	runState := changeRunState{meta: config.NewMetadata("/cfg/modlist.json")}
 
-	state, err := handleMissingChangeConfig(context.Background(), cmd, changeOptions{}, deps, runState)
+	state, err := handleMissingChangeConfig(context.Background(), cmd, changeOptions{
+		LockSync: locksync.PolicyFlags{Skip: true},
+	}, deps, runState)
 	assert.NoError(t, err)
 	assert.False(t, state.shouldContinue)
 }
@@ -331,7 +335,9 @@ func TestHandleMissingChangeConfigNotConfirmed(t *testing.T) {
 	}
 	runState := changeRunState{meta: config.NewMetadata("/cfg/modlist.json")}
 
-	state, err := handleMissingChangeConfig(context.Background(), cmd, changeOptions{}, deps, runState)
+	state, err := handleMissingChangeConfig(context.Background(), cmd, changeOptions{
+		LockSync: locksync.PolicyFlags{Skip: true},
+	}, deps, runState)
 	assert.NoError(t, err)
 	assert.False(t, state.shouldContinue)
 }
@@ -352,8 +358,10 @@ func TestHandleMissingChangeConfigSuccess(t *testing.T) {
 	meta := config.NewMetadata("/cfg/modlist.json")
 	cfg := models.ModsJSON{GameVersion: "1.20.1"}
 	lock := []models.ModInstall{{ID: "alpha", Type: models.MODRINTH}}
+	fileSystem := afero.NewMemMapFs()
 
 	deps := changeDeps{
+		fs: fileSystem,
 		readConfig: func(context.Context, afero.Fs, config.Metadata) (models.ModsJSON, error) {
 			return cfg, nil
 		},
@@ -366,11 +374,108 @@ func TestHandleMissingChangeConfigSuccess(t *testing.T) {
 	}
 	runState := changeRunState{meta: meta}
 
-	state, err := handleMissingChangeConfig(context.Background(), cmd, changeOptions{}, deps, runState)
+	state, err := handleMissingChangeConfig(context.Background(), cmd, changeOptions{
+		LockSync: locksync.PolicyFlags{Skip: true},
+	}, deps, runState)
 	assert.NoError(t, err)
 	assert.True(t, state.shouldContinue)
 	assert.Equal(t, cfg, state.cfg)
 	assert.Equal(t, lock, state.lock)
+}
+
+func TestHandleMissingChangeConfigRunsLockSyncAfterInit(t *testing.T) {
+	restoreTerminal := view.SetIsTerminalFuncForTesting(func(int) bool { return true })
+	t.Cleanup(restoreTerminal)
+
+	original := runInitInteractive
+	defer func() { runInitInteractive = original }()
+	runInitInteractive = func(context.Context, *cobra.Command, initCmd.InteractiveInitDeps, initCmd.InteractiveInitOptions) error {
+		return nil
+	}
+
+	cmd := &cobra.Command{}
+	cmd.SetIn(fdReader{fd: 1})
+	cmd.SetOut(fdWriter{fd: 1})
+	meta := config.NewMetadata("/cfg/modlist.json")
+	cfg := models.ModsJSON{GameVersion: "1.20.1"}
+	lock := []models.ModInstall{{ID: "alpha", Name: "Alpha", Type: models.MODRINTH}}
+	fileSystem := afero.NewMemMapFs()
+	require.NoError(t, fileSystem.MkdirAll(meta.Dir(), 0755))
+
+	deps := changeDeps{
+		fs: fileSystem,
+		readConfig: func(context.Context, afero.Fs, config.Metadata) (models.ModsJSON, error) {
+			return cfg, nil
+		},
+		ensureLock: func(context.Context, afero.Fs, config.Metadata) ([]models.ModInstall, error) {
+			return lock, nil
+		},
+		runTea: func(model tea.Model, _ ...tea.ProgramOption) (tea.Model, error) {
+			if _, ok := model.(configInitModel); ok {
+				return configInitModel{confirmed: true}, nil
+			}
+			return model, nil
+		},
+	}
+	runState := changeRunState{
+		meta: meta,
+		mode: interaction.ExecutionModeNonTTY,
+	}
+
+	state, err := handleMissingChangeConfig(context.Background(), cmd, changeOptions{
+		LockSync: locksync.PolicyFlags{Add: true},
+	}, deps, runState)
+	require.NoError(t, err)
+	require.True(t, state.shouldContinue)
+	require.Len(t, state.cfg.Mods, 1)
+	assert.Equal(t, "alpha", state.cfg.Mods[0].ID)
+	assert.Equal(t, models.MODRINTH, state.cfg.Mods[0].Type)
+	assert.Equal(t, lock, state.lock)
+}
+
+func TestHandleMissingChangeConfigLockSyncError(t *testing.T) {
+	restoreTerminal := view.SetIsTerminalFuncForTesting(func(int) bool { return true })
+	t.Cleanup(restoreTerminal)
+
+	original := runInitInteractive
+	defer func() { runInitInteractive = original }()
+	runInitInteractive = func(context.Context, *cobra.Command, initCmd.InteractiveInitDeps, initCmd.InteractiveInitOptions) error {
+		return nil
+	}
+
+	cmd := &cobra.Command{}
+	cmd.SetIn(fdReader{fd: 1})
+	cmd.SetOut(fdWriter{fd: 1})
+	meta := config.NewMetadata("/cfg/modlist.json")
+	cfg := models.ModsJSON{GameVersion: "1.20.1"}
+	lock := []models.ModInstall{{ID: "alpha", Name: "Alpha", Type: models.MODRINTH}}
+	fileSystem := afero.NewMemMapFs()
+	require.NoError(t, fileSystem.MkdirAll(meta.Dir(), 0755))
+
+	deps := changeDeps{
+		fs: fileSystem,
+		readConfig: func(context.Context, afero.Fs, config.Metadata) (models.ModsJSON, error) {
+			return cfg, nil
+		},
+		ensureLock: func(context.Context, afero.Fs, config.Metadata) ([]models.ModInstall, error) {
+			return lock, nil
+		},
+		runTea: func(model tea.Model, _ ...tea.ProgramOption) (tea.Model, error) {
+			if _, ok := model.(configInitModel); ok {
+				return configInitModel{confirmed: true}, nil
+			}
+			return model, nil
+		},
+	}
+	runState := changeRunState{
+		meta: meta,
+		mode: interaction.ExecutionModeNonTTY,
+	}
+
+	_, err := handleMissingChangeConfig(context.Background(), cmd, changeOptions{
+		LockSync: locksync.PolicyFlags{Add: true, Delete: true},
+	}, deps, runState)
+	assert.Error(t, err)
 }
 
 func TestHandleMissingChangeConfigInitCanceled(t *testing.T) {
@@ -1355,4 +1460,60 @@ func TestRunChangeCommandReturnsFlagError(t *testing.T) {
 	})
 	assert.Error(t, err)
 	assert.False(t, called)
+}
+
+func TestEnsureChangeConfigReturnsPolicyError(t *testing.T) {
+	fs := afero.NewMemMapFs()
+	meta := config.NewMetadata("/cfg/modlist.json")
+	cfg := models.ModsJSON{ModsFolder: "mods"}
+	lock := []models.ModInstall{{ID: "alpha", Type: models.MODRINTH, FileName: "alpha.jar"}}
+	require.NoError(t, config.WriteConfig(context.Background(), fs, meta, cfg))
+	require.NoError(t, config.WriteLock(context.Background(), fs, meta, lock))
+
+	cmd := &cobra.Command{}
+	cmd.SetOut(&bytes.Buffer{})
+
+	_, err := ensureChangeConfig(context.Background(), cmd, changeOptions{
+		LockSync: locksync.PolicyFlags{Add: true, Delete: true},
+	}, changeDeps{
+		fs:         fs,
+		runTea:     runTeaProgram,
+		readConfig: config.ReadConfig,
+		ensureLock: config.EnsureLock,
+	}, changeRunState{
+		meta: meta,
+		mode: interaction.ExecutionModeNonTTY,
+	})
+	assert.Error(t, err)
+}
+
+func TestEnsureChangeConfigStopsOnPromptCancel(t *testing.T) {
+	restore := view.SetIsTerminalFuncForTesting(func(int) bool { return true })
+	t.Cleanup(restore)
+
+	fs := afero.NewMemMapFs()
+	meta := config.NewMetadata("/cfg/modlist.json")
+	cfg := models.ModsJSON{ModsFolder: "mods"}
+	lock := []models.ModInstall{{ID: "alpha", Type: models.MODRINTH, FileName: "alpha.jar"}}
+	require.NoError(t, config.WriteConfig(context.Background(), fs, meta, cfg))
+	require.NoError(t, config.WriteLock(context.Background(), fs, meta, lock))
+
+	cmd := &cobra.Command{}
+	cmd.SetIn(&bytes.Buffer{})
+	cmd.SetOut(&bytes.Buffer{})
+
+	state, err := ensureChangeConfig(context.Background(), cmd, changeOptions{}, changeDeps{
+		fs:         fs,
+		readConfig: config.ReadConfig,
+		ensureLock: config.EnsureLock,
+		runTea: func(model tea.Model, _ ...tea.ProgramOption) (tea.Model, error) {
+			updated, _ := model.Update(tea.KeyMsg{Type: tea.KeyEsc})
+			return updated, nil
+		},
+	}, changeRunState{
+		meta: meta,
+		mode: interaction.ExecutionModeInteractive,
+	})
+	require.NoError(t, err)
+	assert.False(t, state.shouldContinue)
 }

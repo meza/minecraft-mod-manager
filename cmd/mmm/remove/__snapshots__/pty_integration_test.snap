@@ -37,10 +37,7 @@ cmd.remove.header.confirm
 
 key.tab key.help.complete • key.enter key.help.accept • key.ctrl_c/key.esc key.help.quit
 
-
-
 ? cmd.remove.confirm.question cmd.init.prompt.confirm.suffix cmd.init.prompt.option.yes.short
-
 
 ✅ Mod A (mod-a)
 
@@ -55,10 +52,7 @@ cmd.remove.header.confirm
 
 key.tab key.help.complete • key.enter key.help.accept • key.ctrl_c/key.esc key.help.quit
 
-
-
 ? cmd.remove.confirm.question cmd.init.prompt.confirm.suffix cmd.init.prompt.option.yes.short
-
 
 ✅ Mod A (mod-a)
 

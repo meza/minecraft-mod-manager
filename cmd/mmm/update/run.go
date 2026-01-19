@@ -14,6 +14,7 @@ import (
 	"github.com/meza/minecraft-mod-manager/internal/config"
 	"github.com/meza/minecraft-mod-manager/internal/i18n"
 	"github.com/meza/minecraft-mod-manager/internal/interaction"
+	"github.com/meza/minecraft-mod-manager/internal/locksync"
 	"github.com/meza/minecraft-mod-manager/internal/models"
 	"github.com/meza/minecraft-mod-manager/internal/view"
 	"github.com/spf13/cobra"
@@ -47,24 +48,37 @@ func runUpdate(ctx context.Context, cmd *cobra.Command, opts updateOptions, deps
 	if !configState.shouldContinue {
 		return updateCounts{}, nil
 	}
-	if len(configState.cfg.Mods) == 0 {
+
+	mode := interaction.ResolveExecutionMode(interaction.ExecutionModeInput{
+		Unattended: opts.Unattended,
+		In:         cmd.InOrStdin(),
+		Out:        cmd.OutOrStdout(),
+	})
+	lockSyncContext, err := loadUpdateContextWithConfig(ctx, cmd, opts, deps, mode, meta, configState.cfg, updateLockSyncPhase)
+	if err != nil {
+		return updateCounts{}, err
+	}
+	if !lockSyncContext.shouldContinue {
+		return updateCounts{}, nil
+	}
+	if len(lockSyncContext.cfg.Mods) == 0 {
 		if opts.Quiet {
 			return updateCounts{}, nil
 		}
 		return reportNoModsConfigured(cmd)
 	}
 
-	executionInput, mode, err := prepareUpdateExecution(ctx, cmd, opts, deps)
+	execState, err := prepareUpdateExecution(ctx, cmd, opts, deps, mode)
 	if err != nil {
 		return updateCounts{}, err
 	}
 
 	if opts.Quiet {
-		outcome := runUpdateExecution(ctx, executionInput, updateExecSender{})
+		outcome := runUpdateExecution(ctx, execState.input, updateExecSender{})
 		return handleQuietUpdateResult(cmd, outcome)
 	}
 
-	outcome, err := runUpdateWithMode(ctx, cmd, executionInput, mode)
+	outcome, err := runUpdateWithMode(ctx, cmd, execState.input, execState.mode)
 	if err != nil {
 		return updateCounts{}, err
 	}
@@ -78,20 +92,20 @@ func reportNoModsConfigured(cmd *cobra.Command) (updateCounts, error) {
 	return updateCounts{}, nil
 }
 
-func prepareUpdateExecution(ctx context.Context, cmd *cobra.Command, opts updateOptions, deps updateDeps) (updateExecutionInput, interaction.ExecutionMode, error) {
-	mode := interaction.ResolveExecutionMode(interaction.ExecutionModeInput{
-		Unattended: opts.Unattended,
-		In:         cmd.InOrStdin(),
-		Out:        cmd.OutOrStdout(),
-	})
+type updateExecutionState struct {
+	input          updateExecutionInput
+	mode           interaction.ExecutionMode
+	shouldContinue bool
+}
 
+func prepareUpdateExecution(ctx context.Context, cmd *cobra.Command, opts updateOptions, deps updateDeps, mode interaction.ExecutionMode) (updateExecutionState, error) {
 	if installErr := ensureInstallForUpdate(ctx, cmd, opts, deps, mode); installErr != nil {
-		return updateExecutionInput{}, mode, installErr
+		return updateExecutionState{mode: mode, shouldContinue: true}, installErr
 	}
 
-	updateContext, err := loadUpdateContext(ctx, cmd, opts, deps)
+	updateContext, err := loadUpdateContext(ctx, cmd, opts, deps, mode, updateReadPhase)
 	if err != nil {
-		return updateExecutionInput{}, interaction.ExecutionModeNonTTY, err
+		return updateExecutionState{mode: interaction.ExecutionModeNonTTY, shouldContinue: true}, err
 	}
 
 	items, indexByKey := buildUpdateItems(updateContext.cfg, updateContext.lock)
@@ -105,7 +119,11 @@ func prepareUpdateExecution(ctx context.Context, cmd *cobra.Command, opts update
 		colorMode:  updateContext.colorMode,
 	}
 
-	return executionInput, mode, nil
+	return updateExecutionState{
+		input:          executionInput,
+		mode:           mode,
+		shouldContinue: true,
+	}, nil
 }
 
 func ensureUpdateConfig(ctx context.Context, cmd *cobra.Command, opts updateOptions, deps updateDeps, meta config.Metadata) (updateConfigState, error) {
@@ -176,7 +194,14 @@ func ensureInstallForUpdate(ctx context.Context, cmd *cobra.Command, opts update
 		}
 		cmd.SetOut(headerWriter)
 	}
-	installResult, err := deps.install(installCtx, cmd, opts.ConfigPath, opts.Quiet, opts.Debug)
+	installResult, err := deps.install(installCtx, cmd, install.RunOptions{
+		ConfigPath:   opts.ConfigPath,
+		Unattended:   opts.Unattended,
+		Quiet:        opts.Quiet,
+		Debug:        opts.Debug,
+		LockSync:     opts.LockSync,
+		SkipLockSync: true,
+	})
 	if mode == interaction.ExecutionModeNonTTY {
 		cmd.SetOut(originalOut)
 		if headerWriter.writeErr != nil {
@@ -272,7 +297,7 @@ func handleUpdateInstallUnmanaged(cmd *cobra.Command) error {
 	return clierrors.MarkHandled(errUnmanagedFiles)
 }
 
-func loadUpdateContext(ctx context.Context, cmd *cobra.Command, opts updateOptions, deps updateDeps) (updateContext, error) {
+func loadUpdateContext(ctx context.Context, cmd *cobra.Command, opts updateOptions, deps updateDeps, mode interaction.ExecutionMode, phase updateLoadPhase) (updateContext, error) {
 	meta := config.NewMetadata(opts.ConfigPath)
 
 	cfg, err := config.ReadConfig(ctx, deps.fs, meta)
@@ -280,18 +305,73 @@ func loadUpdateContext(ctx context.Context, cmd *cobra.Command, opts updateOptio
 		return updateContext{}, err
 	}
 
-	lock, err := config.ReadLock(ctx, deps.fs, meta)
+	return loadUpdateContextWithConfig(ctx, cmd, opts, deps, mode, meta, cfg, phase)
+}
+
+type updateLoadPhase int
+
+const (
+	updateLockSyncPhase updateLoadPhase = iota
+	updateReadPhase
+)
+
+func loadUpdateContextWithConfig(
+	ctx context.Context,
+	cmd *cobra.Command,
+	opts updateOptions,
+	deps updateDeps,
+	mode interaction.ExecutionMode,
+	meta config.Metadata,
+	cfg models.ModsJSON,
+	phase updateLoadPhase,
+) (updateContext, error) {
+	var lock []models.ModInstall
+	var err error
+	if phase == updateLockSyncPhase {
+		lock, err = config.EnsureLock(ctx, deps.fs, meta)
+	} else {
+		lock, err = config.ReadLock(ctx, deps.fs, meta)
+	}
 	if err != nil {
 		return updateContext{}, err
 	}
 
 	colorMode := colorModeForOutput(cmd.OutOrStdout())
 
+	if phase != updateLockSyncPhase {
+		return updateContext{
+			meta:           meta,
+			cfg:            cfg,
+			lock:           lock,
+			colorMode:      colorMode,
+			shouldContinue: true,
+		}, nil
+	}
+
+	syncOutcome, syncErr := locksync.RunLockSyncGate(locksync.GateInput{
+		Ctx:         ctx,
+		Fs:          deps.fs,
+		Meta:        meta,
+		Config:      cfg,
+		Lock:        lock,
+		Mode:        mode,
+		CommandName: cmd.Name(),
+		ColorMode:   colorMode,
+		In:          cmd.InOrStdin(),
+		Out:         cmd.OutOrStdout(),
+		RunTea:      deps.runTea,
+		PolicyFlags: opts.LockSync,
+	})
+	if syncErr != nil {
+		return updateContext{}, syncErr
+	}
+
 	return updateContext{
-		meta:      meta,
-		cfg:       cfg,
-		lock:      lock,
-		colorMode: colorMode,
+		meta:           meta,
+		cfg:            syncOutcome.Config,
+		lock:           syncOutcome.Lock,
+		colorMode:      colorMode,
+		shouldContinue: syncOutcome.ShouldContinue,
 	}, nil
 }
 

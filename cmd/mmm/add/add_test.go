@@ -23,6 +23,7 @@ import (
 	"github.com/meza/minecraft-mod-manager/internal/config"
 	"github.com/meza/minecraft-mod-manager/internal/httpclient"
 	"github.com/meza/minecraft-mod-manager/internal/interaction"
+	"github.com/meza/minecraft-mod-manager/internal/locksync"
 	"github.com/meza/minecraft-mod-manager/internal/logger"
 	"github.com/meza/minecraft-mod-manager/internal/models"
 	"github.com/meza/minecraft-mod-manager/internal/modpath"
@@ -104,6 +105,20 @@ func TestRunAdd_Success(t *testing.T) {
 	assertPerfSpanExists(t, "app.command.add.resolve.attempt")
 	assertPerfSpanExists(t, "app.command.add.stage.download")
 	assertPerfSpanExists(t, "app.command.add.stage.persist")
+}
+
+func TestReadAddOptionsReturnsLockSyncFlagError(t *testing.T) {
+	cmd := &cobra.Command{}
+	cmd.Flags().String("config", "./modlist.json", "")
+	cmd.Flags().Bool("unattended", false, "")
+	cmd.Flags().Bool("quiet", false, "")
+	cmd.Flags().Bool("debug", false, "")
+	cmd.Flags().String("version", "", "")
+	cmd.Flags().Bool("allow-version-fallback", false, "")
+	cmd.Flags().String(locksync.FlagAdd, "", "")
+
+	_, err := readAddOptions(cmd, []string{"modrinth", "abc"})
+	assert.Error(t, err)
 }
 
 func TestRunAdd_SuccessLogsAsciiIconWhenNotTerminal(t *testing.T) {

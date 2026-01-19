@@ -3,6 +3,7 @@ package add
 import (
 	"errors"
 
+	"github.com/meza/minecraft-mod-manager/internal/locksync"
 	"github.com/spf13/cobra"
 )
 
@@ -31,6 +32,10 @@ func readAddOptions(cmd *cobra.Command, args []string) (addOptions, error) {
 	if err != nil {
 		return addOptions{}, err
 	}
+	lockSync, err := locksync.PolicyFlagsFromFlags(cmd.Flags())
+	if err != nil {
+		return addOptions{}, err
+	}
 
 	return addOptions{
 		Platform:             args[0],
@@ -41,6 +46,7 @@ func readAddOptions(cmd *cobra.Command, args []string) (addOptions, error) {
 		Debug:                debug,
 		Version:              version,
 		AllowVersionFallback: allowFallback,
+		LockSync:             lockSync,
 	}, nil
 }
 
