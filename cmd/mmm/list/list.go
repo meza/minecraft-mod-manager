@@ -25,9 +25,9 @@ import (
 	"github.com/meza/minecraft-mod-manager/internal/interaction"
 	"github.com/meza/minecraft-mod-manager/internal/locksync"
 	"github.com/meza/minecraft-mod-manager/internal/logger"
-	"github.com/meza/minecraft-mod-manager/internal/mmmignore"
 	"github.com/meza/minecraft-mod-manager/internal/models"
 	"github.com/meza/minecraft-mod-manager/internal/modfilename"
+	"github.com/meza/minecraft-mod-manager/internal/modfiles"
 	"github.com/meza/minecraft-mod-manager/internal/output"
 	"github.com/meza/minecraft-mod-manager/internal/perf"
 	"github.com/meza/minecraft-mod-manager/internal/telemetry"
@@ -213,19 +213,6 @@ const (
 	listEntryHashMismatch
 )
 
-type modsFolderReadError struct {
-	path string
-	err  error
-}
-
-func (err *modsFolderReadError) Error() string {
-	return fmt.Sprintf("could not read %s: %s", err.path, err.err)
-}
-
-func (err *modsFolderReadError) Unwrap() error {
-	return err.err
-}
-
 type runListOptions struct {
 	unattended bool
 	quiet      bool
@@ -254,6 +241,22 @@ func runList(ctx context.Context, cmd *cobra.Command, configPath string, options
 		return 0, usedInteractive, nil
 	}
 
+	_, unmanagedErr := interaction.RequireNoUnmanagedFiles(interaction.UnmanagedGateInput{
+		Fs:                     deps.fs,
+		Meta:                   meta,
+		Config:                 configState.Config,
+		Lock:                   configState.Lock,
+		ColorMode:              colorModeForWriter(cmd),
+		Write:                  func(lines []string) error { return runOutputLines(cmd, deps, cmd.OutOrStdout(), lines) },
+		AllowMissingModsFolder: false,
+	})
+	if unmanagedErr != nil {
+		if errors.Is(unmanagedErr, interaction.ErrUnmanagedFiles) {
+			return 0, usedInteractive, clierrors.MarkHandled(unmanagedErr)
+		}
+		return 0, usedInteractive, handleListModsFolderFailure(cmd, deps, unmanagedErr)
+	}
+
 	invalidLockWarnings := invalidLockEntries(configState.Lock)
 	if warningErr := writeInvalidLockWarnings(cmd, deps, invalidLockWarnings); warningErr != nil {
 		return 0, usedInteractive, warningErr
@@ -267,17 +270,6 @@ func runList(ctx context.Context, cmd *cobra.Command, configPath string, options
 	listView := renderListView(entries, colorMode)
 	if outputErr := runOutputLines(cmd, deps, cmd.OutOrStdout(), []string{listView}); outputErr != nil {
 		return 0, usedInteractive, outputErr
-	}
-
-	unmanagedFiles, unmanagedErr := listUnmanagedFiles(deps.fs, meta, configState.Config, configState.Lock)
-	if unmanagedErr != nil {
-		return 0, usedInteractive, handleListModsFolderPartialFailure(cmd, deps, unmanagedErr)
-	}
-	if len(unmanagedFiles) > 0 {
-		noticeView := renderUnmanagedNotice(unmanagedFiles, colorMode)
-		if noticeErr := runOutputLines(cmd, deps, cmd.OutOrStdout(), []string{"\n" + noticeView}); noticeErr != nil {
-			return 0, usedInteractive, noticeErr
-		}
 	}
 
 	return len(entries), usedInteractive, nil
@@ -507,7 +499,7 @@ func entryStatus(mod models.Mod, lock []models.ModInstall, meta config.Metadata,
 		path := filepath.Join(meta.ModsFolderPath(cfg), normalizedFileName)
 		exists, err := afero.Exists(fs, path)
 		if err != nil {
-			return entryStatusResult{}, &modsFolderReadError{path: meta.ModsFolderPath(cfg), err: err}
+			return entryStatusResult{}, &modfiles.ReadError{Path: meta.ModsFolderPath(cfg), Err: err}
 		}
 		if !exists {
 			return entryStatusResult{Status: listEntryMissing}, nil
@@ -520,7 +512,7 @@ func entryStatus(mod models.Mod, lock []models.ModInstall, meta config.Metadata,
 
 		actualHash, err := sha1ForFile(fs, path)
 		if err != nil {
-			return entryStatusResult{}, &modsFolderReadError{path: meta.ModsFolderPath(cfg), err: err}
+			return entryStatusResult{}, &modfiles.ReadError{Path: meta.ModsFolderPath(cfg), Err: err}
 		}
 		if !strings.EqualFold(expectedHash, actualHash) {
 			return entryStatusResult{Status: listEntryHashMismatch, FileName: normalizedFileName}, nil
@@ -620,116 +612,6 @@ func renderEntry(entry listEntry, colorMode view.ColorMode) string {
 	}, colorMode)
 }
 
-func listUnmanagedFiles(fs afero.Fs, meta config.Metadata, cfg models.ModsJSON, lock []models.ModInstall) ([]string, error) {
-	candidates, err := listJarFiles(fs, meta, cfg)
-	if err != nil {
-		return nil, err
-	}
-
-	unmanaged := make([]string, 0, len(candidates))
-	for _, candidate := range candidates {
-		if fileIsManaged(candidate, lock) {
-			continue
-		}
-		unmanaged = append(unmanaged, candidate)
-	}
-	return unmanaged, nil
-}
-
-func listJarFiles(fs afero.Fs, meta config.Metadata, cfg models.ModsJSON) ([]string, error) {
-	allEntries, err := afero.ReadDir(fs, meta.ModsFolderPath(cfg))
-	if err != nil {
-		return nil, &modsFolderReadError{path: meta.ModsFolderPath(cfg), err: err}
-	}
-
-	candidates := make([]string, 0, len(allEntries))
-	for _, entry := range allEntries {
-		if entry.IsDir() {
-			continue
-		}
-		if !strings.HasSuffix(strings.ToLower(entry.Name()), ".jar") {
-			continue
-		}
-		candidates = append(candidates, filepath.Join(meta.ModsFolderPath(cfg), entry.Name()))
-	}
-
-	patterns, err := mmmignore.ListPatterns(fs, meta.Dir())
-	if err != nil {
-		return nil, &modsFolderReadError{path: filepath.Join(meta.Dir(), ".mmmignore"), err: err}
-	}
-
-	filtered := make([]string, 0, len(candidates))
-	for _, candidate := range candidates {
-		if mmmignore.IsIgnored(meta.ModsFolderPath(cfg), candidate, patterns) {
-			continue
-		}
-		filtered = append(filtered, candidate)
-	}
-	return filtered, nil
-}
-
-func fileIsManaged(filePath string, lock []models.ModInstall) bool {
-	fileName := filepath.Base(filePath)
-	for _, install := range lock {
-		if install.FileName == fileName {
-			return true
-		}
-	}
-	return false
-}
-
-func renderUnmanagedNotice(files []string, colorMode view.ColorMode) string {
-	if len(files) == 0 {
-		return ""
-	}
-
-	var builder strings.Builder
-
-	header := i18n.T("cmd.list.unmanaged.header", nil)
-	header = view.RenderIfColorEnabled(colorMode, view.TitleStyle, header)
-	if err := view.WriteString(&builder, header); err != nil {
-		return ""
-	}
-	if err := view.WriteString(&builder, "\n"); err != nil {
-		return ""
-	}
-
-	icon := view.ErrorIcon(colorMode)
-	for index, file := range files {
-		if index > 0 {
-			if err := view.WriteString(&builder, "\n"); err != nil {
-				return ""
-			}
-		}
-		entry := fmt.Sprintf("%s %s", icon, filepath.Base(file))
-		if err := view.WriteString(&builder, entry); err != nil {
-			return ""
-		}
-	}
-
-	if err := view.WriteString(&builder, "\n\n"); err != nil {
-		return ""
-	}
-
-	description := i18n.T("cmd.list.unmanaged.description", nil)
-	if err := view.WriteString(&builder, description); err != nil {
-		return ""
-	}
-	if err := view.WriteString(&builder, "\n"); err != nil {
-		return ""
-	}
-
-	cta := i18n.T("cmd.list.unmanaged.cta", nil)
-	if colorMode.Enabled() {
-		cta = view.CtaStyle.Render(cta)
-	}
-	if err := view.WriteString(&builder, cta); err != nil {
-		return ""
-	}
-
-	return builder.String()
-}
-
 func writeListFailureOutput(cmd *cobra.Command, deps listDeps, err error) error {
 	colorMode := colorModeForWriter(cmd)
 	headline := messageWithIcon(view.FinalErrorIcon(colorMode), i18n.T("cmd.list.error.failed", &i18n.Tvars{
@@ -748,22 +630,22 @@ func writeListFailureOutput(cmd *cobra.Command, deps listDeps, err error) error 
 }
 
 func handleListModsFolderFailure(cmd *cobra.Command, deps listDeps, err error) error {
-	var readErr *modsFolderReadError
+	var readErr *modfiles.ReadError
 	if !errors.As(err, &readErr) {
 		return handleListFailure(cmd, deps, err)
 	}
-	if outputErr := writeListModsFolderFailure(cmd, deps, readErr.path, readErr.err); outputErr != nil {
+	if outputErr := writeListModsFolderFailure(cmd, deps, readErr.Path, readErr.Err); outputErr != nil {
 		return outputErr
 	}
 	return clierrors.MarkHandled(err)
 }
 
 func handleListModsFolderPartialFailure(cmd *cobra.Command, deps listDeps, err error) error {
-	var readErr *modsFolderReadError
+	var readErr *modfiles.ReadError
 	if !errors.As(err, &readErr) {
 		return handleListFailure(cmd, deps, err)
 	}
-	if outputErr := writeListModsFolderPartialFailure(cmd, deps, readErr.path, readErr.err); outputErr != nil {
+	if outputErr := writeListModsFolderPartialFailure(cmd, deps, readErr.Path, readErr.Err); outputErr != nil {
 		return outputErr
 	}
 	return clierrors.MarkHandled(err)

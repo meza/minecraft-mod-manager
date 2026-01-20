@@ -23,9 +23,10 @@ Success looks like (for the user):
 ### Primary flow
 
 1. You run `mmm test [game_version]`.
-2. MMM resolves the target version, defaulting to `latest` when not provided.
-3. MMM checks each configured mod for a compatible release for the target version.
-4. MMM prints results and exits:
+2. If unmanaged jars are detected in the mods folder, MMM prints the unmanaged files notice and exits with code 1.
+3. MMM resolves the target version, defaulting to `latest` when not provided.
+4. MMM checks each configured mod for a compatible release for the target version.
+5. MMM prints results and exits:
    - `0` when all mods support the target
    - `1` when one or more mods block the target, or compatibility cannot be determined
    - `0` when the target version equals the configured version (well-defined no-op)

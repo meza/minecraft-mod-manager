@@ -21,9 +21,10 @@ Success looks like (for the user):
 ### Primary flow
 
 1. You run `mmm remove <mods...>`.
-2. MMM resolves each lookup against the lockfile by ID and name, and also removes any matching config entries that do not have lock entries.
-3. MMM lists the matched mods and asks for confirmation unless `--force` or `--unattended` is set.
-4. When confirmed, MMM deletes jar files when possible, removes the matching config entries by ID, and then removes the lock entries.
+2. If unmanaged jars are detected in the mods folder, MMM prints the unmanaged files notice and exits with code 1.
+3. MMM resolves each lookup against the lockfile by ID and name, and also removes any matching config entries that do not have lock entries.
+4. MMM lists the matched mods and asks for confirmation unless `--force` or `--unattended` is set.
+5. When confirmed, MMM deletes jar files when possible, removes the matching config entries by ID, and then removes the lock entries.
 
 ### Alternate and error flows
 

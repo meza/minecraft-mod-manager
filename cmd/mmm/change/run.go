@@ -156,6 +156,22 @@ func runChange(ctx context.Context, cmd *cobra.Command, opts changeOptions, deps
 		return changeResult{ExitCode: 0, Interactive: runState.mode.IsInteractive()}, nil
 	}
 
+	_, unmanagedErr := interaction.RequireNoUnmanagedFiles(interaction.UnmanagedGateInput{
+		Fs:                     deps.fs,
+		Meta:                   runState.meta,
+		Config:                 runState.cfg,
+		Lock:                   runState.lock,
+		ColorMode:              colorModeForOutput(cmd.OutOrStdout()),
+		Write:                  func(lines []string) error { return runOutputLines(cmd, deps, cmd.OutOrStdout(), lines) },
+		AllowMissingModsFolder: true,
+	})
+	if unmanagedErr != nil {
+		if errors.Is(unmanagedErr, interaction.ErrUnmanagedFiles) {
+			return changeResult{ExitCode: 1, Interactive: runState.mode.IsInteractive()}, clierrors.MarkHandled(unmanagedErr)
+		}
+		return changeResult{ExitCode: 1, Interactive: runState.mode.IsInteractive()}, handleChangeFailure(cmd, deps, unmanagedErr)
+	}
+
 	targetVersion, noop, err := resolveTargetVersion(ctx, cmd, opts, deps, runState)
 	if err != nil {
 		return changeResult{ExitCode: 1, Interactive: runState.mode.IsInteractive()}, err

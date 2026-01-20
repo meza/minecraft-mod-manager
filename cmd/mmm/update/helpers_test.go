@@ -16,6 +16,7 @@ import (
 	"time"
 
 	"github.com/meza/minecraft-mod-manager/cmd/mmm/install"
+	"github.com/meza/minecraft-mod-manager/internal/clierrors"
 	"github.com/meza/minecraft-mod-manager/internal/config"
 	"github.com/meza/minecraft-mod-manager/internal/httpclient"
 	"github.com/meza/minecraft-mod-manager/internal/interaction"
@@ -587,7 +588,9 @@ func TestEnsureInstallForUpdateReturnsOutputError(t *testing.T) {
 
 	err := ensureInstallForUpdate(context.Background(), cmd, updateOptions{}, updateDeps{
 		install: func(context.Context, *cobra.Command, install.RunOptions) (install.Result, error) {
-			return install.Result{UnmanagedFound: true}, nil
+			_, outputErr := cmd.OutOrStdout().Write([]byte("install output\n"))
+			assert.ErrorIs(t, outputErr, writeErr)
+			return install.Result{}, clierrors.MarkHandled(interaction.ErrUnmanagedFiles)
 		},
 	}, interaction.ExecutionModeNonTTY)
 	assert.ErrorIs(t, err, writeErr)

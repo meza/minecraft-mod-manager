@@ -19,6 +19,7 @@ import (
 
 type testConfigState struct {
 	cfg            models.ModsJSON
+	lock           []models.ModInstall
 	shouldContinue bool
 }
 
@@ -42,6 +43,14 @@ func runTest(ctx context.Context, cmd *cobra.Command, opts testOptions, deps tes
 	}
 	if !configState.shouldContinue {
 		return Result{ExitCode: 0, Interactive: mode.IsInteractive()}, nil
+	}
+
+	unmanagedErr := checkTestUnmanagedGate(cmd, deps, meta, configState.cfg, configState.lock)
+	if unmanagedErr != nil {
+		if errors.Is(unmanagedErr, interaction.ErrUnmanagedFiles) {
+			return Result{ExitCode: 1, Interactive: mode.IsInteractive()}, clierrors.MarkHandled(unmanagedErr)
+		}
+		return Result{ExitCode: 1, Interactive: mode.IsInteractive()}, unmanagedErr
 	}
 
 	resolution, err := resolveTargetVersion(ctx, cmd, opts, deps, configState.cfg, mode)
@@ -68,6 +77,19 @@ func runTest(ctx context.Context, cmd *cobra.Command, opts testOptions, deps tes
 
 func RunWithDeps(ctx context.Context, cmd *cobra.Command, opts Options, deps Deps) (Result, error) {
 	return runTest(ctx, cmd, opts, deps)
+}
+
+func checkTestUnmanagedGate(cmd *cobra.Command, deps testDeps, meta config.Metadata, cfg models.ModsJSON, lock []models.ModInstall) error {
+	_, err := interaction.RequireNoUnmanagedFiles(interaction.UnmanagedGateInput{
+		Fs:                     deps.fs,
+		Meta:                   meta,
+		Config:                 cfg,
+		Lock:                   lock,
+		ColorMode:              colorModeForOutput(cmd.OutOrStdout()),
+		Write:                  func(lines []string) error { return runOutputLines(cmd, deps, cmd.OutOrStdout(), lines) },
+		AllowMissingModsFolder: true,
+	})
+	return err
 }
 
 func shouldRunInteractiveTest(opts testOptions, mode interaction.ExecutionMode) bool {
@@ -305,7 +327,7 @@ func runTestLockSync(
 	if !syncOutcome.ShouldContinue {
 		return testConfigState{shouldContinue: false}, nil
 	}
-	return testConfigState{cfg: syncOutcome.Config, shouldContinue: true}, nil
+	return testConfigState{cfg: syncOutcome.Config, lock: syncOutcome.Lock, shouldContinue: true}, nil
 }
 
 func handleTestConfigReadError(

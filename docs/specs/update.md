@@ -15,8 +15,8 @@ Checks for newer releases of each configured mod and downloads them when availab
 ## Edge Cases
 - If a download fails, the previous version remains on disk and the lock file is not altered.
 - When a mod is pinned to a specific `version`, it is skipped during updates.
-- The command aborts if unmanaged files are detected by the initial `install` phase.
-- If no mods are configured, the command exits successfully and reports that state.
+- The command aborts if unmanaged files are detected by the preflight check (including the initial `install` phase), after printing the unmanaged files notice defined in `docs/interactions/interaction-guidelines.md`.
+- If no mods are configured and no unmanaged files are detected, the command exits successfully and reports that state.
 - If no updates are available, the command exits successfully with only the up-to-date (and skipped) results.
 - If writing lock updates fails, the command exits non-zero with an actionable error that matches UPDATE-ERR-WRITE-LOCK in the update flow.
 - If writing config updates fails, the command exits non-zero with an actionable error.

@@ -38,8 +38,10 @@ Success looks like (for the user):
 ### Alternate and error flows
 
 - If no config is found, MMM follows the missing-config gate as defined in the [guidelines](../interaction-guidelines.md#missing-config).
-- If there are no configured mods, MMM exits successfully and reports `No mods configured.`.
+- If unmanaged jars are detected before checking for configured mods, MMM prints the unmanaged files notice and exits with code 1 (even when no mods are configured).
+- If there are no configured mods and no unmanaged jars, MMM exits successfully and reports `No mods configured.`.
 - If no updates are available, MMM exits successfully and reports results with only the "Already up to date" segment (and "Skipped" if applicable).
+- If unmanaged jars are detected during the install prerequisite when mods are configured, MMM prints the unmanaged files notice and exits with code 1.
 - If the `install` prerequisite fails, MMM exits non-zero with an actionable error.
 - If writing lock updates fails, MMM exits non-zero with an actionable error.
 - If writing config updates fails, MMM exits non-zero with an actionable error.

@@ -4,7 +4,9 @@ import (
 	"bytes"
 	"context"
 	"errors"
+	"io"
 	"os"
+	"path/filepath"
 	"testing"
 
 	tea "github.com/charmbracelet/bubbletea"
@@ -15,6 +17,7 @@ import (
 	"github.com/meza/minecraft-mod-manager/internal/interaction"
 	"github.com/meza/minecraft-mod-manager/internal/locksync"
 	"github.com/meza/minecraft-mod-manager/internal/models"
+	"github.com/meza/minecraft-mod-manager/internal/output"
 	"github.com/meza/minecraft-mod-manager/internal/platform"
 	"github.com/meza/minecraft-mod-manager/internal/view"
 	"github.com/muesli/termenv"
@@ -70,6 +73,89 @@ func TestResolveTargetVersionNoopSkipsValidation(t *testing.T) {
 	assert.True(t, noop)
 	assert.Equal(t, "1.20.1", version)
 	assert.False(t, validationCalled)
+}
+
+func TestRunChangeReturnsErrorWhenUnmanagedNoticeFails(t *testing.T) {
+	t.Setenv("MMM_TEST", "true")
+	fs := afero.NewMemMapFs()
+	meta := config.NewMetadata(filepath.FromSlash("/cfg/modlist.json"))
+	cfg := models.ModsJSON{
+		Loader:                     models.FABRIC,
+		GameVersion:                "1.20.1",
+		DefaultAllowedReleaseTypes: []models.ReleaseType{models.Release},
+		ModsFolder:                 "mods",
+	}
+
+	require.NoError(t, fs.MkdirAll(meta.Dir(), 0755))
+	require.NoError(t, fs.MkdirAll(meta.ModsFolderPath(cfg), 0755))
+	require.NoError(t, config.WriteConfig(context.Background(), fs, meta, cfg))
+	require.NoError(t, config.WriteLock(context.Background(), fs, meta, []models.ModInstall{}))
+
+	failPath := filepath.Join(meta.Dir(), ".mmmignore")
+	wrapped := statErrorFs{Fs: fs, failPath: failPath, err: errors.New("stat failed")}
+
+	cmd := &cobra.Command{}
+	cmd.SetIn(&bytes.Buffer{})
+	cmd.SetOut(&bytes.Buffer{})
+	cmd.SetErr(&bytes.Buffer{})
+
+	result, err := runChange(context.Background(), cmd, changeOptions{
+		ConfigPath: meta.ConfigPath,
+		LockSync:   locksync.PolicyFlags{Skip: true},
+	}, changeDeps{
+		fs:     wrapped,
+		output: output.New(io.Discard, io.Discard, false),
+		runTea: func(model tea.Model, _ ...tea.ProgramOption) (tea.Model, error) {
+			return model, nil
+		},
+		readConfig: config.ReadConfig,
+		ensureLock: config.EnsureLock,
+	})
+
+	assert.True(t, clierrors.IsHandled(err))
+	assert.Equal(t, 1, result.ExitCode)
+}
+
+func TestRunChangeReturnsOutputErrorWhenUnmanagedNoticeWriteFails(t *testing.T) {
+	t.Setenv("MMM_TEST", "true")
+	fs := afero.NewMemMapFs()
+	meta := config.NewMetadata(filepath.FromSlash("/cfg/modlist.json"))
+	cfg := models.ModsJSON{
+		Loader:                     models.FABRIC,
+		GameVersion:                "1.20.1",
+		DefaultAllowedReleaseTypes: []models.ReleaseType{models.Release},
+		ModsFolder:                 "mods",
+	}
+
+	require.NoError(t, fs.MkdirAll(meta.Dir(), 0755))
+	require.NoError(t, fs.MkdirAll(meta.ModsFolderPath(cfg), 0755))
+	require.NoError(t, config.WriteConfig(context.Background(), fs, meta, cfg))
+	require.NoError(t, config.WriteLock(context.Background(), fs, meta, []models.ModInstall{}))
+	require.NoError(t, afero.WriteFile(fs, filepath.Join(meta.ModsFolderPath(cfg), "unmanaged.jar"), []byte("data"), 0644))
+
+	writeErr := errors.New("write failed")
+	cmd := &cobra.Command{}
+	cmd.SetIn(&bytes.Buffer{})
+	cmd.SetOut(&bytes.Buffer{})
+	cmd.SetErr(&bytes.Buffer{})
+
+	result, err := runChange(context.Background(), cmd, changeOptions{
+		ConfigPath: meta.ConfigPath,
+		LockSync:   locksync.PolicyFlags{Skip: true},
+	}, changeDeps{
+		fs: fs,
+		runTea: func(model tea.Model, _ ...tea.ProgramOption) (tea.Model, error) {
+			if _, ok := model.(view.OutputLinesModel); ok {
+				return view.OutputLinesModel{Err: writeErr}, nil
+			}
+			return model, nil
+		},
+		readConfig: config.ReadConfig,
+		ensureLock: config.EnsureLock,
+	})
+
+	assert.ErrorIs(t, err, writeErr)
+	assert.Equal(t, 1, result.ExitCode)
 }
 
 func TestResolveTargetVersionLatestError(t *testing.T) {

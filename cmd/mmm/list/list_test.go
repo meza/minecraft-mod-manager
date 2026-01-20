@@ -25,6 +25,7 @@ import (
 	"github.com/meza/minecraft-mod-manager/internal/locksync"
 	"github.com/meza/minecraft-mod-manager/internal/logger"
 	"github.com/meza/minecraft-mod-manager/internal/models"
+	"github.com/meza/minecraft-mod-manager/internal/modfiles"
 	"github.com/meza/minecraft-mod-manager/internal/output"
 	"github.com/meza/minecraft-mod-manager/internal/telemetry"
 	"github.com/meza/minecraft-mod-manager/internal/view"
@@ -836,7 +837,7 @@ func TestRunListIncludesUnmanagedNotice(t *testing.T) {
 	command.SetOut(outBuffer)
 	command.SetErr(&bytes.Buffer{})
 
-	_, _, err := runList(context.Background(), command, meta.ConfigPath, runListOptions{quiet: false}, listDeps{
+	entriesCount, _, err := runList(context.Background(), command, meta.ConfigPath, runListOptions{quiet: false}, listDeps{
 		fs:        fileSystem,
 		output:    output.New(outBuffer, &bytes.Buffer{}, false),
 		logger:    logger.New(outBuffer, &bytes.Buffer{}, false, false),
@@ -844,7 +845,9 @@ func TestRunListIncludesUnmanagedNotice(t *testing.T) {
 		runTea:    defaultRunTea,
 	})
 
-	assert.NoError(t, err)
+	assert.ErrorIs(t, err, interaction.ErrUnmanagedFiles)
+	assert.True(t, clierrors.IsHandled(err))
+	assert.Equal(t, 0, entriesCount)
 	assert.Contains(t, outBuffer.String(), "cmd.list.unmanaged.header")
 	assert.Contains(t, outBuffer.String(), "cmd.list.unmanaged.cta")
 	assert.Contains(t, outBuffer.String(), "unmanaged-a.jar")
@@ -879,14 +882,14 @@ func TestRunListUnmanagedNoticeOutputWriteFails(t *testing.T) {
 	command.SetErr(&bytes.Buffer{})
 
 	writeErr := errors.New("write failed")
-	callCount := 0
+	runCount := 0
 	_, _, err := runList(context.Background(), command, meta.ConfigPath, runListOptions{}, listDeps{
 		fs:        fileSystem,
 		telemetry: func(telemetry.CommandTelemetry) {},
 		runTea: func(model tea.Model, options ...tea.ProgramOption) (tea.Model, error) {
 			if _, ok := model.(outputLinesModel); ok {
-				callCount++
-				if callCount == 2 {
+				runCount++
+				if runCount == 1 {
 					return outputLinesModel{Err: writeErr}, nil
 				}
 			}
@@ -985,7 +988,7 @@ func TestRunListReturnsModsFolderErrorBeforeOutput(t *testing.T) {
 	assert.Contains(t, outBuffer.String(), "cmd.list.error.mods_folder_hint_secondary")
 }
 
-func TestRunListReturnsUnmanagedPartialError(t *testing.T) {
+func TestRunListReturnsUnmanagedModsFolderError(t *testing.T) {
 	t.Setenv("MMM_TEST", "true")
 
 	fileSystem := statErrorFs{
@@ -1022,9 +1025,9 @@ func TestRunListReturnsUnmanagedPartialError(t *testing.T) {
 
 	assert.Error(t, err)
 	assert.True(t, clierrors.IsHandled(err))
-	assert.Contains(t, outBuffer.String(), "cmd.list.error.mods_folder_partial")
-	assert.Contains(t, outBuffer.String(), "cmd.list.error.mods_folder_partial_notice")
-	assert.Contains(t, outBuffer.String(), "cmd.list.error.mods_folder_partial_hint")
+	assert.Contains(t, outBuffer.String(), "cmd.list.error.mods_folder")
+	assert.Contains(t, outBuffer.String(), "cmd.list.error.mods_folder_hint")
+	assert.Contains(t, outBuffer.String(), "cmd.list.error.mods_folder_hint_secondary")
 }
 
 func TestEntryStatusReturnsMissingWhenHashEmpty(t *testing.T) {
@@ -1061,7 +1064,7 @@ func TestEntryStatusReturnsErrorWhenHashReadFails(t *testing.T) {
 	_, statusErr := entryStatus(mod, lock, meta, cfg, fileSystem)
 
 	assert.Error(t, statusErr)
-	var readErr *modsFolderReadError
+	var readErr *modfiles.ReadError
 	assert.ErrorAs(t, statusErr, &readErr)
 }
 
@@ -1284,7 +1287,7 @@ func TestBuildEntriesReturnsStatusError(t *testing.T) {
 	}
 
 	_, err := buildEntries(cfg, lock, meta, fileSystem)
-	var readErr *modsFolderReadError
+	var readErr *modfiles.ReadError
 	assert.ErrorAs(t, err, &readErr)
 }
 
@@ -1352,7 +1355,7 @@ func TestListUnmanagedFilesIgnoresManagedAndIgnored(t *testing.T) {
 
 	lock := []models.ModInstall{{ID: "managed", FileName: "managed.jar"}}
 
-	files, err := listUnmanagedFiles(fileSystem, meta, cfg, lock)
+	files, err := modfiles.ListUnmanagedFiles(fileSystem, meta, cfg, lock)
 	require.NoError(t, err)
 	assert.Equal(t, []string{filepath.Join(meta.ModsFolderPath(cfg), "unmanaged.jar")}, files)
 }
@@ -1393,111 +1396,8 @@ func TestListJarFilesReturnsErrorWhenIgnorePatternsFail(t *testing.T) {
 	require.NoError(t, fileSystem.MkdirAll(meta.ModsFolderPath(cfg), 0755))
 	require.NoError(t, afero.WriteFile(fileSystem, filepath.Join(meta.ModsFolderPath(cfg), "one.jar"), []byte("data"), 0644))
 
-	_, err := listJarFiles(fileSystem, meta, cfg)
+	_, err := modfiles.ListJarFiles(fileSystem, meta, cfg)
 	assert.Error(t, err)
-}
-
-func TestListJarFilesReturnsErrorWhenReadDirFails(t *testing.T) {
-	meta := config.NewMetadata(filepath.FromSlash("/cfg/modlist.json"))
-	cfg := models.ModsJSON{ModsFolder: "mods"}
-
-	fileSystem := openErrorFs{
-		Fs:       afero.NewMemMapFs(),
-		failPath: meta.ModsFolderPath(cfg),
-		err:      errors.New("open failed"),
-	}
-
-	_, err := listJarFiles(fileSystem, meta, cfg)
-	assert.Error(t, err)
-}
-
-func TestListJarFilesHandlesMissingIgnoreFile(t *testing.T) {
-	fileSystem := afero.NewMemMapFs()
-	meta := config.NewMetadata(filepath.FromSlash("/cfg/modlist.json"))
-	cfg := models.ModsJSON{ModsFolder: "mods"}
-
-	require.NoError(t, fileSystem.MkdirAll(meta.ModsFolderPath(cfg), 0755))
-	require.NoError(t, afero.WriteFile(fileSystem, filepath.Join(meta.ModsFolderPath(cfg), "mod.jar"), []byte("data"), 0644))
-
-	files, err := listJarFiles(fileSystem, meta, cfg)
-	require.NoError(t, err)
-	assert.Equal(t, []string{filepath.Join(meta.ModsFolderPath(cfg), "mod.jar")}, files)
-}
-
-func TestRenderUnmanagedNoticeReturnsEmptyForNoFiles(t *testing.T) {
-	output := renderUnmanagedNotice(nil, view.ColorDisabled)
-	assert.Equal(t, "", output)
-}
-
-func TestRenderUnmanagedNoticeReturnsEmptyOnWriteErrors(t *testing.T) {
-	originalWriteString := view.WriteString
-	t.Cleanup(func() {
-		view.WriteString = originalWriteString
-	})
-
-	for failAt := 1; failAt <= 7; failAt++ {
-		callCount := 0
-		view.WriteString = func(io.Writer, string) error {
-			callCount++
-			if callCount == failAt {
-				return errors.New("write failed")
-			}
-			return nil
-		}
-
-		output := renderUnmanagedNotice([]string{"one.jar"}, view.ColorDisabled)
-		assert.Equal(t, "", output)
-	}
-}
-
-func TestRenderUnmanagedNoticeReturnsEmptyOnSeparatorWriteError(t *testing.T) {
-	originalWriteString := view.WriteString
-	t.Cleanup(func() {
-		view.WriteString = originalWriteString
-	})
-
-	callCount := 0
-	view.WriteString = func(io.Writer, string) error {
-		callCount++
-		if callCount == 4 {
-			return errors.New("write failed")
-		}
-		return nil
-	}
-
-	output := renderUnmanagedNotice([]string{"one.jar", "two.jar"}, view.ColorDisabled)
-	assert.Equal(t, "", output)
-}
-
-func TestRenderUnmanagedNoticeWithColorEnabled(t *testing.T) {
-	t.Setenv("MMM_TEST", "true")
-	restore := view.SetUnicodeSupportFuncForTesting(func() bool { return true })
-	t.Cleanup(restore)
-
-	output := renderUnmanagedNotice([]string{"one.jar"}, view.ColorEnabled)
-	assert.Contains(t, output, "cmd.list.unmanaged.cta")
-}
-
-func TestRenderUnmanagedNoticeIncludesMultipleFiles(t *testing.T) {
-	t.Setenv("MMM_TEST", "true")
-	output := renderUnmanagedNotice([]string{"one.jar", "two.jar"}, view.ColorDisabled)
-	assert.Contains(t, output, "one.jar")
-	assert.Contains(t, output, "two.jar")
-}
-
-func TestListJarFilesSkipsDirectoriesAndNonJar(t *testing.T) {
-	fileSystem := afero.NewMemMapFs()
-	meta := config.NewMetadata(filepath.FromSlash("/cfg/modlist.json"))
-	cfg := models.ModsJSON{ModsFolder: "mods"}
-
-	require.NoError(t, fileSystem.MkdirAll(meta.ModsFolderPath(cfg), 0755))
-	require.NoError(t, fileSystem.MkdirAll(filepath.Join(meta.ModsFolderPath(cfg), "subdir"), 0755))
-	require.NoError(t, afero.WriteFile(fileSystem, filepath.Join(meta.ModsFolderPath(cfg), "readme.txt"), []byte("data"), 0644))
-	require.NoError(t, afero.WriteFile(fileSystem, filepath.Join(meta.ModsFolderPath(cfg), "mod.jar"), []byte("data"), 0644))
-
-	files, err := listJarFiles(fileSystem, meta, cfg)
-	require.NoError(t, err)
-	assert.Equal(t, []string{filepath.Join(meta.ModsFolderPath(cfg), "mod.jar")}, files)
 }
 
 func TestColorModeForWriterRespectsTerminalSupport(t *testing.T) {
@@ -1534,8 +1434,8 @@ func TestResolveExecutionModeUsesPromptingSupport(t *testing.T) {
 
 func TestModsFolderReadErrorFormatsMessage(t *testing.T) {
 	baseErr := errors.New("read failed")
-	readErr := &modsFolderReadError{path: filepath.FromSlash("/mods"), err: baseErr}
-	assert.Contains(t, readErr.Error(), "could not read")
+	readErr := &modfiles.ReadError{Path: filepath.FromSlash("/mods"), Err: baseErr}
+	assert.Contains(t, readErr.Error(), filepath.FromSlash("/mods"))
 	assert.ErrorIs(t, readErr, baseErr)
 }
 
@@ -1575,7 +1475,7 @@ func TestHandleListModsFolderFailureReturnsOutputError(t *testing.T) {
 		runTea: func(model tea.Model, options ...tea.ProgramOption) (tea.Model, error) {
 			return outputLinesModel{Err: writeErr}, nil
 		},
-	}, &modsFolderReadError{path: filepath.FromSlash("/mods"), err: errors.New("read failed")})
+	}, &modfiles.ReadError{Path: filepath.FromSlash("/mods"), Err: errors.New("read failed")})
 	assert.ErrorIs(t, err, writeErr)
 }
 
@@ -1605,8 +1505,27 @@ func TestHandleListModsFolderPartialFailureReturnsOutputError(t *testing.T) {
 		runTea: func(model tea.Model, options ...tea.ProgramOption) (tea.Model, error) {
 			return outputLinesModel{Err: writeErr}, nil
 		},
-	}, &modsFolderReadError{path: filepath.FromSlash("/mods/mod.jar"), err: errors.New("read failed")})
+	}, &modfiles.ReadError{Path: filepath.FromSlash("/mods/mod.jar"), Err: errors.New("read failed")})
 	assert.ErrorIs(t, err, writeErr)
+}
+
+func TestHandleListModsFolderPartialFailureWritesOutput(t *testing.T) {
+	t.Setenv("MMM_TEST", "true")
+
+	outBuffer := &bytes.Buffer{}
+	command := &cobra.Command{}
+	command.SetOut(outBuffer)
+	command.SetErr(&bytes.Buffer{})
+
+	err := handleListModsFolderPartialFailure(command, listDeps{runTea: defaultRunTea}, &modfiles.ReadError{
+		Path: filepath.FromSlash("/mods/mod.jar"),
+		Err:  errors.New("read failed"),
+	})
+	assert.Error(t, err)
+	assert.True(t, clierrors.IsHandled(err))
+	assert.Contains(t, outBuffer.String(), "cmd.list.error.mods_folder_partial")
+	assert.Contains(t, outBuffer.String(), "cmd.list.error.mods_folder_partial_notice")
+	assert.Contains(t, outBuffer.String(), "cmd.list.error.mods_folder_partial_hint")
 }
 
 func TestWriteListModsFolderFailureColorEnabled(t *testing.T) {

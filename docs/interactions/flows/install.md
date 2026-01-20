@@ -23,8 +23,9 @@ Success looks like (for the user):
 
 1. You run `mmm install`.
 2. MMM reads config and lock.
-3. MMM installs managed mods by ensuring every mod in the lock file (or in config when a lock entry is missing) is present on disk.
-4. If any config entries are missing from the lock file, MMM adds lock entries for the downloaded mods as each download completes. Otherwise, MMM leaves `modlist.json` and `modlist-lock.json` unchanged.
+3. If unmanaged jars are detected in the mods folder, MMM prints the unmanaged files notice and exits with code 1.
+4. MMM installs managed mods by ensuring every mod in the lock file (or in config when a lock entry is missing) is present on disk.
+5. If any config entries are missing from the lock file, MMM adds lock entries for the downloaded mods as each download completes. Otherwise, MMM leaves `modlist.json` and `modlist-lock.json` unchanged.
 
 ### Alternate and error flows
 

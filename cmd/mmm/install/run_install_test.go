@@ -16,12 +16,12 @@ import (
 	"github.com/stretchr/testify/require"
 	"golang.org/x/time/rate"
 
+	"github.com/meza/minecraft-mod-manager/internal/clierrors"
 	"github.com/meza/minecraft-mod-manager/internal/config"
-	"github.com/meza/minecraft-mod-manager/internal/curseforge"
 	"github.com/meza/minecraft-mod-manager/internal/httpclient"
+	"github.com/meza/minecraft-mod-manager/internal/interaction"
 	"github.com/meza/minecraft-mod-manager/internal/logger"
 	"github.com/meza/minecraft-mod-manager/internal/models"
-	"github.com/meza/minecraft-mod-manager/internal/modrinth"
 	"github.com/meza/minecraft-mod-manager/internal/output"
 	"github.com/meza/minecraft-mod-manager/internal/platform"
 )
@@ -68,83 +68,6 @@ func TestRunInstallReturnsErrorOnEnsureLockFailure(t *testing.T) {
 		output: output.New(io.Discard, io.Discard, false),
 	})
 	assert.Error(t, err)
-}
-
-func TestRunInstallReturnsErrorOnPreflightFailure(t *testing.T) {
-	meta := config.NewMetadata(filepath.FromSlash("/cfg/modlist.json"))
-	cfg := models.ModsJSON{
-		Loader:                     models.FABRIC,
-		GameVersion:                "1.20.1",
-		DefaultAllowedReleaseTypes: []models.ReleaseType{models.Release},
-		ModsFolder:                 "mods",
-	}
-
-	baseFs := afero.NewMemMapFs()
-	require.NoError(t, config.WriteConfig(context.Background(), baseFs, meta, cfg))
-	require.NoError(t, config.WriteLock(context.Background(), baseFs, meta, []models.ModInstall{}))
-
-	fs := openErrorFs{
-		Fs:       baseFs,
-		failPath: meta.ModsFolderPath(cfg),
-		err:      errors.New("open failed"),
-	}
-
-	cmd := &cobra.Command{}
-	cmd.SetIn(&bytes.Buffer{})
-	cmd.SetOut(io.Discard)
-	cmd.SetErr(io.Discard)
-
-	_, err := runInstall(context.Background(), cmd, installOptions{ConfigPath: meta.ConfigPath}, installDeps{
-		fs:     fs,
-		logger: logger.New(io.Discard, io.Discard, false, false),
-		output: output.New(io.Discard, io.Discard, false),
-	})
-	assert.Error(t, err)
-}
-
-func TestRunInstallReturnsUnresolvedFilesError(t *testing.T) {
-	fs := afero.NewMemMapFs()
-	meta := config.NewMetadata(filepath.FromSlash("/cfg/modlist.json"))
-	cfg := models.ModsJSON{
-		Loader:                     models.FABRIC,
-		GameVersion:                "1.20.1",
-		DefaultAllowedReleaseTypes: []models.ReleaseType{models.Release},
-		ModsFolder:                 "mods",
-		Mods: []models.Mod{
-			{Type: models.CURSEFORGE, ID: "123", Name: "Example"},
-		},
-	}
-
-	require.NoError(t, fs.MkdirAll(meta.ModsFolderPath(cfg), 0755))
-	filePath := filepath.Join(meta.ModsFolderPath(cfg), "unknown.jar")
-	require.NoError(t, afero.WriteFile(fs, filePath, []byte("data"), 0644))
-	require.NoError(t, config.WriteConfig(context.Background(), fs, meta, cfg))
-	require.NoError(t, config.WriteLock(context.Background(), fs, meta, []models.ModInstall{}))
-
-	cmd := &cobra.Command{}
-	cmd.SetIn(&bytes.Buffer{})
-	cmd.SetOut(io.Discard)
-	cmd.SetErr(io.Discard)
-
-	_, err := runInstall(context.Background(), cmd, installOptions{ConfigPath: meta.ConfigPath}, installDeps{
-		fs:                    fs,
-		logger:                logger.New(io.Discard, io.Discard, false, false),
-		output:                output.New(io.Discard, io.Discard, false),
-		clients:               platform.DefaultClients(rate.NewLimiter(rate.Inf, 0)),
-		curseforgeFingerprint: func(string) uint32 { return 1 },
-		curseforgeFingerprintMatch: func(context.Context, []uint32, httpclient.Doer) (*curseforge.FingerprintResult, error) {
-			return &curseforge.FingerprintResult{
-				Matches: []curseforge.File{{ProjectID: 123, Fingerprint: 1}},
-			}, nil
-		},
-		curseforgeProjectName: func(context.Context, string, httpclient.Doer) (string, error) {
-			return "Example", nil
-		},
-		modrinthVersionForSha: func(context.Context, string, httpclient.Doer) (*modrinth.Version, error) {
-			return nil, &modrinth.VersionNotFoundError{Lookup: *modrinth.NewVersionHashLookup("missing", modrinth.SHA1)}
-		},
-	})
-	assert.ErrorIs(t, err, errUnresolvedFiles)
 }
 
 func TestRunInstallQuietOutputsDownloadFailures(t *testing.T) {
@@ -676,7 +599,7 @@ func TestRunInstallReturnsErrorOnLockWriteFailure(t *testing.T) {
 	assert.Error(t, err)
 }
 
-func TestRunInstallReportsUnmanagedFound(t *testing.T) {
+func TestRunInstallReturnsUnmanagedError(t *testing.T) {
 	fs := afero.NewMemMapFs()
 	meta := config.NewMetadata(filepath.FromSlash("/cfg/modlist.json"))
 	cfg := models.ModsJSON{
@@ -701,27 +624,90 @@ func TestRunInstallReportsUnmanagedFound(t *testing.T) {
 	restore := stubInstallTranscriptProgram()
 	defer restore()
 
-	result, err := runInstall(context.Background(), cmd, installOptions{ConfigPath: meta.ConfigPath}, installDeps{
-		fs:                    fs,
-		logger:                logger.New(io.Discard, io.Discard, false, false),
-		output:                output.New(io.Discard, io.Discard, false),
-		clients:               platform.DefaultClients(rate.NewLimiter(rate.Inf, 0)),
-		curseforgeFingerprint: func(string) uint32 { return 1 },
-		curseforgeFingerprintMatch: func(context.Context, []uint32, httpclient.Doer) (*curseforge.FingerprintResult, error) {
-			return &curseforge.FingerprintResult{
-				Matches: []curseforge.File{{ProjectID: 456, Fingerprint: 1}},
-			}, nil
-		},
-		curseforgeProjectName: func(context.Context, string, httpclient.Doer) (string, error) {
-			return "Unknown", nil
-		},
-		modrinthVersionForSha: func(context.Context, string, httpclient.Doer) (*modrinth.Version, error) {
-			return nil, &modrinth.VersionNotFoundError{Lookup: *modrinth.NewVersionHashLookup("missing", modrinth.SHA1)}
+	_, err := runInstall(context.Background(), cmd, installOptions{ConfigPath: meta.ConfigPath}, installDeps{
+		fs:      fs,
+		logger:  logger.New(io.Discard, io.Discard, false, false),
+		output:  output.New(io.Discard, io.Discard, false),
+		clients: platform.DefaultClients(rate.NewLimiter(rate.Inf, 0)),
+	})
+
+	assert.ErrorIs(t, err, interaction.ErrUnmanagedFiles)
+	assert.True(t, clierrors.IsHandled(err))
+}
+
+func TestRunInstallReturnsErrorWhenUnmanagedNoticeFails(t *testing.T) {
+	t.Setenv("MMM_TEST", "true")
+	baseFs := afero.NewMemMapFs()
+	meta := config.NewMetadata(filepath.FromSlash("/cfg/modlist.json"))
+	cfg := models.ModsJSON{
+		Loader:                     models.FABRIC,
+		GameVersion:                "1.20.1",
+		DefaultAllowedReleaseTypes: []models.ReleaseType{models.Release},
+		ModsFolder:                 "mods",
+		Mods:                       []models.Mod{},
+	}
+
+	require.NoError(t, baseFs.MkdirAll(meta.Dir(), 0755))
+	require.NoError(t, baseFs.MkdirAll(meta.ModsFolderPath(cfg), 0755))
+	require.NoError(t, config.WriteConfig(context.Background(), baseFs, meta, cfg))
+	require.NoError(t, config.WriteLock(context.Background(), baseFs, meta, []models.ModInstall{}))
+
+	failPath := filepath.Join(meta.Dir(), ".mmmignore")
+	fs := statErrorFs{Fs: baseFs, failPath: failPath, err: errors.New("stat failed")}
+
+	cmd := &cobra.Command{}
+	cmd.SetIn(&bytes.Buffer{})
+	cmd.SetOut(&bytes.Buffer{})
+	cmd.SetErr(&bytes.Buffer{})
+
+	_, err := runInstall(context.Background(), cmd, installOptions{ConfigPath: meta.ConfigPath}, installDeps{
+		fs:     fs,
+		logger: logger.New(io.Discard, io.Discard, false, false),
+		output: output.New(io.Discard, io.Discard, false),
+		runTea: func(model tea.Model, _ ...tea.ProgramOption) (tea.Model, error) {
+			return model, nil
 		},
 	})
 
-	assert.NoError(t, err)
-	assert.True(t, result.UnmanagedFound)
+	assert.True(t, clierrors.IsHandled(err))
+}
+
+func TestRunInstallReturnsOutputErrorWhenUnmanagedNoticeWriteFails(t *testing.T) {
+	t.Setenv("MMM_TEST", "true")
+	fs := afero.NewMemMapFs()
+	meta := config.NewMetadata(filepath.FromSlash("/cfg/modlist.json"))
+	cfg := models.ModsJSON{
+		Loader:                     models.FABRIC,
+		GameVersion:                "1.20.1",
+		DefaultAllowedReleaseTypes: []models.ReleaseType{models.Release},
+		ModsFolder:                 "mods",
+		Mods:                       []models.Mod{},
+	}
+
+	require.NoError(t, fs.MkdirAll(meta.Dir(), 0755))
+	require.NoError(t, fs.MkdirAll(meta.ModsFolderPath(cfg), 0755))
+	require.NoError(t, config.WriteConfig(context.Background(), fs, meta, cfg))
+	require.NoError(t, config.WriteLock(context.Background(), fs, meta, []models.ModInstall{}))
+	require.NoError(t, afero.WriteFile(fs, filepath.Join(meta.ModsFolderPath(cfg), "unmanaged.jar"), []byte("data"), 0644))
+
+	writeErr := errors.New("write failed")
+	cmd := &cobra.Command{}
+	cmd.SetIn(&bytes.Buffer{})
+	cmd.SetOut(&bytes.Buffer{})
+	cmd.SetErr(&bytes.Buffer{})
+
+	_, err := runInstall(context.Background(), cmd, installOptions{ConfigPath: meta.ConfigPath}, installDeps{
+		fs:     fs,
+		logger: logger.New(io.Discard, io.Discard, false, false),
+		runTea: func(model tea.Model, _ ...tea.ProgramOption) (tea.Model, error) {
+			if _, ok := model.(outputLinesModel); ok {
+				return outputLinesModel{Err: writeErr}, nil
+			}
+			return model, nil
+		},
+	})
+
+	assert.ErrorIs(t, err, writeErr)
 }
 
 func stubInstallTranscriptProgram() func() {

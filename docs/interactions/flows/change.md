@@ -21,11 +21,12 @@ Success looks like (for the user):
 ### Primary flow
 
 1. You run `mmm change [game_version]`.
-2. MMM resolves the target version, defaulting to `latest` when not provided.
-3. MMM starts compatibility checks for the target version unless `--force` is set.
-4. As mods are confirmed compatible, MMM downloads them into a staging area without touching your current setup.
-5. Only if downloads succeed, MMM switches you to the new version (config + mods folder swap).
-6. MMM cleans up temporary and backup artifacts.
+2. If unmanaged jars are detected in the mods folder, MMM prints the unmanaged files notice and exits with code 1.
+3. MMM resolves the target version, defaulting to `latest` when not provided.
+4. MMM starts compatibility checks for the target version unless `--force` is set.
+5. As mods are confirmed compatible, MMM downloads them into a staging area without touching your current setup.
+6. Only if downloads succeed, MMM switches you to the new version (config + mods folder swap).
+7. MMM cleans up temporary and backup artifacts.
 
 ### Alternate and error flows
 

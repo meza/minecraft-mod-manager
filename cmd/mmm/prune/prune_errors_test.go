@@ -5,7 +5,6 @@ import (
 	"context"
 	"errors"
 	"io"
-	"os"
 	"path/filepath"
 	"strings"
 	"testing"
@@ -24,19 +23,6 @@ import (
 	"github.com/meza/minecraft-mod-manager/internal/telemetry"
 	"github.com/meza/minecraft-mod-manager/internal/view"
 )
-
-type statErrorFs struct {
-	afero.Fs
-	failPath string
-	err      error
-}
-
-func (fs statErrorFs) Stat(name string) (os.FileInfo, error) {
-	if name == fs.failPath {
-		return nil, fs.err
-	}
-	return fs.Fs.Stat(name)
-}
 
 type removeErrorFs struct {
 	afero.Fs
@@ -751,70 +737,6 @@ func TestHandleLockReadErrorReturnsOutputError(t *testing.T) {
 		},
 	}, &lockMissingError{message: "lock missing"})
 	assert.ErrorIs(t, err, writeErr)
-}
-
-func TestListUnmanagedFilesReturnsErrorOnMissingModsDir(t *testing.T) {
-	fs := afero.NewMemMapFs()
-	meta := config.NewMetadata(filepath.FromSlash("/cfg/modlist.json"))
-	cfg := models.ModsJSON{ModsFolder: "mods"}
-
-	require.NoError(t, fs.MkdirAll(meta.Dir(), 0755))
-
-	_, err := listUnmanagedFiles(fs, meta, cfg, []models.ModInstall{})
-	assert.Error(t, err)
-}
-
-func TestListJarFilesSkipsDirsNonJarAndIgnores(t *testing.T) {
-	fs := afero.NewMemMapFs()
-	meta := config.NewMetadata(filepath.FromSlash("/cfg/modlist.json"))
-	cfg := models.ModsJSON{ModsFolder: "mods"}
-
-	require.NoError(t, fs.MkdirAll(meta.ModsFolderPath(cfg), 0755))
-	require.NoError(t, fs.MkdirAll(filepath.Join(meta.ModsFolderPath(cfg), "nested"), 0755))
-	require.NoError(t, afero.WriteFile(fs, filepath.Join(meta.ModsFolderPath(cfg), "note.txt"), []byte("data"), 0644))
-	require.NoError(t, afero.WriteFile(fs, filepath.Join(meta.ModsFolderPath(cfg), "good.jar"), []byte("data"), 0644))
-	require.NoError(t, afero.WriteFile(fs, filepath.Join(meta.ModsFolderPath(cfg), "ignored.jar"), []byte("data"), 0644))
-	require.NoError(t, afero.WriteFile(fs, filepath.Join(meta.Dir(), ".mmmignore"), []byte("ignored.jar\n"), 0644))
-
-	files, err := listJarFiles(fs, meta, cfg)
-	require.NoError(t, err)
-	require.Len(t, files, 1)
-	assert.Equal(t, filepath.Join(meta.ModsFolderPath(cfg), "good.jar"), files[0])
-}
-
-func TestListJarFilesReturnsAbsError(t *testing.T) {
-	fs := afero.NewMemMapFs()
-	meta := config.NewMetadata(filepath.FromSlash("/cfg/modlist.json"))
-	cfg := models.ModsJSON{ModsFolder: "mods"}
-
-	originalAbs := absPath
-	absPath = func(string) (string, error) {
-		return "", errors.New("abs failed")
-	}
-	t.Cleanup(func() {
-		absPath = originalAbs
-	})
-
-	_, err := listJarFiles(fs, meta, cfg)
-	assert.Error(t, err)
-}
-
-func TestListJarFilesReturnsIgnorePatternError(t *testing.T) {
-	fs := afero.NewMemMapFs()
-	meta := config.NewMetadata(filepath.FromSlash("/cfg/modlist.json"))
-	cfg := models.ModsJSON{ModsFolder: "mods"}
-
-	require.NoError(t, fs.MkdirAll(meta.ModsFolderPath(cfg), 0755))
-	require.NoError(t, afero.WriteFile(fs, filepath.Join(meta.ModsFolderPath(cfg), "good.jar"), []byte("data"), 0644))
-
-	wrapped := statErrorFs{
-		Fs:       fs,
-		failPath: filepath.Join(meta.Dir(), ".mmmignore"),
-		err:      errors.New("stat failed"),
-	}
-
-	_, err := listJarFiles(wrapped, meta, cfg)
-	assert.Error(t, err)
 }
 
 func TestDeleteUnmanagedFilesRemoveError(t *testing.T) {

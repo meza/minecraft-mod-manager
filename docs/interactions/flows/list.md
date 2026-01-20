@@ -21,8 +21,8 @@ Success looks like (for the user):
 ### Primary flow
 
 1. You run `mmm list`.
-2. MMM renders a view that shows installed and missing states.
-3. If MMM detects unmanaged jar files, MMM prints the unmanaged files notice and recommends running `mmm scan`.
+2. If MMM detects unmanaged jar files, MMM prints the unmanaged files notice and exits with code 1.
+3. MMM renders a view that shows installed and missing states.
 
 ### Alternate and error flows
 
@@ -42,7 +42,7 @@ This document specifies `list` as state-by-state terminal frame snapshots.
 States:
 - LIST-01: render list
 - LIST-02: empty list
-- LIST-03: unmanaged files detected notice (after list)
+- LIST-03: unmanaged files detected notice
 - LIST-ERR: failure
 - LIST-ERR-MODS-FOLDER: mods folder cannot be read
 - LIST-ERR-MODS-FOLDER-PARTIAL: mods folder read fails after output started
@@ -71,16 +71,12 @@ Installed Mods:
 No mods configured.
 ```
 
-#### LIST-03 Unmanaged files detected (after list)
+#### LIST-03 Unmanaged files detected
 
 ##### Command used
 `list`
 
 ```
-Installed Mods:
-✅ Inventory Sorting (inventory-sorting) [modrinth]
-... (one row per mod, all mods shown)
-
 Unmanaged files detected:
 ❌ unmanaged-A.jar
 ❌ unmanaged-B.jar

@@ -17,6 +17,7 @@ import (
 
 	initCmd "github.com/meza/minecraft-mod-manager/cmd/mmm/init"
 	"github.com/meza/minecraft-mod-manager/cmd/mmm/install"
+	"github.com/meza/minecraft-mod-manager/internal/clierrors"
 	"github.com/meza/minecraft-mod-manager/internal/config"
 	"github.com/meza/minecraft-mod-manager/internal/interaction"
 	"github.com/meza/minecraft-mod-manager/internal/logger"
@@ -147,6 +148,97 @@ func TestRunUpdateNoModsConfiguredSuccess(t *testing.T) {
 	assert.Contains(t, out.String(), "cmd.list.empty")
 }
 
+func TestRunUpdateNoModsConfiguredReportsUnmanagedFiles(t *testing.T) {
+	t.Setenv("MMM_TEST", "true")
+
+	fs := afero.NewMemMapFs()
+	meta := config.NewMetadata(filepath.FromSlash("/cfg/modlist.json"))
+
+	cfg := models.ModsJSON{Mods: []models.Mod{}, ModsFolder: "mods"}
+	require.NoError(t, fs.MkdirAll(meta.Dir(), 0755))
+	require.NoError(t, fs.MkdirAll(meta.ModsFolderPath(cfg), 0755))
+	require.NoError(t, config.WriteConfig(context.Background(), fs, meta, cfg))
+	require.NoError(t, config.WriteLock(context.Background(), fs, meta, []models.ModInstall{}))
+	require.NoError(t, afero.WriteFile(fs, filepath.Join(meta.ModsFolderPath(cfg), "unmanaged.jar"), []byte("data"), 0644))
+
+	out := &bytes.Buffer{}
+	cmd := &cobra.Command{}
+	cmd.SetOut(out)
+
+	_, err := runUpdate(context.Background(), cmd, updateOptions{ConfigPath: meta.ConfigPath}, updateDeps{
+		fs:     fs,
+		logger: logger.New(io.Discard, io.Discard, false, false),
+		install: func(context.Context, *cobra.Command, install.RunOptions) (install.Result, error) {
+			t.Fatal("install should not run when no mods are configured")
+			return install.Result{}, nil
+		},
+	})
+	assert.ErrorIs(t, err, interaction.ErrUnmanagedFiles)
+	assert.True(t, clierrors.IsHandled(err))
+	assert.Contains(t, out.String(), "cmd.list.unmanaged.header")
+	assert.Contains(t, out.String(), "cmd.list.unmanaged.cta")
+}
+
+func TestRunUpdateNoModsConfiguredReportsUnmanagedReadError(t *testing.T) {
+	t.Setenv("MMM_TEST", "true")
+
+	baseFs := afero.NewMemMapFs()
+	meta := config.NewMetadata(filepath.FromSlash("/cfg/modlist.json"))
+
+	cfg := models.ModsJSON{Mods: []models.Mod{}, ModsFolder: "mods"}
+	require.NoError(t, baseFs.MkdirAll(meta.Dir(), 0755))
+	require.NoError(t, baseFs.MkdirAll(meta.ModsFolderPath(cfg), 0755))
+	require.NoError(t, config.WriteConfig(context.Background(), baseFs, meta, cfg))
+	require.NoError(t, config.WriteLock(context.Background(), baseFs, meta, []models.ModInstall{}))
+
+	fileSystem := openErrorFs{Fs: baseFs, failPath: meta.ModsFolderPath(cfg), err: errors.New("read failed")}
+
+	out := &bytes.Buffer{}
+	cmd := &cobra.Command{}
+	cmd.SetOut(out)
+
+	_, err := runUpdate(context.Background(), cmd, updateOptions{ConfigPath: meta.ConfigPath}, updateDeps{
+		fs:     fileSystem,
+		logger: logger.New(io.Discard, io.Discard, false, false),
+		install: func(context.Context, *cobra.Command, install.RunOptions) (install.Result, error) {
+			t.Fatal("install should not run when no mods are configured")
+			return install.Result{}, nil
+		},
+	})
+	assert.Error(t, err)
+	assert.True(t, clierrors.IsHandled(err))
+	assert.Contains(t, out.String(), "read failed")
+}
+
+func TestRunUpdateNoModsConfiguredUnmanagedReadErrorWriteFails(t *testing.T) {
+	t.Setenv("MMM_TEST", "true")
+
+	baseFs := afero.NewMemMapFs()
+	meta := config.NewMetadata(filepath.FromSlash("/cfg/modlist.json"))
+
+	cfg := models.ModsJSON{Mods: []models.Mod{}, ModsFolder: "mods"}
+	require.NoError(t, baseFs.MkdirAll(meta.Dir(), 0755))
+	require.NoError(t, baseFs.MkdirAll(meta.ModsFolderPath(cfg), 0755))
+	require.NoError(t, config.WriteConfig(context.Background(), baseFs, meta, cfg))
+	require.NoError(t, config.WriteLock(context.Background(), baseFs, meta, []models.ModInstall{}))
+
+	fileSystem := openErrorFs{Fs: baseFs, failPath: meta.ModsFolderPath(cfg), err: errors.New("read failed")}
+
+	writeErr := errors.New("write failed")
+	cmd := &cobra.Command{}
+	cmd.SetOut(errorWriter{err: writeErr})
+
+	_, err := runUpdate(context.Background(), cmd, updateOptions{ConfigPath: meta.ConfigPath}, updateDeps{
+		fs:     fileSystem,
+		logger: logger.New(io.Discard, io.Discard, false, false),
+		install: func(context.Context, *cobra.Command, install.RunOptions) (install.Result, error) {
+			t.Fatal("install should not run when no mods are configured")
+			return install.Result{}, nil
+		},
+	})
+	assert.ErrorIs(t, err, writeErr)
+}
+
 func TestRunUpdateQuietNoModsConfiguredIsSilent(t *testing.T) {
 	t.Setenv("MMM_TEST", "true")
 
@@ -271,12 +363,12 @@ func TestEnsureInstallForUpdateHandlesUnmanagedFiles(t *testing.T) {
 		install: func(context.Context, *cobra.Command, install.RunOptions) (install.Result, error) {
 			_, writeErr := cmd.OutOrStdout().Write([]byte("install output\n"))
 			require.NoError(t, writeErr)
-			return install.Result{UnmanagedFound: true}, nil
+			return install.Result{}, clierrors.MarkHandled(interaction.ErrUnmanagedFiles)
 		},
 	}, interaction.ExecutionModeNonTTY)
-	assert.Error(t, err)
+	assert.ErrorIs(t, err, interaction.ErrUnmanagedFiles)
+	assert.True(t, clierrors.IsHandled(err))
 	assert.Contains(t, out.String(), "cmd.update.header.installing_potentially_missing")
-	assert.Contains(t, out.String(), "cmd.update.error.unmanaged_found")
 }
 
 func TestEnsureInstallForUpdateReturnsOutputErrorOnInstallFailure(t *testing.T) {

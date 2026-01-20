@@ -16,8 +16,10 @@ import (
 
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/meza/minecraft-mod-manager/cmd/mmm/install"
+	"github.com/meza/minecraft-mod-manager/internal/clierrors"
 	"github.com/meza/minecraft-mod-manager/internal/config"
 	"github.com/meza/minecraft-mod-manager/internal/httpclient"
+	"github.com/meza/minecraft-mod-manager/internal/interaction"
 	"github.com/meza/minecraft-mod-manager/internal/logger"
 	"github.com/meza/minecraft-mod-manager/internal/models"
 	"github.com/meza/minecraft-mod-manager/internal/modpath"
@@ -266,7 +268,7 @@ func TestRunUpdateAbortsWhenInstallReportsUnmanagedFiles(t *testing.T) {
 		logger: logger.New(out, errOut, false, false),
 		output: output.New(out, errOut, false),
 		install: func(context.Context, *cobra.Command, install.RunOptions) (install.Result, error) {
-			return install.Result{UnmanagedFound: true}, nil
+			return install.Result{}, clierrors.MarkHandled(interaction.ErrUnmanagedFiles)
 		},
 		fetchMod: func(context.Context, models.Platform, string, platform.FetchOptions, platform.Clients) (platform.RemoteMod, error) {
 			t.Fatal("fetchMod should not be called when unmanaged files are detected")
@@ -279,8 +281,8 @@ func TestRunUpdateAbortsWhenInstallReportsUnmanagedFiles(t *testing.T) {
 		telemetry: func(telemetry.CommandTelemetry) {},
 	})
 
-	assert.ErrorIs(t, err, errUnmanagedFiles)
-	assert.Contains(t, out.String(), "cmd.update.error.unmanaged_found")
+	assert.ErrorIs(t, err, interaction.ErrUnmanagedFiles)
+	assert.True(t, clierrors.IsHandled(err))
 }
 
 func TestRunUpdateReturnsErrorWhenInstallFails(t *testing.T) {

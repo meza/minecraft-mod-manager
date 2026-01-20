@@ -218,6 +218,22 @@ func runRemove(ctx context.Context, cmd *cobra.Command, opts removeOptions, deps
 		return 0, runState.mode.IsInteractive(), nil
 	}
 
+	_, unmanagedErr := interaction.RequireNoUnmanagedFiles(interaction.UnmanagedGateInput{
+		Fs:                     deps.fs,
+		Meta:                   runState.meta,
+		Config:                 runState.cfg,
+		Lock:                   runState.lock,
+		ColorMode:              colorModeForWriter(cmd),
+		Write:                  func(lines []string) error { return runOutputLines(cmd, deps, cmd.OutOrStdout(), lines) },
+		AllowMissingModsFolder: true,
+	})
+	if unmanagedErr != nil {
+		if errors.Is(unmanagedErr, interaction.ErrUnmanagedFiles) {
+			return 0, runState.mode.IsInteractive(), clierrors.MarkHandled(unmanagedErr)
+		}
+		return 0, runState.mode.IsInteractive(), handleRemoveFailure(cmd, deps, unmanagedErr)
+	}
+
 	matches, err := resolveMatchesForRemove(opts.Lookups, runState.cfg, runState.lock)
 	if err != nil {
 		return 0, runState.mode.IsInteractive(), err

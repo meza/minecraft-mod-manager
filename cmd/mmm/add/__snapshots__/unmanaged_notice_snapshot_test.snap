@@ -1,0 +1,22 @@
+
+[TestAddUnmanagedNoticeSnapshotShortHeight - 1]
+stdout:
+cmd.list.unmanaged.header
+❌ unmanaged.jar
+
+cmd.list.unmanaged.description
+cmd.list.unmanaged.cta
+stderr:
+
+---
+
+[TestAddUnmanagedNoticeSnapshotTallHeight - 1]
+stdout:
+cmd.list.unmanaged.header
+❌ unmanaged.jar
+
+cmd.list.unmanaged.description
+cmd.list.unmanaged.cta
+stderr:
+
+---

@@ -21,7 +21,8 @@ Success looks like (for the user):
 ### Primary flow
 
 1. You run `mmm add <platform> <id>`.
-2. MMM resolves a compatible file for <id> from the <platform> and downloads it.
+2. If unmanaged jars are detected in the mods folder, MMM prints the unmanaged files notice and exits with code 1.
+3. MMM resolves a compatible file for <id> from the <platform> and downloads it.
 
 ### Alternate and error flows
 

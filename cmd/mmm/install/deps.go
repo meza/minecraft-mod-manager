@@ -3,7 +3,6 @@ package install
 import (
 	"context"
 
-	curseforgeFingerprint "github.com/meza/curseforge-fingerprint-go"
 	initCmd "github.com/meza/minecraft-mod-manager/cmd/mmm/init"
 	"github.com/meza/minecraft-mod-manager/internal/cmddeps"
 	"github.com/meza/minecraft-mod-manager/internal/httpclient"
@@ -22,12 +21,6 @@ func newInstallDeps(common cmddeps.CommonDeps, options installOptions, telemetry
 		fetchMod:   platform.FetchMod,
 		telemetry:  telemetryRecorder,
 		runTea:     defaultRunTea,
-
-		curseforgeFingerprint:      curseforgeFingerprint.GetFingerprintFor,
-		modrinthVersionForSha:      defaultModrinthVersionForSha,
-		modrinthProjectTitle:       defaultModrinthProjectTitle,
-		curseforgeFingerprintMatch: defaultCurseforgeFingerprintMatch,
-		curseforgeProjectName:      defaultCurseforgeProjectName,
 		runInit: func(ctx context.Context, command *cobra.Command, request initRequest) error {
 			return runInteractiveInit(ctx, command, initCmd.InteractiveInitDeps{
 				FS:              common.FS,

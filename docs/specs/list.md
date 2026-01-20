@@ -4,8 +4,8 @@ Displays the mods defined in `modlist.json` and shows whether each one is curren
 
 ## Behaviour
 1. Load the configuration and lock file, following the missing-config gate defined in `docs/interactions/interaction-guidelines.md`.
-2. Sort entries alphabetically and render installed vs missing states based on the lock hash matching the local file.
-3. If unmanaged jar files are detected, print the unmanaged files notice after the list.
+2. If unmanaged jar files are detected, print the unmanaged files notice defined in `docs/interactions/interaction-guidelines.md` and exit without listing mods.
+3. Sort entries alphabetically and render installed vs missing states based on the lock hash matching the local file.
 4. The command reports the total number of mods via telemetry.
 
 ## Edge Cases

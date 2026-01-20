@@ -31,7 +31,7 @@ func commandWithRunner(runner installRunner) *cobra.Command {
 	return cmd
 }
 
-// RunOptions configures the install preflight used by other commands.
+// RunOptions configures the install run used by other commands.
 type RunOptions struct {
 	ConfigPath   string
 	Unattended   bool

@@ -509,3 +509,24 @@ work on MMM-28 has started
 2026-01-19	14:07	MMM-49: locksync prompt now treats q as cancel with new test; local checks pass; Windows verification pass (PSReadLine VT warning).
 2026-01-19	14:34	MMM-49: reverted remove running tick and restored remove success normalization to trim last frame and filter removing header; snapshots updated; local checks pass; Windows verification pass (PSReadLine VT warning).
 2026-01-19	14:53	MMM-49: reviewer approved after q cancel handling and updated docs/i18n/README; code-review.md updated; Windows verification pass (PSReadLine VT warning).
+2026-01-20	02:49	work on MMM-52 has started
+2026-01-20	02:51	MMM-52: ticket says install preflight scan for unmanaged mods hangs in interactive mode; preflight runs before Bubble Tea UI and only emits final lines, so scan progress likely needs interactive rendering.
+2026-01-20	03:01	MMM-52: user notes unmanaged detection only requires notice to run scan; does not mandate doing a full platform scan during install.
+2026-01-20	03:03	MMM-52: user wants unmanaged detection centralized in a single handler shared by all commands (install/list/scan/prune/update).
+2026-01-20	03:06	MMM-52: user clarified unmanaged detection must be centralized and applied to every command except init and scan; scan should not do a separate boolean gate because it is the resolver.
+2026-01-20	03:08	MMM-52: user expects unmanaged detection applied to all commands except init/scan without enumerating per-command lists.
+2026-01-20	03:55	MMM-52: install unmanaged detection requirement sourced from interaction-guidelines (unmanaged notice + quiet output rules); install spec/flow do not require full platform scan, only unmanaged notice/detection.
+2026-01-20	09:32	MMM-52: centralized unmanaged notice output via interaction.EmitUnmanagedNotice (LogForce), removing per-command helpers; list now uses Emit with leading newline; install uses Emit and sets UnmanagedFound separately.
+2026-01-20	10:34	MMM-52: added BuildUnmanagedNoticeIfModsFolderExists to ignore missing mods folder, added tests for unmanaged notice output errors and install remote coverage; Windows verification pass (winhost lint/build/coverage/test-race).
+2026-01-20	11:25	MMM-52: updated unmanaged notice output error tests to simulate Bubble Tea output failures; local make fmt/fmt-check/lint/vuln/coverage/build pass; Windows winhost lint/build/coverage ok but test-race failed with out-of-memory/linker errors (PSReadLine VT warning).
+2026-01-20	11:31	MMM-52: reran Windows verification; winhost lint/build/coverage ok, test-race failed with out-of-memory/VirtualAlloc and linker no-space errors across packages (PSReadLine VT warning).
+2026-01-20	12:05	MMM-52: Windows verification pass on winhost (make lint/build/coverage/test-race) with PSReadLine VT warning.
+2026-01-20	13:09	MMM-52: added unmanaged notice snapshot tests (short/tall) for add/change/install/list/remove/test, updated specs and flows to mention unmanaged notice, reran local checks and Windows verification pass (PSReadLine VT warning).
+2026-01-20	13:48	MMM-52: updated Linear ticket description with clarification that initial scan-progress expectation is superseded; install should only emit unmanaged notice and scan owns full scans.
+2026-01-20	13:56	MMM-52: local make fmt-check/lint/vuln/coverage/build pass; Windows verification command rerun on winhost succeeded (PSReadLine VT warning). First run failed due to paging file lint error; second run printed a fatal OOM stack trace but completed with exit 0.
+2026-01-20	14:14	MMM-52: reviewer approved; code-review.md updated.
+2026-01-20	15:17	MMM-52: aligned unmanaged preflight to fail fast across commands via interaction.RequireNoUnmanagedFiles; updated add/change/install/list/remove/test/update behavior, docs/specs/flows, and snapshots; local gates pass and Windows verification (winhost make lint/build/coverage/test-race) passed with PSReadLine VT warning.
+2026-01-20	16:40	MMM-52: added list test covering handleListModsFolderPartialFailure output path; local make fmt-check/lint/vuln/coverage/build pass; Windows verification (winhost make lint/build/coverage/test-race) pass with PSReadLine VT warning.
+2026-01-20	16:54	MMM-52: reviewer approved after adding list partial mods-folder failure output coverage; code-review.md updated.
+2026-01-20	17:18	MMM-52: fixed update preflight to run unmanaged check when no mods configured; added tests for unmanaged/no-mods and error/write failure; updated update flow/spec; local make fmt-check/lint/vuln/coverage/build pass; Windows winhost lint/build/coverage/test-race pass (PSReadLine VT warning).
+2026-01-20	17:41	MMM-52 closed in Linear (state set to Done).

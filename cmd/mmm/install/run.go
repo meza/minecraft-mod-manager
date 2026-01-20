@@ -20,7 +20,6 @@ import (
 	"github.com/spf13/cobra"
 )
 
-var errUnresolvedFiles = errors.New("unresolved files in mods folder")
 var errInstallFailures = errors.New("one or more mods failed to install")
 
 type installRunState struct {
@@ -41,12 +40,20 @@ func runInstall(ctx context.Context, cmd *cobra.Command, opts installOptions, de
 	}
 
 	colorMode := colorModeForOutput(cmd.OutOrStdout())
-	preflight, err := preflightInstall(ctx, runState.meta, runState.cfg, runState.lock, deps, colorMode.Enabled())
-	if err != nil {
-		return handleInstallPreflightError(cmd, deps, preflight, err)
-	}
-	if outputErr := writeInstallPreflightOutput(cmd, deps, preflight.lines); outputErr != nil {
-		return Result{}, outputErr
+	_, unmanagedErr := interaction.RequireNoUnmanagedFiles(interaction.UnmanagedGateInput{
+		Fs:                     deps.fs,
+		Meta:                   runState.meta,
+		Config:                 runState.cfg,
+		Lock:                   runState.lock,
+		ColorMode:              colorMode,
+		Write:                  func(lines []string) error { return runOutputLines(cmd, deps, cmd.OutOrStdout(), lines) },
+		AllowMissingModsFolder: true,
+	})
+	if unmanagedErr != nil {
+		if errors.Is(unmanagedErr, interaction.ErrUnmanagedFiles) {
+			return Result{}, clierrors.MarkHandled(unmanagedErr)
+		}
+		return Result{}, handleInstallFailure(cmd, deps, unmanagedErr)
 	}
 
 	items, indexByKey := buildInstallItems(runState.cfg)
@@ -59,10 +66,7 @@ func runInstall(ctx context.Context, cmd *cobra.Command, opts installOptions, de
 		indexByKey: indexByKey,
 	}
 
-	result := Result{
-		InstalledCount: len(items),
-		UnmanagedFound: preflight.unmanagedFound,
-	}
+	result := Result{InstalledCount: len(items)}
 
 	if opts.Quiet {
 		return runQuietInstall(ctx, cmd, deps, executionInput, result)
@@ -71,16 +75,6 @@ func runInstall(ctx context.Context, cmd *cobra.Command, opts installOptions, de
 		return runNonTTYInstall(ctx, cmd, executionInput, result)
 	}
 	return runInteractiveInstall(ctx, cmd, executionInput, result)
-}
-
-func handleInstallPreflightError(cmd *cobra.Command, deps installDeps, preflight scanReportOutcome, err error) (Result, error) {
-	if !errors.Is(err, errUnresolvedFiles) {
-		return Result{}, handleInstallFailure(cmd, deps, err)
-	}
-	if outputErr := writeInstallUnresolvedOutput(cmd, deps, preflight.lines); outputErr != nil {
-		return Result{}, outputErr
-	}
-	return Result{UnmanagedFound: preflight.unmanagedFound}, clierrors.MarkHandled(err)
 }
 
 func prepareInstallRunState(ctx context.Context, cmd *cobra.Command, opts installOptions, deps installDeps) (installRunState, error) {
@@ -259,22 +253,6 @@ func writeConfigMissingOutput(cmd *cobra.Command, deps installDeps, meta config.
 		hint = view.CtaStyle.Render(hint)
 	}
 	return runOutputLines(cmd, deps, cmd.OutOrStdout(), []string{headline, hint})
-}
-
-func writeInstallUnresolvedOutput(cmd *cobra.Command, deps installDeps, lines []string) error {
-	if len(lines) == 0 {
-		return runOutputLines(cmd, deps, cmd.OutOrStdout(), []string{i18n.T("cmd.install.error.unresolved", nil)})
-	}
-	section := strings.Join(lines, "\n")
-	return runOutputLines(cmd, deps, cmd.OutOrStdout(), []string{section, i18n.T("cmd.install.error.unresolved", nil)})
-}
-
-func writeInstallPreflightOutput(cmd *cobra.Command, deps installDeps, lines []string) error {
-	if len(lines) == 0 {
-		return nil
-	}
-	section := strings.Join(lines, "\n")
-	return runOutputLines(cmd, deps, cmd.OutOrStdout(), []string{section})
 }
 
 func installConfiguredMods(input installConfiguredInputs) (installConfiguredOutcome, error) {

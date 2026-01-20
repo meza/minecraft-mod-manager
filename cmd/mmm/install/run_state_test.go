@@ -19,11 +19,8 @@ import (
 	initCmd "github.com/meza/minecraft-mod-manager/cmd/mmm/init"
 	"github.com/meza/minecraft-mod-manager/internal/clierrors"
 	"github.com/meza/minecraft-mod-manager/internal/config"
-	"github.com/meza/minecraft-mod-manager/internal/curseforge"
-	"github.com/meza/minecraft-mod-manager/internal/httpclient"
 	"github.com/meza/minecraft-mod-manager/internal/logger"
 	"github.com/meza/minecraft-mod-manager/internal/models"
-	"github.com/meza/minecraft-mod-manager/internal/modrinth"
 	"github.com/meza/minecraft-mod-manager/internal/output"
 	"github.com/meza/minecraft-mod-manager/internal/platform"
 	"github.com/meza/minecraft-mod-manager/internal/view"
@@ -376,16 +373,6 @@ func TestWriteConfigMissingOutputWithColor(t *testing.T) {
 	assert.NoError(t, err)
 }
 
-func TestWriteInstallUnresolvedOutputVariants(t *testing.T) {
-	t.Setenv("MMM_TEST", "true")
-	cmd := &cobra.Command{}
-	cmd.SetOut(&bytes.Buffer{})
-
-	deps := baseInstallDeps(afero.NewMemMapFs(), nil)
-	assert.NoError(t, writeInstallUnresolvedOutput(cmd, deps, nil))
-	assert.NoError(t, writeInstallUnresolvedOutput(cmd, deps, []string{"line 1"}))
-}
-
 func TestRunInstallStopsOnCanceledPrompt(t *testing.T) {
 	restore := view.SetIsTerminalFuncForTesting(func(int) bool { return true })
 	t.Cleanup(restore)
@@ -407,119 +394,6 @@ func TestRunInstallReturnsPrepareStateError(t *testing.T) {
 	fs := afero.NewMemMapFs()
 	meta := config.NewMetadata(filepath.FromSlash("/cfg/modlist.json"))
 	require.NoError(t, afero.WriteFile(fs, meta.ConfigPath, []byte("{invalid"), 0644))
-
-	cmd := &cobra.Command{}
-	cmd.SetIn(&bytes.Buffer{})
-	cmd.SetOut(&bytes.Buffer{})
-
-	_, err := runInstall(context.Background(), cmd, installOptions{ConfigPath: meta.ConfigPath}, baseInstallDeps(fs, nil))
-	assert.True(t, clierrors.IsHandled(err))
-}
-
-func TestRunInstallReturnsUnresolvedOutputError(t *testing.T) {
-	t.Setenv("MMM_TEST", "true")
-	writeErr := errors.New("write failed")
-
-	fs := afero.NewMemMapFs()
-	meta := config.NewMetadata(filepath.FromSlash("/cfg/modlist.json"))
-	cfg := models.ModsJSON{
-		ModsFolder: "mods",
-		Mods: []models.Mod{
-			{ID: "proj-1", Name: "Configured", Type: models.MODRINTH},
-		},
-	}
-
-	require.NoError(t, fs.MkdirAll(meta.Dir(), 0755))
-	require.NoError(t, fs.MkdirAll(meta.ModsFolderPath(cfg), 0755))
-	require.NoError(t, config.WriteConfig(context.Background(), fs, meta, cfg))
-	require.NoError(t, config.WriteLock(context.Background(), fs, meta, []models.ModInstall{}))
-
-	jarPath := filepath.Join(meta.ModsFolderPath(cfg), "foreign.jar")
-	require.NoError(t, afero.WriteFile(fs, jarPath, []byte("data"), 0644))
-
-	cmd := &cobra.Command{}
-	cmd.SetIn(&bytes.Buffer{})
-	cmd.SetOut(errorWriter{err: writeErr})
-
-	deps := baseInstallDeps(fs, nil)
-	deps.runTea = func(tea.Model, ...tea.ProgramOption) (tea.Model, error) {
-		return view.OutputLinesModel{Err: writeErr}, nil
-	}
-	deps.curseforgeFingerprint = func(string) uint32 { return 0 }
-	deps.curseforgeFingerprintMatch = func(context.Context, []uint32, httpclient.Doer) (*curseforge.FingerprintResult, error) {
-		return &curseforge.FingerprintResult{}, nil
-	}
-	deps.curseforgeProjectName = func(context.Context, string, httpclient.Doer) (string, error) {
-		return "", nil
-	}
-	deps.modrinthVersionForSha = func(context.Context, string, httpclient.Doer) (*modrinth.Version, error) {
-		return &modrinth.Version{ProjectID: "proj-1"}, nil
-	}
-	deps.modrinthProjectTitle = func(context.Context, string, httpclient.Doer) (string, error) {
-		return "Configured", nil
-	}
-
-	_, err := runInstall(context.Background(), cmd, installOptions{ConfigPath: meta.ConfigPath}, deps)
-	assert.ErrorIs(t, err, writeErr)
-}
-
-func TestRunInstallReturnsPreflightOutputError(t *testing.T) {
-	t.Setenv("MMM_TEST", "true")
-	writeErr := errors.New("write failed")
-
-	fs := afero.NewMemMapFs()
-	meta := config.NewMetadata(filepath.FromSlash("/cfg/modlist.json"))
-	cfg := models.ModsJSON{
-		ModsFolder: "mods",
-		Mods:       []models.Mod{},
-	}
-
-	require.NoError(t, fs.MkdirAll(meta.Dir(), 0755))
-	require.NoError(t, fs.MkdirAll(meta.ModsFolderPath(cfg), 0755))
-	require.NoError(t, config.WriteConfig(context.Background(), fs, meta, cfg))
-	require.NoError(t, config.WriteLock(context.Background(), fs, meta, []models.ModInstall{}))
-
-	require.NoError(t, afero.WriteFile(fs, filepath.Join(meta.ModsFolderPath(cfg), "foreign.jar"), []byte("data"), 0644))
-
-	cmd := &cobra.Command{}
-	cmd.SetIn(&bytes.Buffer{})
-	cmd.SetOut(errorWriter{err: writeErr})
-
-	deps := baseInstallDeps(fs, nil)
-	deps.runTea = func(tea.Model, ...tea.ProgramOption) (tea.Model, error) {
-		return view.OutputLinesModel{Err: writeErr}, nil
-	}
-	deps.curseforgeFingerprint = func(string) uint32 { return 1 }
-	deps.curseforgeFingerprintMatch = func(context.Context, []uint32, httpclient.Doer) (*curseforge.FingerprintResult, error) {
-		return &curseforge.FingerprintResult{
-			Matches: []curseforge.File{{ProjectID: 123, Fingerprint: 1}},
-		}, nil
-	}
-	deps.curseforgeProjectName = func(context.Context, string, httpclient.Doer) (string, error) {
-		return "Foreign", nil
-	}
-	deps.modrinthVersionForSha = func(context.Context, string, httpclient.Doer) (*modrinth.Version, error) {
-		return nil, &modrinth.VersionNotFoundError{}
-	}
-	deps.modrinthProjectTitle = func(context.Context, string, httpclient.Doer) (string, error) {
-		return "", nil
-	}
-
-	_, err := runInstall(context.Background(), cmd, installOptions{ConfigPath: meta.ConfigPath}, deps)
-	assert.ErrorIs(t, err, writeErr)
-}
-
-func TestRunInstallHandlesPreflightFailure(t *testing.T) {
-	fs := openErrorFs{
-		Fs:       afero.NewMemMapFs(),
-		failPath: filepath.FromSlash("/cfg/mods"),
-		err:      errors.New("open failed"),
-	}
-	meta := config.NewMetadata(filepath.FromSlash("/cfg/modlist.json"))
-	cfg := models.ModsJSON{ModsFolder: "mods"}
-
-	require.NoError(t, config.WriteConfig(context.Background(), fs, meta, cfg))
-	require.NoError(t, config.WriteLock(context.Background(), fs, meta, []models.ModInstall{}))
 
 	cmd := &cobra.Command{}
 	cmd.SetIn(&bytes.Buffer{})

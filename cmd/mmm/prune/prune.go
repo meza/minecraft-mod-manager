@@ -22,8 +22,8 @@ import (
 	"github.com/meza/minecraft-mod-manager/internal/interaction"
 	"github.com/meza/minecraft-mod-manager/internal/locksync"
 	"github.com/meza/minecraft-mod-manager/internal/logger"
-	"github.com/meza/minecraft-mod-manager/internal/mmmignore"
 	"github.com/meza/minecraft-mod-manager/internal/models"
+	"github.com/meza/minecraft-mod-manager/internal/modfiles"
 	"github.com/meza/minecraft-mod-manager/internal/output"
 	"github.com/meza/minecraft-mod-manager/internal/perf"
 	"github.com/meza/minecraft-mod-manager/internal/telemetry"
@@ -57,7 +57,6 @@ type pruneDeps struct {
 var runInteractiveInit = initCmd.RunInteractiveInit
 
 var errPromptDisabled = errors.New("prune aborted: prompt disabled")
-var absPath = filepath.Abs
 
 func Command() *cobra.Command {
 	cmd := &cobra.Command{
@@ -221,7 +220,7 @@ func runPrune(ctx context.Context, cmd *cobra.Command, options pruneOptions, dep
 		return 0, nil
 	}
 
-	unmanagedFiles, err := listUnmanagedFiles(deps.fs, meta, configState.Config, configState.Lock)
+	unmanagedFiles, err := modfiles.ListUnmanagedFiles(deps.fs, meta, configState.Config, configState.Lock)
 	if err != nil {
 		return 0, handlePruneFailure(cmd, deps, err)
 	}
@@ -526,72 +525,6 @@ func handleLockReadError(cmd *cobra.Command, deps pruneDeps, err error) error {
 		return outputErr
 	}
 	return clierrors.MarkHandled(err)
-}
-
-func listUnmanagedFiles(fs afero.Fs, meta config.Metadata, cfg models.ModsJSON, lock []models.ModInstall) ([]string, error) {
-	candidates, err := listJarFiles(fs, meta, cfg)
-	if err != nil {
-		return nil, err
-	}
-
-	unmanaged := make([]string, 0, len(candidates))
-	for _, candidate := range candidates {
-		if fileIsManaged(candidate, lock) {
-			continue
-		}
-		unmanaged = append(unmanaged, candidate)
-	}
-
-	return unmanaged, nil
-}
-
-func listJarFiles(fs afero.Fs, meta config.Metadata, cfg models.ModsJSON) ([]string, error) {
-	modsFolder := meta.ModsFolderPath(cfg)
-	modsFolderAbs, err := absPath(modsFolder)
-	if err != nil {
-		return nil, err
-	}
-
-	allEntries, err := afero.ReadDir(fs, modsFolderAbs)
-	if err != nil {
-		return nil, err
-	}
-
-	candidates := make([]string, 0, len(allEntries))
-	for _, entry := range allEntries {
-		if entry.IsDir() {
-			continue
-		}
-		if !strings.HasSuffix(strings.ToLower(entry.Name()), ".jar") {
-			continue
-		}
-		candidates = append(candidates, filepath.Join(modsFolderAbs, entry.Name()))
-	}
-
-	patterns, err := mmmignore.ListPatterns(fs, meta.Dir())
-	if err != nil {
-		return nil, err
-	}
-
-	filtered := make([]string, 0, len(candidates))
-	for _, candidate := range candidates {
-		if mmmignore.IsIgnored(modsFolderAbs, candidate, patterns) {
-			continue
-		}
-		filtered = append(filtered, candidate)
-	}
-
-	return filtered, nil
-}
-
-func fileIsManaged(path string, lock []models.ModInstall) bool {
-	fileName := filepath.Base(path)
-	for _, install := range lock {
-		if install.FileName == fileName {
-			return true
-		}
-	}
-	return false
 }
 
 type pruneFileStatus int

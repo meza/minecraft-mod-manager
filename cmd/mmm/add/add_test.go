@@ -136,7 +136,15 @@ func TestRunAdd_SuccessLogsAsciiIconWhenNotTerminal(t *testing.T) {
 		Mods:                       []models.Mod{},
 	}
 	assert.NoError(t, config.WriteConfig(context.Background(), fs, meta, cfg))
-	assert.NoError(t, config.WriteLock(context.Background(), fs, meta, nil))
+	assert.NoError(t, config.WriteLock(context.Background(), fs, meta, []models.ModInstall{{
+		ID:          "abc",
+		Type:        models.MODRINTH,
+		Name:        "Example",
+		FileName:    "example.jar",
+		Hash:        "a17c9aaa61e80a1bf71d0d850af4e5baa9800bbd",
+		ReleasedOn:  "2024-01-01T00:00:00Z",
+		DownloadURL: "https://example.com/example.jar",
+	}}))
 
 	out := bytes.NewBuffer(nil)
 	cmd := &cobra.Command{}
@@ -243,7 +251,15 @@ func TestRunAdd_SkipsDownloadWhenFileAlreadyMatchesRemoteHash(t *testing.T) {
 		Mods:                       []models.Mod{},
 	}
 	assert.NoError(t, config.WriteConfig(context.Background(), fs, meta, cfg))
-	assert.NoError(t, config.WriteLock(context.Background(), fs, meta, nil))
+	assert.NoError(t, config.WriteLock(context.Background(), fs, meta, []models.ModInstall{{
+		ID:          "abc",
+		Type:        models.MODRINTH,
+		Name:        "Example",
+		FileName:    "example.jar",
+		Hash:        "a17c9aaa61e80a1bf71d0d850af4e5baa9800bbd",
+		ReleasedOn:  "2024-01-01T00:00:00Z",
+		DownloadURL: "https://example.com/example.jar",
+	}}))
 
 	jarPath := filepath.Join(meta.ModsFolderPath(cfg), "example.jar")
 	assert.NoError(t, fs.MkdirAll(filepath.Dir(jarPath), 0755))

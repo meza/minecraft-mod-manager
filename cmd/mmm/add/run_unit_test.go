@@ -4,6 +4,8 @@ import (
 	"bytes"
 	"context"
 	"errors"
+	"io"
+	"os"
 	"path/filepath"
 	"testing"
 
@@ -76,6 +78,96 @@ func TestHandleAddFailureMarksHandled(t *testing.T) {
 	deps := addDeps{runTea: runTeaProgram}
 	err := handleAddFailure(cmd, deps, errors.New("boom"))
 	assert.True(t, clierrors.IsHandled(err))
+}
+
+type statErrorFs struct {
+	afero.Fs
+	failPath string
+	err      error
+}
+
+func (fs statErrorFs) Stat(name string) (os.FileInfo, error) {
+	if filepath.Clean(name) == filepath.Clean(fs.failPath) {
+		return nil, fs.err
+	}
+	return fs.Fs.Stat(name)
+}
+
+func TestRunAddReturnsErrorWhenUnmanagedNoticeFails(t *testing.T) {
+	t.Setenv("MMM_TEST", "true")
+	ctx, commandSpan := startAddPerf(t)
+
+	baseFs := afero.NewMemMapFs()
+	meta := config.NewMetadata(filepath.FromSlash("/cfg/modlist.json"))
+	cfg := models.ModsJSON{
+		Loader:                     models.FABRIC,
+		GameVersion:                "1.20.1",
+		DefaultAllowedReleaseTypes: []models.ReleaseType{models.Release},
+		ModsFolder:                 "mods",
+	}
+
+	require.NoError(t, baseFs.MkdirAll(meta.Dir(), 0755))
+	require.NoError(t, baseFs.MkdirAll(meta.ModsFolderPath(cfg), 0755))
+	require.NoError(t, config.WriteConfig(context.Background(), baseFs, meta, cfg))
+	require.NoError(t, config.WriteLock(context.Background(), baseFs, meta, []models.ModInstall{}))
+
+	failPath := filepath.Join(meta.Dir(), ".mmmignore")
+	fs := statErrorFs{Fs: baseFs, failPath: failPath, err: errors.New("stat failed")}
+
+	cmd := &cobra.Command{}
+	cmd.SetIn(&bytes.Buffer{})
+	cmd.SetOut(&bytes.Buffer{})
+	cmd.SetErr(&bytes.Buffer{})
+
+	_, err := runAdd(ctx, commandSpan, cmd, addOptions{ConfigPath: meta.ConfigPath}, addDeps{
+		fs:     fs,
+		logger: logger.New(io.Discard, io.Discard, false, false),
+		output: output.New(io.Discard, io.Discard, false),
+		runTea: func(model tea.Model, _ ...tea.ProgramOption) (tea.Model, error) {
+			return model, nil
+		},
+	})
+
+	assert.True(t, clierrors.IsHandled(err))
+}
+
+func TestRunAddReturnsOutputErrorWhenUnmanagedNoticeWriteFails(t *testing.T) {
+	t.Setenv("MMM_TEST", "true")
+	ctx, commandSpan := startAddPerf(t)
+
+	fs := afero.NewMemMapFs()
+	meta := config.NewMetadata(filepath.FromSlash("/cfg/modlist.json"))
+	cfg := models.ModsJSON{
+		Loader:                     models.FABRIC,
+		GameVersion:                "1.20.1",
+		DefaultAllowedReleaseTypes: []models.ReleaseType{models.Release},
+		ModsFolder:                 "mods",
+	}
+
+	require.NoError(t, fs.MkdirAll(meta.Dir(), 0755))
+	require.NoError(t, fs.MkdirAll(meta.ModsFolderPath(cfg), 0755))
+	require.NoError(t, config.WriteConfig(context.Background(), fs, meta, cfg))
+	require.NoError(t, config.WriteLock(context.Background(), fs, meta, []models.ModInstall{}))
+	require.NoError(t, afero.WriteFile(fs, filepath.Join(meta.ModsFolderPath(cfg), "unmanaged.jar"), []byte("data"), 0644))
+
+	writeErr := errors.New("write failed")
+	cmd := &cobra.Command{}
+	cmd.SetIn(&bytes.Buffer{})
+	cmd.SetOut(&bytes.Buffer{})
+	cmd.SetErr(&bytes.Buffer{})
+
+	_, err := runAdd(ctx, commandSpan, cmd, addOptions{ConfigPath: meta.ConfigPath}, addDeps{
+		fs:     fs,
+		logger: logger.New(io.Discard, io.Discard, false, false),
+		runTea: func(model tea.Model, _ ...tea.ProgramOption) (tea.Model, error) {
+			if _, ok := model.(outputLinesModel); ok {
+				return outputLinesModel{Err: writeErr}, nil
+			}
+			return model, nil
+		},
+	})
+
+	assert.ErrorIs(t, err, writeErr)
 }
 
 func TestHandleAddFailureReturnsOutputError(t *testing.T) {

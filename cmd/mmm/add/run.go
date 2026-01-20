@@ -50,6 +50,22 @@ func runAdd(ctx context.Context, commandSpan *perf.Span, cmd *cobra.Command, opt
 	}
 
 	colorMode := colorModeForOutput(cmd.OutOrStdout())
+	_, unmanagedErr := interaction.RequireNoUnmanagedFiles(interaction.UnmanagedGateInput{
+		Fs:                     deps.fs,
+		Meta:                   runState.meta,
+		Config:                 runState.cfg,
+		Lock:                   runState.lock,
+		ColorMode:              colorMode,
+		Write:                  func(lines []string) error { return runOutputLines(cmd, deps, cmd.OutOrStdout(), lines) },
+		AllowMissingModsFolder: true,
+	})
+	if unmanagedErr != nil {
+		if errors.Is(unmanagedErr, interaction.ErrUnmanagedFiles) {
+			return addFailureTelemetryWithoutArgs(runState.mode.String(), runState.mode.IsInteractive(), unmanagedErr), clierrors.MarkHandled(unmanagedErr)
+		}
+		return addFailureTelemetryWithoutArgs(runState.mode.String(), runState.mode.IsInteractive(), unmanagedErr), handleAddFailure(cmd, deps, unmanagedErr)
+	}
+
 	platformValue, projectID := normalizedAddIdentifiers(opts)
 	identifiers := addIdentifiers{platformValue: platformValue, projectID: projectID}
 

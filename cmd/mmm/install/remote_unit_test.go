@@ -8,6 +8,7 @@ import (
 
 	"github.com/spf13/afero"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 	"golang.org/x/time/rate"
 
 	"github.com/meza/minecraft-mod-manager/internal/config"
@@ -38,6 +39,98 @@ func TestInstallFromLockReturnsInstallerError(t *testing.T) {
 	assert.False(t, outcome.failed)
 }
 
+func TestInstallFromLockHandlesInvalidFilename(t *testing.T) {
+	t.Setenv("MMM_TEST", "true")
+	meta := config.NewMetadata(filepath.FromSlash("/cfg/modlist.json"))
+	cfg := models.ModsJSON{ModsFolder: "mods"}
+	mod := models.Mod{ID: "alpha", Name: "Alpha", Type: models.MODRINTH}
+
+	outcome, err := installFromLock(context.Background(), meta, cfg, mod, models.ModInstall{
+		Type:        models.MODRINTH,
+		ID:          "alpha",
+		Name:        "Alpha",
+		FileName:    "",
+		Hash:        "hash",
+		DownloadURL: "https://example.invalid/alpha.jar",
+	}, installDeps{}, nil)
+
+	assert.NoError(t, err)
+	assert.True(t, outcome.failed)
+	assert.Contains(t, outcome.failureReason, "cmd.install.error.invalid_filename_lock")
+}
+
+func TestInstallFromLockHandlesMissingHash(t *testing.T) {
+	t.Setenv("MMM_TEST", "true")
+	fs := afero.NewMemMapFs()
+	meta := config.NewMetadata(filepath.FromSlash("/cfg/modlist.json"))
+	cfg := models.ModsJSON{ModsFolder: "mods"}
+	mod := models.Mod{ID: "alpha", Name: "Alpha", Type: models.MODRINTH}
+
+	outcome, err := installFromLock(context.Background(), meta, cfg, mod, models.ModInstall{
+		Type:        models.MODRINTH,
+		ID:          "alpha",
+		Name:        "Alpha",
+		FileName:    "alpha.jar",
+		Hash:        "",
+		DownloadURL: "https://example.invalid/alpha.jar",
+	}, installDeps{fs: fs, downloader: httpclient.DownloadFile}, nil)
+
+	assert.NoError(t, err)
+	assert.True(t, outcome.failed)
+	assert.Contains(t, outcome.failureReason, "cmd.install.error.missing_hash_lock")
+}
+
+func TestInstallFromLockSkipsDownloadWhenHashMatches(t *testing.T) {
+	fs := afero.NewMemMapFs()
+	meta := config.NewMetadata(filepath.FromSlash("/cfg/modlist.json"))
+	cfg := models.ModsJSON{ModsFolder: "mods"}
+	mod := models.Mod{ID: "alpha", Name: "Alpha", Type: models.MODRINTH}
+
+	require.NoError(t, fs.MkdirAll(meta.ModsFolderPath(cfg), 0755))
+	require.NoError(t, afero.WriteFile(fs, filepath.Join(meta.ModsFolderPath(cfg), "alpha.jar"), []byte("data"), 0644))
+
+	outcome, err := installFromLock(context.Background(), meta, cfg, mod, models.ModInstall{
+		Type:        models.MODRINTH,
+		ID:          "alpha",
+		Name:        "Alpha",
+		FileName:    "alpha.jar",
+		Hash:        sha1Hex("data"),
+		DownloadURL: "https://example.invalid/alpha.jar",
+	}, installDeps{fs: fs}, nil)
+
+	assert.NoError(t, err)
+	assert.False(t, outcome.failed)
+}
+
+func TestInstallFromLockDownloadsMissingFile(t *testing.T) {
+	fs := afero.NewMemMapFs()
+	meta := config.NewMetadata(filepath.FromSlash("/cfg/modlist.json"))
+	cfg := models.ModsJSON{ModsFolder: "mods"}
+	mod := models.Mod{ID: "alpha", Name: "Alpha", Type: models.MODRINTH}
+
+	outcome, err := installFromLock(context.Background(), meta, cfg, mod, models.ModInstall{
+		Type:        models.MODRINTH,
+		ID:          "alpha",
+		Name:        "Alpha",
+		FileName:    "alpha.jar",
+		Hash:        sha1Hex("data"),
+		DownloadURL: "https://example.invalid/alpha.jar",
+	}, installDeps{
+		fs:      fs,
+		clients: platform.DefaultClients(rate.NewLimiter(rate.Inf, 0)),
+		downloader: func(_ context.Context, _ string, destination string, _ httpclient.Doer, _ httpclient.Sender, filesystems ...afero.Fs) error {
+			target := fs
+			if len(filesystems) > 0 {
+				target = filesystems[0]
+			}
+			return afero.WriteFile(target, destination, []byte("data"), 0644)
+		},
+	}, nil)
+
+	assert.NoError(t, err)
+	assert.False(t, outcome.failed)
+}
+
 func TestInstallFromRemoteHandlesMissingHash(t *testing.T) {
 	t.Setenv("MMM_TEST", "true")
 	outcome, err := installFromRemote(installModInputs{
@@ -60,6 +153,48 @@ func TestInstallFromRemoteHandlesMissingHash(t *testing.T) {
 	assert.NoError(t, err)
 	assert.True(t, outcome.failed)
 	assert.Contains(t, outcome.failureReason, "cmd.mods.error.missing_hash_remote")
+}
+
+func TestNormalizeRemoteForInstallRejectsInvalidFilename(t *testing.T) {
+	t.Setenv("MMM_TEST", "true")
+	remote := platform.RemoteMod{Name: "Alpha", FileName: "mods/alpha.jar", Hash: "hash"}
+	mod := models.Mod{Name: "Alpha", Type: models.MODRINTH}
+
+	_, outcome := normalizeRemoteForInstall(remote, mod)
+
+	assert.True(t, outcome.failed)
+	assert.Contains(t, outcome.failureReason, "cmd.install.error.invalid_filename_remote")
+}
+
+func TestResolveRemoteDestinationSuccess(t *testing.T) {
+	fs := afero.NewMemMapFs()
+	meta := config.NewMetadata(filepath.FromSlash("/cfg/modlist.json"))
+	cfg := models.ModsJSON{ModsFolder: "mods"}
+	require.NoError(t, fs.MkdirAll(meta.ModsFolderPath(cfg), 0755))
+
+	remote := platform.RemoteMod{Name: "Alpha", FileName: "alpha.jar"}
+	mod := models.Mod{Name: "Alpha", Type: models.MODRINTH}
+
+	destination, outcome, err := resolveRemoteDestination(meta, cfg, remote, mod, installDeps{fs: fs})
+
+	assert.NoError(t, err)
+	assert.False(t, outcome.failed)
+	assert.Equal(t, filepath.Join(meta.ModsFolderPath(cfg), "alpha.jar"), destination)
+}
+
+func TestResolveRemoteDestinationReturnsErrorWhenRootMissing(t *testing.T) {
+	root := filepath.Join(t.TempDir(), "missing")
+	meta := config.NewMetadata(filepath.Join(root, "modlist.json"))
+	cfg := models.ModsJSON{ModsFolder: "mods"}
+	remote := platform.RemoteMod{Name: "Alpha", FileName: "alpha.jar"}
+	mod := models.Mod{Name: "Alpha", Type: models.MODRINTH}
+
+	fs := symlinkStubFs{Fs: afero.NewOsFs(), symlinks: map[string]string{}}
+
+	_, outcome, err := resolveRemoteDestination(meta, cfg, remote, mod, installDeps{fs: fs})
+
+	assert.Error(t, err)
+	assert.False(t, outcome.failed)
 }
 
 func TestInstallFromRemoteHandlesNotFound(t *testing.T) {

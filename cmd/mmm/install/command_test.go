@@ -206,7 +206,6 @@ func TestRun_ReturnsZeroWhenNoMods(t *testing.T) {
 	})
 	assert.NoError(t, err)
 	assert.Equal(t, 0, result.InstalledCount)
-	assert.False(t, result.UnmanagedFound)
 }
 
 func addPersistentFlagsForTesting(cmd *cobra.Command) {

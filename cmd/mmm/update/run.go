@@ -22,7 +22,6 @@ import (
 )
 
 var errUpdateFailures = errors.New("one or more mods failed to update")
-var errUnmanagedFiles = errors.New("unmanaged files in mods folder")
 
 type updateExecutionInput struct {
 	meta       config.Metadata
@@ -61,11 +60,8 @@ func runUpdate(ctx context.Context, cmd *cobra.Command, opts updateOptions, deps
 	if !lockSyncContext.shouldContinue {
 		return updateCounts{}, nil
 	}
-	if len(lockSyncContext.cfg.Mods) == 0 {
-		if opts.Quiet {
-			return updateCounts{}, nil
-		}
-		return reportNoModsConfigured(cmd)
+	if handled, noModsErr := handleUpdateNoModsConfigured(cmd, opts, deps, meta, lockSyncContext); handled {
+		return updateCounts{}, noModsErr
 	}
 
 	execState, err := prepareUpdateExecution(ctx, cmd, opts, deps, mode)
@@ -85,11 +81,56 @@ func runUpdate(ctx context.Context, cmd *cobra.Command, opts updateOptions, deps
 	return handleUpdateOutcome(outcome)
 }
 
-func reportNoModsConfigured(cmd *cobra.Command) (updateCounts, error) {
-	if outputErr := runOutputLines(cmd, cmd.OutOrStdout(), []string{i18n.T("cmd.list.empty", nil)}); outputErr != nil {
-		return updateCounts{}, outputErr
+func handleUpdateNoModsConfigured(
+	cmd *cobra.Command,
+	opts updateOptions,
+	deps updateDeps,
+	meta config.Metadata,
+	lockSyncContext updateContext,
+) (bool, error) {
+	if len(lockSyncContext.cfg.Mods) != 0 {
+		return false, nil
 	}
-	return updateCounts{}, nil
+	if unmanagedErr := requireNoUnmanagedForUpdateNoMods(cmd, deps, meta, lockSyncContext); unmanagedErr != nil {
+		return true, unmanagedErr
+	}
+	if opts.Quiet {
+		return true, nil
+	}
+	if err := reportNoModsConfigured(cmd); err != nil {
+		return true, err
+	}
+	return true, nil
+}
+
+func requireNoUnmanagedForUpdateNoMods(cmd *cobra.Command, deps updateDeps, meta config.Metadata, lockSyncContext updateContext) error {
+	_, unmanagedErr := interaction.RequireNoUnmanagedFiles(interaction.UnmanagedGateInput{
+		Fs:                     deps.fs,
+		Meta:                   meta,
+		Config:                 lockSyncContext.cfg,
+		Lock:                   lockSyncContext.lock,
+		ColorMode:              lockSyncContext.colorMode,
+		Write:                  func(lines []string) error { return runOutputLines(cmd, cmd.OutOrStdout(), lines) },
+		AllowMissingModsFolder: true,
+	})
+	if unmanagedErr == nil {
+		return nil
+	}
+	if errors.Is(unmanagedErr, interaction.ErrUnmanagedFiles) {
+		return clierrors.MarkHandled(unmanagedErr)
+	}
+	line := renderFinalErrorLine(lockSyncContext.colorMode, unmanagedErr.Error())
+	if outputErr := runOutputLines(cmd, cmd.OutOrStdout(), []string{line}); outputErr != nil {
+		return outputErr
+	}
+	return clierrors.MarkHandled(unmanagedErr)
+}
+
+func reportNoModsConfigured(cmd *cobra.Command) error {
+	if outputErr := runOutputLines(cmd, cmd.OutOrStdout(), []string{i18n.T("cmd.list.empty", nil)}); outputErr != nil {
+		return outputErr
+	}
+	return nil
 }
 
 type updateExecutionState struct {
@@ -103,20 +144,20 @@ func prepareUpdateExecution(ctx context.Context, cmd *cobra.Command, opts update
 		return updateExecutionState{mode: mode, shouldContinue: true}, installErr
 	}
 
-	updateContext, err := loadUpdateContext(ctx, cmd, opts, deps, mode, updateReadPhase)
+	loadedContext, err := loadUpdateContext(ctx, cmd, opts, deps, mode, updateReadPhase)
 	if err != nil {
 		return updateExecutionState{mode: interaction.ExecutionModeNonTTY, shouldContinue: true}, err
 	}
 
-	items, indexByKey := buildUpdateItems(updateContext.cfg, updateContext.lock)
+	items, indexByKey := buildUpdateItems(loadedContext.cfg, loadedContext.lock)
 	executionInput := updateExecutionInput{
-		meta:       updateContext.meta,
-		cfg:        &updateContext.cfg,
-		lock:       updateContext.lock,
+		meta:       loadedContext.meta,
+		cfg:        &loadedContext.cfg,
+		lock:       loadedContext.lock,
 		deps:       deps,
 		items:      items,
 		indexByKey: indexByKey,
-		colorMode:  updateContext.colorMode,
+		colorMode:  loadedContext.colorMode,
 	}
 
 	return updateExecutionState{
@@ -194,7 +235,7 @@ func ensureInstallForUpdate(ctx context.Context, cmd *cobra.Command, opts update
 		}
 		cmd.SetOut(headerWriter)
 	}
-	installResult, err := deps.install(installCtx, cmd, install.RunOptions{
+	_, err := deps.install(installCtx, cmd, install.RunOptions{
 		ConfigPath:   opts.ConfigPath,
 		Unattended:   opts.Unattended,
 		Quiet:        opts.Quiet,
@@ -209,11 +250,10 @@ func ensureInstallForUpdate(ctx context.Context, cmd *cobra.Command, opts update
 		}
 	}
 	if err != nil {
+		if errors.Is(err, interaction.ErrUnmanagedFiles) {
+			return err
+		}
 		return handleUpdateInstallFailure(cmd, err, installView, mode)
-	}
-
-	if installResult.UnmanagedFound {
-		return handleUpdateInstallUnmanaged(cmd)
 	}
 	return nil
 }
@@ -287,14 +327,6 @@ func handleUpdateInstallFailure(cmd *cobra.Command, err error, installView strin
 		return outputErr
 	}
 	return clierrors.MarkHandled(err)
-}
-
-func handleUpdateInstallUnmanaged(cmd *cobra.Command) error {
-	message := renderFinalErrorLine(colorModeForOutput(cmd.OutOrStdout()), i18n.T("cmd.update.error.unmanaged_found", nil))
-	if outputErr := runOutputLines(cmd, cmd.OutOrStdout(), []string{message}); outputErr != nil {
-		return outputErr
-	}
-	return clierrors.MarkHandled(errUnmanagedFiles)
 }
 
 func loadUpdateContext(ctx context.Context, cmd *cobra.Command, opts updateOptions, deps updateDeps, mode interaction.ExecutionMode, phase updateLoadPhase) (updateContext, error) {
