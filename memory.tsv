@@ -530,3 +530,44 @@ work on MMM-28 has started
 2026-01-20	16:54	MMM-52: reviewer approved after adding list partial mods-folder failure output coverage; code-review.md updated.
 2026-01-20	17:18	MMM-52: fixed update preflight to run unmanaged check when no mods configured; added tests for unmanaged/no-mods and error/write failure; updated update flow/spec; local make fmt-check/lint/vuln/coverage/build pass; Windows winhost lint/build/coverage/test-race pass (PSReadLine VT warning).
 2026-01-20	17:41	MMM-52 closed in Linear (state set to Done).
+2026-01-20	17:42	work on MMM-53 has started
+2026-01-20	17:46	MMM-53: ticket read; reviewed docs/specs/scan.md + interactions/flows/scan.md + interaction-guidelines icon rules and scan execution/rendering code. Suspect regression from scan execution marking all candidates as scanning (markScanCandidatesActive) so running view shows spinners for every item; pending hourglass never appears.
+2026-01-20	19:28	MMM-53 alignment: queued items show hourglass in running view; CurseForge batch can set all items to spinner once batch starts; regression test must assert some pending items remain during running view.
+2026-01-20	19:43	MMM-53: removed modrinth scan pre-marking, added concurrency limits via GOMAXPROCS in modrinth lookup paths, and updated execution tests to assert queued scan items stay pending.
+2026-01-20	19:58	MMM-53: Windows verification via winhost command failed twice with snapshot mismatches in cmd/mmm/test PTY tests (and earlier remove snapshot). PSReadLine VT warning continues; needs team attention.
+2026-01-20	20:06	MMM-53: Windows verification (winhost make lint/build/coverage/test-race) still failing on cmd/mmm/test PTY snapshot mismatch (TestTestCommandInteractivePTYRunningShowsHeadersWhenShort); PSReadLine VT warning persists.
+2026-01-20	21:43	MMM-53: winhost make lint/build/coverage/test-race passed (PSReadLine VT warning persists).
+2026-01-20	22:05	MMM-53: added scan running snapshot with pending items; normalized test PTY output for cursor-up frames and latest header; winhost make lint/build/coverage/test-race pass (PSReadLine VT warning).
+2026-01-20	22:13	MMM-53: reviewer approved (code-review.md updated). Local checks pass; winhost lint/build/coverage/test-race pass (PSReadLine VT warning).
+2026-01-20	22:33	MMM-53: resumed; requirement clarified that scan spinner should start only when the network call begins (after rate limiter wait), and applies to both Modrinth and CurseForge.
+2026-01-20	22:53	MMM-53: added httpclient request-start hook; scan now flips to scanning on request start (post rate limit) for Modrinth/CurseForge, misses revert to pending between platforms; tests updated; local checks and Windows verification passed; Linear description updated.
+2026-01-20	23:07	MMM-53: reviewer approved; code-review.md updated after rerunning local checks and Windows verification.
+2026-01-20	23:20	MMM-53: user observed Modrinth scanning in batches; removed Modrinth concurrency caps so rate limiter drives steady flow; updated queued-items test to simulate rate-limited starts; local checks and Windows verification rerun.
+2026-01-20	23:31	MMM-53: reviewer approved after removing Modrinth concurrency caps; code-review.md updated.
+2026-01-20	23:53	MMM-53: added scan viewport auto-scroll until user scrolls (results visible as they resolve) and now print results + cancel line on prompt decline; updated PTY waits/snapshots and added prompt cancel-line error coverage; local + Windows checks pass.
+2026-01-21	00:25	MMM-53: updating scan status so Modrinth toggles spinner per request (pending after each request) and CurseForge updates per match with pending after batch; added CF batch-failure status test; docs/spec updates need permission.
+2026-01-21	00:41	MMM-53: make fmt-check/lint/vuln/coverage/build pass; Windows winhost make lint/build/coverage/test-race pass (PSReadLine VT warning).
+2026-01-21	00:43	MMM-53: Linear state confirmed/updated to In Progress.
+2026-01-21	01:09	MMM-53: Modrinth lookups now use worker pool sized by rate limiter burst (default 1) to avoid queuing all version requests; added tests for worker count, context cancel, and ordering (title before next version) to ensure recognized appears during running; scanDeps now carries limiter.
+2026-01-21	01:16	MMM-53: local make fmt-check/lint/vuln/coverage/build pass; Windows winhost make lint/build/coverage/test-race pass (PSReadLine VT warning).
+2026-01-21	01:29	MMM-53: plan to change CurseForge lookup updates so spinner toggles per-request (fingerprint + project name) and recognized/unsure updates emit during lookup; update tests to enforce per-item spinner during active requests.
+2026-01-21	02:22	MMM-53: updated CF status updates to toggle per-request and emit recognized immediately; modrinth lookup now uses full candidate concurrency; added per-request status tests and PTY close timeout guard.
+2026-01-21	02:22	MMM-53: local make fmt-check/lint/vuln/coverage/build pass; Windows winhost make lint/build/coverage/test-race pass (PSReadLine VT warning).
+2026-01-21	02:41	MMM-53: reviewer Not Approved due to docs mismatch (scan flow/spec spinner + cancel output) and scope justification; updated Linear description to justify PTY close timeout for winhost verification.
+2026-01-21	10:40	MMM-53: CF scan now uses fingerprint file displayName (no per-project lookup), so recognized lines resolve immediately after batch; local make fmt-check/lint/vuln/coverage/build pass; Windows winhost make lint/build/coverage/test-race pass (PSReadLine VT warning).
+2026-01-21	11:02	MMM-53: resumed after compaction; plan to reduce scan status update churn (skip duplicate status updates) and adjust CurseForge pending updates to emit recognized before pending misses.
+2026-01-21	11:09	MMM-53: adjusted scan status updates to skip duplicate status messages and move CurseForge pending updates to misses after matches; added test for recognized-before-pending; make fmt/fmt-check/lint/vuln/coverage/build pass.
+2026-01-21	11:15	MMM-53: Windows verification (winhost make lint/build/coverage/test-race) failed; cmd/mmm/test PTY tests failed (TestTestCommandInteractivePTYRunningShowsHeadersWhenShort timeout, TestTestCommandInteractivePTYRunningSnapshotTallHeightFailure snapshot mismatch).
+2026-01-21	11:22	MMM-53: Windows verification rerun failed again; cmd/mmm/update PTY snapshot mismatch on winhost (TestUpdateCommandInteractivePTYRunningSnapshotTallHeight) now failing; winhost run still shows PSReadLine VT warning.
+2026-01-21	12:16	MMM-53: updated update PTY running snapshot normalization to truncate failed-item detail for stable wrap, updated snapshot; local checks pass; Windows verification pass (winhost lint/build/coverage/test-race) with PSReadLine VT warning.
+2026-01-21	13:41	MMM-53: removed Modrinth project-title lookup for scan; now use version name/number; updated tests; local checks pass; Windows verification pass (winhost lint/build/coverage/test-race) with PSReadLine VT warning.
+2026-01-21	13:44	MMM-53: removed Modrinth project-title lookup from scan (use version.Name/version number); updated scan tests and helpers to enforce no title lookup and expected names; scan execution now avoids pending flicker tied to title requests.
+2026-01-21	14:03	MMM-53: aligned scan prompt-decline output to cancel-only per flow; updated scan snapshots/tests; increased PTY close timeout to stabilize Windows scan PTY close; local checks pass; Windows verification pass (winhost lint/build/coverage/test-race) with PSReadLine VT warning.
+2026-01-21	14:04	MMM-53: appended alignment update to Linear description (Modrinth name sourcing, spinner timing, prompt decline output).
+2026-01-21	14:46	MMM-53: removed Modrinth project title deps/helpers and added CurseForge name fallback tests (DisplayName->FileName->ProjectID).
+2026-01-21	14:52	MMM-53: local make fmt/fmt-check/lint/vuln/coverage/build pass; Windows winhost lint/build/coverage/test-race pass (PSReadLine VT warning).
+2026-01-21	15:13	MMM-53: appended Linear description update justifying scan auto-scroll behavior and PTY normalization adjustments for Windows snapshot stability.
+2026-01-21	15:13	MMM-53: removed unused scanDeps.limiter field and limiter usage from scan execution tests to satisfy review feedback.
+2026-01-21	15:34	MMM-53: local make fmt/fmt-check/lint/vuln/coverage/build pass; Windows winhost lint/build/coverage/test-race pass (PSReadLine VT warning) after limiter removal.
+2026-01-21	15:47	MMM-53: user clarified spec meaning (lookup = active API call), so queued hourglass before request start aligns with spec; will re-invoke reviewer with clarification.
+2026-01-21	16:29	MMM-53: marked Done in Linear per user request.

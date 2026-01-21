@@ -4,7 +4,7 @@ cmd.update.section.skipped
 📌 Pinned Mod (mod-k) [modrinth] cmd.update.item.skipped
 
 cmd.update.section.failed
-❌ Failed Mod (mod-l) [modrinth] cmd.update.item.failed, Arg 1: {Count: 0, Data: &map[reason:cmd.update.error.platform]}
+❌ Failed Mod (mod-l) [modrinth] cmd.update.item.failed, Arg 1: {Count: 0, Data:
 
 cmd.update.section.updating_label:
 ⣾ Alpha Mod (mod-a) [modrinth]

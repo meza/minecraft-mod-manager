@@ -2,6 +2,7 @@ package scan
 
 import (
 	"context"
+	"net/http"
 	"path/filepath"
 	"sort"
 	"strings"
@@ -11,6 +12,7 @@ import (
 	"golang.org/x/sync/errgroup"
 
 	"github.com/meza/minecraft-mod-manager/internal/config"
+	"github.com/meza/minecraft-mod-manager/internal/httpclient"
 	"github.com/meza/minecraft-mod-manager/internal/models"
 	"github.com/meza/minecraft-mod-manager/internal/modsetup"
 )
@@ -62,6 +64,9 @@ func (state *scanExecState) updateStatus(key string, status scanItemStatus, matc
 	}
 	item := state.items[index]
 	if isTerminalScanStatus(item.Status) {
+		return
+	}
+	if item.Status == status {
 		return
 	}
 	item.Status = status
@@ -139,33 +144,36 @@ func lookupModrinthWithUpdates(
 	deps scanDeps,
 	state *scanExecState,
 ) (platformLookupOutcome, error) {
+	if len(candidates) == 0 {
+		return platformLookupOutcome{matches: nil, misses: nil, unsure: map[string]error{}}, nil
+	}
 	matches := make([]scanMatch, 0, len(candidates))
 	misses := make([]scanCandidate, 0, len(candidates))
 	unsure := make(map[string]error)
 
 	var mutex sync.Mutex
-	titleCache := newModrinthTitleCache()
-
-	markScanCandidatesActive(state, candidates)
 	group, groupCtx := errgroup.WithContext(ctx)
+	workQueue := make(chan int, len(candidates))
 	for index := range candidates {
-		index := index
+		workQueue <- index
+	}
+	close(workQueue)
+	workerCount := modrinthLookupWorkerCount(len(candidates))
+	for worker := 0; worker < workerCount; worker++ {
 		group.Go(func() error {
-			if err := groupCtx.Err(); err != nil {
-				return err
-			}
-			mutex.Lock()
-			state.updateStatus(candidates[index].FileName, scanItemStatusScanning, scanMatch{})
-			mutex.Unlock()
-			result, lookupErr := lookupModrinthCandidate(groupCtx, candidates[index], deps, titleCache)
-			if lookupErr != nil {
-				return lookupErr
-			}
+			for index := range workQueue {
+				if err := groupCtx.Err(); err != nil {
+					return err
+				}
+				result, lookupErr := lookupModrinthCandidateWithUpdates(groupCtx, candidates[index], deps, state, &mutex)
+				if lookupErr != nil {
+					return lookupErr
+				}
 
-			mutex.Lock()
-			applyModrinthLookupResult(state, candidates[index], result, &matches, &misses, unsure)
-			mutex.Unlock()
-
+				mutex.Lock()
+				applyModrinthLookupResult(state, candidates[index], result, &matches, &misses, unsure)
+				mutex.Unlock()
+			}
 			return nil
 		})
 	}
@@ -173,8 +181,33 @@ func lookupModrinthWithUpdates(
 	if err := group.Wait(); err != nil {
 		return platformLookupOutcome{}, err
 	}
+	if err := ctx.Err(); err != nil {
+		return platformLookupOutcome{}, err
+	}
 
 	return finalizeModrinthLookupOutcome(matches, misses, unsure), nil
+}
+
+func modrinthLookupWorkerCount(candidateCount int) int {
+	if candidateCount <= 0 {
+		return 0
+	}
+	return candidateCount
+}
+
+func lookupModrinthCandidateWithUpdates(
+	ctx context.Context,
+	candidate scanCandidate,
+	deps scanDeps,
+	state *scanExecState,
+	mutex *sync.Mutex,
+) (modrinthLookupResult, error) {
+	candidateCtx := httpclient.WithRequestStartHook(ctx, func(_ *http.Request) {
+		mutex.Lock()
+		state.updateStatus(candidate.FileName, scanItemStatusScanning, scanMatch{})
+		mutex.Unlock()
+	})
+	return lookupModrinthCandidate(candidateCtx, candidate, deps)
 }
 
 func applyModrinthLookupResult(
@@ -191,12 +224,12 @@ func applyModrinthLookupResult(
 		state.updateStatus(candidate.FileName, scanItemStatusRecognized, *result.match)
 	case result.miss:
 		*misses = append(*misses, candidate)
-		state.updateStatus(candidate.FileName, scanItemStatusScanning, scanMatch{})
+		state.updateStatus(candidate.FileName, scanItemStatusPending, scanMatch{})
 	case result.err != nil:
 		unsure[candidate.Path] = result.err
 		if result.allowFallback {
 			*misses = append(*misses, candidate)
-			state.updateStatus(candidate.FileName, scanItemStatusScanning, scanMatch{})
+			state.updateStatus(candidate.FileName, scanItemStatusPending, scanMatch{})
 		} else {
 			state.updateStatus(candidate.FileName, scanItemStatusUnsure, scanMatch{})
 		}
@@ -214,40 +247,10 @@ func lookupCurseforgeWithUpdates(
 	deps scanDeps,
 	state *scanExecState,
 ) (platformLookupOutcome, error) {
-	markScanCandidatesActive(state, candidates)
-	outcome, err := lookupCurseforge(ctx, candidates, deps)
+	outcome, err := lookupCurseforgeWithObserver(ctx, candidates, deps, state)
 	if err != nil {
 		return platformLookupOutcome{}, err
 	}
-
-	sortedMatches := cloneScanMatches(outcome.matches)
-	sortScanMatchesByFile(sortedMatches)
-	sortedMisses := cloneScanCandidates(outcome.misses)
-	sortScanCandidatesByFile(sortedMisses)
-
-	missesByPath := make(map[string]struct{}, len(outcome.misses))
-	for _, miss := range outcome.misses {
-		missesByPath[miss.Path] = struct{}{}
-	}
-
-	for _, match := range sortedMatches {
-		state.updateStatus(match.FileName, scanItemStatusRecognized, match)
-	}
-	for _, miss := range sortedMisses {
-		state.updateStatus(miss.FileName, scanItemStatusScanning, scanMatch{})
-	}
-	for _, candidate := range candidates {
-		outcomeErr, ok := outcome.unsure[candidate.Path]
-		if !ok {
-			continue
-		}
-		if _, ok := missesByPath[candidate.Path]; ok {
-			continue
-		}
-		state.updateStatus(candidate.FileName, scanItemStatusUnsure, scanMatch{})
-		outcome.unsure[candidate.Path] = outcomeErr
-	}
-
 	return platformLookupOutcome{matches: outcome.matches, misses: outcome.misses, unsure: outcome.unsure}, nil
 }
 
@@ -291,12 +294,24 @@ func finalizeScanResults(
 }
 
 func markScanCandidatesActive(state *scanExecState, candidates []scanCandidate) {
+	markScanCandidatesStatus(state, candidates, scanItemStatusScanning)
+}
+
+func markScanCandidatesPending(state *scanExecState, candidates []scanCandidate) {
+	markScanCandidatesStatus(state, candidates, scanItemStatusPending)
+}
+
+func markScanCandidatesUnsure(state *scanExecState, candidates []scanCandidate) {
+	markScanCandidatesStatus(state, candidates, scanItemStatusUnsure)
+}
+
+func markScanCandidatesStatus(state *scanExecState, candidates []scanCandidate, status scanItemStatus) {
 	if state == nil || len(candidates) == 0 {
 		return
 	}
 	ordered := cloneScanCandidates(candidates)
 	sortScanCandidatesByFile(ordered)
 	for _, candidate := range ordered {
-		state.updateStatus(candidate.FileName, scanItemStatusScanning, scanMatch{})
+		state.updateStatus(candidate.FileName, status, scanMatch{})
 	}
 }

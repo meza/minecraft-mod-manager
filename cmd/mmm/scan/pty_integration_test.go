@@ -179,7 +179,7 @@ func TestScanCommandInteractivePTYRunningSnapshotShortHeight(t *testing.T) {
 		t.Fatal("timed out waiting for running updates")
 	}
 
-	waitForOutput(t, session, "cmd.scan.header.running")
+	waitForOutput(t, session, "cmd.scan.section.unknown")
 	require.NotNil(t, runningModel)
 	snapshot := normalizeViewportSnapshot(runningModel.View())
 	snaps.MatchSnapshot(t, trimBeforeSection(snapshot, "cmd.scan.section.unknown"))
@@ -251,7 +251,7 @@ func TestScanCommandInteractivePTYRunningSnapshotShortHeightManyMods(t *testing.
 		t.Fatal("timed out waiting for running updates")
 	}
 
-	waitForOutput(t, session, "cmd.scan.header.running")
+	waitForOutput(t, session, lastSortedFileName(sampleModFileNames()))
 	require.NotNil(t, runningModel)
 	snaps.MatchSnapshot(t, normalizeViewportSnapshot(runningModel.View()))
 
@@ -408,7 +408,7 @@ func TestScanCommandInteractivePTYRunningSnapshotMediumHeight(t *testing.T) {
 		t.Fatal("timed out waiting for running updates")
 	}
 
-	waitForOutput(t, session, "cmd.scan.section.recognized")
+	waitForOutput(t, session, "cmd.scan.section.unsure")
 	require.NotNil(t, runningModel)
 	snaps.MatchSnapshot(t, normalizeViewportSnapshot(runningModel.View()))
 
@@ -1430,6 +1430,15 @@ func scanItemsFromFileNames(fileNames []string) []scanItem {
 		items = append(items, scanItem{FileName: name, Status: scanItemStatusScanning})
 	}
 	return items
+}
+
+func lastSortedFileName(fileNames []string) string {
+	ordered := cloneStrings(fileNames)
+	sortStringsCaseInsensitive(ordered)
+	if len(ordered) == 0 {
+		return ""
+	}
+	return ordered[len(ordered)-1]
 }
 
 func sampleModFileNames() []string {

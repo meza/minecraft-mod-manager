@@ -10,8 +10,6 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
-	"sync"
-	"sync/atomic"
 	"testing"
 	"time"
 
@@ -170,6 +168,7 @@ func TestRunScanExecutionCombinesPreferredAndFallback(t *testing.T) {
 
 	version := &modrinth.Version{
 		ProjectID:     "proj-a",
+		Name:          "Modrinth Title",
 		DatePublished: time.Date(2024, 1, 2, 0, 0, 0, 0, time.UTC),
 		Files: []modrinth.VersionFile{
 			{URL: "https://example.invalid/a.jar", Primary: true},
@@ -187,9 +186,6 @@ func TestRunScanExecutionCombinesPreferredAndFallback(t *testing.T) {
 			}
 			return nil, &modrinth.VersionNotFoundError{Lookup: *modrinth.NewVersionHashLookup(hash, modrinth.SHA1)}
 		},
-		modrinthProjectTitle: func(context.Context, string, httpclient.Doer) (string, error) {
-			return "Modrinth Title", nil
-		},
 		curseforgeFingerprint: func(path string) uint32 {
 			if strings.Contains(path, "b.jar") {
 				return 101
@@ -199,12 +195,15 @@ func TestRunScanExecutionCombinesPreferredAndFallback(t *testing.T) {
 		curseforgeFingerprintMatch: func(context.Context, []uint32, httpclient.Doer) (*curseforge.FingerprintResult, error) {
 			return &curseforge.FingerprintResult{
 				Matches: []curseforge.File{
-					{ProjectID: 22, Fingerprint: 101, DownloadURL: "https://example.invalid/b.jar", FileDate: time.Date(2024, 1, 3, 0, 0, 0, 0, time.UTC)},
+					{
+						ProjectID:   22,
+						Fingerprint: 101,
+						DisplayName: "Curse Name",
+						DownloadURL: "https://example.invalid/b.jar",
+						FileDate:    time.Date(2024, 1, 3, 0, 0, 0, 0, time.UTC),
+					},
 				},
 			}, nil
-		},
-		curseforgeProjectName: func(context.Context, string, httpclient.Doer) (string, error) {
-			return "Curse Name", nil
 		},
 	}
 
@@ -234,6 +233,7 @@ func TestRunScanExecutionRemovesUnsureWhenMatchedPathExists(t *testing.T) {
 
 	version := &modrinth.Version{
 		ProjectID:     "proj-1",
+		Name:          "Example",
 		DatePublished: time.Date(2024, 1, 2, 0, 0, 0, 0, time.UTC),
 		Files:         []modrinth.VersionFile{{URL: "https://example.invalid/a.jar", Primary: true}},
 	}
@@ -248,9 +248,6 @@ func TestRunScanExecutionRemovesUnsureWhenMatchedPathExists(t *testing.T) {
 				return nil, httpclient.WrapTimeoutError(context.DeadlineExceeded)
 			}
 			return version, nil
-		},
-		modrinthProjectTitle: func(context.Context, string, httpclient.Doer) (string, error) {
-			return "Example", nil
 		},
 		curseforgeFingerprint: func(string) uint32 { return 101 },
 		curseforgeFingerprintMatch: func(context.Context, []uint32, httpclient.Doer) (*curseforge.FingerprintResult, error) {
@@ -504,36 +501,12 @@ func TestDefaultModrinthVersionForShaReturnsError(t *testing.T) {
 	assert.Error(t, err)
 }
 
-func TestDefaultModrinthProjectTitle(t *testing.T) {
-	title, err := defaultModrinthProjectTitle(context.Background(), "proj", responseDoer{
-		status: http.StatusOK,
-		body:   `{"title":"Example"}`,
-	})
-	assert.NoError(t, err)
-	assert.Equal(t, "Example", title)
-
-	_, err = defaultModrinthProjectTitle(context.Background(), "proj", errorDoer{err: errors.New("boom")})
-	assert.Error(t, err)
-}
-
 func TestDefaultCurseforgeFingerprintMatchReturnsError(t *testing.T) {
 	_, err := defaultCurseforgeFingerprintMatch(context.Background(), []uint32{1}, errorDoer{err: errors.New("boom")})
 	assert.Error(t, err)
 }
 
-func TestDefaultCurseforgeProjectName(t *testing.T) {
-	name, err := defaultCurseforgeProjectName(context.Background(), "123", responseDoer{
-		status: http.StatusOK,
-		body:   `{"data":{"name":"Example"}}`,
-	})
-	assert.NoError(t, err)
-	assert.Equal(t, "Example", name)
-
-	_, err = defaultCurseforgeProjectName(context.Background(), "123", errorDoer{err: errors.New("boom")})
-	assert.Error(t, err)
-}
-
-func TestLookupModrinthCachesProjectTitles(t *testing.T) {
+func TestLookupModrinthReturnsMatches(t *testing.T) {
 	candidates := []scanCandidate{
 		{Path: "/mods/a.jar", FileName: "a.jar", Sha1: "a"},
 		{Path: "/mods/b.jar", FileName: "b.jar", Sha1: "b"},
@@ -541,18 +514,14 @@ func TestLookupModrinthCachesProjectTitles(t *testing.T) {
 
 	version := &modrinth.Version{
 		ProjectID:     "proj-1",
+		Name:          "Example",
 		DatePublished: time.Date(2024, 1, 2, 0, 0, 0, 0, time.UTC),
 		Files:         []modrinth.VersionFile{{URL: "https://example.invalid/a.jar", Primary: true}},
 	}
 
-	var titleCalls int
 	deps := scanDeps{
 		modrinthVersionForSha: func(_ context.Context, _ string, _ httpclient.Doer) (*modrinth.Version, error) {
 			return version, nil
-		},
-		modrinthProjectTitle: func(context.Context, string, httpclient.Doer) (string, error) {
-			titleCalls++
-			return "Example", nil
 		},
 	}
 
@@ -561,138 +530,6 @@ func TestLookupModrinthCachesProjectTitles(t *testing.T) {
 	assert.Len(t, outcome.matches, 2)
 	assert.Empty(t, outcome.misses)
 	assert.Empty(t, outcome.unsure)
-	assert.Equal(t, 1, titleCalls)
-}
-
-func TestModrinthTitleCacheReusesCachedTitle(t *testing.T) {
-	cache := newModrinthTitleCache()
-	var titleCalls atomic.Int32
-
-	deps := scanDeps{
-		modrinthProjectTitle: func(context.Context, string, httpclient.Doer) (string, error) {
-			titleCalls.Add(1)
-			return "Example", nil
-		},
-	}
-
-	title, err := cachedModrinthTitle(context.Background(), "proj-1", deps, cache)
-	assert.NoError(t, err)
-	assert.Equal(t, "Example", title)
-
-	title, err = cachedModrinthTitle(context.Background(), "proj-1", deps, cache)
-	assert.NoError(t, err)
-	assert.Equal(t, "Example", title)
-	assert.Equal(t, int32(1), titleCalls.Load())
-}
-
-func TestModrinthTitleCacheWaitsForInflightFetch(t *testing.T) {
-	cache := newModrinthTitleCache()
-	started := make(chan struct{})
-	secondReady := make(chan struct{})
-	finish := make(chan struct{})
-	var titleCalls atomic.Int32
-
-	deps := scanDeps{
-		modrinthProjectTitle: func(context.Context, string, httpclient.Doer) (string, error) {
-			titleCalls.Add(1)
-			close(started)
-			<-finish
-			return "Example", nil
-		},
-	}
-
-	var wg sync.WaitGroup
-	wg.Add(2)
-
-	results := make([]string, 2)
-	errors := make([]error, 2)
-
-	go func() {
-		defer wg.Done()
-		results[0], errors[0] = cachedModrinthTitle(context.Background(), "proj-1", deps, cache)
-	}()
-
-	go func() {
-		defer wg.Done()
-		<-started
-		close(secondReady)
-		results[1], errors[1] = cachedModrinthTitle(context.Background(), "proj-1", deps, cache)
-	}()
-
-	<-secondReady
-	close(finish)
-	wg.Wait()
-
-	assert.Equal(t, int32(1), titleCalls.Load())
-	assert.Equal(t, "Example", results[0])
-	assert.Equal(t, "Example", results[1])
-	assert.NoError(t, errors[0])
-	assert.NoError(t, errors[1])
-}
-
-func TestModrinthTitleCacheReturnsContextErrorWhileWaiting(t *testing.T) {
-	cache := newModrinthTitleCache()
-	started := make(chan struct{})
-	finish := make(chan struct{})
-
-	deps := scanDeps{
-		modrinthProjectTitle: func(context.Context, string, httpclient.Doer) (string, error) {
-			close(started)
-			<-finish
-			return "Example", nil
-		},
-	}
-
-	var wg sync.WaitGroup
-	wg.Add(1)
-	firstErr := make(chan error, 1)
-
-	go func() {
-		defer wg.Done()
-		_, err := cachedModrinthTitle(context.Background(), "proj-1", deps, cache)
-		firstErr <- err
-	}()
-
-	<-started
-
-	ctx, cancel := context.WithCancel(context.Background())
-	cancel()
-
-	title, err := cachedModrinthTitle(ctx, "proj-1", deps, cache)
-	assert.Empty(t, title)
-	assert.ErrorIs(t, err, context.Canceled)
-
-	close(finish)
-	wg.Wait()
-	assert.NoError(t, <-firstErr)
-}
-
-func TestLookupModrinthProjectTitleErrorAddsUnsure(t *testing.T) {
-	t.Setenv("MMM_TEST", "true")
-
-	candidates := []scanCandidate{{Path: "/mods/a.jar", FileName: "a.jar", Sha1: "a"}}
-
-	version := &modrinth.Version{
-		ProjectID:     "proj-1",
-		DatePublished: time.Date(2024, 1, 2, 0, 0, 0, 0, time.UTC),
-		Files:         []modrinth.VersionFile{{URL: "https://example.invalid/a.jar", Primary: true}},
-	}
-
-	deps := scanDeps{
-		modrinthVersionForSha: func(_ context.Context, _ string, _ httpclient.Doer) (*modrinth.Version, error) {
-			return version, nil
-		},
-		modrinthProjectTitle: func(context.Context, string, httpclient.Doer) (string, error) {
-			return "", httpclient.WrapTimeoutError(context.DeadlineExceeded)
-		},
-	}
-
-	outcome, err := lookupModrinth(context.Background(), candidates, deps)
-	assert.NoError(t, err)
-	assert.Empty(t, outcome.matches)
-	assert.Empty(t, outcome.misses)
-	assert.Contains(t, outcome.unsure["/mods/a.jar"].Error(), "cmd.scan.unsure.platform_error")
-	assert.Contains(t, outcome.unsure["/mods/a.jar"].Error(), "cmd.platform.error.reason.timeout")
 }
 
 func TestLookupModrinthDownloadDetailsErrorAddsUnsure(t *testing.T) {
@@ -709,9 +546,6 @@ func TestLookupModrinthDownloadDetailsErrorAddsUnsure(t *testing.T) {
 	deps := scanDeps{
 		modrinthVersionForSha: func(_ context.Context, _ string, _ httpclient.Doer) (*modrinth.Version, error) {
 			return version, nil
-		},
-		modrinthProjectTitle: func(context.Context, string, httpclient.Doer) (string, error) {
-			return "Example", nil
 		},
 	}
 
@@ -745,9 +579,6 @@ func TestLookupCurseforgeMissingDownloadURLAddsUnsure(t *testing.T) {
 				},
 			}, nil
 		},
-		curseforgeProjectName: func(context.Context, string, httpclient.Doer) (string, error) {
-			return "Curse Name", nil
-		},
 	}
 
 	outcome, err := lookupCurseforge(context.Background(), candidates, deps)
@@ -778,10 +609,6 @@ func TestLookupCurseforgeSkipsUnknownFingerprint(t *testing.T) {
 				},
 			}, nil
 		},
-		curseforgeProjectName: func(context.Context, string, httpclient.Doer) (string, error) {
-			t.Fatal("curseforgeProjectName should not be called")
-			return "", nil
-		},
 	}
 
 	outcome, err := lookupCurseforge(context.Background(), candidates, deps)
@@ -789,55 +616,6 @@ func TestLookupCurseforgeSkipsUnknownFingerprint(t *testing.T) {
 	assert.Empty(t, outcome.matches)
 	assert.Empty(t, outcome.unsure)
 	assert.Len(t, outcome.misses, 2)
-}
-
-func TestLookupCurseforgeProjectNameErrorAddsUnsure(t *testing.T) {
-	t.Setenv("MMM_TEST", "true")
-
-	candidates := []scanCandidate{{Path: "/mods/a.jar", FileName: "a.jar", Sha1: "a"}}
-
-	deps := scanDeps{
-		curseforgeFingerprint: func(string) uint32 { return 101 },
-		curseforgeFingerprintMatch: func(context.Context, []uint32, httpclient.Doer) (*curseforge.FingerprintResult, error) {
-			return &curseforge.FingerprintResult{
-				Matches: []curseforge.File{
-					{ProjectID: 22, Fingerprint: 101, DownloadURL: "https://example.invalid/a.jar"},
-				},
-			}, nil
-		},
-		curseforgeProjectName: func(context.Context, string, httpclient.Doer) (string, error) {
-			return "", errors.New("boom")
-		},
-	}
-
-	outcome, err := lookupCurseforge(context.Background(), candidates, deps)
-	assert.NoError(t, err)
-	assert.Empty(t, outcome.matches)
-	assert.Len(t, outcome.misses, 1)
-	assert.Contains(t, outcome.unsure["/mods/a.jar"].Error(), "cmd.scan.unsure.platform_error")
-	assert.Contains(t, outcome.unsure["/mods/a.jar"].Error(), "cmd.platform.error.reason.unknown")
-}
-
-func TestCachedCurseforgeProjectNameCaches(t *testing.T) {
-	cache := make(map[string]string)
-	var mu sync.Mutex
-	callCount := 0
-
-	deps := scanDeps{
-		curseforgeProjectName: func(context.Context, string, httpclient.Doer) (string, error) {
-			callCount++
-			return "project-name", nil
-		},
-	}
-
-	name, err := cachedCurseforgeProjectName(context.Background(), "123", deps, cache, &mu)
-	assert.NoError(t, err)
-	assert.Equal(t, "project-name", name)
-
-	name, err = cachedCurseforgeProjectName(context.Background(), "123", deps, cache, &mu)
-	assert.NoError(t, err)
-	assert.Equal(t, "project-name", name)
-	assert.Equal(t, 1, callCount)
 }
 
 func TestSummarizePlatformFailureWithNilError(t *testing.T) {
@@ -883,7 +661,7 @@ func TestLookupModrinthCandidateReturnsErrorWhenLogFails(t *testing.T) {
 		},
 	}
 
-	_, err := lookupModrinthCandidate(context.Background(), scanCandidate{Path: "/mods/a.jar", Sha1: "a"}, deps, newModrinthTitleCache())
+	_, err := lookupModrinthCandidate(context.Background(), scanCandidate{Path: "/mods/a.jar", Sha1: "a"}, deps)
 	assert.ErrorIs(t, err, writeErr)
 }
 
@@ -967,9 +745,6 @@ func TestLookupCurseforgeReturnsErrorOnUnsureLogFailure(t *testing.T) {
 				},
 			}, nil
 		},
-		curseforgeProjectName: func(context.Context, string, httpclient.Doer) (string, error) {
-			return "Curse Name", nil
-		},
 	}
 
 	_, err := lookupCurseforge(context.Background(), candidates, deps)
@@ -983,17 +758,12 @@ func TestAddCurseforgeMatchesSkipsUnknownFingerprint(t *testing.T) {
 			{ProjectID: 22, Fingerprint: 999, DownloadURL: "https://example.invalid/a.jar"},
 		},
 		fingerprintToIndices: map[uint32][]int{},
-		deps: scanDeps{
-			curseforgeProjectName: func(context.Context, string, httpclient.Doer) (string, error) {
-				t.Fatal("curseforgeProjectName should not be called")
-				return "", nil
-			},
-		},
-		scanMatches: &[]scanMatch{},
-		unsure:      map[string]error{},
+		deps:                 scanDeps{},
+		scanMatches:          &[]scanMatch{},
+		unsure:               map[string]error{},
 	}
 
-	assert.NoError(t, addCurseforgeMatches(context.Background(), matchContext))
+	assert.NoError(t, addCurseforgeMatches(matchContext))
 	assert.Empty(t, *matchContext.scanMatches)
 }
 
@@ -1007,17 +777,12 @@ func TestAddCurseforgeMatchesReturnsErrorOnUnsureLogFailure(t *testing.T) {
 		fingerprintToIndices: map[uint32][]int{101: {0}},
 		deps: scanDeps{
 			logger: logger.New(errorWriter{err: writeErr}, errorWriter{err: writeErr}, false, true),
-			curseforgeProjectName: func(context.Context, string, httpclient.Doer) (string, error) {
-				return "Curse Name", nil
-			},
 		},
-		nameCache:   map[string]string{},
-		nameMu:      &sync.Mutex{},
 		scanMatches: &[]scanMatch{},
 		unsure:      map[string]error{},
 	}
 
-	err := addCurseforgeMatches(context.Background(), matchContext)
+	err := addCurseforgeMatches(matchContext)
 	assert.ErrorIs(t, err, writeErr)
 }
 
@@ -1063,7 +828,7 @@ func TestLookupModrinthCandidateReturnsMissOnNotFound(t *testing.T) {
 		modrinthVersionForSha: func(context.Context, string, httpclient.Doer) (*modrinth.Version, error) {
 			return nil, &modrinth.VersionNotFoundError{Lookup: *modrinth.NewVersionHashLookup("missing", modrinth.SHA1)}
 		},
-	}, newModrinthTitleCache())
+	})
 	assert.NoError(t, err)
 	assert.True(t, result.miss)
 }
@@ -1071,6 +836,7 @@ func TestLookupModrinthCandidateReturnsMissOnNotFound(t *testing.T) {
 func TestLookupModrinthCandidateReturnsMatchOnSuccess(t *testing.T) {
 	version := &modrinth.Version{
 		ProjectID:     "proj-1",
+		Name:          "Example",
 		DatePublished: time.Date(2024, 1, 2, 0, 0, 0, 0, time.UTC),
 		Files:         []modrinth.VersionFile{{URL: "https://example.invalid/a.jar", Primary: true}},
 	}
@@ -1079,39 +845,57 @@ func TestLookupModrinthCandidateReturnsMatchOnSuccess(t *testing.T) {
 		modrinthVersionForSha: func(context.Context, string, httpclient.Doer) (*modrinth.Version, error) {
 			return version, nil
 		},
-		modrinthProjectTitle: func(context.Context, string, httpclient.Doer) (string, error) {
-			return "Example", nil
-		},
-	}, newModrinthTitleCache())
+	})
 	assert.NoError(t, err)
 	if assert.NotNil(t, result.match) {
 		assert.Equal(t, "proj-1", result.match.ProjectID)
 	}
 }
 
-func TestLookupModrinthCandidateReturnsErrorOnTitleLogFailure(t *testing.T) {
-	writeErr := errors.New("write failed")
+func TestLookupModrinthCandidateUsesVersionNumberWhenNameEmpty(t *testing.T) {
 	version := &modrinth.Version{
 		ProjectID:     "proj-1",
+		Name:          "",
+		VersionNumber: "1.2.3",
 		DatePublished: time.Date(2024, 1, 2, 0, 0, 0, 0, time.UTC),
 		Files:         []modrinth.VersionFile{{URL: "https://example.invalid/a.jar", Primary: true}},
 	}
 
-	_, err := lookupModrinthCandidate(context.Background(), scanCandidate{Path: "/mods/a.jar", FileName: "a.jar", Sha1: "a"}, scanDeps{
-		logger: logger.New(errorWriter{err: writeErr}, errorWriter{err: writeErr}, false, true),
+	result, err := lookupModrinthCandidate(context.Background(), scanCandidate{Path: "/mods/a.jar", FileName: "a.jar", Sha1: "a"}, scanDeps{
 		modrinthVersionForSha: func(context.Context, string, httpclient.Doer) (*modrinth.Version, error) {
 			return version, nil
 		},
-		modrinthProjectTitle: func(context.Context, string, httpclient.Doer) (string, error) {
-			return "", errors.New("boom")
+	})
+	assert.NoError(t, err)
+	if assert.NotNil(t, result.match) {
+		assert.Equal(t, "1.2.3", result.match.Name)
+	}
+}
+
+func TestLookupModrinthCandidateUsesProjectIDWhenNameAndNumberEmpty(t *testing.T) {
+	version := &modrinth.Version{
+		ProjectID:     "proj-1",
+		Name:          "",
+		VersionNumber: "",
+		DatePublished: time.Date(2024, 1, 2, 0, 0, 0, 0, time.UTC),
+		Files:         []modrinth.VersionFile{{URL: "https://example.invalid/a.jar", Primary: true}},
+	}
+
+	result, err := lookupModrinthCandidate(context.Background(), scanCandidate{Path: "/mods/a.jar", FileName: "a.jar", Sha1: "a"}, scanDeps{
+		modrinthVersionForSha: func(context.Context, string, httpclient.Doer) (*modrinth.Version, error) {
+			return version, nil
 		},
-	}, newModrinthTitleCache())
-	assert.ErrorIs(t, err, writeErr)
+	})
+	assert.NoError(t, err)
+	if assert.NotNil(t, result.match) {
+		assert.Equal(t, "proj-1", result.match.Name)
+	}
 }
 
 func TestLookupModrinthCandidateReturnsUnsureOnDownloadDetailsError(t *testing.T) {
 	version := &modrinth.Version{
 		ProjectID:     "proj-1",
+		Name:          "Example",
 		DatePublished: time.Date(2024, 1, 2, 0, 0, 0, 0, time.UTC),
 		Files:         []modrinth.VersionFile{{URL: ""}},
 	}
@@ -1120,10 +904,7 @@ func TestLookupModrinthCandidateReturnsUnsureOnDownloadDetailsError(t *testing.T
 		modrinthVersionForSha: func(context.Context, string, httpclient.Doer) (*modrinth.Version, error) {
 			return version, nil
 		},
-		modrinthProjectTitle: func(context.Context, string, httpclient.Doer) (string, error) {
-			return "Example", nil
-		},
-	}, newModrinthTitleCache())
+	})
 	assert.NoError(t, err)
 	assert.Error(t, result.err)
 }
@@ -1132,6 +913,7 @@ func TestLookupModrinthCandidateReturnsErrorOnDownloadLogFailure(t *testing.T) {
 	writeErr := errors.New("write failed")
 	version := &modrinth.Version{
 		ProjectID:     "proj-1",
+		Name:          "Example",
 		DatePublished: time.Date(2024, 1, 2, 0, 0, 0, 0, time.UTC),
 		Files:         []modrinth.VersionFile{{URL: ""}},
 	}
@@ -1141,10 +923,7 @@ func TestLookupModrinthCandidateReturnsErrorOnDownloadLogFailure(t *testing.T) {
 		modrinthVersionForSha: func(context.Context, string, httpclient.Doer) (*modrinth.Version, error) {
 			return version, nil
 		},
-		modrinthProjectTitle: func(context.Context, string, httpclient.Doer) (string, error) {
-			return "Example", nil
-		},
-	}, newModrinthTitleCache())
+	})
 	assert.ErrorIs(t, err, writeErr)
 }
 

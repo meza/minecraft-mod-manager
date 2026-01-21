@@ -162,3 +162,12 @@ cmd.scan.section.unsure (cmd.scan.section.unsure_note)
 [TestScanViewSnapshots/quiet_add_no_output - 1]
 
 ---
+
+[TestScanViewSnapshots/running_with_pending - 1]
+cmd.scan.header.running
+⣾  alpha.jar
+⏳ beta.jar
+⣾  delta.jar
+⏳ epsilon.jar
+⏳ gamma.jar
+---

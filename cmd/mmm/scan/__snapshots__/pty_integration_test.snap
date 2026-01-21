@@ -1,20 +1,4 @@
 [TestScanCommandInteractivePTYRunningSnapshotShortHeight - 1]
-cmd.scan.header.running
-⣾  alpha.jar
-⣾  beta.jar
-⣾  delta.jar
-⣾  epsilon.jar
-⣾  eta.jar
-⣾  gamma.jar
-⣾  iota.jar
-⣾  kappa.jar
-⣾  lambda.jar
-⣾  mu.jar
-⣾  nu.jar
-⣾  theta.jar
-⣾  xi.jar
-⣾  zeta.jar
-
 cmd.scan.section.recognized
 ✅ appleskin.jar -> AppleSkin (appleskin) [modrinth]
 ✅ bc.jar -> Better Clouds (better-clouds) [modrinth]
@@ -26,18 +10,18 @@ cmd.scan.section.recognized
 ---
 
 [TestScanCommandInteractivePTYRunningSnapshotMediumHeight - 1]
-cmd.scan.header.running
-⣾  alpha.jar
-⣾  beta.jar
-⣾  delta.jar
-⣾  epsilon.jar
-⣾  gamma.jar
-⣾  zeta.jar
+❌ unmanaged-c.jar
+❌ unmanaged-d.jar
+❌ unmanaged-e.jar
+❌ unmanaged-f.jar
 
-cmd.scan.section.recognized
-✅ appleskin.jar -> AppleSkin (appleskin) [modrinth]
-✅ bc.jar -> Better Clouds (better-clouds) [modrinth]
-✅ inventorysorter.jar -> Inventory Sorting (inventory-sorting) [modrinth]
+cmd.scan.section.unsure (cmd.scan.section.unsure_note)
+❔ flaky-a.jar
+❔ flaky-b.jar
+❔ flaky-c.jar
+❔ flaky-d.jar
+❔ flaky-e.jar
+❔ flaky-f.jar
 ---
 
 [TestScanCommandInteractivePTYFinalTranscriptShortHeight - 1]
@@ -163,12 +147,6 @@ cmd.scan.section.unsure (cmd.scan.section.unsure_note)
 ---
 
 [TestScanCommandInteractivePTYRunningSnapshotShortHeightManyMods - 1]
-cmd.scan.header.running
-⣾  ArmorPoser-fabric-1.21.10-12.3.0.jar
-⣾  audioplayer-fabric-2.1.0+1.21.10.jar
-⣾  Axiom-5.2.1-for-MC1.21.10.jar
-⣾  BetterServerPacksFabric-1.2.0.jar
-⣾  carpet-tis-addition-v1.74.0-mc1.21.10.jar
 ⣾  cicada-lib-0.14.3+1.21.9-1.21.10.jar
 ⣾  cloth-config-20.0.149-fabric.jar
 ⣾  coordfinder-fabric-1.21.10-1.1.0.jar
@@ -188,6 +166,12 @@ cmd.scan.header.running
 ⣾  servux-fabric-1.21.10-0.8.5.jar
 ⣾  SimpleDiscordLink-Universal-3.3.4.jar
 ⣾  spark-1.10.152-fabric.jar
+⣾  status-fabric-1.21.10-1.1.0.jar
+⣾  syncmatica-fabric-1.21.10-0.3.16.jar
+⣾  vanish-1.6.5+1.21.10.jar
+⣾  vcinteraction-fabric-1.21.10-1.0.8.jar
+⣾  viewdistancefix-fabric-1.21.10-1.0.2.jar
+⣾  voicechat-fabric-1.21.10-2.6.11.jar
 ---
 
 [TestScanCommandInteractivePTYPromptConfirmAddedOnly - 1]

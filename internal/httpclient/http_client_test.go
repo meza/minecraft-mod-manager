@@ -8,6 +8,7 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"strings"
+	"sync/atomic"
 	"testing"
 	"time"
 
@@ -581,6 +582,63 @@ func TestRLHTTPClient_ReturnsTimeoutErrorFromRateLimiter(t *testing.T) {
 	assert.Nil(t, resp)
 	var timeoutErr *TimeoutError
 	assert.ErrorAs(t, err, &timeoutErr)
+}
+
+func TestRLHTTPClient_CallsRequestStartHookBeforeTransport(t *testing.T) {
+	var hookCalled atomic.Bool
+	client := NewRLClient(rate.NewLimiter(rate.Inf, 1))
+	client.RetryConfig = NoRetries()
+	client.client = &http.Client{
+		Transport: roundTripFunc(func(req *http.Request) (*http.Response, error) {
+			if !hookCalled.Load() {
+				t.Fatal("expected request-start hook before transport")
+			}
+			return &http.Response{
+				StatusCode: http.StatusOK,
+				Body:       io.NopCloser(strings.NewReader("ok")),
+				Header:     make(http.Header),
+			}, nil
+		}),
+	}
+
+	request := newRequest(t, "https://example.com/hook")
+	request = request.WithContext(WithRequestStartHook(request.Context(), func(*http.Request) {
+		hookCalled.Store(true)
+	}))
+
+	response, err := client.Do(request)
+	assert.NoError(t, err)
+	assert.Equal(t, http.StatusOK, response.StatusCode)
+	closeResponseBody(t, response)
+}
+
+func TestRLHTTPClient_SkipsRequestStartHookOnRateLimitFailure(t *testing.T) {
+	var hookCalled atomic.Bool
+	client := NewRLClient(rate.NewLimiter(rate.Inf, 1))
+	client.RetryConfig = NoRetries()
+	client.client = &http.Client{
+		Transport: roundTripFunc(func(req *http.Request) (*http.Response, error) {
+			t.Fatal("unexpected transport call")
+			return nil, errors.New("unexpected transport call")
+		}),
+	}
+
+	ctx, cancel := context.WithDeadline(context.Background(), time.Now().Add(-time.Second))
+	defer cancel()
+
+	request, err := http.NewRequestWithContext(ctx, http.MethodGet, "https://example.com/blocked", nil)
+	assert.NoError(t, err)
+	request = request.WithContext(WithRequestStartHook(request.Context(), func(*http.Request) {
+		hookCalled.Store(true)
+	}))
+
+	response, err := client.Do(request)
+	if response != nil {
+		closeResponseBody(t, response)
+	}
+	assert.Nil(t, response)
+	assert.Error(t, err)
+	assert.False(t, hookCalled.Load())
 }
 
 func TestRLHTTPClient_WrapsTimeoutErrorFromTransport(t *testing.T) {

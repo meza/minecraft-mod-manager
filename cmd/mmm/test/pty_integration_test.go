@@ -188,13 +188,10 @@ func TestTestCommandInteractivePTYRunningShowsHeadersWhenShort(t *testing.T) {
 	}
 
 	session.WaitForOutput(t, func(output []byte) bool {
-		return outputHasLine(output, "cmd.test.section.compatible")
-	}, terminalpty.WithWaitDuration(2*time.Second))
-	session.WaitForOutput(t, func(output []byte) bool {
-		return outputHasLine(output, "cmd.test.section.not_compatible")
-	}, terminalpty.WithWaitDuration(2*time.Second))
-	session.WaitForOutput(t, func(output []byte) bool {
-		return strings.Contains(string(output), "❌ Beta (beta) [modrinth]")
+		normalized := normalizeTestPTYOutput(string(output), rows)
+		return normalizedHasLine(normalized, "cmd.test.section.compatible") &&
+			normalizedHasLine(normalized, "cmd.test.section.not_compatible") &&
+			strings.Contains(normalized, "❌ Beta (beta) [modrinth]")
 	}, terminalpty.WithWaitDuration(2*time.Second))
 	snaps.MatchSnapshot(t, normalizeTestPTYOutput(session.OutputString(), rows))
 
@@ -1105,9 +1102,20 @@ func normalizeTestPTYOutput(output string, rows uint16) string {
 	}
 
 	preferredMarkers := preferredTestFrameMarkers(normalizedAll)
+	if len(preferredMarkers) == 0 {
+		preferredMarkers = []string{
+			"cmd.test.section.not_compatible",
+			"cmd.test.section.compatible",
+		}
+	}
+	if !cursorFrameSequence.MatchString(output) {
+		trimmed := trimToLastHeaderBlock(normalizedAll)
+		trimmed = adjustNormalizedForSectionMarker(trimmed, normalizedAll, preferredMarkers)
+		return normalizeTestLines(trimmed, rows)
+	}
 
 	trimmed := trimTestOutputToLastFrame(output, preferredMarkers)
-	trimmed = cursorHomeSequence.ReplaceAllString(trimmed, "\n")
+	trimmed = cursorFrameSequence.ReplaceAllString(trimmed, "\n")
 	normalized := terminal.NormalizeOutput(trimmed, terminal.NormalizeOptions{
 		StripControlSequences:  true,
 		TrimTrailingWhitespace: true,
@@ -1135,7 +1143,7 @@ func normalizeTestLines(normalized string, rows uint16) string {
 
 func normalizeTestPTYOutputSection(output string, section string) string {
 	trimmed := trimTestOutputToLastFrame(output, []string{section})
-	framed := cursorHomeSequence.ReplaceAllString(trimmed, "\n")
+	framed := cursorFrameSequence.ReplaceAllString(trimmed, "\n")
 	normalized := terminal.NormalizeOutput(framed, terminal.NormalizeOptions{
 		StripControlSequences:  true,
 		TrimTrailingWhitespace: true,
@@ -1203,7 +1211,7 @@ func tallSnapshotRows() uint16 {
 }
 
 func trimTestOutputToLastFrame(value string, preferredMarkers []string) string {
-	indices := cursorHomeSequence.FindAllStringIndex(value, -1)
+	indices := cursorFrameSequence.FindAllStringIndex(value, -1)
 	if len(indices) == 0 {
 		return value
 	}
@@ -1214,7 +1222,7 @@ func trimTestOutputToLastFrame(value string, preferredMarkers []string) string {
 		if index+1 < len(indices) {
 			end = indices[index+1][0]
 		}
-		candidate := cursorHomeSequence.ReplaceAllString(value[start:end], "\n")
+		candidate := cursorFrameSequence.ReplaceAllString(value[start:end], "\n")
 		normalized := terminal.NormalizeOutput(candidate, terminal.NormalizeOptions{
 			StripControlSequences:  true,
 			TrimTrailingWhitespace: true,
@@ -1259,7 +1267,7 @@ func containsTestSection(value string) bool {
 	return normalizedHasLine(value, "cmd.compatibility.section")
 }
 
-var cursorHomeSequence = regexp.MustCompile(`\x1b\[[0-9;]*H`)
+var cursorFrameSequence = regexp.MustCompile(`\x1b\[[0-9;]*H|\x1b\[[0-9;]*A`)
 
 func extractTestTranscript(normalized string) (string, bool) {
 	summaryMarkers := []string{
@@ -1333,6 +1341,22 @@ func trimToFirstHeaderBlock(value string) string {
 	return value
 }
 
+func trimToLastHeaderBlock(value string) string {
+	lines := strings.Split(value, "\n")
+	headerPrefix := "cmd.test.header"
+	lastHeader := -1
+	for index := len(lines) - 1; index >= 0; index-- {
+		if strings.HasPrefix(strings.TrimSpace(lines[index]), headerPrefix) {
+			lastHeader = index
+			break
+		}
+	}
+	if lastHeader == -1 {
+		return value
+	}
+	return strings.Join(lines[lastHeader:], "\n")
+}
+
 func trimToSectionValue(value string, section string) string {
 	index := strings.Index(value, section)
 	if index == -1 {
@@ -1366,6 +1390,12 @@ func adjustNormalizedForSectionMarker(normalized string, normalizedAll string, p
 		return normalized
 	}
 	if strings.Contains(normalized, sectionMarker) {
+		if strings.Contains(normalized, "cmd.test.header") {
+			return normalized
+		}
+		if sectionBlock := trimToLastSectionBlock(normalizedAll, sectionMarker); sectionBlock != "" {
+			return sectionBlock
+		}
 		return normalized
 	}
 	if !strings.Contains(normalizedAll, sectionMarker) {

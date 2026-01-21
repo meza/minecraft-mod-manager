@@ -382,3 +382,46 @@ func TestScanModelUpdateViewportUsesWindowHeight(t *testing.T) {
 	assert.Equal(t, 10, model.viewport.Height)
 	assert.Equal(t, 100, model.viewport.Width)
 }
+
+func TestScanModelUpdateViewportAutoScrollsWhenNotScrolled(t *testing.T) {
+	model := newScanModel(scanModelInput{
+		ctx:        context.Background(),
+		colorMode:  view.ColorDisabled,
+		items:      []scanItem{},
+		indexByKey: map[string]int{},
+		execRunner: func(context.Context, scanExecSender) scanExecutionOutcome { return scanExecutionOutcome{} },
+	})
+	model.windowW = 100
+	model.windowH = 2
+
+	model.updateViewport("one\ntwo\nthree", model.windowH)
+	assert.Equal(t, 1, model.viewport.YOffset)
+}
+
+func TestScanModelUpdateViewportKeepsOffsetAfterScroll(t *testing.T) {
+	model := newScanModel(scanModelInput{
+		ctx:        context.Background(),
+		colorMode:  view.ColorDisabled,
+		items:      []scanItem{},
+		indexByKey: map[string]int{},
+		execRunner: func(context.Context, scanExecSender) scanExecutionOutcome { return scanExecutionOutcome{} },
+	})
+	model.userScrolled = true
+	model.viewport.YOffset = 0
+	model.windowH = 2
+
+	model.updateViewport("one\ntwo\nthree", model.windowH)
+	assert.Equal(t, 0, model.viewport.YOffset)
+}
+
+func TestScanViewportScrollKeyDetection(t *testing.T) {
+	assert.True(t, isViewportScrollKey(tea.KeyMsg{Type: tea.KeyDown}))
+	assert.True(t, isViewportScrollKey(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune("j")}))
+	assert.False(t, isViewportScrollKey(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune("x")}))
+}
+
+func TestScanViewportScrollMouseDetection(t *testing.T) {
+	assert.True(t, isViewportScrollMouse(tea.MouseMsg{Action: tea.MouseActionPress, Button: tea.MouseButtonWheelDown}))
+	assert.False(t, isViewportScrollMouse(tea.MouseMsg{Action: tea.MouseActionPress, Button: tea.MouseButtonLeft}))
+	assert.False(t, isViewportScrollMouse(tea.MouseMsg{Action: tea.MouseActionRelease, Button: tea.MouseButtonWheelDown}))
+}

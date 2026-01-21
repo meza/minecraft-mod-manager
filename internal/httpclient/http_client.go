@@ -111,6 +111,10 @@ func (client *RLHTTPClient) doAttempt(
 		return nil, false, handleAttemptBuildError(attemptSpan, requestSpan, err)
 	}
 
+	if hook := RequestStartHookFromContext(attemptRequest.Context()); hook != nil {
+		hook(attemptRequest)
+	}
+
 	response, err := client.client.Do(attemptRequest)
 	if err != nil {
 		shouldRetry, attemptErr := client.handleAttemptError(attemptCtx, attemptSpan, requestSpan, err, attempt, retryConfig)

@@ -4,7 +4,6 @@ import (
 	"context"
 	"errors"
 	"strings"
-	"sync"
 	"time"
 
 	"github.com/meza/minecraft-mod-manager/internal/models"
@@ -46,21 +45,20 @@ func isContextCancellation(err error) bool {
 
 func runModrinthLookups(ctx context.Context, candidates []scanCandidate, deps scanDeps) ([]modrinthLookupResult, error) {
 	results := make([]modrinthLookupResult, len(candidates))
-	titleCache := newModrinthTitleCache()
 
 	group, groupCtx := errgroup.WithContext(ctx)
 
-	for i := range candidates {
-		i := i
+	for candidateIndex := range candidates {
+		candidateIndex := candidateIndex
 		group.Go(func() error {
 			if err := groupCtx.Err(); err != nil {
 				return err
 			}
-			result, lookupErr := lookupModrinthCandidate(groupCtx, candidates[i], deps, titleCache)
+			result, lookupErr := lookupModrinthCandidate(groupCtx, candidates[candidateIndex], deps)
 			if lookupErr != nil {
 				return lookupErr
 			}
-			results[i] = result
+			results[candidateIndex] = result
 			return nil
 		})
 	}
@@ -78,7 +76,7 @@ type modrinthLookupResult struct {
 	allowFallback bool
 }
 
-func lookupModrinthCandidate(ctx context.Context, candidate scanCandidate, deps scanDeps, titleCache *modrinthTitleCache) (modrinthLookupResult, error) {
+func lookupModrinthCandidate(ctx context.Context, candidate scanCandidate, deps scanDeps) (modrinthLookupResult, error) {
 	version, err := deps.modrinthVersionForSha(ctx, candidate.Sha1, deps.clients.Modrinth)
 	if err != nil {
 		var notFound *modrinth.VersionNotFoundError
@@ -89,9 +87,12 @@ func lookupModrinthCandidate(ctx context.Context, candidate scanCandidate, deps 
 	}
 
 	projectID := version.ProjectID
-	name, err := cachedModrinthTitle(ctx, projectID, deps, titleCache)
-	if err != nil {
-		return modrinthLookupFailure(err, deps)
+	name := strings.TrimSpace(version.Name)
+	if name == "" {
+		name = strings.TrimSpace(version.VersionNumber)
+	}
+	if name == "" {
+		name = projectID
 	}
 
 	info, err := modrinthDownloadDetails(version)
@@ -120,66 +121,6 @@ func modrinthLookupFailure(err error, deps scanDeps) (modrinthLookupResult, erro
 		err:           errors.New(platformUnsureReason(models.MODRINTH, summary.Reason)),
 		allowFallback: allowPlatformFallback(err),
 	}, nil
-}
-
-type modrinthTitleFetch struct {
-	title string
-	err   error
-	ready chan struct{}
-}
-
-type modrinthTitleCache struct {
-	mu       sync.Mutex
-	titles   map[string]string
-	inflight map[string]*modrinthTitleFetch
-}
-
-func newModrinthTitleCache() *modrinthTitleCache {
-	return &modrinthTitleCache{
-		titles:   make(map[string]string),
-		inflight: make(map[string]*modrinthTitleFetch),
-	}
-}
-
-func (cache *modrinthTitleCache) get(ctx context.Context, projectID string, deps scanDeps) (string, error) {
-	cache.mu.Lock()
-	if title, ok := cache.titles[projectID]; ok {
-		cache.mu.Unlock()
-		return title, nil
-	}
-	if pending, ok := cache.inflight[projectID]; ok {
-		cache.mu.Unlock()
-		select {
-		case <-pending.ready:
-			cache.mu.Lock()
-			title := pending.title
-			err := pending.err
-			cache.mu.Unlock()
-			return title, err
-		case <-ctx.Done():
-			return "", ctx.Err()
-		}
-	}
-	pending := &modrinthTitleFetch{ready: make(chan struct{})}
-	cache.inflight[projectID] = pending
-	cache.mu.Unlock()
-
-	title, err := deps.modrinthProjectTitle(ctx, projectID, deps.clients.Modrinth)
-
-	cache.mu.Lock()
-	if err == nil {
-		cache.titles[projectID] = title
-	}
-	pending.title = title
-	pending.err = err
-	delete(cache.inflight, projectID)
-	close(pending.ready)
-	cache.mu.Unlock()
-	return title, err
-}
-
-func cachedModrinthTitle(ctx context.Context, projectID string, deps scanDeps, titleCache *modrinthTitleCache) (string, error) {
-	return titleCache.get(ctx, projectID, deps)
 }
 
 func splitModrinthResults(candidates []scanCandidate, results []modrinthLookupResult) platformLookupOutcome {

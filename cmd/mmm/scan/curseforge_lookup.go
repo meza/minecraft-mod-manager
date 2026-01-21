@@ -4,15 +4,25 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"net/http"
 	"strings"
-	"sync"
 	"time"
 
 	"github.com/meza/minecraft-mod-manager/internal/curseforge"
+	"github.com/meza/minecraft-mod-manager/internal/httpclient"
 	"github.com/meza/minecraft-mod-manager/internal/models"
 )
 
 func lookupCurseforge(ctx context.Context, candidates []scanCandidate, deps scanDeps) (platformLookupOutcome, error) {
+	return lookupCurseforgeWithObserver(ctx, candidates, deps, nil)
+}
+
+func lookupCurseforgeWithObserver(
+	ctx context.Context,
+	candidates []scanCandidate,
+	deps scanDeps,
+	state *scanExecState,
+) (platformLookupOutcome, error) {
 	outcome := platformLookupOutcome{
 		matches: make([]scanMatch, 0),
 		unsure:  make(map[string]error),
@@ -26,30 +36,53 @@ func lookupCurseforge(ctx context.Context, candidates []scanCandidate, deps scan
 		return outcome, nil
 	}
 
-	result, err := deps.curseforgeFingerprintMatch(ctx, unique, deps.clients.Curseforge)
+	requestCtx := ctx
+	if state != nil {
+		requestCtx = httpclient.WithRequestStartHook(ctx, func(_ *http.Request) {
+			markScanCandidatesActive(state, candidates)
+		})
+	}
+	result, err := deps.curseforgeFingerprintMatch(requestCtx, unique, deps.clients.Curseforge)
 	if err != nil {
-		summary := summarizePlatformFailure(err, models.CURSEFORGE)
-		if logErr := logPlatformDebug(deps.logger, models.CURSEFORGE, summary.DebugDetails); logErr != nil {
-			return platformLookupOutcome{}, logErr
-		}
-		allowFallback := allowPlatformFallback(err)
-		misses := []scanCandidate(nil)
-		if allowFallback {
-			misses = candidates
-		}
-		return platformLookupOutcome{
-			matches: nil,
-			misses:  misses,
-			unsure:  buildCurseforgeErrors(candidates, platformUnsureReason(models.CURSEFORGE, summary.Reason)),
-		}, nil
+		return handleCurseforgeFingerprintError(err, candidates, deps, state)
 	}
 
-	fallbackEligible, err := addCurseforgeMatchesWithCache(ctx, candidates, fingerprintIndex, result.Matches, deps, &outcome.matches, outcome.unsure)
+	fallbackEligible, err := addCurseforgeMatchesWithCache(candidates, fingerprintIndex, result.Matches, deps, &outcome.matches, outcome.unsure, state)
 	if err != nil {
 		return platformLookupOutcome{}, err
 	}
 	outcome.misses = curseforgeMisses(candidates, outcome.matches, outcome.unsure, fallbackEligible)
+	if state != nil {
+		markScanCandidatesPending(state, outcome.misses)
+	}
 	return outcome, nil
+}
+
+func handleCurseforgeFingerprintError(
+	err error,
+	candidates []scanCandidate,
+	deps scanDeps,
+	state *scanExecState,
+) (platformLookupOutcome, error) {
+	summary := summarizePlatformFailure(err, models.CURSEFORGE)
+	if logErr := logPlatformDebug(deps.logger, models.CURSEFORGE, summary.DebugDetails); logErr != nil {
+		return platformLookupOutcome{}, logErr
+	}
+	allowFallback := allowPlatformFallback(err)
+	misses := []scanCandidate(nil)
+	if allowFallback {
+		if state != nil {
+			markScanCandidatesPending(state, candidates)
+		}
+		misses = candidates
+	} else if state != nil {
+		markScanCandidatesUnsure(state, candidates)
+	}
+	return platformLookupOutcome{
+		matches: nil,
+		misses:  misses,
+		unsure:  buildCurseforgeErrors(candidates, platformUnsureReason(models.CURSEFORGE, summary.Reason)),
+	}, nil
 }
 
 type curseforgeFingerprintIndex struct {
@@ -82,28 +115,25 @@ func buildCurseforgeErrors(candidates []scanCandidate, reason string) map[string
 }
 
 func addCurseforgeMatchesWithCache(
-	ctx context.Context,
 	candidates []scanCandidate,
 	fingerprintIndex curseforgeFingerprintIndex,
 	matches []curseforge.File,
 	deps scanDeps,
 	scanMatches *[]scanMatch,
 	unsure map[string]error,
+	state *scanExecState,
 ) (map[string]bool, error) {
-	nameCache := make(map[string]string)
-	var nameMu sync.Mutex
 	fallbackEligible := make(map[string]bool)
 
-	if err := addCurseforgeMatches(ctx, curseforgeMatchContext{
+	if err := addCurseforgeMatches(curseforgeMatchContext{
 		candidates:           candidates,
 		fingerprintToIndices: fingerprintIndex.fingerprintToIndices,
 		matches:              matches,
 		deps:                 deps,
-		nameCache:            nameCache,
-		nameMu:               &nameMu,
 		scanMatches:          scanMatches,
 		unsure:               unsure,
 		fallbackEligible:     fallbackEligible,
+		state:                state,
 	}); err != nil {
 		return nil, err
 	}
@@ -115,32 +145,34 @@ type curseforgeMatchContext struct {
 	fingerprintToIndices map[uint32][]int
 	matches              []curseforge.File
 	deps                 scanDeps
-	nameCache            map[string]string
-	nameMu               *sync.Mutex
 	scanMatches          *[]scanMatch
 	unsure               map[string]error
 	fallbackEligible     map[string]bool
+	state                *scanExecState
 }
 
-func addCurseforgeMatches(ctx context.Context, matchContext curseforgeMatchContext) error {
+func addCurseforgeMatches(matchContext curseforgeMatchContext) error {
 	for _, file := range matchContext.matches {
-		if err := applyCurseforgeMatch(ctx, matchContext, file); err != nil {
+		if err := applyCurseforgeMatch(matchContext, file); err != nil {
 			return err
 		}
 	}
 	return nil
 }
 
-func applyCurseforgeMatch(ctx context.Context, matchContext curseforgeMatchContext, file curseforge.File) error {
+func applyCurseforgeMatch(matchContext curseforgeMatchContext, file curseforge.File) error {
 	indices := matchContext.fingerprintToIndices[file.Fingerprint]
 	if len(indices) == 0 {
 		return nil
 	}
 
 	projectID := fmt.Sprintf("%d", file.ProjectID)
-	name, err := cachedCurseforgeProjectName(ctx, projectID, matchContext.deps, matchContext.nameCache, matchContext.nameMu)
-	if err != nil {
-		return recordCurseforgeUnsure(matchContext, indices, err)
+	name := strings.TrimSpace(file.DisplayName)
+	if name == "" {
+		name = strings.TrimSpace(file.FileName)
+	}
+	if name == "" {
+		name = projectID
 	}
 
 	if strings.TrimSpace(file.DownloadURL) == "" {
@@ -149,7 +181,7 @@ func applyCurseforgeMatch(ctx context.Context, matchContext curseforgeMatchConte
 
 	published := file.FileDate.Format(time.RFC3339)
 	for _, index := range indices {
-		*matchContext.scanMatches = append(*matchContext.scanMatches, scanMatch{
+		match := scanMatch{
 			Path:        matchContext.candidates[index].Path,
 			Platform:    models.CURSEFORGE,
 			ProjectID:   projectID,
@@ -158,7 +190,11 @@ func applyCurseforgeMatch(ctx context.Context, matchContext curseforgeMatchConte
 			Hash:        matchContext.candidates[index].Sha1,
 			ReleaseDate: published,
 			DownloadURL: file.DownloadURL,
-		})
+		}
+		*matchContext.scanMatches = append(*matchContext.scanMatches, match)
+		if matchContext.state != nil {
+			matchContext.state.updateStatus(match.FileName, scanItemStatusRecognized, match)
+		}
 	}
 	return nil
 }
@@ -170,33 +206,21 @@ func recordCurseforgeUnsure(matchContext curseforgeMatchContext, indices []int, 
 	}
 	reason := platformUnsureReason(models.CURSEFORGE, summary.Reason)
 	allowFallback := allowPlatformFallback(err)
+	status := scanItemStatusUnsure
+	if allowFallback {
+		status = scanItemStatusPending
+	}
 	for _, index := range indices {
 		path := matchContext.candidates[index].Path
 		matchContext.unsure[path] = errors.New(reason)
 		if allowFallback {
 			matchContext.fallbackEligible[path] = true
 		}
+		if matchContext.state != nil {
+			matchContext.state.updateStatus(matchContext.candidates[index].FileName, status, scanMatch{})
+		}
 	}
 	return nil
-}
-
-func cachedCurseforgeProjectName(ctx context.Context, projectID string, deps scanDeps, nameCache map[string]string, nameMu *sync.Mutex) (string, error) {
-	nameMu.Lock()
-	name, ok := nameCache[projectID]
-	nameMu.Unlock()
-	if ok {
-		return name, nil
-	}
-
-	name, err := deps.curseforgeProjectName(ctx, projectID, deps.clients.Curseforge)
-	if err != nil {
-		return "", err
-	}
-
-	nameMu.Lock()
-	nameCache[projectID] = name
-	nameMu.Unlock()
-	return name, nil
 }
 
 func curseforgeMisses(candidates []scanCandidate, matches []scanMatch, unsure map[string]error, fallbackEligible map[string]bool) []scanCandidate {

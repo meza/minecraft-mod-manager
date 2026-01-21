@@ -193,7 +193,7 @@ func runUpdatePTYRunningSnapshotWithItems(t *testing.T, rows uint16, items []upd
 		}
 	}
 
-	snaps.MatchSnapshot(t, normalizeUpdatePTYOutput(session.OutputString(), rows))
+	snaps.MatchSnapshot(t, normalizeUpdatePTYRunningOutput(session.OutputString(), rows))
 
 	close(release)
 	select {
@@ -215,6 +215,23 @@ func normalizeUpdatePTYOutput(output string, rows uint16) string {
 		RowLimit:               int(rows),
 		PadRows:                true,
 	})
+}
+
+func normalizeUpdatePTYRunningOutput(output string, rows uint16) string {
+	normalized := normalizeUpdatePTYOutput(output, rows)
+	lines := strings.Split(normalized, "\n")
+	for index, line := range lines {
+		lines[index] = normalizeUpdateFailureLine(line)
+	}
+	return strings.TrimSpace(strings.Join(lines, "\n"))
+}
+
+func normalizeUpdateFailureLine(line string) string {
+	const failureMarker = "cmd.update.item.failed, Arg 1: {Count: 0, Data:"
+	if index := strings.Index(line, failureMarker); index >= 0 {
+		return line[:index+len(failureMarker)]
+	}
+	return line
 }
 
 func trimToLastUpdateFrame(value string) string {

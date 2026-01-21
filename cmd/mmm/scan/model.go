@@ -5,6 +5,7 @@ import (
 
 	"github.com/charmbracelet/bubbles/viewport"
 	tea "github.com/charmbracelet/bubbletea"
+	"github.com/charmbracelet/lipgloss"
 
 	"github.com/meza/minecraft-mod-manager/internal/view"
 )
@@ -26,19 +27,20 @@ type scanItem struct {
 }
 
 type scanModel struct {
-	ctx         context.Context
-	cancel      context.CancelFunc
-	sender      scanExecSender
-	execRunner  func(context.Context, scanExecSender) scanExecutionOutcome
-	colorMode   view.ColorMode
-	items       []scanItem
-	indexByKey  map[string]int
-	spinner     view.Spinner
-	viewport    viewport.Model
-	windowW     int
-	windowH     int
-	finalRender bool
-	outcome     scanExecutionOutcome
+	ctx          context.Context
+	cancel       context.CancelFunc
+	sender       scanExecSender
+	execRunner   func(context.Context, scanExecSender) scanExecutionOutcome
+	colorMode    view.ColorMode
+	items        []scanItem
+	indexByKey   map[string]int
+	spinner      view.Spinner
+	viewport     viewport.Model
+	windowW      int
+	windowH      int
+	userScrolled bool
+	finalRender  bool
+	outcome      scanExecutionOutcome
 }
 
 type scanModelInput struct {
@@ -107,20 +109,9 @@ func (model *scanModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		model.windowH = typed.Height
 		return model, nil
 	case tea.KeyMsg:
-		switch typed.String() {
-		case "ctrl+c", "q", "esc":
-			if model.cancel != nil {
-				model.cancel()
-			}
-			return model, nil
-		}
-		updated, cmd := model.viewport.Update(typed)
-		model.viewport = updated
-		return model, cmd
+		return model.handleViewportKey(typed)
 	case tea.MouseMsg:
-		updated, cmd := model.viewport.Update(typed)
-		model.viewport = updated
-		return model, cmd
+		return model.handleViewportMouse(typed)
 	case scanItemUpdateMsg:
 		model.applyItemUpdate(typed)
 		return model, nil
@@ -161,13 +152,75 @@ func (model *scanModel) View() string {
 func (model *scanModel) updateViewport(content string, height int) {
 	model.viewport.SetContent(content)
 
+	contentHeight := lipgloss.Height(content)
 	viewportHeight := view.ClampViewportHeight(height)
 
 	model.viewport.Height = viewportHeight
 	if model.windowW > 0 {
 		model.viewport.Width = model.windowW
 	}
-	model.viewport.SetYOffset(model.viewport.YOffset)
+	maxOffset := view.MaxViewportOffset(contentHeight, viewportHeight)
+	targetOffset := model.viewport.YOffset
+	if !model.userScrolled {
+		targetOffset = maxOffset
+	}
+	model.viewport.SetYOffset(targetOffset)
+}
+
+func (model *scanModel) handleViewportKey(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
+	switch msg.String() {
+	case "ctrl+c", "q", "esc":
+		if model.cancel != nil {
+			model.cancel()
+		}
+		return model, nil
+	}
+	previousOffset := model.viewport.YOffset
+	updated, cmd := model.viewport.Update(msg)
+	model.viewport = updated
+	if model.viewport.YOffset != previousOffset || isViewportScrollKey(msg) {
+		model.userScrolled = true
+	}
+	return model, cmd
+}
+
+func (model *scanModel) handleViewportMouse(msg tea.MouseMsg) (tea.Model, tea.Cmd) {
+	previousOffset := model.viewport.YOffset
+	updated, cmd := model.viewport.Update(msg)
+	model.viewport = updated
+	if model.viewport.YOffset != previousOffset || isViewportScrollMouse(msg) {
+		model.userScrolled = true
+	}
+	return model, cmd
+}
+
+func isViewportScrollKey(msg tea.KeyMsg) bool {
+	switch msg.Type {
+	case tea.KeyUp, tea.KeyDown, tea.KeyPgUp, tea.KeyPgDown, tea.KeyHome, tea.KeyEnd:
+		return true
+	default:
+		switch msg.String() {
+		case "j", "k", "g", "G":
+			return true
+		default:
+			return false
+		}
+	}
+}
+
+func isViewportScrollMouse(msg tea.MouseMsg) bool {
+	if msg.Action != tea.MouseActionPress {
+		return false
+	}
+	switch msg.Button {
+	case tea.MouseButtonWheelUp,
+		tea.MouseButtonWheelDown,
+		tea.MouseButtonWheelLeft,
+		tea.MouseButtonWheelRight:
+		return true
+	default:
+		return false
+	}
 }
 
 func (model *scanModel) applyItemUpdate(msg scanItemUpdateMsg) {

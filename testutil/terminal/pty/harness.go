@@ -46,6 +46,7 @@ var (
 	openPTY             = openPTYDefault
 	setPTYSize          = setPTYSizeDefault
 	fileCloser          = func(file terminalFile) error { return file.Close() }
+	closeTimeout        = 5 * time.Second
 	sessionFatalf       = func(test testing.TB, format string, args ...any) { test.Fatalf(format, args...) }
 	cleanupErrorHandler = func(test testing.TB, err error) { test.Errorf("pty session close failed: %v", err) }
 )
@@ -352,8 +353,19 @@ func closeFile(file terminalFile) error {
 	if file == nil {
 		return nil
 	}
-	if err := fileCloser(file); err != nil && !errors.Is(err, os.ErrClosed) {
-		return err
+	closer := fileCloser
+	timeout := closeTimeout
+	closeErr := make(chan error, 1)
+	go func() {
+		closeErr <- closer(file)
+	}()
+	select {
+	case err := <-closeErr:
+		if err != nil && !errors.Is(err, os.ErrClosed) {
+			return err
+		}
+	case <-time.After(timeout):
+		return errors.New("timed out closing PTY handle")
 	}
 	return nil
 }

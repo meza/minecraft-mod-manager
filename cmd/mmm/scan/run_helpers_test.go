@@ -606,6 +606,35 @@ func TestHandleInteractiveScanPromptDeclineOutputError(t *testing.T) {
 	assert.Error(t, err)
 }
 
+func TestHandleInteractiveScanPromptDeclineCancelLineOutputError(t *testing.T) {
+	cmd := &cobra.Command{}
+	writeErr := errors.New("write failed")
+	outputCalls := 0
+	runTea := func(model tea.Model, _ ...tea.ProgramOption) (tea.Model, error) {
+		switch typed := model.(type) {
+		case *scanAdoptionPromptModel:
+			return &scanAdoptionPromptModel{confirmed: false, prompt: typed.prompt}, nil
+		case view.OutputLinesModel:
+			outputCalls++
+			if outputCalls == 1 {
+				typed.Err = writeErr
+			}
+			return typed, nil
+		default:
+			return nil, errors.New("unexpected model")
+		}
+	}
+
+	input := scanExecutionInput{
+		deps: scanDeps{runTea: runTea},
+	}
+	outcome := scanExecutionOutcome{matches: []scanMatch{scanMatchFixture()}}
+
+	_, err := handleInteractiveScanPrompt(context.Background(), cmd, input, view.ColorDisabled, outcome)
+	assert.ErrorIs(t, err, writeErr)
+	assert.Equal(t, 1, outputCalls)
+}
+
 func TestHandleInteractiveScanPromptConfirmed(t *testing.T) {
 	t.Setenv("MMM_TEST", "true")
 
@@ -1097,6 +1126,7 @@ func TestRunQuietScanAddPersistsResults(t *testing.T) {
 
 	version := &modrinth.Version{
 		ProjectID:     "alpha",
+		Name:          "Alpha",
 		DatePublished: time.Date(2024, 1, 2, 0, 0, 0, 0, time.UTC),
 		Files: []modrinth.VersionFile{
 			{URL: "https://example.invalid/alpha.jar", Primary: true},
@@ -1119,9 +1149,6 @@ func TestRunQuietScanAddPersistsResults(t *testing.T) {
 			modrinthVersionForSha: func(context.Context, string, httpclient.Doer) (*modrinth.Version, error) {
 				return version, nil
 			},
-			modrinthProjectTitle: func(context.Context, string, httpclient.Doer) (string, error) {
-				return "Alpha", nil
-			},
 		},
 	}
 
@@ -1139,6 +1166,7 @@ func TestRunQuietScanAddReturnsPersistError(t *testing.T) {
 
 	version := &modrinth.Version{
 		ProjectID:     "alpha",
+		Name:          "Alpha",
 		DatePublished: time.Date(2024, 1, 2, 0, 0, 0, 0, time.UTC),
 		Files: []modrinth.VersionFile{
 			{URL: "https://example.invalid/alpha.jar", Primary: true},
@@ -1157,9 +1185,6 @@ func TestRunQuietScanAddReturnsPersistError(t *testing.T) {
 			},
 			modrinthVersionForSha: func(context.Context, string, httpclient.Doer) (*modrinth.Version, error) {
 				return version, nil
-			},
-			modrinthProjectTitle: func(context.Context, string, httpclient.Doer) (string, error) {
-				return "Alpha", nil
 			},
 		},
 	}

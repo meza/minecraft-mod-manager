@@ -133,6 +133,31 @@ func TestCloseFileReturnsOtherErrors(t *testing.T) {
 	require.Error(t, closeFile(file))
 }
 
+func TestCloseFileTimesOutOnBlockedClose(t *testing.T) {
+	file, err := os.CreateTemp("", "pty-close-timeout")
+	require.NoError(t, err)
+	defer os.Remove(file.Name())
+
+	block := make(chan struct{})
+	originalCloser := fileCloser
+	originalTimeout := closeTimeout
+	fileCloser = func(_ terminalFile) error {
+		<-block
+		return nil
+	}
+	closeTimeout = 10 * time.Millisecond
+	t.Cleanup(func() {
+		closeTimeout = originalTimeout
+		fileCloser = originalCloser
+		close(block)
+		require.NoError(t, originalCloser(file))
+	})
+
+	err = closeFile(file)
+	require.Error(t, err)
+	require.Contains(t, err.Error(), "timed out closing PTY handle")
+}
+
 func TestCloseWithErrorIncludesCloseErrors(t *testing.T) {
 	badFile := os.NewFile(^uintptr(0), "bad")
 	err := closeWithError(ptySetup{master: badFile}, errors.New("boom"))

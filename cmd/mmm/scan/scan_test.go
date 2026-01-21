@@ -499,14 +499,12 @@ func TestRunScan_PreferModrinthDoesNotCallCurseforgeWhenHit(t *testing.T) {
 		modrinthVersionForSha: func(context.Context, string, httpclient.Doer) (*modrinth.Version, error) {
 			return &modrinth.Version{
 				ProjectID:     "proj-1",
+				Name:          "Example Mod",
 				DatePublished: time.Date(2024, 1, 1, 0, 0, 0, 0, time.UTC),
 				Files: []modrinth.VersionFile{
 					{URL: "https://example.invalid/mod.jar", Primary: true},
 				},
 			}, nil
-		},
-		modrinthProjectTitle: func(context.Context, string, httpclient.Doer) (string, error) {
-			return "Example Mod", nil
 		},
 		curseforgeFingerprint: func(string) uint32 {
 			return 123
@@ -514,9 +512,6 @@ func TestRunScan_PreferModrinthDoesNotCallCurseforgeWhenHit(t *testing.T) {
 		curseforgeFingerprintMatch: func(context.Context, []uint32, httpclient.Doer) (*curseforge.FingerprintResult, error) {
 			curseforgeCalled = true
 			return &curseforge.FingerprintResult{}, nil
-		},
-		curseforgeProjectName: func(context.Context, string, httpclient.Doer) (string, error) {
-			return "CF", nil
 		},
 	})
 
@@ -566,10 +561,6 @@ func TestRunScan_FallbackOnMissUsesOtherPlatform(t *testing.T) {
 		modrinthVersionForSha: func(context.Context, string, httpclient.Doer) (*modrinth.Version, error) {
 			return nil, &modrinth.VersionNotFoundError{}
 		},
-		modrinthProjectTitle: func(context.Context, string, httpclient.Doer) (string, error) {
-			t.Fatal("modrinthProjectTitle should not be called on not found")
-			return "", nil
-		},
 		curseforgeFingerprint: func(string) uint32 {
 			return 999
 		},
@@ -579,14 +570,12 @@ func TestRunScan_FallbackOnMissUsesOtherPlatform(t *testing.T) {
 					{
 						ProjectID:   42,
 						Fingerprint: 999,
+						DisplayName: "CurseForge Mod",
 						DownloadURL: "https://example.invalid/cf.jar",
 						FileDate:    time.Date(2024, 2, 1, 0, 0, 0, 0, time.UTC),
 					},
 				},
 			}, nil
-		},
-		curseforgeProjectName: func(context.Context, string, httpclient.Doer) (string, error) {
-			return "CurseForge Mod", nil
 		},
 	})
 
@@ -754,14 +743,12 @@ func TestRunScan_AddPersistsConfigAndLock(t *testing.T) {
 		modrinthVersionForSha: func(context.Context, string, httpclient.Doer) (*modrinth.Version, error) {
 			return &modrinth.Version{
 				ProjectID:     "proj-1",
+				Name:          "Example Mod",
 				DatePublished: time.Date(2024, 1, 1, 0, 0, 0, 0, time.UTC),
 				Files: []modrinth.VersionFile{
 					{URL: "https://example.invalid/mod.jar", Primary: true},
 				},
 			}, nil
-		},
-		modrinthProjectTitle: func(context.Context, string, httpclient.Doer) (string, error) {
-			return "Example Mod", nil
 		},
 		clients: platform.Clients{},
 	})
@@ -830,6 +817,7 @@ func TestRunScan_AddPersistsWhenSomeFilesAreUnsure(t *testing.T) {
 			if sha == matchShaHex {
 				return &modrinth.Version{
 					ProjectID:     "proj-1",
+					Name:          "Example Mod",
 					DatePublished: time.Date(2024, 1, 1, 0, 0, 0, 0, time.UTC),
 					Files: []modrinth.VersionFile{
 						{URL: "https://example.invalid/mod.jar", Primary: true},
@@ -837,9 +825,6 @@ func TestRunScan_AddPersistsWhenSomeFilesAreUnsure(t *testing.T) {
 				}, nil
 			}
 			return nil, httpclient.WrapTimeoutError(context.DeadlineExceeded)
-		},
-		modrinthProjectTitle: func(context.Context, string, httpclient.Doer) (string, error) {
-			return "Example Mod", nil
 		},
 		clients: platform.Clients{},
 	})
@@ -893,14 +878,12 @@ func TestRunScan_QuietSuppressesNormalOutput(t *testing.T) {
 		modrinthVersionForSha: func(context.Context, string, httpclient.Doer) (*modrinth.Version, error) {
 			return &modrinth.Version{
 				ProjectID:     "proj-1",
+				Name:          "Example Mod",
 				DatePublished: time.Date(2024, 1, 1, 0, 0, 0, 0, time.UTC),
 				Files: []modrinth.VersionFile{
 					{URL: "https://example.invalid/mod.jar", Primary: true},
 				},
 			}, nil
-		},
-		modrinthProjectTitle: func(context.Context, string, httpclient.Doer) (string, error) {
-			return "Example Mod", nil
 		},
 		clients: platform.Clients{},
 	})
@@ -948,14 +931,12 @@ func TestRunScan_AddBackfillsMissingLockEntry(t *testing.T) {
 		modrinthVersionForSha: func(context.Context, string, httpclient.Doer) (*modrinth.Version, error) {
 			return &modrinth.Version{
 				ProjectID:     "proj-1",
+				Name:          "New Name",
 				DatePublished: time.Date(2024, 1, 1, 0, 0, 0, 0, time.UTC),
 				Files: []modrinth.VersionFile{
 					{URL: "https://example.invalid/mod.jar", Primary: true},
 				},
 			}, nil
-		},
-		modrinthProjectTitle: func(context.Context, string, httpclient.Doer) (string, error) {
-			return "New Name", nil
 		},
 		telemetry: func(telemetry.CommandTelemetry) {},
 		clients:   platform.Clients{},
@@ -1015,14 +996,12 @@ func TestRunScan_RespectsMmmignoreAndSkipsManagedFiles(t *testing.T) {
 			called++
 			return &modrinth.Version{
 				ProjectID:     "proj-1",
+				Name:          "Example",
 				DatePublished: time.Date(2024, 1, 1, 0, 0, 0, 0, time.UTC),
 				Files: []modrinth.VersionFile{
 					{URL: "https://example.invalid/mod.jar", Primary: true},
 				},
 			}, nil
-		},
-		modrinthProjectTitle: func(context.Context, string, httpclient.Doer) (string, error) {
-			return "Example", nil
 		},
 		telemetry: func(telemetry.CommandTelemetry) {},
 		clients:   platform.Clients{},
@@ -1544,14 +1523,12 @@ func TestRunScan_AddLogsPersistFailureAndContinues(t *testing.T) {
 		modrinthVersionForSha: func(context.Context, string, httpclient.Doer) (*modrinth.Version, error) {
 			return &modrinth.Version{
 				ProjectID:     "",
+				Name:          "Example",
 				DatePublished: time.Date(2024, 1, 1, 0, 0, 0, 0, time.UTC),
 				Files: []modrinth.VersionFile{
 					{URL: "https://example.invalid/mod.jar", Primary: true},
 				},
 			}, nil
-		},
-		modrinthProjectTitle: func(context.Context, string, httpclient.Doer) (string, error) {
-			return "Example", nil
 		},
 		curseforgeFingerprint: func(string) uint32 { return 123 },
 		curseforgeFingerprintMatch: func(context.Context, []uint32, httpclient.Doer) (*curseforge.FingerprintResult, error) {
@@ -1603,14 +1580,12 @@ func TestRunScan_WriteConfigFailure(t *testing.T) {
 		modrinthVersionForSha: func(context.Context, string, httpclient.Doer) (*modrinth.Version, error) {
 			return &modrinth.Version{
 				ProjectID:     "proj-1",
+				Name:          "Example Mod",
 				DatePublished: time.Date(2024, 1, 1, 0, 0, 0, 0, time.UTC),
 				Files: []modrinth.VersionFile{
 					{URL: "https://example.invalid/mod.jar", Primary: true},
 				},
 			}, nil
-		},
-		modrinthProjectTitle: func(context.Context, string, httpclient.Doer) (string, error) {
-			return "Example Mod", nil
 		},
 		clients: platform.Clients{},
 	})
@@ -1658,14 +1633,12 @@ func TestRunScan_WriteLockFailure(t *testing.T) {
 		modrinthVersionForSha: func(context.Context, string, httpclient.Doer) (*modrinth.Version, error) {
 			return &modrinth.Version{
 				ProjectID:     "proj-1",
+				Name:          "Example Mod",
 				DatePublished: time.Date(2024, 1, 1, 0, 0, 0, 0, time.UTC),
 				Files: []modrinth.VersionFile{
 					{URL: "https://example.invalid/mod.jar", Primary: true},
 				},
 			}, nil
-		},
-		modrinthProjectTitle: func(context.Context, string, httpclient.Doer) (string, error) {
-			return "Example Mod", nil
 		},
 		clients: platform.Clients{},
 	})
@@ -1779,10 +1752,6 @@ func TestLookupModrinthReturnsUnsureOnContextCancel(t *testing.T) {
 		modrinthVersionForSha: func(context.Context, string, httpclient.Doer) (*modrinth.Version, error) {
 			t.Fatal("unexpected lookup call after context cancellation")
 			return nil, errors.New("unexpected lookup call after context cancellation")
-		},
-		modrinthProjectTitle: func(context.Context, string, httpclient.Doer) (string, error) {
-			t.Fatal("unexpected title lookup after context cancellation")
-			return "", errors.New("unexpected title lookup after context cancellation")
 		},
 		clients: platform.Clients{},
 	})

@@ -52,9 +52,7 @@ type scanDeps struct {
 
 	curseforgeFingerprint      func(string) uint32
 	modrinthVersionForSha      func(context.Context, string, httpclient.Doer) (*modrinth.Version, error)
-	modrinthProjectTitle       func(context.Context, string, httpclient.Doer) (string, error)
 	curseforgeFingerprintMatch func(context.Context, []uint32, httpclient.Doer) (*curseforge.FingerprintResult, error)
-	curseforgeProjectName      func(context.Context, string, httpclient.Doer) (string, error)
 }
 
 func Command() *cobra.Command {
@@ -171,9 +169,7 @@ func defaultScanDeps(cmd *cobra.Command, opts scanOptions) scanDeps {
 
 		curseforgeFingerprint:      curseforgeFingerprint.GetFingerprintFor,
 		modrinthVersionForSha:      defaultModrinthVersionForSha,
-		modrinthProjectTitle:       defaultModrinthProjectTitle,
 		curseforgeFingerprintMatch: defaultCurseforgeFingerprintMatch,
-		curseforgeProjectName:      defaultCurseforgeProjectName,
 	}
 }
 
@@ -457,25 +453,7 @@ func defaultModrinthVersionForSha(ctx context.Context, sha1 string, doer httpcli
 	return modrinth.GetVersionForHash(ctx, modrinth.NewVersionHashLookup(sha1, modrinth.SHA1), client)
 }
 
-func defaultModrinthProjectTitle(ctx context.Context, projectID string, doer httpclient.Doer) (string, error) {
-	client := modrinth.NewClient(doer)
-	project, err := modrinth.GetProject(ctx, projectID, client)
-	if err != nil {
-		return "", err
-	}
-	return project.Title, nil
-}
-
 func defaultCurseforgeFingerprintMatch(ctx context.Context, fingerprints []uint32, doer httpclient.Doer) (*curseforge.FingerprintResult, error) {
 	client := curseforge.NewClient(doer)
 	return curseforge.GetFingerprintsMatches(ctx, fingerprints, client)
-}
-
-func defaultCurseforgeProjectName(ctx context.Context, projectID string, doer httpclient.Doer) (string, error) {
-	client := curseforge.NewClient(doer)
-	project, err := curseforge.GetProject(ctx, projectID, client)
-	if err != nil {
-		return "", err
-	}
-	return project.Name, nil
 }

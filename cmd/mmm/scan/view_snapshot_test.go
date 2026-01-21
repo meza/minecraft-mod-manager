@@ -111,6 +111,23 @@ func TestScanViewSnapshots(t *testing.T) {
 		snaps.MatchSnapshot(t, output)
 	})
 
+	t.Run("running_with_pending", func(t *testing.T) {
+		items := []scanItem{
+			{FileName: "alpha.jar", Status: scanItemStatusScanning},
+			{FileName: "beta.jar", Status: scanItemStatusPending},
+			{FileName: "gamma.jar", Status: scanItemStatusPending},
+			{FileName: "delta.jar", Status: scanItemStatusScanning},
+			{FileName: "epsilon.jar", Status: scanItemStatusPending},
+		}
+
+		output := renderScanRunningView(scanRunningViewInput{
+			items:     items,
+			colorMode: view.ColorDisabled,
+			spinner:   &spin,
+		})
+		snaps.MatchSnapshot(t, output)
+	})
+
 	t.Run("results", func(t *testing.T) {
 		output := renderScanResultsView(scanResultsViewInput{
 			matches: []scanMatch{
