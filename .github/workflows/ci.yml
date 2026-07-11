@@ -15,14 +15,13 @@ env:
 
 jobs:
   release:
-    runs-on: ubuntu-latest
+    runs-on: self-hosted
     steps:
       - uses: meza/action-go-setup@main
         id: go
         name: Set up Go
         with:
-          go-version: '1.25.5'
-          GH_TOKEN: ${{ secrets.GH_TOKEN }}
+          go-version: 1.25.5
 
       - name: Lint
         run: make lint
