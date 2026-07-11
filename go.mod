@@ -1,6 +1,6 @@
 module github.com/meza/minecraft-mod-manager
 
-go 1.25
+go 1.25.0
 
 require (
 	github.com/charmbracelet/bubbles v0.21.0
@@ -27,7 +27,7 @@ require (
 	go.opentelemetry.io/otel v1.39.0
 	go.opentelemetry.io/otel/sdk v1.39.0
 	go.opentelemetry.io/otel/trace v1.39.0
-	golang.org/x/sync v0.19.0
+	golang.org/x/sync v0.21.0
 	golang.org/x/term v0.38.0
 	golang.org/x/text v0.32.0
 	golang.org/x/time v0.14.0
@@ -210,7 +210,7 @@ require (
 	github.com/prometheus/client_golang v1.12.1 // indirect
 	github.com/prometheus/client_model v0.2.0 // indirect
 	github.com/prometheus/common v0.32.1 // indirect
-	github.com/prometheus/procfs v0.7.3 // indirect
+	github.com/prometheus/procfs v0.21.1 // indirect
 	github.com/quasilyte/go-ruleguard v0.4.5 // indirect
 	github.com/quasilyte/gogrep v0.5.0 // indirect
 	github.com/quasilyte/regex/syntax v0.0.0-20210819130434-b3f0c404a727 // indirect
@@ -272,7 +272,7 @@ require (
 	go.yaml.in/yaml/v3 v3.0.4 // indirect
 	golang.org/x/exp/typeparams v0.0.0-20251023183803-a4bb9ffd2546 // indirect
 	golang.org/x/mod v0.30.0 // indirect
-	golang.org/x/sys v0.39.0 // indirect
+	golang.org/x/sys v0.46.0 // indirect
 	golang.org/x/tools v0.39.0 // indirect
 	google.golang.org/protobuf v1.36.8 // indirect
 	gopkg.in/ini.v1 v1.67.0 // indirect
