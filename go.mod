@@ -18,7 +18,7 @@ require (
 	github.com/meza/curseforge-fingerprint-go v1.1.2
 	github.com/muesli/termenv v0.16.0
 	github.com/pkg/errors v0.9.1
-	github.com/posthog/posthog-go v1.6.13
+	github.com/posthog/posthog-go v1.17.5
 	github.com/quasilyte/go-ruleguard/dsl v0.3.23
 	github.com/spf13/afero v1.15.0
 	github.com/spf13/cobra v1.10.2
@@ -60,6 +60,7 @@ require (
 	github.com/alfatraining/structtag v1.0.0 // indirect
 	github.com/alingse/asasalint v0.0.11 // indirect
 	github.com/alingse/nilnesserr v0.2.0 // indirect
+	github.com/andybalholm/brotli v1.1.1 // indirect
 	github.com/ashanbrown/forbidigo/v2 v2.3.0 // indirect
 	github.com/ashanbrown/makezero/v2 v2.1.0 // indirect
 	github.com/atotto/clipboard v0.1.4 // indirect
@@ -120,6 +121,7 @@ require (
 	github.com/go-viper/mapstructure/v2 v2.4.0 // indirect
 	github.com/go-xmlfmt/xmlfmt v1.1.3 // indirect
 	github.com/gobwas/glob v0.2.3 // indirect
+	github.com/goccy/go-json v0.10.5 // indirect
 	github.com/goccy/go-yaml v1.19.0 // indirect
 	github.com/godoc-lint/godoc-lint v0.10.2 // indirect
 	github.com/gofrs/flock v0.13.0 // indirect
@@ -157,6 +159,7 @@ require (
 	github.com/karamaru-alpha/copyloopvar v1.2.2 // indirect
 	github.com/kisielk/errcheck v1.9.0 // indirect
 	github.com/kkHAIKE/contextcheck v1.1.6 // indirect
+	github.com/klauspost/compress v1.17.11 // indirect
 	github.com/knadh/koanf/maps v0.1.2 // indirect
 	github.com/knadh/koanf/parsers/json v1.0.0 // indirect
 	github.com/knadh/koanf/parsers/toml/v2 v2.2.0 // indirect
