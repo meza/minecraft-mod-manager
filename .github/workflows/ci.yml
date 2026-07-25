@@ -17,7 +17,7 @@ env:
 jobs:
   build-push-artifacts:
     name: 📦 Build artifacts for the commit (for internal use only)
-    runs-on: self-hosted
+    runs-on: meza-ubuntu-slim
     steps:
       - uses: actions/checkout@v6
       - name: Set up node
@@ -45,7 +45,7 @@ jobs:
 
   verify:
     name: 🔎 Lint and Test
-    runs-on: self-hosted
+    runs-on: meza-ubuntu-slim
     steps:
       - uses: actions/checkout@v6
       - name: Set up node
@@ -83,7 +83,7 @@ jobs:
     needs: [ verify, build-push-artifacts ]
     if: needs.verify.outputs.new-release-published == 'true'
     name: Release
-    runs-on: self-hosted
+    runs-on: meza-ubuntu-slim
     steps:
       - uses: actions/checkout@v6
       - name: Set up node
