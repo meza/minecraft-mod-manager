@@ -1,8 +1,10 @@
 
 [TestUpdateNonTTYInstallHeaderSnapshot - 1]
+cmd.update.header
 cmd.update.header.installing_potentially_missing
 
 install output
+cmd.update.header
 ✅ Alpha (mod-a) [modrinth]
 
 ✅ cmd.update.summary.success

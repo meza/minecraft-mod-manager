@@ -101,6 +101,7 @@ Updating (⠋ waiting for install to complete)
 In non-tty mode, MMM prints a header before the install transcript:
 
 ```
+Updating your mods to their newest versions:
 Installing potentially missing mods:
 ```
 
@@ -109,7 +110,7 @@ Installing potentially missing mods:
 UPDATE-01-1 runs to completion, then the view transitions to updating mods:
 
 ```
-Updating mods:
+Updating your mods to their newest versions:
 ⠋ Inventory Sorting (inventory-sorting) [modrinth]
 ⠋ Fabric API (fabric-api) [modrinth]
 ⬇️ Mod Menu (modmenu) [modrinth]
@@ -129,6 +130,7 @@ As progress is made, the same view updates to reflect the final segments the mod
 `update`
 
 ```
+Updating your mods to their newest versions:
 Already up to date:
 ✅ Fabric API (fabric-api) [modrinth]
 ... (one row per up to date mod)
@@ -156,6 +158,7 @@ Updating:
 `update`
 
 ```
+Updating your mods to their newest versions:
 Already up to date:
 ✅ Fabric API (fabric-api) [modrinth]
 ✅ Mod Menu (modmenu) [modrinth]
@@ -177,6 +180,7 @@ Exit code: 0
 If there are no configured mods, MMM SHOULD print:
 
 ```
+Updating your mods to their newest versions:
 No mods configured.
 ```
 
@@ -188,6 +192,7 @@ Exit code: 0
 `update`
 
 ```
+Updating your mods to their newest versions:
 No mods configured.
 ```
 
@@ -199,6 +204,7 @@ Exit code: 0
 `update`
 
 ```
+Updating your mods to their newest versions:
 Already up to date:
 ✅ Fabric API (fabric-api) [modrinth]
 ✅ Mod Menu (modmenu) [modrinth]
@@ -219,6 +225,7 @@ Exit code: 0
 `update`
 
 ```
+Updating your mods to their newest versions:
 ✅ Fabric API (fabric-api) [modrinth]
 ✅ Mod Menu (modmenu) [modrinth]
 📌 Pinned Mod (pinned-mod) [curseforge] pinned (skipped)
@@ -235,6 +242,7 @@ Exit code: 0
 `update`
 
 ```
+Updating your mods to their newest versions:
 Already up to date:
 ✅ Fabric API (fabric-api) [modrinth]
 ... (one row per up to date mod)
@@ -264,6 +272,7 @@ Exit code: 1
 `update`
 
 ```
+Updating your mods to their newest versions:
 ✅ Fabric API (fabric-api) [modrinth]
 ✅ Inventory Sorting (inventory-sorting) [modrinth]
 📌 Pinned Mod (pinned-mod) [curseforge] pinned (skipped)
@@ -361,6 +370,7 @@ Exit code: 0
 `update --quiet`
 
 ```
+Updating your mods to their newest versions:
 ‼️ Update incomplete.
 
 Failed:

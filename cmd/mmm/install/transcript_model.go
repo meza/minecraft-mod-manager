@@ -8,18 +8,20 @@ import (
 	tea "github.com/charmbracelet/bubbletea"
 
 	"github.com/meza/minecraft-mod-manager/internal/httpclient"
+	"github.com/meza/minecraft-mod-manager/internal/i18n"
 	"github.com/meza/minecraft-mod-manager/internal/view"
 )
 
 type installTranscriptModel struct {
-	ctx        context.Context
-	execRunner func(context.Context, httpclient.Sender) installExecutionOutcome
-	colorMode  view.ColorMode
-	items      []installItem
-	indexByKey map[string]int
-	outcome    installExecutionOutcome
-	output     io.Writer
-	sender     installExecSender
+	ctx           context.Context
+	execRunner    func(context.Context, httpclient.Sender) installExecutionOutcome
+	colorMode     view.ColorMode
+	items         []installItem
+	indexByKey    map[string]int
+	headerPrinted bool
+	outcome       installExecutionOutcome
+	output        io.Writer
+	sender        installExecSender
 }
 
 func newInstallTranscriptModel(ctx context.Context, colorMode view.ColorMode, items []installItem, indexByKey map[string]int, output io.Writer, execRunner func(context.Context, httpclient.Sender) installExecutionOutcome) *installTranscriptModel {
@@ -57,17 +59,17 @@ func (model *installTranscriptModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	switch typed := msg.(type) {
 	case installItemSuccessMsg:
 		if outputLine, ok := model.applyTranscriptSuccess(typed); ok {
-			return model, outputLineCmd(model.output, outputLine)
+			return model, model.outputTranscriptLine(outputLine)
 		}
 		return model, nil
 	case installItemFailureMsg:
 		if outputLine, ok := model.applyTranscriptFailure(typed); ok {
-			return model, outputLineCmd(model.output, outputLine)
+			return model, model.outputTranscriptLine(outputLine)
 		}
 		return model, nil
 	case installItemAbortedMsg:
 		if outputLine, ok := model.applyTranscriptAborted(typed); ok {
-			return model, outputLineCmd(model.output, outputLine)
+			return model, model.outputTranscriptLine(outputLine)
 		}
 		return model, nil
 	case installExecutionFinishedMsg:
@@ -83,6 +85,15 @@ func (model *installTranscriptModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 
 func (model *installTranscriptModel) View() string {
 	return ""
+}
+
+func (model *installTranscriptModel) outputTranscriptLine(line string) tea.Cmd {
+	if model.headerPrinted {
+		return outputLineCmd(model.output, line)
+	}
+	model.headerPrinted = true
+	header := i18n.T("cmd.install.header.success", nil)
+	return tea.Sequence(outputLineCmd(model.output, header), outputLineCmd(model.output, line))
 }
 
 func (model *installTranscriptModel) updateItem(key string, update func(*installItem)) (installItemStatus, bool) {
@@ -152,7 +163,13 @@ func (model *installTranscriptModel) summaryLines() []string {
 	default:
 		lines = []string{renderInstallSuccessSummary(model.colorMode)}
 	}
-	if len(lines) == 0 || len(model.items) == 0 {
+	addedHeader := false
+	if !model.headerPrinted {
+		lines = append([]string{i18n.T("cmd.install.header.success", nil)}, lines...)
+		model.headerPrinted = true
+		addedHeader = true
+	}
+	if len(model.items) == 0 || addedHeader {
 		return lines
 	}
 	return append([]string{""}, lines...)

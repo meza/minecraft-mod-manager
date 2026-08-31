@@ -1,10 +1,12 @@
 package view
 
 import (
+	"errors"
 	"io"
 	"strings"
 	"testing"
 
+	tea "github.com/charmbracelet/bubbletea"
 	"github.com/muesli/termenv"
 	"github.com/stretchr/testify/assert"
 )
@@ -116,6 +118,20 @@ func TestSupportsUnicodeReturnsFalseForCLocale(t *testing.T) {
 	t.Setenv("LANG", "C")
 
 	assert.False(t, SupportsUnicode())
+}
+
+func TestUnboundedWindowHeightFilterClearsHeight(t *testing.T) {
+	msg := UnboundedWindowHeightFilter(nil, tea.WindowSizeMsg{Width: 120, Height: 40})
+	size, ok := msg.(tea.WindowSizeMsg)
+	assert.True(t, ok)
+	assert.Equal(t, 120, size.Width)
+	assert.Equal(t, 0, size.Height)
+}
+
+func TestUnboundedWindowHeightFilterPassesThroughOtherMessages(t *testing.T) {
+	msg := UnboundedWindowHeightFilter(nil, tea.KeyMsg{Type: tea.KeyEnter})
+	_, ok := msg.(tea.KeyMsg)
+	assert.True(t, ok)
 }
 
 func TestSupportsUnicodeDefaultsToTrueWithoutLocale(t *testing.T) {
@@ -231,6 +247,62 @@ func TestSupportsControlSequencesWhenTerminalWriter(t *testing.T) {
 	defer restore()
 
 	assert.True(t, SupportsControlSequences(fakeWriter{}))
+}
+
+func TestTerminalSizeReturnsZeroWhenWriterHasNoDescriptor(t *testing.T) {
+	restoreTerminal := mockTerminalDetection(t, true)
+	defer restoreTerminal()
+	restoreSize := SetTerminalSizeFuncForTesting(func(_ int) (int, int, error) {
+		return 120, 40, nil
+	})
+	defer restoreSize()
+
+	width, height := TerminalSize(&strings.Builder{})
+
+	assert.Equal(t, 0, width)
+	assert.Equal(t, 0, height)
+}
+
+func TestTerminalSizeReturnsZeroWhenWriterIsNotTerminal(t *testing.T) {
+	restoreTerminal := mockTerminalDetection(t, false)
+	defer restoreTerminal()
+	restoreSize := SetTerminalSizeFuncForTesting(func(_ int) (int, int, error) {
+		return 120, 40, nil
+	})
+	defer restoreSize()
+
+	width, height := TerminalSize(fakeWriter{})
+
+	assert.Equal(t, 0, width)
+	assert.Equal(t, 0, height)
+}
+
+func TestTerminalSizeReturnsZeroWhenSizeLookupFails(t *testing.T) {
+	restoreTerminal := mockTerminalDetection(t, true)
+	defer restoreTerminal()
+	restoreSize := SetTerminalSizeFuncForTesting(func(_ int) (int, int, error) {
+		return 0, 0, errors.New("boom")
+	})
+	defer restoreSize()
+
+	width, height := TerminalSize(fakeWriter{})
+
+	assert.Equal(t, 0, width)
+	assert.Equal(t, 0, height)
+}
+
+func TestTerminalSizeReturnsSizeWhenAvailable(t *testing.T) {
+	restoreTerminal := mockTerminalDetection(t, true)
+	defer restoreTerminal()
+	restoreSize := SetTerminalSizeFuncForTesting(func(_ int) (int, int, error) {
+		return 120, 40, nil
+	})
+	defer restoreSize()
+
+	width, height := TerminalSize(fakeWriter{})
+
+	assert.Equal(t, 120, width)
+	assert.Equal(t, 40, height)
 }
 
 func mockTerminalDetection(t *testing.T, result bool) func() {

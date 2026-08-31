@@ -17,6 +17,7 @@ type updateTranscriptModel struct {
 	items          []updateItem
 	indexByKey     map[int]int
 	printedByIndex map[int]bool
+	headerPrinted  bool
 	outcome        updateExecutionOutcome
 	output         io.Writer
 	sender         updateExecSender
@@ -65,7 +66,12 @@ func (model *updateTranscriptModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	switch typed := msg.(type) {
 	case updateItemStatusMsg:
 		if outputLine, ok := model.applyTranscriptUpdate(typed); ok {
-			return model, outputLineCmd(model.output, outputLine)
+			if model.headerPrinted {
+				return model, outputLineCmd(model.output, outputLine)
+			}
+			model.headerPrinted = true
+			header := renderUpdateHeader(model.colorMode)
+			return model, tea.Sequence(outputLineCmd(model.output, header), outputLineCmd(model.output, outputLine))
 		}
 		return model, nil
 	case updateItemProgressMsg:
@@ -140,6 +146,11 @@ func (model *updateTranscriptModel) summaryLines() []string {
 	}
 
 	lines := renderUpdateTranscriptSummary(model.colorMode, model.items)
+	if !model.headerPrinted {
+		header := renderUpdateHeader(model.colorMode)
+		lines = append([]string{header}, lines...)
+		model.headerPrinted = true
+	}
 	if hasTerminalItems(model.items) {
 		return append([]string{""}, lines...)
 	}

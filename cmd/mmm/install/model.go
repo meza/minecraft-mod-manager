@@ -5,9 +5,12 @@ import (
 	"errors"
 	"strings"
 
+	"github.com/charmbracelet/bubbles/viewport"
 	tea "github.com/charmbracelet/bubbletea"
+	"github.com/charmbracelet/lipgloss"
 
 	"github.com/meza/minecraft-mod-manager/internal/httpclient"
+	"github.com/meza/minecraft-mod-manager/internal/i18n"
 	"github.com/meza/minecraft-mod-manager/internal/view"
 )
 
@@ -23,6 +26,20 @@ const (
 	installViewFailed
 )
 
+type installSectionSeparator int
+
+const (
+	installSeparatorLine installSectionSeparator = iota
+	installSeparatorParagraph
+)
+
+type installViewLayout struct {
+	header      string
+	listLines   []string
+	footerLines []string
+	separator   installSectionSeparator
+}
+
 type installModel struct {
 	ctx        context.Context
 	execRunner func(context.Context, httpclient.Sender) installExecutionOutcome
@@ -35,6 +52,10 @@ type installModel struct {
 	sender     installExecSender
 	spinner    view.Spinner
 	footer     *RunningFooter
+	viewport   viewport.Model
+	windowW    int
+	windowH    int
+	userScroll bool
 }
 
 type installExecSender struct {
@@ -70,6 +91,8 @@ func newInstallModel(
 	if footer != nil {
 		model.spinner = view.NewSpinner()
 	}
+	model.viewport = viewport.New(0, 0)
+	model.viewport.MouseWheelEnabled = true
 	return model
 }
 
@@ -101,55 +124,281 @@ func (model *installModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		model.spinner = updated
 		return model, cmd
 	}
+	if cmd, handled := model.handleInstallMessage(msg); handled {
+		return model, cmd
+	}
+	if cmd, handled := model.handleViewportMessage(msg); handled {
+		return model, cmd
+	}
+	return model, nil
+}
+
+func (model *installModel) handleInstallMessage(msg tea.Msg) (tea.Cmd, bool) {
 	switch typed := msg.(type) {
+	case tea.WindowSizeMsg:
+		if typed.Width > 0 {
+			model.windowW = typed.Width
+		}
+		if typed.Height > 0 {
+			model.windowH = typed.Height
+		}
+		return nil, true
 	case installItemProgressMsg:
 		model.applyProgress(typed)
-		return model, nil
+		return tea.WindowSize(), true
 	case installItemProgressErrMsg:
 		model.applyProgressError(typed)
-		return model, nil
+		return tea.WindowSize(), true
 	case installItemSuccessMsg:
 		model.applySuccess(typed)
-		return model, nil
+		return tea.WindowSize(), true
 	case installItemFailureMsg:
 		model.applyFailure(typed)
-		return model, nil
+		return tea.WindowSize(), true
 	case installItemAbortedMsg:
 		model.applyAborted(typed)
-		return model, nil
+		return tea.WindowSize(), true
 	case installExecutionFinishedMsg:
 		model.outcome = typed.outcome
 		model.state = viewStateFromOutcome(typed.outcome.errType)
-		return model, tea.Quit
-	case tea.KeyMsg:
-		switch typed.String() {
-		case "ctrl+c", "q", "esc":
-			if model.cancel != nil {
-				model.cancel()
-			}
-		}
-		return model, nil
+		return tea.Quit, true
 	default:
-		return model, nil
+		return nil, false
 	}
 }
 
+func (model *installModel) handleViewportMessage(msg tea.Msg) (tea.Cmd, bool) {
+	switch typed := msg.(type) {
+	case tea.KeyMsg:
+		return model.handleKeyMsg(typed), true
+	case tea.MouseMsg:
+		return model.handleMouseMsg(typed), true
+	default:
+		return nil, false
+	}
+}
+
+func (model *installModel) handleKeyMsg(msg tea.KeyMsg) tea.Cmd {
+	switch msg.String() {
+	case "ctrl+c", "q", "esc":
+		if model.cancel != nil {
+			model.cancel()
+		}
+	}
+	return model.updateViewportFromKey(msg)
+}
+
+func (model *installModel) handleMouseMsg(msg tea.MouseMsg) tea.Cmd {
+	return model.updateViewportFromMouse(msg)
+}
+
+func (model *installModel) updateViewportFromKey(msg tea.KeyMsg) tea.Cmd {
+	previousOffset := model.viewport.YOffset
+	updated, cmd := model.viewport.Update(msg)
+	model.viewport = updated
+	if model.viewport.YOffset != previousOffset || isViewportScrollKey(msg) {
+		model.userScroll = true
+	}
+	return cmd
+}
+
+func (model *installModel) updateViewportFromMouse(msg tea.MouseMsg) tea.Cmd {
+	previousOffset := model.viewport.YOffset
+	updated, cmd := model.viewport.Update(msg)
+	model.viewport = updated
+	if model.viewport.YOffset != previousOffset || isViewportScrollMouse(msg) {
+		model.userScroll = true
+	}
+	return cmd
+}
+
 func (model *installModel) View() string {
+	return model.renderInstallViewWithLayout(model.viewLayout())
+}
+
+func (model *installModel) viewLayout() installViewLayout {
+	listLines := renderInstallItemLines(model.colorMode, model.items)
 	switch model.state {
 	case installViewSuccess:
-		return renderInstallSuccessView(model.colorMode, model.items)
+		return model.layoutWithSummary(
+			i18n.T("cmd.install.header.success", nil),
+			listLines,
+			[]string{renderInstallSuccessSummary(model.colorMode)},
+		)
 	case installViewDownloadFailed:
-		return renderInstallDownloadFailedViewWithHint(model.colorMode, model.items)
+		return model.layoutWithSummary(
+			i18n.T("cmd.install.header.success", nil),
+			listLines,
+			renderInstallDownloadFailureSummaryWithHint(model.colorMode),
+		)
 	case installViewWriteLockFailed:
-		return renderInstallWriteLockFailedView(model.colorMode, model.items, model.outcome.lockPath)
+		return model.layoutWithSummary(
+			i18n.T("cmd.install.header.success", nil),
+			listLines,
+			renderInstallWriteLockSummary(model.colorMode, model.outcome.lockPath),
+		)
 	case installViewWriteConfigFailed:
-		return renderInstallWriteConfigFailedView(model.colorMode, model.items, model.outcome.configPath)
+		return model.layoutWithSummary(
+			i18n.T("cmd.install.header.success", nil),
+			listLines,
+			renderInstallWriteConfigSummary(model.colorMode, model.outcome.configPath),
+		)
 	case installViewCanceled:
-		return renderInstallCanceledView(model.colorMode, model.items)
+		return model.layoutWithSummary(
+			i18n.T("cmd.install.header.success", nil),
+			listLines,
+			renderInstallCanceledSummary(model.colorMode),
+		)
 	case installViewFailed:
-		return renderInstallExecutionFailedView(model.colorMode, model.items, model.outcome.err)
+		return model.layoutWithSummary(
+			i18n.T("cmd.install.header.success", nil),
+			listLines,
+			renderInstallExecutionFailureSummary(model.colorMode, model.outcome.err),
+		)
 	default:
-		return renderInstallRunningView(model.colorMode, model.items, model.runningFooterLine())
+		return model.layoutForRunning(listLines)
+	}
+}
+
+func (model *installModel) layoutWithSummary(header string, listLines []string, footerLines []string) installViewLayout {
+	return installViewLayout{
+		header:      header,
+		listLines:   listLines,
+		footerLines: footerLines,
+		separator:   installSeparatorParagraph,
+	}
+}
+
+func (model *installModel) layoutForRunning(listLines []string) installViewLayout {
+	footerLine := model.runningFooterLine()
+	footerLines := []string{}
+	if strings.TrimSpace(footerLine) != "" {
+		footerLines = []string{footerLine}
+	}
+	return installViewLayout{
+		header:      i18n.T("cmd.install.header.success", nil),
+		listLines:   listLines,
+		footerLines: footerLines,
+		separator:   installSeparatorLine,
+	}
+}
+
+func (model *installModel) renderInstallViewWithLayout(layout installViewLayout) string {
+	separatorText, separatorExtraLines := installSeparatorDetails(layout.separator)
+	output := layout.header
+	listText := strings.Join(layout.listLines, "\n")
+	if listText != "" {
+		output = strings.Join([]string{output, listText}, "\n")
+	}
+
+	listHeight := lipgloss.Height(listText)
+	footerLines := model.footerLinesWithHeaderIfNeeded(layout, separatorExtraLines, listHeight)
+	if len(footerLines) == 0 {
+		return model.renderInstallViewWithStickyHeader(output, layout.header)
+	}
+	footerBlock := strings.Join(footerLines, "\n")
+	return view.RenderViewSections([]string{output, footerBlock}, separatorText)
+}
+
+func installSeparatorDetails(separator installSectionSeparator) (string, int) {
+	switch separator {
+	case installSeparatorParagraph:
+		return view.SectionSeparatorParagraph, 1
+	default:
+		return view.SectionSeparatorLine, 0
+	}
+}
+
+func renderInstallViewWithoutViewport(layout installViewLayout, separatorText string) string {
+	lines := append([]string{layout.header}, layout.listLines...)
+	content := strings.Join(lines, "\n")
+	if len(layout.footerLines) == 0 {
+		return content
+	}
+	footerBlock := strings.Join(layout.footerLines, "\n")
+	return view.RenderViewSections([]string{content, footerBlock}, separatorText)
+}
+
+func (model *installModel) footerLinesWithHeaderIfNeeded(layout installViewLayout, separatorExtraLines int, listHeight int) []string {
+	if strings.TrimSpace(layout.header) == "" {
+		return layout.footerLines
+	}
+	if model.windowH <= 0 {
+		if len(layout.footerLines) == 0 {
+			return layout.footerLines
+		}
+		return append([]string{layout.header}, layout.footerLines...)
+	}
+	contentHeight := lipgloss.Height(layout.header) + view.ClampViewportHeight(listHeight)
+	footerHeight := lipgloss.Height(strings.Join(layout.footerLines, "\n"))
+	totalHeight := contentHeight
+	if footerHeight > 0 {
+		totalHeight += footerHeight + separatorExtraLines
+	}
+	if totalHeight <= model.windowH {
+		return layout.footerLines
+	}
+	return append([]string{layout.header}, layout.footerLines...)
+}
+
+func (model *installModel) renderInstallViewWithStickyHeader(output string, header string) string {
+	if strings.TrimSpace(header) == "" {
+		return output
+	}
+	if model.windowH > 0 && lipgloss.Height(output) <= model.windowH {
+		return output
+	}
+	return view.RenderViewSections([]string{output, header}, view.SectionSeparatorParagraph)
+}
+
+func (model *installModel) updateViewport(listText string, height int) {
+	model.viewport.SetContent(listText)
+	contentHeight := lipgloss.Height(listText)
+	viewportHeight := view.ClampViewportHeight(height)
+	model.viewport.Height = viewportHeight
+	if model.windowW > 0 {
+		model.viewport.Width = model.windowW
+	} else if model.viewport.Width == 0 {
+		contentWidth := lipgloss.Width(listText)
+		if contentWidth > 0 {
+			model.viewport.Width = contentWidth
+		}
+	}
+
+	maxOffset := view.MaxViewportOffset(contentHeight, viewportHeight)
+	targetOffset := model.viewport.YOffset
+	if !model.userScroll {
+		targetOffset = maxOffset
+	}
+	model.viewport.SetYOffset(targetOffset)
+}
+
+func isViewportScrollKey(msg tea.KeyMsg) bool {
+	switch msg.Type {
+	case tea.KeyUp, tea.KeyDown, tea.KeyPgUp, tea.KeyPgDown, tea.KeyHome, tea.KeyEnd:
+		return true
+	default:
+		switch msg.String() {
+		case "j", "k", "g", "G":
+			return true
+		default:
+			return false
+		}
+	}
+}
+
+func isViewportScrollMouse(msg tea.MouseMsg) bool {
+	if msg.Action != tea.MouseActionPress {
+		return false
+	}
+	switch msg.Button {
+	case tea.MouseButtonWheelUp,
+		tea.MouseButtonWheelDown,
+		tea.MouseButtonWheelLeft,
+		tea.MouseButtonWheelRight:
+		return true
+	default:
+		return false
 	}
 }
 

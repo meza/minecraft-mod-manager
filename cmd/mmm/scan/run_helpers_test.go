@@ -25,6 +25,7 @@ import (
 	"github.com/meza/minecraft-mod-manager/internal/modsetup"
 	"github.com/meza/minecraft-mod-manager/internal/platform"
 	"github.com/meza/minecraft-mod-manager/internal/view"
+	"github.com/meza/minecraft-mod-manager/testutil/terminal"
 )
 
 func TestShouldPromptForAdoption(t *testing.T) {
@@ -245,6 +246,35 @@ func TestRunInteractiveScanReturnsProgramError(t *testing.T) {
 
 	_, err := runInteractiveScan(context.Background(), cmd, scanExecutionInput{}, scanOptions{})
 	assert.Error(t, err)
+}
+
+func TestRunInteractiveScanSetsWindowSize(t *testing.T) {
+	original := runScanProgram
+	t.Cleanup(func() { runScanProgram = original })
+
+	restoreIsTerminal := view.SetIsTerminalFuncForTesting(func(int) bool { return true })
+	restoreTerminalSize := view.SetTerminalSizeFuncForTesting(func(int) (int, int, error) {
+		return 120, 33, nil
+	})
+	t.Cleanup(func() {
+		restoreIsTerminal()
+		restoreTerminalSize()
+	})
+
+	runScanProgram = func(model *scanModel, _ ...tea.ProgramOption) (tea.Model, error) {
+		assert.Equal(t, 120, model.windowW)
+		assert.Equal(t, 33, model.windowH)
+		model.outcome = scanExecutionOutcome{}
+		return model, nil
+	}
+
+	device := terminal.NewDevice()
+	cmd := &cobra.Command{}
+	cmd.SetIn(&bytes.Buffer{})
+	cmd.SetOut(device)
+
+	_, err := runInteractiveScan(context.Background(), cmd, scanExecutionInput{}, scanOptions{})
+	assert.NoError(t, err)
 }
 
 func TestRunInteractiveScanWritesResults(t *testing.T) {

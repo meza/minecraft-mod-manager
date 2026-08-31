@@ -55,7 +55,7 @@ States:
 `list`
 
 ```
-Installed Mods:
+Mods managed by MMM
 ✅ Inventory Sorting (inventory-sorting) [modrinth]
 ❌ Some Mod (some-mod) [curseforge] not installed
 ❌ Gamma Mod (mod-c) [modrinth] hash mismatch (run mmm install)
@@ -116,7 +116,7 @@ If this path is wrong, update modsFolder in ./modlist.json.
 `list`
 
 ```
-Installed Mods:
+Mods managed by MMM
 ✅ Inventory Sorting (inventory-sorting) [modrinth]
 ... (one row per mod, output stops early)
 

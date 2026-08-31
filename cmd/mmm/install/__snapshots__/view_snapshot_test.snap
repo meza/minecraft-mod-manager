@@ -1,6 +1,6 @@
 
 [TestInstallViewSnapshots/running - 1]
-cmd.install.header.running
+cmd.install.header.success
 ⏳ Alpha (alpha) [modrinth]
 ⬇️ Beta (beta) [curseforge]
 █████░░░░░
@@ -9,6 +9,7 @@ cmd.install.header.running
 ---
 
 [TestInstallViewSnapshots/success - 1]
+cmd.install.header.success
 ✅ Alpha (alpha) [modrinth]
 ✅ Beta (beta) [curseforge]
 
@@ -16,7 +17,7 @@ cmd.install.header.running
 ---
 
 [TestInstallViewSnapshots/download_failed - 1]
-cmd.install.header.running
+cmd.install.header.success
 ✅ Alpha (alpha) [modrinth]
 ❌ Beta (beta) [curseforge] cmd.download.item.failed, Arg 1: {Count: 0, Data: &map[reason:network]}
 
@@ -27,7 +28,7 @@ cmd.install.summary.download_failed_hint
 ---
 
 [TestInstallViewSnapshots/write_lock_failed - 1]
-cmd.install.header.running
+cmd.install.header.success
 ⏳ Alpha (alpha) [modrinth]
 ⬇️ Beta (beta) [curseforge]
 █████░░░░░

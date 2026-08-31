@@ -45,6 +45,11 @@ func runUpdateTranscriptProgramForTests(model *updateTranscriptModel, _ ...tea.P
 			return
 		}
 		if line, ok := model.applyTranscriptUpdate(typed); ok {
+			if !model.headerPrinted {
+				model.headerPrinted = true
+				header := renderUpdateHeader(model.colorMode)
+				runTeaCmd(outputLineCmd(model.output, header))
+			}
 			runTeaCmd(outputLineCmd(model.output, line))
 		}
 	})

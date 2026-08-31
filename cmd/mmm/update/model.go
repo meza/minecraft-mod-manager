@@ -8,6 +8,7 @@ import (
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/lipgloss"
 
+	"github.com/meza/minecraft-mod-manager/internal/i18n"
 	"github.com/meza/minecraft-mod-manager/internal/view"
 )
 
@@ -113,8 +114,12 @@ func (model *updateModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	}
 	switch typed := msg.(type) {
 	case tea.WindowSizeMsg:
-		model.windowW = typed.Width
-		model.windowH = typed.Height
+		if typed.Width > 0 {
+			model.windowW = typed.Width
+		}
+		if typed.Height > 0 {
+			model.windowH = typed.Height
+		}
 		return model, nil
 	case tea.KeyMsg:
 		return model.handleViewportKey(typed)
@@ -127,42 +132,54 @@ func (model *updateModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 
 func (model *updateModel) View() string {
 	if model.finalRender {
-		if model.suppressFinal {
-			return ""
-		}
-		switch model.outcome.errType {
-		case updateExecutionErrorWriteLock:
-			return renderUpdateWriteLockFailureView(updateErrorViewInput{
-				colorMode: model.colorMode,
-				lockPath:  model.outcome.lockPath,
-			})
-		case updateExecutionErrorWriteConfig:
-			return renderUpdateWriteConfigFailureView(updateErrorViewInput{
-				colorMode:  model.colorMode,
-				configPath: model.outcome.configPath,
-			})
-		case updateExecutionErrorCanceled:
-			return ""
-		case updateExecutionErrorUnknown:
-			return renderFinalErrorLine(model.colorMode, model.outcome.err.Error())
-		default:
-			return renderUpdateResultsView(updateResultsViewInput{
-				items:     model.items,
-				colorMode: model.colorMode,
-			})
-		}
+		return model.renderFinalView()
 	}
+	return model.renderRunningView()
+}
 
+func (model *updateModel) renderFinalView() string {
+	if model.suppressFinal {
+		return ""
+	}
+	switch model.outcome.errType {
+	case updateExecutionErrorWriteLock:
+		return model.renderWithStickyHeader(renderUpdateWriteLockFailureView(updateErrorViewInput{
+			colorMode: model.colorMode,
+			lockPath:  model.outcome.lockPath,
+		}))
+	case updateExecutionErrorWriteConfig:
+		return model.renderWithStickyHeader(renderUpdateWriteConfigFailureView(updateErrorViewInput{
+			colorMode:  model.colorMode,
+			configPath: model.outcome.configPath,
+		}))
+	case updateExecutionErrorCanceled:
+		return ""
+	case updateExecutionErrorUnknown:
+		return model.renderWithStickyHeader(renderFinalErrorLine(model.colorMode, model.outcome.err.Error()))
+	default:
+		return model.renderWithStickyHeader(renderUpdateResultsView(updateResultsViewInput{
+			items:     model.items,
+			colorMode: model.colorMode,
+		}))
+	}
+}
+
+func (model *updateModel) renderRunningView() string {
 	content := renderUpdateRunningView(updateRunningViewInput{
 		items:        model.items,
 		colorMode:    model.colorMode,
 		spinnerFrame: model.spinner.Frame(),
 	})
-	if model.windowH <= 0 || content == "" {
-		return content
+	header := renderUpdateHeader(model.colorMode)
+	if content == "" {
+		return header
 	}
-	model.updateViewport(content, model.windowH)
-	return model.viewport.View()
+
+	headerText := i18n.T("cmd.update.header", nil)
+	if !strings.Contains(content, headerText) {
+		content = view.RenderViewSections([]string{header, content}, view.SectionSeparatorParagraph)
+	}
+	return model.renderWithStickyHeader(content)
 }
 
 func (model *updateModel) updateViewport(content string, height int) {
@@ -181,6 +198,38 @@ func (model *updateModel) updateViewport(content string, height int) {
 		targetOffset = maxOffset
 	}
 	model.viewport.SetYOffset(targetOffset)
+}
+
+func (model *updateModel) renderWithStickyHeader(content string) string {
+	if content == "" {
+		return content
+	}
+	headerLine, body := splitHeaderFromContent(content)
+	if body == "" {
+		return content
+	}
+	headerText := i18n.T("cmd.update.header", nil)
+	if !strings.Contains(headerLine, headerText) {
+		return content
+	}
+	bodyHeight := lipgloss.Height(body)
+	model.updateViewport(body, bodyHeight)
+	rendered := view.RenderViewSections([]string{headerLine, model.viewport.View()}, view.SectionSeparatorLine)
+	if model.windowH <= 0 {
+		return view.RenderViewSections([]string{rendered, headerLine}, view.SectionSeparatorParagraph)
+	}
+	if lipgloss.Height(rendered) > model.windowH {
+		return view.RenderViewSections([]string{rendered, headerLine}, view.SectionSeparatorParagraph)
+	}
+	return rendered
+}
+
+func splitHeaderFromContent(content string) (header string, body string) {
+	parts := strings.SplitN(content, "\n", 2)
+	if len(parts) == 1 {
+		return parts[0], ""
+	}
+	return parts[0], parts[1]
 }
 
 func (model *updateModel) handleViewportKey(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
@@ -214,10 +263,10 @@ func (model *updateModel) handleUpdateMessage(msg tea.Msg) (tea.Model, tea.Cmd) 
 	switch typed := msg.(type) {
 	case updateItemStatusMsg:
 		model.applyItemUpdate(typed)
-		return model, nil
+		return model, tea.WindowSize()
 	case updateItemProgressMsg:
 		model.applyItemProgress(typed)
-		return model, nil
+		return model, tea.WindowSize()
 	case updateExecutionFinishedMsg:
 		model.items = typed.outcome.items
 		model.outcome = typed.outcome

@@ -7,19 +7,21 @@ import (
 
 	tea "github.com/charmbracelet/bubbletea"
 
+	"github.com/meza/minecraft-mod-manager/internal/i18n"
 	"github.com/meza/minecraft-mod-manager/internal/view"
 )
 
 type removeTranscriptModel struct {
-	ctx        context.Context
-	execRunner func(context.Context, removeExecSender) removeExecutionOutcome
-	colorMode  view.ColorMode
-	items      []removeItem
-	indexByKey map[string]int
-	outcome    removeExecutionOutcome
-	finished   bool
-	output     io.Writer
-	sender     removeExecSender
+	ctx           context.Context
+	execRunner    func(context.Context, removeExecSender) removeExecutionOutcome
+	colorMode     view.ColorMode
+	items         []removeItem
+	indexByKey    map[string]int
+	outcome       removeExecutionOutcome
+	finished      bool
+	headerPrinted bool
+	output        io.Writer
+	sender        removeExecSender
 }
 
 func newRemoveTranscriptModel(
@@ -67,7 +69,7 @@ func (model *removeTranscriptModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			return model, nil
 		}
 		if outputLine, ok := model.applyTranscriptSuccess(typed); ok {
-			if err := writeOutputLine(model.output, outputLine); err != nil {
+			if err := model.outputTranscriptLine(outputLine); err != nil {
 				model.outcome = removeExecutionOutcome{err: err, errType: removeExecutionErrorUnknown}
 				return model, tea.Quit
 			}
@@ -78,7 +80,7 @@ func (model *removeTranscriptModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			return model, nil
 		}
 		if outputLine, ok := model.applyTranscriptFailure(typed); ok {
-			if err := writeOutputLine(model.output, outputLine); err != nil {
+			if err := model.outputTranscriptLine(outputLine); err != nil {
 				model.outcome = removeExecutionOutcome{err: err, errType: removeExecutionErrorUnknown}
 				return model, tea.Quit
 			}
@@ -89,6 +91,10 @@ func (model *removeTranscriptModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		model.outcome = typed.outcome
 		missingLines := missingTranscriptLines(model.colorMode, model.items, typed.outcome.items)
 		model.items = typed.outcome.items
+		if !model.headerPrinted && len(missingLines) > 0 {
+			missingLines = append([]string{i18n.T("cmd.remove.header.result", nil)}, missingLines...)
+			model.headerPrinted = true
+		}
 		lines := append(missingLines, model.summaryLines()...)
 		return model, tea.Sequence(summaryLinesCmd(model.output, lines), tea.Quit)
 	case outputLineErrorMsg:
@@ -101,6 +107,17 @@ func (model *removeTranscriptModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 
 func (model *removeTranscriptModel) View() string {
 	return ""
+}
+
+func (model *removeTranscriptModel) outputTranscriptLine(line string) error {
+	if !model.headerPrinted {
+		header := i18n.T("cmd.remove.header.result", nil)
+		if err := writeOutputLine(model.output, header); err != nil {
+			return err
+		}
+		model.headerPrinted = true
+	}
+	return writeOutputLine(model.output, line)
 }
 
 func (model *removeTranscriptModel) updateItem(key string, update func(*removeItem)) (removeItemStatus, bool) {

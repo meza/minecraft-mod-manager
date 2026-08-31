@@ -462,7 +462,9 @@ func renderRemoveQuietDeleteFailure(colorMode view.ColorMode, items []removeItem
 	if len(failed) == 0 {
 		return []string{renderRemoveFailureSummary(colorMode)}
 	}
-	return []string{strings.Join(renderRemoveItems(colorMode, failed, nil), "\n"), renderRemoveFailureSummary(colorMode)}
+	header := i18n.T("cmd.remove.header.result", nil)
+	lines := append([]string{header}, renderRemoveItems(colorMode, failed, nil)...)
+	return []string{strings.Join(lines, "\n"), renderRemoveFailureSummary(colorMode)}
 }
 
 func filterRemoveItems(items []removeItem, status removeItemStatus) []removeItem {

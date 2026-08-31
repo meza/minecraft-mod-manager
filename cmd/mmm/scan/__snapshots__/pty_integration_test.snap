@@ -1,4 +1,20 @@
 [TestScanCommandInteractivePTYRunningSnapshotShortHeight - 1]
+cmd.scan.header.running
+⣾  alpha.jar
+⣾  beta.jar
+⣾  delta.jar
+⣾  epsilon.jar
+⣾  eta.jar
+⣾  gamma.jar
+⣾  iota.jar
+⣾  kappa.jar
+⣾  lambda.jar
+⣾  mu.jar
+⣾  nu.jar
+⣾  theta.jar
+⣾  xi.jar
+⣾  zeta.jar
+
 cmd.scan.section.recognized
 ✅ appleskin.jar -> AppleSkin (appleskin) [modrinth]
 ✅ bc.jar -> Better Clouds (better-clouds) [modrinth]
@@ -10,6 +26,26 @@ cmd.scan.section.recognized
 ---
 
 [TestScanCommandInteractivePTYRunningSnapshotMediumHeight - 1]
+cmd.scan.header.running
+⣾  alpha.jar
+⣾  beta.jar
+⣾  delta.jar
+⣾  epsilon.jar
+⣾  gamma.jar
+⣾  zeta.jar
+
+cmd.scan.section.recognized
+✅ appleskin.jar -> AppleSkin (appleskin) [modrinth]
+✅ bc.jar -> Better Clouds (better-clouds) [modrinth]
+✅ inventorysorter.jar -> Inventory Sorting (inventory-sorting) [modrinth]
+✅ lithium-123.23.jar -> Lithium (lithium) [modrinth]
+✅ shulkerbox.jar -> Shulker Box Tooltip (shulker-tooltip) [modrinth]
+✅ sodium.jar -> Sodium (sodium) [modrinth]
+✅ soundsbegone.jar -> Sounds Be Gone! (sounds-be-gone) [modrinth]
+
+cmd.scan.section.unknown (cmd.scan.section.unknown_note)
+❌ unmanaged-a.jar
+❌ unmanaged-b.jar
 ❌ unmanaged-c.jar
 ❌ unmanaged-d.jar
 ❌ unmanaged-e.jar
@@ -22,6 +58,8 @@ cmd.scan.section.unsure (cmd.scan.section.unsure_note)
 ❔ flaky-d.jar
 ❔ flaky-e.jar
 ❔ flaky-f.jar
+
+cmd.scan.header.running
 ---
 
 [TestScanCommandInteractivePTYFinalTranscriptShortHeight - 1]
@@ -147,6 +185,12 @@ cmd.scan.section.unsure (cmd.scan.section.unsure_note)
 ---
 
 [TestScanCommandInteractivePTYRunningSnapshotShortHeightManyMods - 1]
+cmd.scan.header.running
+⣾  ArmorPoser-fabric-1.21.10-12.3.0.jar
+⣾  audioplayer-fabric-2.1.0+1.21.10.jar
+⣾  Axiom-5.2.1-for-MC1.21.10.jar
+⣾  BetterServerPacksFabric-1.2.0.jar
+⣾  carpet-tis-addition-v1.74.0-mc1.21.10.jar
 ⣾  cicada-lib-0.14.3+1.21.9-1.21.10.jar
 ⣾  cloth-config-20.0.149-fabric.jar
 ⣾  coordfinder-fabric-1.21.10-1.1.0.jar
@@ -172,6 +216,8 @@ cmd.scan.section.unsure (cmd.scan.section.unsure_note)
 ⣾  vcinteraction-fabric-1.21.10-1.0.8.jar
 ⣾  viewdistancefix-fabric-1.21.10-1.0.2.jar
 ⣾  voicechat-fabric-1.21.10-2.6.11.jar
+
+cmd.scan.header.running
 ---
 
 [TestScanCommandInteractivePTYPromptConfirmAddedOnly - 1]
@@ -180,5 +226,5 @@ cmd.scan.section.added
 ---
 
 [TestScanCommandInteractivePTYPromptDeclineCancelledOnly - 1]
-✅ cmd.scan.adoption.cancelled
+cmd.scan.adoption.cancelled
 ---

@@ -1111,6 +1111,7 @@ func normalizeTestPTYOutput(output string, rows uint16) string {
 	if !cursorFrameSequence.MatchString(output) {
 		trimmed := trimToLastHeaderBlock(normalizedAll)
 		trimmed = adjustNormalizedForSectionMarker(trimmed, normalizedAll, preferredMarkers)
+		trimmed = dropCompatibilitySection(trimmed)
 		return normalizeTestLines(trimmed, rows)
 	}
 
@@ -1122,6 +1123,7 @@ func normalizeTestPTYOutput(output string, rows uint16) string {
 		TrimTrailingEmptyLines: true,
 	})
 	normalized = adjustNormalizedForSectionMarker(normalized, normalizedAll, preferredMarkers)
+	normalized = dropCompatibilitySection(normalized)
 	normalized = trimToFirstHeaderBlock(normalized)
 	return normalizeTestLines(normalized, rows)
 }

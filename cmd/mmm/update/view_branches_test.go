@@ -87,6 +87,25 @@ func TestRenderUpdateSummarySectionsSuccess(t *testing.T) {
 	assert.Contains(t, lines[0], "cmd.update.summary.success")
 }
 
+func TestPrependUpdateHeaderWhenSectionsEmpty(t *testing.T) {
+	t.Setenv("MMM_TEST", "true")
+
+	sections := prependUpdateHeader(view.ColorDisabled, nil)
+	if assert.Len(t, sections, 1) {
+		assert.Contains(t, sections[0], "cmd.update.header")
+	}
+}
+
+func TestPrependUpdateHeaderWhenSectionsPresent(t *testing.T) {
+	t.Setenv("MMM_TEST", "true")
+
+	sections := prependUpdateHeader(view.ColorDisabled, []string{"section"})
+	if assert.Len(t, sections, 1) {
+		assert.Contains(t, sections[0], "cmd.update.header")
+		assert.Contains(t, sections[0], "section")
+	}
+}
+
 func TestRenderUpdateInstallWaitingLine(t *testing.T) {
 	t.Setenv("MMM_TEST", "true")
 

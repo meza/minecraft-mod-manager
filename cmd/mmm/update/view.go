@@ -31,7 +31,7 @@ func renderUpdateRunningView(input updateRunningViewInput) string {
 }
 
 func renderUpdateResultsView(input updateResultsViewInput) string {
-	sections := buildUpdateResultSections(input)
+	sections := prependUpdateHeader(input.colorMode, buildUpdateResultSections(input))
 	return view.RenderViewSections(sections, view.SectionSeparatorParagraph)
 }
 
@@ -74,6 +74,20 @@ func renderFinalErrorLine(colorMode view.ColorMode, message string) string {
 	return line
 }
 
+func renderUpdateHeader(colorMode view.ColorMode) string {
+	header := i18n.T("cmd.update.header", nil)
+	return view.RenderIfColorEnabled(colorMode, view.TitleStyle, header)
+}
+
+func prependUpdateHeader(colorMode view.ColorMode, sections []string) []string {
+	header := renderUpdateHeader(colorMode)
+	if len(sections) == 0 {
+		return []string{header}
+	}
+	sections[0] = strings.Join([]string{header, sections[0]}, "\n")
+	return sections
+}
+
 func buildUpdateRunningSections(input updateRunningViewInput) []string {
 	upToDate := filterUpdateItems(input.items, updateItemStatusUpToDate)
 	updated := filterUpdateItems(input.items, updateItemStatusUpdated)
@@ -87,6 +101,7 @@ func buildUpdateRunningSections(input updateRunningViewInput) []string {
 	}
 
 	sections := make([]string, 0, 5)
+	sections = append(sections, renderUpdateSection(renderUpdateHeader(input.colorMode), input, updating))
 	if len(upToDate) > 0 {
 		sections = append(sections, renderUpdateSection(i18n.T("cmd.update.section.up_to_date", nil), input, upToDate))
 	}
@@ -99,11 +114,6 @@ func buildUpdateRunningSections(input updateRunningViewInput) []string {
 	if len(failed) > 0 {
 		sections = append(sections, renderUpdateSection(i18n.T("cmd.update.section.failed", nil), input, failed))
 	}
-	updatingHeader := i18n.T("cmd.update.section.updating", nil)
-	if len(upToDate)+len(updated)+len(skipped)+len(failed) > 0 {
-		updatingHeader = fmt.Sprintf("%s:", i18n.T("cmd.update.section.updating_label", nil))
-	}
-	sections = append(sections, renderUpdateSection(updatingHeader, input, updating))
 
 	return pruneEmptySections(sections)
 }

@@ -2,6 +2,7 @@ package remove
 
 import (
 	"context"
+	"fmt"
 	"path/filepath"
 	"regexp"
 	"runtime"
@@ -84,6 +85,50 @@ func TestRemoveCommandInteractivePTYSuccessSnapshotShortHeight(t *testing.T) {
 
 func TestRemoveCommandInteractivePTYSuccessSnapshotTallHeight(t *testing.T) {
 	runRemovePTYSuccessSnapshot(t, tallSnapshotRows())
+}
+
+func TestRemoveCommandInteractivePTYSuccessLongListShowsHeaderWhenShort(t *testing.T) {
+	terminal.ApplyFixtures(t)
+
+	originalRunRemoveProgram := runRemoveProgram
+	runRemoveProgram = defaultRunRemoveProgram
+	t.Cleanup(func() { runRemoveProgram = originalRunRemoveProgram })
+
+	rows := uint16(12)
+	session := terminalpty.NewSession(t, terminalpty.WithSize(terminal.Size{Columns: 120, Rows: int(rows)}))
+	require.NotNil(t, session)
+
+	configPath := writeRemoveLongListFixture(t, 30)
+
+	cmd := Command()
+	addPersistentFlagsForTesting(cmd)
+	cmd.SetIn(session.Input())
+	cmd.SetOut(session.Output())
+	cmd.SetErr(session.Output())
+	cmd.SetArgs([]string{"--config", configPath, "--force", "mod-*"})
+
+	execErr := make(chan error, 1)
+	go func() {
+		execErr <- cmd.Execute()
+	}()
+
+	waitForRemoveOutput(t, session, "cmd.remove.summary.success")
+
+	select {
+	case err := <-execErr:
+		require.NoError(t, err)
+	case <-time.After(2 * time.Second):
+		t.Fatal("timed out waiting for remove success")
+	}
+	require.NoError(t, session.Close())
+
+	normalized := terminal.NormalizeOutput(trimToLastFrame(session.OutputString()), terminal.NormalizeOptions{
+		StripControlSequences:  true,
+		TrimTrailingWhitespace: true,
+		TrimTrailingEmptyLines: true,
+		TrimSpace:              true,
+	})
+	require.Contains(t, normalized, "cmd.remove.header.result")
 }
 
 func runRemovePTYConfirmSnapshot(t *testing.T, rows uint16) {
@@ -203,6 +248,39 @@ func writeRemoveFixture(t *testing.T) string {
 	return configPath
 }
 
+func writeRemoveLongListFixture(t *testing.T, count int) string {
+	t.Helper()
+
+	tempDir := t.TempDir()
+	configPath := filepath.Join(tempDir, "modlist.json")
+	meta := config.NewMetadata(configPath)
+	cfg := models.ModsJSON{
+		Loader:                     models.FABRIC,
+		GameVersion:                "1.20.1",
+		DefaultAllowedReleaseTypes: []models.ReleaseType{models.Release},
+		ModsFolder:                 "mods",
+		Mods:                       make([]models.Mod, 0, count),
+	}
+	lock := make([]models.ModInstall, 0, count)
+	for index := 0; index < count; index++ {
+		modID := fmt.Sprintf("mod-%02d", index+1)
+		modName := fmt.Sprintf("Mod %02d", index+1)
+		cfg.Mods = append(cfg.Mods, models.Mod{ID: modID, Name: modName, Type: models.MODRINTH})
+		lock = append(lock, models.ModInstall{ID: modID, Type: models.MODRINTH, FileName: modID + ".jar"})
+	}
+
+	fs := afero.NewOsFs()
+	require.NoError(t, fs.MkdirAll(meta.Dir(), 0755))
+	require.NoError(t, fs.MkdirAll(meta.ModsFolderPath(cfg), 0755))
+	require.NoError(t, config.WriteConfig(context.Background(), fs, meta, cfg))
+	require.NoError(t, config.WriteLock(context.Background(), fs, meta, lock))
+	for _, entry := range lock {
+		require.NoError(t, afero.WriteFile(fs, filepath.Join(meta.ModsFolderPath(cfg), entry.FileName), []byte("mod"), 0644))
+	}
+
+	return configPath
+}
+
 func waitForRemoveOutput(t *testing.T, session *terminalpty.Session, needle string) {
 	t.Helper()
 
@@ -241,7 +319,7 @@ func extractRemoveSuccessSummary(normalized string) string {
 	if headerIndex := strings.LastIndex(normalized, "cmd.remove.header.confirm"); headerIndex >= 0 {
 		normalized = strings.TrimSpace(normalized[headerIndex:])
 	}
-	return collapseDuplicateLines(normalized)
+	return reorderRemoveResultHeader(collapseDuplicateLines(normalized))
 }
 
 func trimToLastFrame(value string) string {
@@ -279,4 +357,28 @@ func collapseDuplicateLines(value string) string {
 		lastLine = line
 	}
 	return strings.Join(output, "\n")
+}
+
+func reorderRemoveResultHeader(value string) string {
+	lines := strings.Split(value, "\n")
+	headerIndex := -1
+	firstItemIndex := -1
+	for lineIndex, line := range lines {
+		if line == "cmd.remove.header.result" {
+			headerIndex = lineIndex
+		}
+		if firstItemIndex == -1 && (strings.HasPrefix(line, "\u2705") || strings.HasPrefix(line, "\u274c")) {
+			firstItemIndex = lineIndex
+		}
+	}
+	if headerIndex == -1 || firstItemIndex == -1 || headerIndex < firstItemIndex {
+		return value
+	}
+	header := lines[headerIndex]
+	lines = append(lines[:headerIndex], lines[headerIndex+1:]...)
+	if headerIndex < firstItemIndex {
+		firstItemIndex--
+	}
+	lines = append(lines[:firstItemIndex], append([]string{header}, lines[firstItemIndex:]...)...)
+	return strings.Join(lines, "\n")
 }

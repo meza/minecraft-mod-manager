@@ -22,6 +22,11 @@ func renderAddSuccessLine(colorMode view.ColorMode, name string, id string, plat
 	return fmt.Sprintf("%s %s", view.SuccessIcon(colorMode), message)
 }
 
+func renderAddSuccessLines(colorMode view.ColorMode, name string, id string, platformValue models.Platform) []string {
+	header := i18n.T("cmd.add.header.success", nil)
+	return []string{header, renderAddSuccessLine(colorMode, name, id, platformValue)}
+}
+
 func renderFinalErrorLine(colorMode view.ColorMode, message string) string {
 	line := fmt.Sprintf("%s %s", view.FinalErrorIcon(colorMode), message)
 	if colorMode.Enabled() {

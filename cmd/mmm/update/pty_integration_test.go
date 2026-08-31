@@ -4,13 +4,11 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"regexp"
 	"runtime"
 	"strings"
 	"testing"
 	"time"
 
-	tea "github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/lipgloss"
 	"github.com/gkampitakis/go-snaps/snaps"
 	"github.com/spf13/cobra"
@@ -122,8 +120,7 @@ func runUpdatePTYRunningSnapshotWithItems(t *testing.T, rows uint16, items []upd
 			execRunner:    execRunner,
 		})
 
-		options := view.ProgramOptions(cmd.InOrStdin(), cmd.OutOrStdout())
-		options = append(options, tea.WithAltScreen())
+		options := updateProgramOptions(cmd)
 		result, runErr := runUpdateProgram(model, options...)
 		if runErr != nil {
 			return runErr
@@ -193,7 +190,14 @@ func runUpdatePTYRunningSnapshotWithItems(t *testing.T, rows uint16, items []upd
 		}
 	}
 
-	snaps.MatchSnapshot(t, normalizeUpdatePTYRunningOutput(session.OutputString(), rows))
+	rawOutput := terminal.NormalizeOutput(session.OutputString(), terminal.NormalizeOptions{
+		StripControlSequences: true,
+	})
+	require.Contains(t, rawOutput, "cmd.update.header")
+	visibleOutput := normalizeUpdateVisibleOutput(session.OutputString(), rows)
+	require.Contains(t, visibleOutput, "cmd.update.header")
+	normalized := normalizeUpdatePTYRunningOutput(session.OutputString())
+	snaps.MatchSnapshot(t, normalized)
 
 	close(release)
 	select {
@@ -204,21 +208,68 @@ func runUpdatePTYRunningSnapshotWithItems(t *testing.T, rows uint16, items []upd
 	require.NoError(t, session.Close())
 }
 
-func normalizeUpdatePTYOutput(output string, rows uint16) string {
-	trimmed := trimToLastUpdateFrame(output)
-	trimmed = cursorHomeSequence.ReplaceAllString(trimmed, "\n")
-	return terminal.NormalizeOutput(trimmed, terminal.NormalizeOptions{
+func normalizeUpdatePTYOutput(output string) string {
+	normalized := terminal.NormalizeOutput(output, terminal.NormalizeOptions{
+		StripControlSequences:  true,
+		TrimTrailingWhitespace: true,
+		TrimTrailingEmptyLines: true,
+		TrimSpace:              true,
+	})
+	lines := strings.Split(normalized, "\n")
+	headerLine := "cmd.update.header"
+	bestBlock := []string{}
+	currentBlock := []string{}
+	for _, line := range lines {
+		trimmedLine := strings.TrimSpace(line)
+		if trimmedLine == "" {
+			if len(currentBlock) > 0 {
+				currentBlock = append(currentBlock, "")
+			}
+			continue
+		}
+		if trimmedLine == headerLine {
+			if len(currentBlock) > len(bestBlock) {
+				bestBlock = append([]string{}, currentBlock...)
+			}
+			currentBlock = []string{trimmedLine}
+			continue
+		}
+		if len(currentBlock) == 0 {
+			continue
+		}
+		currentBlock = append(currentBlock, trimmedLine)
+	}
+	if len(currentBlock) > len(bestBlock) {
+		bestBlock = append([]string{}, currentBlock...)
+	}
+	blockHasContent := false
+	for _, line := range bestBlock {
+		trimmedLine := strings.TrimSpace(line)
+		if trimmedLine == "" || trimmedLine == headerLine {
+			continue
+		}
+		blockHasContent = true
+		break
+	}
+	if len(bestBlock) == 0 || !blockHasContent {
+		return normalized
+	}
+	return strings.TrimSpace(strings.Join(bestBlock, "\n"))
+}
+
+func normalizeUpdateVisibleOutput(output string, rows uint16) string {
+	normalized := terminal.NormalizeOutput(output, terminal.NormalizeOptions{
 		StripControlSequences:  true,
 		TrimTrailingWhitespace: true,
 		TrimTrailingEmptyLines: true,
 		TrimSpace:              true,
 		RowLimit:               int(rows),
-		PadRows:                true,
 	})
+	return strings.TrimSpace(normalized)
 }
 
-func normalizeUpdatePTYRunningOutput(output string, rows uint16) string {
-	normalized := normalizeUpdatePTYOutput(output, rows)
+func normalizeUpdatePTYRunningOutput(output string) string {
+	normalized := normalizeUpdatePTYOutput(output)
 	lines := strings.Split(normalized, "\n")
 	for index, line := range lines {
 		lines[index] = normalizeUpdateFailureLine(line)
@@ -232,25 +283,6 @@ func normalizeUpdateFailureLine(line string) string {
 		return line[:index+len(failureMarker)]
 	}
 	return line
-}
-
-func trimToLastUpdateFrame(value string) string {
-	indices := cursorHomeSequence.FindAllStringIndex(value, -1)
-	if len(indices) == 0 {
-		return value
-	}
-	for index := len(indices) - 1; index >= 0; index-- {
-		candidate := value[indices[index][0]:]
-		normalized := terminal.NormalizeOutput(candidate, terminal.NormalizeOptions{
-			StripControlSequences:  true,
-			TrimTrailingWhitespace: true,
-			TrimTrailingEmptyLines: true,
-		})
-		if strings.Contains(normalized, "cmd.update.section") {
-			return candidate
-		}
-	}
-	return value
 }
 
 func runUpdatePTYFinalSnapshot(t *testing.T, rows uint16) {
@@ -288,8 +320,7 @@ func runUpdatePTYFinalSnapshotWithItems(t *testing.T, rows uint16, items []updat
 			execRunner:    execRunner,
 		})
 
-		options := view.ProgramOptions(cmd.InOrStdin(), cmd.OutOrStdout())
-		options = append(options, tea.WithAltScreen())
+		options := updateProgramOptions(cmd)
 		result, runErr := runUpdateProgram(model, options...)
 		if runErr != nil {
 			return runErr
@@ -532,5 +563,3 @@ func countSummaryLines(normalized string, summaryKey string) int {
 	}
 	return count
 }
-
-var cursorHomeSequence = regexp.MustCompile(`\x1b\[[0-9;]*H`)

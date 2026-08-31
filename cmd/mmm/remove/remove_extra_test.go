@@ -1738,7 +1738,10 @@ func TestRemoveTranscriptModelUpdateSuccessOutputsLine(t *testing.T) {
 
 	_, cmd := model.Update(removeItemSuccessMsg{key: "modrinth:sodium"})
 	assert.Nil(t, cmd)
-	assert.Contains(t, out.String(), "V Sodium (sodium)")
+	lines := strings.Split(strings.TrimSpace(out.String()), "\n")
+	require.GreaterOrEqual(t, len(lines), 2)
+	assert.Equal(t, i18n.T("cmd.remove.header.result", nil), lines[0])
+	assert.Contains(t, lines[1], "V Sodium (sodium)")
 }
 
 func TestRemoveTranscriptModelUpdateSuccessIgnoresTerminal(t *testing.T) {
@@ -1763,7 +1766,10 @@ func TestRemoveTranscriptModelUpdateFailureOutputsLine(t *testing.T) {
 
 	_, cmd := model.Update(removeItemFailureMsg{key: "modrinth:sodium", reason: "boom"})
 	assert.Nil(t, cmd)
-	assert.Contains(t, out.String(), "X Sodium (sodium)")
+	lines := strings.Split(strings.TrimSpace(out.String()), "\n")
+	require.GreaterOrEqual(t, len(lines), 2)
+	assert.Equal(t, i18n.T("cmd.remove.header.result", nil), lines[0])
+	assert.Contains(t, lines[1], "X Sodium (sodium)")
 }
 
 func TestRemoveTranscriptModelUpdateSuccessHandlesOutputError(t *testing.T) {
@@ -1817,9 +1823,10 @@ func TestRemoveTranscriptModelOutputsCompletionOrder(t *testing.T) {
 	assert.Nil(t, cmd)
 
 	lines := strings.Split(strings.TrimSpace(out.String()), "\n")
-	require.Len(t, lines, 2)
-	assert.Contains(t, lines[0], "Second (second)")
-	assert.Contains(t, lines[1], "First (first)")
+	require.Len(t, lines, 3)
+	assert.Equal(t, i18n.T("cmd.remove.header.result", nil), lines[0])
+	assert.Contains(t, lines[1], "Second (second)")
+	assert.Contains(t, lines[2], "First (first)")
 }
 
 func TestRemoveTranscriptModelUpdateFailureIgnoresTerminal(t *testing.T) {

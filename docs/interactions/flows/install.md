@@ -56,7 +56,7 @@ States:
 `install`
 
 ```
-Installing mods:
+Ensuring all the configured mods are installed
 ⏳ Inventory Sorting (inventory-sorting) [modrinth]
 ⬇️ Fabric API (fabric-api) [modrinth]
 █████░░░░░
@@ -74,6 +74,7 @@ Installing mods:
 `install`
 
 ```
+Ensuring all the configured mods are installed
 ✅ Inventory Sorting (inventory-sorting) [modrinth]
 ✅ Fabric API (fabric-api) [modrinth]
 ✅ Mod Menu (modmenu) [modrinth]
@@ -91,7 +92,7 @@ Installing mods:
 `install`
 
 ```
-Installing mods:
+Ensuring all the configured mods are installed
 ✅ Inventory Sorting (inventory-sorting) [modrinth]
 ❌ Fabric API (fabric-api) [modrinth] download failed: <reason>
 ⏳ Mod Menu (modmenu) [modrinth]
@@ -109,7 +110,7 @@ Check your network and rerun mmm install.
 `install`
 
 ```
-Installing mods:
+Ensuring all the configured mods are installed
 ✅ Inventory Sorting (inventory-sorting) [modrinth]
 ✅ Fabric API (fabric-api) [modrinth]
 ... (one row per mod, all mods shown)

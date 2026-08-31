@@ -12,6 +12,7 @@ import (
 
 	"github.com/meza/minecraft-mod-manager/internal/models"
 	"github.com/meza/minecraft-mod-manager/internal/view"
+	"github.com/meza/minecraft-mod-manager/testutil/terminal"
 )
 
 func TestNewUpdateModelUsesLineSpinnerWhenUnicodeUnsupported(t *testing.T) {
@@ -136,7 +137,7 @@ func TestUpdateModelUpdateHandlesMessages(t *testing.T) {
 			total:      100,
 		},
 	})
-	assert.Nil(t, cmd)
+	assert.NotNil(t, cmd)
 	assert.Equal(t, updateItemStatusDownloading, updated.(*updateModel).items[0].Status)
 	assert.NotNil(t, updated.(*updateModel).items[0].Progress)
 
@@ -146,7 +147,7 @@ func TestUpdateModelUpdateHandlesMessages(t *testing.T) {
 		failReason:  "boom",
 		displayName: "New Name",
 	})
-	assert.Nil(t, cmd)
+	assert.NotNil(t, cmd)
 	assert.Equal(t, updateItemStatusFailed, updated.(*updateModel).items[0].Status)
 	assert.Equal(t, "boom", updated.(*updateModel).items[0].FailReason)
 	assert.Equal(t, "New Name", updated.(*updateModel).items[0].DisplayName)
@@ -166,6 +167,159 @@ func TestUpdateModelUpdateHandlesMessages(t *testing.T) {
 	updated, cmd = model.Update(struct{}{})
 	assert.Nil(t, cmd)
 	assert.IsType(t, &updateModel{}, updated)
+}
+
+func TestUpdateModelUpdateSkipsZeroWindowSize(t *testing.T) {
+	model := newUpdateModel(updateModelInput{
+		ctx:        context.Background(),
+		colorMode:  view.ColorDisabled,
+		items:      []updateItem{},
+		indexByKey: map[int]int{},
+	})
+	model.windowW = 80
+	model.windowH = 20
+
+	updated, cmd := model.Update(tea.WindowSizeMsg{Width: 0, Height: 0})
+	assert.Nil(t, cmd)
+	assert.Equal(t, 80, updated.(*updateModel).windowW)
+	assert.Equal(t, 20, updated.(*updateModel).windowH)
+}
+
+func TestUpdateModelUpdateKeepsWindowHeight(t *testing.T) {
+	t.Setenv("MMM_TEST", "true")
+
+	items := []updateItem{
+		{
+			ConfigIndex: 0,
+			Mod:         models.Mod{ID: "alpha", Name: "Alpha", Type: models.MODRINTH},
+			DisplayName: "Alpha",
+			Status:      updateItemStatusUpdating,
+		},
+		{
+			ConfigIndex: 1,
+			Mod:         models.Mod{ID: "beta", Name: "Beta", Type: models.MODRINTH},
+			DisplayName: "Beta",
+			Status:      updateItemStatusUpdating,
+		},
+	}
+
+	model := newUpdateModel(updateModelInput{
+		ctx:        context.Background(),
+		colorMode:  view.ColorDisabled,
+		items:      items,
+		indexByKey: map[int]int{0: 0, 1: 1},
+	})
+
+	updated, cmd := model.Update(tea.WindowSizeMsg{Width: 80, Height: 1})
+	assert.Nil(t, cmd)
+	assert.Equal(t, 1, updated.(*updateModel).windowH)
+}
+
+func TestUpdateModelRenderRunningViewReturnsHeaderWhenContentEmpty(t *testing.T) {
+	t.Setenv("MMM_TEST", "true")
+
+	model := newUpdateModel(updateModelInput{
+		ctx:        context.Background(),
+		colorMode:  view.ColorDisabled,
+		items:      []updateItem{},
+		indexByKey: map[int]int{},
+	})
+	model.windowH = 10
+
+	output := model.renderRunningView()
+	assert.Equal(t, "cmd.update.header", output)
+}
+
+func TestUpdateModelRenderRunningViewReturnsContentWhenWindowHeightZero(t *testing.T) {
+	t.Setenv("MMM_TEST", "true")
+
+	items := []updateItem{{
+		ConfigIndex: 0,
+		Mod:         models.Mod{ID: "alpha", Name: "Alpha", Type: models.MODRINTH},
+		DisplayName: "Alpha",
+		Status:      updateItemStatusUpdating,
+	}}
+
+	model := newUpdateModel(updateModelInput{
+		ctx:        context.Background(),
+		colorMode:  view.ColorDisabled,
+		items:      items,
+		indexByKey: map[int]int{0: 0},
+	})
+	model.windowH = 0
+
+	output := model.renderRunningView()
+	assert.Contains(t, output, "cmd.update.header")
+	assert.Contains(t, output, "Alpha")
+}
+
+func TestUpdateModelRenderRunningViewReturnsViewportWhenHeaderVisible(t *testing.T) {
+	t.Setenv("MMM_TEST", "true")
+
+	items := []updateItem{{
+		ConfigIndex: 0,
+		Mod:         models.Mod{ID: "alpha", Name: "Alpha", Type: models.MODRINTH},
+		DisplayName: "Alpha",
+		Status:      updateItemStatusUpdating,
+	}}
+
+	model := newUpdateModel(updateModelInput{
+		ctx:        context.Background(),
+		colorMode:  view.ColorDisabled,
+		items:      items,
+		indexByKey: map[int]int{0: 0},
+	})
+	model.windowH = 5
+
+	output := model.renderRunningView()
+	assert.Contains(t, output, "cmd.update.header")
+	assert.Contains(t, output, "Alpha")
+}
+
+func TestUpdateModelRenderRunningViewReturnsHeaderWhenHeaderMissingAndHeightTight(t *testing.T) {
+	t.Setenv("MMM_TEST", "true")
+
+	items := []updateItem{{
+		ConfigIndex: 0,
+		Mod:         models.Mod{ID: "alpha", Name: "Alpha", Type: models.MODRINTH},
+		DisplayName: "Alpha",
+		Status:      updateItemStatusUpToDate,
+	}}
+
+	model := newUpdateModel(updateModelInput{
+		ctx:        context.Background(),
+		colorMode:  view.ColorDisabled,
+		items:      items,
+		indexByKey: map[int]int{0: 0},
+	})
+	model.windowH = 2
+
+	output := model.renderRunningView()
+	assert.Contains(t, output, "cmd.update.header")
+	assert.Contains(t, output, "Alpha")
+}
+
+func TestUpdateModelRenderRunningViewAddsHeaderWhenHeaderMissingAndSpaceAvailable(t *testing.T) {
+	t.Setenv("MMM_TEST", "true")
+
+	items := []updateItem{{
+		ConfigIndex: 0,
+		Mod:         models.Mod{ID: "alpha", Name: "Alpha", Type: models.MODRINTH},
+		DisplayName: "Alpha",
+		Status:      updateItemStatusUpToDate,
+	}}
+
+	model := newUpdateModel(updateModelInput{
+		ctx:        context.Background(),
+		colorMode:  view.ColorDisabled,
+		items:      items,
+		indexByKey: map[int]int{0: 0},
+	})
+	model.windowH = 4
+
+	output := model.renderRunningView()
+	assert.Contains(t, output, "cmd.update.header")
+	assert.Contains(t, output, "cmd.update.section.up_to_date")
 }
 
 func TestUpdateModelApplyItemProgressSkipsUnknownIndex(t *testing.T) {
@@ -222,7 +376,7 @@ func TestUpdateModelViewBranches(t *testing.T) {
 	model.finalRender = false
 	model.windowH = 0
 	model.items = []updateItem{{ConfigIndex: 0, DisplayName: "Alpha", Status: updateItemStatusUpdating}}
-	assert.Contains(t, model.View(), "cmd.update.section.updating")
+	assert.Contains(t, model.View(), "cmd.update.header")
 }
 
 func TestUpdateViewportClampsNegativeHeight(t *testing.T) {
@@ -265,6 +419,41 @@ func TestUpdateModelViewUsesViewportWhenWindowHeightSet(t *testing.T) {
 	assert.Equal(t, model.windowW, model.viewport.Width)
 }
 
+func TestUpdateModelViewReturnsHeaderWhenNoContent(t *testing.T) {
+	t.Setenv("MMM_TEST", "true")
+
+	model := newUpdateModel(updateModelInput{
+		ctx:        context.Background(),
+		colorMode:  view.ColorDisabled,
+		items:      []updateItem{},
+		indexByKey: map[int]int{},
+		execRunner: func(context.Context, updateExecSender) updateExecutionOutcome { return updateExecutionOutcome{} },
+	})
+
+	model.windowH = 10
+	output := model.View()
+	assert.Contains(t, output, "cmd.update.header")
+	assert.NotContains(t, output, "cmd.update.section.updating")
+}
+
+func TestUpdateModelViewReturnsHeaderWhenViewportTooShort(t *testing.T) {
+	t.Setenv("MMM_TEST", "true")
+
+	model := newUpdateModel(updateModelInput{
+		ctx:       context.Background(),
+		colorMode: view.ColorDisabled,
+		items: []updateItem{
+			{ConfigIndex: 0, DisplayName: "Alpha", Status: updateItemStatusUpdating},
+		},
+		indexByKey: map[int]int{0: 0},
+		execRunner: func(context.Context, updateExecSender) updateExecutionOutcome { return updateExecutionOutcome{} },
+	})
+
+	model.windowH = 1
+	output := model.View()
+	assert.Contains(t, output, "cmd.update.header")
+}
+
 func TestUpdateViewportAutoScrollsUntilUserScrolls(t *testing.T) {
 	model := newUpdateModel(updateModelInput{
 		ctx:        context.Background(),
@@ -297,6 +486,83 @@ func TestUpdateViewportUsesWindowHeight(t *testing.T) {
 	model.updateViewport("one", 5)
 	assert.Equal(t, 5, model.viewport.Height)
 	assert.Equal(t, 0, model.viewport.YOffset)
+}
+
+func TestUpdateRenderWithStickyHeaderSkipsWhenWindowHeightZero(t *testing.T) {
+	t.Setenv("MMM_TEST", "true")
+
+	model := newUpdateModel(updateModelInput{
+		ctx:       context.Background(),
+		colorMode: view.ColorDisabled,
+	})
+	model.windowH = 0
+
+	content := "cmd.update.header\nAlpha"
+	expected := view.RenderViewSections([]string{content, "cmd.update.header"}, view.SectionSeparatorParagraph)
+	normalizedExpected := terminal.NormalizeOutput(expected, terminal.NormalizeOptions{TrimTrailingWhitespace: true})
+	assert.Equal(t, normalizedExpected, model.renderWithStickyHeader(content))
+}
+
+func TestUpdateRenderWithStickyHeaderSkipsWhenContentEmpty(t *testing.T) {
+	model := newUpdateModel(updateModelInput{
+		ctx:       context.Background(),
+		colorMode: view.ColorDisabled,
+	})
+	model.windowH = 10
+
+	assert.Equal(t, "", model.renderWithStickyHeader(""))
+}
+
+func TestUpdateRenderWithStickyHeaderSkipsWhenBodyEmpty(t *testing.T) {
+	t.Setenv("MMM_TEST", "true")
+
+	model := newUpdateModel(updateModelInput{
+		ctx:       context.Background(),
+		colorMode: view.ColorDisabled,
+	})
+	model.windowH = 10
+
+	content := "cmd.update.header"
+	assert.Equal(t, content, model.renderWithStickyHeader(content))
+}
+
+func TestUpdateRenderWithStickyHeaderEchoesWhenContentExceedsWindow(t *testing.T) {
+	t.Setenv("MMM_TEST", "true")
+
+	model := newUpdateModel(updateModelInput{
+		ctx:       context.Background(),
+		colorMode: view.ColorDisabled,
+	})
+	model.windowH = 2
+
+	content := "cmd.update.header\nAlpha\nBeta"
+	expected := view.RenderViewSections([]string{content, "cmd.update.header"}, view.SectionSeparatorParagraph)
+	normalizedExpected := terminal.NormalizeOutput(expected, terminal.NormalizeOptions{TrimTrailingWhitespace: true})
+	normalizedActual := terminal.NormalizeOutput(model.renderWithStickyHeader(content), terminal.NormalizeOptions{TrimTrailingWhitespace: true})
+	assert.Equal(t, normalizedExpected, normalizedActual)
+}
+
+func TestUpdateRenderWithStickyHeaderSkipsWhenHeaderMissing(t *testing.T) {
+	t.Setenv("MMM_TEST", "true")
+
+	model := newUpdateModel(updateModelInput{
+		ctx:       context.Background(),
+		colorMode: view.ColorDisabled,
+	})
+	model.windowH = 10
+
+	content := "Other Header\nAlpha"
+	assert.Equal(t, content, model.renderWithStickyHeader(content))
+}
+
+func TestSplitHeaderFromContent(t *testing.T) {
+	header, body := splitHeaderFromContent("line-one\nline-two")
+	assert.Equal(t, "line-one", header)
+	assert.Equal(t, "line-two", body)
+
+	header, body = splitHeaderFromContent("line-one")
+	assert.Equal(t, "line-one", header)
+	assert.Equal(t, "", body)
 }
 
 func TestUpdateModelMarksUserScrolledOnViewportChange(t *testing.T) {

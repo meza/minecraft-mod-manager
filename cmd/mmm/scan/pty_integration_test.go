@@ -182,6 +182,7 @@ func TestScanCommandInteractivePTYRunningSnapshotShortHeight(t *testing.T) {
 	waitForOutput(t, session, "cmd.scan.section.unknown")
 	require.NotNil(t, runningModel)
 	snapshot := normalizeViewportSnapshot(runningModel.View())
+	require.Contains(t, snapshot, "cmd.scan.header.running")
 	snaps.MatchSnapshot(t, trimBeforeSection(snapshot, "cmd.scan.section.unknown"))
 
 	close(release)
@@ -253,7 +254,11 @@ func TestScanCommandInteractivePTYRunningSnapshotShortHeightManyMods(t *testing.
 
 	waitForOutput(t, session, lastSortedFileName(sampleModFileNames()))
 	require.NotNil(t, runningModel)
-	snaps.MatchSnapshot(t, normalizeViewportSnapshot(runningModel.View()))
+	snapshot := normalizeViewportSnapshot(runningModel.View())
+	require.Contains(t, snapshot, "cmd.scan.header.running")
+	snaps.MatchSnapshot(t, snapshot)
+	visibleOutput := normalizeScanVisibleOutput(session.OutputString(), 25)
+	require.Contains(t, visibleOutput, "cmd.scan.header.running")
 
 	close(release)
 	execErrValue := <-execErr
@@ -410,7 +415,9 @@ func TestScanCommandInteractivePTYRunningSnapshotMediumHeight(t *testing.T) {
 
 	waitForOutput(t, session, "cmd.scan.section.unsure")
 	require.NotNil(t, runningModel)
-	snaps.MatchSnapshot(t, normalizeViewportSnapshot(runningModel.View()))
+	snapshot := normalizeViewportSnapshot(runningModel.View())
+	require.Contains(t, snapshot, "cmd.scan.header.running")
+	snaps.MatchSnapshot(t, snapshot)
 
 	close(release)
 	execErrValue := <-execErr
@@ -785,7 +792,9 @@ func TestScanCommandInteractivePTYRunningSnapshotTallHeight(t *testing.T) {
 
 	waitForOutput(t, session, "cmd.scan.section.unsure")
 	require.NotNil(t, runningModel)
-	snaps.MatchSnapshot(t, normalizeViewportSnapshot(runningModel.View()))
+	snapshot := normalizeViewportSnapshot(runningModel.View())
+	require.Contains(t, snapshot, "cmd.scan.header.running")
+	snaps.MatchSnapshot(t, snapshot)
 
 	close(release)
 	execErrValue := <-execErr
@@ -1364,28 +1373,62 @@ func tallSnapshotRows() uint16 {
 }
 
 func normalizePTYSnapshot(value string) string {
-	normalized := terminal.NormalizeOutput(trimToLastFrame(value), terminal.NormalizeOptions{
+	normalized := terminal.NormalizeOutput(value, terminal.NormalizeOptions{
 		StripControlSequences:  true,
 		TrimTrailingWhitespace: true,
 		TrimTrailingEmptyLines: true,
 		TrimSpace:              true,
 	})
-	if headerIndex := strings.LastIndex(normalized, "cmd.scan.header.results"); headerIndex >= 0 {
-		return strings.TrimSpace(normalized[headerIndex:])
+	headerKey := "cmd.scan.header.running"
+	if strings.Contains(normalized, "cmd.scan.header.results") {
+		headerKey = "cmd.scan.header.results"
 	}
-	if headerIndex := strings.LastIndex(normalized, "cmd.scan.header.running"); headerIndex >= 0 {
-		normalized = strings.TrimSpace(normalized[headerIndex:])
+	lines := strings.Split(normalized, "\n")
+	bestBlock := []string{}
+	currentBlock := []string{}
+	for _, line := range lines {
+		trimmedLine := strings.TrimSpace(line)
+		if trimmedLine == "" {
+			if len(currentBlock) > 0 {
+				currentBlock = append(currentBlock, "")
+			}
+			continue
+		}
+		if trimmedLine == headerKey {
+			if len(currentBlock) > len(bestBlock) {
+				bestBlock = append([]string{}, currentBlock...)
+			}
+			currentBlock = []string{trimmedLine}
+			continue
+		}
+		if len(currentBlock) == 0 {
+			continue
+		}
+		currentBlock = append(currentBlock, trimmedLine)
 	}
-	return normalized
+	if len(currentBlock) > len(bestBlock) {
+		bestBlock = append([]string{}, currentBlock...)
+	}
+	if len(bestBlock) == 0 {
+		return strings.TrimSpace(normalized)
+	}
+	return strings.TrimSpace(strings.Join(bestBlock, "\n"))
 }
 
 func normalizePromptPTYSnapshot(value string) string {
-	return terminal.NormalizeOutput(trimAfterAltScreenExit(value), terminal.NormalizeOptions{
+	normalized := terminal.NormalizeOutput(trimAfterAltScreenExit(value), terminal.NormalizeOptions{
 		StripControlSequences:  true,
 		TrimTrailingWhitespace: true,
 		TrimTrailingEmptyLines: true,
 		TrimSpace:              true,
 	})
+	if headerIndex := strings.LastIndex(normalized, "cmd.scan.section.added"); headerIndex >= 0 {
+		return strings.TrimSpace(normalized[headerIndex:])
+	}
+	if headerIndex := strings.LastIndex(normalized, "cmd.scan.adoption.cancelled"); headerIndex >= 0 {
+		return strings.TrimSpace(normalized[headerIndex:])
+	}
+	return normalized
 }
 
 func trimAfterAltScreenExit(value string) string {
@@ -1419,6 +1462,19 @@ func trimToLastFrame(value string) string {
 		return value
 	}
 	return value[indices[len(indices)-1][0]:]
+}
+
+func normalizeScanVisibleOutput(output string, rows int) string {
+	trimmed := trimToLastFrame(output)
+	trimmed = cursorHomeSequence.ReplaceAllString(trimmed, "\n")
+	normalized := terminal.NormalizeOutput(trimmed, terminal.NormalizeOptions{
+		StripControlSequences:  true,
+		TrimTrailingWhitespace: true,
+		TrimTrailingEmptyLines: true,
+		TrimSpace:              true,
+		RowLimit:               rows,
+	})
+	return strings.TrimSpace(normalized)
 }
 
 func scanItemsFromFileNames(fileNames []string) []scanItem {

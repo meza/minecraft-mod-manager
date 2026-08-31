@@ -27,6 +27,11 @@ import (
 	"github.com/meza/minecraft-mod-manager/internal/view"
 )
 
+type fakeTerminalWriter struct{}
+
+func (writer fakeTerminalWriter) Write(value []byte) (int, error) { return len(value), nil }
+func (writer fakeTerminalWriter) Fd() uintptr                     { return 1 }
+
 func TestRunUpdateQuietNoFailures(t *testing.T) {
 	t.Setenv("MMM_TEST", "true")
 
@@ -145,6 +150,7 @@ func TestRunUpdateNoModsConfiguredSuccess(t *testing.T) {
 		},
 	})
 	assert.NoError(t, err)
+	assert.Contains(t, out.String(), "cmd.update.header")
 	assert.Contains(t, out.String(), "cmd.list.empty")
 }
 
@@ -175,6 +181,7 @@ func TestRunUpdateNoModsConfiguredReportsUnmanagedFiles(t *testing.T) {
 	})
 	assert.ErrorIs(t, err, interaction.ErrUnmanagedFiles)
 	assert.True(t, clierrors.IsHandled(err))
+	assert.Contains(t, out.String(), "cmd.update.header")
 	assert.Contains(t, out.String(), "cmd.list.unmanaged.header")
 	assert.Contains(t, out.String(), "cmd.list.unmanaged.cta")
 }
@@ -368,6 +375,7 @@ func TestEnsureInstallForUpdateHandlesUnmanagedFiles(t *testing.T) {
 	}, interaction.ExecutionModeNonTTY)
 	assert.ErrorIs(t, err, interaction.ErrUnmanagedFiles)
 	assert.True(t, clierrors.IsHandled(err))
+	assert.Contains(t, out.String(), "cmd.update.header")
 	assert.Contains(t, out.String(), "cmd.update.header.installing_potentially_missing")
 }
 
@@ -411,6 +419,7 @@ func TestRunUpdateInstallFailureOutputsInstallAndUpdateErrorsNonTTY(t *testing.T
 	})
 
 	assert.Error(t, err)
+	assert.Contains(t, out.String(), "cmd.update.header")
 	assert.Contains(t, out.String(), "cmd.update.header.installing_potentially_missing")
 	assert.Contains(t, out.String(), "install failed output")
 	assert.Contains(t, out.String(), "cmd.update.error.install_failed")
@@ -536,6 +545,7 @@ func TestRunUpdateMissingConfigInteractiveRunsInitAndContinues(t *testing.T) {
 	_, err := runUpdate(context.Background(), cmd, updateOptions{ConfigPath: meta.ConfigPath}, deps)
 	assert.NoError(t, err)
 	assert.True(t, initCalled)
+	assert.Contains(t, out.String(), "cmd.update.header")
 	assert.Contains(t, out.String(), "cmd.list.empty")
 }
 
@@ -802,6 +812,47 @@ func TestRunUpdateInteractiveReturnsOutputError(t *testing.T) {
 		colorMode: view.ColorDisabled,
 	})
 	assert.ErrorContains(t, err, "output failed")
+}
+
+func TestRunUpdateInteractiveSeedsWindowSizeFromTerminal(t *testing.T) {
+	t.Setenv("MMM_TEST", "true")
+
+	restoreSize := view.SetTerminalSizeFuncForTesting(func(_ int) (int, int, error) {
+		return 120, 40, nil
+	})
+	t.Cleanup(restoreSize)
+	restoreTerminal := view.SetIsTerminalFuncForTesting(func(_ int) bool { return true })
+	t.Cleanup(restoreTerminal)
+
+	originalProgram := runUpdateProgram
+	var captured *updateModel
+	runUpdateProgram = func(model *updateModel, _ ...tea.ProgramOption) (tea.Model, error) {
+		captured = model
+		model.outcome = updateExecutionOutcome{errType: updateExecutionErrorNone}
+		return model, nil
+	}
+	t.Cleanup(func() { runUpdateProgram = originalProgram })
+
+	originalTea := runTeaProgram
+	runTeaProgram = func(tea.Model, ...tea.ProgramOption) (tea.Model, error) {
+		return outputLinesModel{}, nil
+	}
+	t.Cleanup(func() { runTeaProgram = originalTea })
+
+	cmd := &cobra.Command{}
+	cmd.SetOut(fakeTerminalWriter{})
+
+	_, err := runUpdateInteractive(context.Background(), cmd, updateExecutionInput{
+		colorMode: view.ColorDisabled,
+		items:     []updateItem{{ConfigIndex: 0, DisplayName: "Alpha", Status: updateItemStatusUpToDate}},
+		indexByKey: map[int]int{
+			0: 0,
+		},
+	})
+	require.NoError(t, err)
+	require.NotNil(t, captured)
+	assert.Equal(t, 120, captured.windowW)
+	assert.Equal(t, 40, captured.windowH)
 }
 
 func TestRunUpdateTranscriptMissingRunner(t *testing.T) {

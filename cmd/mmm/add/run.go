@@ -258,7 +258,7 @@ func finishAdd(
 		return addSuccessTelemetry(resolveOutcome.resolved.platform, resolveOutcome.resolved.projectID, opts, runState.mode.String(), runState.mode.IsInteractive()), nil
 	}
 
-	if outputErr := runOutputLines(cmd, deps, cmd.OutOrStdout(), []string{renderAddSuccessLine(colorMode, resolveOutcome.remoteMod.Name, resolveOutcome.resolved.projectID, resolveOutcome.resolved.platform)}); outputErr != nil {
+	if outputErr := runOutputLines(cmd, deps, cmd.OutOrStdout(), renderAddSuccessLines(colorMode, resolveOutcome.remoteMod.Name, resolveOutcome.resolved.projectID, resolveOutcome.resolved.platform)); outputErr != nil {
 		return telemetry.CommandTelemetry{}, outputErr
 	}
 	return addSuccessTelemetry(resolveOutcome.resolved.platform, resolveOutcome.resolved.projectID, opts, runState.mode.String(), runState.mode.IsInteractive()), nil

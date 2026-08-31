@@ -52,6 +52,13 @@ func runInteractiveScan(ctx context.Context, cmd *cobra.Command, input scanExecu
 			return runScanExecution(ctx, input, sender)
 		},
 	})
+	windowWidth, windowHeight := view.TerminalSize(cmd.OutOrStdout())
+	if windowWidth > 0 {
+		model.windowW = windowWidth
+	}
+	if windowHeight > 0 {
+		model.windowH = windowHeight
+	}
 	outcome, err := runInteractiveScanProgram(cmd, model)
 	if err != nil {
 		if isContextCancellation(err) {
@@ -72,6 +79,7 @@ func runInteractiveScanProgram(cmd *cobra.Command, model *scanModel) (scanExecut
 	}
 	optionsList := view.ProgramOptions(cmd.InOrStdin(), cmd.OutOrStdout())
 	optionsList = append(optionsList, tea.WithAltScreen())
+	optionsList = append(optionsList, tea.WithFilter(view.UnboundedWindowHeightFilter))
 	result, err := runScanProgram(model, optionsList...)
 	if err != nil {
 		return scanExecutionOutcome{}, err

@@ -108,6 +108,7 @@ Or it can be reached from recovery flows.
 ##### Finished
 
 ```
+Added to your configuration
 ✅ Inventory Sorting (<id>) [<platform>]
 ```
 
@@ -174,6 +175,7 @@ Unattended mode MUST NOT prompt.
 `--unattended add <platform> inventory-sorting`
 
 ```
+Added to your configuration
 ✅ Inventory Sorting (<id>) [<platform>]
 ```
 

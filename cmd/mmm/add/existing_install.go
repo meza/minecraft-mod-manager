@@ -60,8 +60,8 @@ func handleExistingInstall(input existingInstallInput) (telemetry.CommandTelemet
 
 	if !input.opts.Quiet {
 		colorMode := colorModeForOutput(input.out)
-		message := renderAddSuccessLine(colorMode, modNameForConfig(input.cfg, input.platformValue, input.projectID), input.projectID, input.platformValue)
-		if outputErr := runOutputLines(nil, input.deps, input.out, []string{message}); outputErr != nil {
+		lines := renderAddSuccessLines(colorMode, modNameForConfig(input.cfg, input.platformValue, input.projectID), input.projectID, input.platformValue)
+		if outputErr := runOutputLines(nil, input.deps, input.out, lines); outputErr != nil {
 			return addFailureTelemetry(input.platformValue, input.projectID, input.opts, input.mode.String(), input.mode.IsInteractive(), outputErr), outputErr
 		}
 	}

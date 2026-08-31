@@ -19,6 +19,7 @@ type fdWriter interface {
 }
 
 var isTerminalFunc = term.IsTerminal
+var terminalSizeFunc = term.GetSize
 var unicodeSupportFunc = defaultUnicodeSupport
 var colorProfileFunc = termenv.EnvColorProfile
 
@@ -30,6 +31,33 @@ func SetIsTerminalFuncForTesting(fn func(int) bool) func() {
 	return func() {
 		isTerminalFunc = previous
 	}
+}
+
+// SetTerminalSizeFuncForTesting overrides the terminal size lookup and returns a restore function.
+// This is intended for cross-package tests that need deterministic terminal sizing.
+func SetTerminalSizeFuncForTesting(fn func(int) (int, int, error)) func() {
+	previous := terminalSizeFunc
+	terminalSizeFunc = fn
+	return func() {
+		terminalSizeFunc = previous
+	}
+}
+
+// TerminalSize returns the terminal size for the provided writer or zeros when unavailable.
+func TerminalSize(writer io.Writer) (width int, height int) {
+	writerDescriptor, ok := writer.(fdWriter)
+	if !ok {
+		return 0, 0
+	}
+	fileDescriptor := int(writerDescriptor.Fd())
+	if !isTerminalFunc(fileDescriptor) {
+		return 0, 0
+	}
+	width, height, err := terminalSizeFunc(fileDescriptor)
+	if err != nil {
+		return 0, 0
+	}
+	return width, height
 }
 
 // SupportsUnicode reports whether Unicode output should be used for the current environment.
@@ -107,6 +135,16 @@ func ProgramOptions(in io.Reader, out io.Writer) []tea.ProgramOption {
 	}
 
 	return options
+}
+
+// UnboundedWindowHeightFilter clears the WindowSizeMsg height to avoid renderer cropping.
+func UnboundedWindowHeightFilter(_ tea.Model, msg tea.Msg) tea.Msg {
+	windowSize, ok := msg.(tea.WindowSizeMsg)
+	if !ok {
+		return msg
+	}
+	windowSize.Height = 0
+	return windowSize
 }
 
 func supportsDynamicRendering(in io.Reader, out io.Writer) bool {

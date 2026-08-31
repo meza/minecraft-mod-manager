@@ -27,6 +27,12 @@ import (
 	"github.com/meza/minecraft-mod-manager/internal/view"
 )
 
+type fakeTerminalWriter struct {
+	bytes.Buffer
+}
+
+func (writer fakeTerminalWriter) Fd() uintptr { return 1 }
+
 func TestRunInteractiveInstallReturnsErrorWhenRunnerMissing(t *testing.T) {
 	restore := runInstallProgram
 	runInstallProgram = nil
@@ -98,6 +104,39 @@ func TestRunInteractiveInstallSuccess(t *testing.T) {
 	assert.NoError(t, err)
 }
 
+func TestRunInteractiveInstallSeedsWindowSizeFromTerminal(t *testing.T) {
+	restoreTerminal := view.SetIsTerminalFuncForTesting(func(_ int) bool { return true })
+	defer restoreTerminal()
+	restoreSize := view.SetTerminalSizeFuncForTesting(func(_ int) (int, int, error) {
+		return 120, 40, nil
+	})
+	defer restoreSize()
+
+	cmd := &cobra.Command{}
+	cmd.SetIn(&bytes.Buffer{})
+	cmd.SetOut(&fakeTerminalWriter{})
+
+	restore := runInstallProgram
+	runInstallProgram = func(model *installModel, _ ...tea.ProgramOption) (tea.Model, error) {
+		assert.Equal(t, 120, model.windowW)
+		assert.Equal(t, 40, model.windowH)
+		model.outcome = installExecutionOutcome{errType: installExecutionErrorNone}
+		return model, nil
+	}
+	t.Cleanup(func() { runInstallProgram = restore })
+
+	items, indexByKey := buildInstallItems(models.ModsJSON{})
+	_, err := runInteractiveInstall(context.Background(), cmd, installExecutionInput{
+		meta:       config.NewMetadata("modlist.json"),
+		cfg:        models.ModsJSON{},
+		lock:       nil,
+		deps:       installDeps{},
+		items:      items,
+		indexByKey: indexByKey,
+	}, Result{})
+	assert.NoError(t, err)
+}
+
 func TestRunInteractiveInstallAppliesProgramOptionsFromContext(t *testing.T) {
 	marker := false
 	customOption := func(*tea.Program) {
@@ -111,8 +150,11 @@ func TestRunInteractiveInstallAppliesProgramOptionsFromContext(t *testing.T) {
 	restore := runInstallProgram
 	runInstallProgram = func(model *installModel, options ...tea.ProgramOption) (tea.Model, error) {
 		baseOptions := view.ProgramOptions(cmd.InOrStdin(), cmd.OutOrStdout())
-		assert.Equal(t, len(baseOptions)+1, len(options))
-		options[len(options)-1](nil)
+		assert.Equal(t, len(baseOptions)+2, len(options))
+		program := &tea.Program{}
+		for _, option := range options {
+			option(program)
+		}
 		assert.True(t, marker)
 		model.outcome = installExecutionOutcome{errType: installExecutionErrorNone}
 		return model, nil

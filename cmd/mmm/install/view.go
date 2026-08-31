@@ -10,7 +10,7 @@ import (
 )
 
 func renderInstallRunningView(colorMode view.ColorMode, items []installItem, footerLine string) string {
-	header := i18n.T("cmd.install.header.running", nil)
+	header := i18n.T("cmd.install.header.success", nil)
 	lines := renderInstallItemLines(colorMode, items)
 	if strings.TrimSpace(footerLine) != "" {
 		lines = append(lines, footerLine)
@@ -19,7 +19,8 @@ func renderInstallRunningView(colorMode view.ColorMode, items []installItem, foo
 }
 
 func renderInstallSuccessView(colorMode view.ColorMode, items []installItem) string {
-	lines := renderInstallItemLines(colorMode, items)
+	header := i18n.T("cmd.install.header.success", nil)
+	lines := append([]string{header}, renderInstallItemLines(colorMode, items)...)
 	sections := []string{
 		strings.Join(lines, "\n"),
 		renderInstallSuccessSummary(colorMode),
@@ -32,7 +33,7 @@ func renderInstallDownloadFailedViewWithHint(colorMode view.ColorMode, items []i
 }
 
 func renderInstallDownloadFailedViewWithSummary(colorMode view.ColorMode, items []installItem, summaryLines []string) string {
-	header := i18n.T("cmd.install.header.running", nil)
+	header := i18n.T("cmd.install.header.success", nil)
 	lines := renderInstallItemLines(colorMode, items)
 	sections := []string{
 		strings.Join(append([]string{header}, lines...), "\n"),
@@ -42,41 +43,11 @@ func renderInstallDownloadFailedViewWithSummary(colorMode view.ColorMode, items 
 }
 
 func renderInstallWriteLockFailedView(colorMode view.ColorMode, items []installItem, lockPath string) string {
-	header := i18n.T("cmd.install.header.running", nil)
+	header := i18n.T("cmd.install.header.success", nil)
 	lines := renderInstallItemLines(colorMode, items)
 	sections := []string{
 		strings.Join(append([]string{header}, lines...), "\n"),
 		strings.Join(renderInstallWriteLockSummary(colorMode, lockPath), "\n"),
-	}
-	return view.RenderViewSections(sections, view.SectionSeparatorParagraph)
-}
-
-func renderInstallWriteConfigFailedView(colorMode view.ColorMode, items []installItem, configPath string) string {
-	header := i18n.T("cmd.install.header.running", nil)
-	lines := renderInstallItemLines(colorMode, items)
-	sections := []string{
-		strings.Join(append([]string{header}, lines...), "\n"),
-		strings.Join(renderInstallWriteConfigSummary(colorMode, configPath), "\n"),
-	}
-	return view.RenderViewSections(sections, view.SectionSeparatorParagraph)
-}
-
-func renderInstallExecutionFailedView(colorMode view.ColorMode, items []installItem, err error) string {
-	header := i18n.T("cmd.install.header.running", nil)
-	lines := renderInstallItemLines(colorMode, items)
-	sections := []string{
-		strings.Join(append([]string{header}, lines...), "\n"),
-		strings.Join(renderInstallExecutionFailureSummary(colorMode, err), "\n"),
-	}
-	return view.RenderViewSections(sections, view.SectionSeparatorParagraph)
-}
-
-func renderInstallCanceledView(colorMode view.ColorMode, items []installItem) string {
-	header := i18n.T("cmd.install.header.running", nil)
-	lines := renderInstallItemLines(colorMode, items)
-	sections := []string{
-		strings.Join(append([]string{header}, lines...), "\n"),
-		strings.Join(renderInstallCanceledSummary(colorMode), "\n"),
 	}
 	return view.RenderViewSections(sections, view.SectionSeparatorParagraph)
 }

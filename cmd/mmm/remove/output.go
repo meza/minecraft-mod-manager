@@ -46,8 +46,9 @@ func renderRemoveRunningSection(colorMode view.ColorMode, items []removeItem, sp
 }
 
 func renderRemoveResultSection(colorMode view.ColorMode, items []removeItem) string {
+	header := i18n.T("cmd.remove.header.result", nil)
 	lines := renderRemoveItems(colorMode, items, nil)
-	return strings.Join(lines, "\n")
+	return strings.Join(append([]string{header}, lines...), "\n")
 }
 
 func renderRemoveConfirmSection(colorMode view.ColorMode, items []removeItem) string {

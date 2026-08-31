@@ -39,6 +39,7 @@ func TestUpdateTranscriptModelOutputsTerminalLinesOnce(t *testing.T) {
 
 	_, cmd := model.Update(updateItemStatusMsg{index: 0, status: updateItemStatusSkipped})
 	runTeaCmd(cmd)
+	assert.Contains(t, buffer.String(), "cmd.update.header")
 	assert.Contains(t, buffer.String(), "cmd.update.item.skipped")
 
 	_, cmd = model.Update(updateItemStatusMsg{index: 0, status: updateItemStatusSkipped})
@@ -51,9 +52,22 @@ func TestUpdateTranscriptModelOutputsTerminalLinesOnce(t *testing.T) {
 	_, cmd = model.Update(updateItemStatusMsg{index: 1, status: updateItemStatusFailed, failReason: "boom"})
 	runTeaCmd(cmd)
 	assert.Contains(t, buffer.String(), "cmd.update.item.failed")
+	assert.Equal(t, 1, strings.Count(buffer.String(), "cmd.update.header"))
 
 	_, cmd = model.Update(updateExecutionFinishedMsg{outcome: updateExecutionOutcome{errType: updateExecutionErrorNone}})
 	runTeaCmd(cmd)
+	assert.Contains(t, buffer.String(), "cmd.update.summary.success")
+}
+
+func TestUpdateTranscriptModelAddsHeaderBeforeSummaryWhenNoOutput(t *testing.T) {
+	t.Setenv("MMM_TEST", "true")
+
+	buffer := &bytes.Buffer{}
+	model := newUpdateTranscriptModel(context.Background(), view.ColorDisabled, nil, map[int]int{}, buffer, nil)
+
+	_, cmd := model.Update(updateExecutionFinishedMsg{outcome: updateExecutionOutcome{errType: updateExecutionErrorNone}})
+	runTeaCmd(cmd)
+	assert.Contains(t, buffer.String(), "cmd.update.header")
 	assert.Contains(t, buffer.String(), "cmd.update.summary.success")
 }
 

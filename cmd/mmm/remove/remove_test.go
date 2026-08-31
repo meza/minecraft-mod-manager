@@ -17,6 +17,7 @@ import (
 
 	"github.com/meza/minecraft-mod-manager/internal/clierrors"
 	"github.com/meza/minecraft-mod-manager/internal/config"
+	"github.com/meza/minecraft-mod-manager/internal/i18n"
 	"github.com/meza/minecraft-mod-manager/internal/locksync"
 	"github.com/meza/minecraft-mod-manager/internal/logger"
 	"github.com/meza/minecraft-mod-manager/internal/models"
@@ -367,7 +368,9 @@ func TestRunRemoveSuccessRemovesConfigAndLockAndDeletesFile(t *testing.T) {
 	require.NoError(t, err)
 	assert.Empty(t, updatedCfg.Mods)
 
-	assert.Equal(t, "V Sodium (sodium)\n\nV Remove complete.\n", out.String())
+	expected := i18n.T("cmd.remove.header.result", nil) + "\n" +
+		"V Sodium (sodium)\n\nV Remove complete.\n"
+	assert.Equal(t, expected, out.String())
 }
 
 func TestRunRemoveUsesLockNameAndRemovesConfigByID(t *testing.T) {
@@ -508,7 +511,9 @@ func TestRunRemoveSkipsMissingFileStillUpdatesConfigAndLock(t *testing.T) {
 	require.NoError(t, err)
 	assert.Empty(t, updatedCfg.Mods)
 
-	assert.Equal(t, "V Sodium (sodium)\n\nV Remove complete.\n", out.String())
+	expected := i18n.T("cmd.remove.header.result", nil) + "\n" +
+		"V Sodium (sodium)\n\nV Remove complete.\n"
+	assert.Equal(t, expected, out.String())
 }
 
 func TestRunRemoveDeleteFailureKeepsEntries(t *testing.T) {
@@ -563,7 +568,8 @@ func TestRunRemoveDeleteFailureKeepsEntries(t *testing.T) {
 	require.NoError(t, readErr)
 	require.Len(t, updatedCfg.Mods, 1)
 
-	expected := "X Sodium (sodium) delete failed: remove failed\n\n!! Remove incomplete.\nFix the reason and rerun mmm remove.\n"
+	expected := i18n.T("cmd.remove.header.result", nil) + "\n" +
+		"X Sodium (sodium) delete failed: remove failed\n\n!! Remove incomplete.\nFix the reason and rerun mmm remove.\n"
 	assert.Equal(t, expected, out.String())
 }
 
@@ -611,7 +617,8 @@ func TestRunRemoveInvalidLockFilenameKeepsEntries(t *testing.T) {
 	require.NoError(t, readErr)
 	require.Len(t, updatedCfg.Mods, 1)
 
-	expected := "X Sodium (sodium) delete failed: lock file filename is unsafe ((empty))\n\n!! Remove incomplete.\nFix the reason and rerun mmm remove.\n"
+	expected := i18n.T("cmd.remove.header.result", nil) + "\n" +
+		"X Sodium (sodium) delete failed: lock file filename is unsafe ((empty))\n\n!! Remove incomplete.\nFix the reason and rerun mmm remove.\n"
 	assert.Equal(t, expected, out.String())
 }
 
@@ -697,7 +704,8 @@ func TestRunRemoveQuietFailureOutputsOnlyFailed(t *testing.T) {
 	}, deps)
 	assert.Error(t, err)
 
-	expected := "X Sodium (sodium) delete failed: remove failed\n\n!! Remove incomplete.\nFix the reason and rerun mmm remove.\n"
+	expected := i18n.T("cmd.remove.header.result", nil) + "\n" +
+		"X Sodium (sodium) delete failed: remove failed\n\n!! Remove incomplete.\nFix the reason and rerun mmm remove.\n"
 	assert.Equal(t, expected, out.String())
 }
 

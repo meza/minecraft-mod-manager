@@ -196,6 +196,7 @@ func TestCommandOutputsResults(t *testing.T) {
 	cmd.SetArgs([]string{"--config", configPath})
 
 	assert.NoError(t, cmd.Execute())
+	assert.Contains(t, output.String(), "cmd.update.header")
 	assert.Contains(t, output.String(), "cmd.list.empty")
 }
 

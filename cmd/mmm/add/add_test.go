@@ -176,6 +176,7 @@ func TestRunAdd_SuccessLogsAsciiIconWhenNotTerminal(t *testing.T) {
 	})
 
 	assert.NoError(t, err)
+	assert.Contains(t, out.String(), "cmd.add.header.success")
 	assert.Contains(t, out.String(), "\u2705 cmd.mod.display")
 }
 
@@ -233,6 +234,7 @@ func TestRunAdd_SuccessLogsEmojiIconWhenTerminal(t *testing.T) {
 	})
 
 	assert.NoError(t, err)
+	assert.Contains(t, out.String(), "cmd.add.header.success")
 	assert.Contains(t, out.String(), "\u2705")
 	assert.Contains(t, out.String(), "cmd.mod.display")
 }
@@ -438,7 +440,9 @@ func TestRunAdd_DuplicateDownloadsWhenFileMissing(t *testing.T) {
 	})
 
 	assert.NoError(t, err)
-	assert.Contains(t, cmd.OutOrStdout().(*bytes.Buffer).String(), "cmd.mod.display")
+	output := cmd.OutOrStdout().(*bytes.Buffer).String()
+	assert.Contains(t, output, "cmd.add.header.success")
+	assert.Contains(t, output, "cmd.mod.display")
 }
 
 func TestRunAdd_PersistFailureReturnsError(t *testing.T) {

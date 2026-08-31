@@ -105,12 +105,15 @@ func handleUpdateNoModsConfigured(
 
 func requireNoUnmanagedForUpdateNoMods(cmd *cobra.Command, deps updateDeps, meta config.Metadata, lockSyncContext updateContext) error {
 	_, unmanagedErr := interaction.RequireNoUnmanagedFiles(interaction.UnmanagedGateInput{
-		Fs:                     deps.fs,
-		Meta:                   meta,
-		Config:                 lockSyncContext.cfg,
-		Lock:                   lockSyncContext.lock,
-		ColorMode:              lockSyncContext.colorMode,
-		Write:                  func(lines []string) error { return runOutputLines(cmd, cmd.OutOrStdout(), lines) },
+		Fs:        deps.fs,
+		Meta:      meta,
+		Config:    lockSyncContext.cfg,
+		Lock:      lockSyncContext.lock,
+		ColorMode: lockSyncContext.colorMode,
+		Write: func(lines []string) error {
+			header := renderUpdateHeader(lockSyncContext.colorMode)
+			return runOutputLines(cmd, cmd.OutOrStdout(), append([]string{header}, lines...))
+		},
 		AllowMissingModsFolder: true,
 	})
 	if unmanagedErr == nil {
@@ -127,7 +130,11 @@ func requireNoUnmanagedForUpdateNoMods(cmd *cobra.Command, deps updateDeps, meta
 }
 
 func reportNoModsConfigured(cmd *cobra.Command) error {
-	if outputErr := runOutputLines(cmd, cmd.OutOrStdout(), []string{i18n.T("cmd.list.empty", nil)}); outputErr != nil {
+	lines := []string{
+		renderUpdateHeader(colorModeForOutput(cmd.OutOrStdout())),
+		i18n.T("cmd.list.empty", nil),
+	}
+	if outputErr := runOutputLines(cmd, cmd.OutOrStdout(), lines); outputErr != nil {
 		return outputErr
 	}
 	return nil
@@ -230,8 +237,11 @@ func ensureInstallForUpdate(ctx context.Context, cmd *cobra.Command, opts update
 	if mode == interaction.ExecutionModeNonTTY {
 		originalOut = cmd.OutOrStdout()
 		headerWriter = &updateInstallHeaderWriter{
-			out:    originalOut,
-			header: i18n.T("cmd.update.header.installing_potentially_missing", nil),
+			out: originalOut,
+			header: strings.Join([]string{
+				i18n.T("cmd.update.header", nil),
+				i18n.T("cmd.update.header.installing_potentially_missing", nil),
+			}, "\n"),
 		}
 		cmd.SetOut(headerWriter)
 	}
@@ -470,13 +480,19 @@ func runUpdateInteractive(ctx context.Context, cmd *cobra.Command, input updateE
 			return runUpdateExecution(ctx, input, sender)
 		},
 	})
+	windowWidth, windowHeight := view.TerminalSize(cmd.OutOrStdout())
+	if windowWidth > 0 {
+		model.windowW = windowWidth
+	}
+	if windowHeight > 0 {
+		model.windowH = windowHeight
+	}
 
 	if runUpdateProgram == nil {
 		return updateExecutionOutcome{}, errors.New("missing bubble tea runner")
 	}
 
-	options := view.ProgramOptions(cmd.InOrStdin(), cmd.OutOrStdout())
-	options = append(options, tea.WithAltScreen())
+	options := updateProgramOptions(cmd)
 	result, err := runUpdateProgram(model, options...)
 	if err != nil {
 		return updateExecutionOutcome{}, err
@@ -489,6 +505,12 @@ func runUpdateInteractive(ctx context.Context, cmd *cobra.Command, input updateE
 		return typed.outcome, outputErr
 	}
 	return typed.outcome, nil
+}
+
+func updateProgramOptions(cmd *cobra.Command) []tea.ProgramOption {
+	options := view.ProgramOptions(cmd.InOrStdin(), cmd.OutOrStdout())
+	options = append(options, tea.WithAltScreen())
+	return append(options, tea.WithFilter(view.UnboundedWindowHeightFilter))
 }
 
 func runUpdateTranscript(ctx context.Context, cmd *cobra.Command, input updateExecutionInput) (updateExecutionOutcome, error) {
@@ -537,10 +559,10 @@ func writeInteractiveUpdateTranscript(cmd *cobra.Command, model *updateModel) er
 	case updateExecutionErrorCanceled:
 		return nil
 	default:
-		sections := buildUpdateResultSections(updateResultsViewInput{
+		sections := prependUpdateHeader(model.colorMode, buildUpdateResultSections(updateResultsViewInput{
 			items:     model.items,
 			colorMode: model.colorMode,
-		})
+		}))
 		return runOutputLines(cmd, cmd.OutOrStdout(), sections)
 	}
 }
@@ -691,6 +713,7 @@ func renderUpdateQuietFailure(input updateResultsViewInput) []string {
 		return nil
 	}
 	lines := make([]string, 0, len(input.items)+2)
+	lines = append(lines, renderUpdateHeader(input.colorMode))
 	lines = append(lines, renderFinalErrorLine(input.colorMode, i18n.T("cmd.update.summary.incomplete", nil)))
 	failed := filterUpdateItems(input.items, updateItemStatusFailed)
 	if len(failed) > 0 {

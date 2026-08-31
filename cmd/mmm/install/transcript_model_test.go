@@ -5,6 +5,7 @@ import (
 	"context"
 	"errors"
 	"reflect"
+	"strings"
 	"testing"
 
 	tea "github.com/charmbracelet/bubbletea"
@@ -32,23 +33,19 @@ func TestInstallTranscriptModelOutputsCompletionLines(t *testing.T) {
 	})
 
 	_, cmd := model.Update(installItemSuccessMsg{key: installModKey(cfg.Mods[0])})
-	if cmd != nil {
-		_ = cmd()
-	}
+	runTeaCmd(cmd)
+	assert.Contains(t, buffer.String(), "cmd.install.header.success")
 	assert.Contains(t, buffer.String(), "alpha")
 
 	_, cmd = model.Update(installItemSuccessMsg{key: installModKey(cfg.Mods[0])})
-	if cmd != nil {
-		_ = cmd()
-	}
+	runTeaCmd(cmd)
 	assert.Contains(t, buffer.String(), "alpha")
 
 	_, cmd = model.Update(installItemFailureMsg{key: installModKey(cfg.Mods[1]), reason: "boom"})
-	if cmd != nil {
-		_ = cmd()
-	}
+	runTeaCmd(cmd)
 	assert.Contains(t, buffer.String(), "beta")
 	assert.Contains(t, buffer.String(), "cmd.download.item.failed")
+	assert.Equal(t, 1, strings.Count(buffer.String(), "cmd.install.header.success"))
 
 	_, cmd = model.Update(installExecutionFinishedMsg{outcome: installExecutionOutcome{errType: installExecutionErrorDownload}})
 	runTeaCmd(cmd)
@@ -78,6 +75,17 @@ func TestInstallTranscriptModelSummaryLinesForWriteFailures(t *testing.T) {
 	model.outcome = installExecutionOutcome{errType: installExecutionErrorUnknown, err: errors.New("boom")}
 	lines = model.summaryLines()
 	assert.Contains(t, lines[1], "cmd.install.error.failed")
+}
+
+func TestInstallTranscriptModelSummaryLinesNoItems(t *testing.T) {
+	t.Setenv("MMM_TEST", "true")
+
+	model := newInstallTranscriptModel(context.Background(), view.ColorDisabled, nil, map[string]int{}, &bytes.Buffer{}, nil)
+	model.outcome = installExecutionOutcome{errType: installExecutionErrorNone}
+	lines := model.summaryLines()
+	assert.Len(t, lines, 2)
+	assert.Contains(t, lines[0], "cmd.install.header.success")
+	assert.Contains(t, lines[1], "cmd.install.summary.success")
 }
 
 func TestInstallTranscriptModelOutputsAbortedLine(t *testing.T) {

@@ -6,6 +6,7 @@ import (
 	"testing"
 
 	tea "github.com/charmbracelet/bubbletea"
+	"github.com/charmbracelet/lipgloss"
 	"github.com/stretchr/testify/assert"
 
 	"github.com/meza/minecraft-mod-manager/internal/httpclient"
@@ -99,6 +100,28 @@ func TestInstallModelUpdateSetsFinalState(t *testing.T) {
 	assert.Equal(t, installViewDownloadFailed, model.state)
 }
 
+func TestInstallModelUpdateWindowSizeIgnoresZeroValues(t *testing.T) {
+	model := newInstallModel(context.Background(), view.ColorDisabled, nil, nil, nil, nil, nil)
+	model.windowW = 80
+	model.windowH = 24
+
+	updated, _ := model.Update(tea.WindowSizeMsg{Width: 0, Height: 0})
+	result := updated.(*installModel)
+
+	assert.Equal(t, 80, result.windowW)
+	assert.Equal(t, 24, result.windowH)
+}
+
+func TestInstallModelUpdateWindowSizeUpdatesDimensions(t *testing.T) {
+	model := newInstallModel(context.Background(), view.ColorDisabled, nil, nil, nil, nil, nil)
+
+	updated, _ := model.Update(tea.WindowSizeMsg{Width: 120, Height: 33})
+	result := updated.(*installModel)
+
+	assert.Equal(t, 120, result.windowW)
+	assert.Equal(t, 33, result.windowH)
+}
+
 func TestInstallModelViewRendersStates(t *testing.T) {
 	t.Setenv("MMM_TEST", "true")
 	cfg := models.ModsJSON{
@@ -108,7 +131,7 @@ func TestInstallModelViewRendersStates(t *testing.T) {
 	model := newInstallModel(context.Background(), view.ColorDisabled, items, indexByKey, nil, nil, nil)
 
 	model.state = installViewRunning
-	assert.Contains(t, model.View(), "cmd.install.header.running")
+	assert.Contains(t, model.View(), "cmd.install.header.success")
 
 	model.state = installViewSuccess
 	assert.Contains(t, model.View(), "cmd.install.summary.success")
@@ -195,4 +218,194 @@ func TestInstallModelUpdateIgnoresUnknownMessageType(t *testing.T) {
 	updated, cmd := model.Update(struct{}{})
 	assert.Nil(t, cmd)
 	assert.Equal(t, model, updated)
+}
+
+func TestInstallModelUpdateKeyScrollsViewport(t *testing.T) {
+	model := newInstallModel(context.Background(), view.ColorDisabled, nil, nil, nil, nil, nil)
+	model.viewport.Height = 1
+	model.viewport.Width = 10
+	model.viewport.SetContent("one\ntwo\nthree")
+
+	updated, _ := model.Update(tea.KeyMsg{Type: tea.KeyDown})
+	result := updated.(*installModel)
+	assert.Equal(t, 1, result.viewport.YOffset)
+	assert.True(t, result.userScroll)
+}
+
+func TestInstallModelUpdateMouseScrollsViewport(t *testing.T) {
+	model := newInstallModel(context.Background(), view.ColorDisabled, nil, nil, nil, nil, nil)
+	model.viewport.MouseWheelEnabled = true
+	model.viewport.Height = 1
+	model.viewport.Width = 10
+	model.viewport.SetContent("one\ntwo\nthree")
+
+	updated, _ := model.Update(tea.MouseMsg{Action: tea.MouseActionPress, Button: tea.MouseButtonWheelDown})
+	result := updated.(*installModel)
+	assert.Greater(t, result.viewport.YOffset, 0)
+	assert.True(t, result.userScroll)
+}
+
+func TestInstallModelUpdateViewportKeepsOffsetWhenUserScrolled(t *testing.T) {
+	model := newInstallModel(context.Background(), view.ColorDisabled, nil, nil, nil, nil, nil)
+	model.windowW = 10
+	model.viewport.Height = 1
+	model.viewport.Width = 10
+	model.viewport.SetContent("one\ntwo\nthree")
+	model.viewport.YOffset = 1
+	model.userScroll = true
+
+	model.updateViewport("one\ntwo\nthree", 1)
+
+	assert.Equal(t, 1, model.viewport.YOffset)
+}
+
+func TestInstallModelUpdateViewportUsesContentHeight(t *testing.T) {
+	model := newInstallModel(context.Background(), view.ColorDisabled, nil, nil, nil, nil, nil)
+
+	model.updateViewport("one", 1)
+
+	assert.Equal(t, 1, model.viewport.Height)
+}
+
+func TestInstallModelUpdateViewportUsesContentWidthWhenWindowUnknown(t *testing.T) {
+	model := newInstallModel(context.Background(), view.ColorDisabled, nil, nil, nil, nil, nil)
+	model.viewport.Width = 0
+
+	model.updateViewport("alpha\nbeta", 2)
+
+	assert.Equal(t, lipgloss.Width("alpha\nbeta"), model.viewport.Width)
+}
+
+func TestInstallModelFooterLinesWithHeaderWhenOffscreen(t *testing.T) {
+	model := newInstallModel(context.Background(), view.ColorDisabled, nil, nil, nil, nil, nil)
+	model.windowH = 3
+
+	layout := installViewLayout{
+		header:      "Header",
+		listLines:   []string{"one", "two", "three"},
+		footerLines: []string{"Footer"},
+	}
+
+	footerLines := model.footerLinesWithHeaderIfNeeded(layout, 0, 3)
+
+	assert.Equal(t, []string{"Header", "Footer"}, footerLines)
+}
+
+func TestInstallModelFooterLinesWithHeaderWhenSpaceFits(t *testing.T) {
+	model := newInstallModel(context.Background(), view.ColorDisabled, nil, nil, nil, nil, nil)
+	model.windowH = 10
+
+	layout := installViewLayout{
+		header:      "Header",
+		listLines:   []string{"one"},
+		footerLines: []string{"Footer"},
+	}
+
+	footerLines := model.footerLinesWithHeaderIfNeeded(layout, 0, 1)
+
+	assert.Equal(t, []string{"Footer"}, footerLines)
+}
+
+func TestInstallModelFooterLinesWithHeaderSkipsWhenUnavailable(t *testing.T) {
+	model := newInstallModel(context.Background(), view.ColorDisabled, nil, nil, nil, nil, nil)
+	model.windowH = 0
+
+	layout := installViewLayout{
+		header:      "Header",
+		listLines:   []string{"one"},
+		footerLines: []string{"Footer"},
+	}
+
+	footerLines := model.footerLinesWithHeaderIfNeeded(layout, 0, 1)
+
+	assert.Equal(t, []string{"Header", "Footer"}, footerLines)
+}
+
+func TestInstallModelFooterLinesWithHeaderSkipsWhenFooterEmptyAndWindowUnknown(t *testing.T) {
+	model := newInstallModel(context.Background(), view.ColorDisabled, nil, nil, nil, nil, nil)
+	model.windowH = 0
+
+	layout := installViewLayout{
+		header:      "Header",
+		listLines:   []string{"one"},
+		footerLines: nil,
+	}
+
+	footerLines := model.footerLinesWithHeaderIfNeeded(layout, 0, 1)
+
+	assert.Empty(t, footerLines)
+}
+
+func TestInstallModelFooterLinesWithHeaderSkipsWhenHeaderBlank(t *testing.T) {
+	model := newInstallModel(context.Background(), view.ColorDisabled, nil, nil, nil, nil, nil)
+	model.windowH = 3
+
+	layout := installViewLayout{
+		header:      " ",
+		listLines:   []string{"one"},
+		footerLines: []string{"Footer"},
+	}
+
+	footerLines := model.footerLinesWithHeaderIfNeeded(layout, 0, 1)
+
+	assert.Equal(t, []string{"Footer"}, footerLines)
+}
+
+func TestInstallModelRenderInstallViewWithStickyHeaderSkipsWhenHeaderBlank(t *testing.T) {
+	model := newInstallModel(context.Background(), view.ColorDisabled, nil, nil, nil, nil, nil)
+	model.windowH = 10
+
+	output := "one\ntwo"
+	assert.Equal(t, output, model.renderInstallViewWithStickyHeader(output, ""))
+}
+
+func TestInstallModelRenderInstallViewWithStickyHeaderSkipsWhenFits(t *testing.T) {
+	model := newInstallModel(context.Background(), view.ColorDisabled, nil, nil, nil, nil, nil)
+	model.windowH = 10
+
+	output := "Header\none"
+	assert.Equal(t, output, model.renderInstallViewWithStickyHeader(output, "Header"))
+}
+
+func TestInstallModelRenderInstallViewWithStickyHeaderEchoesWhenOverflow(t *testing.T) {
+	model := newInstallModel(context.Background(), view.ColorDisabled, nil, nil, nil, nil, nil)
+	model.windowH = 2
+
+	output := "Header\none\ntwo"
+	expected := view.RenderViewSections([]string{output, "Header"}, view.SectionSeparatorParagraph)
+	assert.Equal(t, expected, model.renderInstallViewWithStickyHeader(output, "Header"))
+}
+
+func TestRenderInstallViewWithoutViewportIncludesFooter(t *testing.T) {
+	layout := installViewLayout{
+		header:      "Header",
+		listLines:   []string{"one"},
+		footerLines: []string{"Footer"},
+		separator:   installSeparatorParagraph,
+	}
+	content := "Header\none"
+	expected := view.RenderViewSections([]string{content, "Footer"}, view.SectionSeparatorParagraph)
+	assert.Equal(t, expected, renderInstallViewWithoutViewport(layout, view.SectionSeparatorParagraph))
+}
+
+func TestRenderInstallViewWithoutViewportSkipsFooterWhenEmpty(t *testing.T) {
+	layout := installViewLayout{
+		header:    "Header",
+		listLines: []string{"one"},
+		separator: installSeparatorParagraph,
+	}
+	expected := "Header\none"
+	assert.Equal(t, expected, renderInstallViewWithoutViewport(layout, view.SectionSeparatorParagraph))
+}
+
+func TestIsViewportScrollKeyDetectsNavigationKeys(t *testing.T) {
+	assert.True(t, isViewportScrollKey(tea.KeyMsg{Type: tea.KeyPgDown}))
+	assert.True(t, isViewportScrollKey(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune{'j'}}))
+	assert.False(t, isViewportScrollKey(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune{'x'}}))
+}
+
+func TestIsViewportScrollMouseDetectsWheelPress(t *testing.T) {
+	assert.True(t, isViewportScrollMouse(tea.MouseMsg{Action: tea.MouseActionPress, Button: tea.MouseButtonWheelUp}))
+	assert.False(t, isViewportScrollMouse(tea.MouseMsg{Action: tea.MouseActionPress, Button: tea.MouseButtonLeft}))
+	assert.False(t, isViewportScrollMouse(tea.MouseMsg{Action: tea.MouseActionRelease, Button: tea.MouseButtonWheelDown}))
 }

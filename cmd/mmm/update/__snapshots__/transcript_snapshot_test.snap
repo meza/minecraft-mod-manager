@@ -1,5 +1,6 @@
 
 [TestUpdateTranscriptNonTTYSnapshots/no_updates - 1]
+cmd.update.header
 ✅ Fabric API (fabric-api) [modrinth]
 📌 Pinned Mod (pinned-mod) [curseforge] cmd.update.item.skipped
 
@@ -7,6 +8,7 @@
 ---
 
 [TestUpdateTranscriptNonTTYSnapshots/partial_success - 1]
+cmd.update.header
 ✅ Fabric API (fabric-api) [modrinth]
 ✅ Inventory Sorting (inventory-sorting) [modrinth]
 📌 Pinned Mod (pinned-mod) [curseforge] cmd.update.item.skipped
@@ -18,6 +20,8 @@ cmd.update.summary.incomplete_hint
 ---
 
 [TestUpdateQuietPartialSuccessSnapshot - 1]
+cmd.update.header
+
 ‼️ cmd.update.summary.incomplete
 
 cmd.update.section.failed

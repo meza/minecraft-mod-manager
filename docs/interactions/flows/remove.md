@@ -89,6 +89,7 @@ Removing mods:
 `remove inventory-sorting soundsbegone`
 
 ```
+Removed the following mods
 ✅ Inventory Sorting (inventory-sorting)
 ✅ Sounds Be Gone! (soundsbegone)
 ... (one row per mod, all matched mods shown)
@@ -122,6 +123,7 @@ Remove canceled. No changes were made.
 `remove inventory-sorting soundsbegone`
 
 ```
+Removed the following mods
 ✅ Inventory Sorting (inventory-sorting)
 ❌ Sounds Be Gone! (soundsbegone) delete failed: <reason>
 ... (one row per mod, all matched mods shown)

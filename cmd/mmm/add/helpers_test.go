@@ -472,6 +472,7 @@ func TestHandleExistingInstallNonInteractiveWritesOutput(t *testing.T) {
 
 	assert.NoError(t, err)
 	assert.Equal(t, "add", telemetryPayload.Command)
+	assert.Contains(t, output.String(), "cmd.add.header.success")
 	assert.Contains(t, output.String(), "cmd.mod.display")
 }
 
@@ -520,6 +521,7 @@ func TestHandleExistingInstallInteractiveWritesOutput(t *testing.T) {
 
 	assert.NoError(t, err)
 	assert.Equal(t, "add", telemetryPayload.Command)
+	assert.Contains(t, output.String(), "cmd.add.header.success")
 	assert.Contains(t, output.String(), "cmd.mod.display")
 }
 

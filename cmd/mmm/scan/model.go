@@ -2,11 +2,13 @@ package scan
 
 import (
 	"context"
+	"strings"
 
 	"github.com/charmbracelet/bubbles/viewport"
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/lipgloss"
 
+	"github.com/meza/minecraft-mod-manager/internal/i18n"
 	"github.com/meza/minecraft-mod-manager/internal/view"
 )
 
@@ -114,7 +116,7 @@ func (model *scanModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		return model.handleViewportMouse(typed)
 	case scanItemUpdateMsg:
 		model.applyItemUpdate(typed)
-		return model, nil
+		return model, tea.WindowSize()
 	case scanExecutionFinishedMsg:
 		model.items = typed.outcome.items
 		model.outcome = typed.outcome
@@ -140,13 +142,9 @@ func (model *scanModel) View() string {
 			unsure:    model.outcome.unsure,
 			colorMode: model.colorMode,
 		})
-		return content
+		return model.renderWithStickyHeader(content, "cmd.scan.header.results")
 	}
-	if model.windowH <= 0 || content == "" {
-		return content
-	}
-	model.updateViewport(content, model.windowH)
-	return model.viewport.View()
+	return model.renderWithStickyHeader(content, "cmd.scan.header.running")
 }
 
 func (model *scanModel) updateViewport(content string, height int) {
@@ -165,6 +163,38 @@ func (model *scanModel) updateViewport(content string, height int) {
 		targetOffset = maxOffset
 	}
 	model.viewport.SetYOffset(targetOffset)
+}
+
+func (model *scanModel) renderWithStickyHeader(content string, headerKey string) string {
+	if content == "" {
+		return content
+	}
+	headerLine, body := splitHeaderFromContent(content)
+	if body == "" {
+		return content
+	}
+	headerText := i18n.T(headerKey, nil)
+	if !strings.Contains(headerLine, headerText) {
+		return content
+	}
+	bodyHeight := lipgloss.Height(body)
+	model.updateViewport(body, bodyHeight)
+	rendered := view.RenderViewSections([]string{headerLine, model.viewport.View()}, view.SectionSeparatorLine)
+	if model.windowH <= 0 {
+		return view.RenderViewSections([]string{rendered, headerLine}, view.SectionSeparatorParagraph)
+	}
+	if lipgloss.Height(rendered) > model.windowH {
+		return view.RenderViewSections([]string{rendered, headerLine}, view.SectionSeparatorParagraph)
+	}
+	return rendered
+}
+
+func splitHeaderFromContent(content string) (header string, body string) {
+	parts := strings.SplitN(content, "\n", 2)
+	if len(parts) == 1 {
+		return parts[0], ""
+	}
+	return parts[0], parts[1]
 }
 
 func (model *scanModel) handleViewportKey(msg tea.KeyMsg) (tea.Model, tea.Cmd) {

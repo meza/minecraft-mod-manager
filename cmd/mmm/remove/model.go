@@ -2,9 +2,12 @@ package remove
 
 import (
 	"context"
+	"strings"
 
 	tea "github.com/charmbracelet/bubbletea"
+	"github.com/charmbracelet/lipgloss"
 
+	"github.com/meza/minecraft-mod-manager/internal/i18n"
 	"github.com/meza/minecraft-mod-manager/internal/view"
 )
 
@@ -33,6 +36,7 @@ type removeModel struct {
 	outcome    removeExecutionOutcome
 	done       bool
 	sender     removeExecSender
+	windowH    int
 }
 
 func newRemoveModel(
@@ -77,6 +81,11 @@ func (model *removeModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		return model, cmd
 	}
 	switch typed := msg.(type) {
+	case tea.WindowSizeMsg:
+		if typed.Height > 0 {
+			model.windowH = typed.Height
+		}
+		return model, nil
 	case removeItemSuccessMsg:
 		model.updateItem(typed.key, func(item *removeItem) {
 			item.Status = removeItemSuccess
@@ -105,7 +114,9 @@ func (model *removeModel) View() string {
 	if model.done {
 		return model.renderFinalView()
 	}
-	return renderRemoveRunningSection(model.colorMode, model.items, &model.spinner)
+	content := renderRemoveRunningSection(model.colorMode, model.items, &model.spinner)
+	header := i18n.T("cmd.remove.header.removing", nil)
+	return model.renderWithStickyHeader(content, header)
 }
 
 func (model *removeModel) updateItem(key string, update func(*removeItem)) {
@@ -131,5 +142,17 @@ func (model *removeModel) renderFinalView() string {
 		sections = append(sections, renderRemoveSuccessSummary(model.colorMode))
 	}
 
-	return view.RenderViewSectionsWithTrailingNewline(sections, view.SectionSeparatorParagraph)
+	content := view.RenderViewSectionsWithTrailingNewline(sections, view.SectionSeparatorParagraph)
+	header := i18n.T("cmd.remove.header.result", nil)
+	return model.renderWithStickyHeader(content, header)
+}
+
+func (model *removeModel) renderWithStickyHeader(content string, header string) string {
+	if model.windowH <= 0 || strings.TrimSpace(header) == "" {
+		return content
+	}
+	if lipgloss.Height(strings.TrimSuffix(content, "\n")) <= model.windowH {
+		return content
+	}
+	return view.RenderViewSections([]string{content, header}, view.SectionSeparatorParagraph)
 }

@@ -6,6 +6,7 @@ import (
 	"strings"
 	"sync/atomic"
 
+	tea "github.com/charmbracelet/bubbletea"
 	initCmd "github.com/meza/minecraft-mod-manager/cmd/mmm/init"
 	"golang.org/x/sync/errgroup"
 
@@ -353,6 +354,13 @@ func runInteractiveInstall(
 	model := newInstallModel(execCtx, colorModeForOutput(cmd.OutOrStdout()), executionInput.items, executionInput.indexByKey, cancel, func(ctx context.Context, sender httpclient.Sender) installExecutionOutcome {
 		return runInstallExecution(ctx, executionInput, sender)
 	}, runningFooter)
+	windowWidth, windowHeight := view.TerminalSize(cmd.OutOrStdout())
+	if windowWidth > 0 {
+		model.windowW = windowWidth
+	}
+	if windowHeight > 0 {
+		model.windowH = windowHeight
+	}
 
 	if runInstallProgram == nil {
 		return result, errors.New("missing bubble tea runner")
@@ -360,6 +368,7 @@ func runInteractiveInstall(
 
 	options := view.ProgramOptions(cmd.InOrStdin(), cmd.OutOrStdout())
 	options = append(options, installProgramOptionsFromContext(ctx)...)
+	options = append(options, tea.WithFilter(view.UnboundedWindowHeightFilter))
 	_, err := runInstallProgram(model, options...)
 	if err != nil {
 		return result, err
