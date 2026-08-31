@@ -1,16 +1,28 @@
 # Re-review
 
-A re-review verifies previous findings and reviews code added or changed to address them. It must
-not restart a general review of unchanged code or introduce new non-blockers from the original diff.
-Start with a compact status: which previous blockers are resolved, which remain, and whether a fix
-introduced a regression. Do not make the implementer reconstruct that state from earlier comments.
+A re-review is bounded to the prior matching review, the remediation, and any flows materially
+affected by that remediation. It does not restart an unrestricted review of unchanged original
+work.
 
-The initial review is expected to be exhaustive. When every blocker is correctly resolved, every
-non-blocker is resolved or consciously deferred, and the remediation introduces no regression,
-re-review should produce no new findings from the original diff. A finding first raised against
-unchanged original code during re-review is a miss in the initial review, not an ordinary additional
-review round.
+Use the existing root `code-review.md` only when both the work item and review surface match. A
+matching ticket identifier establishes work-item identity but does not establish surface identity.
+For ad hoc work, require the same rationale. In either case, reconcile the current file and flow set
+with the complete file set recorded in the previous artifact. Apply bounded re-review to files that
+were in that prior set and to flows already covered there. Give every new or renamed file, newly
+deleted file, and flow expanded beyond the prior review an initial review by applying
+[initial-review guidance](./initial-review.md), and record that split. Files returned to the baseline
+need no further review. When none of the current surface was covered previously, apply the complete
+initial-review procedure.
 
-A regression introduced by a fix is a new finding. A genuinely missed blocker in the original diff
-must still be reported, identified candidly as missed in the initial review, and grouped with any
-related issue. Do not suppress a material risk merely to preserve review efficiency.
+For each prior finding, record whether it is resolved, remains, or cannot be verified. Carry an
+unresolved finding forward with enough original context to remain actionable, and identify it as a
+repeated finding. Inspect every file and affected flow changed to address the prior review, and
+report any regression introduced by the remediation.
+
+Do not introduce a new finding about unchanged original work merely to broaden the review. If a
+previously missed issue presents a concrete material risk, report it candidly as missed during the
+initial review; review efficiency does not justify suppressing material evidence.
+
+Run all required local gates again and record their current results. Select the advisory verdict
+from the evidence now available. Use `Review incomplete` whenever a material evidence gap remains;
+otherwise use `Changes recommended` when findings remain and `No changes recommended` when none do.

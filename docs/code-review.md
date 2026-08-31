@@ -1,12 +1,11 @@
 # Code review
 
-Code review protects delivery. It prevents a change from adding bugs, spreading legacy problems, or
-creating inconsistencies that make the system harder to evolve. It must do that without turning a
-focused pull request into a redesign or an endless sequence of review rounds.
+Code review determines whether a change satisfies its work item and fits the repository's current
+engineering and architectural contracts. Reviews are evidence-based and advisory: the reviewer
+reports every supported observation, while humans decide whether a finding prevents delivery.
 
-Deadlines do not justify regressions. They do affect where valid improvement work belongs. Fix
-material risks in the current change; handle useful but deferrable improvements pragmatically and
-keep delivery moving.
+The review is recorded only in `code-review.md` at the repository root. Do not publish findings
+through native pull-request review controls or another parallel review artifact.
 
 ## Load the guidance for this review
 
@@ -14,148 +13,107 @@ Read this document completely for every code review, then read each applicable r
 before inspecting the change:
 
 - For an initial review, read [initial review](./reviewing-code/initial-review.md).
-- For a re-review, read [re-review](./reviewing-code/re-review.md) instead of the initial-review
-  guidance.
+- For a re-review, read [re-review](./reviewing-code/re-review.md). Also read and apply
+  [initial review](./reviewing-code/initial-review.md) to every new, expanded, or wholly uncovered
+  surface identified by the re-review procedure.
 - For a pull request review, read [pull requests](./reviewing-code/pull-requests.md).
 - Read [architectural fitness](./reviewing-code/architectural-fitness.md) when the change affects
-  executable behaviour, schemas, public or typed contracts, module or workspace boundaries,
-  dependency relationships, shared components, business rules, or architecture documentation.
+  executable behaviour, schemas, public or typed contracts, module boundaries, dependency
+  relationships, shared components, business rules, or architecture documentation.
 
-The architecture reference may be skipped only when the change affects none of those surfaces and
-is limited to prose, formatting, generated output, repository metadata, or mechanical work with no
-architectural choice.
+Architectural-fitness guidance may be skipped only for prose, formatting, generated output,
+repository metadata, or mechanical work with no architectural choice.
 
-## Review against the right standard
+Load other repository guidance selected by the affected paths and concerns. In particular, use the
+provider-specific API skill when reviewing CurseForge or Modrinth integration code, and use the
+repository's Go and test guidance when those surfaces change.
 
-Judge new and materially changed code against the current documented guidance and repository
-configuration. Neighbouring legacy code explains the constraints around a change, but it is not
-evidence that a pattern remains acceptable.
+## Establish context and scope
 
-A narrow change does not require unrelated legacy cleanup. It may use a poor legacy interface when
-replacing that interface is outside scope, provided the interaction is contained and does not make
-the problem harder to remove. Code that is substantially rewritten, copied, extracted, moved, given
-new responsibilities, or exposed through a new interface must meet the current standard.
+Use a Linear ticket as the work item when the request identifies one. Retrieve it through the
+environment's enabled Linear connector; do not read tracker credentials from repository or
+environment files. If the connector is unavailable, record that evidence gap rather than
+improvising access. When no ticket is identified, use the request's rationale, intended behaviour,
+constraints, and acceptance criteria as the work item.
 
-A ticket defines the required delivery outcome and explicit constraints, not every permissible
-change in the contribution. Cleanup, refactoring, supporting work, and additional changes do not
-become findings merely because the ticket did not mention them. Assess them on their engineering
-merits and report only a concrete correctness, architecture, safety, maintainability, release,
-rollback, or review-coherence consequence.
+Ticket requirements and any sources the ticket declares normative are binding review criteria.
+Implementer notes may add non-conflicting constraints or justified supporting work, but cannot
+narrow ticket requirements. Do not treat ticket-silent cleanup, refactoring, or supporting work as
+a finding without a concrete adverse consequence.
 
-New code must remain understandable, appropriately typed, testable, limited in responsibility,
-and explicit about side effects. Review unsafe typing, hidden state, broad exception handling or
-suppressions, and dead or debug code according to their concrete consequence. Block them when they
-create a material risk; report localised debt as non-blocking when the change remains safe and
-functional.
+An unqualified initial review covers the entire active changeset. For local or ad hoc work, that is
+the working tree relative to `HEAD`, including staged, unstaged, and untracked files. For a pull
+request, it is the pull-request head relative to its target-branch merge base. An explicit pair of
+comparison references supplied by the user overrides those defaults. Use repository state only to
+establish the surface; do not report staging, tracking, branch, or commit hygiene as findings.
 
-Current documented guidance owns the standard. When guidance conflicts, remains ambiguous, or is
-still evolving, do not invent a rule during review. Raise the decision as non-blocking follow-up
-unless the implementation already has a concrete correctness or safety defect.
+Discover a local surface with read-only status and diff inspection. Take the union of tracked
+changes against `HEAD` and every untracked file, accounting for additions, modifications, deletions,
+and renames. Record `HEAD`, any explicit comparison references, and the complete file set under
+`Context and sources` so the coverage claim is reproducible.
 
-## Use validation evidence
+If the user explicitly narrows the review, record the included and excluded surfaces and claim
+completeness only for the declared scope. A review is incomplete until every file and materially
+affected flow in that scope has been examined. When the baseline or comparison endpoint cannot be
+established, record the ambiguity and use `Review incomplete`.
 
-Run targeted validation only when existing evidence does not cover a material behaviour or when a
-concrete concern cannot be resolved from that evidence. Compare a failure with the merge-base
-baseline when one exists so unrelated failures are not attributed to the change. The
-[contribution guide](../CONTRIBUTING.md#required-local-checks) owns validation command selection.
+## Review against the current standard
 
-## Classify findings by consequence
+Judge new and materially changed work against current repository guidance and configuration.
+Neighbouring legacy code explains constraints but is not proof that a pattern remains acceptable.
+A narrow change need not repair unrelated debt, although copied, extracted, substantially rewritten,
+or newly exposed code must meet the current standard.
 
-Report only findings introduced, worsened, newly exposed, or made directly relevant by the change.
-Every finding must have evidence, a credible failure or maintenance consequence, and an actionable
-outcome. A policy's force does not determine severity; the consequence does.
+Trace real control and data flows before reporting a defect. Review correctness, architecture,
+security, compatibility, failure handling, recovery, side effects, cross-platform behaviour, and
+test effectiveness where relevant. Tests must assert material behaviour rather than merely execute
+code. Do not require production tests for prose, configuration, generated output, or mechanical work
+when the appropriate repository checks provide the evidence.
 
-### Blockers must be resolved here
+Report only observations introduced, worsened, newly exposed, or made directly relevant by the
+change. Each finding must state:
 
-A blocker prevents approval because the change introduces or worsens a credible risk of:
+- the concrete observation and location;
+- the reachable condition, execution path, or governing evidence;
+- the user, data, security, operational, architectural, or maintenance consequence; and
+- one bounded recommended outcome.
 
-- incorrect required behaviour, unmet explicit acceptance conditions, or violation of an explicit
-  constraint or prohibition;
-- data loss, corruption, partial updates, inconsistent results, or invalid state;
-- missing authentication or authorisation, injection, unsafe commands or paths, secret or
-  sensitive-data exposure, unsafe input or deserialisation, or cross-tenant access;
-- a broken primary workflow or material availability failure;
-- incompatible public, integration, or persisted behaviour;
-- unsafe deployment, migration, or operational behaviour;
-- a material architectural inconsistency that would spread through new consumers; or
-- meaningful changed behaviour having no effective regression protection when a stable test seam
-  exists.
+Findings are objective and unranked. Do not add severity, priority, or delivery-impact labels.
+Group occurrences with the same root cause and identify every affected location. Do not omit a
+supported finding because another one already determines the likely human decision.
 
-Trace the real control and data flow before blocking. Describe the input, state, or sequence that
-reaches the defect and the user, data, security, or operational consequence. Do not rely on a name,
-a test's existence, or a speculative possibility as proof.
+Do not report unrelated debt, personal preference, deterministic failures already fully represented
+by a recorded repository check, hypothetical risks without a credible path, or redesigns whose only
+benefit is aesthetic consistency. Do not manufacture a finding when the change is acceptable.
 
-Tests must verify behaviour rather than merely execute code. Require success, failure, boundary,
-state-transition, validation, permission, or regression coverage only where it protects behaviour
-material to the change. When preserving untested legacy behaviour matters, require a
-characterisation test at a stable seam. Do not require tests for formatting, generated output, or a
-trivial mechanical change already covered by repository checks.
+## Run required local gates
 
-**Tautological tests considered harmful.**
+Read the root [contribution guide](../CONTRIBUTING.md), run every required gate command named in its
+`Required local checks` section for every review, and record the command and result. Do not use a
+remote CI status as a substitute. Its advice to run `make fmt` or `make lint-fix` after a failed gate
+is for implementers; reviewers record the failure and do not run either fix target.
 
-Comments are an explicit surface where a policy's force determines severity: a comment introduced
-or modified by the change that violates the
-[comment policy](./contributing/code-comments.md)
-is a blocker regardless of consequence. The required outcome is deletion or reduction to a
-compliant comment, and that fix does not restart validation.
+When a required command cannot run, record the attempted command, the exact constraint or failure,
+and the resulting evidence gap. `Review incomplete` takes precedence over the other verdicts while
+any material evidence gap remains. A failed check whose output fully establishes a concrete finding
+does not by itself make the review incomplete; record the finding and use `Changes recommended`.
 
-Cross-platform tooling is also an explicit blocker. Trace the tooling's filesystem, process,
-environment, and shell boundaries. New or changed shared tooling that cannot run natively on
-supported Windows, Linux, and macOS violates the
-[cross-platform tooling contract](./contributing/cross-platform-tooling.md) and must be corrected
-before approval. Portability is a review concern, not a reason to require operating-system-specific
-or matrix tests. Tooling is an exception to the general test-coverage blocker above: do not block
-approval because tooling lacks tests. Recommend tests only when complex behaviour would benefit
-from regression protection.
+## Write `code-review.md`
 
+Use these sections in this order:
 
-### Non-blockers are also surfaced
+1. **Context and sources** - work-item identity or ad hoc rationale, review type, declared scope,
+   changed surfaces, and every requirement or guidance source read.
+2. **Requirements** - complete, explicit acceptance criteria, each attributed to the ticket,
+   request, or a named repository document and section.
+3. **Advisory verdict** - exactly one of `No changes recommended`, `Changes recommended`, or
+   `Review incomplete`, followed by a concise evidence-based rationale.
+4. **Findings** - objective, unranked findings. Write `No findings` when there are none.
+5. **Validation evidence** - every required local command with its result, plus targeted inspection
+   or behavioural evidence used by the review.
+6. **Unverified evidence and questions** - material evidence gaps and decisions that require human
+   input. Write `None` when there are none.
 
-There's no such thing as a non-blocker. A review needs to surface all observations. Whether it's a blocker or not is determined by the team, not the review.
-
-### Some observations are not findings
-
-Do not report:
-
-- unrelated existing debt;
-- a ticket-silent implementation choice or additional change without a concrete adverse
-  consequence;
-- personal style or naming preferences;
-- formatting, lint, or other deterministic failures already reported by repository checks;
-- hypothetical failure modes without a credible execution path;
-- broad redesigns that would only be nicer; or
-- additional test cases with no meaningful behavioural or regression value.
-
-Do not manufacture a finding when the change is acceptable.
-
-## Give one actionable review
-
-Make the next action obvious and keep the context needed to take it close to the finding.
-
-The top-level or banner comment is a decision surface, not an essay. Its first line states the
-immediate action or outcome. Do not open with process narration, generic praise, or a recap of the
-change. Do not close with pleasantries or an invitation to continue the discussion.
-
-Keep each finding to one bounded action. Lead with a short title that names the defect, then give
-only the trigger or failure path, consequence, evidence, and required outcome needed to act. Use
-literal, matter-of-fact language. Keep uncertainty only when it changes the decision. Omit tangents,
-repeated context, and speculative advice.
-
-Do not repeat full location-specific findings in the banner. Group them by root cause and
-consequence, and put detailed evidence at the narrowest useful location. If there are many findings,
-preserve all supported findings but split them into blockers and non-blockers rather than producing
-one long, unranked list. Concision governs presentation, not completeness.
-
-Every review contains these sections, omitting an empty findings section rather than inventing
-content:
-
-1. **Verdict** - approve or request changes.
-2. **Blockers** - the trigger, failure path, consequence, evidence, and required outcome.
-3. **Non-blockers** - the consequence, whether to consider resolving it now, and a bounded
-   follow-up ticket recommendation when deferring it.
-4. **Validation** - the checks and behaviour examined, including anything material that could not
-   be verified.
-
-An acceptable change receives approval. A review is complete when the implementer can make one
-coherent pass over all required fixes, consciously accept or defer every non-blocker, and return for
-a bounded verification rather than another excavation of the original change.
+Keep each finding actionable and self-contained. The review is complete when the artifact accounts
+for every in-scope file and affected flow, every applicable requirement, all prior findings in a
+re-review, and all required local gates.

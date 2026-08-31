@@ -1,33 +1,34 @@
 # Initial review
 
-Establish the required outcome, observable acceptance conditions, explicit constraints, changed
-surfaces, and applicable guidance before judging implementation choices.
+Establish the work item's required outcome, observable acceptance conditions, explicit constraints,
+changed surfaces, and applicable guidance before judging implementation choices.
 
-Focus review effort on judgments automation cannot make: whether the change achieves the required
-outcome and follows explicit requirements; whether ticket-silent implementation choices and
-additional changes are technically sound and coherent; whether its control and data flows are
-correct; whether its boundaries, responsibilities, and dependencies fit the architecture; whether
-permissions, failure handling, recovery, compatibility, and side effects are safe; and whether
-tests assert the material behaviour rather than merely passing.
+Use the comparison endpoints defined by the canonical review policy. An unqualified review covers
+every new, modified, deleted, or renamed file in that active changeset and every materially affected
+control or data flow. If the user explicitly narrows the review, record the boundary in
+`code-review.md`, inspect every file and flow inside it, list excluded surfaces, and do not claim
+completeness outside it.
 
-Map the high-risk boundaries across the whole diff before writing findings:
+Map high-risk boundaries across the declared surface before writing findings:
 
-- writes, transactions, destructive actions, and partial failure;
-- error handling and failures converted into empty or successful states;
-- external or model-generated input;
+- writes, destructive actions, partial failure, and recovery;
+- errors converted into empty or successful states;
+- external, untrusted, or generated input;
 - authentication, authorisation, audit context, and tenant isolation;
-- asynchronous work, races, and stale state;
+- asynchronous work, races, retries, and stale state;
 - public, persisted, and integration compatibility; and
-- business rules or sources of truth that might be duplicated.
+- business rules or sources of truth that may have been duplicated.
 
-Trace analogous call sites before reporting a defect. Review every changed file and every materially
-affected control or data flow, even after finding enough blockers to determine the verdict. Do not
-stop at a numeric limit, severity threshold, representative sample, or selection of the most
-important findings.
+Focus on judgments automation cannot make: whether the outcome and constraints are satisfied;
+whether control and data flows are correct; whether boundaries, responsibilities, and dependencies
+fit the target architecture; whether permissions, failure handling, compatibility, and side effects
+are safe; and whether tests assert the material behaviour.
 
-Before publishing, make a final completeness sweep against the required outcome, explicit
-requirements, review context, whole diff, affected call sites, tests, applicable guidance, and
-high-risk boundary map. Group occurrences with the same root cause in one finding and identify every
-affected location. Communicate every supported blocker and non-blocker in one initial review,
-ordered by consequence. Priority governs order, not inclusion; do not drip-feed findings as
-separate parts of the diff are inspected.
+Trace analogous call sites before concluding that an implementation is defective. Continue after
+finding an issue: do not stop at a numeric limit, a consequence threshold, a representative sample,
+or the first evidence supporting `Changes recommended`.
+
+Before publishing, reconcile the work item, declared scope, every in-scope file, affected call sites
+and flows, tests, applicable guidance, high-risk boundary map, and required local-gate evidence.
+Group a shared root cause into one finding and identify every affected location. The first review
+must contain every supported finding so remediation can be completed in one coherent pass.

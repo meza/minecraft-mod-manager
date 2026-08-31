@@ -1,40 +1,43 @@
 ---
 name: curseforge-api
-description: CurseForge API Gate - Use when implementing, updating, or debugging CurseForge API integration (endpoints, x-api-key auth header, rate limits, pagination, error handling) or when working with the CurseForge REST API docs.
+description: CurseForge API integration gate. Use when implementing, updating, debugging, or reviewing CurseForge endpoints, authentication, rate limiting, pagination, errors, request or response models, or REST API documentation.
 ---
 
 # CurseForge API
 
-## When to Use
+## Establish the contracts
 
-Use this skill when a task involves any of the following:
-- Adding or modifying CurseForge API calls (any HTTP to `api.curseforge.com`).
-- Updating request/response parsing for CurseForge resources (mods, files, fingerprints, search).
-- Investigating CurseForge API errors (auth failures, rate limits, unexpected response shapes).
-- Needing up-to-date endpoint definitions, parameters, or schemas via `https://docs.curseforge.com/rest-api/`.
+Read these repository documents before assessing or changing the integration:
 
-## Core Approach
+1. `internal/platform/README.md` for the shared provider boundary, normalized result, selection behavior, clients, and expected errors.
+2. `internal/curseforge/README.md` for CurseForge package ownership, public APIs, headers, pagination, and provider-specific errors.
 
-1. Prefer authoritative sources: read the official CurseForge REST API docs for up-to-date truth.
-2. Keep repo behavior consistent: align with `docs/platform-apis.md` before changing behavior.
-3. Be conservative under uncertainty: label assumptions, verify in docs, and avoid inventing endpoints or fields.
-4. Protect secrets: never log or persist API keys; treat `x-api-key` values as sensitive.
+Consult the current official CurseForge REST API documentation at `https://docs.curseforge.com/rest-api/` for the external wire contract. Confirm the base URL, authentication, endpoint, parameters, pagination, response schema, error shape, and published rate-limit behavior relevant to the task.
 
-## Workflow
+Local documentation owns project architecture and behavior. Official documentation owns the current external API contract. If they conflict, report the conflict and establish which project behavior must change rather than silently choosing one.
 
-1. Read local expectations first (repo-specific)
-   - Read `docs/platform-apis.md` and confirm the intended CurseForge behaviors (headers, rate limiting, pagination, endpoint usage).
+## Work within the provider boundary
 
-2. Acquire the current CurseForge REST API docs
-   - Docs: `https://docs.curseforge.com/rest-api/`
-   - Use them to confirm: base URL, required headers, path/query params, request/response schemas, pagination mechanics, and error formats.
+- Keep shared orchestration and normalized results in `internal/platform`.
+- Keep CurseForge transport, models, pagination, selection, and provider-specific error types in `internal/curseforge`. Preserve shared project-level error types in `internal/globalerrors` as documented by the provider package.
+- Reuse the injected HTTP `Doer` and shared rate limiter.
+- Preserve the `x-api-key` handling owned by the CurseForge client. Never log, persist, or expose credentials.
+- Map expected failures consistently with the documented platform and provider contracts.
+- Do not add endpoints, fields, headers, retry rules, or rate-limit semantics that are not supported by authoritative evidence.
 
-3. Implement or adjust the integration
-   - Send `x-api-key` on all requests.
-   - Handle pagination explicitly where required (for example, follow `index` and `pageSize` patterns until you have inspected the full result set).
-   - Handle rate limiting as signaled by the API, consistent with the repo networking layer (for example, `X-Ratelimit-Remaining` and `X-Ratelimit-Reset`).
-   - Fail with actionable errors when required fields are missing (for example, missing download URL or file hash).
+For a review, trace each changed request and response through the provider package and every applicable consumer. Trace normalized fetch behavior through `internal/platform`; review provider-only APIs at their documented public or package boundary. Report findings without modifying files unless changes are authorized.
 
-4. Validate
-   - Add or update tests where this repo has them.
-   - If testing is not available for the change, do a focused smoke check (for example, validate JSON shape parsing against representative samples).
+## Validate
+
+Use local `httptest` coverage for request construction, headers, pagination, decoding, selection, and error mapping as applicable. Follow `CONTRIBUTING.md` and use its required `make` targets rather than calling Go test or build commands directly.
+
+## Self-verification
+
+Before completing the task, verify that:
+
+- both local architecture documents were read;
+- external claims were checked against current official CurseForge documentation;
+- provider-specific behavior remains inside `internal/curseforge`;
+- the shared `internal/platform` contract remains coherent;
+- credentials cannot appear in output or persisted artifacts; and
+- validation covers the changed or reviewed request, response, and failure paths.

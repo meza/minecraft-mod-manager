@@ -1,40 +1,43 @@
 ---
 name: modrinth-api
-description: Modrinth API Gate - Use when implementing, updating, or debugging Modrinth API integration (endpoints, auth headers, rate limits, pagination, error handling) or when working with Modrinth OpenAPI docs/spec.
+description: Modrinth API integration gate. Use when implementing, updating, debugging, or reviewing Modrinth endpoints, authentication, rate limiting, errors, request or response models, or official API and OpenAPI documentation.
 ---
 
 # Modrinth API
 
-## When to Use
+## Establish the contracts
 
-Use this skill when a task involves any of the following:
-- Adding or modifying Modrinth API calls (any HTTP to `api.modrinth.com`).
-- Updating request/response parsing for Modrinth resources (projects, versions, version files, search).
-- Investigating Modrinth API errors (auth failures, rate limits, unexpected response shapes).
-- Needing up-to-date endpoint definitions, parameters, or schemas via Modrinth docs or OpenAPI.
+Read these repository documents before assessing or changing the integration:
 
-## Core Approach
+1. `internal/platform/README.md` for the shared provider boundary, normalized result, selection behavior, clients, and expected errors.
+2. `internal/modrinth/README.md` for Modrinth package ownership, public APIs, headers, selection, and provider-specific errors.
 
-1. Prefer authoritative sources: read the official docs and OpenAPI spec for up-to-date truth.
-2. Keep repo behavior consistent: align with `docs/platform-apis.md` before changing behavior.
-3. Be conservative under uncertainty: label assumptions, verify in docs/spec, and avoid inventing endpoints or fields.
-4. Protect secrets: never log or persist API keys; treat `Authorization` values as sensitive.
+Consult the current official Modrinth API documentation at `https://docs.modrinth.com/api/` and OpenAPI specification at `https://docs.modrinth.com/openapi.yaml` for the external wire contract. Confirm the base URL, authentication, required user agent, endpoint, parameter encoding, response schema, error shape, and published rate-limit behavior relevant to the task.
 
-## Workflow
+Local documentation owns project architecture and behavior. Official documentation owns the current external API contract. If they conflict, report the conflict and establish which project behavior must change rather than silently choosing one.
 
-1. Read local expectations first (repo-specific)
-   - Read `docs/platform-apis.md` and confirm the intended Modrinth behaviors (headers, rate limiting, endpoint usage).
+## Work within the provider boundary
 
-2. Acquire the current Modrinth API docs and OpenAPI spec
-   - Docs: `https://docs.modrinth.com/api/`
-   - OpenAPI: `https://docs.modrinth.com/openapi.yaml`
-   - Use them to confirm: base URLs, auth scheme, required headers, path/query params, request/response schemas, and error formats.
+- Keep shared orchestration and normalized results in `internal/platform`.
+- Keep Modrinth transport, models, selection, and provider-specific error types in `internal/modrinth`. Preserve shared project-level error types in `internal/globalerrors` as documented by the provider package.
+- Reuse the injected HTTP `Doer` and shared rate limiter.
+- Preserve the authorization and user-agent handling owned by the Modrinth client. Never log, persist, or expose credentials.
+- Map expected failures consistently with the documented platform and provider contracts.
+- Do not add endpoints, fields, headers, retry rules, or rate-limit semantics that are not supported by authoritative evidence.
 
-3. Implement or adjust the integration
-   - Match the spec's parameter encoding and response shape.
-   - Handle rate limiting and retries in a way consistent with the repo's networking layer.
-   - Fail with actionable errors when required fields are missing.
+For a review, trace each changed request and response through the provider package and every applicable consumer. Trace normalized fetch behavior through `internal/platform`; review provider-only APIs at their documented public or package boundary. Report findings without modifying files unless changes are authorized.
 
-4. Validate
-   - Add or update tests where this repo has them.
-   - If testing is not available for the change, do a focused smoke check (for example, validate JSON shape parsing against representative samples).
+## Validate
+
+Use local `httptest` coverage for request construction, headers, encoding, decoding, selection, and error mapping as applicable. Follow `CONTRIBUTING.md` and use its required `make` targets rather than calling Go test or build commands directly.
+
+## Self-verification
+
+Before completing the task, verify that:
+
+- both local architecture documents were read;
+- external claims were checked against current official Modrinth documentation;
+- provider-specific behavior remains inside `internal/modrinth`;
+- the shared `internal/platform` contract remains coherent;
+- credentials cannot appear in output or persisted artifacts; and
+- validation covers the changed or reviewed request, response, and failure paths.

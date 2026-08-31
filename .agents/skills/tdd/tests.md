@@ -1,121 +1,58 @@
-# Good and Bad Tests
+# Test design reference
 
-## Good Tests
+## Test observable behavior
 
-**Integration-style**: Test through real interfaces, not mocks of internal parts.
+Use a public interface and assert an independently known result.
 
-```typescript
-// GOOD: Tests observable behavior
-test("user can checkout with valid cart", async () => {
-  const cart = createCart();
-  cart.add(product);
-  const result = await checkout(cart, paymentMethod);
-  expect(result.status).toBe("confirmed");
-});
+```go
+func TestCartCalculatesTotal(t *testing.T) {
+	cart := NewCart()
+	cart.Add(Item{Price: 10})
+	cart.Add(Item{Price: 5})
+
+	assert.Equal(t, 15, cart.Total())
+}
 ```
 
-Characteristics:
+The literal `15` is an independent worked result. Recomputing the expected value with the production algorithm would make the test tautological.
 
-- Tests behavior users/callers care about
-- Uses public API only
-- Survives internal refactors
-- Describes WHAT, not HOW
-- One logical assertion per test
+## Use durable names
 
-## Durable Test Names
+Name the behavior, not the delivery activity.
 
-Suite names (`describe`) and test names (`test` or `it`) must describe stable, observable
-behavior in domain language. They must not contain Jira keys, ticket item numbers, pull request
-numbers, or other delivery metadata. Delivery traceability belongs in Jira, commits, branches, and
-pull requests, not in the executable specification.
+```go
+// Avoid: the ticket identifies the work rather than the behavior.
+func TestMMM228Item18(t *testing.T) {}
 
-```typescript
-// BAD: Delivery metadata makes the suite name temporary.
-describe("restoreReviewItem (AS-228 item 18)", () => {});
-
-// GOOD: The suite names the behavior boundary.
-describe("restoreReviewItem", () => {});
-
-// BAD: The ticket identifies the work, not the behavior.
-it("MMM-228 item 18 - preserves the stored status", () => {});
-
-// GOOD: The name remains meaningful after the ticket is closed.
-it("preserves status when restoring a deleted review note", () => {});
+// Prefer: the name remains useful after the ticket closes.
+func TestRestorePreservesStoredStatus(t *testing.T) {}
 ```
 
-## Verification Is Not Always a Test
+Keep ticket IDs, pull request numbers, and review item numbers in delivery records rather than executable specifications.
 
-Do not commit a test that searches the repository merely to prove that a requested string, variable,
-file, or identifier was removed. That test encodes a one-off change request rather than a durable
-behavior contract.
+## Avoid implementation coupling
 
-```typescript
-// BAD: A mechanical cleanup disguised as an executable specification.
-test("variable X no longer appears anywhere", () => {
-  expect(searchRepository("X")).toEqual([]);
-});
+A test is implementation-coupled when it mocks internal collaborators, exercises private functions instead of public behavior, or asserts call order that callers cannot observe. Such tests fail during harmless refactoring and may remain green when the public behavior is broken.
+
+Prefer exercising the real public path. Replace only nondeterministic system boundaries.
+
+## Control time explicitly
+
+When behavior depends on the current time, inject a clock or current-time function and freeze it before arranging the subject under test.
+
+```go
+fixedNow := time.Date(2026, time.August, 31, 12, 0, 0, 0, time.UTC)
+service := NewService(func() time.Time { return fixedNow })
 ```
 
-Use a targeted command as completion evidence instead:
+Derive relative inputs such as expired, future, age, and elapsed time from the frozen clock. A date literal remains appropriate when that exact date is a domain input and the behavior does not interpret it relative to now.
+
+## Treat mechanical verification separately
+
+Do not commit a test that scans the repository merely to prove that a requested string, file, or identifier was removed. Record a targeted search as completion evidence instead:
 
 ```bash
-rg -n '\bX\b' . # expected result: no matches
+rg -n '\bObsoleteName\b' .
 ```
 
-Record the command and result in the verification evidence; do not add it to the test suite. If the
-absence is a permanent repository policy, use the repository's established lint or static-analysis
-mechanism, and only when that enduring policy is explicitly required.
-
-## Bad Tests
-
-**Implementation-detail tests**: Coupled to internal structure.
-
-```typescript
-// BAD: Tests implementation details
-test("checkout calls paymentService.process", async () => {
-  const mockPayment = jest.mock(paymentService);
-  await checkout(cart, payment);
-  expect(mockPayment.process).toHaveBeenCalledWith(cart.total);
-});
-```
-
-Red flags:
-
-- Mocking internal collaborators
-- Testing private methods
-- Asserting on call counts/order
-- Test breaks when refactoring without behavior change
-- Test name describes HOW not WHAT
-- Verifying through external means instead of interface
-
-```typescript
-// BAD: Bypasses interface to verify
-test("createUser saves to database", async () => {
-  await createUser({ name: "Alice" });
-  const row = await db.query("SELECT * FROM users WHERE name = ?", ["Alice"]);
-  expect(row).toBeDefined();
-});
-
-// GOOD: Verifies through interface
-test("createUser makes user retrievable", async () => {
-  const user = await createUser({ name: "Alice" });
-  const retrieved = await getUser(user.id);
-  expect(retrieved.name).toBe("Alice");
-});
-```
-
-**Tautological tests**: Expected value restates the implementation, so the test passes by construction.
-
-```typescript
-// BAD: Expected value is recomputed the way the code computes it
-test("calculateTotal sums line items", () => {
-  const items = [{ price: 10 }, { price: 5 }];
-  const expected = items.reduce((sum, i) => sum + i.price, 0);
-  expect(calculateTotal(items)).toBe(expected);
-});
-
-// GOOD: Expected value is an independent, known literal
-test("calculateTotal sums line items", () => {
-  expect(calculateTotal([{ price: 10 }, { price: 5 }])).toBe(15);
-});
-```
+Use permanent lint or static analysis only when the absence is an explicit enduring repository policy.

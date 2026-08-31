@@ -1,39 +1,36 @@
 # Pull request reviews
 
-Read the current pull request title and complete body, then read the complete existing discussion
-history before establishing the review baseline. This includes general comments, submitted review
-bodies, inline review threads, and every reply, including resolved or outdated threads.
+Use the environment's enabled read-only GitHub integration to retrieve the current pull request
+title, complete body, target branch, head revision, linked work item, and complete discussion history
+before establishing the review baseline. Include general comments, submitted review bodies, inline
+threads, replies, and resolved or outdated threads when they remain available. Do not read GitHub
+credentials from repository or environment files or improvise another access mechanism.
 
-Use that context to understand the stated purpose, explicit boundaries, reviewer expectations, known
-constraints, prior findings, implementation choices, ticket-silent work, and decisions already
-discussed. Treat it as evidence, not independent authority to change the ticket's required outcome
-or explicit requirements, or to override accepted architecture and current documented guidance.
-A different implementation from one suggested in Jira, or an additional change Jira did not
-mention, is not a conflict or finding by itself. Assess it against the canonical review standard and
-stop only for an actual conflict between explicit requirements and binding guidance.
+Follow every pagination cursor exposed by the integration. Under `Context and sources`, record the
+pull request identity, target and head revisions, retrieved fields, whether pagination completed,
+and any history the integration reports as unavailable.
 
-Use the repository CI configuration and current-head check list only to establish which validation
-CI owns. Do not rerun lint, formatting, typechecking, builds, tests, or any other CI-owned check
-locally. CI ownership, not a green result, makes that local verification wasteful: the rule applies
-whether a check's current result is green, red, pending, skipped, or absent.
+If the integration or material history is unavailable, record exactly what could not be retrieved.
+The canonical verdict precedence applies: use `Review incomplete` when a missing portion creates a
+material evidence gap, including when it prevents the reviewer from establishing requirements,
+scope, comparison endpoints, or the state of a prior finding. A missing portion is non-material only
+when the available evidence independently establishes the affected contract; explain that basis in
+`Validation evidence`.
 
-CI status is not a review finding and does not affect the review verdict. Do not report CI results
-in the findings, verdict, or validation summary. GitHub's
-[required checks and merge controls](../contributing/commits-and-pull-requests.md#satisfy-the-merge-gates)
-own enforcement; a failing required check will prevent delivery until the implementer fixes it. Run
-targeted validation only for material behaviour CI does not own or when a concrete concern requires
-evidence beyond the check's contract.
+Use that material as evidence of purpose, explicit boundaries, known constraints, prior findings,
+implementation decisions, and questions already resolved. It cannot override the work item's
+requirements, accepted architecture, or current repository guidance. A different implementation or
+additional change is not a finding by itself; report only a concrete adverse consequence.
 
-## Use GitHub's review facilities
+Pull request reviews use the same root `code-review.md` artifact and advisory verdicts as every other
+review. Do not create native GitHub review comments, submit an approval or change-request decision,
+or duplicate findings in pull-request discussion. Humans decide how the advisory review affects the
+pull request.
 
-When acting as a peer reviewer on a GitHub pull request, collect findings in one pending review and
-submit it through GitHub's native review controls. Attach a location-specific finding to the
-relevant changed line. Put a cross-cutting finding in the review body, or attach it to the clearest
-affected line and identify the other locations there. Do not duplicate the same root cause across
-several comments.
+Inspect the pull request's full declared review surface even when an earlier comment highlights a
+smaller area. A user may explicitly narrow the review; record that boundary and do not claim
+coverage outside it.
 
-Submit **Request changes** when any blocker remains and **Approve** when none remain, including when
-the review contains only non-blockers. Do not substitute a general comment for the native decision
-or repeat the control label in the review text. A native review state carries the verdict; do not
-duplicate it in prose. If the reviewer cannot use the required control, state that limitation in
-validation rather than implying that the pull request was approved or blocked.
+Run every required local gate from the root contribution guide and record each command and result in
+`code-review.md`. CI results may provide additional context, but they do not replace local evidence
+and do not determine the advisory verdict by themselves.

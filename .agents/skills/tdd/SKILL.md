@@ -1,72 +1,75 @@
 ---
 name: tdd
-description: Test-driven development and automated test quality. Use when writing or reviewing automated tests, including regression, component, API, database, integration, and end-to-end tests, or when the user asks for test-first development or mentions "red-green-refactor".
+description: Test-driven development and automated test quality. Use when implementing behavior test-first, writing or reviewing automated tests, or when the user mentions TDD, test-first development, regression tests, or red-green-refactor.
 ---
 
-# Test-Driven Development
+# Test-driven development
 
-**Tautological tests considered harmful.**
+Use the mode that matches the task. Do not impose implementation chronology on a test review.
 
-TDD is the red → green loop. This skill is the reference that makes that loop produce tests worth keeping: what a good test is, where tests go, the anti-patterns, and the rules of the loop. Every section applies on every cycle — consult them before and during the loop, not after.
+## Establish the test seam
 
-When exploring the codebase, read `CONTEXT.md` (if it exists) so test names and interface vocabulary match the project's domain language, and respect ADRs in the area you're touching.
+Before writing or assessing tests, inspect the relevant architecture documentation, public interfaces, existing tests, and nearby repository guidance. Identify the narrowest stable interface through which callers or users observe the behavior.
 
-## Decide whether TDD applies
+Use an established seam when the evidence identifies one. Ask the user only when materially different seams remain plausible and the choice would change the behavior contract or scope.
 
-Classify the change before starting a red-green cycle. TDD is required when application or library
-behavior, a public contract, or executable logic changes through a stable test seam. Do not invent a
-seam merely because a file changed or a task has an acceptance criterion.
+Read [tests.md](tests.md) when designing or reviewing test cases. Read [mocking.md](mocking.md) when the work needs control over a system boundary.
 
-Changes without a durable behavior contract do not require new automated tests. Common examples are
-Markdown and comment edits, repository metadata, GitHub Actions workflow edits, and one-off mechanical
-removals or renames. Validate those changes with the tools that match the work: documentation checks,
-workflow syntax or schema validation, targeted repository searches, lint, typecheck, or build checks.
-Existing regression suites may still be run when they provide proportionate confidence.
+## Choose a mode
 
-For a removal request such as "remove every reference to `X`", use a targeted search as completion
-evidence. Do not turn that one-off search into a permanent test unless the user explicitly requires an
-enduring policy and the repository has an established lint or static-analysis mechanism for it.
+### Implementation mode
 
-## What a good test is
+Use implementation mode when changing application or library behavior through a stable test seam.
 
-Tests verify behavior through public interfaces, not implementation details. Code can change entirely; tests shouldn't. A good test reads like a specification — "user can checkout with valid cart" tells you exactly what capability exists — and survives refactors because it doesn't care about internal structure.
+Work in vertical slices:
 
-Carry that specification through suite and test names, helper names, assertions, and structure, not
-through narration comments. Comments shown in examples explain this guide; they do not authorise
-comments in repository code. The repository comment policy still governs every comment, including
-tests, unless this skill declares an explicit exception.
+1. Red: add one test that expresses an observable behavior and run it to prove the expected failure.
+2. Green: implement only enough behavior to make that test pass.
+3. Refactor: improve the code and test design while keeping the suite green.
+4. Repeat for the next behavior.
 
-See [tests.md](tests.md) for examples and [mocking.md](mocking.md) for mocking guidelines.
+Do not write all tests before all implementation. Each cycle should use what the previous cycle revealed.
 
-## Control time-dependent Vitest tests
+User-visible behavior requires the snapshot coverage defined by `CONTRIBUTING.md`. Run repository `make` targets rather than invoking Go test or build commands directly.
 
-When a Vitest test's setup or expected behaviour is relative to the current date or time, call
-`vi.useFakeTimers()` and `vi.setSystemTime(...)` before creating that data or exercising the subject.
-Derive dates and timestamps such as today, expired, future, age, elapsed time, and relative windows
-from the frozen clock. Do not copy real calendar or timestamp strings into fixtures or expectations
-as a substitute for controlling time. Restore real timers in guaranteed cleanup so the mocked clock
-cannot leak into another test.
+### Test-review mode
 
-A date or timestamp literal remains appropriate when that exact value is an independent domain input
-or expected contract and the behaviour does not interpret it relative to the current time. Playwright
-tests use Playwright's clock API instead of Vitest's timer API.
+Use test-review mode when the request is to assess existing or proposed tests.
 
-## Seams — where tests go
+Do not require proof that the reviewed tests were authored before the implementation. Assess whether they:
 
-A **seam** is the public boundary you test at: the interface where you observe behavior without reaching inside. Tests live at seams, never against internals.
+- exercise observable behavior through stable interfaces;
+- would fail for a meaningful regression;
+- derive expected values independently from the implementation;
+- cover relevant success and failure behavior;
+- control nondeterministic boundaries;
+- follow repository snapshot and coverage requirements; and
+- remain useful after internal refactoring.
 
-**Test only at pre-agreed seams.** Before writing any test, write down the seams under test and confirm them with the user. No test is written at an unconfirmed seam. You can't test everything — agreeing the seams up front is how testing effort lands on the critical paths and complex logic instead of every edge case.
+Report concrete gaps and their consequences. Do not modify code unless the user has authorized changes.
 
-Ask: "What's the public interface, and which seams should we test?"
+## Decide whether automated tests apply
 
-## Anti-patterns
+Do not invent a test seam for work without a durable behavior contract. Markdown, comments, repository metadata, workflow configuration, and one-off mechanical removals normally use documentation checks, schema validation, targeted searches, lint, or build checks instead.
 
-- **Implementation-coupled** — mocks internal collaborators, tests private methods, or verifies through a side channel (querying the database instead of using the interface). The tell: the test breaks when you refactor but behavior hasn't changed.
-- **Tautological** — the assertion recomputes the expected value the way the code does (`expect(add(a, b)).toBe(a + b)`, a snapshot derived by hand the same way, a constant asserted equal to itself), so it passes by construction and can never disagree with the code. Expected values must come from an independent source of truth — a known-good literal, a worked example, the spec.
-- **Horizontal slicing** — writing all tests first, then all implementation. Bulk tests verify _imagined_ behavior: you test the _shape_ of things rather than user-facing behavior, the tests go insensitive to real changes, and you commit to test structure before understanding the implementation. Work in **vertical slices** instead — one test → one implementation → repeat, each test a **tracer bullet** that responds to what the last cycle taught you.
+For requests such as removing every reference to a name, use a targeted search as completion evidence. Add a permanent test only when the absence is an enduring policy with an established enforcement mechanism.
 
-## Rules of the loop
+## Test qualities
 
-- **Red before green.** Write the failing test first, then only enough code to pass it. Don't anticipate future tests or add speculative features.
-- **One slice at a time.** One seam, one test, one minimal implementation per cycle.
-- **Refactoring is not part of the loop.** It belongs to the review stage (see the `code-review-rules` skill), not the red → green implementation cycle.
+- Test behavior that users or callers can observe through a stable interface.
+- Name tests in domain language without ticket IDs or delivery metadata.
+- Use an independent source of truth for expected values.
+- Keep a test focused on one behavior, while allowing the assertions needed to prove it.
+- Control time, randomness, network, filesystem, and other nondeterministic boundaries explicitly.
+- Prefer real production wiring. Replace only boundaries that must be controlled.
+
+## Self-verification
+
+Before completing the work, verify that:
+
+- the chosen mode matches the task;
+- the seam follows repository architecture and existing public interfaces;
+- implementation work includes evidence of red, green, and refactor cycles;
+- test review does not claim or require unobservable authoring chronology;
+- tests are sensitive to meaningful regressions rather than implementation details; and
+- validation uses the repository checks required by `CONTRIBUTING.md`.
