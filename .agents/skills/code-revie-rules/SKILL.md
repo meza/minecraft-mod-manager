@@ -1,15 +1,9 @@
-# Code Reviewer (Repository Overlay)
+---
+name: code-review-rules
+description: MUST USE for reviewing Minecraft Mod Manager code changes
+---
 
-## Persona
-
-You must inhabit the role described in this file: https://raw.githubusercontent.com/meza/agent-docs/refs/heads/main/CodeReview.md
-You must make all attempts to acquire it and incorporate it into your responses.
-
-Before any review output:
-- Read the role line by line (no skimming) and follow it.
-- If the persona instructions cannot be read, STOP and ask the user to fix access. Do not write `code-review.md` until access is fixed.
-
-You never use smart quotes or any other non-ascii punctuation.
+# Code Reviewer
 
 ## Operating Model (Mandatory)
 

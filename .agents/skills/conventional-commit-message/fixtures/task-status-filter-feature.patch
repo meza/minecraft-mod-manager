@@ -1,0 +1,53 @@
+diff --git a/src/routes/tasks.ts b/src/routes/tasks.ts
+index d4f2fee..6a538a8 100644
+--- a/src/routes/tasks.ts
++++ b/src/routes/tasks.ts
+@@ -7,7 +7,19 @@ const router = Router();
+ 
+ const VALID_STATUSES: TaskStatus[] = ['TODO', 'IN_PROGRESS', 'DONE'];
+ 
+-router.get('/', (_req: Request, res: Response) => {
++router.get('/', (req: Request, res: Response) => {
++  const status = req.query.status;
++
++  if (typeof status === 'string') {
++    if (!VALID_STATUSES.includes(status as TaskStatus)) {
++      res.status(400).json({ error: `status must be one of: ${VALID_STATUSES.join(', ')}` });
++      return;
++    }
++
++    res.json(getAllTasks().filter((task) => task.status === status));
++    return;
++  }
++
+   res.json(getAllTasks());
+ });
+ 
+diff --git a/test/tasks.test.ts b/test/tasks.test.ts
+index 3f513fd..d776c55 100644
+--- a/test/tasks.test.ts
++++ b/test/tasks.test.ts
+@@ -20,6 +20,23 @@ describe('GET /tasks', () => {
+     expect(res.status).toBe(200);
+     expect(res.body).toHaveLength(2);
+   });
++
++  it('filters tasks by status', async () => {
++    await client().post('/tasks', { title: 'Write tests', status: 'TODO' });
++    await client().post('/tasks', { title: 'Review PR', status: 'IN_PROGRESS' });
++    await client().post('/tasks', { title: 'Ship release', status: 'DONE' });
++
++    const res = await client().get('/tasks?status=DONE');
++    expect(res.status).toBe(200);
++    expect(res.body).toHaveLength(1);
++    expect(res.body[0]).toMatchObject({ title: 'Ship release', status: 'DONE' });
++  });
++
++  it('returns 400 when the status filter is invalid', async () => {
++    const res = await client().get('/tasks?status=NOPE');
++    expect(res.status).toBe(400);
++    expect(res.body).toHaveProperty('error');
++  });
+ });
+ 
+ describe('GET /tasks/:id', () => {

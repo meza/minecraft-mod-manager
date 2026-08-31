@@ -1,0 +1,29 @@
+{
+  "version": 1,
+  "skills": {
+    "addressing-code-review-findings": {
+      "source": "meza/skills",
+      "sourceType": "github",
+      "skillPath": "plugins/addressing-code-review-findings/skills/addressing-code-review-findings/SKILL.md",
+      "computedHash": "e66d1fb673ccf748ca7eed3c990d4151c3ba515626671d249793292068c6eeba"
+    },
+    "clean-code": {
+      "source": "meza/skills",
+      "sourceType": "github",
+      "skillPath": "plugins/clean-code/skills/clean-code/SKILL.md",
+      "computedHash": "b7ee590c54df5ef72ad7375cad99c94ef2a093c8285575bfe3b86d1bdad5c102"
+    },
+    "conventional-commit-message": {
+      "source": "meza/skills",
+      "sourceType": "github",
+      "skillPath": "plugins/conventional-commit-message/skills/conventional-commit-message/SKILL.md",
+      "computedHash": "2517113dff8b2291e10a5bf02eb526f438c168e33d3b80f12bdf48e6eef0b47b"
+    },
+    "fixing-linter-violations": {
+      "source": "meza/skills",
+      "sourceType": "github",
+      "skillPath": "plugins/fixing-linter-violations/skills/fixing-linter-violations/SKILL.md",
+      "computedHash": "573ba65958d186c5326d3e205b8b99aef5b914b8a90a66582d25c52cabd59ce0"
+    }
+  }
+}

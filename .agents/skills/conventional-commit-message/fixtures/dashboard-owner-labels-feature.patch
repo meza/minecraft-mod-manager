@@ -1,0 +1,158 @@
+diff --git a/src/app/api/projects/route.ts b/src/app/api/projects/route.ts
+index 9ee0797..55a037b 100644
+--- a/src/app/api/projects/route.ts
++++ b/src/app/api/projects/route.ts
+@@ -1,6 +1,7 @@
+ import { NextResponse } from 'next/server'
+ import { z } from 'zod'
+ import { db } from '@/lib/db'
++import { formatOwnerLabel } from '@/lib/owner-label'
+ 
+ const createProjectSchema = z.object({
+   name: z.string().min(1).max(100),
+@@ -8,9 +9,20 @@ const createProjectSchema = z.object({
+ 
+ export async function GET() {
+   const projects = await db.project.findMany({
++    include: {
++      owner: true,
++    },
+     orderBy: { createdAt: 'desc' },
+   })
+-  return NextResponse.json({ data: projects })
++
++  return NextResponse.json({
++    data: projects.map((project) => ({
++      id: project.id,
++      name: project.name,
++      createdAt: project.createdAt,
++      ownerLabel: formatOwnerLabel(project.owner),
++    })),
++  })
+ }
+ 
+ export async function POST(request: Request) {
+diff --git a/src/app/dashboard/page.tsx b/src/app/dashboard/page.tsx
+index 47955b9..382131f 100644
+--- a/src/app/dashboard/page.tsx
++++ b/src/app/dashboard/page.tsx
+@@ -1,18 +1,17 @@
+-import { db } from '@/lib/db'
+-import type { Project } from '@/lib/types'
+-
+-async function getProjects(): Promise<Project[]> {
+-  return db.project.findMany({
+-    orderBy: { createdAt: 'desc' },
+-  })
+-}
++import { getDashboardProjects } from '@/lib/dashboard-projects'
+ 
+ export default async function DashboardPage() {
+-  const projects = await getProjects()
++  const projects = await getDashboardProjects()
++  const latestOwnerLabel = projects[0]?.ownerLabel ?? 'No projects yet'
+ 
+   return (
+     <main>
+       <h1>Dashboard</h1>
++      <section>
++        <h2>Project owners</h2>
++        <p>Total projects: {projects.length}</p>
++        <p>Latest owner: {latestOwnerLabel}</p>
++      </section>
+       <section>
+         <h2>Your Projects</h2>
+         {projects.length === 0 ? (
+@@ -22,6 +21,7 @@ export default async function DashboardPage() {
+             {projects.map((project) => (
+               <li key={project.id}>
+                 <span>{project.name}</span>
++                <small>Owner: {project.ownerLabel}</small>
+               </li>
+             ))}
+           </ul>
+diff --git a/src/app/layout.tsx b/src/app/layout.tsx
+index 7475850..85af923 100644
+--- a/src/app/layout.tsx
++++ b/src/app/layout.tsx
+@@ -2,7 +2,7 @@ import type { Metadata } from 'next'
+ 
+ export const metadata: Metadata = {
+   title: 'Taskflow',
+-  description: 'Project management for small teams',
++  description: 'Project management for small teams with owner labels',
+ }
+ 
+ export default function RootLayout({
+diff --git a/src/app/page.tsx b/src/app/page.tsx
+index c180401..94c9cc4 100644
+--- a/src/app/page.tsx
++++ b/src/app/page.tsx
+@@ -5,6 +5,7 @@ export default function HomePage() {
+     <main>
+       <h1>Taskflow</h1>
+       <p>Project management for small teams. Organize work, track progress, collaborate.</p>
++      <p>Use the dashboard to scan project owners and ownership labels at a glance.</p>
+       <nav>
+         <Link href="/dashboard">Go to Dashboard</Link>
+       </nav>
+diff --git a/src/lib/dashboard-projects.ts b/src/lib/dashboard-projects.ts
+new file mode 100644
+index 0000000..7b962c0
+--- /dev/null
++++ b/src/lib/dashboard-projects.ts
+@@ -0,0 +1,19 @@
++import { db } from '@/lib/db'
++import { formatOwnerLabel } from '@/lib/owner-label'
++import type { DashboardProject } from '@/lib/types'
++
++export async function getDashboardProjects(): Promise<DashboardProject[]> {
++  const projects = await db.project.findMany({
++    include: {
++      owner: true,
++    },
++    orderBy: { createdAt: 'desc' },
++  })
++
++  return projects.map((project) => ({
++    id: project.id,
++    name: project.name,
++    createdAt: project.createdAt,
++    ownerLabel: formatOwnerLabel(project.owner),
++  }))
++}
+diff --git a/src/lib/owner-label.ts b/src/lib/owner-label.ts
+new file mode 100644
+index 0000000..10e699d
+--- /dev/null
++++ b/src/lib/owner-label.ts
+@@ -0,0 +1,5 @@
++import type { ProjectOwner } from '@/lib/types'
++
++export function formatOwnerLabel(owner: ProjectOwner) {
++  return owner.name?.trim() || owner.email
++}
+diff --git a/src/lib/types.ts b/src/lib/types.ts
+index 044af66..de44263 100644
+--- a/src/lib/types.ts
++++ b/src/lib/types.ts
+@@ -15,6 +15,19 @@ export interface Project {
+   createdAt: Date
+ }
+ 
++export interface ProjectOwner {
++  id: string
++  email: string
++  name: string | null
++}
++
++export interface DashboardProject {
++  id: string
++  name: string
++  createdAt: Date
++  ownerLabel: string
++}
++
+ export interface Subscription {
+   id: string
+   userId: string

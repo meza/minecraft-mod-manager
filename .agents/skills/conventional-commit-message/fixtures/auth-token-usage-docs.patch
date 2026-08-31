@@ -1,0 +1,40 @@
+diff --git a/README.md b/README.md
+new file mode 100644
+index 0000000000000000000000000000000000000000..96329ecf11ccb2dcb85aea623ce2627ab751cf13
+--- /dev/null
++++ b/README.md
+@@ -0,0 +1,34 @@
++# HMAC Auth API
++
++Small Express API that issues and validates HMAC-signed bearer tokens for a
++mock workspace service.
++
++## Local development
++
++1. Install dependencies with `npm ci`.
++2. Set `HMAC_SECRET` before starting the app or running tests.
++3. Optionally set `PORT`; the app defaults to `3000`.
++
++Common commands:
++
++- `npm run dev` to start the API locally
++- `npm test` to run the test suite
++- `npm run build` to compile TypeScript
++
++## Getting a token
++
++Request a token from `POST /auth/token` with JSON like:
++
++```json
++{
++  "email": "alice@example.com",
++  "password": "correct-horse-battery-staple"
++}
++```
++
++The response returns a bearer token that can be used with the `/users` and
++`/workspaces` routes.
++
++## Health check
++
++`GET /health` returns the current service status and runtime environment.

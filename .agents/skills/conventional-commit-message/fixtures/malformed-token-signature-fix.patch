@@ -1,0 +1,74 @@
+diff --git a/src/__tests__/authenticate.test.ts b/src/__tests__/authenticate.test.ts
+index 871e953..ddc0e9e 100644
+--- a/src/__tests__/authenticate.test.ts
++++ b/src/__tests__/authenticate.test.ts
+@@ -31,13 +31,12 @@ describe('authenticate middleware', () => {
+     expect(res.status).toBe(401);
+   });
+ 
+-  it('returns 401 for a token signed with the wrong secret', async () => {
+-    // Manually construct a token with a different secret
+-    const header = Buffer.from(JSON.stringify({ alg: 'sha256', ver: 'v1' })).toString('base64url');
+-    const body = Buffer.from(JSON.stringify({ ...ADMIN_PAYLOAD, iat: 1000, exp: 9999999999 })).toString('base64url');
+-    const fakeToken = `${header}.${body}.invalidsignature`;
++  it('returns 401 for a token with a malformed signature length', async () => {
++    const token = signToken(ADMIN_PAYLOAD);
++    const [header, body, signature] = token.split('.');
++    const malformedToken = `${header}.${body}.${signature.slice(0, -1)}`;
+ 
+-    const res = await request(app).get('/users').set('Authorization', `Bearer ${fakeToken}`);
++    const res = await request(app).get('/users').set('Authorization', `Bearer ${malformedToken}`);
+     expect(res.status).toBe(401);
+     expect(res.body.error).toMatch(/invalid or expired/i);
+   });
+diff --git a/src/__tests__/hmac.test.ts b/src/__tests__/hmac.test.ts
+index 9d592a5..2e598d4 100644
+--- a/src/__tests__/hmac.test.ts
++++ b/src/__tests__/hmac.test.ts
+@@ -65,11 +65,23 @@ describe('verifyToken', () => {
+     expect(verifyToken(forged)).toBeNull();
+   });
+ 
+-  it('returns null for a token with a bad signature', () => {
++  it('returns null for a token with a corrupted signature', () => {
+     const token = signToken(BASE_PAYLOAD);
+     const parts = token.split('.');
+-    const badSig = token + 'x';
+-    expect(verifyToken(`${parts[0]}.${parts[1]}.badsignature`)).toBeNull();
++    const replacement = parts[2].endsWith('A') ? 'B' : 'A';
++    const corruptedSignature = `${parts[2].slice(0, -1)}${replacement}`;
++
++    expect(verifyToken(`${parts[0]}.${parts[1]}.${corruptedSignature}`)).toBeNull();
++  });
++
++  it('returns null for a token with a malformed signature length', () => {
++    const token = signToken(BASE_PAYLOAD);
++    const parts = token.split('.');
++    const truncatedSignature = parts[2].slice(0, -1);
++    const malformedToken = `${parts[0]}.${parts[1]}.${truncatedSignature}`;
++
++    expect(() => verifyToken(malformedToken)).not.toThrow();
++    expect(verifyToken(malformedToken)).toBeNull();
+   });
+ 
+   it('returns null for a malformed token', () => {
+diff --git a/src/lib/hmac.ts b/src/lib/hmac.ts
+index 97f00f6..1b84240 100644
+--- a/src/lib/hmac.ts
++++ b/src/lib/hmac.ts
+@@ -48,8 +48,14 @@ export function verifyToken(token: string): TokenPayload | null {
+ 
+   const [header, body, signature] = parts;
+   const expectedSig = sign(`${header}.${body}`);
++  const providedSignatureBuffer = Buffer.from(signature, 'utf8');
++  const expectedSignatureBuffer = Buffer.from(expectedSig, 'utf8');
+ 
+-  if (!crypto.timingSafeEqual(Buffer.from(signature), Buffer.from(expectedSig))) {
++  if (providedSignatureBuffer.length !== expectedSignatureBuffer.length) {
++    return null;
++  }
++
++  if (!crypto.timingSafeEqual(providedSignatureBuffer, expectedSignatureBuffer)) {
+     return null;
+   }
+ 

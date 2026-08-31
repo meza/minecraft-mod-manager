@@ -1,0 +1,54 @@
+diff --git a/src/app/dashboard/page.tsx b/src/app/dashboard/page.tsx
+index 47955b9..fa439d1 100644
+--- a/src/app/dashboard/page.tsx
++++ b/src/app/dashboard/page.tsx
+@@ -1,14 +1,14 @@
+-import { db } from '@/lib/db'
+-import type { Project } from '@/lib/types'
++import { db } from '@/lib/db';
++import type { Project } from '@/lib/types';
+ 
+ async function getProjects(): Promise<Project[]> {
+   return db.project.findMany({
+     orderBy: { createdAt: 'desc' },
+-  })
++  });
+ }
+ 
+ export default async function DashboardPage() {
+-  const projects = await getProjects()
++  const projects = await getProjects();
+ 
+   return (
+     <main>
+@@ -28,5 +28,5 @@ export default async function DashboardPage() {
+         )}
+       </section>
+     </main>
+-  )
++  );
+ }
+diff --git a/src/app/page.tsx b/src/app/page.tsx
+index c180401..67cc0a2 100644
+--- a/src/app/page.tsx
++++ b/src/app/page.tsx
+@@ -1,13 +1,16 @@
+-import Link from 'next/link'
++import Link from 'next/link';
+ 
+ export default function HomePage() {
+   return (
+     <main>
+       <h1>Taskflow</h1>
+-      <p>Project management for small teams. Organize work, track progress, collaborate.</p>
++      <p>
++        Project management for small teams. Organize work, track progress,
++        collaborate.
++      </p>
+       <nav>
+         <Link href="/dashboard">Go to Dashboard</Link>
+       </nav>
+     </main>
+-  )
++  );
+ }

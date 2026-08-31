@@ -1,0 +1,497 @@
+diff --git a/deploy/deploy.sh b/deploy/deploy.sh
+index 171f32e..b86a5c6 100644
+--- a/deploy/deploy.sh
++++ b/deploy/deploy.sh
+@@ -8,17 +8,29 @@ REGION="us-east-1"
+ echo "Deploying ${SERVICE_NAME} to ${ENVIRONMENT}..."
+ 
+ # Pull secrets from AWS Secrets Manager.
+-# HMAC_SECRET is the shared signing key used by all running instances.
+-# Rotating this secret will immediately invalidate all outstanding tokens —
+-# users will need to re-authenticate. Plan rotation windows accordingly.
+-HMAC_SECRET=$(aws secretsmanager get-secret-value \
+-  --secret-id "${ENVIRONMENT}/${SERVICE_NAME}/hmac-secret" \
++# Breaking change: HMAC_SECRET is no longer supported.
++# Operators must migrate to:
++# - ${ENVIRONMENT}/${SERVICE_NAME}/hmac-signing-keys : JSON array of {id, secret}
++# - ${ENVIRONMENT}/${SERVICE_NAME}/hmac-active-key-id : id used for new tokens
++HMAC_SIGNING_KEYS=$(aws secretsmanager get-secret-value \
++  --secret-id "${ENVIRONMENT}/${SERVICE_NAME}/hmac-signing-keys" \
+   --region "${REGION}" \
+   --query 'SecretString' \
+   --output text)
+ 
+-if [ -z "${HMAC_SECRET}" ]; then
+-  echo "ERROR: Failed to retrieve HMAC_SECRET from Secrets Manager" >&2
++if [ -z "${HMAC_SIGNING_KEYS}" ]; then
++  echo "ERROR: Failed to retrieve HMAC_SIGNING_KEYS. Migrate ${ENVIRONMENT}/${SERVICE_NAME}/hmac-secret to ${ENVIRONMENT}/${SERVICE_NAME}/hmac-signing-keys before upgrading." >&2
++  exit 1
++fi
++
++HMAC_ACTIVE_KEY_ID=$(aws secretsmanager get-secret-value \
++  --secret-id "${ENVIRONMENT}/${SERVICE_NAME}/hmac-active-key-id" \
++  --region "${REGION}" \
++  --query 'SecretString' \
++  --output text)
++
++if [ -z "${HMAC_ACTIVE_KEY_ID}" ]; then
++  echo "ERROR: Failed to retrieve HMAC_ACTIVE_KEY_ID. Create ${ENVIRONMENT}/${SERVICE_NAME}/hmac-active-key-id before upgrading from HMAC_SECRET." >&2
+   exit 1
+ fi
+ 
+@@ -43,10 +55,11 @@ aws ecs update-service \
+     \"containerOverrides\": [{
+       \"name\": \"${SERVICE_NAME}\",
+       \"environment\": [
+-        { \"name\": \"NODE_ENV\",     \"value\": \"${ENVIRONMENT}\" },
+-        { \"name\": \"HMAC_SECRET\",  \"value\": \"${HMAC_SECRET}\" },
+-        { \"name\": \"DATABASE_URL\", \"value\": \"${DB_URL}\" },
+-        { \"name\": \"PORT\",         \"value\": \"3000\" }
++        { \"name\": \"NODE_ENV\",           \"value\": \"${ENVIRONMENT}\" },
++        { \"name\": \"HMAC_SIGNING_KEYS\",  \"value\": \"${HMAC_SIGNING_KEYS}\" },
++        { \"name\": \"HMAC_ACTIVE_KEY_ID\", \"value\": \"${HMAC_ACTIVE_KEY_ID}\" },
++        { \"name\": \"DATABASE_URL\",       \"value\": \"${DB_URL}\" },
++        { \"name\": \"PORT\",               \"value\": \"3000\" }
+       ]
+     }]
+   }"
+diff --git a/jest.setup.ts b/jest.setup.ts
+index 23196b3..875606c 100644
+--- a/jest.setup.ts
++++ b/jest.setup.ts
+@@ -1,3 +1,7 @@
+-process.env.HMAC_SECRET = 'test-secret-do-not-use-in-production';
++process.env.HMAC_SIGNING_KEYS = JSON.stringify([
++  { id: 'primary-2026-03', secret: 'test-secret-do-not-use-in-production' },
++  { id: 'previous-2026-02', secret: 'retired-test-secret-do-not-use-in-production' },
++]);
++process.env.HMAC_ACTIVE_KEY_ID = 'primary-2026-03';
+ process.env.NODE_ENV = 'test';
+ process.env.PORT = '3001';
+diff --git a/src/__tests__/authenticate.test.ts b/src/__tests__/authenticate.test.ts
+index 871e953..f17e621 100644
+--- a/src/__tests__/authenticate.test.ts
++++ b/src/__tests__/authenticate.test.ts
+@@ -1,3 +1,4 @@
++import crypto from 'crypto';
+ import request from 'supertest';
+ import { app } from '../app';
+ import { signToken } from '../lib/hmac';
+@@ -15,10 +16,25 @@ const MEMBER_PAYLOAD: Omit<TokenPayload, 'iat' | 'exp'> = {
+   role: 'member',
+ };
+ 
++const SIGNING_KEYS = JSON.parse(process.env.HMAC_SIGNING_KEYS ?? '[]') as Array<{ id: string; secret: string }>;
++const ACTIVE_KEY_ID = process.env.HMAC_ACTIVE_KEY_ID ?? '';
++const KEY_BY_ID = Object.fromEntries(SIGNING_KEYS.map((key) => [key.id, key.secret]));
++
+ function makeBearer(payload: Omit<TokenPayload, 'iat' | 'exp'>): string {
+   return `Bearer ${signToken(payload)}`;
+ }
+ 
++function manualToken(
++  payload: TokenPayload,
++  header: Record<string, unknown>,
++  secret: string,
++): string {
++  const encodedHeader = Buffer.from(JSON.stringify(header)).toString('base64url');
++  const encodedBody = Buffer.from(JSON.stringify(payload)).toString('base64url');
++  const signature = crypto.createHmac('sha256', secret).update(`${encodedHeader}.${encodedBody}`).digest('base64url');
++  return `${encodedHeader}.${encodedBody}.${signature}`;
++}
++
+ describe('authenticate middleware', () => {
+   it('returns 401 when no Authorization header is present', async () => {
+     const res = await request(app).get('/users');
+@@ -31,11 +47,24 @@ describe('authenticate middleware', () => {
+     expect(res.status).toBe(401);
+   });
+ 
+-  it('returns 401 for a token signed with the wrong secret', async () => {
+-    // Manually construct a token with a different secret
+-    const header = Buffer.from(JSON.stringify({ alg: 'sha256', ver: 'v1' })).toString('base64url');
+-    const body = Buffer.from(JSON.stringify({ ...ADMIN_PAYLOAD, iat: 1000, exp: 9999999999 })).toString('base64url');
+-    const fakeToken = `${header}.${body}.invalidsignature`;
++  it('returns 401 for a legacy token without a key id', async () => {
++    const fakeToken = manualToken(
++      { ...ADMIN_PAYLOAD, iat: 1000, exp: 9999999999 },
++      { alg: 'sha256', ver: 'v1' },
++      KEY_BY_ID[ACTIVE_KEY_ID],
++    );
++
++    const res = await request(app).get('/users').set('Authorization', `Bearer ${fakeToken}`);
++    expect(res.status).toBe(401);
++    expect(res.body.error).toMatch(/invalid or expired/i);
++  });
++
++  it('returns 401 for a token with an unknown key id', async () => {
++    const fakeToken = manualToken(
++      { ...ADMIN_PAYLOAD, iat: 1000, exp: 9999999999 },
++      { alg: 'sha256', ver: 'v2', kid: 'missing-key' },
++      'some-other-secret',
++    );
+ 
+     const res = await request(app).get('/users').set('Authorization', `Bearer ${fakeToken}`);
+     expect(res.status).toBe(401);
+@@ -79,7 +108,13 @@ describe('POST /auth/token', () => {
+ 
+     expect(res.status).toBe(200);
+     expect(res.body.token).toBeDefined();
++
++    const [header] = res.body.token.split('.');
++    const decodedHeader = JSON.parse(Buffer.from(header, 'base64url').toString('utf8'));
++
+     expect(res.body.token.split('.')).toHaveLength(3);
++    expect(decodedHeader.kid).toBe(ACTIVE_KEY_ID);
++    expect(decodedHeader.ver).toBe('v2');
+   });
+ 
+   it('returns 401 on wrong password', async () => {
+diff --git a/src/__tests__/hmac.test.ts b/src/__tests__/hmac.test.ts
+index 9d592a5..afccd97 100644
+--- a/src/__tests__/hmac.test.ts
++++ b/src/__tests__/hmac.test.ts
+@@ -1,3 +1,4 @@
++import crypto from 'crypto';
+ import { signToken, verifyToken, TokenPayload } from '../lib/hmac';
+ 
+ const BASE_PAYLOAD: Omit<TokenPayload, 'iat' | 'exp'> = {
+@@ -6,19 +7,44 @@ const BASE_PAYLOAD: Omit<TokenPayload, 'iat' | 'exp'> = {
+   role: 'admin',
+ };
+ 
++const SIGNING_KEYS = JSON.parse(process.env.HMAC_SIGNING_KEYS ?? '[]') as Array<{ id: string; secret: string }>;
++const ACTIVE_KEY_ID = process.env.HMAC_ACTIVE_KEY_ID ?? '';
++const KEY_BY_ID = Object.fromEntries(SIGNING_KEYS.map((key) => [key.id, key.secret]));
++
++function encodeJson(value: object): string {
++  return Buffer.from(JSON.stringify(value)).toString('base64url');
++}
++
++function signWithKey(keyId: string, payload: TokenPayload, headerOverrides: Record<string, unknown> = {}): string {
++  const header = encodeJson({
++    alg: 'sha256',
++    ver: 'v2',
++    kid: keyId,
++    ...headerOverrides,
++  });
++  const body = encodeJson(payload);
++  const secret = KEY_BY_ID[keyId] ?? 'unknown-secret';
++  const signature = crypto.createHmac('sha256', secret).update(`${header}.${body}`).digest('base64url');
++  return `${header}.${body}.${signature}`;
++}
++
+ describe('signToken', () => {
+   it('produces a three-part dot-separated token', () => {
+     const token = signToken(BASE_PAYLOAD);
+     expect(token.split('.')).toHaveLength(3);
+   });
+ 
+-  it('encodes the payload into the token body', () => {
++  it('encodes the payload into the token body and active key id into the header', () => {
+     const token = signToken(BASE_PAYLOAD);
+-    const [, body] = token.split('.');
+-    const decoded = JSON.parse(Buffer.from(body, 'base64url').toString('utf8'));
+-    expect(decoded.sub).toBe('user-001');
+-    expect(decoded.email).toBe('alice@example.com');
+-    expect(decoded.role).toBe('admin');
++    const [header, body] = token.split('.');
++    const decodedHeader = JSON.parse(Buffer.from(header, 'base64url').toString('utf8'));
++    const decodedBody = JSON.parse(Buffer.from(body, 'base64url').toString('utf8'));
++
++    expect(decodedHeader.kid).toBe(ACTIVE_KEY_ID);
++    expect(decodedHeader.ver).toBe('v2');
++    expect(decodedBody.sub).toBe('user-001');
++    expect(decodedBody.email).toBe('alice@example.com');
++    expect(decodedBody.role).toBe('admin');
+   });
+ 
+   it('sets iat and exp automatically', () => {
+@@ -33,19 +59,6 @@ describe('signToken', () => {
+     expect(decoded.iat).toBeLessThanOrEqual(after);
+     expect(decoded.exp).toBe(decoded.iat + 3600);
+   });
+-
+-  it('uses HMAC_SECRET from environment', () => {
+-    const originalSecret = process.env.HMAC_SECRET;
+-    // Tokens signed with different secrets must differ in signature
+-    const token1 = signToken(BASE_PAYLOAD);
+-    process.env.HMAC_SECRET = 'a-different-secret';
+-    // config is cached at import time, so signature change is tested via verifyToken
+-    process.env.HMAC_SECRET = originalSecret;
+-    const token2 = signToken(BASE_PAYLOAD);
+-    // Both tokens have same structure; signatures may differ only if secret differs
+-    expect(token1.split('.')[2]).toBeTruthy();
+-    expect(token2.split('.')[2]).toBeTruthy();
+-  });
+ });
+ 
+ describe('verifyToken', () => {
+@@ -65,10 +78,46 @@ describe('verifyToken', () => {
+     expect(verifyToken(forged)).toBeNull();
+   });
+ 
++  it('returns null for a legacy token without a key id', () => {
++    const payload: TokenPayload = {
++      ...BASE_PAYLOAD,
++      iat: 1000,
++      exp: 9999999999,
++    };
++    const header = encodeJson({ alg: 'sha256', ver: 'v1' });
++    const body = encodeJson(payload);
++    const signature = crypto
++      .createHmac('sha256', KEY_BY_ID[ACTIVE_KEY_ID])
++      .update(`${header}.${body}`)
++      .digest('base64url');
++
++    expect(verifyToken(`${header}.${body}.${signature}`)).toBeNull();
++  });
++
++  it('returns null for a token with an unknown key id', () => {
++    const payload: TokenPayload = {
++      ...BASE_PAYLOAD,
++      iat: 1000,
++      exp: 9999999999,
++    };
++    expect(verifyToken(signWithKey('missing-key', payload))).toBeNull();
++  });
++
++  it('accepts a token signed with a non-active but configured key', () => {
++    const payload: TokenPayload = {
++      ...BASE_PAYLOAD,
++      iat: 1000,
++      exp: 9999999999,
++    };
++
++    const verified = verifyToken(signWithKey('previous-2026-02', payload));
++    expect(verified?.sub).toBe(BASE_PAYLOAD.sub);
++    expect(verified?.role).toBe(BASE_PAYLOAD.role);
++  });
++
+   it('returns null for a token with a bad signature', () => {
+     const token = signToken(BASE_PAYLOAD);
+     const parts = token.split('.');
+-    const badSig = token + 'x';
+     expect(verifyToken(`${parts[0]}.${parts[1]}.badsignature`)).toBeNull();
+   });
+ 
+diff --git a/src/config.ts b/src/config.ts
+index 7df62b4..4a41807 100644
+--- a/src/config.ts
++++ b/src/config.ts
+@@ -6,8 +6,82 @@ const required = (key: string): string => {
+   return value;
+ };
+ 
++export interface HmacSigningKey {
++  id: string;
++  secret: string;
++}
++
++export interface HmacKeyConfig {
++  activeKey: HmacSigningKey;
++  activeKeyId: string;
++  keys: HmacSigningKey[];
++  keysById: Record<string, HmacSigningKey>;
++}
++
++function parseSigningKeys(raw: string): HmacSigningKey[] {
++  let parsed: unknown;
++
++  try {
++    parsed = JSON.parse(raw);
++  } catch {
++    throw new Error('HMAC_SIGNING_KEYS must be valid JSON');
++  }
++
++  if (!Array.isArray(parsed) || parsed.length === 0) {
++    throw new Error('HMAC_SIGNING_KEYS must be a non-empty JSON array');
++  }
++
++  return parsed.map((entry, index) => {
++    if (!entry || typeof entry !== 'object') {
++      throw new Error(`HMAC_SIGNING_KEYS[${index}] must be an object`);
++    }
++
++    const id = 'id' in entry ? entry.id : undefined;
++    const secret = 'secret' in entry ? entry.secret : undefined;
++
++    if (typeof id !== 'string' || id.trim() === '') {
++      throw new Error(`HMAC_SIGNING_KEYS[${index}].id must be a non-empty string`);
++    }
++
++    if (typeof secret !== 'string' || secret.trim() === '') {
++      throw new Error(`HMAC_SIGNING_KEYS[${index}].secret must be a non-empty string`);
++    }
++
++    return {
++      id,
++      secret,
++    };
++  });
++}
++
++function loadHmacConfig(): HmacKeyConfig {
++  const activeKeyId = required('HMAC_ACTIVE_KEY_ID');
++  const keys = parseSigningKeys(required('HMAC_SIGNING_KEYS'));
++  const keysById: Record<string, HmacSigningKey> = {};
++
++  for (const key of keys) {
++    if (keysById[key.id]) {
++      throw new Error(`HMAC_SIGNING_KEYS contains duplicate key id: ${key.id}`);
++    }
++
++    keysById[key.id] = key;
++  }
++
++  const activeKey = keysById[activeKeyId];
++  if (!activeKey) {
++    throw new Error(`HMAC_ACTIVE_KEY_ID references unknown key id: ${activeKeyId}`);
++  }
++
++  return {
++    activeKey,
++    activeKeyId,
++    keys,
++    keysById,
++  };
++}
++
+ export const config = {
+-  hmacSecret: required('HMAC_SECRET'),
++  hmac: loadHmacConfig(),
+   port: parseInt(process.env.PORT ?? '3000', 10),
+   nodeEnv: process.env.NODE_ENV ?? 'development',
+ };
+diff --git a/src/lib/hmac.ts b/src/lib/hmac.ts
+index 97f00f6..e4cf6de 100644
+--- a/src/lib/hmac.ts
++++ b/src/lib/hmac.ts
+@@ -9,24 +9,76 @@ export interface TokenPayload {
+   exp: number;
+ }
+ 
++interface TokenHeader {
++  alg: typeof ALGORITHM;
++  ver: typeof VERSION;
++  kid: string;
++}
++
+ const ALGORITHM = 'sha256';
+-const VERSION = 'v1';
++const VERSION = 'v2';
+ 
+ function encodePayload(payload: object): string {
+   return Buffer.from(JSON.stringify(payload)).toString('base64url');
+ }
+ 
+-function decodePayload(encoded: string): object {
+-  return JSON.parse(Buffer.from(encoded, 'base64url').toString('utf8'));
++function decodePayload<T>(encoded: string): T | null {
++  try {
++    return JSON.parse(Buffer.from(encoded, 'base64url').toString('utf8')) as T;
++  } catch {
++    return null;
++  }
+ }
+ 
+-function sign(data: string): string {
++function sign(data: string, secret: string): string {
+   return crypto
+-    .createHmac(ALGORITHM, config.hmacSecret)
++    .createHmac(ALGORITHM, secret)
+     .update(data)
+     .digest('base64url');
+ }
+ 
++function isTokenHeader(value: unknown): value is TokenHeader {
++  return Boolean(
++    value &&
++    typeof value === 'object' &&
++    'alg' in value &&
++    'ver' in value &&
++    'kid' in value &&
++    value.alg === ALGORITHM &&
++    value.ver === VERSION &&
++    typeof value.kid === 'string' &&
++    value.kid.length > 0,
++  );
++}
++
++function isTokenPayload(value: unknown): value is TokenPayload {
++  return Boolean(
++    value &&
++    typeof value === 'object' &&
++    'sub' in value &&
++    'email' in value &&
++    'role' in value &&
++    'iat' in value &&
++    'exp' in value &&
++    typeof value.sub === 'string' &&
++    typeof value.email === 'string' &&
++    (value.role === 'admin' || value.role === 'member' || value.role === 'viewer') &&
++    typeof value.iat === 'number' &&
++    typeof value.exp === 'number',
++  );
++}
++
++function signaturesMatch(actual: string, expected: string): boolean {
++  const actualBuffer = Buffer.from(actual, 'utf8');
++  const expectedBuffer = Buffer.from(expected, 'utf8');
++
++  if (actualBuffer.length !== expectedBuffer.length) {
++    return false;
++  }
++
++  return crypto.timingSafeEqual(actualBuffer, expectedBuffer);
++}
++
+ export function signToken(payload: Omit<TokenPayload, 'iat' | 'exp'>): string {
+   const now = Math.floor(Date.now() / 1000);
+   const fullPayload: TokenPayload = {
+@@ -35,9 +87,13 @@ export function signToken(payload: Omit<TokenPayload, 'iat' | 'exp'>): string {
+     exp: now + 3600,
+   };
+ 
+-  const header = encodePayload({ alg: ALGORITHM, ver: VERSION });
++  const header = encodePayload({
++    alg: ALGORITHM,
++    ver: VERSION,
++    kid: config.hmac.activeKey.id,
++  });
+   const body = encodePayload(fullPayload);
+-  const signature = sign(`${header}.${body}`);
++  const signature = sign(`${header}.${body}`, config.hmac.activeKey.secret);
+ 
+   return `${header}.${body}.${signature}`;
+ }
+@@ -47,13 +103,26 @@ export function verifyToken(token: string): TokenPayload | null {
+   if (parts.length !== 3) return null;
+ 
+   const [header, body, signature] = parts;
+-  const expectedSig = sign(`${header}.${body}`);
++  const decodedHeader = decodePayload<TokenHeader>(header);
++  if (!isTokenHeader(decodedHeader)) {
++    return null;
++  }
++
++  const key = config.hmac.keysById[decodedHeader.kid];
++  if (!key) {
++    return null;
++  }
++
++  const expectedSig = sign(`${header}.${body}`, key.secret);
++  if (!signaturesMatch(signature, expectedSig)) {
++    return null;
++  }
+ 
+-  if (!crypto.timingSafeEqual(Buffer.from(signature), Buffer.from(expectedSig))) {
++  const payload = decodePayload<TokenPayload>(body);
++  if (!isTokenPayload(payload)) {
+     return null;
+   }
+ 
+-  const payload = decodePayload(body) as TokenPayload;
+   const now = Math.floor(Date.now() / 1000);
+ 
+   if (payload.exp < now) return null;

@@ -1,0 +1,58 @@
+diff --git a/src/routes/taskValidation.ts b/src/routes/taskValidation.ts
+new file mode 100644
+index 0000000..ae0eb1f
+--- /dev/null
++++ b/src/routes/taskValidation.ts
+@@ -0,0 +1,15 @@
++import { CreateTaskInput, TaskStatus } from '../models/task';
++
++const VALID_STATUSES: TaskStatus[] = ['TODO', 'IN_PROGRESS', 'DONE'];
++
++export function validateCreateTaskInput(body: CreateTaskInput): string | null {
++  if (!body.title || typeof body.title !== 'string') {
++    return 'title is required';
++  }
++
++  if (!body.status || !VALID_STATUSES.includes(body.status)) {
++    return `status must be one of: ${VALID_STATUSES.join(', ')}`;
++  }
++
++  return null;
++}
+diff --git a/src/routes/tasks.ts b/src/routes/tasks.ts
+index d4f2fee..5304641 100644
+--- a/src/routes/tasks.ts
++++ b/src/routes/tasks.ts
+@@ -1,12 +1,11 @@
+ import { Router, Request, Response } from 'express';
+ import { v4 as uuidv4 } from 'uuid';
+ import { getAllTasks, addTask, getTaskById } from '../store';
+-import { CreateTaskInput, TaskStatus } from '../models/task';
++import { CreateTaskInput } from '../models/task';
++import { validateCreateTaskInput } from './taskValidation';
+ 
+ const router = Router();
+ 
+-const VALID_STATUSES: TaskStatus[] = ['TODO', 'IN_PROGRESS', 'DONE'];
+-
+ router.get('/', (_req: Request, res: Response) => {
+   res.json(getAllTasks());
+ });
+@@ -22,14 +21,10 @@ router.get('/:id', (req: Request, res: Response) => {
+ 
+ router.post('/', (req: Request, res: Response) => {
+   const body = req.body as CreateTaskInput;
++  const validationError = validateCreateTaskInput(body);
+ 
+-  if (!body.title || typeof body.title !== 'string') {
+-    res.status(400).json({ error: 'title is required' });
+-    return;
+-  }
+-
+-  if (!body.status || !VALID_STATUSES.includes(body.status)) {
+-    res.status(400).json({ error: `status must be one of: ${VALID_STATUSES.join(', ')}` });
++  if (validationError) {
++    res.status(400).json({ error: validationError });
+     return;
+   }
+ 

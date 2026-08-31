@@ -1,0 +1,78 @@
+diff --git a/README.md b/README.md
+new file mode 100644
+index 0000000..8a3543e
+--- /dev/null
++++ b/README.md
+@@ -0,0 +1,3 @@
++# run-management-app
++
++Cancelling a run revokes participant access and clears any issued magic links for that run.
+diff --git a/src/db.ts b/src/db.ts
+index f978926..055a457 100644
+--- a/src/db.ts
++++ b/src/db.ts
+@@ -35,6 +35,10 @@ export function getMagicLinkById(id: string): MagicLink | undefined {
+   return magicLinks.get(id);
+ }
+ 
++export function getMagicLinksByRun(runId: string): MagicLink[] {
++  return Array.from(magicLinks.values()).filter((link) => link.runId === runId);
++}
++
+ export function createMagicLink(link: MagicLink): MagicLink {
+   magicLinks.set(link.id, link);
+   return link;
+@@ -49,3 +53,13 @@ export function createParticipant(participant: Participant): Participant {
+   participants.set(participant.runId, [...existing, participant]);
+   return participant;
+ }
++
++export function deleteParticipantsByRun(runId: string): void {
++  participants.delete(runId);
++}
++
++export function deleteMagicLinksByRun(runId: string): void {
++  for (const link of getMagicLinksByRun(runId)) {
++    magicLinks.delete(link.id);
++  }
++}
+diff --git a/src/routes/runs.ts b/src/routes/runs.ts
+index 4b71115..eaae49d 100644
+--- a/src/routes/runs.ts
++++ b/src/routes/runs.ts
+@@ -1,12 +1,24 @@
+ import { Router, Request, Response } from 'express';
+ import { v4 as uuidv4 } from 'uuid';
+-import { getAllRuns, getRun, createRun, updateRunState } from '../db';
++import {
++  getAllRuns,
++  getRun,
++  createRun,
++  updateRunState,
++  deleteParticipantsByRun,
++  deleteMagicLinksByRun,
++} from '../db';
+ import { CreateRunInput, UpdateRunStateInput, RunState } from '../models/run';
+ 
+ const router = Router();
+ 
+ const VALID_STATES: RunState[] = ['ACTIVE', 'COMPLETED', 'CANCELLED'];
+ 
++function revokeRunAccess(runId: string): void {
++  deleteParticipantsByRun(runId);
++  deleteMagicLinksByRun(runId);
++}
++
+ router.get('/', (_req: Request, res: Response) => {
+   res.json(getAllRuns());
+ });
+@@ -48,6 +60,9 @@ router.patch('/:id/state', (req: Request, res: Response) => {
+     res.status(404).json({ error: 'Run not found' });
+     return;
+   }
++  if (body.state === 'CANCELLED') {
++    revokeRunAccess(req.params.id);
++  }
+   res.json(run);
+ });
+ 

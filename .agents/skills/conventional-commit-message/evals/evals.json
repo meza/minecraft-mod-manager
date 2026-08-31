@@ -1,0 +1,284 @@
+{
+  "skill_name": "conventional-commit-message",
+  "fixture_repo": "https://github.com/meza/engineering-agent-eval-fixtures",
+  "fixture_ref": "42765860ab7a42d44d97661b00cda48692c1f947",
+  "evals": [
+    {
+      "id": 1,
+      "eval_name": "internal-refactor-stays-refactor",
+      "fixture": "hmac-auth-api",
+      "prepare_patch": "fixtures/internal-refactor-stays-refactor.patch",
+      "turns": [
+        {
+          "prompt": "Generate the final commit message text for the current staged changes. Return only the final commit message text.",
+          "expectations": [
+            "The transcript shows the agent inspected the staged git change set before composing the message.",
+            "The final response is a single-line commit subject only, with no blank line, body, analysis, or alternatives.",
+            "The commit subject starts with `refactor` rather than `feat` or `fix`.",
+            "The subject describes internal consolidation or centralization work without claiming a new user-facing capability or bug fix."
+          ]
+        }
+      ],
+      "files": []
+    },
+    {
+      "id": 2,
+      "eval_name": "user-visible-fix-avoids-code-narration",
+      "fixture": "hmac-auth-api",
+      "prepare_patch": "fixtures/malformed-token-signature-fix.patch",
+      "turns": [
+        {
+          "prompt": "Generate the final commit message text for the current staged changes. Return only the final commit message text.",
+          "expectations": [
+            "The transcript shows the agent inspected the staged git change set before composing the message.",
+            "The final response is a single-line commit subject only, with no blank line, body, analysis, or alternatives.",
+            "The commit subject starts with `fix`.",
+            "The subject describes malformed token signatures being rejected or returning 401, not code-level implementation edits."
+          ]
+        }
+      ],
+      "files": []
+    },
+    {
+      "id": 3,
+      "eval_name": "breaking-change-returns-full-message-when-needed",
+      "fixture": "hmac-auth-api",
+      "prepare_patch": "fixtures/signing-key-rotation-breaking-change.patch",
+      "turns": [
+        {
+          "prompt": "Generate the final commit message text for the current staged changes. Return only the final commit message text.",
+          "expectations": [
+            "The transcript shows the agent inspected the staged git change set before composing the message.",
+            "The response is a full Conventional Commit message with a subject and breaking-change body, not just a one-line subject.",
+            "The subject starts with `feat` and marks the change as breaking with `!`.",
+            "The returned message includes a `BREAKING CHANGE:` explanation that describes migrating away from `HMAC_SECRET` to signing keys plus an active key id."
+          ]
+        }
+      ],
+      "files": []
+    },
+    {
+      "id": 4,
+      "eval_name": "docs-only-change-stays-docs",
+      "fixture": "hmac-auth-api",
+      "prepare_patch": "fixtures/auth-token-usage-docs.patch",
+      "turns": [
+        {
+          "prompt": "Generate the final commit message text for the current staged changes. Return only the final commit message text.",
+          "expectations": [
+            "The transcript shows the agent inspected the staged git change set before composing the message.",
+            "The final response is a single-line commit subject only, with no blank line, body, analysis, or alternatives.",
+            "The commit subject starts with `docs`.",
+            "The subject describes auth token or local usage documentation and does not classify the change as a feature, fix, test, or chore."
+          ]
+        }
+      ],
+      "files": []
+    },
+    {
+      "id": 5,
+      "eval_name": "internal-bugfix-does-not-overclaim-user-impact",
+      "fixture": "run-management-app",
+      "prepare_patch": "fixtures/magic-link-run-id-validation-fix.patch",
+      "turns": [
+        {
+          "prompt": "Generate the final commit message text for the current staged changes. Return only the final commit message text.",
+          "expectations": [
+            "The transcript shows the agent inspected the staged git change set before composing the message.",
+            "The final response is a single-line commit subject only, with no blank line, body, analysis, or alternatives.",
+            "The commit subject starts with `fix` rather than `refactor` or `feat`, because the patch corrects a shipped data-integrity problem.",
+            "The subject describes the correction as protecting existing run, participant, link, or stored data from unintended changes, whether in end-user language or in API/backend-facing contract language.",
+            "The subject may use technical nouns that fit the service boundary, but it should not read as pure implementation narration such as helper extraction, cloning strategy, defensive-copy mechanics, or other code-change-first phrasing."
+          ]
+        }
+      ],
+      "files": []
+    },
+    {
+      "id": 6,
+      "eval_name": "ci-improvement-stays-maintenance-oriented",
+      "fixture": "hmac-auth-api",
+      "prepare_patch": "fixtures/ci-concurrency-and-build-coverage.patch",
+      "turns": [
+        {
+          "prompt": "Generate the final commit message text for the current staged changes. Return only the final commit message text.",
+          "expectations": [
+            "The transcript shows the agent inspected the staged git change set before composing the message.",
+            "The final response is a single-line commit subject only, with no blank line, body, analysis, or alternatives.",
+            "The commit subject starts with `ci`.",
+            "The subject describes CI or workflow maintenance such as concurrency control, permissions, or job timeouts, and does not present the change as user-facing functionality."
+          ]
+        }
+      ],
+      "files": []
+    },
+    {
+      "id": 7,
+      "eval_name": "test-coverage-improvement-stays-test",
+      "fixture": "task-tracker-api",
+      "prepare_patch": "fixtures/task-route-validation-coverage.patch",
+      "turns": [
+        {
+          "prompt": "Generate the final commit message text for the current staged changes. Return only the final commit message text.",
+          "expectations": [
+            "The transcript shows the agent inspected the staged git change set before composing the message.",
+            "The final response is a single-line commit subject only, with no blank line, body, analysis, or alternatives.",
+            "The commit subject starts with `test`.",
+            "The subject describes test coverage or validation coverage improvements for task routes and does not misclassify the change as a product fix or feature."
+          ]
+        }
+      ],
+      "files": []
+    },
+    {
+      "id": 8,
+      "eval_name": "non-breaking-feature-stays-feat",
+      "fixture": "task-tracker-api",
+      "prepare_patch": "fixtures/task-status-filter-feature.patch",
+      "turns": [
+        {
+          "prompt": "What Conventional Commit message fits the current staged changes? Return only the final commit message text.",
+          "expectations": [
+            "The transcript shows the agent inspected the staged git change set before composing the message.",
+            "The final response is a single-line commit subject only, with no blank line, body, analysis, or alternatives.",
+            "The commit subject starts with `feat` and does not mark the change as breaking.",
+            "The subject describes filtering tasks by status or narrowing task listings by status, not code-level route or query parsing details."
+          ]
+        }
+      ],
+      "files": []
+    },
+    {
+      "id": 9,
+      "eval_name": "repo-maintenance-stays-chore",
+      "fixture": "task-tracker-api",
+      "prepare_patch": "fixtures/package-maintenance-scripts-chore.patch",
+      "turns": [
+        {
+          "prompt": "Generate the Conventional Commit for the current staged changes. Return only the final commit message text.",
+          "expectations": [
+            "The transcript shows the agent inspected the staged git change set before composing the message.",
+            "The final response is a single-line commit subject only, with no blank line, body, analysis, or alternatives.",
+            "The commit subject starts with `chore:` and does not invent a scope.",
+            "The subject describes repository or developer maintenance such as local scripts or project housekeeping, and does not classify the change as `ci`, `style`, or `refactor`."
+          ]
+        }
+      ],
+      "files": []
+    },
+    {
+      "id": 10,
+      "eval_name": "formatting-only-change-stays-style",
+      "fixture": "saas-app",
+      "prepare_patch": "fixtures/landing-page-formatting-style.patch",
+      "turns": [
+        {
+          "prompt": "Generate the final commit message text for the current staged changes. Return only the final commit message text.",
+          "expectations": [
+            "The transcript shows the agent inspected the staged git change set before composing the message.",
+            "The final response is a single-line commit subject only, with no blank line, body, analysis, or alternatives.",
+            "The commit subject starts with `style`.",
+            "The subject describes formatting or presentation cleanup only and does not claim a new feature, a bug fix, or a refactor."
+          ]
+        }
+      ],
+      "files": []
+    },
+    {
+      "id": 11,
+      "eval_name": "validation-helper-extraction-stays-refactor",
+      "fixture": "task-tracker-api",
+      "prepare_patch": "fixtures/task-validation-helper-refactor.patch",
+      "turns": [
+        {
+          "prompt": "Generate the final commit message text for the current staged changes. Return only the final commit message text.",
+          "expectations": [
+            "The transcript shows the agent inspected the staged git change set before composing the message.",
+            "The final response is a single-line commit subject only, with no blank line, body, analysis, or alternatives.",
+            "The commit subject starts with `refactor` rather than `fix` or `feat`.",
+            "The subject describes extracting or centralizing task validation logic without claiming a new behavior or a bug fix."
+          ]
+        }
+      ],
+      "files": []
+    },
+    {
+      "id": 12,
+      "eval_name": "dashboard-summary-feature-stays-feat",
+      "fixture": "saas-app",
+      "prepare_patch": "fixtures/dashboard-project-summary-feature.patch",
+      "turns": [
+        {
+          "prompt": "Generate the final commit message text for the current staged changes. Return only the final commit message text.",
+          "expectations": [
+            "The transcript shows the agent inspected the staged git change set before composing the message.",
+            "The final response is a single-line commit subject only, with no blank line, body, analysis, or alternatives.",
+            "The commit subject starts with `feat` and does not classify the change as `style`, `refactor`, or `chore`.",
+            "The subject describes a new dashboard summary or overview experience, such as showing project totals or highlighting the newest project, rather than code-level data fetching or rendering details."
+          ]
+        }
+      ],
+      "files": []
+    },
+    {
+      "id": 13,
+      "eval_name": "dashboard-owner-labels-stays-feat",
+      "fixture": "saas-app",
+      "prepare_patch": "fixtures/dashboard-owner-labels-feature.patch",
+      "turns": [
+        {
+          "prompt": "Generate the final commit message text for the current staged changes. Return only the final commit message text.",
+          "expectations": [
+            "The transcript shows the agent inspected the staged git change set before composing the message.",
+            "The final response is a single-line commit subject only, with no blank line, body, analysis, or alternatives.",
+            "The commit subject starts with `feat`.",
+            "The subject identifies the main outcome as the dashboard now showing project owners or owner labels, rather than helper extraction or data plumbing.",
+            "The subject does not classify the change as `refactor`, `style`, or `chore`.",
+            "The subject stays focused on the new dashboard capability and does not clump secondary helper or type-shape changes into the headline."
+          ]
+        }
+      ],
+      "files": []
+    },
+    {
+      "id": 14,
+      "eval_name": "run-cancellation-revokes-access-stays-fix",
+      "fixture": "run-management-app",
+      "prepare_patch": "fixtures/run-cancellation-revokes-access-fix.patch",
+      "turns": [
+        {
+          "prompt": "Generate the final commit message text for the current staged changes. Return only the final commit message text.",
+          "expectations": [
+            "The transcript shows the agent inspected the staged git change set before composing the message.",
+            "The final response is a single-line commit subject only, with no blank line, body, analysis, or alternatives.",
+            "The commit subject starts with `fix` rather than `refactor` or `feat`.",
+            "The subject identifies the main outcome as cancelling a run revoking participant access, not generic cleanup.",
+            "The subject mentions cancelled runs or run cancellation as the main behavior change, rather than helper extraction or map deletion.",
+            "The subject does not collapse the change into internal database cleanup language when the real outcome is access revocation after cancellation."
+          ]
+        }
+      ],
+      "files": []
+    },
+    {
+      "id": 15,
+      "eval_name": "task-title-whitespace-fix-stays-fix",
+      "fixture": "task-tracker-api",
+      "prepare_patch": "fixtures/task-title-trimming-fix.patch",
+      "turns": [
+        {
+          "prompt": "Generate the final commit message text for the current staged changes. Return only the final commit message text.",
+          "expectations": [
+            "The transcript shows the agent inspected the staged git change set before composing the message.",
+            "The final response contains only the final commit message text, with no analysis or alternatives.",
+            "The commit subject starts with `fix`.",
+            "The subject identifies the main outcome as task titles being trimmed or blank-after-trimming titles being rejected, not helper extraction.",
+            "The subject does not classify the change as `refactor`, `feat`, `test`, or `chore`.",
+            "The subject stays focused on the corrected task-title behavior and does not headline whitespace normalization mechanics or validation-helper implementation details."
+          ]
+        }
+      ],
+      "files": []
+    }
+  ]
+}

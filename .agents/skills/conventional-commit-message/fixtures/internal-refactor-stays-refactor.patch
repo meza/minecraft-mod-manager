@@ -1,0 +1,500 @@
+diff --git a/src/__tests__/authenticate.test.ts b/src/__tests__/authenticate.test.ts
+index 871e953..474b706 100644
+--- a/src/__tests__/authenticate.test.ts
++++ b/src/__tests__/authenticate.test.ts
+@@ -2,6 +2,7 @@ import request from 'supertest';
+ import { app } from '../app';
+ import { signToken } from '../lib/hmac';
+ import { TokenPayload } from '../lib/hmac';
++import { createTokenHeader, encodeTokenSegment } from '../lib/token-codec';
+ 
+ const ADMIN_PAYLOAD: Omit<TokenPayload, 'iat' | 'exp'> = {
+   sub: 'user-001',
+@@ -33,8 +34,8 @@ describe('authenticate middleware', () => {
+ 
+   it('returns 401 for a token signed with the wrong secret', async () => {
+     // Manually construct a token with a different secret
+-    const header = Buffer.from(JSON.stringify({ alg: 'sha256', ver: 'v1' })).toString('base64url');
+-    const body = Buffer.from(JSON.stringify({ ...ADMIN_PAYLOAD, iat: 1000, exp: 9999999999 })).toString('base64url');
++    const header = createTokenHeader();
++    const body = encodeTokenSegment({ ...ADMIN_PAYLOAD, iat: 1000, exp: 9999999999 });
+     const fakeToken = `${header}.${body}.invalidsignature`;
+ 
+     const res = await request(app).get('/users').set('Authorization', `Bearer ${fakeToken}`);
+diff --git a/src/__tests__/hmac.test.ts b/src/__tests__/hmac.test.ts
+index 9d592a5..f1fcf34 100644
+--- a/src/__tests__/hmac.test.ts
++++ b/src/__tests__/hmac.test.ts
+@@ -1,4 +1,5 @@
+ import { signToken, verifyToken, TokenPayload } from '../lib/hmac';
++import { decodeTokenSegment, splitSignedToken } from '../lib/token-codec';
+ 
+ const BASE_PAYLOAD: Omit<TokenPayload, 'iat' | 'exp'> = {
+   sub: 'user-001',
+@@ -14,8 +15,8 @@ describe('signToken', () => {
+ 
+   it('encodes the payload into the token body', () => {
+     const token = signToken(BASE_PAYLOAD);
+-    const [, body] = token.split('.');
+-    const decoded = JSON.parse(Buffer.from(body, 'base64url').toString('utf8'));
++    const parts = splitSignedToken(token);
++    const decoded = decodeTokenSegment<TokenPayload>(parts!.body);
+     expect(decoded.sub).toBe('user-001');
+     expect(decoded.email).toBe('alice@example.com');
+     expect(decoded.role).toBe('admin');
+@@ -26,8 +27,8 @@ describe('signToken', () => {
+     const token = signToken(BASE_PAYLOAD);
+     const after = Math.floor(Date.now() / 1000);
+ 
+-    const [, body] = token.split('.');
+-    const decoded = JSON.parse(Buffer.from(body, 'base64url').toString('utf8')) as TokenPayload;
++    const parts = splitSignedToken(token);
++    const decoded = decodeTokenSegment<TokenPayload>(parts!.body);
+ 
+     expect(decoded.iat).toBeGreaterThanOrEqual(before);
+     expect(decoded.iat).toBeLessThanOrEqual(after);
+diff --git a/src/data/users.ts b/src/data/users.ts
+new file mode 100644
+index 0000000..1969bdc
+--- /dev/null
++++ b/src/data/users.ts
+@@ -0,0 +1,84 @@
++export type UserRole = 'admin' | 'member' | 'viewer';
++
++interface StoredUser {
++  id: string;
++  email: string;
++  role: UserRole;
++  name: string;
++  passwordHash: string;
++}
++
++export interface SafeUser {
++  id: string;
++  email: string;
++  name: string;
++}
++
++export interface UserProfile extends SafeUser {
++  role: UserRole;
++}
++
++export interface AuthenticatedUser {
++  id: string;
++  email: string;
++  role: UserRole;
++}
++
++const VALID_PASSWORD = 'correct-horse-battery-staple';
++
++const USERS: StoredUser[] = [
++  {
++    id: 'user-001',
++    email: 'alice@example.com',
++    role: 'admin',
++    name: 'Alice',
++    passwordHash: '$2b$10$examplehash',
++  },
++  {
++    id: 'user-002',
++    email: 'bob@example.com',
++    role: 'member',
++    name: 'Bob',
++    passwordHash: '$2b$10$examplehash',
++  },
++];
++
++function toUserProfile(user: StoredUser): UserProfile {
++  return {
++    id: user.id,
++    email: user.email,
++    role: user.role,
++    name: user.name,
++  };
++}
++
++export function listSafeUsers(): SafeUser[] {
++  return USERS.map(({ id, email, name }) => ({ id, email, name }));
++}
++
++export function findUserProfileById(id: string): UserProfile | undefined {
++  const user = USERS.find(candidate => candidate.id === id);
++  return user ? toUserProfile(user) : undefined;
++}
++
++export function hasUser(id: string): boolean {
++  return USERS.some(user => user.id === id);
++}
++
++export function validateUserCredentials(email: string, password: string): AuthenticatedUser | null {
++  const user = USERS.find(candidate => candidate.email === email);
++  if (!user) {
++    return null;
++  }
++
++  // In prod: bcrypt.compareSync(password, user.passwordHash)
++  if (password !== VALID_PASSWORD) {
++    return null;
++  }
++
++  return {
++    id: user.id,
++    email: user.email,
++    role: user.role,
++  };
++}
+diff --git a/src/data/workspaces.ts b/src/data/workspaces.ts
+new file mode 100644
+index 0000000..7430134
+--- /dev/null
++++ b/src/data/workspaces.ts
+@@ -0,0 +1,51 @@
++export interface Workspace {
++  id: string;
++  name: string;
++  ownerId: string;
++  memberIds: string[];
++}
++
++const WORKSPACES: Workspace[] = [
++  {
++    id: 'ws-001',
++    name: 'Engineering',
++    ownerId: 'user-001',
++    memberIds: ['user-001', 'user-002'],
++  },
++  {
++    id: 'ws-002',
++    name: 'Design',
++    ownerId: 'user-002',
++    memberIds: ['user-002'],
++  },
++];
++
++export function listVisibleWorkspaces(userId: string): Workspace[] {
++  return WORKSPACES.filter(workspace => workspace.memberIds.includes(userId));
++}
++
++export function findWorkspaceById(id: string): Workspace | undefined {
++  return WORKSPACES.find(workspace => workspace.id === id);
++}
++
++export function createWorkspace(name: string, ownerId: string): Workspace {
++  const workspace: Workspace = {
++    id: `ws-${Date.now()}`,
++    name,
++    ownerId,
++    memberIds: [ownerId],
++  };
++
++  WORKSPACES.push(workspace);
++  return workspace;
++}
++
++export function deleteWorkspace(id: string): boolean {
++  const index = WORKSPACES.findIndex(workspace => workspace.id === id);
++  if (index === -1) {
++    return false;
++  }
++
++  WORKSPACES.splice(index, 1);
++  return true;
++}
+diff --git a/src/lib/hmac.ts b/src/lib/hmac.ts
+index 97f00f6..459cb4a 100644
+--- a/src/lib/hmac.ts
++++ b/src/lib/hmac.ts
+@@ -1,5 +1,11 @@
+-import crypto from 'crypto';
+-import { config } from '../config';
++import {
++  createSigningInput,
++  createTokenHeader,
++  decodeTokenSegment,
++  encodeTokenSegment,
++  splitSignedToken,
++} from './token-codec';
++import { signTokenInput, signaturesMatch } from './token-signature';
+ 
+ export interface TokenPayload {
+   sub: string;
+@@ -9,54 +15,44 @@ export interface TokenPayload {
+   exp: number;
+ }
+ 
+-const ALGORITHM = 'sha256';
+-const VERSION = 'v1';
++const TOKEN_TTL_SECONDS = 3600;
+ 
+-function encodePayload(payload: object): string {
+-  return Buffer.from(JSON.stringify(payload)).toString('base64url');
+-}
+-
+-function decodePayload(encoded: string): object {
+-  return JSON.parse(Buffer.from(encoded, 'base64url').toString('utf8'));
+-}
+-
+-function sign(data: string): string {
+-  return crypto
+-    .createHmac(ALGORITHM, config.hmacSecret)
+-    .update(data)
+-    .digest('base64url');
+-}
+-
+-export function signToken(payload: Omit<TokenPayload, 'iat' | 'exp'>): string {
++function buildTokenPayload(payload: Omit<TokenPayload, 'iat' | 'exp'>): TokenPayload {
+   const now = Math.floor(Date.now() / 1000);
+-  const fullPayload: TokenPayload = {
++
++  return {
+     ...payload,
+     iat: now,
+-    exp: now + 3600,
++    exp: now + TOKEN_TTL_SECONDS,
+   };
++}
+ 
+-  const header = encodePayload({ alg: ALGORITHM, ver: VERSION });
+-  const body = encodePayload(fullPayload);
+-  const signature = sign(`${header}.${body}`);
++export function signToken(payload: Omit<TokenPayload, 'iat' | 'exp'>): string {
++  const header = createTokenHeader();
++  const body = encodeTokenSegment(buildTokenPayload(payload));
++  const signature = signTokenInput(createSigningInput({ header, body }));
+ 
+   return `${header}.${body}.${signature}`;
+ }
+ 
+ export function verifyToken(token: string): TokenPayload | null {
+-  const parts = token.split('.');
+-  if (parts.length !== 3) return null;
++  const parts = splitSignedToken(token);
++  if (!parts) {
++    return null;
++  }
+ 
+-  const [header, body, signature] = parts;
+-  const expectedSig = sign(`${header}.${body}`);
++  const expectedSignature = signTokenInput(createSigningInput(parts));
+ 
+-  if (!crypto.timingSafeEqual(Buffer.from(signature), Buffer.from(expectedSig))) {
++  if (!signaturesMatch(parts.signature, expectedSignature)) {
+     return null;
+   }
+ 
+-  const payload = decodePayload(body) as TokenPayload;
++  const payload = decodeTokenSegment<TokenPayload>(parts.body);
+   const now = Math.floor(Date.now() / 1000);
+ 
+-  if (payload.exp < now) return null;
++  if (payload.exp < now) {
++    return null;
++  }
+ 
+   return payload;
+ }
+diff --git a/src/lib/token-codec.ts b/src/lib/token-codec.ts
+new file mode 100644
+index 0000000..8d3cc26
+--- /dev/null
++++ b/src/lib/token-codec.ts
+@@ -0,0 +1,34 @@
++export interface SignedTokenParts {
++  header: string;
++  body: string;
++  signature: string;
++}
++
++export const HMAC_ALGORITHM = 'sha256';
++export const TOKEN_VERSION = 'v1';
++
++export function encodeTokenSegment(value: unknown): string {
++  return Buffer.from(JSON.stringify(value)).toString('base64url');
++}
++
++export function decodeTokenSegment<T>(value: string): T {
++  return JSON.parse(Buffer.from(value, 'base64url').toString('utf8')) as T;
++}
++
++export function createTokenHeader(): string {
++  return encodeTokenSegment({ alg: HMAC_ALGORITHM, ver: TOKEN_VERSION });
++}
++
++export function splitSignedToken(token: string): SignedTokenParts | null {
++  const parts = token.split('.');
++  if (parts.length !== 3) {
++    return null;
++  }
++
++  const [header, body, signature] = parts;
++  return { header, body, signature };
++}
++
++export function createSigningInput(parts: Pick<SignedTokenParts, 'header' | 'body'>): string {
++  return `${parts.header}.${parts.body}`;
++}
+diff --git a/src/lib/token-signature.ts b/src/lib/token-signature.ts
+new file mode 100644
+index 0000000..c1456ee
+--- /dev/null
++++ b/src/lib/token-signature.ts
+@@ -0,0 +1,21 @@
++import crypto from 'crypto';
++import { config } from '../config';
++import { HMAC_ALGORITHM } from './token-codec';
++
++export function signTokenInput(data: string): string {
++  return crypto
++    .createHmac(HMAC_ALGORITHM, config.hmacSecret)
++    .update(data)
++    .digest('base64url');
++}
++
++export function signaturesMatch(signature: string, expectedSignature: string): boolean {
++  const signatureBuffer = Buffer.from(signature);
++  const expectedBuffer = Buffer.from(expectedSignature);
++
++  if (signatureBuffer.length !== expectedBuffer.length) {
++    return false;
++  }
++
++  return crypto.timingSafeEqual(signatureBuffer, expectedBuffer);
++}
+diff --git a/src/routes/auth.ts b/src/routes/auth.ts
+index 88bfdd9..e7aaa76 100644
+--- a/src/routes/auth.ts
++++ b/src/routes/auth.ts
+@@ -1,22 +1,9 @@
+ import { Router, Request, Response } from 'express';
++import { validateUserCredentials } from '../data/users';
+ import { signToken } from '../lib/hmac';
+ 
+ const router = Router();
+ 
+-// Simulated user store — in prod this would query a DB with hashed passwords
+-const USERS: Record<string, { passwordHash: string; email: string; role: 'admin' | 'member' | 'viewer' }> = {
+-  'user-001': { passwordHash: '$2b$10$examplehash', email: 'alice@example.com', role: 'admin' },
+-  'user-002': { passwordHash: '$2b$10$examplehash', email: 'bob@example.com', role: 'member' },
+-};
+-
+-function validateCredentials(email: string, password: string): typeof USERS[string] & { id: string } | null {
+-  const entry = Object.entries(USERS).find(([, u]) => u.email === email);
+-  if (!entry) return null;
+-  // In prod: bcrypt.compareSync(password, entry[1].passwordHash)
+-  if (password !== 'correct-horse-battery-staple') return null;
+-  return { id: entry[0], ...entry[1] };
+-}
+-
+ router.post('/token', (req: Request, res: Response) => {
+   const { email, password } = req.body as { email?: string; password?: string };
+ 
+@@ -25,7 +12,7 @@ router.post('/token', (req: Request, res: Response) => {
+     return;
+   }
+ 
+-  const user = validateCredentials(email, password);
++  const user = validateUserCredentials(email, password);
+   if (!user) {
+     res.status(401).json({ error: 'Invalid credentials' });
+     return;
+diff --git a/src/routes/users.ts b/src/routes/users.ts
+index 622d21d..d914c07 100644
+--- a/src/routes/users.ts
++++ b/src/routes/users.ts
+@@ -1,21 +1,15 @@
+ import { Router, Request, Response } from 'express';
++import { findUserProfileById, hasUser, listSafeUsers } from '../data/users';
+ import { authenticate, requireRole } from '../middleware/authenticate';
+ 
+ const router = Router();
+ 
+-const USERS = [
+-  { id: 'user-001', email: 'alice@example.com', role: 'admin', name: 'Alice' },
+-  { id: 'user-002', email: 'bob@example.com', role: 'member', name: 'Bob' },
+-];
+-
+ router.get('/', authenticate, (req: Request, res: Response) => {
+-  // All authenticated users can list users, but only non-sensitive fields
+-  const safeUsers = USERS.map(({ id, email, name }) => ({ id, email, name }));
+-  res.json({ users: safeUsers, requestedBy: req.user?.sub });
++  res.json({ users: listSafeUsers(), requestedBy: req.user?.sub });
+ });
+ 
+ router.get('/:id', authenticate, (req: Request, res: Response) => {
+-  const user = USERS.find(u => u.id === req.params.id);
++  const user = findUserProfileById(req.params.id);
+ 
+   if (!user) {
+     res.status(404).json({ error: 'User not found' });
+@@ -34,8 +28,7 @@ router.get('/:id', authenticate, (req: Request, res: Response) => {
+ });
+ 
+ router.delete('/:id', authenticate, requireRole('admin'), (req: Request, res: Response) => {
+-  const exists = USERS.some(u => u.id === req.params.id);
+-  if (!exists) {
++  if (!hasUser(req.params.id)) {
+     res.status(404).json({ error: 'User not found' });
+     return;
+   }
+diff --git a/src/routes/workspaces.ts b/src/routes/workspaces.ts
+index 7b1cb4c..0ca00bb 100644
+--- a/src/routes/workspaces.ts
++++ b/src/routes/workspaces.ts
+@@ -1,21 +1,20 @@
+ import { Router, Request, Response } from 'express';
++import {
++  createWorkspace,
++  deleteWorkspace,
++  findWorkspaceById,
++  listVisibleWorkspaces,
++} from '../data/workspaces';
+ import { authenticate, requireRole } from '../middleware/authenticate';
+ 
+ const router = Router();
+ 
+-const WORKSPACES = [
+-  { id: 'ws-001', name: 'Engineering', ownerId: 'user-001', memberIds: ['user-001', 'user-002'] },
+-  { id: 'ws-002', name: 'Design', ownerId: 'user-002', memberIds: ['user-002'] },
+-];
+-
+ router.get('/', authenticate, (req: Request, res: Response) => {
+-  const userId = req.user!.sub;
+-  const visible = WORKSPACES.filter(ws => ws.memberIds.includes(userId));
+-  res.json({ workspaces: visible });
++  res.json({ workspaces: listVisibleWorkspaces(req.user!.sub) });
+ });
+ 
+ router.get('/:id', authenticate, (req: Request, res: Response) => {
+-  const ws = WORKSPACES.find(w => w.id === req.params.id);
++  const ws = findWorkspaceById(req.params.id);
+   if (!ws) {
+     res.status(404).json({ error: 'Workspace not found' });
+     return;
+@@ -37,24 +36,16 @@ router.post('/', authenticate, requireRole('admin', 'member'), (req: Request, re
+     return;
+   }
+ 
+-  const newWorkspace = {
+-    id: `ws-${Date.now()}`,
+-    name,
+-    ownerId: req.user!.sub,
+-    memberIds: [req.user!.sub],
+-  };
+-
+-  WORKSPACES.push(newWorkspace);
++  const newWorkspace = createWorkspace(name, req.user!.sub);
+   res.status(201).json({ workspace: newWorkspace });
+ });
+ 
+ router.delete('/:id', authenticate, requireRole('admin'), (req: Request, res: Response) => {
+-  const idx = WORKSPACES.findIndex(w => w.id === req.params.id);
+-  if (idx === -1) {
++  if (!deleteWorkspace(req.params.id)) {
+     res.status(404).json({ error: 'Workspace not found' });
+     return;
+   }
+-  WORKSPACES.splice(idx, 1);
++
+   res.status(200).json({ message: `Workspace ${req.params.id} deleted` });
+ });
+ 

@@ -1,0 +1,81 @@
+diff --git a/src/db.ts b/src/db.ts
+index f978926aab6a2ee97a25ecc4eda53db65bd2607f..2b186baaef74ab5633282835c89f42165088e129 100644
+--- a/src/db.ts
++++ b/src/db.ts
+@@ -6,17 +6,31 @@ const runs = new Map<string, Run>();
+ const magicLinks = new Map<string, MagicLink>();
+ const participants = new Map<string, Participant[]>();
+ 
++function cloneRun(run: Run): Run {
++  return { ...run };
++}
++
++function cloneMagicLink(link: MagicLink): MagicLink {
++  return { ...link };
++}
++
++function cloneParticipant(participant: Participant): Participant {
++  return { ...participant };
++}
++
+ export function getRun(id: string): Run | undefined {
+-  return runs.get(id);
++  const run = runs.get(id);
++  return run ? cloneRun(run) : undefined;
+ }
+ 
+ export function getAllRuns(): Run[] {
+-  return Array.from(runs.values());
++  return Array.from(runs.values(), cloneRun);
+ }
+ 
+ export function createRun(run: Run): Run {
+-  runs.set(run.id, run);
+-  return run;
++  const stored = cloneRun(run);
++  runs.set(stored.id, stored);
++  return cloneRun(stored);
+ }
+ 
+ export function updateRunState(id: string, state: RunState): Run | undefined {
+@@ -24,28 +38,32 @@ export function updateRunState(id: string, state: RunState): Run | undefined {
+   if (!run) return undefined;
+   const updated = { ...run, state, updatedAt: Date.now() };
+   runs.set(id, updated);
+-  return updated;
++  return cloneRun(updated);
+ }
+ 
+ export function getMagicLink(token: string): MagicLink | undefined {
+-  return Array.from(magicLinks.values()).find((ml) => ml.token === token);
++  const link = Array.from(magicLinks.values()).find((ml) => ml.token === token);
++  return link ? cloneMagicLink(link) : undefined;
+ }
+ 
+ export function getMagicLinkById(id: string): MagicLink | undefined {
+-  return magicLinks.get(id);
++  const link = magicLinks.get(id);
++  return link ? cloneMagicLink(link) : undefined;
+ }
+ 
+ export function createMagicLink(link: MagicLink): MagicLink {
+-  magicLinks.set(link.id, link);
+-  return link;
++  const stored = cloneMagicLink(link);
++  magicLinks.set(stored.id, stored);
++  return cloneMagicLink(stored);
+ }
+ 
+ export function getParticipantsByRun(runId: string): Participant[] {
+-  return participants.get(runId) ?? [];
++  return (participants.get(runId) ?? []).map(cloneParticipant);
+ }
+ 
+ export function createParticipant(participant: Participant): Participant {
++  const stored = cloneParticipant(participant);
+   const existing = participants.get(participant.runId) ?? [];
+-  participants.set(participant.runId, [...existing, participant]);
+-  return participant;
++  participants.set(participant.runId, [...existing, stored]);
++  return cloneParticipant(stored);
+ }

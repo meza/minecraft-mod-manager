@@ -1,0 +1,132 @@
+diff --git a/src/app.ts b/src/app.ts
+index 7027dc0..44e5c8d 100644
+--- a/src/app.ts
++++ b/src/app.ts
+@@ -7,6 +7,8 @@ app.use(express.json());
+ 
+ app.use('/tasks', tasksRouter);
+ 
+-app.use((_req, res) => {
++function notFoundHandler(_req: express.Request, res: express.Response): void {
+   res.status(404).json({ error: 'Not found' });
+-});
++}
++
++app.use(notFoundHandler);
+diff --git a/src/routes/tasks.ts b/src/routes/tasks.ts
+index d4f2fee..a459d96 100644
+--- a/src/routes/tasks.ts
++++ b/src/routes/tasks.ts
+@@ -7,6 +7,10 @@ const router = Router();
+ 
+ const VALID_STATUSES: TaskStatus[] = ['TODO', 'IN_PROGRESS', 'DONE'];
+ 
++function normalizeTitle(title: string): string {
++  return title.trim();
++}
++
+ router.get('/', (_req: Request, res: Response) => {
+   res.json(getAllTasks());
+ });
+@@ -28,6 +32,13 @@ router.post('/', (req: Request, res: Response) => {
+     return;
+   }
+ 
++  const title = normalizeTitle(body.title);
++
++  if (!title) {
++    res.status(400).json({ error: 'title is required' });
++    return;
++  }
++
+   if (!body.status || !VALID_STATUSES.includes(body.status)) {
+     res.status(400).json({ error: `status must be one of: ${VALID_STATUSES.join(', ')}` });
+     return;
+@@ -35,7 +46,7 @@ router.post('/', (req: Request, res: Response) => {
+ 
+   const task = addTask({
+     id: uuidv4(),
+-    title: body.title,
++    title,
+     status: body.status,
+     createdAt: new Date().toISOString(),
+   });
+diff --git a/src/store.ts b/src/store.ts
+index d071ab6..6b562b6 100644
+--- a/src/store.ts
++++ b/src/store.ts
+@@ -3,7 +3,7 @@ import { Task } from './models/task';
+ let tasks: Task[] = [];
+ 
+ export function getAllTasks(): Task[] {
+-  return tasks;
++  return [...tasks];
+ }
+ 
+ export function getTaskById(id: string): Task | undefined {
+diff --git a/test/support/client.ts b/test/support/client.ts
+index 69b637c..f196ffb 100644
+--- a/test/support/client.ts
++++ b/test/support/client.ts
+@@ -1,10 +1,18 @@
+ import request from 'supertest';
+ import { app } from '../../src/app';
+ 
++function sendJson(
++  agent: request.Agent,
++  path: string,
++  body: unknown,
++): request.Test {
++  return agent.post(path).send(body as object);
++}
++
+ export function client() {
+   const agent = request(app);
+   return {
+     get: (path: string) => agent.get(path),
+-    post: (path: string, body: unknown) => agent.post(path).send(body as object),
++    post: (path: string, body: unknown) => sendJson(agent, path, body),
+   };
+ }
+diff --git a/test/tasks.test.ts b/test/tasks.test.ts
+index 3f513fd..371ce1f 100644
+--- a/test/tasks.test.ts
++++ b/test/tasks.test.ts
+@@ -57,6 +57,13 @@ describe('POST /tasks', () => {
+     expect(res.body).toHaveProperty('error');
+   });
+ 
++  it('returns 400 when status is missing', async () => {
++    const res = await client().post('/tasks', { title: 'Incomplete task' });
++
++    expect(res.status).toBe(400);
++    expect(res.body).toHaveProperty('error');
++  });
++
+   it('returns 400 when title is missing', async () => {
+     const res = await client().post('/tasks', { status: 'TODO' });
+ 
+@@ -64,6 +71,23 @@ describe('POST /tasks', () => {
+     expect(res.body).toHaveProperty('error');
+   });
+ 
++  it('returns 400 when title is blank after trimming', async () => {
++    const res = await client().post('/tasks', { title: '   ', status: 'TODO' });
++
++    expect(res.status).toBe(400);
++    expect(res.body).toHaveProperty('error');
++  });
++
++  it('trims surrounding whitespace from the stored title', async () => {
++    const res = await client().post('/tasks', { title: '  Ship feature  ', status: 'TODO' });
++
++    expect(res.status).toBe(201);
++    expect(res.body).toMatchObject({
++      title: 'Ship feature',
++      status: 'TODO',
++    });
++  });
++
+   it('persists the task so GET /tasks returns it', async () => {
+     await client().post('/tasks', { title: 'Persistent task', status: 'DONE' });
+ 

@@ -1,0 +1,21 @@
+diff --git a/src/app/dashboard/page.tsx b/src/app/dashboard/page.tsx
+index 47955b9..f7d0706 100644
+--- a/src/app/dashboard/page.tsx
++++ b/src/app/dashboard/page.tsx
+@@ -9,10 +9,16 @@ async function getProjects(): Promise<Project[]> {
+ 
+ export default async function DashboardPage() {
+   const projects = await getProjects()
++  const latestProjectName = projects[0]?.name ?? 'No projects yet'
+ 
+   return (
+     <main>
+       <h1>Dashboard</h1>
++      <section>
++        <h2>Overview</h2>
++        <p>Total projects: {projects.length}</p>
++        <p>Latest project: {latestProjectName}</p>
++      </section>
+       <section>
+         <h2>Your Projects</h2>
+         {projects.length === 0 ? (
