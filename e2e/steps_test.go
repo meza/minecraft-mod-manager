@@ -1,3 +1,5 @@
+//go:build e2e
+
 package e2e
 
 import (
@@ -22,7 +24,8 @@ func (placeholderAction) Copy() bdd.Action {
 }
 
 type scenarioState struct {
-	actors *bdd.ActorRegistry
+	actors      *bdd.ActorRegistry
+	environment *scenarioEnvironment
 }
 
 func newScenarioState() *scenarioState {
@@ -33,6 +36,7 @@ func newScenarioState() *scenarioState {
 
 func (state *scenarioState) reset() {
 	state.actors = bdd.NewActorRegistry()
+	state.environment = nil
 }
 
 func (state *scenarioState) actorIsAnActor(actorLabel string) error {
@@ -77,8 +81,10 @@ func InitializeScenario(scenario *godog.ScenarioContext) {
 		state.reset()
 		return currentContext, nil
 	})
+	scenario.After(state.cleanUp)
 
 	scenario.Step(`^(\w+) (?:am|is) an actor$`, state.actorIsAnActor)
 	scenario.Step(`^(\w+) (?:perform|performs) a placeholder action$`, state.actorPerformsPlaceholderAction)
 	scenario.Step(`^(\w+) should observe (it|the placeholder outcome)$`, state.actorShouldObservePlaceholderOutcome)
+	state.initializeTerminalSteps(scenario)
 }

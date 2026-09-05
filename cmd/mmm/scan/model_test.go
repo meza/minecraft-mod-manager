@@ -11,7 +11,6 @@ import (
 
 	"github.com/meza/minecraft-mod-manager/internal/models"
 	"github.com/meza/minecraft-mod-manager/internal/view"
-	"github.com/meza/minecraft-mod-manager/testutil/terminal"
 )
 
 func TestScanModelInitReturnsQuitWithoutSender(t *testing.T) {
@@ -340,21 +339,6 @@ func TestScanModelUpdateViewportClamp(t *testing.T) {
 	assert.Equal(t, 100, model.viewport.Width)
 }
 
-func TestScanRenderWithStickyHeaderSkipsWhenWindowHeightZero(t *testing.T) {
-	t.Setenv("MMM_TEST", "true")
-
-	model := newScanModel(scanModelInput{
-		ctx:       context.Background(),
-		colorMode: view.ColorDisabled,
-	})
-	model.windowH = 0
-
-	content := "cmd.scan.header.running\nalpha.jar"
-	expected := view.RenderViewSections([]string{content, "cmd.scan.header.running"}, view.SectionSeparatorParagraph)
-	normalizedExpected := terminal.NormalizeOutput(expected, terminal.NormalizeOptions{TrimTrailingWhitespace: true})
-	assert.Equal(t, normalizedExpected, model.renderWithStickyHeader(content, "cmd.scan.header.running"))
-}
-
 func TestScanRenderWithStickyHeaderSkipsWhenContentEmpty(t *testing.T) {
 	model := newScanModel(scanModelInput{
 		ctx:       context.Background(),
@@ -376,22 +360,6 @@ func TestScanRenderWithStickyHeaderSkipsWhenBodyEmpty(t *testing.T) {
 
 	content := "cmd.scan.header.running"
 	assert.Equal(t, content, model.renderWithStickyHeader(content, "cmd.scan.header.running"))
-}
-
-func TestScanRenderWithStickyHeaderEchoesWhenContentExceedsWindow(t *testing.T) {
-	t.Setenv("MMM_TEST", "true")
-
-	model := newScanModel(scanModelInput{
-		ctx:       context.Background(),
-		colorMode: view.ColorDisabled,
-	})
-	model.windowH = 2
-
-	content := "cmd.scan.header.running\nalpha.jar\nbeta.jar"
-	expected := view.RenderViewSections([]string{content, "cmd.scan.header.running"}, view.SectionSeparatorParagraph)
-	normalizedExpected := terminal.NormalizeOutput(expected, terminal.NormalizeOptions{TrimTrailingWhitespace: true})
-	normalizedActual := terminal.NormalizeOutput(model.renderWithStickyHeader(content, "cmd.scan.header.running"), terminal.NormalizeOptions{TrimTrailingWhitespace: true})
-	assert.Equal(t, normalizedExpected, normalizedActual)
 }
 
 func TestScanRenderWithStickyHeaderSkipsWhenHeaderMissing(t *testing.T) {

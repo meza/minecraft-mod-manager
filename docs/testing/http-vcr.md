@@ -3,23 +3,24 @@
 Use VCR recordings to make HTTP-dependent tests deterministic and network-free.
 Cassettes capture real HTTP responses once, then replay them in future runs.
 
-## Quick start
+## Quick start for in-process Go tests
 
 Declare the cassette in the test itself:
 
 ```go
 func TestScanScenario(t *testing.T) {
-	terminal.ApplyFixtures(t)
 	vcr.LoadCassette(t, filepath.Join("testdata", "vcr", "scan-basic.yaml"))
 	// Test body...
 }
 ```
 
-Run all e2e tests (replay mode):
+Run the ordinary Go tests in replay mode:
 
 ```bash
-make e2e
+make test
 ```
+
+This workflow applies only to in-process Go tests. `testutil/vcr` cannot intercept requests made by the separately launched MMM process used by tui-test scenarios. HTTP-dependent terminal scenarios therefore need an explicitly designed process-compatible fixture boundary; do not assume `LoadCassette` makes a spawned scenario network-free. The foundation smoke scenario is local-only.
 
 Record all cassettes (one per test that calls `LoadCassette`):
 
@@ -36,7 +37,7 @@ VCR activates only when your test calls `vcr.LoadCassette`.
 - If you pass a filename ending in `.yaml` or `.yml`, VCR strips the extension for the recorder base.
 - Importing the `vcr` package installs a test-only transport that rejects non-local live HTTP calls. `LoadCassette` swaps in the recorder for the test and restores the live-call blocker afterward.
 
-If you use `terminal.ApplyFixtures(t)`, the shared terminal harness already imports `vcr`, so live external HTTP is blocked by default. Call `vcr.LoadCassette` before issuing any external request.
+Import `testutil/vcr` in HTTP-dependent test packages so non-local live HTTP is blocked by default. Call `vcr.LoadCassette` before issuing a request that should be replayed.
 
 ## Matching rules
 
@@ -109,7 +110,6 @@ Record with a small, stable file on a trusted host. The cassette can live next t
 
 ```go
 func TestDownloadJar(t *testing.T) {
-	terminal.ApplyFixtures(t)
 	vcr.LoadCassette(t, filepath.Join("testdata", "vcr", "download-jar.yaml"))
 
 	client := httpclient.NewRLClient(httpclient.DefaultLimiter())
@@ -235,5 +235,5 @@ If you add a new secret-bearing header, update the redaction list in `testutil/v
 
 ## Related docs
 
-- `docs/testing/terminal-harness.md` for PTY and in-process harness usage.
+- `docs/testing/terminal-harness.md` for tui-test terminal E2E usage.
 - `docs/testing/bdd.md` for the BDD driver and scenario layout.

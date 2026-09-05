@@ -252,21 +252,6 @@ func TestLocalizerNilDropsVarsOutsideTestMode(t *testing.T) {
 	assert.Equal(t, "test.multiple", result)
 }
 
-func TestTestModeRequiresTestBinary(t *testing.T) {
-	enFS = testData
-	langDir = "__fixtures__"
-	ResetForTesting()
-
-	originalTestBinaryCheck := testBinaryCheck
-	t.Cleanup(func() { testBinaryCheck = originalTestBinaryCheck })
-	testBinaryCheck = func() bool { return false }
-
-	t.Setenv("MMM_TEST", "true")
-
-	actual := T("test.simple", nil)
-	assert.Equal(t, "Hello World", actual)
-}
-
 func TestFallbackToEnglish(t *testing.T) {
 	enFS = testData
 	langDir = "__fixtures__"

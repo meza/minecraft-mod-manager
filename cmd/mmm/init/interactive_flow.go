@@ -29,26 +29,27 @@ const (
 )
 
 type CommandModel struct {
-	state                state
-	entered              bool
-	ctx                  context.Context
-	sessionSpan          *perf.Span
-	waitSpan             *perf.Span
-	meta                 config.Metadata
-	fs                   afero.Fs
-	showConfigExists     bool
-	showConfigPath       bool
-	showConfirmWrite     bool
-	configExistsQuestion confirmPromptModel
-	configPathQuestion   ConfigPathModel
-	confirmWriteQuestion confirmPromptModel
-	loaderQuestion       LoaderModel
-	gameVersionQuestion  GameVersionModel
-	releaseTypesQuestion ReleaseTypesModel
-	modsFolderQuestion   ModsFolderModel
-	result               initOptions
-	initialProvided      providedFlags
-	err                  error
+	state                     state
+	entered                   bool
+	ctx                       context.Context
+	sessionSpan               *perf.Span
+	waitSpan                  *perf.Span
+	meta                      config.Metadata
+	fs                        afero.Fs
+	showConfigExists          bool
+	showConfigPath            bool
+	showConfirmWrite          bool
+	configExistsQuestion      confirmPromptModel
+	configPathQuestion        ConfigPathModel
+	confirmWriteQuestion      confirmPromptModel
+	loaderQuestion            LoaderModel
+	gameVersionQuestion       GameVersionModel
+	createGameVersionQuestion func() GameVersionModel
+	releaseTypesQuestion      ReleaseTypesModel
+	modsFolderQuestion        ModsFolderModel
+	result                    initOptions
+	initialProvided           providedFlags
+	err                       error
 }
 
 func (model CommandModel) Init() tea.Cmd {
@@ -245,7 +246,9 @@ func buildCommandModel(ctx context.Context, sessionSpan *perf.Span, options init
 		configPathQuestion:   NewConfigPathModel(deps.fs),
 		confirmWriteQuestion: newConfirmWritePromptModel(i18n.T("cmd.init.prompt.confirm-write.question", nil)),
 		loaderQuestion:       NewLoaderModel(options.Loader.String()),
-		gameVersionQuestion:  NewGameVersionModel(ctx, deps.minecraftClient, options.GameVersion),
+		createGameVersionQuestion: func() GameVersionModel {
+			return NewGameVersionModel(ctx, deps.minecraftClient, options.GameVersion)
+		},
 		releaseTypesQuestion: NewReleaseTypesModel(defaultReleaseTypes),
 		modsFolderQuestion: NewModsFolderModel(modsFolderModelInput{
 			modsFolder: options.ModsFolder,
@@ -463,6 +466,10 @@ func (model CommandModel) handleAbort() CommandModel {
 func (model *CommandModel) setState(next state) {
 	if model.state == next && model.entered {
 		return
+	}
+	if next == stateGameVersion && model.createGameVersionQuestion != nil {
+		model.gameVersionQuestion = model.createGameVersionQuestion()
+		model.createGameVersionQuestion = nil
 	}
 	model.state = next
 	model.entered = true

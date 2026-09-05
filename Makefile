@@ -4,11 +4,20 @@
 APP_NAME := minecraft-mod-manager
 EXECUTABLE_NAME := mmm
 BUILD_DIR := build
+E2E_BUILD_DIR := $(BUILD_DIR)/e2e
 METADATA_DIR := $(BUILD_DIR)/metadata
 NOTICES_FILE := $(METADATA_DIR)/THIRD_PARTY_NOTICES.txt
 SBOM_FILE := $(METADATA_DIR)/mmm-sbom.json
 VERSION ?= dev
 TEST ?= ./...
+E2E_TEST ?= ./e2e ./internal/i18n
+TUI_TEST_BIN ?=
+export TUI_TEST_BIN
+ifeq ($(OS),Windows_NT)
+        E2E_EXECUTABLE := $(E2E_BUILD_DIR)/mmm.exe
+else
+        E2E_EXECUTABLE := $(E2E_BUILD_DIR)/mmm
+endif
 GOLANGCI_LINT_TOOLCHAIN := go1.25.5
 GOVULNCHECK_TOOLCHAIN := go1.25.5
 
@@ -58,7 +67,7 @@ endef
 endif
 
 # Targets
-.PHONY: all clean fmt fmt-check lint lint-fix vuln build dist prepare test test-race coverage mod-download notices sbom vcr-record e2e
+.PHONY: all clean fmt fmt-check lint lint-fix vuln build e2e-build dist prepare test test-race coverage mod-download notices sbom vcr-record e2e
 
 # Build for all platforms
 all: clean build
@@ -113,6 +122,10 @@ endif
 build:
 	go run ./tools/build
 
+e2e-build:
+	$(call MKDIR_P,$(E2E_BUILD_DIR))
+	go build -tags=e2e -o "$(E2E_EXECUTABLE)" .
+
 notices:
 	$(call MKDIR_P,$(METADATA_DIR))
 ifeq ($(OSFAMILY), Windows)
@@ -142,8 +155,8 @@ test:
 vcr-record:
 	MMM_RECORD_HTTP=1 go test -count=1 $(TEST)
 
-e2e:
-	go test $(TEST)
+e2e: e2e-build
+	go test -tags=e2e $(E2E_TEST)
 
 test-race:
 	go test -race ./...

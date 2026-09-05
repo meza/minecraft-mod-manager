@@ -272,7 +272,7 @@ func normalizeLocaleName(localeName string) string {
 }
 
 func useTestMode() bool {
-	if !testBinaryCheck() {
+	if !testBinaryCheck() && !e2eTestModeEnabled {
 		return false
 	}
 

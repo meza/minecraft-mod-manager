@@ -1,252 +1,84 @@
-# Terminal test harness
+# Terminal E2E testing with tui-test
 
-This guide shows how to write deterministic terminal interaction tests using the shared harnesses in `testutil/terminal`.
-Use it when you need to snapshot Bubble Tea output, drive keyboard or mouse input, or validate PTY behavior.
+Terminal end-to-end tests use Microsoft's `tui-test` CLI. The project does not own a PTY, terminal emulator, screen buffer, ANSI normalizer, input encoder, polling loop, or process supervisor.
 
-## Quick start
+The test boundary is:
 
-Use the PTY harness when you need real terminal semantics like control sequences or alt screen behavior.
-
-```go
-func TestScanPromptPTY(t *testing.T) {
-	terminal.ApplyFixtures(t)
-
-	session := terminalpty.NewSession(t, terminalpty.WithSize(terminal.Size{Columns: 120, Rows: 12}))
-	require.NotNil(t, session)
-
-	cmd := commandUnderTest()
-	cmd.SetIn(session.Input())
-	cmd.SetOut(session.Output())
-	cmd.SetErr(session.Output())
-
-	execErr := make(chan error, 1)
-	go func() {
-		execErr <- cmd.Execute()
-	}()
-
-	session.WaitForOutput(t, func(data []byte) bool {
-		normalized := terminal.NormalizeOutput(string(data), terminal.NormalizeOptions{
-			StripControlSequences: true,
-		})
-		return strings.Contains(normalized, "cmd.scan.prompt.add")
-	})
-	// ApplyFixtures sets MMM_TEST=true, so prompt tokens are i18n keys.
-	yesShort := i18n.T("cmd.init.prompt.option.yes.short", nil)
-	_, writeErr := session.SendInput([]byte(yesShort + "\r"))
-	require.NoError(t, writeErr)
-
-	require.NoError(t, <-execErr)
-	require.NoError(t, session.Close())
-
-	output := terminal.NormalizeOutput(session.OutputString(), terminal.NormalizeOptions{
-		StripControlSequences:  true,
-		TrimTrailingWhitespace: true,
-		TrimTrailingEmptyLines: true,
-		TrimSpace:              true,
-	})
-	snaps.MatchSnapshot(t, output)
-}
+```text
+Gherkin scenario -> Godog step -> BDD actor action -> tui-test CLI -> native MMM process
 ```
 
-## Harness choices
+The native process runs in an isolated temporary workspace. Assertions observe terminal state, exit status, and filesystem effects.
 
-### In-process harness (teatest)
+## Prerequisite
 
-Use `testutil/terminal/teatest` when you want fast, deterministic, in-process tests for Bubble Tea models.
-It runs the program in-process and captures the exact writer output.
-Prefer it for model-level snapshots where you can drive the state machine directly and do not need raw control sequences.
+Install tui-test `0.1.0-beta.2` from the [Microsoft tui-test repository](https://github.com/microsoft/tui-test). The E2E adapter rejects a different version or JSON schema with an actionable error.
 
-### PTY harness
+The adapter looks for `tui-test` on `PATH` and in the standard installer locations. To use another executable, set `TUI_TEST_BIN`:
 
-Use `testutil/terminal/pty` when you need real terminal behavior, including control sequences, cursor moves,
-alt screen behavior, mouse tracking, and resize semantics.
-It captures raw bytes from a real PTY master.
-Prefer it for integration-level tests that must validate renderer behavior, cursor positioning, mouse motion, or resize handling.
-
-## Snapshot conventions
-
-### Capture all states explicitly
-
-Snapshot every stable state a user can see in the flow.
-Drive the model through each step with explicit inputs and take a snapshot after each state transition.
-Avoid a single snapshot at the end of the flow if intermediate prompts or progress states are user-visible.
-
-In practice:
-- For Bubble Tea models in-process, send a message, wait for the output to change, then snapshot.
-- For PTY flows, wait for a known output token (like a prompt key) before sending input.
-
-### Cover short and tall terminal sizes
-
-Terminal rendering changes with height and width, so snapshot both:
-- Short: 25 rows.
-- Tall: 80 rows (or the platform-specific tall height used by the existing PTY tests).
-
-Use the same sizes already present in the command PTY integration tests to keep snapshots consistent across commands.
-
-### Keep snapshots deterministic
-
-Normalize output only when needed for stability, and keep the normalization in the harness layer.
-If you strip control sequences, do it consistently across tests and document why.
-When MMM_TEST is enabled, prompt tokens and localized output become stable keys instead of natural language.
-
-### Prefer explicit frame boundaries
-
-If a TTY flow renders frames, snapshot a full frame rather than partial output.
-Use helpers that trim to the last frame when the output includes earlier frames in the same buffer.
-
-## Shared fixtures
-
-Call `terminal.ApplyFixtures(t)` at the start of terminal tests.
-It sets `MMM_TEST=true`, disables color by default, and locks unicode support to deterministic values.
-Use options when you need a specific color profile or unicode behavior.
-
-If you need a temporary `modlist.json`/`modlist-lock.json` setup for tests, see `testutil/modlistfixture/README.md` for the helper API and examples.
-
-If your scenario makes external HTTP calls, call `vcr.LoadCassette` in the test to attach a cassette.
-See `docs/testing/http-vcr.md` for the workflow and cassette conventions.
-Because `terminal.ApplyFixtures` imports `vcr`, live external HTTP is blocked by default unless a cassette is active.
-
-```go
-terminal.ApplyFixtures(t,
-	terminal.WithColorProfile(termenv.TrueColor),
-	terminal.WithUnicodeEnabled(true),
-)
+```bash
+TUI_TEST_BIN=/path/to/tui-test make e2e
 ```
 
-## TTY and non-TTY setup
+PowerShell:
 
-Use `WithCapabilities` to control terminal detection explicitly.
-This is how you force non-TTY output in an in-process test.
-
-```go
-session := teatest.NewSession(t, model,
-	teatest.WithCapabilities(terminal.NonTTYCapabilities()),
-)
+```powershell
+$env:TUI_TEST_BIN = 'C:\path\to\tui-test.exe'
+make e2e
 ```
 
-## Size and resize
+Ordinary Go tests do not require tui-test.
 
-Set the initial terminal size explicitly in tests.
-Use `terminal.Size` for both harnesses.
+## Running the suite
 
-```go
-session := terminalpty.NewSession(t, terminalpty.WithSize(terminal.Size{Columns: 120, Rows: 12}))
+Build the credential-free, host-native E2E binary and run the tagged scenarios:
+
+```bash
+make e2e
 ```
 
-When you need resize behavior, use the harness APIs:
+To build the tagged binary without running scenarios:
 
-```go
-session.Resize(terminal.Size{Columns: 120, Rows: 40})
+```bash
+make e2e-build
 ```
 
-## Input simulation
+The binary is written to `build/e2e`. `MMM_E2E_BINARY` can point the scenarios at another E2E-tagged native binary.
 
-### Keyboard
+## Writing terminal scenarios
 
-For in-process tests, send Bubble Tea messages directly:
+Put product scenarios in `e2e/features` and reusable actions and outcomes in the `e2e` package. Keep the Gherkin in third person and express what an actor does and observes.
 
-```go
-session.SendKey(tea.KeyMsg{Type: tea.KeyEnter})
-```
+Prefer these observable outcomes:
 
-For PTY tests, write raw bytes to the master:
+- requested i18n keys and interpolation arguments;
+- semantic terminal state exposed by tui-test;
+- process exit status;
+- files created, changed, or left untouched.
 
-```go
-_, writeErr := session.SendInput([]byte("q"))
-```
+Use tui-test waits for text, idle state, and process exit. Use its input, key, mouse, and resize commands for interaction. Use tui-test snapshots only when a reviewed requirement depends on the complete rendered terminal state.
 
-### Mouse
+Do not add sleeps, ANSI cleanup, frame extraction, terminal buffers, key encoders, PTY code, or compatibility wrappers. Extend the thin CLI adapter only when tui-test already provides the capability through its public JSON interface.
 
-Use `terminal.EncodeSGRMouseSequence` to build PTY mouse input.
-The helper encodes SGR mouse sequences that Bubble Tea understands.
+## Stable localization expectations
 
-```go
-sequence := terminal.EncodeSGRMouseSequence(terminal.MouseEvent{
-	Button: tea.MouseButtonWheelDown,
-	Action: tea.MouseActionPress,
-	X:      10,
-	Y:      5,
-})
-_, writeErr := session.SendInput([]byte(sequence))
-```
+The tagged E2E binary is launched with `MMM_TEST=1`. The presence of `MMM_TEST` enables key mode; `1` is the project convention. Localization calls then emit the requested i18n key and interpolation arguments instead of translated wording. This verifies that the product requests the correct message while keeping scenarios stable when wording changes.
 
-## Output capture and normalization
+Normal release binaries ignore `MMM_TEST` for localization. Go test binaries retain their existing key mode.
 
-Use `OutputString` or `OutputBytes` to snapshot output.
-When you need stable snapshots, normalize with `terminal.NormalizeOutput`.
+## Lifecycle and diagnostics
 
-```go
-normalized := terminal.NormalizeOutput(session.OutputString(), terminal.NormalizeOptions{
-	StripControlSequences:  true,
-	TrimTrailingWhitespace: true,
-	TrimTrailingEmptyLines: true,
-	TrimSpace:              true,
-})
-```
+Each scenario gets:
 
-## Waiting for output
+- a uniquely named tui-test session;
+- an explicit working directory, environment, terminal size, and timeout;
+- an isolated temporary workspace;
+- an exact-session close and workspace cleanup in the scenario hook.
 
-Use `WaitForOutput` to avoid races before sending input.
-It polls the captured output until a predicate is true.
+On failure, the adapter reports the failed CLI operation and collects the recording path, full terminal text, and terminal state before cleanup. It never closes unrelated tui-test sessions.
 
-```go
-session.WaitForOutput(t, func(data []byte) bool {
-	return strings.Contains(string(data), "cmd.scan.header.results")
-})
-```
+## Historical tests
 
-If you just need to wait for a known token before closing the PTY, use `WaitForOutputAndClose` to reduce boilerplate.
+The removed custom harness and its expectations are catalogued in the [legacy terminal test ledger](legacy-terminal-test-ledger.md). The ledger is historical evidence, not an approved product specification. Do not recreate its snapshots as tui-test baselines without reviewing the requirement first.
 
-```go
-session.WaitForOutputAndClose(t, func(data []byte) bool {
-	return strings.Contains(string(data), "cmd.scan.header.results")
-})
-normalized := terminal.NormalizeOutput(session.OutputString(), terminal.NormalizeOptions{
-	StripControlSequences:  true,
-	TrimTrailingWhitespace: true,
-	TrimTrailingEmptyLines: true,
-	TrimSpace:              true,
-})
-snaps.MatchSnapshot(t, normalized)
-```
-
-## FAQ
-
-### When should I use teatest vs PTY?
-
-Use teatest for model-level snapshots and state-machine coverage.
-Use PTY for integration snapshots that must validate real terminal behavior (control sequences, alt screen, mouse, and resize semantics).
-If you are unsure, start with teatest and move to PTY when you need terminal-level fidelity.
-
-### How do I make sure teatest snapshots cover all states?
-
-Treat each interactive state as a separate snapshot.
-Send the exact message that triggers the state transition, wait for output to change, then snapshot the view.
-For multi-step flows, keep a snapshot per step rather than only the final output.
-
-### How do I ensure output renders correctly across terminal sizes?
-
-Set explicit sizes in tests and cover both short and tall terminals.
-Use the same sizes that the existing command PTY integration tests use, so snapshots remain consistent and comparable.
-If a flow is sensitive to width, add at least one narrow width snapshot as well.
-
-### Why do prompt tokens look like keys?
-
-`terminal.ApplyFixtures(t)` sets `MMM_TEST=true`, which causes i18n to return keys instead of localized text.
-Use the key strings when sending input (for example, `cmd.init.prompt.option.yes.short`) so the prompt parser accepts the input.
-
-### Do I always need to normalize output?
-
-No. Prefer raw output when it is stable.
-Normalize only when control sequences or trailing whitespace make snapshots noisy.
-Keep normalization consistent for a given test class so diffs are meaningful.
-
-## Where the harness lives
-
-- Shared fixtures and helpers: `testutil/terminal`
-- In-process harness: `testutil/terminal/teatest`
-- PTY harness: `testutil/terminal/pty`
-
-You can stop here if you only need the harness API.
-If you are adding new interaction scenarios, also review `docs/guide-to-working-with-the-terminal.md`
-and `docs/interactions/interaction-guidelines.md`.
+Also read the [BDD E2E guide](bdd.md), the [terminal implementation guide](../guide-to-working-with-the-terminal.md), and the [interaction guidelines](../interactions/interaction-guidelines.md).

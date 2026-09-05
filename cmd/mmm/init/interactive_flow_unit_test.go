@@ -481,6 +481,26 @@ func TestCommandModelHandleConfigPathSelectedInvalidatesModsFolder(t *testing.T)
 	assert.False(t, updated.initialProvided.ModsFolder)
 }
 
+func TestNewModelDefersGameVersionPromptConstructionUntilGameVersionState(t *testing.T) {
+	metadata := config.NewMetadata(filepath.FromSlash("/cfg/modlist.json"))
+
+	model := NewModel(context.Background(), nil, initOptions{
+		ConfigPath: metadata.ConfigPath,
+		ModsFolder: "mods",
+	}, initDeps{
+		fs:              afero.NewMemMapFs(),
+		minecraftClient: manifestDoer([]string{"1.21.1"}),
+	}, metadata, false)
+
+	assert.Equal(t, stateLoader, model.state)
+	assert.Empty(t, model.gameVersionQuestion.input.Prompt)
+
+	updated := model.handleLoaderSelected(LoaderSelectedMessage{Loader: models.FABRIC})
+
+	assert.Equal(t, stateGameVersion, updated.state)
+	assert.NotEmpty(t, updated.gameVersionQuestion.input.Prompt)
+}
+
 func TestCommandModelRevalidateModsFolderSkipsWhenNotProvided(t *testing.T) {
 	model := CommandModel{
 		result: initOptions{

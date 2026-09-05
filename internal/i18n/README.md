@@ -55,7 +55,8 @@ There is no explicit initialization step. The first call to `T()` lazily loads t
 
 `T()` resolves a translation key and returns a string.
 
-* If the key is missing, the key itself is returned (this is a deliberate, visible failure mode).
+* If the key is missing from the selected locale but exists in `en-GB`, the English translation is returned.
+* If the key is missing from every locale, the key itself is returned (this is a deliberate, visible failure mode).
 * Pass `nil` when you do not need variables.
 
 Simple usage:
@@ -139,13 +140,14 @@ These are treated as developer/CI failures, not user-facing errors.
 
 ## Test mode
 
-Set `MMM_TEST=true` to make `T()` deterministic. This flag is honored only in test binaries.
+Set `MMM_TEST` to make `T()` deterministic. Its presence enables the mode, so `MMM_TEST=true` and `MMM_TEST=1` are equivalent. This flag is honored only in Go test binaries and binaries built with the `e2e` build tag. Normal release binaries ignore it.
 
 In test mode, `T()` returns the key (and argument details) instead of translating.
 
 Why this exists:
 
 * unit tests can assert against stable output
+* E2E scenarios can verify the requested key and interpolation arguments
 * tests do not depend on translation file contents
 * tests do not depend on the machine locale
 
@@ -155,6 +157,8 @@ Example:
 t.Setenv("MMM_TEST", "true")
 assert.Equal(t, "test.simple", i18n.T("test.simple", nil))
 ```
+
+Build the dedicated E2E executable through `make e2e-build`; do not use the `e2e` tag for release binaries.
 
 ## Translation key naming guidelines
 
@@ -175,7 +179,7 @@ Consistency here matters more than perfection. The goal is that developers can:
 Use lower-case dot-separated namespaces:
 
 ```
-<area>.<feature>.<surface>.<concept>.<variant>
+<area>.<feature>[.<surface>].<concept>[.<variant>]
 ```
 
 Examples from this project:
@@ -202,7 +206,7 @@ Use sub-namespaces to keep concerns separated:
 
 * `cmd.<command>.short` for the one-line summary (help listing)
 * `cmd.<command>.usage.*` for usage strings
-* `cmd.<command>.tui.*` for interactive prompts and validation messages
+* `cmd.<command>.prompt.*` for interactive prompts and validation messages
 
 #### `key.*`
 
@@ -274,7 +278,7 @@ Practical workflow:
 1. add the new key in English
 2. wire it up in code
 3. run tests in `MMM_TEST=true` mode
-4. fill in other locales (or leave the key missing intentionally for a visible fallback)
+4. fill in other locales, or leave the key missing intentionally to use the English fallback
 
 ## Maintainer notes
 

@@ -169,6 +169,8 @@ func TestSupportsUnicodeReturnsFalseForCPrefixedLocale(t *testing.T) {
 	previous := unicodeSupportFunc
 	t.Cleanup(func() { unicodeSupportFunc = previous })
 	unicodeSupportFunc = defaultUnicodeSupport
+	t.Setenv("LC_ALL", "")
+	t.Setenv("LC_CTYPE", "")
 	t.Setenv("LANG", "C.ISO8859-1")
 
 	assert.False(t, SupportsUnicode())

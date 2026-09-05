@@ -27,7 +27,7 @@ This is how we contribute quality code.
 The expectation of the system MUST be expressed in proper automated tests first.
 
 - Write the test first.
-  - If the behavior is user-facing, the test MUST be a snapshot test that captures the rendered user-visible output.
+  - If the behavior is user-facing, capture the reviewed requirement as a third-person BDD scenario and assert observable outcomes. Use a snapshot only when complete layout or styling is part of the requirement.
 - Verify the new test fails (prove the gap).
 - Then, and only then, implement the code change that makes the test pass.
 
@@ -70,16 +70,10 @@ We treat automated tests as the primary contract for behavior and user experienc
 - Prefer tests that exercise real production wiring and code paths.
 - Use fakes/stubs only to control nondeterminism (time, random, network, filesystem, OS signals) or to force rare error paths. Do
   not stub core behavior to "make coverage green".
-- Snapshot tests are the primary guardrail against UX regressions (hard requirement):
-  - All user-facing behavior paths MUST be covered by snapshot tests. If a user can observe a difference, it needs a snapshot.
-  - For any user-visible output (interactive terminal (tui-lite) or non-interactive terminal), add snapshot coverage of the rendered output.
-  - If it has an interface (a tui-lite screen/view/prompt/menu/table), it MUST have snapshot tests that cover all branches and states of
-    the UI.
-  - "All branches and states" includes (at minimum): success, empty/no results, loading, validation errors, recoverable errors,
-    fatal errors, and any conditional rendering (for example: selected vs unselected, focused vs unfocused, enabled vs disabled,
-    expanded vs collapsed, pagination).
-  - When possible, drive tui-lite flows with `teatest` and snapshot the output/view so we catch regressions in interaction and presentation.
-  - Update snapshots only when the user-visible behavior is intentionally changed.
+- Capture product requirements as third-person BDD scenarios and assert observable outcomes through the real MMM process.
+- For terminal behavior, use tui-test for input, waits, screen state, process lifecycle, and snapshots. Do not add project-owned PTY or terminal emulation helpers.
+- Prefer stable i18n keys, interpolation arguments, exit status, filesystem effects, and semantic terminal state over rendered wording.
+- Use a full terminal snapshot only when the reviewed requirement depends on complete layout or styling. Update it only for an intentional product change.
 - Every user-facing behavior change must be backed by at least one automated test that would fail if the behavior regressed.
 
 Terminal interaction docs:
@@ -91,8 +85,8 @@ Terminal interaction docs:
 - The code adheres to engineering and code quality standards
 - The changes don't re-invent the wheel by not using existing abstractions
 - New features and bug fixes are covered by tests
-- Snapshots exist for all user-visible behavior changes
-- Complete snapshot tests exist for short (25 rows) and tall (80 rows) terminal heights
+- Product scenarios exist for user-visible behavior changes
+- Required layout or styling behavior has explicit tui-test snapshot coverage at the relevant terminal dimensions
 - All new code follows the established patterns in this repo
 - All relevant documentation is updated
 - `make fmt-check` passes - this verifies if `make fmt` has been run. If not, run `make fmt` to format the code.
@@ -100,19 +94,22 @@ Terminal interaction docs:
 - `make vuln` passes
 - `make coverage` passes (runs tests and enforces 100% coverage)
 - `make build` passes
+- `make e2e` passes when the change affects interactive terminal behavior
 
 **IMPORTANT**
 
 Run the repo `make` targets (do not call go test/go build directly):
 
-If you need to record HTTP cassettes for scenario tests, use `make vcr-record`.
-See `docs/testing/http-vcr.md` for the workflow and cassette conventions.
+If you need to record HTTP cassettes for an in-process Go test, use `make vcr-record`.
+See `docs/testing/http-vcr.md` for the cassette workflow and for the separate process-compatible fixture requirement that applies to terminal E2E scenarios.
+
+The tagged terminal E2E suite requires the pinned tui-test version. See `docs/testing/terminal-harness.md` for installation and the `TUI_TEST_BIN` override.
 
 ### Optional checks
 
 - `make test-race` (slower, use before larger concurrency changes)
 
-To update snapshots (when you change user-visible output), run:
+To update a retained non-E2E Go snapshot after an intentional change, run:
 
 ```bash
 UPDATE_SNAPS=true make coverage

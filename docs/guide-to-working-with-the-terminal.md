@@ -42,7 +42,7 @@ This section implements the interaction contract rules that ban prompting outsid
 
 When an interactive flow is allowed, build one Bubble Tea app per command and make it purpose-built for that command.
 Avoid a reusable prompt framework.
-Model the flow as a finite state machine (FSM) and lock behavior down with snapshot tests.
+Model the flow as a finite state machine (FSM) and lock reviewed product behavior down with observable E2E scenarios.
 
 These patterns exist to keep terminal interaction consistent with the transcript-first requirements:
 - `docs/interactions/interaction-guidelines.md#rendering-model`
@@ -61,7 +61,7 @@ See `docs/interactions/interaction-guidelines.md#cobra-validation-vs-runtime-rec
 
 - Define an enum-like state type (example: `type state int`) and a constant per step.
 - Centralize transitions so each state owns its prompt, defaults, and bubble configuration.
-- Keep state transitions explicit and easy to snapshot.
+- Keep state transitions explicit and easy to exercise through user actions.
 
 The `cmd/mmm/init/interactive_flow.go` model uses `nextMissingState(...)` as the single place that decides what step comes next.
 
@@ -75,7 +75,7 @@ This keeps each question small and testable, and it keeps the command-level FSM 
 - how to apply a selected value to the result
 - what the next missing step is
 
-See `cmd/mmm/init/*Model*.go` and `cmd/mmm/init/confirm_prompt.go` for concrete examples.
+See the model files and `cmd/mmm/init/confirm_prompt.go` under `cmd/mmm/init` for concrete examples.
 
 See `docs/interactions/interaction-guidelines.md#selection-list-rendering` for the selection list collapse and transcript persistence requirements.
 
@@ -87,7 +87,7 @@ The `cmd/mmm/init` interactive flow uses these defaults:
 - `ctrl+c` cancels the flow safely (handled at the command model level)
 - `esc` cancels the current prompt and exits the flow (handled by prompt models)
 
-If a flow needs back navigation, implement it explicitly and snapshot it.
+If a flow needs back navigation, implement it explicitly and cover the reviewed behavior with a product scenario.
 
 See `docs/interactions/interaction-guidelines.md#cancel-behavior`.
 
@@ -119,20 +119,15 @@ The `cmd/mmm/init/confirm_prompt.go` model shows the preferred pattern:
 
 See `docs/interactions/interaction-guidelines.md#language-dependent-prompts-option-initials`.
 
-## Snapshot tests
+## Terminal behavior tests
 
-Snapshot tests are the regression harness for terminal UX.
+Godog scenarios driven through tui-test are the product regression harness for terminal UX. They launch the native E2E-tagged MMM binary and observe i18n keys, terminal state, exit status, and filesystem effects.
 
-The `cmd/mmm/init/interactive_flow_snapshot_test.go` tests show the preferred structure:
-- set `MMM_TEST=true` so i18n output is stable
-- apply `tea.WindowSizeMsg` so lists render predictably
-- drive the model forward by sending key messages or applying typed selection messages
-- snapshot `View()` output for each state using go-snaps
-- assert key telemetry events if the flow records them
+Use in-process model tests for domain state transitions and rare failure paths that are not product conversations. Do not treat existing model or output snapshots as authoritative product requirements.
 
-See `docs/testing/terminal-harness.md` for the shared PTY and in-process harness APIs and usage examples.
+Use a tui-test snapshot only when the reviewed requirement depends on complete layout or styling. Do not recreate project-owned PTY, emulation, normalization, polling, or input helpers.
 
-For command wrapper behavior, use output snapshots that capture stdout and stderr, see `cmd/mmm/init/output_snapshot_test.go`.
+See `docs/testing/terminal-harness.md` for the E2E adapter boundary and `docs/testing/bdd.md` for scenario design.
 
 See `docs/interactions/interaction-guidelines.md#validation-plan` for how to validate behavior across execution contexts.
 

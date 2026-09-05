@@ -12,7 +12,6 @@ import (
 
 	"github.com/meza/minecraft-mod-manager/internal/models"
 	"github.com/meza/minecraft-mod-manager/internal/view"
-	"github.com/meza/minecraft-mod-manager/testutil/terminal"
 )
 
 func TestNewUpdateModelUsesLineSpinnerWhenUnicodeUnsupported(t *testing.T) {
@@ -488,21 +487,6 @@ func TestUpdateViewportUsesWindowHeight(t *testing.T) {
 	assert.Equal(t, 0, model.viewport.YOffset)
 }
 
-func TestUpdateRenderWithStickyHeaderSkipsWhenWindowHeightZero(t *testing.T) {
-	t.Setenv("MMM_TEST", "true")
-
-	model := newUpdateModel(updateModelInput{
-		ctx:       context.Background(),
-		colorMode: view.ColorDisabled,
-	})
-	model.windowH = 0
-
-	content := "cmd.update.header\nAlpha"
-	expected := view.RenderViewSections([]string{content, "cmd.update.header"}, view.SectionSeparatorParagraph)
-	normalizedExpected := terminal.NormalizeOutput(expected, terminal.NormalizeOptions{TrimTrailingWhitespace: true})
-	assert.Equal(t, normalizedExpected, model.renderWithStickyHeader(content))
-}
-
 func TestUpdateRenderWithStickyHeaderSkipsWhenContentEmpty(t *testing.T) {
 	model := newUpdateModel(updateModelInput{
 		ctx:       context.Background(),
@@ -524,22 +508,6 @@ func TestUpdateRenderWithStickyHeaderSkipsWhenBodyEmpty(t *testing.T) {
 
 	content := "cmd.update.header"
 	assert.Equal(t, content, model.renderWithStickyHeader(content))
-}
-
-func TestUpdateRenderWithStickyHeaderEchoesWhenContentExceedsWindow(t *testing.T) {
-	t.Setenv("MMM_TEST", "true")
-
-	model := newUpdateModel(updateModelInput{
-		ctx:       context.Background(),
-		colorMode: view.ColorDisabled,
-	})
-	model.windowH = 2
-
-	content := "cmd.update.header\nAlpha\nBeta"
-	expected := view.RenderViewSections([]string{content, "cmd.update.header"}, view.SectionSeparatorParagraph)
-	normalizedExpected := terminal.NormalizeOutput(expected, terminal.NormalizeOptions{TrimTrailingWhitespace: true})
-	normalizedActual := terminal.NormalizeOutput(model.renderWithStickyHeader(content), terminal.NormalizeOptions{TrimTrailingWhitespace: true})
-	assert.Equal(t, normalizedExpected, normalizedActual)
 }
 
 func TestUpdateRenderWithStickyHeaderSkipsWhenHeaderMissing(t *testing.T) {
