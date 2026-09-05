@@ -1,42 +1,57 @@
 # `mmm change`
 
-`mmm change` switches your configuration to a new Minecraft version and reinstalls every configured mod for that version.
-It downloads the new jars first and only switches after all downloads succeed.
+> This guide describes the Go-port target defined in [product intent](../intent.md), not a claim that every released build already implements it.
 
-Use it when you are ready to move your modpack to a different Minecraft release.
+`change` changes the configured Minecraft version and prepares the corresponding managed installation.
+
+See [shared command behavior](README.md), especially [selection and lockfiles](README.md#selection-and-lockfiles), [results and retry](README.md#results-and-retry), and [cancellation and terminal output](README.md#cancellation-and-terminal-output). Use [`mmm test`](test.md) first when you want a read-only compatibility report.
 
 ```bash
 mmm change 1.21.1
 ```
 
-With `--force`, the command proceeds even if some mods do not support the target version. Those mods are skipped during install.
-If incompatible jars already exist, MMM keeps your current config and removes those files unless you supply a policy flag.
-In interactive runs, MMM will ask which policy to use when you do not set one.
+## Usage and options
 
-```bash
-mmm change --force latest
+```text
+mmm change [game-version]
 ```
 
-## What it does
+| Option | Meaning |
+| --- | --- |
+| `--force` | Proceed past platform-reported incompatibilities and retain existing installed files when no eligible replacement is available. |
 
-- Reuses the `test` checks to verify that your configured mods support the target version (unless you pass `--force`).
-- Downloads the compatible jars into `mods/.mmm-staging` without touching your current mods.
-- If all downloads succeed, swaps in the new jars and updates `modlist-lock.json` and `modlist.json`.
-- Cleans up staging and backup files.
+If no target is supplied, MMM looks up the latest stable Minecraft release. An explicit target can be any version listed in Mojang's manifest, including snapshots and prereleases. Platform artifact availability remains subject to the configured loader, release types, pins, and per-mod fallback choices.
 
-If you attempt to change to the current version, the command exits with code `0` and makes no changes.
+An invalid target can be corrected in an interactive run while other input is preserved. If the latest-version lookup fails, the interactive flow can collect an explicit target that MMM can validate. Unattended or redirected execution reports invalid input or lookup failure without prompting or changing the installation. A service outage must not be reported as proof that an explicit version is invalid.
 
-## Usage
+## Ordinary change
+
+Before switching, MMM checks whether each configured project has an eligible artifact for the requested target. It reports platform-declared compatibility; it does not prove that Minecraft will run successfully.
+
+An ordinary change proceeds only when the compatibility gate passes. MMM prepares target artifacts before switching the working installation. If compatibility checks or preparation fail, it preserves the original configuration and working installation.
+
+Once switching starts, MMM completes the metadata and file consistency work or attempts recovery to the original installation. If recovery cannot complete, the result identifies the actual remaining state and the next action. It does not claim that nothing changed unless that was established.
+
+If the requested target already equals the configured Minecraft version, `change` succeeds as a no-op even if a managed file is missing or damaged. Run `mmm install` to repair the current target.
+
+## Forced retention
+
+`change --force` bypasses known platform-reported incompatibilities. It installs every eligible target replacement it can prepare. When no eligible replacement exists and the current installed file is available, MMM retains that file in place: it does not disable it, delete it, or remove its declaration.
 
 ```bash
-mmm change [game_version]
+mmm change --force 1.21.1
 ```
 
-## Options
+The retained artifact remains declared and locked for the new target. Later `install` runs preserve or reproduce that exact retained selection without requiring force again. A later `update` may replace it when a newer eligible artifact becomes available.
 
-| Flag                  | Meaning                                                                 | Allowed values | Example                                    |
-|-----------------------|-------------------------------------------------------------------------|----------------|--------------------------------------------|
-| `-f, --force`         | Proceed even if some mods lack support; unsupported mods are skipped    | `true/false`   | `mmm change --force 1.21.1`                |
-| `--keep-config`       | Keep incompatible mods in the config and remove their files (requires `--force`) | `true/false`   | `mmm change --force --keep-config 1.21.1`  |
-| `--prune-config`      | Remove incompatible mods from the config and remove their files (requires `--force`) | `true/false`   | `mmm change --force --prune-config 1.21.1` |
-| `--disable-skipped`   | Keep incompatible mods in the config and disable their files (requires `--force`) | `true/false`   | `mmm change --force --disable-skipped 1.21.1` |
+This authorization applies only to that retained artifact and target. A future artifact selection or a change to its declaration constraints must be assessed under the normal selection and force rules. The report identifies retained artifacts and the missing platform compatibility declaration so you can decide whether they work when Minecraft starts.
+
+If neither a replacement nor an existing installed file is available, MMM cannot satisfy that mod. A request or download failure also does not authorize a silent retention decision. Preparation remains incomplete, and the command reports a non-success result rather than claiming the version change succeeded.
+
+Force does not bypass integrity requirements, exclusions, collision protection, or recovery guarantees.
+
+## Failure, cancellation, and retry
+
+Preparation leaves the original state intact until MMM can switch coherently. After switching begins, cancellation may need to finish consistency work or recover the previous installation before returning control. Completed recovery has no automatic timeout; a second interruption after the explicit warning is an emergency exit and may leave recovery unfinished.
+
+Retry after a reported failure or incomplete recovery follows the state and next action reported by MMM. Existing unmanaged jars and files excluded by `.mmmignore` or the `.disabled` suffix remain untouched throughout the change.

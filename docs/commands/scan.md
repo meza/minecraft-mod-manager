@@ -1,39 +1,45 @@
-# `scan`
+# `mmm scan`
 
-Use `mmm scan` to find jar files in your mods folder that are not managed by your `modlist.json` / `modlist-lock.json`.
+> This guide describes the Go-port target defined in [product intent](../intent.md), not a claim that every released build already implements it.
 
-It is helpful when you copied mods into the folder manually, upgraded launchers, or migrated an instance.
-
-## Example
+`mmm scan` identifies visible unmanaged jars and can explicitly adopt recognized artifacts into `modlist.json` and its lockfile.
 
 ```bash
-mmm scan --prefer modrinth --add
+mmm scan
+mmm scan --prefer curseforge --add
 ```
 
-## What it does
+## Options
 
-- Looks for `.jar` files in your mods folder.
-- Ignores files matched by `.mmmignore` and anything ending in `.disabled`.
-- Skips files that are already managed by the lock file.
-- Tries to identify each file by hash on your preferred platform first, and only falls back to the other platform if there are no hits.
-- Prints recognized vs unknown vs unsure files.
-- With `--add` (or when you confirm the prompt), updates `modlist.json` and `modlist-lock.json` with the recognized mods.
-
-## Flags
-
-| Flag | Meaning | Allowed values | Example |
+| Option | Meaning | Accepted values | Default |
 | --- | --- | --- | --- |
-| `-p, --prefer` | Which platform to check first (default: `modrinth`) | `modrinth`, `curseforge` | `--prefer curseforge` |
-| `-a, --add` | Persist results without prompting | `true/false` | `--add` |
+| `-p, --prefer` | Platform to search first | `modrinth`, `curseforge` | `modrinth` |
+| `-a, --add` | Adopt recognized, unambiguous results without an adoption prompt | flag | off |
 
-## If something goes wrong
+Global options, setup recovery, declaration correction and invalid-option correction are covered in [shared command behavior](README.md#configuration-and-setup).
 
-If a file cannot be looked up due to a platform error, it is reported as "unsure".
+## Discovery and source fallback
 
-If a file is listed as "unknown", it means the file hash did not match anything on either platform.
+Scan examines only `.jar` files immediately inside the configured mods directory; it does not recurse into subdirectories. It skips managed artifacts, files matched by `.mmmignore`, and files ending in `.disabled`.
 
-If no configuration file exists, the command tells you and asks if you want to initialize one. If you say yes, it runs the interactive `init` flow and then continues scanning. In `--unattended` mode, the command fails instead of creating a config.
+MMM identifies candidates by their artifact evidence. It searches the preferred platform first and uses the other supported platform as fallback. If timeout or connection failures continue after retries on the preferred platform, fallback can still produce a conclusive match. A candidate whose lookups cannot be completed remains uncertain; a conclusive no-match is unknown. Service failure is not reported as proof that a file is unknown.
 
-See `docs/interactions/interaction-guidelines.md#missing-config` and `docs/interactions/flows/scan.md`.
+The report separates known, unknown and uncertain candidates. Discovery alone never grants MMM ownership of a file.
 
-If you run with `--unattended`, the command does not prompt and skips writing changes unless you pass `--add`. If you run with `--quiet`, the command suppresses non-essential output. In non-tty output, per-file result lines print as they settle.
+## Adoption
+
+In an interactive run without `--add`, MMM offers a choice before adopting recognized candidates. `--add` is explicit adoption intent for recognized, unambiguous results. Without prompting and without `--add`, scan reports candidates without changing metadata.
+
+Adoption records the exact artifact already on disk in the declaration and lockfile. It does not download a newer version. Unknown or uncertain candidates are never silently adopted, and declining adoption preserves both files and metadata. Already managed projects are not duplicated.
+
+When multiple discovered jars identify the same project, MMM keeps an existing valid locked selection. Without such a selection, an interactive run asks which artifact to adopt. In an unattended or redirected run, MMM leaves that project unresolved while still adopting independent unambiguous projects when `--add` was supplied. The order in which files are processed never decides ownership; unselected jars remain unmanaged.
+
+Adoption does not silently override an existing version pin. If a discovered artifact conflicts with a pin, MMM reports the conflict and requires explicit consent to change it. Without prompting, the project remains unchanged.
+
+Explicit adoption of a previously undeclared artifact can authorize that exact artifact even when the platform does not report it as compatible with the configured Minecraft target. MMM reports that limitation and records enough evidence to preserve or reproduce the adopted selection on later installs. This authorization applies only to that artifact and target; it does not waive integrity checks or authorize future incompatible selections.
+
+## Results, failure and retry
+
+Each candidate can complete independently. Successful adoptions remain consistent if another lookup or metadata change fails, and retries do not create duplicate declarations or lock entries. Invalid ignore patterns stop mutation and identify the offending line so intended exclusions are not exposed.
+
+See the shared guidance for [execution modes](README.md#execution-modes), [results and retry](README.md#results-and-retry), and [safe cancellation](README.md#cancellation-and-terminal-output). Cancellation stops new lookup and adoption work while retaining completed independent changes and restoring consistent metadata before returning control.

@@ -1,70 +1,54 @@
-# remove
+# `mmm remove`
 
-Remove one or more mods from your configuration and (if present) delete their jar files from your mods folder.
+> This guide describes the Go-port target defined in [product intent](../intent.md), not a claim that every released build already implements it.
 
-Quick start:
+`remove` deletes explicitly selected mods from the desired declaration, lockfile, and managed files.
+
+See [shared command behavior](README.md), especially [execution modes](README.md#execution-modes), [file ownership and exclusions](README.md#file-ownership-and-exclusions), and [results and retry](README.md#results-and-retry).
 
 ```bash
 mmm remove sodium
 ```
 
-## Usage
+## Usage and options
 
-`mmm remove <mods...>`
-
-You can pass one or more mod lookups. Each lookup is matched against the lockfile first by mod ID and name.
-MMM also removes any matching config entries that do not have a lock entry, even when the lookup matches the lockfile.
-
-You can also use [glob patterns](#glob-primer) to describe multiple mods.
-
-If a lookup does not match anything, MMM skips it and keeps going.
-
-If the mod file is already missing on disk, MMM skips the file removal and still removes the mod from your config.
-
-When a lock entry matches, MMM removes the config entry with the same ID and then removes the lock entry.
-
-In interactive terminals, MMM lists the matched mods and asks you to confirm before it removes anything.
-Use `--force` to skip the confirmation. In unattended or non-tty runs, MMM only removes when you pass `--force` or `--unattended`.
-The confirmation prompt still appears when `--quiet` is set.
-
-## Examples
-
-Remove multiple mods (quote names with spaces):
-
-```bash
-mmm remove mod1 mod2 "mod with space in its name"
+```text
+mmm remove <id-or-name>...
 ```
 
-Remove a group of mods using a [glob pattern](#glob-primer):
+Selections can be mod IDs, names, or supported case-insensitive glob patterns. Multiple selections may match the same mod; MMM removes it only once.
+
+| Option | Meaning |
+| --- | --- |
+| `--force` | Remove the matched selection without confirmation. |
+
+Examples:
 
 ```bash
+mmm remove mod1 mod2 "mod with spaces"
 mmm remove "world*edit*"
 ```
 
-Tip: quote your patterns so your shell does not expand them before MMM sees them.
+Quote names and patterns so the shell passes them to MMM unchanged.
 
+## Confirmation and no-prompt execution
 
-## Flags
+In an interactive terminal, MMM shows the matched mods and asks for confirmation. Declining or cancelling makes no changes. `--force` authorizes exactly the displayed or supplied selection and skips that confirmation.
 
-| Short | Long        | Meaning                              | Allowed values | Example                   |
-|------:|-------------|--------------------------------------|----------------|---------------------------|
-|  `-f` | `--force`   | Skip the confirmation prompt         | true/false     | `mmm remove --force sodium` |
+In unattended or redirected execution, `--force` is required because MMM cannot ask for removal authorization. `--unattended` disables prompts but does not itself authorize deletion.
 
+An already-absent target is a successful no-op. Force does not widen the selection, bypass exclusions, or allow an unrelated file collision.
 
-## Glob primer
+## Removal results and retry
 
-```
-// Patterns:
-term ['/' term]*
-term:
-'*'         matches any sequence of non-Separator characters
-'?'         matches any single non-Separator character
-'[' [ '^' ] { character-range } ']'
-// Character classes (must be non-empty):
-c           matches character c (c != '*', '?', '\\', '[', '/')
-'\\' c      matches character c
-// Character-ranges:
-c           matches character c (c != '\\', '-', ']')
-'\\' c      matches character c
-lo '-' hi   matches character c for lo <= c <= hi
-```
+For each selected mod, MMM removes the declaration, lock entry, and managed artifact while keeping enough consistent state to represent completed and incomplete work. If the managed jar is already absent, MMM still removes the corresponding metadata cleanly.
+
+If a file cannot be removed, MMM does not report that mod as fully removed. It preserves enough state to identify and retry the remaining work. Independent removals that completed successfully remain completed, and rerunning the same request does not create duplicate work.
+
+Visible unmanaged jars remain untouched. Files matched by `.mmmignore` and files ending in `.disabled` are excluded from MMM operations, including removal; `--force` does not override that protection.
+
+Cancellation stops scheduling new removals but retains completed independent changes. MMM completes required metadata consistency before returning control, unless the operator uses the explicitly warned second interruption as an emergency exit. The final report identifies completed, failed, and unresolved items and gives the next useful action.
+
+## Glob patterns
+
+Patterns are case-insensitive. `*` matches any sequence of characters, `?` matches one character, and bracket expressions such as `[abc]` or `[a-z]` match a character from a set or range. Use a literal ID or name when you want the narrowest selection.

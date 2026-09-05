@@ -1,35 +1,42 @@
 # `mmm update`
 
-`mmm update` checks each configured mod for a newer compatible release and installs it for you.
+> This guide describes the Go-port target defined in [product intent](../intent.md), not a claim that every released build already implements it.
 
-Most of the time you run this after a while to bring your mods folder up to date without re-adding everything.
-
-```bash
-mmm update
-```
-
-## What it does
-
-- Runs `mmm install` first to make sure your lock file and mods folder are consistent.
-- For each configured mod that is not pinned to a specific `version`, checks for a newer release matching your configured Minecraft version, loader, and allowed release types.
-- Downloads the newer jar, removes the previous jar, and updates `modlist-lock.json`.
-- Updates mod names in `modlist.json` to stay in sync.
-
-If a mod is pinned to a specific `version`, `update` will not look for newer releases. The pinned version is only re-downloaded if the file is missing or does not match the lock file hash (during the initial `install` phase).
-
-## Usage
+`mmm update` advances eligible unpinned mods and reconciles the resulting managed installation.
 
 ```bash
 mmm update
 mmm u
 ```
 
-## Options
+The command has no command-specific options. Use the global options and setup described in [shared command behavior](README.md#configuration-and-setup), including `--config` for an alternative configuration and `--unattended` when prompts are unavailable.
 
-This command only uses the global options:
+## Selection behavior
 
-| Flag | Meaning | Allowed values | Example |
-| --- | --- | --- | --- |
-| `-c, --config` | Path to `modlist.json` | file path | `mmm --config ./server/modlist.json update` |
-| `-q, --quiet` | Suppress non-essential output | `true/false` | `mmm --quiet update` |
-| `-d, --debug` | Print debug details | `true/false` | `mmm --debug update` |
+`update` reads the current declarations and existing resolution evidence, selects the desired artifacts under the update policy, and then applies those selections. It does not run an ordinary `install` first. A newly added declaration or a changed loader, Minecraft version, release policy, fallback setting or pin participates directly in selection, without installing an intermediate locked artifact.
+
+For an unpinned mod, an update must have a later publication date and different file content. It must also satisfy the configured Minecraft version, loader and release types, including per-mod overrides. A changed display name or version string alone does not establish an update.
+
+The per-mod `allowVersionFallback` setting defaults to disabled. When enabled, fallback stays within the same Minecraft release series and MMM reports the fallback selection. It does not allow unrelated constraint overrides.
+
+If the newest matching release lacks required download or integrity information, the affected update fails. MMM does not silently choose an older release to work around unusable newest metadata.
+
+## Pins and existing artifacts
+
+Pinned mods stay pinned during ordinary updates. If the declaration's pin changed since the lockfile was written, the new explicit pin is binding and is selected directly.
+
+A missing old jar, or an old artifact that can no longer be downloaded, does not prevent MMM from installing an eligible newer artifact. Each replacement is prepared and verified before the previous working file is removed. If preparation fails, the previous working artifact remains in place and the report identifies the unsatisfied update.
+
+Missing lock entries are reconciled normally without discarding unrelated valid resolutions. Corrupt or contradictory resolution evidence is preserved and reported with recovery guidance rather than silently reconstructed.
+
+## Ownership and exclusions
+
+Unmanaged jars remain untouched and do not block unrelated updates. MMM does not adopt them or move a managed mod to another platform without explicit operator intent. A destination collision fails the affected update instead of overwriting an unrelated file.
+
+Files matched by `.mmmignore` and files ending in `.disabled` are excluded. A disabled counterpart does not satisfy a declared enabled file, so reconciliation may create the enabled `.jar` beside it.
+
+## Results, failure and retry
+
+Successful updates remain installed when another mod fails. The overall result is incomplete when any work fails or remains unresolved, and the report identifies the affected mods and useful next actions. Retrying preserves completed work and does not create duplicate declarations or lock entries. A fully satisfied installation with no eligible updates is a successful no-op.
+
+See the shared guidance for [execution modes](README.md#execution-modes), [results and retry](README.md#results-and-retry), and [safe cancellation](README.md#cancellation-and-terminal-output). A broken output pipe does not cancel an authorized update; MMM continues the consistency work even when the reader can no longer receive output.
