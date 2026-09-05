@@ -24,6 +24,12 @@
       "sourceType": "github",
       "skillPath": "plugins/fixing-linter-violations/skills/fixing-linter-violations/SKILL.md",
       "computedHash": "573ba65958d186c5326d3e205b8b99aef5b914b8a90a66582d25c52cabd59ce0"
+    },
+    "grilling": {
+      "source": "mattpocock/skills",
+      "sourceType": "github",
+      "skillPath": "skills/productivity/grilling/SKILL.md",
+      "computedHash": "4dd886b0196bf43729d954ae326016f2bd9f5f79d892500b407c33a753362f14"
     }
   }
 }
