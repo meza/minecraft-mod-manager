@@ -1,141 +1,84 @@
 # Guide to working with the terminal
 
-This is a developer guide for implementing and maintaining MMM terminal interactions.
+This guide helps contributors implement the terminal architecture required by [product intent](intent.md#component-ownership-and-architecture). It describes the target design and evidence needed to demonstrate it, not a claim that existing commands conform. [Command guides](commands/README.md) own inputs and outcomes. [Interaction conventions](interactions/interaction-guidelines.md) and [component examples](interactions/component-examples.md) support presentation decisions.
 
-The user-visible behavior contract lives in `docs/interactions/interaction-guidelines.md`.
-This document focuses on implementation practices that keep behavior consistent and testable across execution contexts.
+## Start with ownership
 
-The `cmd/mmm/init` package is the reference implementation for the patterns described here.
+| Owner | Responsibility | Boundary |
+| --- | --- | --- |
+| Terminal session | Input routing, focus, scrolling, active rendering, transcript commits and restoration | Coordinates terminal access for all components. |
+| Command flow | Operation sequence and composition of capabilities | Supplies domain decisions; resumes after accepted shared recovery. |
+| Capability component | Reusable interaction, including state, controls, help and output | Returns choices and outcomes through explicit contracts. |
+| Visual primitive | Controls, styles, icons and layout | Does not decide policy or acquire terminal ownership. |
 
-## Execution contexts
+Business operations are independent of rendering. Interactive and unattended presentations consume the same operation outcomes. Components must not reconstruct what happened by running a second version of an operation.
 
-MMM has multiple execution contexts with different interaction constraints.
-Definitions and requirements are owned by `docs/interactions/interaction-guidelines.md`.
+Command orchestration can remain in command packages. Confirmation, selection, setup recovery, progress and results need shared owners even when their first consumer is one command. Sharing styles while copying state transitions and key handling does not establish reusable capabilities.
 
-When you are implementing a command, ensure behavior is correct in:
-- non-interactive terminal
-- unattended terminal
-- interactive terminal
+Use Bubble Tea composition for component state and messages. Make transitions explicit: the flow supplies a request, the capability collects a decision or observes work, and it returns a typed outcome. Children ask the session to present or commit output; they do not independently start terminal programs or print around the renderer. Concrete packages and message types belong to implementation, following these boundaries.
 
-See:
-- `docs/interactions/interaction-guidelines.md#execution-contexts`
-- `docs/interactions/interaction-guidelines.md#non-interactive-terminal`
-- `docs/interactions/interaction-guidelines.md#unattended-terminal-tui-lite`
-- `docs/interactions/interaction-guidelines.md#interactive-terminal-tui-lite`
+Existing capability helpers are described in [internal/view](../internal/view/README.md). Their presence is not evidence of a complete session architecture. Check an existing command's lifecycle before treating it as a reusable example.
 
-## Decide when prompting is allowed
+## Separate active state from durable events
 
-Use execution context detection to decide whether the command can run an interactive flow.
+The [terminal contract](intent.md#active-display-and-permanent-transcript) gives active rendering and history different lifetimes. Pending items, progress and unanswered prompts can repaint, sort and regroup. Settled results and accepted decisions append in completion order and cannot change in a later render.
 
-Use `internal/view` as the shared helper for view capabilities and Bubble Tea program options:
-- `internal/view.SupportsPrompting(in, out)` to decide whether prompts are allowed
-- `internal/view.ProgramOptions(in, out)` to ensure Bubble Tea does not emit terminal control sequences when stdout is not a TTY
+The session coordinates these transitions:
 
-See `cmd/mmm/init/run.go` for the execution mode selection pattern.
+1. Receive a settled operation outcome. A completed download alone does not establish successful installation and metadata persistence.
+2. Produce a durable record with the same meaning and format as redirected output.
+3. Commit it once and remove its transient representation. Repaint or repeated observation must not emit it again.
+4. Render remaining active work. A later correction becomes a new explicit event.
+5. Add the final summary, failures and next steps without replaying the item list.
 
-This section implements the interaction contract rules that ban prompting outside interactive contexts and require safe degradation:
-- `docs/interactions/interaction-guidelines.md#no-hidden-prompts`
-- `docs/interactions/interaction-guidelines.md#unattended-and-non-interactive-contract`
-- `docs/interactions/interaction-guidelines.md#output-streams`
+Data structures and event identification are implementation choices. The observable invariant is one durable record per settled outcome, independent of repaint frequency, grouping, size or component reuse. Reprinting the whole model at exit is not a substitute.
 
-## Build interactive terminal flows as command apps
+An answered prompt leaves a concise decision record. Collapsing its temporary option list must not erase earlier history. A pending prompt stays active until answered or cancelled.
 
-When an interactive flow is allowed, build one Bubble Tea app per command and make it purpose-built for that command.
-Avoid a reusable prompt framework.
-Model the flow as a finite state machine (FSM) and lock reviewed product behavior down with observable E2E scenarios.
+## Coordinate primary and alternate screens
 
-These patterns exist to keep terminal interaction consistent with the transcript-first requirements:
-- `docs/interactions/interaction-guidelines.md#rendering-model`
-- `docs/interactions/interaction-guidelines.md#tui-lite-only`
-- `docs/interactions/interaction-guidelines.md#bubble-tea-only`
+Normal terminal history must retain pre-command shell output and MMM's durable results after exit. Temporary alternate screens may host active controls, but cannot be the only home of committed history. An optional transcript viewer cannot be required to recover normal history.
 
-### Keep the model in the command package
+The session coordinates screen transitions with its renderer. Before adopting an alternate screen, establish how durable events reach primary-screen history, how active work returns after a commit, and how input and focus remain attached to the current component. Child components must not toggle screens or write directly while another renderer owns the terminal.
 
-- Keep the Bubble Tea model in the command package (example: `cmd/mmm/init/interactive_flow.go`).
-- Avoid generalized abstractions (generic wizards, generic prompts, generic screens). This project is an application, not a terminal UI library.
-- Keep interaction concerns (state, layout, key handling) separate from business logic (API calls, config, file system changes) by injecting the command functions the model needs to call.
+This guide does not prescribe an unverified Bubble Tea call sequence. A repaintable view, in-memory event list, or final dump after leaving the alternate screen does not by itself establish the required lifecycle. Demonstrate the renderer integration in a real terminal before recommending it as a shared pattern. An inline active region and temporary alternate screens must satisfy the same history observations.
 
-See `docs/interactions/interaction-guidelines.md#cobra-validation-vs-runtime-recovery` for how argv validation and interactive recovery flows are expected to relate.
+On completion, failure and safe cancellation, restore terminal state acquired by the session, including screen mode, input mode and cursor visibility. Restoration must not clear pre-command output or duplicate records. Coordinate it with operation recovery so the returning shell prompt does not falsely imply that installation changes have stopped.
 
-### Model the flow as an explicit FSM
+## Preserve reading position
 
-- Define an enum-like state type (example: `type state int`) and a constant per step.
-- Centralize transitions so each state owns its prompt, defaults, and bubble configuration.
-- Keep state transitions explicit and easy to exercise through user actions.
+Following new output and reading older history are distinct presentation states. Once the operator scrolls away, preserve their position as work progresses and durable events arrive. A newly required prompt waits without taking that position away.
 
-The `cmd/mmm/init/interactive_flow.go` model uses `nextMissingState(...)` as the single place that decides what step comes next.
+Returning to the active end shows current work and any pending prompt, then resumes following. Resize and regrouping must not restore stale frames, duplicate history or misplace controls. Long lists need accessible content, not every row rendered simultaneously.
 
-### Compose prompt models
+Distinguish terminal-emulator scrollback from an MMM-owned viewport. A component's viewport offset alone does not prove that the terminal's reading position survives. Verify the selected rendering approach in supported terminals; do not assume a library option owns behavior that has not been demonstrated.
 
-Compose a single command-level model from smaller prompt models.
-Each prompt model owns its own input behavior and returns a typed `tea.Msg` when the user confirms a choice.
+## Select presentation from capabilities and policy
 
-This keeps each question small and testable, and it keeps the command-level FSM focused on:
-- which step is current
-- how to apply a selected value to the result
-- what the next missing step is
+Follow [execution modes](intent.md#execution-modes-and-operator-intent): interactive input and output allow shared controls; `--unattended` disables prompts while terminal progress may stay dynamic; redirected input or output requires plain append-only results without control sequences.
 
-See the model files and `cmd/mmm/init/confirm_prompt.go` under `cmd/mmm/init` for concrete examples.
+Detect capabilities at the session boundary and pass them consistently to consumers. Terminal detection does not grant mutation authority, and unattended execution does not imply force. Use existing helpers where applicable, but verify both absence of control sequences and presence of required results. Disabling a renderer alone does not prove result delivery.
 
-See `docs/interactions/interaction-guidelines.md#selection-list-rendering` for the selection list collapse and transcript persistence requirements.
+Error and diagnostic paths must cooperate with session output ownership, avoid corrupting active frames and avoid duplicating handled errors. A broken output pipe does not cancel authorized work or required consistency operations.
 
-### Cancellation behavior
+## Compose setup and correction
 
-Follow the behavior contract in `docs/interactions/interaction-guidelines.md`.
+Invoke shared recovery according to [intent](intent.md#shared-setup-and-recovery). Preserve valid inputs while correcting another field. Return an explicit accepted, declined, cancelled or failed outcome; resume the command only after successful accepted recovery.
 
-The `cmd/mmm/init` interactive flow uses these defaults:
-- `ctrl+c` cancels the flow safely (handled at the command model level)
-- `esc` cancels the current prompt and exits the flow (handled by prompt models)
+Malformed syntax differs from a correctable supplied value. Do not reject every invalid field in a parser hook if that prevents required interactive correction. Without prompting, invalid requests fail without mutation.
 
-If a flow needs back navigation, implement it explicitly and cover the reviewed behavior with a product scenario.
+Shared recovery must not reconstruct another command's private runtime. Inspection stays read-only; explicitly accepted initialization or correction is a separate preceding operation. Command guides own defaults, reset authority and final confirmation.
 
-See `docs/interactions/interaction-guidelines.md#cancel-behavior`.
+## Cancel safely
 
-## Render as a transcript
+Route the first interruption to safe cancellation: stop scheduling, cancel unfinished downloads and finish necessary consistency or recovery. Show ongoing cleanup and retain completed independent outcomes and decisions.
 
-Interactive output should remain readable as a line-oriented transcript.
+Explain that a second interruption forces termination and may leave recovery unfinished. Required recovery has no automatic shutdown timeout. Report established results; attempting rollback is not proof that nothing changed. Restore terminal control as part of safe completion.
 
-The `cmd/mmm/init/interactive_flow.go` model shows a durable approach:
-- build sections for each step
-- render completed steps as answered prompt lines
-- render only the current prompt as an interactive control
-- avoid clearing the screen or hiding previous lines
+Escape and documented quit shortcuts follow the active capability's [controls](interactions/interaction-guidelines.md#controls-and-help) and reach the same safe cancellation boundary when work is running. Free text remains free text.
 
-See:
-- `docs/interactions/interaction-guidelines.md#interactive-terminal-tui-lite`
-- `docs/interactions/interaction-guidelines.md#tui-lite-only`
-- `docs/interactions/interaction-guidelines.md#selection-list-rendering`
+## Prove the integration
 
-## Language dependent option initials
+Use the [terminal E2E guide](testing/terminal-harness.md) for tooling and [BDD guide](testing/bdd.md) for scenarios. [Intent's acceptance journeys](intent.md#acceptance-and-evidence) govern required observations.
 
-Some prompts accept a short token (often a single character) that depends on locale.
-Do not hardcode English tokens like `y/N`.
-
-The `cmd/mmm/init/confirm_prompt.go` model shows the preferred pattern:
-- each option has a stable meaning in code, plus localized `label` and `short` values from i18n
-- defaults are owned by code, not translations
-- the parser accepts both localized short token and localized full label
-- invalid input is handled by re-prompting in interactive context, and by safe fallback in non-interactive contexts
-
-See `docs/interactions/interaction-guidelines.md#language-dependent-prompts-option-initials`.
-
-## Terminal behavior tests
-
-Godog scenarios driven through tui-test are the product regression harness for terminal UX. They launch the native E2E-tagged MMM binary and observe i18n keys, terminal state, exit status, and filesystem effects.
-
-Use in-process model tests for domain state transitions and rare failure paths that are not product conversations. Do not treat existing model or output snapshots as authoritative product requirements.
-
-Use a tui-test snapshot only when the reviewed requirement depends on complete layout or styling. Do not recreate project-owned PTY, emulation, normalization, polling, or input helpers.
-
-See `docs/testing/terminal-harness.md` for the E2E adapter boundary and `docs/testing/bdd.md` for scenario design.
-
-See `docs/interactions/interaction-guidelines.md#validation-plan` for how to validate behavior across execution contexts.
-
-## TTY behavior
-
-Use `internal/view.ProgramOptions(in, out)` when you construct a Bubble Tea program so it disables the renderer when stdin or stdout are not TTYs.
-For tests that need deterministic behavior across platforms, override terminal detection via `view.SetIsTerminalFuncForTesting(...)` and restore it afterwards.
-
-This is the implementation of:
-- `docs/interactions/interaction-guidelines.md#non-interactive-terminal`
-- `docs/interactions/interaction-guidelines.md#output-streams`
+Exercise real consuming commands. Model tests can verify transitions, but cannot establish shell history, scroll round trips, restoration or cross-command consistency. Record the terminal and platform used to demonstrate renderer behavior. Do not normalize, reorder or reconstruct missing output to manufacture an expected screen.

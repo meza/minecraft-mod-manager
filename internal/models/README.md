@@ -27,8 +27,8 @@ Helpers like `AllLoaders()` and `AllReleaseTypes()` exist for UI selection flows
 
 ## Related docs
 
-For the user-facing explanation of `modlist.json` and `modlist-lock.json`, see the root `README.md`.
-For behavior and interaction requirements, see `docs/specs/` and `docs/interactions/`.
+For the user-facing explanation of `modlist.json` and `modlist-lock.json`, see the root [`README.md`](../../README.md).
+For authoritative behavior, see the [installation model](../../docs/intent.md#the-installation-model) and [sources and version selection](../../docs/intent.md#sources-and-version-selection) in product intent. The [command guide index](../../docs/commands/README.md) routes operator workflows, and [`docs/interactions/`](../../docs/interactions/README.md) describes terminal interactions.
 
 ## Tests
 

@@ -88,7 +88,17 @@ Discovery and pruning examine immediate files only, without recursing into subdi
 
 ## Results and retry
 
-The target distinguishes success or satisfied no-op, incomplete or failed execution, invalid invocation and interruption. A completed compatibility check with incompatibilities has its own non-success outcome; inconclusive checks are incomplete. Numeric assignments for these target categories are not defined by product intent; these guides do not invent new codes or preserve conflicting historical numbers.
+The target distinguishes success or satisfied no-op, incomplete or failed execution, invalid invocation and interruption. A completed compatibility check with incompatibilities has its own non-success outcome; inconclusive checks are incomplete.
+
+| Outcome | Exit code |
+| --- | --- |
+| Requested outcome satisfied, including an already-satisfied no-op | `0` |
+| Execution failed or remained incomplete, including partial failure or inconclusive checks | `1` |
+| Invalid invocation | `2` |
+| Compatibility check completed conclusively and found incompatibilities | `3` |
+| Operator interrupted the operation | `130` |
+
+This mapping applies across all commands. A mixed incompatible/inconclusive compatibility check returns `1`, because the check is incomplete; its report preserves both kinds of findings. A successful no-op returns `0`, never `2`. These are the agreed Go-port target assignments, not a claim that every released binary already implements them.
 
 Partial success is not overall success. Reports identify completed work, unresolved items, known reasons and useful next actions. Individual mods can fail independently during install, update and removal; completed work remains consistent and retries converge without duplicates. Version change instead has a coordinated preparation and switching boundary.
 
@@ -109,5 +119,22 @@ Messages and controls are localizable, with English fallback. Plain text and ASC
 ## Diagnostics and telemetry
 
 `--debug` exposes additional diagnostics. `--perf` requests a local performance recording and `--perf-out-dir` controls its location. Diagnostic export failure does not turn a completed mod operation into failure.
+
+### Debug-log reference
+
+Create a debug log only when `--debug` is set, in the same directory as the selected configuration file. The log provides an action audit trail for the run without requiring debug mode to understand ordinary failures. It uses stable, one-event-per-line logfmt, with documented keys and values that contain no control characters.
+
+Every event includes:
+
+| Field | Format and meaning |
+| --- | --- |
+| `ts` | Timestamp in RFC3339Nano format. |
+| `level` | `debug`, `info`, `warn` or `error`. |
+| `event` | Short, stable event name. |
+| `cmd` | Root command name and subcommand when applicable. |
+
+Include enough failure context to support diagnosis without reproducing the problem. Never record credentials, API keys, tokens or authorization headers; an action audit trail does not authorize secret values. Local debug logs are separate from telemetry and must not be uploaded as telemetry payloads. The precise filename and event-specific field catalog are not specified by this contract.
+
+### Telemetry
 
 Telemetry is enabled by default and can be disabled with `MMM_DISABLE_TELEMETRY`. Its permitted fields are bounded operational metrics and a documented stable machine identifier. It must not collect personal information, credentials, mod identities, private paths, arbitrary arguments or raw errors, including usernames embedded in other values. Telemetry failure does not fail the command. See the [collection boundary](../intent.md#operational-expectations).

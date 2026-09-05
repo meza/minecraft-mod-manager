@@ -411,7 +411,15 @@ Bubble Tea and its existing controls support composition. Their presence alone d
 
 Windows, macOS and Linux are first-class environments. Paths, terminal handling, cancellation and filesystem behaviour must work on each supported system. The Go distribution must not require Node.js, a launcher or a persistent service to run ordinary commands.
 
-Network access respects shared service limits and standard proxy configuration. Avoid unnecessary requests and distinguish service unavailability from invalid operator input. Cached Minecraft metadata should support recovery from manifest outages where available; absent evidence must not become invented validation or a promise of full offline operation.
+Network access respects shared service limits and standard proxy configuration. `HTTP_PROXY`, `HTTPS_PROXY` and `NO_PROXY` apply to outbound HTTP requests, including API calls and downloads, and user documentation explains their use. Avoid unnecessary requests and distinguish service unavailability from invalid operator input.
+
+When an invocation first needs the Minecraft version manifest, attempt to refresh it using the normal bounded retry policy. Reuse the resulting metadata throughout that invocation. Persist successfully validated manifests locally in a system-appropriate location, together with their fetch time, for reuse across invocations.
+
+If refresh fails, use a valid cached manifest regardless of its age. There is no hard expiry. Warn that cached metadata is being used and identify when it was fetched. A request for `latest` may use the cached latest stable release; name the selected version and warn that a newer release may exist.
+
+An explicit version present in the cached manifest can be validated. If it is absent and refresh failed, report that MMM cannot validate the version, not that the version is invalid. If refresh fails and the cache is missing or corrupt, report an actionable failure rather than inventing validation evidence.
+
+These rules apply equally to interactive, unattended and redirected execution. Cache fallback alone does not make an operation unsuccessful. This does not promise full offline operation or permit invented version validation.
 
 Official distribution access defaults should allow ordinary use without obtaining personal API credentials. Explicit runtime overrides remain available. Credentials must not appear in user output, diagnostic artifacts or telemetry.
 

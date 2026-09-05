@@ -2,4 +2,4 @@ This package implements the `mmm change` command: verify a target Minecraft vers
 
 The command runs the same compatibility checks as `mmm test` (unless `--force` is provided), stages downloads under `mods/.mmm-staging`, updates `modlist.json` and `modlist-lock.json`, and attempts rollback if switching fails.
 
-If you adjust behavior, keep `docs/specs/change.md` and `docs/commands/change.md` in sync with the code.
+If you adjust behavior, follow the target in [`docs/intent.md`](../../../docs/intent.md) and keep the [`change` command guide](../../../docs/commands/change.md) accurate.

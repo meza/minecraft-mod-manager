@@ -14,7 +14,7 @@ Feature files live in `e2e/features`. The Godog runner and reusable step definit
 
 ## Write product conversations
 
-Write scenarios in third person. Name the actor, describe an action, and assert an observable outcome:
+Write scenarios in third person. Name the actor, describe an action, and assert an observable outcome. This example expresses the target cancellation contract; step wording is illustrative, not a claim that the steps or behavior are already implemented:
 
 ```gherkin
 Scenario: A user cancels initialization before choosing a loader
@@ -22,7 +22,7 @@ Scenario: A user cancels initialization before choosing a loader
   When Alice starts interactive initialization
   Then Alice should see the i18n key "cmd.init.prompt.loader.question"
   When Alice cancels initialization
-  Then Alice should observe a successful exit
+  Then Alice should observe an interrupted outcome
   And Alice should find no configuration in the workspace
 ```
 
@@ -43,7 +43,9 @@ The E2E process receives `MMM_TEST=1` so localization expectations use stable ke
 
 ## Adding coverage
 
-The current placeholder features verify the BDD framework only. They are not product coverage.
+For HTTP-dependent scenarios, follow the agreed [HTTP fixture design](http-fixtures.md): Godog owns local Go HTTP servers, while an E2E-tagged MMM process receives test-only endpoint overrides. This wiring is not implemented yet. Keep fixture setup and request verification in the scenario's supporting actions and lifecycle; Gherkin should describe product behavior. Fixture failures must fail independently of the product's response.
+
+Framework-only scenarios are not product coverage. Establish product coverage from the scenarios and observations that exercise [intent's acceptance journeys](../intent.md#acceptance-and-evidence), not from the existence of the harness.
 
 For each new product scenario:
 

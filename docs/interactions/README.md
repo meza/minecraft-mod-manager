@@ -1,34 +1,15 @@
-# Interactions workspace
+# Working with terminal interactions
 
-This folder is the interaction design workspace for Minecraft Mod Manager.
+This corpus helps contributors implement and assess shared terminal capabilities. It describes target architecture and presentation, not a claim that the current implementation conforms.
 
-It captures how people interact with the product today and what the system expects at the interaction level.
+[Product intent](../intent.md) defines requirements. [Command guides](../commands/README.md) describe inputs, workflows and outcomes.
 
-Interaction authority:
-- The target interaction contract lives in `docs/interactions/interaction-guidelines.md`.
-- Per-command terminal flows live in `docs/interactions/flows/*.md`.
-- Engineering specs live in `docs/specs/` and should be kept aligned with the interaction contract.
+| Task | Guide |
+| --- | --- |
+| Design ownership, rendering, history, scrolling or cancellation | [Terminal implementation guide](../guide-to-working-with-the-terminal.md) |
+| Apply consistent controls, progress, language and accessibility | [Interaction conventions](interaction-guidelines.md) |
+| Discuss active frames and durable records visually | [Component examples](component-examples.md) |
+| Run or extend real-process terminal verification | [Terminal E2E guide](../testing/terminal-harness.md) |
+| Express operator journeys as acceptance scenarios | [BDD guide](../testing/bdd.md) |
 
-Start here when you want to understand:
-- What interaction surfaces exist
-- How execution contexts work
-- How each command behaves in non-interactive, unattended, and interactive terminal contexts
-
-## Contents
-
-- `docs/interactions/interaction-guidelines.md`
-- `docs/guide-to-working-with-the-terminal.md`
-- `docs/interactions/black-box-discovery.md`
-- `docs/interactions/discovery/README.md`
-- `docs/interactions/audit-artifacts/mmm-151/README.md`
-- `docs/interactions/flows/*.md`
-
-## Scope and intent
-
-This workspace focuses on:
-- User goals and success conditions
-- Flows and states
-- Feedback and recovery
-- Accessibility and inclusivity constraints
-- Assumptions and validation needs
-- Acts as a reference for expected behavior
+The [legacy terminal test ledger](../testing/legacy-terminal-test-ledger.md) preserves historical evidence. Reassess its expectations against intent before reuse.

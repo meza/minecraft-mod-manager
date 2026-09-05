@@ -8,8 +8,8 @@ If you are adding a new command, start here: the root command wires global flags
 
 For command behavior, prefer these docs over reverse-engineering the code:
 
-- Command behavior index: `docs/specs/README.md`
-- User docs (when present): `docs/commands/`
+- Product intent: [`docs/intent.md`](../../docs/intent.md)
+- Command guides: [`docs/commands/`](../../docs/commands/README.md)
 
 They describe what each command should do. This package is where that behavior gets wired into cobra.
 
@@ -37,7 +37,6 @@ To add a new command:
 3. Register it in `cmd/mmm/root.go`.
 4. Add:
    - a user-facing page under `docs/commands/<command>.md`
-   - a behavior spec under `docs/specs/<command>.md`
    - a maintainer README next to the code (`cmd/mmm/<command>/README.md`)
 
 ## Tests

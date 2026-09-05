@@ -11,7 +11,7 @@ The version string comes from `internal/environment.AppVersion()` so release bui
 
 ## Related docs
 
-There is no dedicated `docs/commands/version.md` page today because the behavior is intentionally tiny. If the command grows (flags, additional output), add a user-facing doc page under `docs/commands/` and a spec under `docs/specs/`.
+See [`docs/commands/version.md`](../../../docs/commands/version.md) for the user-facing command guide and [`docs/intent.md`](../../../docs/intent.md) for authoritative product behavior. Keep the guide accurate if the command grows.
 
 ## Tests
 

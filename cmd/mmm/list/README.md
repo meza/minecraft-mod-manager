@@ -4,8 +4,8 @@ This package implements `mmm list`: render the configured mods and whether each 
 
 ## Start with the behavior docs
 
-- User guide: `docs/commands/list.md`
-- Command spec: `docs/specs/list.md`
+- Product intent: [`docs/intent.md`](../../../docs/intent.md)
+- User guide: [`docs/commands/list.md`](../../../docs/commands/list.md)
 
 ## Code map
 

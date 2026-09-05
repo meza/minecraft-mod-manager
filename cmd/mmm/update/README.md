@@ -2,8 +2,6 @@ This package implements the `mmm update` command: reconcile the workspace by run
 
 This command is intentionally unattended (no prompts). It reuses the same config/lock helpers and platform selection logic as `add` and `install`.
 
-If you change behavior, update `docs/specs/update.md` first (or alongside the code) so reviewers have one source of truth.
+If you change behavior, follow the target in [`docs/intent.md`](../../../docs/intent.md) and keep the [`update` command guide](../../../docs/commands/update.md) accurate.
 
-Interaction contract and frames live in:
-- `docs/interactions/interaction-guidelines.md`
-- `docs/interactions/flows/update.md`
+Shared terminal implementation, conventions and annotated examples live in the [terminal corpus](../../../docs/interactions/README.md).

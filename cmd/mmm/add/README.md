@@ -4,11 +4,11 @@ This package implements the `mmm add` command: take a platform + project ID, res
 
 ## Start with the behavior docs
 
-These files describe what the command must do. If you change behavior, update the docs first (or alongside the code) so reviewers have one source of truth.
+Product intent defines what the command must do. Keep the user guide accurate when behavior changes.
 
-- User guide: `docs/commands/add.md` (what users see and copy/paste)
-- Command spec: `docs/specs/add.md` (behavior rules and edge cases)
-- Interaction contract: `docs/interactions/interaction-guidelines.md` and `docs/interactions/flows/add.md`
+- Product intent: [`docs/intent.md`](../../../docs/intent.md)
+- User guide: [`docs/commands/add.md`](../../../docs/commands/add.md) (what users see and copy/paste)
+- Shared terminal implementation and presentation: [terminal corpus](../../../docs/interactions/README.md)
 
 ## Code map
 

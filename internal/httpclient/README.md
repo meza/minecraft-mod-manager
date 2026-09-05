@@ -35,7 +35,7 @@ If you are adding a command that talks to an external API, start here.
 
 See progress and non-tty rules in:
 - `docs/interactions/interaction-guidelines.md#progress-bars`
-- `docs/interactions/interaction-guidelines.md#non-interactive-terminal`
+- `docs/interactions/interaction-guidelines.md#redirected-input-or-output`
 - `docs/guide-to-working-with-the-terminal.md`
 
 ### Timeout policy

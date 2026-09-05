@@ -30,6 +30,8 @@ Before switching, MMM checks whether each configured project has an eligible art
 
 An ordinary change proceeds only when the compatibility gate passes. MMM prepares target artifacts before switching the working installation. If compatibility checks or preparation fail, it preserves the original configuration and working installation.
 
+Finding a compatibility blocker does not end the report early. Without force, cancel unnecessary outstanding downloads and clean up staging, but finish the remaining compatibility checks so the operator sees all known blockers and any inconclusive checks from the attempted change. Report the non-success outcome after those checks finish. An operator-requested cancellation still follows the safe-cancellation contract; it does not require completing the report.
+
 Once switching starts, MMM completes the metadata and file consistency work or attempts recovery to the original installation. If recovery cannot complete, the result identifies the actual remaining state and the next action. It does not claim that nothing changed unless that was established.
 
 If the requested target already equals the configured Minecraft version, `change` succeeds as a no-op even if a managed file is missing or damaged. Run `mmm install` to repair the current target.

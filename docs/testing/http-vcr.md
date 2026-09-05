@@ -1,11 +1,14 @@
-# HTTP VCR recordings for tests
+# Existing HTTP VCR helper
 
-Use VCR recordings to make HTTP-dependent tests deterministic and network-free.
-Cassettes capture real HTTP responses once, then replay them in future runs.
+This page is a reference for the existing `testutil/vcr` helper. It has no consumers outside its own tests, and the repository has no checked-in cassettes. Ordinary product tests do not currently obtain network isolation from this helper.
+
+The agreed E2E approach is [scenario-owned Go HTTP fixtures](http-fixtures.md), whose endpoint wiring is not implemented yet. Do not use this helper as the foundation for new E2E scenarios. It operates inside the importing process and cannot intercept requests made by a separately launched MMM executable.
+
+The remaining sections describe the helper's recording and replay behavior, not the selected E2E design. Cassettes capture HTTP responses for later replay.
 
 ## Quick start for in-process Go tests
 
-Declare the cassette in the test itself:
+An in-process caller would declare the cassette in the test itself. This example is illustrative; the named cassette is not supplied by the repository:
 
 ```go
 func TestScanScenario(t *testing.T) {
@@ -20,7 +23,7 @@ Run the ordinary Go tests in replay mode:
 make test
 ```
 
-This workflow applies only to in-process Go tests. `testutil/vcr` cannot intercept requests made by the separately launched MMM process used by tui-test scenarios. HTTP-dependent terminal scenarios therefore need an explicitly designed process-compatible fixture boundary; do not assume `LoadCassette` makes a spawned scenario network-free. The foundation smoke scenario is local-only.
+This workflow applies only to in-process Go tests. HTTP-dependent terminal scenarios instead require the [planned fixture boundary](http-fixtures.md). The current foundation smoke scenario is local-only.
 
 Record all cassettes (one per test that calls `LoadCassette`):
 
@@ -37,7 +40,7 @@ VCR activates only when your test calls `vcr.LoadCassette`.
 - If you pass a filename ending in `.yaml` or `.yml`, VCR strips the extension for the recorder base.
 - Importing the `vcr` package installs a test-only transport that rejects non-local live HTTP calls. `LoadCassette` swaps in the recorder for the test and restores the live-call blocker afterward.
 
-Import `testutil/vcr` in HTTP-dependent test packages so non-local live HTTP is blocked by default. Call `vcr.LoadCassette` before issuing a request that should be replayed.
+These changes affect the process-wide default transport, not every possible HTTP client. Clients holding another transport and separately launched processes are unaffected. A caller must load the cassette before constructing clients that capture the default transport. Only one cassette can be active at a time.
 
 ## Matching rules
 
@@ -51,12 +54,12 @@ What this means in practice:
 - Keep request URLs stable. If the URL includes timestamps or random query values, VCR will miss.
 - If you need different variants, record separate interactions by making those requests during recording.
 
-If you need custom matching (for example, ignoring a query value or matching on a request body), go-vcr supports custom matchers but the current harness does not expose that. Add the matcher in `testutil/vcr` before relying on it in tests.
+go-vcr supports custom matching, but this helper does not expose it. Its default matching does not verify request bodies or headers.
 
 ## Recording vs replay
 
 - Replay is the default behavior when VCR is enabled.
-- Tests fail if the cassette is missing.
+- A missing cassette produces an error on the first request, not when `LoadCassette` is called. The application may handle that error; it does not independently fail the test. If no request occurs, the missing cassette goes unnoticed.
 - Recording only happens when `MMM_RECORD_HTTP=1` (use `make vcr-record`).
   The make target forces `-count=1` so recordings are not skipped by the Go test cache.
 
@@ -87,7 +90,7 @@ Tips:
 
 ## Simulating file downloads
 
-Downloads use the same VCR system, but this repo handles downloads through
+An in-process test could route downloads through the same VCR transport. MMM handles downloads through
 `httpclient.DownloadFile`, a helper that fetches a URL to disk and optionally
 streams progress to a Bubble Tea program.
 If your test exercises install or update flows, it is usually going through this helper.

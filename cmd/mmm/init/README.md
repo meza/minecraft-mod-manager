@@ -4,9 +4,9 @@ This package implements `mmm init`: create a new `modlist.json` and `modlist-loc
 
 ## Start with the behavior docs
 
-- User guide: `docs/commands/init.md`
-- Command spec: `docs/specs/init.md`
-- Terminal interaction implementation guide: `docs/guide-to-working-with-the-terminal.md`
+- Product intent: [`docs/intent.md`](../../../docs/intent.md)
+- User guide: [`docs/commands/init.md`](../../../docs/commands/init.md)
+- Terminal interaction implementation guide: [`docs/guide-to-working-with-the-terminal.md`](../../../docs/guide-to-working-with-the-terminal.md)
 
 ## Code map
 

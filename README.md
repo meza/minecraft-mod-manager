@@ -527,8 +527,9 @@ Feel free to contribute to the project but please read the [contribution guideli
 making any changes.
 
 Developer docs for terminal interactions:
-- `docs/interactions/interaction-guidelines.md`
-- `docs/guide-to-working-with-the-terminal.md`
+- [Terminal implementation, conventions and component examples](docs/interactions/README.md)
+- [Terminal E2E testing](docs/testing/terminal-harness.md)
+- [Agreed E2E HTTP fixture design (not yet implemented)](docs/testing/http-fixtures.md)
 
 ### Setup
 
