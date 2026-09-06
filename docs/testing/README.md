@@ -1,6 +1,7 @@
 # Testing product capabilities and presentation
 
-This guide is for contributors writing or maintaining MMM's end-to-end tests.
+This guide defines MMM's end-to-end testing contract for contributors writing,
+running or maintaining tests.
 [Product intent](../intent.md) defines required behaviour; these guides explain
 how tests obtain and assess evidence. The [glossary](../GLOSSARY.md) owns vocabulary.
 
@@ -8,15 +9,13 @@ how tests obtain and assess evidence. The [glossary](../GLOSSARY.md) owns vocabu
 
 | Task | Canonical guide |
 | --- | --- |
+| Set up the native binding and run the suite | [Terminal harness](terminal-harness.md#prerequisites) |
 | Write scenarios; understand runner, actions, drivers and product assertions | [BDD architecture](bdd.md) |
 | Check spinners, progress, layout or styling without copying journeys | [Presentation testing](presentation.md) |
-| Set up tui-test, run tests, manage processes and capture terminal evidence | [Terminal harness](terminal-harness.md) |
-| Control HTTP responses, downloads and pending work across the process boundary | [HTTP fixture design](http-fixtures.md) |
-| Understand the existing in-process recording helper | [HTTP VCR reference](http-vcr.md) |
-| Consult historical terminal-test evidence | [Legacy terminal test ledger](legacy-terminal-test-ledger.md) |
+| Investigate a failure, manage processes and capture terminal evidence | [Lifecycle and diagnostics](terminal-harness.md#lifecycle-and-diagnostics) |
+| Control HTTP responses, downloads and pending work across the process boundary | [HTTP fixtures](http-fixtures.md) |
 
-The VCR helper and historical ledger do not define E2E fixtures or current acceptance
-requirements. Contribution rules live in the [E2E](../../e2e/CONTRIBUTING.md) and
+Contribution rules live in the [E2E](../../e2e/CONTRIBUTING.md) and
 [feature](../../e2e/features/CONTRIBUTING.md) guides.
 
 ## One journey, separately owned checks
@@ -31,13 +30,8 @@ indicator animated. Installation belongs to product assertions; animation belong
 to presentation checks. Neither assertion belongs inside the driver. A required
 presentation failure still fails verification even when installation succeeds.
 
-## Available tooling and target architecture
+## Historical references
 
-The available suite uses the tui-test CLI adapter. Go-binding drivers, the complete
-profile matrix and attached presentation checks described here are target architecture,
-not implemented APIs. HTTP fixture wiring is also pending. Use the
-[current prerequisites](terminal-harness.md#current-cli-prerequisite) and
-[suite commands](terminal-harness.md#running-the-suite) to run available tests.
-
-No separate presentation command or registration API is defined here. Implementation
-must preserve the documented suite entry point and real MMM process boundary.
+The [testing archive](archive/README.md) preserves the VCR reference and removed-test
+ledger for historical investigation. They do not define E2E fixtures or acceptance
+requirements.

@@ -1,8 +1,12 @@
 # Existing HTTP VCR helper
 
+Archived reference. This page preserves the helper documentation at retirement;
+its implementation-status statements are historical. Use the [testing guide](../README.md)
+for the active E2E contract.
+
 This page is a reference for the existing `testutil/vcr` helper. It has no consumers outside its own tests, and the repository has no checked-in cassettes. Ordinary product tests do not currently obtain network isolation from this helper.
 
-The agreed E2E approach is [scenario-owned Go HTTP fixtures](http-fixtures.md), whose endpoint wiring is not implemented yet. Do not use this helper as the foundation for new E2E scenarios. It operates inside the importing process and cannot intercept requests made by a separately launched MMM executable.
+The agreed E2E approach is [scenario-owned Go HTTP fixtures](../http-fixtures.md), whose endpoint wiring is not implemented yet. Do not use this helper as the foundation for new E2E scenarios. It operates inside the importing process and cannot intercept requests made by a separately launched MMM executable.
 
 The remaining sections describe the helper's recording and replay behavior, not the selected E2E design. Cassettes capture HTTP responses for later replay.
 
@@ -23,7 +27,7 @@ Run the ordinary Go tests in replay mode:
 make test
 ```
 
-This workflow applies only to in-process Go tests. HTTP-dependent terminal scenarios instead require the [planned fixture boundary](http-fixtures.md). The current foundation smoke scenario is local-only.
+This workflow applies only to in-process Go tests. HTTP-dependent terminal scenarios instead require the [planned fixture boundary](../http-fixtures.md). The current foundation smoke scenario is local-only.
 
 Record all cassettes (one per test that calls `LoadCassette`):
 

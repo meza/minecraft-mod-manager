@@ -3,13 +3,11 @@
 This guide owns scenarios, profile execution, driver responsibilities and product
 assertions. Start with the [testing overview](README.md). [Product intent](../intent.md#acceptance-and-evidence)
 owns expected behaviour; [presentation testing](presentation.md) owns visual checks.
-The available suite uses the CLI adapter. Go-binding drivers and the complete
-profile matrix below describe the target architecture, not current coverage.
 
 ## One scenario in every profile
 
-Write the capability once, without frontend mechanics. This illustrative requirement
-does not claim that these steps are registered in the current suite:
+Write the capability once, without frontend mechanics. This is a human-readable
+worked journey, not an API reference:
 
 ```gherkin
 Scenario: Alice adds a mod to her installation
@@ -33,7 +31,7 @@ fixtures and process lifecycle. Reports identify both scenario and profile.
 | Plain interactive | Supply inputs and answer line-based questions without relying on rich controls. |
 | Non-interactive | Supply required decisions and arrange non-interactive I/O conditions without answering prompts. |
 
-All drivers use tui-test's Go binding for supported process and terminal operations.
+All drivers use tui-test's native Go binding for supported process and terminal operations.
 Supply equivalent decisions in every profile. Complete arguments alone do not select
 unattended execution. Shared assertions still require installed mod bytes and the
 modlist entry; one profile's success cannot stand in for another's evidence.
@@ -134,9 +132,9 @@ mechanics alone do not justify an exception.
 
 ## Run and extend coverage
 
-Use `make e2e` after completing the [terminal prerequisites](terminal-harness.md#current-cli-prerequisite).
+Use `make e2e` after completing the [terminal prerequisites](terminal-harness.md#prerequisites).
 The [suite guide](terminal-harness.md#running-the-suite) owns binary selection and
-commands. Running the available smoke suite does not establish the target matrix.
+commands. Godog must fail verification when a step is undefined or pending.
 
 For a requirement, establish its product contract, write or reuse the scenario and
 actor actions, arrange deterministic fixtures and drivers, and assert shared product

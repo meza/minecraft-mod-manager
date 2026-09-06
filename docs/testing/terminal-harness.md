@@ -1,51 +1,30 @@
 # Terminal E2E testing with tui-test
 
-Terminal end-to-end tests currently use Microsoft's `tui-test` CLI. The agreed target is the native Go binding, which calls the Rust engine in the test process. Migration of the Godog harness is not implemented yet. The project does not own a PTY, terminal emulator, screen buffer, ANSI normalizer, input encoder, polling loop, or process supervisor.
-
-The current test boundary is:
-
-```text
-Gherkin scenario -> Godog step -> BDD actor action -> tui-test CLI -> native MMM process
-```
-
-The native process runs in an isolated temporary workspace. Assertions observe terminal state, exit status, and filesystem effects.
-
-## Agreed native Go integration
-
-The target boundary is:
+This guide owns native terminal tooling, process lifecycle and evidence capture.
+Start with the [testing guide](README.md) to choose between scenario authoring,
+presentation checks and HTTP fixtures. Terminal tests use Microsoft's `tui-test`
+Go binding, which calls the Rust engine in the test process:
 
 ```text
 Gherkin scenario -> Godog step -> BDD actor action -> mode-specific driver -> tui-test Go binding -> Rust engine -> native MMM process
 ```
 
-Godog owns scenario setup and cleanup. Each mode-specific driver uses the binding's public methods directly for supported process operations, input, waits and observations. The binding hosts the terminal engine in the Go test process; MMM remains a separately launched process in an isolated workspace. The [BDD architecture](bdd.md#runner-drivers-and-shared-assertions) owns runner, action, driver and product-assertion responsibilities. Drivers contain no acceptance assertions; [presentation checks](presentation.md) can assess evidence from the same invocation separately from product checks. HTTP fixtures retain their separate [scenario-owned server boundary](http-fixtures.md).
+MMM runs as a separate native process in an isolated temporary workspace. Drivers
+use the binding's public methods directly for input, waits and observations; they
+contain no acceptance assertions. Follow [BDD architecture](bdd.md#runner-drivers-and-shared-assertions)
+for runner, action, driver and assertion responsibilities.
 
-### Dependency setup and migration status
+## Prerequisites
 
-The evaluated package is `github.com/microsoft/tui-test/bindings/go`. Its Go API loads an embedded native engine through `purego`. The evaluated binding requires Go 1.26 or newer and a writable user cache directory that permits loading native libraries. A package containing the matching engine needs no tui-test CLI, TypeScript runtime, Rust toolchain or C compiler at consumer build time. Building the engine itself is a separate dependency-maintenance task.
+Use Go 1.26 or newer, make, and a writable user cache directory that permits loading
+native libraries. The binding package is `github.com/microsoft/tui-test/bindings/go`;
+it loads its embedded native engine through `purego`.
 
-Before migration, select and pin a reproducible binding revision with matching native artifacts for each supported platform. MMM has not pinned this dependency yet; the local evaluation does not establish a published release or a portable installation procedure. Do not commit a developer-specific module replacement or DLL path as the contributor setup. The intended suite entry point remains `make e2e`; the CLI prerequisite below remains necessary until migration lands.
-
-The Windows amd64 evaluation on 5 September 2026 exercised real MMM launch, resize, loader-prompt detection, Ctrl+C, exit status 0, absence of configuration files, and session close. It also passed with `CGO_ENABLED=0`. This establishes binding feasibility for that smoke journey, not acceptance of every product cancellation requirement. Native snapshot execution, scroll/restoration journeys, and macOS/Linux operation against MMM remain unverified.
-
-## Current CLI prerequisite
-
-Install tui-test `0.1.0-beta.2` from the [Microsoft tui-test repository](https://github.com/microsoft/tui-test). The E2E adapter rejects a different version or JSON schema with an actionable error.
-
-The adapter looks for `tui-test` on `PATH` and in the standard installer locations. To use another executable, set `TUI_TEST_BIN`:
-
-```bash
-TUI_TEST_BIN=/path/to/tui-test make e2e
-```
-
-PowerShell:
-
-```powershell
-$env:TUI_TEST_BIN = 'C:\path\to\tui-test.exe'
-make e2e
-```
-
-Ordinary Go tests do not require tui-test.
+Dependency maintenance must pin a reproducible binding revision containing matching
+native artifacts for Windows, macOS and Linux. Do not use a developer-specific
+module replacement or DLL path as contributor setup. Consumer builds need no
+separate tui-test CLI, TypeScript runtime, Rust toolchain or C compiler; building
+the engine itself is a separate dependency-maintenance task.
 
 ## Running the suite
 
@@ -63,11 +42,15 @@ make e2e-build
 
 The binary is written to `build/e2e`. `MMM_E2E_BINARY` can point the scenarios at another E2E-tagged native binary.
 
-HTTP-dependent scenarios will use the agreed [HTTP fixture design](http-fixtures.md), with scenario-owned Go servers and E2E-only endpoint overrides. That wiring is not implemented yet; the endpoint variables in the design are not current runtime options. `make e2e` continues to run the existing suite.
+The scenario lifecycle supplies the [HTTP fixture endpoints](http-fixtures.md#endpoint-configuration)
+to every MMM launch, including scenarios that do not use HTTP. For acceptance,
+follow the [BDD verification requirements](bdd.md#run-and-extend-coverage).
 
 ## Writing terminal scenarios
 
-Follow [BDD architecture](bdd.md) for shared scenarios, profile selection and assertion ownership. Put product scenarios in `e2e/features` and reusable actions and outcomes in the `e2e` package. Keep Gherkin about what an actor does and observes; attach visual checks according to [presentation testing](presentation.md) instead of embedding them in shared scenarios or drivers.
+Follow [BDD architecture](bdd.md) for feature placement, shared scenarios and
+assertion ownership. Use [presentation testing](presentation.md) when a reviewed
+requirement calls for visual evidence from a journey.
 
 Prefer these observable outcomes:
 
@@ -76,13 +59,17 @@ Prefer these observable outcomes:
 - process exit status;
 - files created, changed, or left untouched.
 
-Use tui-test waits for text, idle state, and process exit. Use its input, key, mouse, and resize commands for interaction. Use tui-test snapshots only when a reviewed requirement depends on the complete rendered terminal state.
+Use tui-test waits for text, idle state, and process exit, and its input, key, mouse
+and resize methods for interaction. Use snapshots only when a reviewed requirement
+depends on the complete rendered terminal state.
 
-Do not add sleeps, ANSI cleanup, frame extraction, terminal buffers, key encoders, PTY code, or compatibility wrappers. For current-suite work, use capabilities exposed by the existing CLI adapter. The agreed migration uses the Go binding's public API for terminal operations.
+Keep terminal machinery in tui-test. Do not add project-owned PTYs, terminal
+emulators, screen buffers, ANSI normalizers, frame extractors, input encoders,
+polling loops, process supervisors, sleeps or compatibility wrappers.
 
 ## Rendering assertions and snapshots
 
-The evaluated native binding exposes the following capabilities. Their presence in the API does not establish coverage in MMM's current suite.
+Choose the observation that proves the requirement:
 
 | Observation | Native API and scope |
 | --- | --- |
@@ -97,15 +84,22 @@ The evaluated native binding exposes the following capabilities. Their presence 
 
 Use focused semantic assertions for content and outcomes. Separately owned presentation checks use snapshots when the reviewed requirement depends on complete layout or styling; drivers only expose the observation path. Choose an explicit snapshot working directory with `SnapshotOptions.Cwd`; baselines live beneath it in `__snapshots__`. Fix the terminal dimensions, backend, locale and scenario data for each baseline. For translated wrapping and layout, exercise actual translations as well as localization-key mode.
 
-Keep `SnapshotOptions.Update` disabled during normal verification. The evaluated engine writes a missing baseline and returns `SnapshotWritten` even when update mode is disabled, so successful verification must require `SnapshotPassed` as well as no error. Create or update baselines deliberately, inspect the resulting diff, and retain them in version control. `IncludeTitle` is optional; enable it only when the title is part of the requirement.
+Keep `SnapshotOptions.Update` disabled during normal verification. A missing baseline can be written with result `SnapshotWritten` even when update mode is disabled, so successful verification must require `SnapshotPassed` as well as no error. Create or update baselines deliberately, inspect the resulting diff, and retain them in version control. `IncludeTitle` is optional; enable it only when the title is part of the requirement.
 
 Wait for an observable product state before capturing a frame. `WaitIdle` indicates a quiet screen, not operation completion. Use controlled HTTP fixture responses to make progress states repeatable; do not stabilize animations with arbitrary sleeps. A grid snapshot excludes scrollback and cursor state, and does not prove transcript preservation or terminal restoration. Those require the multi-stage observations below. Emulator snapshots also do not establish identical font rendering in every desktop terminal.
 
-When profiles should produce equivalent outcomes, compare their durable records under the same locale and character capabilities. Exclude temporary active frames, terminal-control bytes and the input exchange itself from that comparison. Do not strip text, reorder records or otherwise normalize away discrepancies. Relevant decisions must remain visible in neutral language whether they were supplied by a prompt answer, an argument or a documented default.
+For cross-profile comparisons, follow [durable product assertions](bdd.md#product-and-presentation-assertions).
+Exclude temporary active frames, terminal-control bytes and input exchanges;
+do not strip text, reorder records or normalize away discrepancies.
 
 ## Stable localization expectations
 
-The tagged E2E binary is launched with `MMM_TEST=1`. The presence of `MMM_TEST` enables key mode; `1` is the project convention. Localization calls then emit the requested i18n key and interpolation arguments instead of translated wording. This verifies that the product requests the correct message while keeping scenarios stable when wording changes.
+For message-selection checks, launch the tagged E2E binary with `MMM_TEST=1`.
+The presence of `MMM_TEST` enables key mode; `1` is the project convention.
+Localization calls then emit the requested i18n key and interpolation arguments
+instead of translated wording. This verifies message selection while keeping
+scenarios stable when wording changes. For translated layout and input checks,
+omit `MMM_TEST` from the child environment and select the locale being exercised.
 
 Normal release binaries ignore `MMM_TEST` for localization. Go test binaries retain their existing key mode.
 
@@ -113,20 +107,35 @@ Normal release binaries ignore `MMM_TEST` for localization. Go test binaries ret
 
 Each scenario gets:
 
-- a uniquely named tui-test session;
+- a unique `Ephemeral` tui-test client;
 - an explicit working directory, environment, terminal size, and timeout;
 - an isolated temporary workspace;
 - an exact-session close and workspace cleanup in the scenario hook.
 
-On failure, the adapter reports the failed CLI operation and collects the recording path, full terminal text, and terminal state before cleanup. It never closes unrelated tui-test sessions.
+Godog owns scenario setup and cleanup. Register cleanup before launching MMM,
+collect available failure diagnostics before closing, propagate `Close` failures,
+and remove the workspace after the session is closed. Named clients share sessions
+within the test process; do not use `CloseAll` or close unrelated sessions.
 
-The native migration must preserve these responsibilities using a unique `Ephemeral` client per scenario. Register cleanup before launching MMM, collect available failure diagnostics before closing, propagate `Close` failures, and remove the workspace after the session is closed. Named clients share sessions within the test process; do not use `CloseAll` for scenario cleanup.
+Native methods return Go errors, including typed `tuitest.Error` categories. They
+block and session operations are serialized. Configure bounded native waits and an
+overall suite timeout; do not assume context support or per-call cancellation.
+Retain the original operation failure if optional diagnostic capture also fails.
 
-Native methods return Go errors, including typed `tuitest.Error` categories. They block, operations on a session are serialized, and the evaluated API does not accept contexts or promise per-call cancellation. Configure bounded native waits and preserve an overall suite timeout; do not assume the existing CLI subprocess cancellation translates to native calls. Use text/SVG failure artifacts and recordings where useful, retaining the original operation failure if optional capture also fails.
+When investigating a failure:
 
-## Historical tests
-
-The removed custom harness and its expectations are catalogued in the [legacy terminal test ledger](legacy-terminal-test-ledger.md). The ledger is historical evidence, not an approved product specification. Do not recreate its snapshots as tui-test baselines without reviewing the requirement first.
+1. Identify the scenario, profile, failed operation and original error. Use the
+   [result distinctions](presentation.md#lifecycle-and-results) to separate product,
+   presentation, fixture/driver and unavailable-evidence outcomes.
+2. Before closing the session, collect full terminal text, terminal state and the
+   recording path when available. Retain text/SVG artifacts and recordings where useful.
+3. Inspect text and state for the required observation; inspect a snapshot diff or
+   SVG for layout failures. A final frame cannot establish an earlier animation,
+   scroll transition or restoration. Reproduce those through the same driver with
+   observations at the required points.
+4. For HTTP-dependent failures, retain [fixture errors and request observations](http-fixtures.md#lifecycle-and-diagnostics).
+   Complete cleanup even if capture fails, and report cleanup errors alongside the
+   original failure.
 
 ## Verify terminal lifetimes
 
@@ -141,8 +150,11 @@ The removed custom harness and its expectations are catalogued in the [legacy te
 | Safe cancellation | Observe ongoing cleanup, preserved completed work, the second-interruption warning and restored terminal control. A test timeout is a harness bound, not authorization for a production recovery timeout. |
 | Profiles and localization | Exercise interactive TUI in Unicode and ASCII, plain line-oriented interaction without control sequences, explicit `--unattended`, and non-interactive execution such as redirected I/O. Verify that unattended and non-interactive runs never prompt and contain no ANSI or cursor-control output. Supplying complete arguments alone must not select unattended. Exercise real translated input and layout in addition to localization-key checks. |
 
-Drive input, scrolling, resize, waits and lifecycle through tui-test. Use deterministic cross-process fixtures for network-dependent journeys, following the agreed [HTTP fixture design](http-fixtures.md). Do not reintroduce Expect wrappers, custom probe replies, sleeps or terminal emulation for discovery; use the same terminal driver for investigation and acceptance.
+Drive input, scrolling, resize, waits and lifecycle through tui-test. Use deterministic cross-process [HTTP fixtures](http-fixtures.md) for network-dependent journeys. Do not reintroduce Expect wrappers or custom probe replies for discovery; use the same terminal driver for investigation and acceptance.
 
-Record the platform, terminal dimensions and relevant capabilities with the evidence. A captured frame alone does not prove scrollback or restored shell state. Observe a host shell session when a requirement concerns output before invocation or control after process exit. If the current adapter cannot expose a required observation, identify that verification gap and use supported tui-test capabilities rather than replacing the observation with model output. Do not claim acceptance until the required evidence exists.
+Record the platform, terminal dimensions and relevant capabilities with the evidence. A captured frame alone does not prove scrollback or restored shell state. Observe a host shell session when a requirement concerns output before invocation or control after process exit. If a required observation is unavailable, identify the verification gap and use supported tui-test capabilities rather than replacing the observation with model output. Do not claim acceptance until the required evidence exists.
 
-Also read the [BDD E2E guide](bdd.md), the [terminal implementation guide](../guide-to-working-with-the-terminal.md), and the [interaction conventions](../interactions/interaction-guidelines.md).
+When a failure concerns rendering ownership or terminal restoration, consult the
+[terminal implementation guide](../guide-to-working-with-the-terminal.md). When
+establishing a control or presentation expectation, consult the
+[interaction conventions](../interactions/interaction-guidelines.md).

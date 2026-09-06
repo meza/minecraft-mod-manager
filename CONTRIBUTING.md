@@ -81,7 +81,7 @@ We treat automated tests as the primary contract for behavior and user experienc
 Terminal interaction docs:
 - Product requirements: [product intent](docs/intent.md) and [command guides](docs/commands/README.md)
 - Developer guidance and examples: [terminal interaction corpus](docs/interactions/README.md)
-- Verification workflow: [terminal E2E guide](docs/testing/terminal-harness.md)
+- Verification workflow: [E2E testing guide](docs/testing/README.md)
 
 ### Required local checks
 
@@ -103,11 +103,9 @@ Terminal interaction docs:
 
 Run the repo `make` targets (do not call go test/go build directly):
 
-HTTP-dependent terminal scenarios follow the agreed [HTTP fixture design](docs/testing/http-fixtures.md): scenario-owned Go HTTP servers and E2E-only endpoint overrides. This wiring is not implemented yet; the design's endpoint variables are not current runtime options.
-
-The [existing VCR helper reference](docs/testing/http-vcr.md) describes the unused in-process helper and its recording workflow. It is not the E2E fixture boundary.
-
-The current tagged terminal E2E suite requires the pinned tui-test CLI version. See the [terminal E2E guide](docs/testing/terminal-harness.md#current-cli-prerequisite) for installation and the `TUI_TEST_BIN` override. The agreed target is the [native Go binding](docs/testing/terminal-harness.md#agreed-native-go-integration); dependency pinning and harness migration are pending. Continue using the current CLI prerequisites and `make e2e` until that migration is implemented.
+Use the [testing guide](docs/testing/README.md) to choose the guidance for your task.
+The [terminal harness](docs/testing/terminal-harness.md#prerequisites) owns native Go-binding prerequisites and suite commands.
+HTTP-dependent scenarios follow [HTTP fixtures](docs/testing/http-fixtures.md): scenario-owned Go servers and E2E-only endpoint overrides.
 
 ### Optional checks
 

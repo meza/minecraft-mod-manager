@@ -81,6 +81,6 @@ Escape and documented quit shortcuts follow the active capability's [controls](i
 
 ## Prove the integration
 
-Use the [terminal E2E guide](testing/terminal-harness.md) for tooling and [BDD guide](testing/bdd.md) for scenarios. [Intent's acceptance journeys](intent.md#acceptance-and-evidence) govern required observations.
+Start with the [E2E testing guide](testing/README.md) for tooling, scenarios and presentation checks. [Intent's acceptance journeys](intent.md#acceptance-and-evidence) govern required observations.
 
 Exercise real consuming commands across the mode matrix, including unattended execution in a capable terminal and with redirected I/O, rich ASCII interaction and plain line-based questions. Compare permanent records for equivalent prompted and supplied decisions, successful work, partial failure and cancellation. Model tests can verify transitions, but cannot establish shell history, scroll round trips, restoration or cross-command consistency. Record the terminal and platform used to demonstrate renderer behavior. Do not normalize, reorder or reconstruct missing output to manufacture an expected screen.

@@ -16,5 +16,6 @@ Different driver mechanics do not justify copied scenarios.
 Presentation checks reuse existing product journeys where those journeys reach
 the required state. Do not add a spinner assertion to shared Gherkin or write
 another add-mod feature just to observe a spinner. Follow
-[presentation testing](../../docs/testing/presentation.md) for attachment and evidence,
-and the [E2E contribution guide](../CONTRIBUTING.md) for implementation requirements.
+[presentation testing](../../docs/testing/presentation.md) for attachment, timing
+and results, and the [E2E contribution guide](../CONTRIBUTING.md) for fixture,
+harness and verification requirements.

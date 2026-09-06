@@ -1,5 +1,7 @@
 # Legacy terminal test removal ledger
 
+Archived evidence. Use the [testing guide](../README.md) for the active E2E contract.
+
 This ledger records terminal-related tests and helpers removed while replacing the custom terminal harness with tui-test.
 
 > [!WARNING]
@@ -42,7 +44,7 @@ Every item below has the future disposition `Unassessed` and the removal reason 
 
 ## Command PTY suites
 
-The historical classifications used the per-command flow documents, the command specifications available at the recorded baseline, and the shared [interaction guidelines](../interactions/interaction-guidelines.md) as documentary sources. Reassess the entries against current [product intent](../intent.md) and [command guides](../commands/README.md); historical classifications do not establish current authority. Classification is `documented, implementation-coupled` unless stated otherwise. Fixtures were inline, in an afero memory filesystem, or in a test-owned temporary directory; there are no external fixture files.
+The historical classifications used the per-command flow documents, the command specifications available at the recorded baseline, and the shared [interaction guidelines](../../interactions/interaction-guidelines.md) as documentary sources. Reassess the entries against current [product intent](../../intent.md) and [command guides](../../commands/README.md); historical classifications do not establish current authority. Classification is `documented, implementation-coupled` unless stated otherwise. Fixtures were inline, in an afero memory filesystem, or in a test-owned temporary directory; there are no external fixture files.
 
 ### Change
 
@@ -145,7 +147,7 @@ Each command had a short-row and tall-row snapshot. The tests created an in-memo
 | LT-UNMANAGED-REMOVE-SHORT/TALL | `cmd/mmm/remove/unmanaged_notice_snapshot_test.go` | `TestRemoveUnmanagedNoticeSnapshotShortHeight`, `TestRemoveUnmanagedNoticeSnapshotTallHeight` | `cmd/mmm/remove/__snapshots__/unmanaged_notice_snapshot_test.snap` |
 | LT-UNMANAGED-TEST-SHORT/TALL | `cmd/mmm/test/unmanaged_notice_snapshot_test.go` | `TestTestUnmanagedNoticeSnapshotShortHeight`, `TestTestUnmanagedNoticeSnapshotTallHeight` | `cmd/mmm/test/__snapshots__/unmanaged_notice_snapshot_test.snap` |
 
-Short row limit was 25; tall was 40 on Windows and 80 elsewhere. Classification: `documented, duplicated, implementation-coupled`. Authority: the unmanaged notice section of the [interaction guidelines](../interactions/interaction-guidelines.md) and each command flow/spec.
+Short row limit was 25; tall was 40 on Windows and 80 elsewhere. Classification: `documented, duplicated, implementation-coupled`. Authority: the unmanaged notice section of the [interaction guidelines](../../interactions/interaction-guidelines.md) and each command flow/spec.
 
 ### Lock synchronization
 

@@ -78,4 +78,4 @@ Respect capabilities rather than assuming every TTY supports the same features. 
 
 ## Validation
 
-Follow the [terminal E2E guide](../testing/terminal-harness.md). Verify shared conventions within real consuming commands. Use [examples](component-examples.md) to discuss visual transitions and [intent's acceptance journeys](../intent.md#acceptance-and-evidence) to establish required behavior.
+Follow the [E2E testing guide](../testing/README.md). Verify shared conventions within real consuming commands. Use [examples](component-examples.md) to discuss visual transitions and [intent's acceptance journeys](../intent.md#acceptance-and-evidence) to establish required behavior.

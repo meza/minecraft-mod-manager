@@ -11,7 +11,5 @@ Use the canonical [execution-mode matrix](../intent.md#execution-modes-and-opera
 | Design ownership, rendering, history, scrolling or cancellation | [Terminal implementation guide](../guide-to-working-with-the-terminal.md) |
 | Apply consistent controls, progress, language and accessibility | [Interaction conventions](interaction-guidelines.md) |
 | Discuss active frames and durable records visually | [Component examples](component-examples.md) |
-| Run or extend real-process terminal verification | [Terminal E2E guide](../testing/terminal-harness.md) |
+| Run or extend real-process terminal verification | [E2E testing guide](../testing/README.md) |
 | Express operator journeys as acceptance scenarios | [BDD guide](../testing/bdd.md) |
-
-The [legacy terminal test ledger](../testing/legacy-terminal-test-ledger.md) preserves historical evidence. Reassess its expectations against intent before reuse.

@@ -3,8 +3,7 @@
 This guide owns how presentation requirements obtain evidence without putting
 visual assertions into shared product scenarios or drivers. Read [BDD architecture](bdd.md)
 for responsibilities and the [terminal harness](terminal-harness.md) for observation
-APIs and prerequisites. This is target test architecture; the current suite has no
-attachment API or separate presentation command.
+APIs, lifecycle and prerequisites.
 
 ## Share execution, separate assertions
 
@@ -18,7 +17,7 @@ for an individual product-only run, but all required checks must execute and pas
 before acceptance. Not applicable is not passed; omitting a required check leaves
 verification incomplete.
 
-Drivers perform actions and expose evidence through tui-test's Go binding. They
+Drivers perform actions and expose evidence through tui-test's native Go binding. They
 contain no spinner, styling, layout or business-outcome assertions. Presentation
 checks consume observations; they do not independently send competing input or own
 the process. The runner coordinates observation points and a single interaction
@@ -49,10 +48,11 @@ an animated pending indicator. TUI Unicode and ASCII can have different represen
 Plain profiles must not animate; their absence-of-animation checks are separate
 presentation expectations on the same product journey.
 
-The following is a design sequence, not callable sample code or a current harness API:
+This worked journey describes the required coordination without inventing a
+registration API:
 
 1. Set up the compatible installation and deterministic HTTP responses. Register cleanup before launching MMM.
-2. The driver starts the add action through the Go binding using the selected profile's inputs. The scenario-owned fixture signals arrival of the relevant request and holds its response at a controlled pending stage.
+2. The driver starts the add action through the native Go binding using the selected profile's inputs. The scenario-owned fixture signals arrival of the relevant request and holds its response at a controlled pending stage.
 3. With pending work independently established, the runner schedules bounded terminal observations. The presentation check observes the relevant indicator and a distinct subsequent state while work is still held. Require a particular glyph sequence only if that sequence is the reviewed requirement.
 4. Record the presentation outcome and release the held response whether the check passes, fails or times out. Cleanup also releases it if the journey exits early. A visual failure must not prevent the product journey from continuing when execution remains usable.
 5. The driver continues to observable completion. Shared checks verify expected bytes, modlist state, outcome and durable records. Report presentation separately from those product results.
@@ -80,7 +80,7 @@ A driver readiness wait concerns input or progress needed to perform a product a
 The spinner check must not become a hidden precondition of adding a mod. Product
 completion must never depend on a particular animation frame.
 
-Coordinate reads and actions in one session sequence. The evaluated binding serializes
+Coordinate reads and actions in one session sequence. The binding serializes
 session operations; a long observation can delay the next action. Use bounded observation
 opportunities rather than an independent watcher competing with input or an unbounded
 native wait. Keep terminal mechanics in tui-test. This design does not require a custom

@@ -1,12 +1,9 @@
 # HTTP fixtures for E2E tests
 
-## Status and purpose
-
-This is the agreed design for HTTP-dependent E2E scenarios. The fixture servers, endpoint overrides and verification described here are not implemented yet. The variable names below describe the planned interface; setting them does not currently redirect MMM's requests.
-
-Contributors implementing this design should keep `make e2e` as the entry point. The existing command runs the current suite, whose product smoke scenario cancels initialization before making HTTP requests. See the [terminal E2E guide](terminal-harness.md) for the available harness and prerequisites.
-
-Use scenario-owned Go HTTP servers with explicit response handlers. Recordings are not the E2E fixture model. The [existing VCR helper](http-vcr.md) is an unused in-process helper outside its own tests; it cannot control HTTP calls from a separately launched MMM process.
+Use scenario-owned Go HTTP servers with explicit response handlers for
+HTTP-dependent E2E scenarios. Recordings are not the E2E fixture model. Keep
+`make e2e` as the entry point; the [terminal E2E guide](terminal-harness.md) owns
+the harness, prerequisites and suite lifecycle.
 
 ## Ownership and request flow
 
@@ -21,15 +18,19 @@ Godog scenario -> fixture server setup and endpoint environment
 - Godog owns each scenario's server, response data, request observations and cleanup.
 - Go's [httptest.Server](https://pkg.go.dev/net/http/httptest#Server) owns the listening server. [http.ServeMux](https://pkg.go.dev/net/http#ServeMux) supplies ordinary method/path routing; scenario handlers encode JSON or serve bytes and files.
 - MMM retains platform-specific request construction, headers, parsing and selection. Its shared HTTP and download code retains retries, rate limiting, response validation and filesystem operations.
-- The terminal driver owns terminal interaction and process control. HTTP fixtures do not depend on whether the driver is reached through a CLI or a language binding.
+- The terminal driver owns terminal interaction and process control through
+  tui-test's native Go binding.
 
 Keep fixture handlers alongside the E2E scenarios and reusable product actions. Do not build an expectation DSL, matcher registry, request planner or general mocking framework. Share concrete fixture data and handlers where scenarios need the same platform behavior.
 
-## Planned endpoint configuration
+## Endpoint configuration
 
-The E2E harness will start one server per scenario on an automatically allocated loopback port, then pass all four values to each MMM process it launches. Distinct path prefixes can separate platform APIs, the Minecraft manifest and downloads on that server.
+The E2E harness starts one server per scenario on an automatically allocated loopback
+port, then passes all four values to each MMM process it launches. Distinct path
+prefixes can separate platform APIs, the Minecraft manifest and downloads on that
+server.
 
-| Planned variable | Meaning |
+| Variable | Meaning |
 | --- | --- |
 | `MMM_E2E_MODRINTH_BASE_URL` | Base before Modrinth's `/v2/...` paths; an optional fixture path prefix is retained |
 | `MMM_E2E_CURSEFORGE_BASE_URL` | Complete CurseForge API base, including `/v1`; request paths are appended to it |
@@ -76,10 +77,17 @@ Introduce such controls only for a scenario that needs them. Use Go's HTTP respo
 
 Keep diagnostic data limited to synthetic fixture traffic and the existing terminal evidence. Do not record real credentials. No server, request ledger or mutable response state is shared between scenarios.
 
-## Evidence needed before adoption
+## Required fixture evidence
 
-The first implementation should demonstrate initialization using the local manifest, a compatible mod download from each platform, and project-not-found responses that leave the modlist unchanged. Independently verify unexpected-request detection, missing required requests and concurrent handlers.
+Required coverage includes initialization using the local manifest, a compatible mod
+download from each platform, and project-not-found responses that leave the modlist
+unchanged. Independently verify unexpected-request detection, missing required
+requests and concurrent handlers.
 
-Verify endpoint validation, exact download-origin restrictions, redirect containment and normal builds ignoring the test-only variables. Run the scenarios on Windows, macOS and Linux. The Godog acceptance gate must fail undefined and pending steps. These are implementation acceptance requirements, not claims about current coverage.
+Verify endpoint validation, exact download-origin restrictions, redirect containment
+and normal builds ignoring the test-only variables. Run the scenarios on Windows,
+macOS and Linux.
 
-The normal contributor and [terminal E2E workflows](terminal-harness.md#running-the-suite) remain the entry points. Implementing this design does not require replacing the terminal binding or removing the legacy VCR helper.
+The [BDD verification requirements](bdd.md#run-and-extend-coverage) own undefined
+and pending step failures. Use the [terminal suite workflow](terminal-harness.md#running-the-suite)
+to run the corpus.
