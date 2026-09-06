@@ -4,6 +4,8 @@ This corpus helps contributors implement and assess shared terminal capabilities
 
 [Product intent](../intent.md) defines requirements. [Command guides](../commands/README.md) describe inputs, workflows and outcomes.
 
+Use the canonical [execution-mode matrix](../intent.md#execution-modes-and-operator-intent) for prompting policy and terminal capabilities. Across those profiles, the [permanent transcript](../intent.md#active-display-and-permanent-transcript) shares durable result and decision text; rich controls and progress are temporary presentation.
+
 | Task | Guide |
 | --- | --- |
 | Design ownership, rendering, history, scrolling or cancellation | [Terminal implementation guide](../guide-to-working-with-the-terminal.md) |

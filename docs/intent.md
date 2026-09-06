@@ -110,13 +110,17 @@ This exclusion does not recognize a disabled counterpart as satisfying its mod c
 
 ## Execution modes and operator intent
 
-All execution modes use the same business operations, lookup rules and safety guarantees. Presentation and the ability to ask questions differ.
+All [execution modes](GLOSSARY.md#execution-mode) use the same business operations, lookup rules and safety guarantees. Operator policy determines whether questions are allowed; terminal capabilities determine how permitted interaction is presented.
 
 | Context | Behaviour |
 | --- | --- |
-| Interactive terminal | When both input and output are terminals, ask for missing decisions and use interactive controls where helpful. |
-| Terminal with `--unattended` | Never ask questions. Use documented defaults and supplied policies; fail clearly when required information or authorization is missing. Progress may still render dynamically. |
-| Redirected input or output | Never prompt or depend on terminal interaction. Emit a plain, append-only transcript without animation or cursor-control sequences. |
+| Explicit `--unattended` / pure CLI | Never ask questions. Use documented defaults and supplied policies; fail clearly when required information or authorization is missing. Always emit plain, append-only output without animation, styling or cursor-control sequences, even in a capable terminal. |
+| Interactive TUI with Unicode | With interactive input and output, control-sequence support and Unicode support, collect missing decisions through rich controls. |
+| Interactive TUI with ASCII alternatives | With interactive input and output and control-sequence support, retain equivalent rich controls using ASCII UI symbols when Unicode is unsupported. |
+| Plain interactive terminal | With interactive input and output but no control-sequence support, collect missing decisions through line-based questions and answers. Output is append-only, without animation or styling/control sequences. |
+| Non-interactive execution | When input or output cannot support interaction, including redirected input or output, never prompt. Emit plain, append-only output without animation or styling/control sequences. |
+
+`--unattended` explicitly selects pure CLI execution regardless of terminal capabilities. Supplying all required arguments without that flag avoids unnecessary questions but still permits the terminal's normal presentation. Unicode support is independent of prompting and control-sequence support; plain output does not require ASCII-only text. These profiles define required behaviour, not new mode flags or a claim that all current implementations conform.
 
 An invocation does not acquire extra authority because it is unattended or redirected. `--unattended` and `--force` address different concerns and can be combined.
 
@@ -358,11 +362,15 @@ An error explains the affected mod or file, the reason when known, and the next 
 
 The terminal experience has two distinct lifetimes. Active work can repaint and reorganize. Committed history cannot.
 
-Pending items, progress indicators, selection controls and other temporary state may change in place. When a result settles, emit it once into the permanent transcript in completion order. Use the same result meaning and format as non-interactive output.
+In a capable TUI, pending items, progress indicators, selection controls and other temporary state may change in place. Plain execution emits append-only records without that active rendering. When a result settles, emit it once into the permanent transcript in completion order.
+
+The TUI's permanent transcript and pure CLI output share one durable output contract. Equivalent settled results, failures, warnings, summaries and relevant resolved decisions use the same text and formatting under the same locale and character capabilities. The source of a decision does not change its durable record: an interactive answer, explicit argument or documented default resolving the same choice produces the same record. Describe the resolved choice without pretending that unattended execution asked a question.
+
+This parity concerns durable product records, not raw terminal-control bytes, temporary frames or input exchanges. Actual differences in choices, outcomes or completion order remain visible. Locale and supported-character differences may change representation while preserving meaning; tests must not normalize away missing, duplicated or different records.
 
 Later repaints must not rewrite, reorder or erase committed results. A corrected or additional outcome is a new explicit event, not a silent rewrite of history. The final summary adds counts, failures and next steps without replaying the entire result list.
 
-Answered prompts leave a concise record of the decision. Temporary option lists and animation do not need to remain. Decisions that matter to understanding the operation must survive completion and cancellation.
+Relevant resolved decisions leave concise records in every mode, including decisions supplied without prompting. Temporary option lists and animation do not need to remain. Decisions that matter to understanding the operation must survive completion and cancellation. Plain interactive questions and input echoes may remain in terminal history, but are input exchanges rather than substitutes for the shared decision records.
 
 The normal terminal history must preserve pre-command shell output and the command's durable results after exit. Temporary alternate screens are allowed, but a separate transcript viewer is not required to recover that history.
 
@@ -370,7 +378,7 @@ Long lists must remain accessible. They do not have to fit on one screen. The ac
 
 ### Scrolling and returning to active work
 
-Follow new output while the operator is at the active end of the transcript. Once they scroll away, preserve their reading position while work continues.
+In the TUI, follow new output while the operator is at the active end of the transcript. Once they scroll away, preserve their reading position while work continues. Plain execution leaves scrolling to the terminal and does not acquire a repaintable viewport; the durable-output and history guarantees still apply.
 
 Settled results continue to commit exactly once. Progress updates, completed items and newly required prompts must not pull the operator back to the bottom.
 
@@ -382,7 +390,7 @@ These transitions must survive resizing, changes in active-list grouping, and it
 
 Related capabilities use the same input semantics, defaults, confirmation behaviour and help presentation wherever they appear. Explicit inputs are preserved when a recovery flow asks for another value.
 
-The first `Ctrl+C` requests safe cancellation; a second can force termination as described in the cancellation contract. Escape provides consistent back or cancel behaviour appropriate to the active control. Ordinary text input must not unexpectedly treat a letter as cancellation. Progress-only controls may expose a documented quit shortcut.
+The first `Ctrl+C` requests safe cancellation; a second can force termination as described in the cancellation contract. In rich controls, Escape provides consistent back or cancel behaviour appropriate to the active control. Plain interactive execution offers equivalent decisions through line-based input without requiring rich-control key sequences. Ordinary text input must not unexpectedly treat a letter as cancellation. Progress-only controls may expose a documented quit shortcut.
 
 User-facing messages, choices and input hints are localizable. Missing translations fall back to English. Localized confirmation tokens remain unambiguous and usable; translation must not change the underlying action.
 
@@ -399,7 +407,7 @@ MMM requires a strict component hierarchy. Each shared capability has one owner 
 | Capability component | A reusable interaction end to end, such as confirmation, selection, initialization or mod-operation progress and results. |
 | Visual primitives | Consistent controls, styling, icons and presentation building blocks. |
 
-Business operations are independent of terminal rendering. They resolve artifacts and perform filesystem and metadata work through explicit boundaries. Interactive and unattended flows invoke the same operations and consume their outcomes.
+Business operations are independent of terminal rendering. They resolve artifacts and perform filesystem and metadata work through explicit boundaries. All execution profiles invoke the same operations and consume their outcomes. Capability components expose resolved decisions independently of input collection. Presentation produces their shared durable records; the terminal session coordinates emission and any temporary display. Mode-specific rendering must not create a second business operation or a separate permanent-output format.
 
 Command flows supply domain data and decisions to components. Components report user choices and operation outcomes through explicit contracts. The terminal session is the authority for committing permanent output and coordinating presentation; child components do not independently seize the terminal.
 
@@ -465,7 +473,9 @@ The baseline must have evidence for these journeys:
 | Cancellation and cleanup | Safe recovery has no automatic timeout; a second interruption follows an explicit force-exit warning. Cleanup retries precede warnings about harmless residue. Broken output pipes do not cancel authorized operations. |
 | Compatibility outcomes | Explicit manifest-listed targets are accepted; mixed incompatible and inconclusive findings produce an incomplete outcome. Same-target change is a no-op even when files need repair. |
 | Target recovery | Test and change offer the same correction for invalid targets and allow an explicit validated target when latest lookup fails. Without prompting, they report the failure. |
-| Modes and authority | No-prompt runs never wait for input or imply force; redirected runs contain no terminal-control output. |
+| Modes and authority | Explicit unattended runs remain plain even in a capable terminal and with redirected I/O; no-prompt runs never wait for input or imply force. Complete arguments alone do not select unattended presentation. |
+| Terminal capabilities | Rich Unicode and ASCII presentations preserve the same capabilities. Interactive terminals without control-sequence support collect equivalent decisions through line-based questions; non-interactive runs never prompt. |
+| Transcript parity | For equivalent work, locale and character capabilities, TUI, pure CLI and other profiles emit the same durable result, warning, failure and summary text. Relevant decisions supplied by answers, arguments or defaults use the same records. Observe success, partial failure and cancellation without erasing genuine outcome or ordering differences. |
 | Transcript lifetime | Existing shell history and settled results survive exit exactly once, including failure and cancellation. |
 | Scroll round trip | While work continues, scroll away, receive more results and a pending prompt, resize, then return. Position remains stable and the current active state returns correctly. |
 | Shared capabilities | The same confirmation, selection, progress and recovery behaviours hold across consuming commands. |

@@ -11,7 +11,7 @@ This guide helps contributors implement the terminal architecture required by [p
 | Capability component | Reusable interaction, including state, controls, help and output | Returns choices and outcomes through explicit contracts. |
 | Visual primitive | Controls, styles, icons and layout | Does not decide policy or acquire terminal ownership. |
 
-Business operations are independent of rendering. Interactive and unattended presentations consume the same operation outcomes. Components must not reconstruct what happened by running a second version of an operation.
+Business operations are independent of rendering. Every execution profile consumes the same operation outcomes. Capability owners expose relevant resolved decisions from interactive input, arguments or defaults; presentation produces the shared durable records and the session coordinates their emission. Components must not reconstruct what happened by running a second version of an operation or formatting a separate permanent transcript for each mode.
 
 Command orchestration can remain in command packages. Confirmation, selection, setup recovery, progress and results need shared owners even when their first consumer is one command. Sharing styles while copying state transitions and key handling does not establish reusable capabilities.
 
@@ -21,23 +21,25 @@ Existing capability helpers are described in [internal/view](../internal/view/RE
 
 ## Separate active state from durable events
 
-The [terminal contract](intent.md#active-display-and-permanent-transcript) gives active rendering and history different lifetimes. Pending items, progress and unanswered prompts can repaint, sort and regroup. Settled results and accepted decisions append in completion order and cannot change in a later render.
+The [terminal contract](intent.md#active-display-and-permanent-transcript) gives active rendering and history different lifetimes. In the TUI, pending items, progress and unanswered prompts can repaint, sort and regroup. In every profile, settled results and relevant resolved decisions append once and cannot change in a later render.
 
 The session coordinates these transitions:
 
 1. Receive a settled operation outcome. A completed download alone does not establish successful installation and metadata persistence.
-2. Produce a durable record with the same meaning and format as redirected output.
+2. Produce the same durable text and formatting in the TUI, pure CLI and other profiles for equivalent outcomes under the same locale and character capabilities.
 3. Commit it once and remove its transient representation. Repaint or repeated observation must not emit it again.
 4. Render remaining active work. A later correction becomes a new explicit event.
 5. Add the final summary, failures and next steps without replaying the item list.
 
 Data structures and event identification are implementation choices. The observable invariant is one durable record per settled outcome, independent of repaint frequency, grouping, size or component reuse. Reprinting the whole model at exit is not a substitute.
 
-An answered prompt leaves a concise decision record. Collapsing its temporary option list must not erase earlier history. A pending prompt stays active until answered or cancelled.
+Relevant resolved decisions leave the same concise records whether collected by a prompt, argument or default. Describe the choice, not the input mechanism; do not invent an answered question for unattended execution. Collapsing a temporary option list must not erase earlier history. A pending TUI prompt stays active until answered or cancelled. Plain questions and input echoes may remain in terminal history, but do not replace the shared decision record.
+
+Compare durable records, not raw control bytes, input exchanges or temporary progress frames. Actual differences in choices, outcomes and completion order remain visible. Use controlled equivalent work for comparisons; do not repair mismatches by sorting records, changing their wording or deleting duplicate output.
 
 ## Coordinate primary and alternate screens
 
-Normal terminal history must retain pre-command shell output and MMM's durable results after exit. Temporary alternate screens may host active controls, but cannot be the only home of committed history. An optional transcript viewer cannot be required to recover normal history.
+Normal terminal history must retain pre-command shell output and MMM's durable results after exit. The screen coordination below applies to rich TUI presentation; plain execution appends records without acquiring these screen modes. Temporary alternate screens may host active controls, but cannot be the only home of committed history. An optional transcript viewer cannot be required to recover normal history.
 
 The session coordinates screen transitions with its renderer. Before adopting an alternate screen, establish how durable events reach primary-screen history, how active work returns after a commit, and how input and focus remain attached to the current component. Child components must not toggle screens or write directly while another renderer owns the terminal.
 
@@ -47,7 +49,7 @@ On completion, failure and safe cancellation, restore terminal state acquired by
 
 ## Preserve reading position
 
-Following new output and reading older history are distinct presentation states. Once the operator scrolls away, preserve their position as work progresses and durable events arrive. A newly required prompt waits without taking that position away.
+In the TUI, following new output and reading older history are distinct presentation states. Once the operator scrolls away, preserve their position as work progresses and durable events arrive. A newly required prompt waits without taking that position away. Plain execution leaves scrolling to the terminal and must not introduce a repaintable viewport to emulate these controls.
 
 Returning to the active end shows current work and any pending prompt, then resumes following. Resize and regrouping must not restore stale frames, duplicate history or misplace controls. Long lists need accessible content, not every row rendered simultaneously.
 
@@ -55,9 +57,9 @@ Distinguish terminal-emulator scrollback from an MMM-owned viewport. A component
 
 ## Select presentation from capabilities and policy
 
-Follow [execution modes](intent.md#execution-modes-and-operator-intent): interactive input and output allow shared controls; `--unattended` disables prompts while terminal progress may stay dynamic; redirected input or output requires plain append-only results without control sequences.
+Follow the [execution-mode matrix](intent.md#execution-modes-and-operator-intent). Explicit `--unattended` always selects plain append-only output without questions, animation or styling/control sequences. Complete arguments alone do not select that policy. Otherwise, interactive input and output use rich controls where control sequences are supported, with Unicode or ASCII UI symbols as supported. Without control-sequence support, interactive execution collects equivalent decisions through line-based questions. Non-interactive execution, including redirection, never prompts and emits plain records.
 
-Detect capabilities at the session boundary and pass them consistently to consumers. Terminal detection does not grant mutation authority, and unattended execution does not imply force. Use existing helpers where applicable, but verify both absence of control sequences and presence of required results. Disabling a renderer alone does not prove result delivery.
+Detect interaction, control-sequence and character capabilities at the session boundary and pass them consistently to consumers alongside invocation policy. TTY detection alone does not establish control-sequence or Unicode support. Terminal detection does not grant mutation authority, and unattended execution does not imply force. Use existing helpers where applicable, but verify both absence of control sequences and presence of required results. Disabling a renderer alone does not prove result delivery.
 
 Error and diagnostic paths must cooperate with session output ownership, avoid corrupting active frames and avoid duplicating handled errors. A broken output pipe does not cancel authorized work or required consistency operations.
 
@@ -81,4 +83,4 @@ Escape and documented quit shortcuts follow the active capability's [controls](i
 
 Use the [terminal E2E guide](testing/terminal-harness.md) for tooling and [BDD guide](testing/bdd.md) for scenarios. [Intent's acceptance journeys](intent.md#acceptance-and-evidence) govern required observations.
 
-Exercise real consuming commands. Model tests can verify transitions, but cannot establish shell history, scroll round trips, restoration or cross-command consistency. Record the terminal and platform used to demonstrate renderer behavior. Do not normalize, reorder or reconstruct missing output to manufacture an expected screen.
+Exercise real consuming commands across the mode matrix, including unattended execution in a capable terminal and with redirected I/O, rich ASCII interaction and plain line-based questions. Compare permanent records for equivalent prompted and supplied decisions, successful work, partial failure and cancellation. Model tests can verify transitions, but cannot establish shell history, scroll round trips, restoration or cross-command consistency. Record the terminal and platform used to demonstrate renderer behavior. Do not normalize, reorder or reconstruct missing output to manufacture an expected screen.

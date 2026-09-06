@@ -40,6 +40,7 @@ Entries are grouped by concept. The alphabetical index includes every defined te
 - [Drift](#drift)
 - [Eligibility](#eligibility)
 - [Excluded file](#excluded-file)
+- [Execution mode](#execution-mode)
 - [Failure](#failure)
 - [File](#file)
 - [Force](#force)
@@ -74,6 +75,7 @@ Entries are grouped by concept. The alphabetical index includes every defined te
 - [Modlist](#modlist)
 - [Mods directory](#mods-directory)
 - [No-op](#no-op)
+- [Non-interactive execution](#non-interactive-execution)
 - [Observed installation state](#observed-installation-state)
 - [Operation](#operation)
 - [Operator](#operator)
@@ -81,10 +83,12 @@ Entries are grouped by concept. The alphabetical index includes every defined te
 - [Performance recording](#performance-recording)
 - [Permanent transcript](#permanent-transcript)
 - [Pin](#pin)
+- [Plain interactive execution](#plain-interactive-execution)
 - [Platform](#platform)
 - [Project](#project)
 - [Project ID](#project-id)
 - [Pruning](#pruning)
+- [Pure CLI execution](#pure-cli-execution)
 - [Recognition](#recognition)
 - [Reconciliation](#reconciliation)
 - [Recovery](#recovery)
@@ -105,6 +109,7 @@ Entries are grouped by concept. The alphabetical index includes every defined te
 - [Telemetry](#telemetry)
 - [Terminal session](#terminal-session)
 - [Transcript commit](#transcript-commit)
+- [TUI](#tui)
 - [Unattended execution](#unattended-execution)
 - [Unmanaged file](#unmanaged-file)
 - [Update](#update)
@@ -435,17 +440,37 @@ A named CLI capability requested by the [operator](#operator), such as `install`
 
 A unit of requested work or its execution. Qualify its scope when material: [command](#command) operation, per-mod operation, [file](#file) operation or [business operation](#business-operation). Do not assume every operation is a separate process or an all-or-nothing transaction.
 
+### Execution mode
+
+The interaction and presentation profile of an [invocation](#invocation), determined by explicit operator policy and terminal capabilities. The profiles are [unattended / pure CLI](#unattended-execution), [TUI](#tui) with Unicode, TUI with ASCII alternatives, [plain interactive](#plain-interactive-execution), and [non-interactive](#non-interactive-execution). Unicode support is independent of the ability to prompt or use control sequences. These profiles do not introduce additional CLI flags.
+
 ### Interactive execution
 
-Execution with terminal input and output where prompting is allowed and [interactive controls](#visual-primitive) can collect missing decisions. Supplying `--unattended` prohibits prompting even in a terminal.
+Execution with interactive terminal input and output where prompting is allowed. It uses a [TUI](#tui) when control sequences are supported, or [plain interactive](#plain-interactive-execution) questions otherwise. Supplying all arguments can avoid questions without changing the presentation; `--unattended` explicitly selects [pure CLI execution](#pure-cli-execution).
+
+### TUI
+
+A terminal user interface using rich interactive controls and an [active display](#active-display) where control sequences are supported. Unicode symbols have ASCII alternatives when unsupported; lacking Unicode does not by itself remove rich interaction. Its [permanent transcript](#permanent-transcript) follows the same durable output contract as pure CLI execution.
+
+### Plain interactive execution
+
+[Interactive execution](#interactive-execution) without terminal control-sequence support. It collects missing decisions through line-based questions and answers and emits append-only output without animation or styling/control sequences. Input exchanges may remain in terminal history; relevant resolved decisions also produce shared [permanent transcript](#permanent-transcript) records.
 
 ### Unattended execution
 
-Execution with `--unattended`: never ask questions; use supplied policies and documented defaults or fail when required input or [authority](#authorization) is missing. Terminal progress can still render dynamically. It does not imply [force](#force).
+Execution explicitly selected with `--unattended`: never ask questions; use supplied policies and documented defaults or fail when required input or [authority](#authorization) is missing. Always emit plain append-only output without animation or styling/control sequences, even in a capable terminal. It does not imply [force](#force). Plain output need not be ASCII-only.
+
+### Pure CLI execution
+
+A synonym for [unattended execution](#unattended-execution), selected explicitly with `--unattended`. Supplying complete arguments alone does not select this mode.
+
+### Non-interactive execution
+
+Execution where input or output cannot support interaction, including [redirection](#redirected-execution). It never prompts and emits plain append-only output without animation or styling/control sequences. It grants no additional [authority](#authorization). Non-interactive is an execution condition, not a separate mode flag; explicit [unattended policy](#unattended-execution) applies regardless of this condition.
 
 ### Redirected execution
 
-Execution where input or output is redirected. It never prompts and emits plain append-only output without animation or cursor-control sequences. It grants no additional [authority](#authorization). “Non-interactive” can describe the absence of interaction, but is not a separate MMM mode flag.
+The [non-interactive execution](#non-interactive-execution) case where input or output is redirected. It retains the same no-prompt, plain-output and [authority](#authorization) constraints, including when combined with `--unattended`.
 
 ### Authorization
 
@@ -465,7 +490,7 @@ The mutable presentation of pending work, progress and [controls](#visual-primit
 
 ### Permanent transcript
 
-The durable record of [settled results](#settled-result) and relevant answered decisions. Results [commit](#transcript-commit) once in completion order and survive repaints and exit with pre-command shell history. “Permanent” describes terminal-history lifetime, not a promised log [file](#file) or dedicated viewer.
+The durable record of [settled results](#settled-result) and relevant resolved decisions, including those supplied by arguments or defaults. Equivalent outcomes and decisions use the same durable text and formatting across [execution modes](#execution-mode) under the same locale and character capabilities. Records describe choices independently of how they were collected. Results [commit](#transcript-commit) once in completion order and survive repaints and exit with pre-command shell history. Temporary frames, control bytes and input exchanges are not durable product records. “Permanent” describes terminal-history lifetime, not a promised log [file](#file) or dedicated viewer.
 
 ### Settled result
 

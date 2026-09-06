@@ -71,6 +71,8 @@ We treat automated tests as the primary contract for behavior and user experienc
 - Use fakes/stubs only to control nondeterminism (time, random, network, filesystem, OS signals) or to force rare error paths. Do
   not stub core behavior to "make coverage green".
 - Capture product requirements as third-person BDD scenarios and assert observable outcomes through the real MMM process.
+- Execute shared BDD scenarios unchanged across the execution profiles. Follow the [testing architecture](docs/testing/README.md): drivers execute actions, shared product assertions verify capabilities, and separately owned presentation checks reuse suitable journeys.
+- For equivalent outcomes, compare the durable records and relevant resolved decisions required by the [permanent transcript contract](docs/intent.md#active-display-and-permanent-transcript). Do not compare raw terminal-control bytes or input exchanges, and do not normalize away meaningful discrepancies.
 - For terminal behavior, use tui-test for input, waits, screen state, process lifecycle, and snapshots. Do not add project-owned PTY or terminal emulation helpers.
 - Prefer stable i18n keys, interpolation arguments, exit status, filesystem effects, and semantic terminal state over rendered wording.
 - Use a full terminal snapshot only when the reviewed requirement depends on complete layout or styling. Update it only for an intentional product change.

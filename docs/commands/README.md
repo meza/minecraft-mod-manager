@@ -42,13 +42,19 @@ Invalid supplied values for supported fields receive consistent interactive corr
 
 ## Execution modes
 
-| Context | Behavior |
-| --- | --- |
-| Input and output are terminals | Ask for missing decisions and use interactive controls where helpful. |
-| Terminal with `--unattended` | Never ask questions. Apply supplied policies and documented defaults, or fail when a required value or authorization is missing. Progress may remain dynamic. |
-| Input or output is redirected | Never prompt. Emit plain, append-only output without animation or cursor-control sequences. |
+MMM's target selects one of five presentation profiles from explicit operator intent and terminal capabilities:
 
-Unattended or redirected execution grants no extra authority. `--force` has a specific meaning for each command:
+| Profile | Behavior |
+| --- | --- |
+| Interactive TUI, Unicode | Ask for missing decisions through terminal controls and use Unicode presentation where supported. |
+| Interactive TUI, ASCII | Use the same interactive controls and meanings with ASCII presentation. |
+| Plain interactive | Ask line-oriented questions without cursor movement, animation, styling control sequences or other dynamic controls. Plain output may still use Unicode when supported. |
+| Unattended | Selected only by `--unattended`. Never ask questions and always emit plain, append-only output without ANSI or cursor-control sequences, even when input and output are terminals. Apply supplied policies and documented defaults, or fail when a required value or authorization is missing. |
+| Non-interactive | Selected when interaction is unavailable, including redirected input or output. Never prompt and emit plain, append-only output without ANSI or cursor-control sequences. |
+
+Supplying every required argument may leave an interactive invocation with no questions to ask, but it does not select unattended execution. Unicode capability is independent of control-sequence capability, so plain output is not required to be ASCII-only. See [execution modes and operator intent](../intent.md#execution-modes-and-operator-intent) for the selection contract.
+
+Unattended or non-interactive execution grants no extra authority. `--force` has a specific meaning for each command:
 
 | Command | Force authorizes |
 | --- | --- |
@@ -110,7 +116,9 @@ Concurrent modifying invocations against the same installation are unsupported i
 
 The first `Ctrl+C` requests safe cancellation. Stop new work and unfinished downloads, retain completed independent changes and finish necessary consistency or recovery work. Explain ongoing cleanup; required recovery has no automatic shutdown timeout. Warn that a second interruption forces termination and may leave recovery unfinished.
 
-Settled results and answered decisions remain in the transcript exactly once, in completion order. The final summary adds counts and next steps without replaying the entire list. Normal completion, failure and safe cancellation restore terminal control and preserve pre-command shell history and durable results.
+Settled results, including failures and warnings, enter the transcript exactly once in completion order. The transcript also records relevant resolved decisions whether they came from a prompt, command arguments or documented defaults; it states those decisions neutrally instead of implying that MMM asked a question. Equivalent outcomes under the same locale and character capabilities use the same durable text and formatting across profiles. The final summary adds counts and next steps without replaying the records.
+
+The permanent transcript is the durable record, not raw terminal-control bytes or the input exchange that produced a decision. Comparisons must preserve meaningful differences rather than normalizing discrepancies away. Normal completion, failure and safe cancellation restore terminal control and preserve pre-command shell history and durable results. See [active display and permanent transcript](../intent.md#active-display-and-permanent-transcript).
 
 Scrolling away preserves the reading position while work continues. New results and pending prompts do not pull the reader to the bottom. Returning to the active end shows current state and resumes following output, including after resizing or list reorganization.
 

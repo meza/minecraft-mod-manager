@@ -37,7 +37,7 @@ At a high level, `runAdd` does:
    - a `models.ModInstall` lock entry to `modlist-lock.json`
 6. Record telemetry via `internal/telemetry.RecordCommand` (emitted once per session at shutdown).
 
-## Interactive, unattended, and redirected behavior
+## Current prompt routing
 
 The command only launches the interactive recovery flow when all of these are true:
 
@@ -45,6 +45,8 @@ The command only launches the interactive recovery flow when all of these are tr
 - stdin and stdout are terminals (checked via `internal/view.SupportsPrompting`)
 
 Piped or redirected execution, including typical CI use, stays non-interactive even when `--unattended` is false. `--quiet` only suppresses non-essential output.
+
+This is the current prompt gate. The target [execution profiles](../../../docs/intent.md#execution-modes-and-operator-intent) require a plain line-oriented recovery flow when interaction is available without control sequences, and plain append-only output whenever `--unattended` is set, including on a TTY. Those paths are not fully wired. Supplying complete arguments does not select unattended execution.
 
 ### Add recovery flow
 

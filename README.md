@@ -136,7 +136,7 @@ Every command has a few common options that you can use:
 
 | Option Short | Option Long | Description                                |
 |--------------|-------------|--------------------------------------------|
-|              | --unattended | Disable prompts and fail fast if required inputs are missing |
+|              | --unattended | Disable prompts; the Go-port target also selects plain, append-only pure CLI output |
 | -q           | --quiet     | Suppress non-essential output (errors and required results still print) |
 | -c           | --config    | Select an alternative modlist file |
 | -d           | --debug     | Enable verbose logging                     |
@@ -160,6 +160,8 @@ To avoid prompts in scripts, add `--unattended`:
 ```bash
 mmm --unattended init -l fabric -g 1.21.1 -m ./mods
 ```
+
+Supplying every argument can avoid a question, but it does not select unattended execution. The Go-port target defines five terminal profiles and requires `--unattended` output to remain plain even when attached to a terminal. Current builds can still render rich unattended output, do not provide complete ASCII presentation, and do not yet route plain line-oriented questions across command flows. See [execution modes and operator intent](docs/intent.md#execution-modes-and-operator-intent) for the target contract.
 
 ### Performance logs
 

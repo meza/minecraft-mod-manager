@@ -26,11 +26,13 @@ A mod config's locked artifact is considered "installed" when:
 
 If the local file exists but its hash does not match the locked artifact, the locked artifact is reported as not installed with a distinct hash mismatch message.
 
-## Interactive, unattended, and redirected behavior
+## Current presentation behavior
 
 `list` renders output through Bubble Tea in all execution contexts, using an output-only program when no prompts are required.
 
 When the modlist is missing and prompts are allowed, `list` shows a Bubble Tea confirm prompt, runs the `init` interactive flow on acceptance, and resumes listing.
+
+This describes the current implementation. The target [execution profiles](../../../docs/intent.md#execution-modes-and-operator-intent) require explicit unattended execution to remain plain and append-only even on a TTY, and require plain line-oriented questions where prompting is available without control sequences. That routing is not complete yet. Supplying complete arguments can remove the need for a prompt but does not select unattended execution.
 
 ## Testing and snapshots
 

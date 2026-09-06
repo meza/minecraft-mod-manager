@@ -15,10 +15,10 @@ The native process runs in an isolated temporary workspace. Assertions observe t
 The target boundary is:
 
 ```text
-Gherkin scenario -> Godog step -> BDD actor action -> tui-test Go binding -> Rust engine -> native MMM process
+Gherkin scenario -> Godog step -> BDD actor action -> mode-specific driver -> tui-test Go binding -> Rust engine -> native MMM process
 ```
 
-Godog owns scenario setup, actions, assertions and cleanup. The binding hosts the terminal engine in the Go test process; MMM remains a separately launched process in an isolated workspace. Actions use the binding's public methods directly for input, waits, state and snapshots. This replaces CLI invocation and JSON decoding without adding project-owned terminal machinery. HTTP fixtures retain their separate [scenario-owned server boundary](http-fixtures.md).
+Godog owns scenario setup and cleanup. Each mode-specific driver uses the binding's public methods directly for supported process operations, input, waits and observations. The binding hosts the terminal engine in the Go test process; MMM remains a separately launched process in an isolated workspace. The [BDD architecture](bdd.md#runner-drivers-and-shared-assertions) owns runner, action, driver and product-assertion responsibilities. Drivers contain no acceptance assertions; [presentation checks](presentation.md) can assess evidence from the same invocation separately from product checks. HTTP fixtures retain their separate [scenario-owned server boundary](http-fixtures.md).
 
 ### Dependency setup and migration status
 
@@ -67,7 +67,7 @@ HTTP-dependent scenarios will use the agreed [HTTP fixture design](http-fixtures
 
 ## Writing terminal scenarios
 
-Put product scenarios in `e2e/features` and reusable actions and outcomes in the `e2e` package. Keep the Gherkin in third person and express what an actor does and observes.
+Follow [BDD architecture](bdd.md) for shared scenarios, profile selection and assertion ownership. Put product scenarios in `e2e/features` and reusable actions and outcomes in the `e2e` package. Keep Gherkin about what an actor does and observes; attach visual checks according to [presentation testing](presentation.md) instead of embedding them in shared scenarios or drivers.
 
 Prefer these observable outcomes:
 
@@ -95,11 +95,13 @@ The evaluated native binding exposes the following capabilities. Their presence 
 | Interaction transitions | Keyboard and mouse operations, including scroll input, combined with waits and observations between actions. |
 | Failure evidence | `Screenshot` can write SVG; recording and assertion artifacts retain additional diagnostics. |
 
-Use focused semantic assertions for content and outcomes. Use snapshots when the reviewed requirement depends on complete layout or styling. Choose an explicit snapshot working directory with `SnapshotOptions.Cwd`; baselines live beneath it in `__snapshots__`. Fix the terminal dimensions, backend, locale and scenario data for each baseline. For translated wrapping and layout, exercise actual translations as well as localization-key mode.
+Use focused semantic assertions for content and outcomes. Separately owned presentation checks use snapshots when the reviewed requirement depends on complete layout or styling; drivers only expose the observation path. Choose an explicit snapshot working directory with `SnapshotOptions.Cwd`; baselines live beneath it in `__snapshots__`. Fix the terminal dimensions, backend, locale and scenario data for each baseline. For translated wrapping and layout, exercise actual translations as well as localization-key mode.
 
 Keep `SnapshotOptions.Update` disabled during normal verification. The evaluated engine writes a missing baseline and returns `SnapshotWritten` even when update mode is disabled, so successful verification must require `SnapshotPassed` as well as no error. Create or update baselines deliberately, inspect the resulting diff, and retain them in version control. `IncludeTitle` is optional; enable it only when the title is part of the requirement.
 
 Wait for an observable product state before capturing a frame. `WaitIdle` indicates a quiet screen, not operation completion. Use controlled HTTP fixture responses to make progress states repeatable; do not stabilize animations with arbitrary sleeps. A grid snapshot excludes scrollback and cursor state, and does not prove transcript preservation or terminal restoration. Those require the multi-stage observations below. Emulator snapshots also do not establish identical font rendering in every desktop terminal.
+
+When profiles should produce equivalent outcomes, compare their durable records under the same locale and character capabilities. Exclude temporary active frames, terminal-control bytes and the input exchange itself from that comparison. Do not strip text, reorder records or otherwise normalize away discrepancies. Relevant decisions must remain visible in neutral language whether they were supplied by a prompt answer, an argument or a documented default.
 
 ## Stable localization expectations
 
@@ -132,12 +134,12 @@ The removed custom harness and its expectations are catalogued in the [legacy te
 
 | Journey | Evidence to retain |
 | --- | --- |
-| Transcript lifetime | Pre-command shell output and settled records survive exit exactly once, including failure and cancellation. Active repaints do not alter committed order; summaries do not replay items. |
+| Transcript lifetime | Pre-command shell output and settled records survive exit exactly once in completion order, including failures, warnings, summaries and cancellation. Active repaints do not alter committed order; summaries do not replay items. Relevant resolved decisions appear neutrally regardless of whether prompts, arguments or defaults supplied them. |
 | Scroll round trip | Scroll away while work continues, let results arrive and a prompt become pending, resize, then return. The reading position remains stable and the current active state returns. Reaching the active end resumes following. |
 | Screen transitions | If the renderer uses an alternate screen, verify durable primary-screen history and terminal restoration as well as the visible active frame. |
 | Shared capabilities | Exercise confirmation, selection, setup/correction and progress through multiple consuming commands, including preserved input and return after accepted recovery. |
 | Safe cancellation | Observe ongoing cleanup, preserved completed work, the second-interruption warning and restored terminal control. A test timeout is a harness bound, not authorization for a production recovery timeout. |
-| Modes and localization | Observe no prompts without prompting capability, plain redirected results, and real translated input/layout in addition to localization-key checks. |
+| Profiles and localization | Exercise interactive TUI in Unicode and ASCII, plain line-oriented interaction without control sequences, explicit `--unattended`, and non-interactive execution such as redirected I/O. Verify that unattended and non-interactive runs never prompt and contain no ANSI or cursor-control output. Supplying complete arguments alone must not select unattended. Exercise real translated input and layout in addition to localization-key checks. |
 
 Drive input, scrolling, resize, waits and lifecycle through tui-test. Use deterministic cross-process fixtures for network-dependent journeys, following the agreed [HTTP fixture design](http-fixtures.md). Do not reintroduce Expect wrappers, custom probe replies, sleeps or terminal emulation for discovery; use the same terminal driver for investigation and acceptance.
 

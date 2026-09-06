@@ -20,12 +20,14 @@ This package implements `mmm init`: create a new `modlist.json` and `modlist-loc
 
 `init` is designed to be both scriptable and friendly:
 
-- If you provide all required values (including the default mods folder), the command writes the files without prompting.
+- If you provide all required values (including the default mods folder), the command has no missing-value question to ask. Complete arguments do not select unattended execution; presentation still follows the selected execution profile.
 - If required values are missing and stdin/stdout are terminals with prompts allowed, it launches an interactive flow to collect values and confirm writing.
 - If the modlist path already exists, the flow asks whether to overwrite or choose a new path.
 - In `--unattended` or non-TTY mode, it never prompts and fails fast when required inputs are missing or the modlist already exists (unless `--force` is set).
 
 After inputs are finalized (via flags or the interactive flow), `initWithDeps` writes `modlist.json` and an empty `modlist-lock.json`. Success output is emitted afterward through a Bubble Tea output-only program.
+
+This section describes current routing. The target [execution profiles](../../../docs/intent.md#execution-modes-and-operator-intent) also require explicit unattended output to be plain and append-only on a TTY, ASCII-complete TUI presentation, and line-oriented prompts when interaction is available without control sequences. Those presentation paths are not fully implemented.
 
 ## Testing and snapshots
 

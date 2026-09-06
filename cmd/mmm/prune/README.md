@@ -8,7 +8,7 @@ The implementation follows the command conventions used elsewhere in the CLI:
 - `cmd/mmm/prune/prune.go`: cobra wiring, prompt handling, deletion logic, and telemetry
 - `cmd/mmm/prune/prune_test.go`: behavior tests covering prompts, quiet/force behavior, ignores, and lock errors
 
-## Prompt behavior
+## Current prompt behavior
 
 Prompts are allowed only in interactive mode. Interactive mode requires both stdin and stdout to be TTYs and `--unattended` to be unset.
 
@@ -16,6 +16,8 @@ When prompts are not allowed and `--force` is not set, prune prints the unmanage
 When `--force` is set, prune skips prompting and deletes unmanaged files immediately.
 
 When the modlist is missing and prompts are allowed, prune offers to run `mmm init` and then resumes. In `--unattended` or non-TTY contexts, it prints the missing-modlist error and exits.
+
+The target [execution profiles](../../../docs/intent.md#execution-modes-and-operator-intent) require line-oriented confirmation when interaction is available without control sequences, and plain append-only output whenever `--unattended` is set, including on a TTY. The current Bubble Tea prompt routing does not fully provide those paths. Complete arguments do not select unattended execution.
 
 ## Testing and snapshots
 

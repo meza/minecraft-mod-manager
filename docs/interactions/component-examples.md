@@ -11,12 +11,14 @@ Each frame has one of three roles:
 | Frame role | Lifetime |
 | --- | --- |
 | **Active display** | Temporary state that may repaint while work or input is pending. |
-| **New durable events** | Settled results or answered decisions appended once to the permanent transcript. |
+| **New durable events** | Settled results or relevant resolved decisions appended once to the permanent transcript. |
 | **Final transcript** | The durable history left in the ordinary terminal when the command returns to the shell. |
 
 Examples often show only the new lines relevant to a transition. Earlier durable events remain above them in the terminal even when they are omitted from the next code block. Removing a completed row from the active display never erases its durable event.
 
-Icons, color, spacing, and wording can adapt to terminal capability and locale. Text must preserve meaning when Unicode or color is unavailable. Placeholders such as `<confirm-short>` represent localized content, not literal output.
+Temporary controls can adapt to terminal capabilities. Durable records use the same text and formatting across execution modes under the same locale and character capabilities. Text must preserve meaning when Unicode or color is unavailable. Placeholders such as `<confirm-short>` represent localized content, not literal output. The examples illustrate that shared contract without prescribing exact English copy.
+
+Rich frames below apply to TUI presentation. ASCII UI symbols retain equivalent controls when Unicode is unsupported. Plain interactive execution collects equivalent choices through line-based questions; unattended and non-interactive execution never ask questions. All profiles emit the shared durable records. See the [execution-mode matrix](../intent.md#execution-modes-and-operator-intent).
 
 ## Selection focus, selected values, and answered prompts
 
@@ -35,13 +37,13 @@ A selection control must distinguish the row under the cursor from values alread
 
 Here, `beta` has focus and `release` is selected. Moving focus does not change the selection. Toggling `beta` selects it; accepting the control settles the decision.
 
-**New durable event — the accepted control collapses to one answered line:**
+**New durable event — the accepted control produces one decision record:**
 
 ```text
-? Which release types should be allowed? beta, release
+Allowed release types: beta, release
 ```
 
-The temporary list disappears from the active display, while the answered line stays in the transcript. A single-choice control follows the same pattern:
+The temporary list disappears from the active display, while the decision stays in the transcript. Supplying the same release types as arguments produces that same durable line without an invented question. A single-choice control follows the same pattern:
 
 **Active display:**
 
@@ -54,10 +56,10 @@ The temporary list disappears from the active display, while the answered line s
 **New durable event:**
 
 ```text
-? Which platform should MMM use? Modrinth
+Platform: Modrinth
 ```
 
-The [init guide](../commands/init.md) defines field collection and defaults. The [add guide](../commands/add.md#lookup-and-eligibility-results) defines when platform and project-ID correction is offered.
+Resolving Modrinth from a supplied argument or documented default produces the same `Platform: Modrinth` decision record where that decision is relevant. The [init guide](../commands/init.md) defines field collection and defaults. The [add guide](../commands/add.md#lookup-and-eligibility-results) defines when platform and project-ID correction is offered.
 
 ## Destructive confirmation with a localized preview
 
@@ -82,14 +84,14 @@ Empty input chooses the displayed safe default. The component accepts localized 
 **New durable event — accepted decision collapses to a record:**
 
 ```text
-? Delete these 2 files? <confirm-label>
+Deletion of these 2 files: authorized
 ```
 
-After that event, deletion progress may begin. If the operator declines, the answered decision and the fact that nothing was deleted remain in the final transcript. When command-specific force supplies the required authority, the prompt is omitted, but the selected work and settled results are still reported. See the [remove](../commands/remove.md) and [prune](../commands/prune.md) guides for their authorization rules.
+After that event, deletion progress may begin. If the operator declines, the declined decision and the fact that nothing was deleted remain in the final transcript. When command-specific force supplies equivalent authority for the same selection, the prompt is omitted, but the preview, resolved authorization record and settled results remain the same. Plain execution emits those durable records without repainted progress. See the [remove](../commands/remove.md) and [prune](../commands/prune.md) guides for their authorization rules.
 
 ## Bounded and numeric progress
 
-When a byte total is known, a progress bar shows filled and unfilled cells and is paired with numeric progress. Item counts can orient the operator across a batch.
+In the TUI, when a byte total is known, a progress bar shows filled and unfilled cells and is paired with numeric progress. Item counts can orient the operator across a batch. These temporary frames do not become additional progress lines in pure CLI output.
 
 **Active display — two items are still running:**
 
@@ -331,10 +333,20 @@ The pending prompt is temporary state until answered. It is not committed as an 
 ? Apply the selected correction? <pending>
 ```
 
-After the prompt is answered, it collapses into a new durable decision event. Reaching the bottom resumes following new output. The complete scroll contract is defined by [scrolling and returning to active work](../intent.md#scrolling-and-returning-to-active-work).
+After the prompt is answered, it produces a new durable decision event using the same record as an equivalent supplied decision. Reaching the bottom resumes following new output. This rich-TUI journey is defined by [scrolling and returning to active work](../intent.md#scrolling-and-returning-to-active-work); plain execution leaves scrolling to the terminal.
 
 ## Redirected output and the final transcript
 
-When input or output is redirected, the same outcomes are emitted as a plain append-only transcript. There are no spinners, cursor movement, active selection controls, or repainted progress bars. Results appear once as they settle, followed by a summary that does not replay the list.
+Explicit `--unattended` emits plain append-only output even in a capable terminal. Non-interactive execution, including redirected input or output, does the same. There are no spinners, cursor movement, active selection controls, or repainted progress bars. Results appear once as they settle, followed by a summary that does not replay the list.
 
-Interactive completion, failure, and safe cancellation leave the same durable meaning in the ordinary shell history. See [active display and permanent transcript](../intent.md#active-display-and-permanent-transcript) and [shared command behavior](../commands/README.md#cancellation-and-terminal-output).
+Interactive completion, failure, and safe cancellation leave the same durable text and formatting in ordinary shell history as equivalent pure CLI work under the same locale and character capabilities. Relevant resolved decisions use the same records whether supplied by answers, arguments or defaults. See [active display and permanent transcript](../intent.md#active-display-and-permanent-transcript) and [shared command behavior](../commands/README.md#cancellation-and-terminal-output).
+
+For example, given equivalent installation outcomes in the same completion order, the TUI may show the temporary download frames above, while pure CLI execution shows none. Both emit these durable lines once (illustrated with ASCII text):
+
+```text
+Fabric API (fabric-api) [modrinth] installed
+Mod Menu (modmenu) [modrinth] download failed: connection reset; retry with mmm install
+Installation incomplete: 1 satisfied, 1 failed.
+```
+
+This comparison concerns product records, not raw control bytes, input echoes or temporary frames. Plain interactive questions may remain in terminal history alongside the shared records. A different choice, outcome or completion order is a real difference; do not hide it by rewriting or sorting a captured transcript.
