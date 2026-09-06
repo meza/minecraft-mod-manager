@@ -67,13 +67,16 @@ endef
 endif
 
 # Targets
-.PHONY: all clean fmt fmt-check lint lint-fix vuln build e2e-build dist prepare test test-race coverage mod-download notices sbom vcr-record e2e
+.PHONY: all bubblebook clean fmt fmt-check lint lint-fix vuln build e2e-build dist prepare test test-race coverage mod-download notices sbom vcr-record e2e
 
 # Build for all platforms
 all: clean build
 
 run:
 	go run .
+
+bubblebook:
+	go run ./tools/bubblebook
 
 fmt:
 	go fmt ./...

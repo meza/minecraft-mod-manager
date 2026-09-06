@@ -23,6 +23,7 @@ require (
 	github.com/muesli/termenv v0.16.0
 	github.com/posthog/posthog-go v1.6.13
 	github.com/quasilyte/go-ruleguard/dsl v0.3.23
+	github.com/sarkarshuvojit/bubblebook v1.0.1
 	github.com/spf13/afero v1.15.0
 	github.com/spf13/cobra v1.10.2
 	github.com/spf13/pflag v1.0.10
