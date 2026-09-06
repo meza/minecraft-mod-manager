@@ -28,12 +28,12 @@ jobs:
           - windows-latest
     steps:
       - name: Check out repository
-        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
         with:
           persist-credentials: false
 
       - name: Set up Go
-        uses: actions/setup-go@40f1582b2485089dde7abd97c1529aa768e1baff # v5
+        uses: actions/setup-go@40f1582b2485089dde7abd97c1529aa768e1baff # v5.6.0
         with:
           go-version: 1.25.5
           cache: true
@@ -111,7 +111,7 @@ jobs:
   release:
     runs-on: self-hosted
     steps:
-      - uses: meza/action-go-setup@main
+      - uses: meza/action-go-setup@c78a8df36a2e434db368347b54e4e6aa0f874fd8 # main
         id: go
         name: Set up Go
         with:
