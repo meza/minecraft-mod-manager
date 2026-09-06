@@ -14,8 +14,8 @@ its ancestors. Combine routes for mixed changes; unrelated guides do not need to
 | Product requirements or design | [Product work](#product-work), [product intent](docs/intent.md), [glossary](docs/GLOSSARY.md), and the relevant [command guide](docs/commands/README.md) |
 | Go behavior or refactoring | [Code conventions](#code-conventions), [testing policy](docs/contributing/testing.md), and affected command or package guides |
 | Test-only changes | [Testing policy](docs/contributing/testing.md), then the guide for the test boundary |
-| Terminal components | [Terminal architecture](docs/guide-to-working-with-the-terminal.md), [interaction conventions](docs/interactions/README.md), and [component verification](docs/testing/components.md) |
-| Stories or gallery integration | [Gallery contribution guide](tools/bubblebook/README.md) and [component verification](docs/testing/components.md) |
+| Terminal components | [Terminal architecture](docs/guide-to-working-with-the-terminal.md), [Charm TUI guide (Bubble Tea, Bubbles and Lip Gloss)](docs/charm-tui/README.md), [interaction conventions](docs/interactions/README.md), and [component verification](docs/testing/components.md) |
+| Stories or gallery integration | [Charm TUI guide](docs/charm-tui/README.md), [gallery contribution guide](tools/bubblebook/README.md), and [component verification](docs/testing/components.md) |
 | E2E scenarios or harnesses | [E2E testing index](docs/testing/README.md) and its task-selected guides |
 | Translations or user-facing text | [Translations](#translations), [i18n guide](internal/i18n/README.md), and [interaction conventions](docs/interactions/interaction-guidelines.md) for controls and confirmation tokens |
 | Provider integrations | [Shared platform boundary](internal/platform/README.md) and the relevant [CurseForge](internal/curseforge/README.md) or [Modrinth](internal/modrinth/README.md) guide |
