@@ -6,14 +6,17 @@ test harnesses, and reusable workflow logic.
 
 ## Use portable execution boundaries
 
-Implement shared tooling in Node.js or an existing cross-platform dependency. Invoke executables
+Prefer Go, existing project tools and suitable cross-platform dependencies for shared tooling.
+Introduce another runtime only when the requested capability requires it and the dependency is
+justified. Invoke executables
 with an argument array through a process API. Do not construct shell command strings or depend on
 pipes, redirects, command substitution, inline environment assignment, glob expansion, or quoting
 performed by a particular shell.
 
-Do not require Bash, PowerShell, POSIX or GNU utilities for a shared tooling entry point. Workflow
-syntax may use the declared runner's shell only for orchestration confined to that runner; reusable
-logic and the implementation of a check belong in cross-platform code.
+Keep reusable tooling logic independent of Bash, PowerShell, POSIX or GNU utilities. Documented
+Make entry points may select the native platform shell for orchestration. Workflow syntax may use
+the declared runner's shell for orchestration confined to that runner; reusable logic and the
+implementation of a check belong in cross-platform code.
 
 ## Handle files and processes through platform APIs
 
@@ -43,3 +46,6 @@ Portability is an implementation and review requirement, not a testing requireme
 Tooling tests are optional. Add them when complex logic would benefit from regression protection,
 not solely to demonstrate portability. They may run on the repository's configured CI environment
 and do not require an operating-system matrix.
+
+Use the [contribution verification policy](../../CONTRIBUTING.md#verification) for mixed changes.
+The optional tooling tests above do not waive tests for changes to production behavior.

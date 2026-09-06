@@ -1,16 +1,26 @@
 # Code review
 
-Code review determines whether a change satisfies its work item and fits the repository's current
-engineering and architectural contracts. Reviews are evidence-based and advisory: the reviewer
-reports every supported observation, while humans decide whether a finding prevents delivery.
+Code review determines whether a change satisfies the requested outcome and fits the repository's
+current engineering and architectural contracts. Reviews are evidence-based and advisory: the
+reviewer reports every supported observation, while humans decide whether a finding prevents
+delivery.
 
-The review is recorded only in `code-review.md` at the repository root. Do not publish findings
-through native pull-request review controls or another parallel review artifact.
+A standalone review is recorded only in `code-review.md` at the repository root. Do not publish
+its findings through native pull-request review controls or another parallel review artifact.
+
+An independent handoff review required by repository coordination policy is a separate review lane,
+not another standalone review or a new human approval gate. Its reviewer reports directly to the
+implementation owner in the format requested by that policy and does not create or replace the root
+artifact. When that lane is limited to documentation, review only the changed documentation and its
+governing documentary evidence. Do not inspect production code, configuration, or runtime behaviour,
+and do not run production software tests. These restrictions do not narrow a standalone review.
+
+The remainder of this document governs standalone reviews.
 
 ## Load the guidance for this review
 
-Read this document completely for every code review, then read each applicable reference completely
-before inspecting the change:
+Read this document completely for every standalone review, then read each applicable reference
+completely before inspecting the change:
 
 - For an initial review, read [initial review](./reviewing-code/initial-review.md).
 - For a re-review, read [re-review](./reviewing-code/re-review.md). Also read and apply
@@ -24,22 +34,19 @@ before inspecting the change:
 Architectural-fitness guidance may be skipped only for prose, formatting, generated output,
 repository metadata, or mechanical work with no architectural choice.
 
-Load other repository guidance selected by the affected paths and concerns. In particular, use the
-provider-specific API skill when reviewing CurseForge or Modrinth integration code, and use the
+Load other repository guidance selected by the affected paths and concerns, including the
 repository's Go and test guidance when those surfaces change.
 
 ## Establish context and scope
 
-Use a Linear ticket as the work item when the request identifies one. Retrieve it through the
-environment's enabled Linear connector; do not read tracker credentials from repository or
-environment files. If the connector is unavailable, record that evidence gap rather than
-improvising access. When no ticket is identified, use the request's rationale, intended behaviour,
-constraints, and acceptance criteria as the work item.
+Establish the requested outcome, rationale, intended behaviour, constraints, and acceptance criteria
+from the review request and the governing repository documents. Record the sources that establish
+each requirement. Together, these sources establish the review contract.
 
-Ticket requirements and any sources the ticket declares normative are binding review criteria.
-Implementer notes may add non-conflicting constraints or justified supporting work, but cannot
-narrow ticket requirements. Do not treat ticket-silent cleanup, refactoring, or supporting work as
-a finding without a concrete adverse consequence.
+Request requirements and governing documents are binding review criteria. Implementer notes may add
+non-conflicting constraints or explain justified supporting work, but cannot narrow the request.
+Do not treat cleanup, refactoring, or supporting work outside an explicit requirement as a finding
+without a concrete adverse consequence.
 
 An unqualified initial review covers the entire active changeset. For local or ad hoc work, that is
 the working tree relative to `HEAD`, including staged, unstaged, and untracked files. For a pull
@@ -86,12 +93,24 @@ Do not report unrelated debt, personal preference, deterministic failures alread
 by a recorded repository check, hypothetical risks without a credible path, or redesigns whose only
 benefit is aesthetic consistency. Do not manufacture a finding when the change is acceptable.
 
-## Run required local gates
+## Verify each changed surface
 
-Read the root [contribution guide](../CONTRIBUTING.md), run every required gate command named in its
-`Required local checks` section for every review, and record the command and result. Do not use a
-remote CI status as a substitute. Its advice to run `make fmt` or `make lint-fix` after a failed gate
-is for implementers; reviewers record the failure and do not run either fix target.
+Read the root contribution guide's canonical [Verification](../CONTRIBUTING.md#verification) section
+and select its required checks for every changed surface. Run only non-mutating review commands and
+record each command and result. In particular:
+
+- verify production-code behaviour through stable interfaces at the test level appropriate to the
+  change, together with the applicable code-quality, security, build, and end-to-end gates;
+- verify documentation with content, link, render, or documentation-specific checks;
+- verify configuration with its parser, schema, or tool-native validation;
+- verify mechanical edits with searches, diffs, and relevant static checks; and
+- verify generated output through its owning generation or staleness check without editing it.
+
+Mixed changes require the combined checks selected for their surfaces. Do not run production
+software tests merely to validate prose, configuration, generated output, or a mechanical edit.
+Remote CI may provide additional evidence, but it does not replace required local evidence. Fixing,
+formatting, snapshot-update, and generation commands are for implementers; reviewers record the
+failure and do not mutate the working tree.
 
 When a required command cannot run, record the attempted command, the exact constraint or failure,
 and the resulting evidence gap. `Review incomplete` takes precedence over the other verdicts while
@@ -102,18 +121,18 @@ does not by itself make the review incomplete; record the finding and use `Chang
 
 Use these sections in this order:
 
-1. **Context and sources** - work-item identity or ad hoc rationale, review type, declared scope,
+1. **Context and sources** - requested outcome and rationale, review type, declared scope,
    changed surfaces, and every requirement or guidance source read.
-2. **Requirements** - complete, explicit acceptance criteria, each attributed to the ticket,
-   request, or a named repository document and section.
+2. **Requirements** - complete, explicit acceptance criteria, each attributed to the request or a
+   named repository document and section.
 3. **Advisory verdict** - exactly one of `No changes recommended`, `Changes recommended`, or
    `Review incomplete`, followed by a concise evidence-based rationale.
 4. **Findings** - objective, unranked findings. Write `No findings` when there are none.
-5. **Validation evidence** - every required local command with its result, plus targeted inspection
-   or behavioural evidence used by the review.
+5. **Validation evidence** - every surface-appropriate local command with its result, plus targeted
+   inspection or behavioural evidence used by the review.
 6. **Unverified evidence and questions** - material evidence gaps and decisions that require human
    input. Write `None` when there are none.
 
 Keep each finding actionable and self-contained. The review is complete when the artifact accounts
 for every in-scope file and affected flow, every applicable requirement, all prior findings in a
-re-review, and all required local gates.
+re-review, and all required surface-appropriate verification.

@@ -5,7 +5,7 @@ right owner, preserve intended dependency boundaries, and use established capabi
 that owns them.
 
 Establish the current architecture from the implementation and configuration. Establish the target
-architecture from accepted decisions, the nearest applicable guides, specialist skills, and other
+architecture from accepted decisions, the nearest applicable guides, and other
 repository evidence. Treat neighbouring legacy code as current-state evidence, not proof that its
 architecture remains the target. Record material uncertainty when the target cannot be established;
 do not invent a target during review.

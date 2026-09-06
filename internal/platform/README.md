@@ -142,4 +142,4 @@ When you add support for another platform, keep the surface area the same:
 
 ## Tests
 
-This package is tested with local `httptest` servers via injected `Doer`s. See `CONTRIBUTING.md` for required test/coverage checks and snapshot update instructions.
+This package is tested with local `httptest` servers via injected `Doer`s. See the root [verification guidance](../../CONTRIBUTING.md#verification) for required checks and snapshot update instructions.

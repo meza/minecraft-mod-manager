@@ -16,4 +16,4 @@ This package provides user-facing output helpers for command output. It owns qui
 
 ## Tests
 
-See `CONTRIBUTING.md` for required test/coverage checks and snapshot update instructions.
+See the root [verification guidance](../../CONTRIBUTING.md#verification) for required checks and snapshot update instructions.

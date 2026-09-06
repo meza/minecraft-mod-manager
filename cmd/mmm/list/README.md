@@ -36,6 +36,6 @@ This describes the current implementation. The target [execution profiles](../..
 
 ## Testing and snapshots
 
-See `CONTRIBUTING.md` for required test/coverage checks and snapshot update instructions.
+See the root [verification guidance](../../../CONTRIBUTING.md#verification) for required checks and snapshot update instructions.
 
 Snapshots live under `cmd/mmm/list/__snapshots__/` and tests set `MMM_TEST=true` so i18n output is stable.

@@ -2,11 +2,12 @@
 
 ## Changes
 
-## Testing
+## Verification
 
-- [ ] `make lint`
-- [ ] `make coverage`
-- [ ] `make build`
+List the changed surfaces and the commands or document checks performed, with their results.
+Follow the [contribution verification policy](../CONTRIBUTING.md#verification).
+
+- [ ] Applicable checks are complete; any missing evidence and its consequence are explained
 
 ## Documentation
 

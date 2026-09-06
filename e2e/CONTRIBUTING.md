@@ -10,6 +10,9 @@ Follow the [repository contribution guide](../CONTRIBUTING.md). Start with the
   observation timing and result reporting.
 - Follow the [HTTP fixture guide](../docs/testing/http-fixtures.md) for scenario-owned
   responses and request evidence.
-- Complete the [terminal prerequisites](../docs/testing/terminal-harness.md#prerequisites),
-  then use the [suite workflow](../docs/testing/terminal-harness.md#running-the-suite).
-  The terminal harness guide owns tui-test APIs, process lifecycle and diagnostics.
+- For documentation-only changes, follow the root
+  [verification guidance](../CONTRIBUTING.md#verification).
+- For executable E2E work, complete the
+  [terminal prerequisites](../docs/testing/terminal-harness.md#prerequisites), then use
+  the [suite workflow](../docs/testing/terminal-harness.md#running-the-suite). The terminal
+  harness guide owns tui-test APIs, process lifecycle and diagnostics.

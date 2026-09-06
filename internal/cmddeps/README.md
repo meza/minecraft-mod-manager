@@ -27,4 +27,4 @@ If a dependency is command-specific (or only shared by two commands), keep it in
 Prefer overriding `CommonDepsOptions` in tests instead of hand-wiring shared fields.
 Use in-memory filesystems (`afero.NewMemMapFs`) and stub clients when you need deterministic behavior.
 
-See `CONTRIBUTING.md` for required test and coverage checks.
+See the root [verification guidance](../../CONTRIBUTING.md#verification) for required test and coverage checks.

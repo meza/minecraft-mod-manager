@@ -41,4 +41,4 @@ To add a new command:
 
 ## Tests
 
-See `CONTRIBUTING.md` for required test/coverage checks and snapshot update instructions.
+See the root [verification guidance](../../CONTRIBUTING.md#verification) for required checks and snapshot update instructions.

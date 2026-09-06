@@ -1,6 +1,6 @@
 # Testing product capabilities and presentation
 
-This guide defines MMM's end-to-end testing contract for contributors writing,
+This guide defines MMM's terminal testing contract for contributors writing,
 running or maintaining tests.
 [Product intent](../intent.md) defines required behaviour; these guides explain
 how tests obtain and assess evidence. The [glossary](../GLOSSARY.md) owns vocabulary.
@@ -9,6 +9,8 @@ how tests obtain and assess evidence. The [glossary](../GLOSSARY.md) owns vocabu
 
 | Task | Canonical guide |
 | --- | --- |
+| Verify a documentation-only change | Root [verification guidance](../../CONTRIBUTING.md#verification) |
+| Choose component, render, root, runtime, story or real-process evidence | [Components and coordination](components.md) |
 | Set up the native binding and run the suite | [Terminal harness](terminal-harness.md#prerequisites) |
 | Write scenarios; understand runner, actions, drivers and product assertions | [BDD architecture](bdd.md) |
 | Check spinners, progress, layout or styling without copying journeys | [Presentation testing](presentation.md) |

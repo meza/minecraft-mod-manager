@@ -1,8 +1,10 @@
 # Component gallery
 
-Use the gallery to preview MMM's shared visual primitives in isolation. It runs
-[Bubblebook](https://github.com/sarkarshuvojit/bubblebook) as a separate developer
-program, using the same primitives as the application.
+Use the gallery to preview MMM's shared terminal components in isolation. The target
+gallery uses the native Bubble Tea v2
+[meza/bubblebook](https://github.com/meza/bubblebook) story host as a separate developer
+program and renders the same components as the application. This guide describes that
+target; it does not claim that every existing story or launcher has already migrated.
 
 ## Run the gallery
 
@@ -22,8 +24,8 @@ The gallery contains an animated spinner and progress variants starting at 0%,
 50% and 100%. These appear in sample mod rows rendered through MMM's shared
 presentation code, including its label and status styles. Progress uses a fixed
 sample total; it does not download files.
-Selecting another story creates a fresh instance, so returning to a progress
-story restores its starting value.
+Each story must create fresh state, so returning to a progress story restores its
+starting value rather than retaining an earlier interaction.
 
 Preview colors follow MMM's terminal capability checks and respect `NO_COLOR`.
 If previews appear unstyled, check whether your shell sets `NO_COLOR`. To inspect
@@ -46,30 +48,35 @@ Quit returns you to the shell. To load source changes, quit and run
 ## Add a story
 
 Keep each component's stories beside its owning package, in a separate `stories`
-subpackage. The current view stories live in
-[`internal/view/stories`](../../internal/view/stories), with a separate source
-and test file for each component. Keep sample data and preview-only controls
-there. Production packages must not import their stories.
+subpackage. Give every meaningful state a descriptive story name. Register it with
+the gallery through the host's native-v2 story mechanism without making application
+packages depend on gallery registration. Do not treat an existing catalogue shape as
+the required API.
 
-Add a named factory to [`catalogue.go`](catalogue.go). Each factory
-must return a fresh Bubble Tea `tea.Model` with the desired initial state. The
-catalogue assembles the available stories; component state and rendering belong
-with the stories themselves.
+Construct each story with fresh component and fixture state for the desired initial
+condition. Use the same deterministic fixture constructors from component, render and
+root checks in stories; every call must return independent mutable state. Keep story-only
+preview controls with the stories, and keep shared fixture constructors accessible to
+both tests and stories. Production packages must not depend on stories or fixture support.
 
-Reuse components from their owning package. For a primitive that does not
-implement `tea.Model`, follow the existing spinner and progress adapters: forward
-its lifecycle and messages, and use the same composed rendering functions as
-the application. Using a raw frame can omit styling applied by the containing
+Reuse components from their owning package. Where the host needs a thin model adapter,
+translate host interaction into the component's purpose-specific operations and use the
+same composed rendering functions as the application. A native Bubbles widget may retain
+its native message contract. Using a raw frame can omit styling applied by the containing
 component. Do not copy the component's rendering or business logic into a story.
 
 The gallery owns terminal input and rendering. A child must not start another
 Bubble Tea program or print directly to the terminal. Preview adapters must not
 invoke CLI startup, telemetry, network requests or mod operations.
 
-Bubblebook reserves Tab, Escape, q, Ctrl+C and ? before routing keys to children.
-These keys therefore cannot demonstrate a component's own input handling here.
+The host may reserve navigation and lifecycle keys before routing input to a story.
+Do not use a reserved host key to claim that a component's own handling was inspected.
 Keep permanent-output, cancellation and terminal lifecycle verification in real
 application flows; a gallery preview does not establish those contracts.
+
+After adding or changing a story, run the gallery, select that named story, inspect
+the actual initial rendering and exercise every interaction the story is intended to
+demonstrate. A registered or launchable story is not sufficient evidence on its own.
 
 ## Architecture and verification
 
@@ -82,7 +89,9 @@ release archives.
 Follow the [terminal architecture guide](../../docs/guide-to-working-with-the-terminal.md)
 when designing composed application components. The gallery provides a place to
 preview those components as they become available; it does not implement the
-application's target terminal session architecture.
+application's target terminal session architecture. Use the
+[component testing guide](../../docs/testing/components.md) to choose direct component,
+render, coordinating-root, runtime, story and E2E evidence.
 
 Use the repository checks in [CONTRIBUTING.md](../../CONTRIBUTING.md). For terminal
 verification tooling, see the [terminal E2E guide](../../docs/testing/terminal-harness.md).

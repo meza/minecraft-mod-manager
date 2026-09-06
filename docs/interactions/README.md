@@ -9,6 +9,7 @@ Use the canonical [execution-mode matrix](../intent.md#execution-modes-and-opera
 | Task | Guide |
 | --- | --- |
 | Design ownership, rendering, history, scrolling or cancellation | [Terminal implementation guide](../guide-to-working-with-the-terminal.md) |
+| Choose component, render, root, runtime, story or E2E evidence | [Component testing guide](../testing/components.md) |
 | Apply consistent controls, progress, language and accessibility | [Interaction conventions](interaction-guidelines.md) |
 | Discuss active frames and durable records visually | [Component examples](component-examples.md) |
 | Run or extend real-process terminal verification | [E2E testing guide](../testing/README.md) |

@@ -1,236 +1,183 @@
 # Contributing
 
-When contributing to this repository, please first discuss the change you wish to make via issue,
-discussions, or any other method with the owners of this repository before making a change.
+Agree the requested outcome and scope with the project owners before making a change. An already
+agreed request satisfies this step. Follow the [code of conduct](CODE_OF_CONDUCT.md) in project
+interactions.
 
-Please note we have a code of conduct, please follow it in all your interactions with the project.
+## Choose the route for your work
 
-## Pull Request Process
+Read the relevant guides below and any README.md or CONTRIBUTING.md in the affected directory and
+its ancestors. Combine routes for mixed changes; unrelated guides do not need to be loaded.
 
-1. Ensure any install or build dependencies are removed (or ignored) before the end of the layer when doing a
-   build (.idea, vscode, etc directories especially).
-2. Make sure ALL your commits use the Conventional Commits specification.
-3. Update the README.md with details of changes.
-4. Make sure all the tests and linters pass.
+| Work | Required guidance |
+| --- | --- |
+| Product requirements or design | [Product work](#product-work), [product intent](docs/intent.md), [glossary](docs/GLOSSARY.md), and the relevant [command guide](docs/commands/README.md) |
+| Go behavior or refactoring | [Code conventions](#code-conventions), [testing policy](docs/contributing/testing.md), and affected command or package guides |
+| Test-only changes | [Testing policy](docs/contributing/testing.md), then the guide for the test boundary |
+| Terminal components | [Terminal architecture](docs/guide-to-working-with-the-terminal.md), [interaction conventions](docs/interactions/README.md), and [component verification](docs/testing/components.md) |
+| Stories or gallery integration | [Gallery contribution guide](tools/bubblebook/README.md) and [component verification](docs/testing/components.md) |
+| E2E scenarios or harnesses | [E2E testing index](docs/testing/README.md) and its task-selected guides |
+| Translations or user-facing text | [Translations](#translations), [i18n guide](internal/i18n/README.md), and [interaction conventions](docs/interactions/interaction-guidelines.md) for controls and confirmation tokens |
+| Provider integrations | [Shared platform boundary](internal/platform/README.md) and the relevant [CurseForge](internal/curseforge/README.md) or [Modrinth](internal/modrinth/README.md) guide |
+| Performance or telemetry | [Performance instrumentation](internal/perf/README.md) or [telemetry](internal/telemetry/README.md), according to the changed contract |
+| Documentation or comments | [Documentation procedure](docs/contributing/documentation.md) and [comment policy](docs/contributing/code-comments.md) when comments change |
+| Tooling, dependencies or configuration | [Cross-platform tooling](docs/contributing/cross-platform-tooling.md), affected documentation, and [verification](#verification) |
+| Review or re-review | [Code review](docs/code-review.md) and its task-selected procedure |
+| Addressing review findings | [Review remediation](docs/reviewing-code/addressing-findings.md) |
+| Commits or pull requests | [Submission](#submission) |
+| Packaging or release | [Release guide](docs/contributing/releases.md) |
+| Project instruction maintenance | [Document ownership and routing](docs/contributing/documentation.md#instruction-and-contribution-guidance) |
 
-## Quality bar (what good looks like)
+## Setup
 
-This project optimizes for long-term maintainability and predictable behavior. Prefer small, boring, readable changes over clever
-ones.
+Documentation and product work do not require the application toolchain. For Go development, use
+the Go version and toolchain declared by the project, GNU Make, and your platform's terminal. Run
+commands from the repository root. Download module dependencies with:
 
-## Ways of working (contract)
+~~~sh
+make mod-download
+~~~
 
-This is how we contribute quality code.
+Use the applicable checks under [verification](#verification) to validate the change. The
+[terminal harness prerequisites](docs/testing/terminal-harness.md#prerequisites) apply before
+running native terminal E2E tests; the [gallery guide](tools/bubblebook/README.md) owns gallery
+setup.
 
-### Test-first workflow (mandatory)
+Distribution builds require the three API token defaults described in
+[using your own API keys](README.md#using-your-own-api-keys). Keep credentials local and out of
+commits, output, logs and fixtures. Do not obtain or expose production credentials merely to
+perform documentation checks.
 
-The expectation of the system MUST be expressed in proper automated tests first.
+Those prerequisites also apply to the required `make build` check for Go changes. If suitable local
+token defaults are unavailable, report that check as unverified. A development-only build does not
+replace the required distribution-build evidence or authorize obtaining production credentials.
 
-- Write the test first.
-  - If the behavior is user-facing, capture the reviewed requirement as a third-person BDD scenario and assert observable outcomes. Use a snapshot only when complete layout or styling is part of the requirement.
-- Verify the new test fails (prove the gap).
-- Then, and only then, implement the code change that makes the test pass.
+### Optional Git hooks
 
-Completion means the tests prove it. If you cannot write a test for the expectation, stop and resolve that before proceeding.
+Lefthook provides local hooks aligned with repository make targets. To opt in:
+
+~~~sh
+go install github.com/evilmartians/lefthook/v2@v2.0.12
+lefthook install
+~~~
+
+The documented hooks run `make lint` and `make coverage` before commit, `make build` before push,
+and `make mod-download` after merge. Hooks are optional and may run more checks than a particular
+surface needs; they do not replace the verification policy below.
+
+## Code conventions
+
+Optimize for long-term maintainability and predictable behavior. Implement the smallest coherent
+change that satisfies the requirement. Justify new abstractions; prefer clear control flow,
+explicit dependencies and fast, deterministic tests over cleverness.
+
+Follow established patterns that fit the documented target architecture. A new pattern must replace
+an old one and be agreed before introduction. Correctness and testability take priority. Windows,
+macOS and Linux are first-class environments for users and developers.
+
+- Use descriptive receiver names derived from the type, such as `client *Client`.
+- Avoid single-letter identifiers except `t`, `err`, `cfg`, `cmd`, and `ctx` in narrow scopes.
+- Go source filenames must be lowercase, using `snake_case` for multiword names.
+- Follow the [comment policy](docs/contributing/code-comments.md) when adding or changing comments.
+
+Investigate lint diagnostics and correct their cause. Do not weaken rules to make a change pass.
+Suppress a diagnostic only when there is no sound fix, such as an unavoidable external naming
+constraint; keep the exception local to the affected line and explain it. Improve inconsistent rules
+through an agreed change; ask for help after investigating a diagnostic you cannot resolve.
 
 ## Shared infrastructure risk
 
-This CLI relies on shared infrastructure and credentials. That means a single bad actor can degrade or remove service for
-every user, and recovering may require a coordinated release. Treat any change that could amplify abuse, increase request
-volume, or relax safeguards as a safety boundary.
+This CLI relies on shared infrastructure and credentials. A single bad actor can degrade or remove
+service for every user, and recovery may require a coordinated release. Treat changes that amplify
+abuse, increase request volume or relax safeguards as a safety boundary.
 
-Do not add user-facing knobs or configuration that let users change behavior in ways that could increase external load or
-reduce protections without explicit approval. If you believe an exception is needed, open an issue and get sign-off before
-changing behavior.
+Do not add user-facing knobs or configuration that increase external load or reduce protections
+without explicit approval from the project owners. Obtain that approval before changing behavior.
 
-### Code philosophy
+## Verification
 
-- Simplicity first: implement the smallest change that satisfies the requirement.
-- Apply KISS. Seek smallest changes satisfying criteria
-- Treat YAGNI as an active constraint. Require justification for abstractions.
-- Maintainability: prefer clear control flow and explicit dependencies over deep abstraction.
-- Testability: structure code so important behavior can be validated by fast, deterministic tests.
-- Consistency: follow existing patterns in this repo. Do not introduce a new pattern unless it replaces an old one and is agreed
-  ahead of time.
-- Prioritize correctness and testability over cleverness
-- The project is cross-platform (first-class support for Windows, macOS, Linux) for both users and developers.
+Classify each changed surface before choosing checks. Mixed changes require the applicable
+combination. This policy applies to implementation and review; a reviewer records failures without
+running formatting or autofix commands.
 
-### Naming and file conventions
+| Changed surface | Required evidence |
+| --- | --- |
+| Production behavior | Follow [test-first development](docs/contributing/testing.md#behavior-changes), prove the expected failure and subsequent passing behavior, and run the Go gates below |
+| Behavior-preserving refactoring | Existing tests protect the affected contract; run the Go gates without inventing a new behavior solely to add a test |
+| Go test-only changes | Assert meaningful outcomes and run the relevant suite plus the Go gates; test review does not require reconstructing authoring chronology |
+| Documentation | Check content, terminology, examples, links and consistency using the [documentation procedure](docs/contributing/documentation.md); no production tests or application build are required |
+| Configuration or dependencies | Validate relevant syntax, schema, defaults, precedence and intended effects; run code or integration gates when the change affects those surfaces |
+| Mechanical changes | Use targeted searches, diffs and relevant static checks; retain code gates if executable behavior or compilation may be affected |
+| Development tooling | Apply the [tooling policy](docs/contributing/cross-platform-tooling.md), relevant static/build checks and tool-specific effect validation |
 
-We prefer descriptive names that stay clear outside Go-specific idioms.
+### Go gates
 
-- Receiver names should be descriptive and derived from the type (for example, `client *Client`). Avoid single-letter receivers.
-- Avoid single-letter identifiers except `t`, `err`, `cfg`, `cmd`, and `ctx` in narrow scopes.
-- Go source filenames must be lowercase. Use `snake_case` for multiword names.
+For production Go and Go test changes, all of these must pass:
 
-### Testing philosophy (cross-cutting)
+- `make fmt-check`
+- `make lint`
+- `make vuln`
+- `make coverage`, including the 100% coverage requirement
+- `make build`
 
-We treat automated tests as the primary contract for behavior and user experience.
+Implementers may use `make fmt` or `make lint-fix` to correct a failed check, then rerun the check.
+Do not call Go test or build commands directly; use repository make targets.
 
-- Prefer tests that exercise real production wiring and code paths.
-- Use fakes/stubs only to control nondeterminism (time, random, network, filesystem, OS signals) or to force rare error paths. Do
-  not stub core behavior to "make coverage green".
-- Capture product requirements as third-person BDD scenarios and assert observable outcomes through the real MMM process.
-- Execute shared BDD scenarios unchanged across the execution profiles. Follow the [testing architecture](docs/testing/README.md): drivers execute actions, shared product assertions verify capabilities, and separately owned presentation checks reuse suitable journeys.
-- For equivalent outcomes, compare the durable records and relevant resolved decisions required by the [permanent transcript contract](docs/intent.md#active-display-and-permanent-transcript). Do not compare raw terminal-control bytes or input exchanges, and do not normalize away meaningful discrepancies.
-- For terminal behavior, use tui-test for input, waits, screen state, process lifecycle, and snapshots. Do not add project-owned PTY or terminal emulation helpers.
-- Prefer stable i18n keys, interpolation arguments, exit status, filesystem effects, and semantic terminal state over rendered wording.
-- Use a full terminal snapshot only when the reviewed requirement depends on complete layout or styling. Update it only for an intentional product change.
-- Every user-facing behavior change must be backed by at least one automated test that would fail if the behavior regressed.
+Every user-facing behavior change requires a product scenario and at least one automated test
+that would fail for a meaningful regression. Run `make e2e` when the change affects interactive
+terminal behavior or E2E scenarios and harnesses. Use the [E2E index](docs/testing/README.md) for
+required prerequisites and evidence, including other execution profiles affected by the change.
+Required complete layout or styling behavior needs tui-test snapshot coverage at relevant terminal
+dimensions. Direct component rendering checks complement that application evidence.
 
-Terminal interaction docs:
-- Product requirements: [product intent](docs/intent.md) and [command guides](docs/commands/README.md)
-- Developer guidance and examples: [terminal interaction corpus](docs/interactions/README.md)
-- Verification workflow: [E2E testing guide](docs/testing/README.md)
+Run `make test-race` for effectful terminal-component changes. It is also available as an optional
+additional check before larger concurrency changes. Report an unavailable race toolchain rather
+than treating a non-race run as equivalent. Follow [component verification](docs/testing/components.md)
+for component, root, runtime and story checks.
 
-### Required local checks
+Required evidence that cannot be obtained remains unverified. Explain the constraint and its effect
+on the completion claim; do not silently substitute an unrelated passing check or remote CI status.
 
-- The code adheres to engineering and code quality standards
-- The changes don't re-invent the wheel by not using existing abstractions
-- New features and bug fixes are covered by tests
-- Product scenarios exist for user-visible behavior changes
-- Required layout or styling behavior has explicit tui-test snapshot coverage at the relevant terminal dimensions
-- All new code follows the established patterns in this repo
-- All relevant documentation is updated
-- `make fmt-check` passes - this verifies if `make fmt` has been run. If not, run `make fmt` to format the code.
-- `make lint` passes (`make lint-fix` if lint reports fixes)
-- `make vuln` passes
-- `make coverage` passes (runs tests and enforces 100% coverage)
-- `make build` passes
-- `make e2e` passes when the change affects interactive terminal behavior
+## Translations
 
-**IMPORTANT**
+All user-facing strings go through i18n. Read the [i18n guide](internal/i18n/README.md) before changing
+`internal/i18n/lang/*.json` or the strings that use it.
 
-Run the repo `make` targets (do not call go test/go build directly):
+Reuse one key for identical user-facing content. Multiple keys with identical English are allowed
+only when their meanings intentionally differ and translations are expected to differ by locale;
+explain that exception in the change description. For interactive labels and confirmation tokens,
+also follow [interaction conventions](docs/interactions/interaction-guidelines.md).
 
-Use the [testing guide](docs/testing/README.md) to choose the guidance for your task.
-The [terminal harness](docs/testing/terminal-harness.md#prerequisites) owns native Go-binding prerequisites and suite commands.
-HTTP-dependent scenarios follow [HTTP fixtures](docs/testing/http-fixtures.md): scenario-owned Go servers and E2E-only endpoint overrides.
+## Product work
 
-### Optional checks
+[Product intent](docs/intent.md) defines the desired product and acceptance baseline. The
+[glossary](docs/GLOSSARY.md) owns vocabulary; [command guides](docs/commands/README.md) own inputs,
+workflows and outcomes. Keep durable product decisions in their owning documentation.
 
-- `make test-race` (slower, use before larger concurrency changes)
+Product contributors may decide within existing documented requirements and approved outcomes.
+Surface decisions that lack documented support or establish new precedent for stakeholder input.
+Do not derive product requirements from source code when documentation is insufficient; identify
+the missing product decision.
 
-To update a retained non-E2E Go snapshot after an intentional change, run:
+Significant, enduring architecture decisions belong in [the decision records](doc/adr/decisions.md).
+A decision affecting several features or establishing a recurring precedent merits considering a
+record, not automatically creating one. Keep routine or localized reasoning in the nearest owning
+document; do not require an architecture record for ordinary delivery work.
 
-```bash
-UPDATE_SNAPS=true make coverage
-```
+## Submission
 
-`make coverage` runs `go test ./...` as part of the unified coverage tool. It generates `coverage.html` from the filtered profile and writes the `go tool cover -func` output to `coverage.out` (filtered when exclusions are configured), then enforces 100% coverage.
-`make lint` and `make lint-fix` always run the `golangci-lint` version pinned in `go.mod` via `go run`. The pinned tool dependency is declared in `tools.go`.
+Every commit must follow Conventional Commits. These messages supply release metadata and version
+changes; submissions that do not follow the specification are not accepted.
 
-### Git hooks (optional)
+Before submitting:
 
-We use lefthook to keep local hooks aligned with repo make targets.
+- Keep local editor, installation and build artifacts out of the change, removing or ignoring them
+  as appropriate.
+- Explain the requested outcome, material changes, risks and relevant verification evidence.
+- Update the documentation that owns the changed contract. Update README when its user-facing
+  information changes; not every contribution needs a README edit.
+- Complete the checks required for the changed surfaces.
+- Keep secrets out of commits, logs, output and fixtures.
 
-Install lefthook and hooks:
-
-```bash
-go install github.com/evilmartians/lefthook/v2@v2.0.12
-lefthook install
-```
-
-Current hooks run:
-
-- `pre-commit`: `make lint`, `make coverage`
-- `pre-push`: `make build`
-- `post-merge`: `make mod-download`
-
-### Packaging release artifacts
-
-Use `make dist` to package existing build outputs into `dist/mmm-<os>-<arch>-<version>.zip` (defaults to `dev`).
-The dist output includes `dist/metadata/THIRD_PARTY_NOTICES.txt` and `dist/metadata/mmm-sbom.json` generated by `make notices` and `make sbom` (they are not inside the zip files).
-Use `make prepare` when you want both the build and packaging steps in one command.
-
-### Release readiness for 3.0
-
-[Product intent](docs/intent.md) defines the Go-port release behavior; the [command guides](docs/commands/README.md) explain its operator workflows. Delivery progress and work-item dispositions belong in the issue tracker. Historical feature-parity claims or closed epics alone do not establish conformance to the intended product.
-
-Before release:
-
-- Survey all command error paths before finalizing error-remediation scope, including paths outside existing scenarios. Verify that version-constraint failures identify the relevant constraint and are distinguished from missing projects and network failures. This preserves the comprehensive error-audit commitment associated with #452, including the reported connection-timeout problem in #349 if still present.
-- Resolve or explicitly accept the findings of the 2025-12-19 independent audit, historically tracked as mmm-63. Record their dispositions in the tracker rather than claiming a current completion state in this document.
-- Demonstrate the acceptance journeys in product intent, including manifest-cache outage recovery and proxy behavior. The cache and proxy commitments associated with #630 and #1030 remain in the 3.0 baseline.
-- Verify CI on pull requests and pushes, and semantic-release automation on release branches. The pipeline must produce and publish the documented Windows, macOS and Linux archives, containing `mmm.exe` on Windows and `mmm` on macOS and Linux. Inject release credentials without exposing them in logs.
-- Run release validation in the actual release context. A dry run must demonstrate the expected artifacts and release workflow before publishing, alongside evidence that the release requirements are met.
-
-Historical parity work also mentioned update notifications without defining their behavior in product intent. Preserve that item for explicit tracker disposition before release; do not silently drop it or infer a new product contract from the old parity label.
-
-### Translations and i18n
-
-All user-facing strings must go through i18n. Translation authoring cost matters.
-
-- Translation files live in `internal/i18n/lang/*.json`. Read `internal/i18n/README.md` before changing strings.
-- Duplicated content is a translator tax. If 2 or more keys use identical user-facing content, reuse a single key instead of duplicating the same string under many keys.
-- Only use multiple keys with identical English when the meaning is intentionally different and translations are expected to differ by locale. Treat this as an exception and justify it in the PR or work item.
-
-## Product Work
-
-This section explains how someone in a product capacity (Product Owner, product manager, or anyone doing requirements/product direction work) should interact with this project.
-
-### State Management Philosophy
-
-Product state lives in documentation and the issue tracker, not in ephemeral conversation or separate tracking systems. This ensures:
-
-- **Portability**: Product knowledge travels with the codebase
-- **Auditability**: Decisions are traceable and discoverable
-- **Continuity**: Anyone can bootstrap product context by reading docs
-
-### Where Product Artifacts Live
-
-| Artifact Type                   | Location         | Purpose                          |
-|---------------------------------|------------------|----------------------------------|
-| Product expectations           | `docs/intent.md` | Authoritative product baseline   |
-| Delivery plans and open questions | Issue tracker | Progress and stakeholder decisions |
-| Requirements & success criteria | Issue tracker    | Trackable, closeable work items  |
-| Command behavior and user guides | `docs/commands/` | Inputs, workflows, outcomes and examples |
-
-### Issue Tracking
-
-Use the issue tracker for:
-- Feature requests with acceptance criteria
-- Bug reports with reproduction steps
-- Tasks with clear done conditions
-- Open questions that need resolution
-
-## Effort Estimation Vocabulary
-
-This project uses relative effort sizing.
-
-### T-Shirt Sizes
-
-When estimating work effort, use these categories:
-
-| Size                 | Meaning                                                                                                                                                                          |
-|----------------------|----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
-| **S (Small)**        | Minimal complexity. Well-understood problem space. Localized change with clear boundaries. Low risk of unexpected complications.                                                 |
-| **M (Medium)**       | Moderate complexity. Some unknowns to resolve. May require coordination across a few components. Manageable scope with reasonable confidence.                                    |
-| **L (Large)**        | Significant complexity. Multiple components affected or substantial unknowns. Requires careful design consideration. Higher likelihood of discovering additional scope.          |
-| **XL (Extra Large)** | High complexity. Cross-cutting concerns or architectural impact. Major unknowns that may require exploration before implementation can begin. Should be broken down if possible. |
-
-### What These Sizes Represent
-
-T-shirt sizes express **relative effort and complexity**, not calendar time. They answer the question: "How complex is this work compared to other work we do?"
-
-They do not answer: "How long will this take?" That question depends on capacity, availability, parallelization, and other factors outside the scope of effort estimation.
-
-### Product Decisions (ADRs)
-
-Significant product decisions that _significantly_ disrupt/alter the product, belong in `doc/adr/` alongside technical architecture decisions. Use ADR format when a decision:
-
-- Affects multiple features or commands
-- Establishes a pattern or precedent
-- Resolves a trade-off that will recur
-- Needs attribution (who decided, under what authority, why)
-
-Before creating a product ADR, ask yourself if the decision truly needs formal documentation.
-Many product decisions can be captured in issue comments or documentation updates instead.
-
-### Authority Boundaries
-
-Product Owners working on this project:
-
-- **May decide independently** when the decision is underpinned by existing documentation or recorded outcomes in tickets/issues
-- **Must surface for stakeholder input** any decision that lacks documented support or creates new precedent
-- **Should not** read source code to determine product state. If documentation is insufficient, surface that gap rather than deriving answers from implementation
+Use the [review guide](docs/code-review.md) for an advisory review and the
+[release guide](docs/contributing/releases.md) for packaging and release readiness.

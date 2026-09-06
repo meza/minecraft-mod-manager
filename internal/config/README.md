@@ -66,4 +66,4 @@ For authoritative behavior, see the [installation model](../../docs/intent.md#th
 
 ## Tests
 
-See `CONTRIBUTING.md` for required test/coverage checks and snapshot update instructions.
+See the root [verification guidance](../../CONTRIBUTING.md#verification) for required checks and snapshot update instructions.

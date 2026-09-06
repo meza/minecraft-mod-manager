@@ -21,4 +21,4 @@ If it is only used by one command or module, prefer keeping it close to that cod
 
 ## Tests
 
-See `CONTRIBUTING.md` for required test/coverage checks and snapshot update instructions.
+See the root [verification guidance](../../CONTRIBUTING.md#verification) for required checks and snapshot update instructions.

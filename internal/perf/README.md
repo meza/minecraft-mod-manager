@@ -106,7 +106,9 @@ Use OTEL span attributes for structured context, but keep it safe and low-cardin
 ### Non-blocking and testability
 
 Instrumentation must never change command semantics or output.
-If you touch instrumentation, add or update tests using the in-memory span exporter:
+When instrumentation behaviour changes, use existing in-memory exporter coverage or
+add or update it so the changed spans, events, links and attributes are verified. Tests
+that need spans use:
 
 - `perf.Reset()` at test start (and `t.Cleanup(perf.Reset)`)
 - `perf.Init(perf.Config{Enabled: true})` for tests that need spans
@@ -153,7 +155,7 @@ Common keys:
 
 ### Current codebase note
 
-Perf markers in the Go codebase should follow this taxonomy. If you find non-namespaced names, treat them as legacy and migrate them when you are already touching the surrounding code.
+Perf markers in the Go codebase should follow this taxonomy. Migrate a non-namespaced legacy marker only when the authorised change already includes that marker's instrumentation boundary. A nearby code change alone does not expand migration scope.
 
 ## Public API
 
@@ -199,4 +201,4 @@ defer span.End()
 
 ## Tests
 
-See `CONTRIBUTING.md` for required test/coverage checks and snapshot update instructions.
+When instrumentation behaviour changes, verify the emitted spans, events, links and attributes through the in-memory exporter. See the root [verification guidance](../../CONTRIBUTING.md#verification) for the applicable documentation and code checks.

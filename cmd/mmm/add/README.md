@@ -58,6 +58,6 @@ This is the current prompt gate. The target [execution profiles](../../../docs/i
 
 ## Testing and snapshots
 
-See `CONTRIBUTING.md` for required test/coverage checks and snapshot update instructions.
+See the root [verification guidance](../../../CONTRIBUTING.md#verification) for required checks and snapshot update instructions.
 
 Snapshots for this command live at `cmd/mmm/add/__snapshots__/interactive_flow_test.snap`. Tests set `MMM_TEST=true` so i18n renders stable translation keys in snapshots.

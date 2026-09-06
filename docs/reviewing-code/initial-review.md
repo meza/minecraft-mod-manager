@@ -1,6 +1,6 @@
 # Initial review
 
-Establish the work item's required outcome, observable acceptance conditions, explicit constraints,
+Establish the request's required outcome, observable acceptance conditions, explicit constraints,
 changed surfaces, and applicable guidance before judging implementation choices.
 
 Use the comparison endpoints defined by the canonical review policy. An unqualified review covers
@@ -28,7 +28,7 @@ Trace analogous call sites before concluding that an implementation is defective
 finding an issue: do not stop at a numeric limit, a consequence threshold, a representative sample,
 or the first evidence supporting `Changes recommended`.
 
-Before publishing, reconcile the work item, declared scope, every in-scope file, affected call sites
-and flows, tests, applicable guidance, high-risk boundary map, and required local-gate evidence.
-Group a shared root cause into one finding and identify every affected location. The first review
-must contain every supported finding so remediation can be completed in one coherent pass.
+Before publishing, reconcile the request, declared scope, every in-scope file, affected call sites
+and flows, tests, applicable guidance, high-risk boundary map, and surface-appropriate verification
+evidence. Group a shared root cause into one finding and identify every affected location. The first
+review must contain every supported finding so remediation can be completed in one coherent pass.

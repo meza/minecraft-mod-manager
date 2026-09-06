@@ -53,4 +53,4 @@ The root `README.md` documents how users set env vars like `MMM_DISABLE_TELEMETR
 
 ## Tests
 
-See `CONTRIBUTING.md` for required test/coverage checks and snapshot update instructions.
+See the root [verification guidance](../../CONTRIBUTING.md#verification) for required checks and snapshot update instructions.
