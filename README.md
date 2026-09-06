@@ -528,7 +528,7 @@ making any changes.
 
 Developer docs for terminal interactions:
 - [Terminal implementation, conventions and component examples](docs/interactions/README.md)
-- [Terminal E2E testing](docs/testing/terminal-harness.md)
+- [Terminal E2E testing: current setup and agreed native Go integration](docs/testing/terminal-harness.md)
 - [Agreed E2E HTTP fixture design (not yet implemented)](docs/testing/http-fixtures.md)
 
 ### Setup

@@ -2,6 +2,8 @@
 
 Product-level terminal scenarios use Godog as the Gherkin runner, `testutil/bdd` as the actor/action/outcome vocabulary, and tui-test as the terminal driver.
 
+The agreed target is `Gherkin -> Godog step -> BDD actor action -> tui-test Go binding -> Rust engine -> MMM process`. Actions call the native binding directly; Godog retains scenario ownership and MMM runs as a separate process. The current harness still uses the CLI adapter. See the [native integration design and verification status](terminal-harness.md#agreed-native-go-integration) before changing driver setup.
+
 ## Run the scenarios
 
 ```bash
@@ -38,6 +40,8 @@ Scenarios run a separately built MMM process in a temporary workspace. They may 
 - observable filesystem effects.
 
 Do not assert internal Bubble Tea messages, renderer buffers, polling behavior, ANSI-normalized byte streams, or other implementation details.
+
+Use [rendering assertions and snapshots](terminal-harness.md#rendering-assertions-and-snapshots) for reviewed layout or styling requirements. A snapshot covers a visible frame; transcript preservation, scrolling and terminal restoration need observations across the interaction. Native snapshot capabilities are not yet verified against MMM.
 
 The E2E process receives `MMM_TEST=1` so localization expectations use stable keys rather than translated wording. The value is conventional; the presence of `MMM_TEST` enables the mode. This mode is available to Go test binaries and `e2e`-tagged binaries only; release builds continue to render localized text.
 

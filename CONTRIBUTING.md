@@ -105,7 +105,7 @@ HTTP-dependent terminal scenarios follow the agreed [HTTP fixture design](docs/t
 
 The [existing VCR helper reference](docs/testing/http-vcr.md) describes the unused in-process helper and its recording workflow. It is not the E2E fixture boundary.
 
-The tagged terminal E2E suite requires the pinned tui-test version. See `docs/testing/terminal-harness.md` for installation and the `TUI_TEST_BIN` override.
+The current tagged terminal E2E suite requires the pinned tui-test CLI version. See the [terminal E2E guide](docs/testing/terminal-harness.md#current-cli-prerequisite) for installation and the `TUI_TEST_BIN` override. The agreed target is the [native Go binding](docs/testing/terminal-harness.md#agreed-native-go-integration); dependency pinning and harness migration are pending. Continue using the current CLI prerequisites and `make e2e` until that migration is implemented.
 
 ### Optional checks
 

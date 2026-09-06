@@ -1,8 +1,8 @@
 # Terminal E2E testing with tui-test
 
-Terminal end-to-end tests use Microsoft's `tui-test` CLI. The project does not own a PTY, terminal emulator, screen buffer, ANSI normalizer, input encoder, polling loop, or process supervisor.
+Terminal end-to-end tests currently use Microsoft's `tui-test` CLI. The agreed target is the native Go binding, which calls the Rust engine in the test process. Migration of the Godog harness is not implemented yet. The project does not own a PTY, terminal emulator, screen buffer, ANSI normalizer, input encoder, polling loop, or process supervisor.
 
-The test boundary is:
+The current test boundary is:
 
 ```text
 Gherkin scenario -> Godog step -> BDD actor action -> tui-test CLI -> native MMM process
@@ -10,7 +10,25 @@ Gherkin scenario -> Godog step -> BDD actor action -> tui-test CLI -> native MMM
 
 The native process runs in an isolated temporary workspace. Assertions observe terminal state, exit status, and filesystem effects.
 
-## Prerequisite
+## Agreed native Go integration
+
+The target boundary is:
+
+```text
+Gherkin scenario -> Godog step -> BDD actor action -> tui-test Go binding -> Rust engine -> native MMM process
+```
+
+Godog owns scenario setup, actions, assertions and cleanup. The binding hosts the terminal engine in the Go test process; MMM remains a separately launched process in an isolated workspace. Actions use the binding's public methods directly for input, waits, state and snapshots. This replaces CLI invocation and JSON decoding without adding project-owned terminal machinery. HTTP fixtures retain their separate [scenario-owned server boundary](http-fixtures.md).
+
+### Dependency setup and migration status
+
+The evaluated package is `github.com/microsoft/tui-test/bindings/go`. Its Go API loads an embedded native engine through `purego`. The evaluated binding requires Go 1.26 or newer and a writable user cache directory that permits loading native libraries. A package containing the matching engine needs no tui-test CLI, TypeScript runtime, Rust toolchain or C compiler at consumer build time. Building the engine itself is a separate dependency-maintenance task.
+
+Before migration, select and pin a reproducible binding revision with matching native artifacts for each supported platform. MMM has not pinned this dependency yet; the local evaluation does not establish a published release or a portable installation procedure. Do not commit a developer-specific module replacement or DLL path as the contributor setup. The intended suite entry point remains `make e2e`; the CLI prerequisite below remains necessary until migration lands.
+
+The Windows amd64 evaluation on 5 September 2026 exercised real MMM launch, resize, loader-prompt detection, Ctrl+C, exit status 0, absence of configuration files, and session close. It also passed with `CGO_ENABLED=0`. This establishes binding feasibility for that smoke journey, not acceptance of every product cancellation requirement. Native snapshot execution, scroll/restoration journeys, and macOS/Linux operation against MMM remain unverified.
+
+## Current CLI prerequisite
 
 Install tui-test `0.1.0-beta.2` from the [Microsoft tui-test repository](https://github.com/microsoft/tui-test). The E2E adapter rejects a different version or JSON schema with an actionable error.
 
@@ -60,7 +78,28 @@ Prefer these observable outcomes:
 
 Use tui-test waits for text, idle state, and process exit. Use its input, key, mouse, and resize commands for interaction. Use tui-test snapshots only when a reviewed requirement depends on the complete rendered terminal state.
 
-Do not add sleeps, ANSI cleanup, frame extraction, terminal buffers, key encoders, PTY code, or compatibility wrappers. Extend the thin CLI adapter only when tui-test already provides the capability through its public JSON interface.
+Do not add sleeps, ANSI cleanup, frame extraction, terminal buffers, key encoders, PTY code, or compatibility wrappers. For current-suite work, use capabilities exposed by the existing CLI adapter. The agreed migration uses the Go binding's public API for terminal operations.
+
+## Rendering assertions and snapshots
+
+The evaluated native binding exposes the following capabilities. Their presence in the API does not establish coverage in MMM's current suite.
+
+| Observation | Native API and scope |
+| --- | --- |
+| Visible layout, wrapping, clipping and stale content | `ExpectSnapshot` compares the visible terminal grid against a `.snap` baseline. |
+| Colours and styling | `SnapshotOptions.IncludeColors` includes colour and style changes; `Cells` and `GetByStyle` support focused assertions. |
+| Text placement and duplication | `GetByText` locators expose match positions and counts. |
+| Resize behaviour | `Resize`, followed by state, text or snapshot assertions at the required dimensions. |
+| Cursor position | `GetCursor`; assert separately from the grid snapshot. |
+| Transcript preservation | `Text` with `TextOptions.Full` includes scrollback. |
+| Interaction transitions | Keyboard and mouse operations, including scroll input, combined with waits and observations between actions. |
+| Failure evidence | `Screenshot` can write SVG; recording and assertion artifacts retain additional diagnostics. |
+
+Use focused semantic assertions for content and outcomes. Use snapshots when the reviewed requirement depends on complete layout or styling. Choose an explicit snapshot working directory with `SnapshotOptions.Cwd`; baselines live beneath it in `__snapshots__`. Fix the terminal dimensions, backend, locale and scenario data for each baseline. For translated wrapping and layout, exercise actual translations as well as localization-key mode.
+
+Keep `SnapshotOptions.Update` disabled during normal verification. The evaluated engine writes a missing baseline and returns `SnapshotWritten` even when update mode is disabled, so successful verification must require `SnapshotPassed` as well as no error. Create or update baselines deliberately, inspect the resulting diff, and retain them in version control. `IncludeTitle` is optional; enable it only when the title is part of the requirement.
+
+Wait for an observable product state before capturing a frame. `WaitIdle` indicates a quiet screen, not operation completion. Use controlled HTTP fixture responses to make progress states repeatable; do not stabilize animations with arbitrary sleeps. A grid snapshot excludes scrollback and cursor state, and does not prove transcript preservation or terminal restoration. Those require the multi-stage observations below. Emulator snapshots also do not establish identical font rendering in every desktop terminal.
 
 ## Stable localization expectations
 
@@ -78,6 +117,10 @@ Each scenario gets:
 - an exact-session close and workspace cleanup in the scenario hook.
 
 On failure, the adapter reports the failed CLI operation and collects the recording path, full terminal text, and terminal state before cleanup. It never closes unrelated tui-test sessions.
+
+The native migration must preserve these responsibilities using a unique `Ephemeral` client per scenario. Register cleanup before launching MMM, collect available failure diagnostics before closing, propagate `Close` failures, and remove the workspace after the session is closed. Named clients share sessions within the test process; do not use `CloseAll` for scenario cleanup.
+
+Native methods return Go errors, including typed `tuitest.Error` categories. They block, operations on a session are serialized, and the evaluated API does not accept contexts or promise per-call cancellation. Configure bounded native waits and preserve an overall suite timeout; do not assume the existing CLI subprocess cancellation translates to native calls. Use text/SVG failure artifacts and recordings where useful, retaining the original operation failure if optional capture also fails.
 
 ## Historical tests
 
