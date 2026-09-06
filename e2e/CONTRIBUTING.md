@@ -6,6 +6,7 @@ Follow the [repository contribution guide](../CONTRIBUTING.md). Start with the
 - Follow [BDD architecture](../docs/contributing/testing/bdd.md) for runner, action, driver and
   product-assertion responsibilities, and the
   [feature contribution guide](features/CONTRIBUTING.md) for authoring rules.
+- Use the agreed [actors and pronouns](../docs/contributing/testing/bdd.md#actors).
 - Follow [presentation testing](../docs/contributing/testing/presentation.md) for attached checks,
   observation timing and result reporting.
 - Follow the [HTTP fixture guide](../docs/contributing/testing/http-fixtures.md) for scenario-owned

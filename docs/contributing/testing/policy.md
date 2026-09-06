@@ -59,8 +59,10 @@ Compare durable records and relevant resolved decisions under the
 [permanent transcript contract](../../intent.md#active-display-and-permanent-transcript). Do not
 compare raw control bytes or input exchanges, or normalize away meaningful discrepancies.
 
-Prefer stable i18n keys, interpolation arguments, exit status, filesystem effects and semantic
-terminal state over rendered wording. Use full terminal snapshots when the reviewed requirement
+Prefer stable i18n keys, interpolation arguments, filesystem effects and semantic
+terminal state over rendered wording. Process exit-code mappings belong only in CLI-specific
+checks for profiles without the full TUI, as defined by [BDD assertion ownership](bdd.md#product-and-presentation-assertions).
+Use full terminal snapshots when the reviewed requirement
 depends on complete layout or styling, and update them only for intentional product changes.
 Direct component checks complement rather than replace real terminal evidence. tui-test owns
 process-terminal input, waits, screen state, lifecycle and snapshots; do not add project-owned

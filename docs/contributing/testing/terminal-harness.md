@@ -56,8 +56,13 @@ Prefer these observable outcomes:
 
 - requested i18n keys and interpolation arguments;
 - semantic terminal state exposed by tui-test;
-- process exit status;
+- operation results and cancellation or recovery reports;
 - files created, changed, or left untouched.
+
+Observe process exit status for CLI-specific mapping checks only in profiles
+without the full TUI. TUI process termination is lifecycle evidence, not an
+operation result. Follow [assertion ownership](bdd.md#product-and-presentation-assertions)
+to keep numeric codes out of shared capability scenarios.
 
 Use tui-test waits for text, idle state, and process exit, and its input, key, mouse
 and resize methods for interaction. Use snapshots only when a reviewed requirement

@@ -54,7 +54,7 @@ Register handlers before launching MMM. Match the request properties that matter
 Keep product outcomes separate from fixture correctness:
 
 - Gherkin describes what a named actor does and observes. [BDD actions](bdd.md) arrange concrete fixture responses and exercise MMM.
-- Assert the product through terminal observations, exit status and resulting files. For downloads, check the expected bytes and relevant modlist or lockfile state.
+- Assert shared product outcomes through terminal observations and resulting files. For downloads, check the expected bytes and relevant modlist or lockfile state. Numeric exit status belongs only in [CLI-specific checks](bdd.md#product-and-presentation-assertions) for profiles without the full TUI.
 - Retain unexpected requests, invalid request contents and fixture-handler errors in scenario-owned, synchronized state. They must fail the scenario even if MMM handles the resulting HTTP error successfully.
 - Verify requests required to establish the scenario occurred. Do not impose an order on independent requests or assert incidental call counts. Where retries are the behavior under test, define the response sequence and required attempts explicitly.
 - An intentionally configured error response is valid fixture behavior. A missing handler or fixture failure must not satisfy a scenario expecting a platform failure.

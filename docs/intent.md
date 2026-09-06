@@ -350,9 +350,11 @@ After the first `Ctrl+C`, explain that pressing it again forces termination and 
 
 ### Results and exit status
 
-Exit status is a stable part of the interface. It distinguishes successful satisfaction, incomplete or failed execution, invalid invocation and interruption. A completed compatibility check with incompatible results has a distinct non-success outcome. Inconclusive checks must also be identifiable as incomplete.
+Operation results distinguish successful satisfaction, incomplete or failed execution, invalid requests and interruption in every execution profile. A completed compatibility check with incompatible results has a distinct non-success outcome. Inconclusive checks must also be identifiable as incomplete. Interactive TUI flows communicate these results through visible operation outcomes and durable records; an operation in the TUI does not return an exit code.
 
-Partial success is not overall success. Reports identify what completed, what failed or remained unresolved, and what the operator can do next. Detailed numeric codes belong in command reference documentation and acceptance scenarios; these outcome distinctions are mandatory.
+Partial success is not overall success. Reports identify what completed, what failed or remained unresolved, and what the operator can do next. These outcome distinctions belong in shared acceptance scenarios.
+
+Process exit status is a CLI boundary contract for execution without the full TUI: unattended, non-interactive and plain-interactive execution. Those invocations map their outcomes to the numeric codes in the [command reference](commands/README.md#results-and-retry). Verify that mapping in CLI-specific checks, outside shared capability scenarios. TUI process lifecycle and cleanup do not supply an operation's result or a numeric outcome contract.
 
 An error explains the affected mod or file, the reason when known, and the next useful action. Do not label network failure as incompatibility, duplicate a handled error through multiple layers, or obscure the result with unrelated usage output.
 
@@ -445,7 +447,7 @@ Telemetry must not collect personal information, credentials, mod identities, pr
 
 Product acceptance describes what an operator does and can observe. Third-person BDD scenarios exercise the real MMM process. tui-test owns terminal input, waiting, screen state, scrolling, resizing and process lifecycle.
 
-Use semantic outcomes for messages, exit status and filesystem effects. Use rendered terminal snapshots when the requirement depends on complete layout or styling. Stable localization keys verify message selection; real-locale checks verify translated layout and input behaviour.
+Use semantic operation outcomes, messages and filesystem effects in shared scenarios. Check numeric exit status only at the CLI boundary for execution without the full TUI. Use rendered terminal snapshots when the requirement depends on complete layout or styling. Stable localization keys verify message selection; real-locale checks verify translated layout and input behaviour.
 
 Network-dependent scenarios require deterministic fixtures that work across the process boundary. An in-process HTTP fixture cannot establish that a separately launched command is deterministic or network-free.
 

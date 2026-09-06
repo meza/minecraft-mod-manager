@@ -96,6 +96,8 @@ Discovery and pruning examine immediate files only, without recursing into subdi
 
 The target distinguishes success or satisfied no-op, incomplete or failed execution, invalid invocation and interruption. A completed compatibility check with incompatibilities has its own non-success outcome; inconclusive checks are incomplete.
 
+These operation outcomes apply in every profile. Interactive TUI flows report them through visible results and durable records, without an operation exit code. The numeric mapping below is only for CLI execution without the full TUI: unattended, non-interactive and plain-interactive invocations.
+
 | Outcome | Exit code |
 | --- | --- |
 | Requested outcome satisfied, including an already-satisfied no-op | `0` |
@@ -104,7 +106,7 @@ The target distinguishes success or satisfied no-op, incomplete or failed execut
 | Compatibility check completed conclusively and found incompatibilities | `3` |
 | Operator interrupted the operation | `130` |
 
-This mapping applies across all commands. A mixed incompatible/inconclusive compatibility check returns `1`, because the check is incomplete; its report preserves both kinds of findings. A successful no-op returns `0`, never `2`. These are the agreed Go-port target assignments, not a claim that every released binary already implements them.
+In those CLI profiles, this mapping applies across all commands. A mixed incompatible/inconclusive compatibility check returns `1`, because the check is incomplete; its report preserves both kinds of findings. A successful no-op returns `0`, never `2`. These are the agreed Go-port target assignments, not a claim that every released binary already implements them. Numeric codes in individual command guides have this same CLI-only scope.
 
 Partial success is not overall success. Reports identify completed work, unresolved items, known reasons and useful next actions. Individual mods can fail independently during install, update and removal; completed work remains consistent and retries converge without duplicates. Version change instead has a coordinated preparation and switching boundary.
 
@@ -123,6 +125,22 @@ The permanent transcript is the durable record, not raw terminal-control bytes o
 Scrolling away preserves the reading position while work continues. New results and pending prompts do not pull the reader to the bottom. Returning to the active end shows current state and resumes following output, including after resizing or list reorganization.
 
 Messages and controls are localizable, with English fallback. Plain text and ASCII alternatives preserve meaning without depending on color or animation. A closed output pipe does not cancel an authorized operation; for example, updates continue if the reader in `mmm update | head` exits.
+
+## Network and proxy settings
+
+MMM follows the standard proxy settings for outbound requests:
+
+| Setting | Applies to |
+| --- | --- |
+| `HTTPS_PROXY` | Requests to HTTPS destinations, including the documented platform APIs and artifact downloads. |
+| `HTTP_PROXY` | Requests to HTTP destinations, where such a request is supported. |
+| `NO_PROXY` | Destinations that should be reached directly instead of through the configured proxy. |
+
+Select the setting by the destination URL's scheme. For the documented platform and artifact-download workflows, configure `HTTPS_PROXY`; setting `HTTP_PROXY` alone does not configure those HTTPS requests. Use `NO_PROXY` for destinations that must bypass the proxy.
+
+Artifact downloads require HTTPS and a trusted download host, as documented in the [HTTP boundary](../../internal/httpclient/README.md#file-download-with-progress). Proxy settings do not authorize plaintext artifact downloads or relax download validation. The `HTTP_PROXY` contract is conditional on a supported HTTP request; it does not introduce an HTTP artifact source.
+
+See [operational expectations](../intent.md#operational-expectations) for the shared network contract. The [loopback HTTP fixture exception](../contributing/testing/http-fixtures.md#endpoint-configuration) applies only to test builds and does not establish production proxy behaviour.
 
 ## Diagnostics and telemetry
 

@@ -14,6 +14,7 @@ how tests obtain and assess evidence. The [glossary](../../GLOSSARY.md) owns voc
 | Choose component, render, root, runtime, story or real-process evidence | [Components and coordination](components.md) |
 | Set up the native binding and run the suite | [Terminal harness](terminal-harness.md#prerequisites) |
 | Write scenarios; understand runner, actions, drivers and product assertions | [BDD architecture](bdd.md) |
+| Choose actors and pronouns | [Actors](bdd.md#actors) |
 | Check spinners, progress, layout or styling without copying journeys | [Presentation testing](presentation.md) |
 | Investigate a failure, manage processes and capture terminal evidence | [Lifecycle and diagnostics](terminal-harness.md#lifecycle-and-diagnostics) |
 | Control HTTP responses, downloads and pending work across the process boundary | [HTTP fixtures](http-fixtures.md) |

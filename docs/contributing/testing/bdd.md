@@ -4,17 +4,36 @@ This guide owns scenarios, profile execution, driver responsibilities and produc
 assertions. Start with the [testing overview](README.md). [Product intent](../../intent.md#acceptance-and-evidence)
 owns expected behaviour; [presentation testing](presentation.md) owns visual checks.
 
+## Actors
+
+BDD scenarios use these canonical actors:
+
+| Participant | Role in the conversation |
+| --- | --- |
+| The user | The person directing MMM, written as “the user” in steps. |
+| Modrinth | Supplies project information, artifact metadata and downloads from Modrinth. |
+| CurseForge | Supplies project information, artifact metadata and downloads from CurseForge. |
+| Mojang | Supplies the Minecraft version manifest used to validate targets and identify the latest stable release. |
+| MMM | The product accepting requests, performing operations and reporting outcomes. |
+
+Installations, modlists, mod configs, artifacts, lockfiles and local files are
+domain objects, not actors. Use the [glossary](../../GLOSSARY.md) to distinguish
+them.
+
+Reserve “they” and “their” for the user; always refer to services by name. Repeat
+“the user” when returning from service context.
+
 ## One scenario in every profile
 
 Write the capability once, without frontend mechanics. This is a human-readable
 worked journey, not an API reference:
 
 ```gherkin
-Scenario: Alice adds a mod to her installation
-  Given Alice has an installation compatible with Sodium
-  When Alice adds Sodium to her installation
-  Then Alice should find Sodium installed
-  And Alice should find Sodium in her modlist
+Scenario: The user adds a mod to their installation
+  Given the user has an installation compatible with Sodium
+  When the user adds Sodium to their installation
+  Then they should find Sodium installed
+  And they should find Sodium in their modlist
 ```
 
 The runner executes this unchanged scenario in all five
@@ -54,10 +73,11 @@ Runner selects profile and applicable checks
 | Shared steps and actor actions | Express product actions independently of interaction mechanics. |
 | Mode-specific driver | Perform actions and expose product-visible evidence through the binding. |
 | Product assertions | Evaluate capability, authority, persisted effects and durable-output expectations. |
+| CLI-specific checks | Evaluate process exit-code mappings only in profiles without the full TUI. |
 | Presentation checks | Evaluate applicable presentation requirements from the same journey's observations. |
 | HTTP fixtures | Control external responses and report independent fixture failures. |
 
-Drivers contain neither business-outcome assertions nor presentation assertions.
+Drivers contain no acceptance assertions, including CLI exit-code or presentation checks.
 They do not decide that installation is correct, a spinner animates or a layout
 matches. They return observations and execution errors. They must allow an action
 to be attempted even when the product is expected to reject it.
@@ -83,7 +103,7 @@ Reading terminal text does not automatically make a check a visual test.
 | --- | --- |
 | Expected file bytes and modlist/lockfile effects | Spinner changes while work remains pending |
 | Rejection, authority and no-prompt policy | Required progress styling and layout |
-| Exit outcomes and recovery effects | Focus styling, clipping and translated wrapping |
+| Operation outcomes and recovery effects | Focus styling, clipping and translated wrapping |
 | Shared durable records and transcript parity | Absence of animation and styling/control sequences in plain output |
 
 Required results and decision records are product evidence even when observed in
@@ -94,10 +114,21 @@ locale and character capabilities, whether supplied by prompts, arguments or def
 Records appear once as outcomes settle, without replay or manufactured questions.
 Do not normalize away genuine differences, missing records, duplicates or ordering.
 
-Use terminal observations, exit status and filesystem effects, not internal Bubble
+Use terminal observations and filesystem effects, not internal Bubble
 Tea messages, renderer buffers or model state. Stable i18n keys and arguments verify
 message selection; actual translations are needed for translated presentation.
 See [localization expectations](terminal-harness.md#stable-localization-expectations).
+
+Shared Gherkin asserts operation success, rejection, incompatibility, interruption
+and recovery through product-visible results. Numeric process exit status is a
+CLI boundary contract, not a shared operation outcome or a presentation check.
+Verify the [numeric mapping](../../commands/README.md#results-and-retry) in separately
+owned checks selected by the runner only for unattended, non-interactive and
+plain-interactive profiles. Reuse suitable journeys and driver observations;
+keep exit-code steps and Examples columns out of shared features. Dedicated CLI
+scenarios belong in the applicable profile folders when they require their own
+journey. Neither TUI profile derives an operation result from process termination
+or invents an exit code to satisfy a shared assertion.
 
 Presentation checks leave the scenario and its business assertions unchanged. They
 attach to the same invocation with separate outcomes. The
