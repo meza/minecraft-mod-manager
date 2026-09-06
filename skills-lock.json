@@ -7,6 +7,12 @@
       "skillPath": "plugins/addressing-code-review-findings/skills/addressing-code-review-findings/SKILL.md",
       "computedHash": "e66d1fb673ccf748ca7eed3c990d4151c3ba515626671d249793292068c6eeba"
     },
+    "charm-tui": {
+      "source": "meza/skills",
+      "sourceType": "github",
+      "skillPath": "plugins/charm-tui/skills/charm-tui/SKILL.md",
+      "computedHash": "994e930db9e61c0269a6b683348293d56ba367044a4326f63957bfbd55c789f5"
+    },
     "clean-code": {
       "source": "meza/skills",
       "sourceType": "github",
