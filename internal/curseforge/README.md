@@ -1,6 +1,6 @@
 # internal/curseforge
 
-This package speaks to the CurseForge API and returns typed Go models and errors. It owns CurseForge-specific selection logic and returns the domain `models.RemoteMod` when asked to resolve a file.
+This package speaks to the CurseForge API and returns typed Go models and errors. It owns CurseForge-specific artifact lookup logic and returns the domain `models.RemoteMod` when asked to resolve an artifact.
 
 ## Quick start
 
@@ -12,7 +12,7 @@ project, err := curseforge.GetProject("1234", client)
 files, err := curseforge.GetFilesForProject(1234, client)
 ```
 
-To select a downloadable file, use the higher-level helper:
+To select a downloadable artifact, use the higher-level helper:
 
 ```go
 remote, err := curseforge.FetchRemoteMod(ctx, "1234", models.FetchOptions{
@@ -67,7 +67,7 @@ Fingerprint lookups return `*FingerprintAPIError` (it includes the lookup input 
 
 ## Related docs
 
-See `internal/platform/README.md` for shared selection behavior, and `internal/modrinth/README.md` for the Modrinth counterpart.
+See `internal/platform/README.md` for shared artifact lookup behavior, and `internal/modrinth/README.md` for the Modrinth counterpart.
 
 ## Tests
 

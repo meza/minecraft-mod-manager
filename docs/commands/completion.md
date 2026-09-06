@@ -35,7 +35,7 @@ mmm completion fish --no-descriptions
 
 ## Suggestions and setup
 
-Init supplies static value suggestions for `--loader` and `--release-types`. Those suggestions require neither network nor configuration access. They are separate from Minecraft version suggestions inside interactive init, which can use Minecraft metadata.
+Init supplies static value suggestions for `--loader` and `--release-types`. Those suggestions require neither network nor modlist access. They are separate from Minecraft version suggestions inside interactive init, which can use Minecraft metadata.
 
 Script generation and completion requests do not prompt for setup or modify installation metadata. Failure to register optional completion support must not prevent ordinary init use.
 

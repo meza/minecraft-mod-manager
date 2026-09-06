@@ -4,7 +4,7 @@ This package implements the current `.mmmignore` semantics used by filesystem-sc
 
 It intentionally matches the existing behavior found in `cmd/mmm/install`:
 
-- Patterns are read from `.mmmignore` in the config directory.
+- Patterns are read from `.mmmignore` in the configuration directory.
 - Blank lines are ignored.
 - A default pattern of `**/*.disabled` is always applied.
 - Patterns are evaluated against paths relative to the mods directory.

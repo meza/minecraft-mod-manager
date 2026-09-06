@@ -124,7 +124,7 @@ The final summary does not print the full completed list again. The [install](..
 
 ## Recognition from filename to identity
 
-Recognition begins with a filename and may settle as recognized, unknown, or uncertain. Unknown means both supported sources conclusively produced no match. Uncertain means a service or lookup failure prevented a conclusion.
+Recognition begins with a filename and may settle as recognized, unknown, or uncertain. Unknown means both supported platforms conclusively produced no match. Uncertain means a service or lookup failure prevented a conclusion.
 
 **Active display — lookup is underway:**
 
@@ -215,7 +215,7 @@ Switching
 ⏳ Waiting for preparation to finish
 ```
 
-Settled compatibility and download results become durable events as they complete. A preparation failure leaves the original configuration and installation in place when that preservation is established.
+Settled compatibility and download results become durable events as they complete. A preparation failure leaves the original modlist and installation in place when that preservation is established.
 
 **Active display — switching has begun:**
 
@@ -241,7 +241,7 @@ Now targeting Minecraft 1.21.1.
 Working files were restored, but lock metadata still needs repair: <action>.
 ```
 
-Forced version changes use the same preparation and switching presentation. Available replacements install, while eligible retention results identify the existing artifacts kept for the target. The [change guide](../commands/change.md#forced-retention) owns the exact retention rules.
+Forced version changes use the same preparation and switching presentation. Available replacements install, while authorized retention results identify the existing artifacts kept for the target. The [change guide](../commands/change.md#forced-retention) owns the exact retention rules.
 
 ## Safe cancellation and cleanup
 

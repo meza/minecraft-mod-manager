@@ -1,6 +1,6 @@
 # cmd/mmm/list
 
-This package implements `mmm list`: render the configured mods and whether each one appears to be installed locally.
+This package implements `mmm list`: render the mod configs and report whether a matching local file is present for each mod config's locked artifact.
 
 ## Start with the behavior docs
 
@@ -9,28 +9,28 @@ This package implements `mmm list`: render the configured mods and whether each 
 
 ## Code map
 
-- `cmd/mmm/list/list.go`: command implementation (read config, read lock, compute installed status, render view)
-- `cmd/mmm/list/config_prompt.go`: Bubble Tea prompt for missing-config recovery
+- `cmd/mmm/list/list.go`: command implementation (read the modlist and lockfile, compute installed status, render the view)
+- `cmd/mmm/list/config_prompt.go`: Bubble Tea prompt for missing-modlist recovery
 - `cmd/mmm/list/output_model.go`: Bubble Tea output-only model for list rendering
 - `cmd/mmm/list/view_snapshot_test.go`: snapshot tests for the rendered list view
 - `cmd/mmm/list/list_test.go`: behavior tests for installed detection and lock handling
 
 ## Installed detection
 
-An entry is considered "installed" when:
+A mod config's locked artifact is considered "installed" when:
 
 - there is a matching lock entry (same platform + ID), and
 - the lock entry has a `fileName`, and
 - the lock entry has a `hash`, and
-- that file exists in the configured mods folder with a matching hash
+- the named local file exists in the mods directory with a matching hash
 
-If the file exists but the hash does not match, the entry is reported as not installed with a distinct hash mismatch message.
+If the local file exists but its hash does not match the locked artifact, the locked artifact is reported as not installed with a distinct hash mismatch message.
 
-## Interactive vs unattended behavior
+## Interactive, unattended, and redirected behavior
 
 `list` renders output through Bubble Tea in all execution contexts, using an output-only program when no prompts are required.
 
-When config is missing and prompts are allowed, `list` shows a Bubble Tea confirm prompt, runs the `init` interactive flow on acceptance, and resumes listing.
+When the modlist is missing and prompts are allowed, `list` shows a Bubble Tea confirm prompt, runs the `init` interactive flow on acceptance, and resumes listing.
 
 ## Testing and snapshots
 

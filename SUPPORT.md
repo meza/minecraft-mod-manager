@@ -39,6 +39,6 @@ Follow the reporting instructions in `SECURITY.md`.
 
 | flag                  | meaning                                | allowed values | example                            |
 |-----------------------|----------------------------------------|----------------|------------------------------------|
-| `-c, --config <file>` | Path to `modlist.json`                 | file path      | `mmm --config ./modlist.json list` |
+| `-c, --config <file>` | Path to the modlist file               | file path      | `mmm --config ./modlist.json list` |
 | `-q, --quiet`         | Suppress prompts and normal log output | none           | `mmm --quiet list`                 |
 | `-d, --debug`         | Print additional debug messages        | none           | `mmm --debug list`                 |

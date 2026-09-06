@@ -2,9 +2,9 @@
 
 > This guide describes the Go-port target defined in [product intent](../intent.md), not a claim that every released build already implements it.
 
-`add <platform> <id>` declares an explicitly selected CurseForge or Modrinth project and reconciles its jar into the managed installation.
+`add <platform> <id>` creates a mod config for an explicitly selected CurseForge or Modrinth project and reconciles its jar into the managed installation.
 
-See [shared command behavior](README.md), especially [configuration and setup](README.md#configuration-and-setup), [file ownership and exclusions](README.md#file-ownership-and-exclusions), and [results and retry](README.md#results-and-retry).
+See [shared command behavior](README.md), especially [modlist and setup](README.md#modlist-and-setup), [file ownership and exclusions](README.md#file-ownership-and-exclusions), and [results and retry](README.md#results-and-retry).
 
 ```bash
 mmm add modrinth AANobbMI
@@ -22,7 +22,7 @@ mmm add <platform> <id> [options]
 | `--unpin` | Explicitly clear an existing pin and select the newest eligible artifact. |
 | `--allow-version-fallback` / `--allow-version-fallback=false` | Set or clear this mod's permission to use an artifact for the nearest earlier Minecraft release in the same release series. |
 | `--release-types <types>` | Set this mod's nonempty comma-separated override from `alpha`, `beta`, and `release`. |
-| `--force` | Save a verified project's requested declaration when no eligible artifact resolves. |
+| `--force` | Save a verified project's requested mod config when no eligible artifact resolves. |
 
 `--release-types` changes only this mod. It does not alter the installation-wide default. For example, this permits a beta for one project while the rest of the installation remains release-only:
 
@@ -32,7 +32,7 @@ mmm add modrinth AANobbMI --release-types release,beta
 
 `--unpin` and `--version` cannot be combined. Invalid input makes no changes.
 
-For an existing declaration, explicitly supplied settings replace the matching settings when the request resolves or force authorizes an unresolved declaration. Omitted settings are preserved. If no per-mod release override exists, omitting `--release-types` continues to inherit the configuration default. Repeating an already-satisfied addition does not duplicate its declaration or lock entry.
+For an existing mod config, explicitly supplied settings replace the matching settings when the request resolves or force authorizes an unresolved mod config. Omitted settings are preserved. If no per-mod release override exists, omitting `--release-types` continues to inherit the modlist default. Repeating an already-satisfied addition does not duplicate its mod config or lock entry.
 
 ## Platforms
 
@@ -63,7 +63,7 @@ The Files tab helps you open the artifact that matches the required Minecraft ve
 
 Use the selected filename value, such as `soundsbegone-1.3.1.jar`, as the CurseForge pin.
 
-If a requested pin resolves but its download fails, MMM keeps the new requested pin in the declaration, preserves the previous working jar and its recovery evidence, and reports that the installed state does not yet satisfy the declaration. A later `mmm install` can retry. The previous jar is not treated as satisfying the new pin.
+If a requested pin resolves but its download fails, MMM keeps the new requested pin in the mod config, preserves the previous working jar and its recovery evidence, and reports that the installed state does not yet satisfy the mod config. A later `mmm install` can retry. The previous jar is not treated as satisfying the new pin.
 
 If a first-time addition identifies a valid project and resolves an artifact but downloading it fails, the confirmed project remains declared so a later `install` can finish. An invalid or unconfirmed identity is not saved.
 
@@ -79,15 +79,15 @@ When search correction is accepted, the platform selector starts on the other pl
 
 Without prompting, unresolved lookups are reported without opening correction controls.
 
-If an ordinary first-time request has no eligible artifact and you decline search correction, MMM saves no declaration. If an existing project is pinned to A and requested pin B cannot resolve, MMM preserves A unless `--force` explicitly authorizes saving the unresolved request.
+If an ordinary first-time request has no eligible artifact and you decline search correction, MMM saves no mod config. If an existing project is pinned to A and requested pin B cannot resolve, MMM preserves A unless `--force` explicitly authorizes saving the unresolved request.
 
-## Forced declaration-only addition
+## Forced mod config without a resolved artifact
 
-`add --force` can save a verified project and its requested constraints even when no eligible artifact resolves. It can also record an explicitly requested unresolved pin for an existing declaration.
+`add --force` can save a verified project's mod config and its requested constraints even when no eligible artifact resolves. It can also record an explicitly requested unresolved pin for an existing mod config.
 
-MMM preserves any previous working artifact and valid recovery evidence. It does not invent a lock entry or claim an installation. The result reports that configuration was saved but installation remains incomplete, with a non-success outcome. Adjust the declaration if needed, then retry with `mmm install`.
+MMM preserves any previous working artifact and valid recovery evidence. It does not invent a lock entry or claim an installation. The result reports that the mod config was saved but installation remains incomplete, with a non-success outcome. Adjust the mod config if needed, then retry with `mmm install`.
 
-Force does not save an invalid or unverified project, relax selection constraints, bypass integrity checks, override `.mmmignore` or `.disabled` exclusions, or authorize overwriting an unrelated file.
+Force does not save an invalid or unverified project, relax lookup constraints, bypass integrity checks, override `.mmmignore` or `.disabled` exclusions, or authorize overwriting an unrelated file.
 
 ## How to find the mod ID
 

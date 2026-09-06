@@ -8,35 +8,35 @@ MMM helps server operators declare and maintain Minecraft Java Edition mods with
 
 | Command | Use it to |
 | --- | --- |
-| [init](init.md) | Create configuration and an empty lockfile. |
-| [add](add.md) | Declare a project, set its selection options and install it when resolvable. |
-| [install](install.md) | Reconcile declared mods and managed files while preserving valid locked selections. |
-| [update](update.md) | Reconcile using current settings and advance eligible unpinned selections. |
-| [remove](remove.md) | Remove selected declarations, locks and managed files. |
+| [init](init.md) | Create a modlist and an empty lockfile. |
+| [add](add.md) | Add a project's mod config, set its lookup options and install it when resolvable. |
+| [install](install.md) | Reconcile mod configs and managed files while preserving valid locked artifacts. |
+| [update](update.md) | Reconcile using current settings and advance eligible unpinned artifacts. |
+| [remove](remove.md) | Remove selected mod configs, lock entries and managed files. |
 | [list](list.md) | Inspect declared mods and their observed installation state. |
 | [test](test.md) | Check platform-declared compatibility with a Minecraft target. |
-| [change](change.md) | Change the configured Minecraft target and prepare its managed installation. |
+| [change](change.md) | Change the modlist's Minecraft target and prepare its managed installation. |
 | [scan](scan.md) | Recognize unmanaged jars and explicitly adopt selected artifacts. |
 | [prune](prune.md) | Delete visible unmanaged jars with confirmation or force. |
 | [help](help.md) | Read usage, options and defaults without setup. |
 | [version](version.md) | Identify the running MMM release without setup. |
 | [completion](completion.md) | Generate shell completion scripts and obtain supported suggestions without setup. |
 
-## Configuration and setup
+## Modlist and setup
 
-The default configuration is `./modlist.json`. Select another file with `--config` (`-c`):
+The default modlist is `./modlist.json`. Select another modlist file with `--config` (`-c`):
 
 ```shell
 mmm --config ./server.json list
 ```
 
-Its lockfile uses the same basename: `server.json` uses `server-lock.json`. Relative mods-directory paths resolve against the configuration directory; absolute paths are supported. Use trusted configuration because it selects the directory MMM manages.
+Its lockfile uses the same basename: `server.json` uses `server-lock.json`. Relative mods-directory paths resolve against the modlist's directory; absolute paths are supported. Use a trusted modlist because it selects the directory MMM manages.
 
-Every configuration-dependent command checks setup. If configuration is missing in a terminal, MMM offers [initialization](init.md). Accepting starts the shared init flow, then resumes the original command with the resulting configuration and its original operation inputs. Decline, cancellation or failure prevents the original operation from running. Without prompting, missing configuration produces setup guidance and a non-success result. Help, version and completion do not need setup.
+Every modlist-dependent command checks setup. If the modlist is missing in a terminal, MMM offers [initialization](init.md). Accepting starts the shared init flow, then resumes the original command with the resulting modlist and its original operation inputs. Decline, cancellation or failure prevents the original operation from running. Without prompting, a missing modlist produces setup guidance and a non-success result. Help, version and completion do not need setup.
 
-An unreadable or invalid configuration is preserved and reported; it is not replaced by automatic initialization. Unknown properties are validation errors. Conflicting duplicate declarations can enter a separate interactive correction flow: choose which declaration to keep, save the accepted correction and resume. Without prompting, the conflict remains unchanged. Identical duplicates are deduplicated during modifying commands; inspection only reports them.
+An unreadable or invalid modlist is preserved and reported; it is not replaced by automatic initialization. Unknown properties are validation errors. Conflicting duplicate mod configs can enter a separate interactive correction flow: choose which mod config to keep, save the accepted correction and resume. Without prompting, the conflict remains unchanged. Identical duplicate mod configs are deduplicated during modifying commands; inspection only reports them.
 
-`list` and `test` do not rewrite metadata or repair files. An explicitly accepted initialization or correction is a separate flow, not part of their inspection work.
+`list` and `test` do not rewrite metadata or repair files. An explicitly accepted initialization or mod config correction is a separate flow, not part of their inspection work.
 
 Invalid supplied values for supported fields receive consistent interactive correction, with other inputs preserved. Without prompting, the invalid request fails without changes. Malformed command syntax remains an invalid invocation.
 
@@ -52,37 +52,37 @@ Unattended or redirected execution grants no extra authority. `--force` has a sp
 
 | Command | Force authorizes |
 | --- | --- |
-| `init` | Reset existing configuration or an orphan lockfile without reset confirmation. |
-| `add` | Save a verified but unresolved declaration, reporting incomplete installation. |
+| `init` | Reset an existing modlist or an orphan lockfile without reset confirmation. |
+| `add` | Save a verified but unresolved mod config, reporting incomplete installation. |
 | `remove` | Remove explicitly selected mods without confirmation. |
 | `prune` | Delete the identified unmanaged jars without confirmation. |
 | `change` | Bypass platform-reported incompatibility and retain existing artifacts where eligible replacements are unavailable. |
 
 For example, unattended removal still requires `--force`. Ordinary `install` and `update` already authorize their normal managed-file reconciliation. Force does not override exclusions, integrity checks or recovery requirements, or turn service failure into known incompatibility.
 
-`--quiet` and `--non-interactive` are outside the target interface. Use `--unattended` to prohibit questions. Legacy `--lock-sync-add`, `--lock-sync-delete`, `--lock-sync-ignore` and `--lock-sync-skip` policies are replaced by declarative reconciliation. Change's legacy `--keep-config`, `--prune-config` and `--disable-skipped` options are also outside the target.
+`--quiet` and `--non-interactive` are outside the target interface. Use `--unattended` to prohibit questions. Legacy `--lock-sync-add`, `--lock-sync-delete`, `--lock-sync-ignore` and `--lock-sync-skip` policies are replaced by modlist reconciliation. Change's legacy `--keep-config`, `--prune-config` and `--disable-skipped` options are also outside the target.
 
-## Selection and lockfiles
+## Lookup and lockfiles
 
-`modlist.json` declares desired mods and their constraints. `modlist-lock.json` records exact resolved artifacts; the mods directory records what is actually installed. Keep configuration and lockfile together to reproduce a selection while its recorded artifacts remain available.
+`modlist.json` contains the desired mod configs and their constraints. `modlist-lock.json` records exact resolved artifacts; the mods directory records what is actually installed. Keep the modlist and lockfile together to reproduce locked artifacts while they remain available.
 
-Selection matches platform metadata for Minecraft version, loader, release types and per-mod settings. Release-only is the default; a per-mod `allowedReleaseTypes` override takes precedence. Loader values do not introduce separate MMM modes or imply server-only filtering.
+Artifact lookup matches platform metadata against the Minecraft version, loader, release types and per-mod settings. Release-only is the default; a per-mod `allowedReleaseTypes` override takes precedence. The loader is the Minecraft mod-loading software used by the installation; MMM uses its identity as a lookup constraint without introducing separate MMM modes or implying server-only filtering.
 
 Pins remain fixed until explicitly changed. Mod version strings are not treated as reliable semantic versions. An unpinned update requires both a later publication date and different content within the applicable constraints. Display names may refresh from the platform; platform and project ID establish identity.
 
-Per-mod `allowVersionFallback` defaults to false. When enabled, it searches nearest earlier Minecraft releases within the same release series and reports any fallback. It does not cross release series or apply snapshot fallback. If the newest matching artifact lacks required download or integrity information, report failure instead of selecting an older release to work around it.
+Per-mod `allowVersionFallback` defaults to false. When enabled, it searches nearest earlier Minecraft releases within the same release series and reports any fallback. It does not cross release series or apply snapshot fallback. If the newest eligible artifact lacks required download or integrity information, report failure instead of resolving an older release to work around it.
 
 Missing lock entries can be resolved by reconciliation. Corrupt or contradictory existing resolution evidence is preserved and reported with recovery guidance; it is not silently replaced by a new version. Inspection reports missing evidence without creating it.
 
-`install` preserves valid locked selections. `update` selects newer eligible unpinned artifacts directly under the current declaration, without installing an intermediate old artifact first. Explicitly adopted or forced-retained compatibility exceptions remain specific to the artifact and target. See [the installation model](../intent.md#the-installation-model) and [version selection](../intent.md#sources-and-version-selection).
+`install` preserves valid locked artifacts. `update` resolves newer eligible unpinned artifacts directly under the current modlist, without installing an intermediate old artifact first. Explicitly adopted or forced-retained compatibility exceptions remain specific to the artifact and target. See [the installation model](../intent.md#the-installation-model) and [artifact lookup](../intent.md#platforms-and-artifact-lookup).
 
 ## File ownership and exclusions
 
-Visible unmanaged jars are legitimate and reported without blocking unrelated operations. Discovering a jar does not adopt it. Adoption requires an explicit command option or accepted choice; repairing a managed file does not accept its modified content as the new locked selection.
+Visible unmanaged jars are legitimate and reported without blocking unrelated operations. Discovering a jar does not adopt it. Adoption requires an explicit command option or accepted choice; repairing a managed file does not accept its modified content as the new locked artifact.
 
-`.mmmignore` is beside the configuration, with patterns relative to the mods directory. Matching files are excluded from scanning, unmanaged reporting, adoption, updates, removal and pruning. Invalid patterns stop mutation and identify the offending line. Files ending in `.disabled` receive the same exclusion treatment, even with force.
+`.mmmignore` is beside the modlist, with patterns relative to the mods directory. Matching files are excluded from scanning, unmanaged reporting, adoption, updates, removal and pruning. Invalid patterns stop mutation and identify the offending line. Files ending in `.disabled` receive the same exclusion treatment, even with force.
 
-For the port, renaming a declared `example.jar` to `example.jar.disabled` does not satisfy the enabled declaration: installation may recreate `example.jar` alongside the untouched disabled file. First-class disabled-state management is deferred.
+For the port, renaming a managed `example.jar` to `example.jar.disabled` does not satisfy its mod config: installation may recreate `example.jar` alongside the untouched disabled file. First-class disabled-state management is deferred.
 
 Discovery and pruning examine immediate files only, without recursing into subdirectories. An unrelated or protected destination collision fails the affected operation rather than overwriting that file. Independent work can continue when safe.
 
@@ -122,7 +122,7 @@ Messages and controls are localizable, with English fallback. Plain text and ASC
 
 ### Debug-log reference
 
-Create a debug log only when `--debug` is set, in the same directory as the selected configuration file. The log provides an action audit trail for the run without requiring debug mode to understand ordinary failures. It uses stable, one-event-per-line logfmt, with documented keys and values that contain no control characters.
+Create a debug log only when `--debug` is set, in the same directory as the selected modlist file. The log provides an action audit trail for the run without requiring debug mode to understand ordinary failures. It uses stable, one-event-per-line logfmt, with documented keys and values that contain no control characters.
 
 Every event includes:
 

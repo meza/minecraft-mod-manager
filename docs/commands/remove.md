@@ -2,7 +2,7 @@
 
 > This guide describes the Go-port target defined in [product intent](../intent.md), not a claim that every released build already implements it.
 
-`remove` deletes explicitly selected mods from the desired declaration, lockfile, and managed files.
+`remove` deletes explicitly selected mods from the modlist, lockfile and managed files.
 
 See [shared command behavior](README.md), especially [execution modes](README.md#execution-modes), [file ownership and exclusions](README.md#file-ownership-and-exclusions), and [results and retry](README.md#results-and-retry).
 
@@ -41,7 +41,7 @@ An already-absent target is a successful no-op. Force does not widen the selecti
 
 ## Removal results and retry
 
-For each selected mod, MMM removes the declaration, lock entry, and managed artifact while keeping enough consistent state to represent completed and incomplete work. If the managed jar is already absent, MMM still removes the corresponding metadata cleanly.
+For each selected mod, MMM removes the mod config, lock entry and managed artifact while keeping enough consistent state to represent completed and incomplete work. If the managed jar is already absent, MMM still removes the corresponding metadata cleanly.
 
 If a file cannot be removed, MMM does not report that mod as fully removed. It preserves enough state to identify and retry the remaining work. Independent removals that completed successfully remain completed, and rerunning the same request does not create duplicate work.
 

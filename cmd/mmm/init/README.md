@@ -10,7 +10,7 @@ This package implements `mmm init`: create a new `modlist.json` and `modlist-loc
 
 ## Code map
 
-- `cmd/mmm/init/init.go`: cobra wiring, flag parsing, and `initWithDeps` (writes config and lock)
+- `cmd/mmm/init/init.go`: cobra wiring, flag parsing, and `initWithDeps` (writes the modlist and lockfile)
 - `cmd/mmm/init/interactive_flow.go`: interactive Bubble Tea flow that asks for values and handles overwrite/confirm steps
 - `cmd/mmm/init/*Model*.go`: individual prompt models (loader, game version, release types, mods folder)
 - `cmd/mmm/init/interactive_flow_snapshot_test.go`: snapshot tests for the interactive flow
@@ -22,8 +22,8 @@ This package implements `mmm init`: create a new `modlist.json` and `modlist-loc
 
 - If you provide all required values (including the default mods folder), the command writes the files without prompting.
 - If required values are missing and stdin/stdout are terminals with prompts allowed, it launches an interactive flow to collect values and confirm writing.
-- If the config path already exists, the flow asks whether to overwrite or choose a new path.
-- In `--unattended` or non-TTY mode, it never prompts and fails fast when required inputs are missing or the config already exists (unless `--force` is set).
+- If the modlist path already exists, the flow asks whether to overwrite or choose a new path.
+- In `--unattended` or non-TTY mode, it never prompts and fails fast when required inputs are missing or the modlist already exists (unless `--force` is set).
 
 After inputs are finalized (via flags or the interactive flow), `initWithDeps` writes `modlist.json` and an empty `modlist-lock.json`. Success output is emitted afterward through a Bubble Tea output-only program.
 

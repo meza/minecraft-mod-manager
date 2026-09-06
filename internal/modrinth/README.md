@@ -2,11 +2,11 @@
 
 This package speaks to the Modrinth API and returns typed Go models and errors.
 
-It owns Modrinth-specific selection logic and returns the domain `models.RemoteMod` when asked to resolve a file.
+It owns Modrinth-specific artifact lookup logic and returns the domain `models.RemoteMod` when asked to resolve an artifact.
 
 ## Start with the behavior docs
 
-- `internal/platform/README.md` describes the shared selection behavior that wraps Modrinth and CurseForge helpers.
+- `internal/platform/README.md` describes the shared artifact lookup behavior that wraps Modrinth and CurseForge helpers.
 - Modrinth API docs (external): https://docs.modrinth.com/
 
 ## Quick start
@@ -24,7 +24,7 @@ versions, err := modrinth.GetVersionsForProject(&modrinth.VersionLookup{
 }, client)
 ```
 
-To select a downloadable file, use the higher-level helper:
+To select a downloadable artifact, use the higher-level helper:
 
 ```go
 remote, err := modrinth.FetchRemoteMod(ctx, "AANobbMI", models.FetchOptions{

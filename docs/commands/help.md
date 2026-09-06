@@ -2,7 +2,7 @@
 
 This guide describes the Go-port target defined in [product intent](../intent.md), not a claim that every released build already implements it.
 
-Use help to find commands, inputs, defaults and command-specific force semantics. Help works without configuration, including in a missing or broken installation.
+Use help to find commands, inputs, defaults and command-specific force semantics. Help works without a modlist, including in a missing or broken installation.
 
 ## Usage
 

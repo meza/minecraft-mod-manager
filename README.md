@@ -14,6 +14,8 @@
 Minecraft Mod Manager is a helpful utility for players, modpack creators and server owners who want to keep their
 Minecraft mods up to date without the need for a launcher or having to manually check and download new files.
 
+The [project glossary](docs/GLOSSARY.md) defines the canonical product and architecture vocabulary for MMM's Go-port target.
+
 It can currently use mods from [Curseforge](https://curseforge.com/minecraft) and [Modrinth](https://modrinth.com/).
 If you want support for other platforms, please feel free to submit a pull request or a feature request.
 
@@ -33,7 +35,7 @@ Upcoming features:
 - use github as the source for mods
 - self-update
 
-It's purposefully made to have a very explicit configuration file to avoid any "magic". This allows you to have full
+It's purposefully made to have a very explicit modlist to avoid any "magic". This allows you to have full
 control over the mods that are installed.
 
 <p align="center">
@@ -62,7 +64,7 @@ control over the mods that are installed.
   * [TEST](docs/commands/test.md)
   * [PRUNE](#prune)
   * [SCAN](#scan)
-* [Explaining the configuration](#explaining-the-configuration)
+* [Modlist and lockfile](#modlist-and-lockfile)
   * [modlist-lock.json](#modlist-lockjson)
   * [modlist.json](#modlistjson)
     * [loader](#loader-_required)
@@ -136,10 +138,10 @@ Every command has a few common options that you can use:
 |--------------|-------------|--------------------------------------------|
 |              | --unattended | Disable prompts and fail fast if required inputs are missing |
 | -q           | --quiet     | Suppress non-essential output (errors and required results still print) |
-| -c           | --config    | Set the config file to an alternative path |
+| -c           | --config    | Select an alternative modlist file |
 | -d           | --debug     | Enable verbose logging                     |
 |              | --perf      | Write `mmm-perf.json` when the command exits |
-|              | --perf-out-dir | Directory to write `mmm-perf.json` (defaults to the config file directory) |
+|              | --perf-out-dir | Directory to write `mmm-perf.json` (defaults to the configuration directory) |
 
 All options should be specified **before** the command. For example:
 
@@ -173,11 +175,11 @@ By default the file is written next to your `modlist.json` as `mmm-perf.json`. U
 mmm --perf --perf-out-dir perf add modrinth AANobbMI
 ```
 
-Paths inside the perf file are normalized to be relative to the config directory so you can share the file without leaking machine-specific path prefixes.
+Paths inside the performance recording are normalized to be relative to the configuration directory so you can share the file without leaking machine-specific path prefixes.
 
 ### Telemetry
 
-Minecraft Mod Manager records anonymous command metadata with [PostHog](https://posthog.com) so we know which flows succeed and where errors cluster. Telemetry uses a stable machine identifier that is not PII to track long-term behavior. Session events include a `performance` payload (perf_summary_v1 schema: app version, OS, execution mode, ordered commands, command timings, modlist context, and request/download counts); raw perf span trees are only written to `mmm-perf.json` when you opt in with `--perf`. Telemetry is best-effort and never blocks a command.
+Minecraft Mod Manager records operational command metadata with [PostHog](https://posthog.com) so we know which flows succeed and where errors cluster. Telemetry uses a stable machine identifier that is not PII to track long-term behavior. Session events include a `performance` payload (perf_summary_v1 schema: app version, OS, execution mode, ordered commands, command timings, modlist context, and request/download counts); raw perf span trees are only written to `mmm-perf.json` when you opt in with `--perf`. Telemetry is best-effort and never blocks a command.
 
 Opt out anytime by setting an environment variable before running the CLI. For example:
 
@@ -195,9 +197,8 @@ $env:MMM_DISABLE_TELEMETRY=1; mmm list
 
 `mmm update` or `mmm u`
 
-This will try and find newer versions of every mod defined in the `modlist.json` file that matches the given game
-version, loader and doesn't have a fixed `version` configuration.
-If a new mod is found, it will be downloaded and the old one will be removed. If the download fails,
+For each unpinned mod config in the modlist, this looks up a newer artifact matching the Minecraft target and loader.
+If a newer eligible artifact is found, it will be downloaded and the previous file will be removed. If the download fails,
 the old one will be kept.
 
 You would run this command when you want to make sure that you're using the newest versions of the mods.
@@ -256,12 +257,12 @@ Scans the configured mods folder and looks for files that are currently not mana
 When a file is found, it will attempt to look up that file on all the supported platforms.
 
 > [!NOTE]
-> Files ending in `.disabled` will be ignored.
+> Files ending in `.disabled` are excluded.
 
 It will report back the findings and if executed without any extra parameters, depending on the [interactivity settings](#how-it-works),
 it will either ask you what to do or not do anything.
 
-If you supply the `--add` flag, it will add the discovered files to your modlist json.
+If you supply the `--add` flag, it will adopt recognized artifacts by recording their mod configs in the modlist and their exact artifact information in the lockfile.
 
 #### What if I don't specify a preferred platform?
 
@@ -269,7 +270,7 @@ If you don't specify a preferred platform, it will use `Modrinth`. It does not s
 
 #### Will it delete the files that it found?
 
-No. It will reuse the found files and add them to the lockfile so you can decide if you want to then update to the newest
+No. It will reuse the found files and record their artifacts in the lockfile so you can decide if you want to then update to the newest
 versions or not.
 
 #### Command line arguments for the scan function
@@ -277,23 +278,22 @@ versions or not.
 | Short | Long     | Description                                               | Value                      | Default    | Example                  |
 |-------|----------|-----------------------------------------------------------|----------------------------|------------|--------------------------|
 | -p    | --prefer | Which platform do you prefer to use?                      | `curseforge` or `modrinth` | `modrinth` | `mmm scan -p curseforge` |
-| -a    | --add    | Automatically add the discovered mods to the modlist json |                            |            | `mmm scan -a`            |
+| -a    | --add    | Adopt recognized artifacts into the modlist and lockfile |                            |            | `mmm scan -a`            |
 
 ---
 
-## Explaining the configuration
+## Modlist and lockfile
 
 ### modlist-lock.json
 
 You have seen this file mentioned in this document and you might be wondering what to do with it.
 
-The lockfile is 100% managed by the app itself and it ensures consistency across [`install`](#install) runs. It
-effectively "locks" the versions to the exact versions you installed with the last [`add`](docs/commands/add.md) or [`update`](#update)
-commands.
+The lockfile is managed by MMM and records exact resolved artifacts for consistent [`install`](docs/commands/install.md)
+runs. The [`add`](docs/commands/add.md) and [`update`](#update) commands record the artifacts they resolve in it.
 
 **You don't have to do anything with it!**
 
-If the lockfile contains mods that are missing from your config, MMM will stop and ask how to reconcile them (add to config, delete from disk, ignore, or do nothing). In non-interactive or unattended runs, it defaults to add unless you pass a lockfile sync policy flag like `--lock-sync-ignore`. See [lockfile sync](docs/commands/lockfile-sync.md) for the full flow.
+If the lockfile contains artifacts for mods that are missing from your modlist, MMM will stop and ask how to reconcile them (add a mod config, delete from disk, ignore, or do nothing). In non-interactive or unattended runs, it defaults to add unless you pass a lockfile sync policy flag like `--lock-sync-ignore`. See [lockfile sync](docs/commands/lockfile-sync.md) for the full flow.
 
 If you use version control to manage your server/modpack/configuration then make sure to commit **both**
 the `modlist.json` and the `modlist-lock.json`. Together they ensure that you are in full control of what gets
@@ -301,7 +301,7 @@ installed.
 
 ### modlist.json
 
-The modlist.json is the main configuration file of Minecraft Mod Manager.
+The modlist, stored by default in `modlist.json`, contains installation-wide settings and a mod config for each desired mod.
 
 It is in JSON format. If you're unfamiliar with JSON or want to make sure that everything is in order, please use
 the [JSON Validator](https://jsonlint.com/) website to make sure that the file contents are valid before running the
@@ -342,13 +342,13 @@ This is how it looks like if you followed the examples in the [`add`](docs/comma
 }
 ```
 
-> The **mods** field is managed by the [`add`](docs/commands/add.md) command, but you can also edit it by hand if you wish.
+> Each entry in **mods** is a mod config. You can manage these entries with [`add`](docs/commands/add.md) or edit them by hand.
 
 #### loader _required_
 
 Possible values: `fabric`, `quilt`, `forge`
 
-The loader defines which minecraft loader you're using.
+The loader identifies the Minecraft mod-loading software your game or server uses. MMM matches that identity against platform metadata during artifact lookup.
 
 #### gameVersion _required_
 
@@ -362,9 +362,8 @@ The value of this could be an absolute path or a relative path.
 
 We recommend you use relative paths as they are more portable.
 
-Important: `modsFolder` is treated as trusted configuration. MMM writes and deletes files in the folder you point it at.
-Only run MMM against `modlist.json` files you trust, especially when `modsFolder` is absolute or points outside the folder
-that contains your `modlist.json`.
+Important: the modlist's `modsFolder` is trusted input. MMM writes and deletes files in the folder you point it at.
+Only run MMM against modlist files you trust, especially when `modsFolder` is absolute or points outside the configuration directory.
 
 > __PRO TIP__
 >
@@ -377,12 +376,12 @@ that contains your `modlist.json`.
 
 Possible values is one or all of the following: `alpha`, `beta`, `release`
 
-You can override this on a per-mod basis with the `allowedReleaseTypes` field in the mod definition.
+You can override this on a per-mod basis with the `allowedReleaseTypes` field in the mod config.
 
 <details>
   <summary>Example</summary>
 
-To lock Fabric Api to only release versions when everything else could be beta too, use it like below:
+To allow only release artifacts for Fabric API while the modlist's default release policy also permits beta artifacts, set its mod config like this:
 
 ```json
 {
@@ -405,11 +404,10 @@ To lock Fabric Api to only release versions when everything else could be beta t
 
 #### allowVersionFallback _optional_
 
-Every mod entry may optionally include `allowVersionFallback`. Setting it to `true` for a mod entry will:
+Every mod config may optionally include `allowVersionFallback`. Setting it to `true` permits version fallback:
 
-- If a suitable mod isn't found for the given Minecraft version, say 1.19.2, it will try for 1.19.1 (the previous minor
-  version)
-- If a suitable mod isn't found for the previous minor version, it will try for 1.19 (the previous major version)
+- If no eligible artifact is found for the Minecraft target, say 1.19.2, lookup tries 1.19.1, an earlier release in the same series.
+- If no eligible artifact is found for 1.19.1, lookup tries 1.19, an earlier release in that same series.
 
 This happens quite frequently unfortunately because mod developers either don't update their mods but they still work or
 they forget to list the supported Minecraft versions correctly.
@@ -418,8 +416,7 @@ If `allowVersionFallback` is omitted, the CLI assumes `false` for that mod. Ther
 
 #### version _optional_
 
-For every mod you can specify a version. This is useful if you want to install a specific version of a mod and want to
-keep it that way regardless of any updates to the mod.
+Set `version` in a mod config to pin that mod to an explicit platform-specific version. Ordinary updates preserve the pin.
 
 There are subtle differences between how this works for Modrinth and Curseforge. To learn more about this, read
 the [Installing Specific Versions](docs/commands/add.md#installing-specific-versions) section of the [add](docs/commands/add.md) command.

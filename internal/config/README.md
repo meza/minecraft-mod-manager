@@ -1,9 +1,9 @@
 # internal/config
 
-This package owns reading and writing the two config files that commands operate on:
+This package owns reading and writing the modlist and lockfile that commands operate on:
 
-- `modlist.json` (user-managed intent)
-- `modlist-lock.json` (tool-managed resolved files)
+- `modlist.json` (the user-managed installation settings and mod configs)
+- `modlist-lock.json` (tool-managed records of resolved artifacts)
 
 It is built around dependency injection so command code can be tested without touching the real filesystem or network.
 
@@ -26,15 +26,15 @@ if err != nil {
 
 ## Public API
 
-### Config file (`modlist.json`)
+### Modlist (`modlist.json`)
 
 - `ReadConfig(fs afero.Fs, meta Metadata) (models.ModsJSON, error)`
 - `WriteConfig(fs afero.Fs, meta Metadata, cfg models.ModsJSON) error`
 - `InitConfig(fs afero.Fs, meta Metadata, minecraftClient httpclient.Doer) (models.ModsJSON, error)`
 
-`InitConfig` creates a minimal config file when one does not exist yet. It calls `internal/minecraft.GetLatestVersion` to seed `gameVersion`, then writes the file to disk.
+`InitConfig` creates a minimal modlist when one does not exist yet. It calls `internal/minecraft.GetLatestVersion` to seed `gameVersion`, then writes the file to disk.
 
-### Lock file (`modlist-lock.json`)
+### Lockfile (`modlist-lock.json`)
 
 - `EnsureLock(fs afero.Fs, meta Metadata) ([]models.ModInstall, error)` (create empty lock if missing)
 - `ReadLockOrEmpty(fs afero.Fs, meta Metadata) ([]models.ModInstall, error)` (return empty lock in memory if missing)
@@ -43,12 +43,12 @@ if err != nil {
 
 ### Paths and metadata
 
-`Metadata` keeps the config path and provides derived paths:
+`Metadata` keeps the modlist path and provides derived paths:
 
 - `NewMetadata(configPath string) Metadata`
 - `Metadata.Dir() string`
-- `Metadata.LockPath() string` (same basename as config, with `-lock.json`)
-- `Metadata.ModsFolderPath(cfg models.ModsJSON) string` (absolute paths stay absolute; relative paths are relative to the config directory)
+- `Metadata.LockPath() string` (same basename as the modlist, with `-lock.json`)
+- `Metadata.ModsFolderPath(cfg models.ModsJSON) string` (absolute paths stay absolute; relative paths are relative to the configuration directory)
 
 ## Expected errors
 

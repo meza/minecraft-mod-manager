@@ -2,9 +2,9 @@
 
 > This guide describes the Go-port target defined in [product intent](../intent.md), not a claim that every released build already implements it.
 
-`init` creates a configuration and an empty lockfile for a new managed installation. It collects the mod loader, Minecraft version, allowed release types, and mods directory. It does not download, delete, or adopt any mods.
+`init` creates a modlist and an empty lockfile for a new managed installation. It collects the mod loader, Minecraft version, allowed release types, and mods directory. It does not download, delete, or adopt any mods.
 
-See [configuration and setup](README.md#configuration-and-setup), [execution modes](README.md#execution-modes), and [cancellation and terminal output](README.md#cancellation-and-terminal-output) for behavior shared with other commands.
+See [modlist and setup](README.md#modlist-and-setup), [execution modes](README.md#execution-modes), and [cancellation and terminal output](README.md#cancellation-and-terminal-output) for behavior shared with other commands.
 
 ```bash
 mmm init --loader fabric
@@ -14,14 +14,14 @@ mmm init --loader fabric
 
 | Short | Long | Meaning | Default |
 | --- | --- | --- | --- |
-| `-l` | `--loader` | Platform loader value | None |
+| `-l` | `--loader` | Minecraft mod loader | None |
 | `-g` | `--game-version` | A version listed in Mojang's manifest, or `latest` | `latest`, meaning the latest stable release |
 | `-r` | `--release-types` | Nonempty comma-separated list of `alpha`, `beta`, and `release` | `release` |
-| `-m` | `--mods-folder` | Existing directory for installed mods | `mods`, relative to the configuration directory |
-| `-c` | `--config` | Configuration file to create | `./modlist.json` |
-| `-f` | `--force` | Skip confirmation before resetting existing configuration metadata or an orphan lockfile | Off |
+| `-m` | `--mods-folder` | Existing directory for installed mods | `mods`, relative to the modlist directory |
+| `-c` | `--config` | Modlist file to create | `./modlist.json` |
+| `-f` | `--force` | Skip confirmation before resetting an existing modlist or orphan lockfile | Off |
 
-Relative mods paths are resolved from the directory containing the selected configuration. Absolute paths are supported. The mods directory must already exist and be usable; `init` does not offer to create it. Parent directories for a new configuration file may be created separately from the mods directory.
+Relative mods paths are resolved from the directory containing the selected modlist. Absolute paths are supported. The mods directory must already exist and be usable; `init` does not offer to create it. Parent directories for a new modlist file may be created separately from the mods directory.
 
 Loader has no default. In a no-prompt run, supply it explicitly:
 
@@ -52,12 +52,12 @@ In unattended or redirected execution, defaults are used directly, loader remain
 
 ## Existing metadata and reset behavior
 
-Initialization writes the selected configuration and its matching empty lockfile. For example, `--config server.json` writes `server.json` and `server-lock.json`.
+Initialization writes the selected modlist and its matching empty lockfile. For example, `--config server.json` writes `server.json` and `server-lock.json`.
 
-If either an existing configuration or an orphan lockfile would be reset, `init` explains that the metadata will be replaced while existing jars remain untouched. It then requires reset confirmation or `--force`.
+If either an existing modlist or an orphan lockfile would be reset, `init` explains that the metadata will be replaced while existing jars remain untouched. It then requires reset confirmation or `--force`.
 
-If you decline the reset in an interactive run, `init` offers another configuration path instead of silently cancelling. Changing that path also changes the base directory for relative mods paths, so MMM revalidates the location and preserves the entered text if it needs correction.
+If you decline the reset in an interactive run, `init` offers another modlist path instead of silently cancelling. Changing that path also changes the base directory for relative mods paths, so MMM revalidates the location and preserves the entered text if it needs correction.
 
 `--force` does not provide a missing loader, accept invalid settings, bypass the final interactive confirmation, adopt jars, or authorize deleting jars.
 
-When another command finds no configuration, it can offer this same initialization flow. After successful initialization, the original command resumes with its original inputs and the resulting configuration path. If initialization is declined, cancelled, or fails, the original command does not run.
+When another command finds no modlist, it can offer this same initialization flow. After successful initialization, the original command resumes with its original inputs and the resulting modlist path. If initialization is declined, cancelled, or fails, the original command does not run.

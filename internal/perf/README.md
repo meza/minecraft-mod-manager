@@ -4,7 +4,7 @@ This package provides lightweight performance instrumentation built on OpenTelem
 
 It is used to:
 
-- create spans around important operations (network calls, config I/O, downloads)
+- create spans around important operations (network calls, modlist and lockfile I/O, downloads)
 - keep an in-memory span snapshot for tests, telemetry summary generation, and `--perf` export
 
 ## Process lifecycle instrumentation
@@ -21,11 +21,11 @@ Lifecycle span names are namespaced under `app.lifecycle.*`:
 
 When you run the CLI with `--perf`, MMM writes `mmm-perf.json` when the process shuts down (gracefully or via Ctrl+C / SIGTERM).
 
-By default, MMM writes the file next to the resolved `--config` path so it stays adjacent to the `modlist.json` you were working with.
-Override the destination with `--perf-out-dir`. Relative output directories are resolved relative to the config directory.
+By default, MMM writes the file next to the resolved `--config` path so it stays adjacent to the selected modlist.
+Override the destination with `--perf-out-dir`. Relative output directories are resolved relative to the configuration directory.
 
 If the working directory cannot be resolved, MMM logs a warning when `--perf` or `--debug` is set and falls back to the
-config path as provided (relative paths stay relative).
+modlist path as provided (relative paths stay relative).
 
 The exported JSON includes ended spans with correlation IDs:
 
@@ -35,7 +35,7 @@ The exported JSON includes ended spans with correlation IDs:
 - `attributes` for low-cardinality structured context
 - `children[]` so the primary parent/child tree is readable without post-processing
 
-Any absolute filesystem paths stored in known attribute keys (for example `config_path`, `path`, `*_path`) are normalized to be relative to the config directory so you can share the file without leaking machine-specific prefixes. URL attributes drop query strings before export, and the output directory/file are created with 0700/0600 permissions.
+Any absolute filesystem paths stored in known attribute keys (for example `config_path`, `path`, `*_path`) are normalized to be relative to the configuration directory so you can share the file without leaking machine-specific prefixes. URL attributes drop query strings before export, and the output directory/file are created with 0700/0600 permissions.
 
 This export is best-effort: failure must never affect exit codes or normal CLI output.
 
@@ -50,7 +50,7 @@ We instrument for diagnosis, not vanity metrics. The goal is that when someone s
 
 - Which part of the user flow dominates wall time?
 - Is the time spent in user "thinking" vs system work?
-- Which subsystem (platform orchestration, provider API, HTTP, filesystem) is the culprit?
+- Which subsystem (platform orchestration, platform API, HTTP, filesystem) is the culprit?
 - Which public entrypoint or retry loop is responsible?
 
 This is why we favor layered instrumentation: broad, stable regions at the top and increasingly specific regions as you go down the stack.
@@ -61,9 +61,9 @@ We intentionally cover the whole path from process start to user-visible complet
 
 - Process lifecycle: `app.lifecycle.*` brackets startup -> execution -> shutdown so all other regions can be correlated end-to-end.
 - Commands and stages: `app.command.*` and `app.command.<cmd>.stage.*` break a command into user-meaningful phases (prepare, resolve, download, persist).
-- Orchestration layers: `platform.*` measures stable public entrypoints like `platform.FetchMod` that coordinate provider calls and selection logic.
-- Providers and transport:
-  - Provider API calls: `api.<provider>.*` (project lookup, version listing, fingerprint match, etc).
+- Orchestration layers: `platform.*` measures stable public entrypoints like `platform.FetchMod` that coordinate platform calls and artifact lookup logic.
+- Platforms and transport:
+  - Platform API calls: `api.<provider>.*` (project lookup, version listing, fingerprint match, etc).
   - Shared HTTP behavior: `net.http.*` (request, attempt, rate limit wait).
 - Local I/O: `io.config.*`, `io.config.lock.*`, `io.download.*` (and `io.fs.*` when the filesystem is the bottleneck).
 - Interactive sessions:
@@ -124,18 +124,18 @@ If you touch instrumentation, add or update tests using the in-memory span expor
 - `app.lifecycle.*`: process-level brackets (startup, execute, shutdown).
 - `app.command.*`: a top-level unit of work the user asked for (cobra subcommand or the interactive session).
   - Examples: `app.command.add`, `app.command.init`, `app.command.list`, `app.command.version`, `app.command.tui`
-- `platform.*`: orchestration over upstream providers (a stable place to measure public entrypoints like `platform.FetchMod`).
+- `platform.*`: orchestration over upstream platforms (a stable place to measure public entrypoints like `platform.FetchMod`).
   - Examples: `platform.fetch_mod`
 - `interaction.*`: interactive UI work that is not a direct command execution.
   - Examples: `interaction.render`, `interaction.model.update`, `interaction.prompt`
   - For user "thinking time", prefer `interaction.<command>.wait.<state>` (for example `interaction.add.wait.mod_not_found_confirm`).
-- `api.<provider>.*`: outbound API calls grouped by platform provider.
+- `api.<provider>.*`: outbound API calls grouped by platform.
   - Examples: `api.modrinth.project.get`, `api.modrinth.version.search`, `api.curseforge.project.get`, `api.curseforge.fingerprints.get`
-- `net.http.*`: generic HTTP client behavior that is not provider-specific.
+- `net.http.*`: generic HTTP client behavior that is not platform-specific.
   - Examples: `net.http.request`, `net.http.request.attempt`, `net.http.ratelimit.wait`
 - `io.fs.*`: filesystem reads/writes that might dominate local performance.
   - Examples: `io.fs.read`, `io.fs.write`, `io.fs.mkdir`, `io.fs.lock`
-- `io.config.*`: config/lock specific file operations (when you want config to stand out from other filesystem I/O).
+- `io.config.*`: modlist/lockfile-specific operations (when you want this I/O to stand out from other filesystem I/O).
   - Examples: `io.config.read`, `io.config.write`, `io.config.init`, `io.config.lock.read`, `io.config.lock.write`
 - `io.download.*`: downloads and other large byte transfers.
   - Examples: `io.download.file`

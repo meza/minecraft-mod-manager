@@ -1,6 +1,6 @@
 # internal/telemetry
 
-Minecraft Mod Manager ships anonymous usage metrics to PostHog (https://posthog.com) so we can understand which commands people reach for, where errors cluster, and where time is spent. Telemetry uses a stable machine identifier that is not PII so we can track long-term behavior without collecting personal data.
+Minecraft Mod Manager ships operational usage metrics to PostHog (https://posthog.com) so we can understand which commands people reach for, where errors cluster, and where time is spent. Telemetry uses a stable machine identifier that is not PII so we can track long-term behavior without collecting personal data.
 
 Telemetry is best-effort: failures never block a command. By default, the telemetry package uses a no-op logger, so telemetry failures are silent unless the package logger is explicitly wired for debugging.
 
@@ -33,7 +33,7 @@ Call `Init` once when the process starts, record command outcomes via `RecordCom
 - `app.lifecycle.startup` includes `telemetry.Init()`
 - `app.lifecycle.shutdown` ends before the telemetry flush, so the perf export tree is complete when `telemetry.Shutdown(...)` builds the perf summary
 
-Session telemetry includes a `performance` payload (perf_summary_v1 schema: app version, OS, execution mode, ordered commands, per-command timing + stage timing when available, modlist context when config is available, and request/download counts), plus top-level `total_time_ms` and `work_time_ms` (total runtime minus `interaction.*.wait.*` thinking time). The raw perf span tree is only written to `mmm-perf.json` when `--perf` is used.
+Session telemetry includes a `performance` payload (perf_summary_v1 schema: app version, OS, execution mode, ordered commands, per-command timing + stage timing when available, modlist context when the modlist is available, and request/download counts), plus top-level `total_time_ms` and `work_time_ms` (total runtime minus `interaction.*.wait.*` thinking time). The raw perf span tree is only written to `mmm-perf.json` when `--perf` is used.
 Some interactive flows use `interactive.*.wait.*` spans for thinking time as well.
 
 ### performance schema (perf_summary_v1)
@@ -47,7 +47,7 @@ Top-level fields:
 - `os` (object: `goos` string, `goarch` string)
 - `execution_mode` (string: `interactive`, `unattended`, `non_tty`, or `unknown`)
 - `commands` (array of command summaries, in execution order)
-- `modlist` (object: `game_version` string, `loader` string, `mod_count` int; omitted if config cannot be read)
+- `modlist` (object: `game_version` string, `loader` string, `mod_count` int; omitted if the modlist cannot be read)
 - `counts` (object: `http_requests` int, `downloads` int, `download_bytes` int64 in bytes when available)
 
 Command summary fields:

@@ -15,7 +15,7 @@ Prompts are allowed only in interactive mode. Interactive mode requires both std
 When prompts are not allowed and `--force` is not set, prune prints the unmanaged list and refuses to delete files. This applies to both `--unattended` and non-tty runs.
 When `--force` is set, prune skips prompting and deletes unmanaged files immediately.
 
-When the config file is missing and prompts are allowed, prune offers to run `mmm init` and then resumes. In unattended or non-tty contexts, it prints the missing config error and exits.
+When the modlist is missing and prompts are allowed, prune offers to run `mmm init` and then resumes. In `--unattended` or non-TTY contexts, it prints the missing-modlist error and exits.
 
 ## Testing and snapshots
 

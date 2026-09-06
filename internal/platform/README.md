@@ -1,12 +1,12 @@
 # internal/platform
 
-This module is the small "adapter" layer that lets the rest of the CLI fetch mod files from different hosting platforms through one API.
+This module is the small "adapter" layer that lets the rest of the CLI fetch mod artifacts from different hosting platforms through one API.
 
-If you are working on `add`, `install`, `update`, or `scan`, this is the package that answers: "Given a platform + project ID, which file should we download for this loader/game version?"
+If you are working on `add`, `install`, `update`, or `scan`, this is the package that answers: "Given a platform + project ID, which artifact should we download for this loader/game version?"
 
 ## Quick start
 
-`FetchMod` is the entry point. It returns a `RemoteMod` with a name, filename, SHA-1 hash, release date, and download URL.
+`FetchMod` is the entry point. It returns a `RemoteMod` with the project's display name and an artifact's filename, SHA-1 hash, release date, and download URL.
 
 ```go
 limiter := rate.NewLimiter(rate.Every(300*time.Millisecond), 1)
@@ -49,8 +49,8 @@ default:
 
 - `FetchMod(platform models.Platform, projectID string, opts FetchOptions, clients Clients) (RemoteMod, error)`
 - `DefaultClients(limiter *rate.Limiter) Clients`
-- `FetchOptions` (selection inputs)
-- `RemoteMod` (selection output)
+- `FetchOptions` (artifact lookup inputs)
+- `RemoteMod` (artifact lookup output)
 - `UnknownPlatformError`, `ModNotFoundError`, `NoCompatibleFileError` (expected failure modes)
 
 ## Perf instrumentation
@@ -59,38 +59,38 @@ The public entrypoint `FetchMod(...)` is wrapped with a perf region:
 
 - `platform.fetch_mod`
 
-This sits above provider-specific `api.*` and `net.http.*` regions so you can tell whether time is spent in platform orchestration (selection, fallback iteration) vs the underlying HTTP calls.
+This sits above platform-specific `api.*` and `net.http.*` regions so you can tell whether time is spent in platform orchestration (artifact lookup, fallback iteration) vs the underlying HTTP calls.
 
 ### FetchOptions
 
-`FetchOptions` describes how to pick a file:
+`FetchOptions` describes how to pick an artifact:
 
 - `AllowedReleaseTypes`: which release types are acceptable (`release`, `beta`, `alpha`)
 - `GameVersion`: the target Minecraft version to resolve against (for example `1.20.1`)
 - `Loader`: the mod loader (for example `fabric`, `forge`)
-- `FixedVersion`: when set, pins the selection to a single version identifier:
+- `FixedVersion`: when set, pins artifact lookup to a single version identifier:
   - Modrinth: matches `version_number`
   - CurseForge: matches the file name (case-insensitive)
 - `AllowFallback`: when true, retry with a lower patch version if nothing matches
 
 ### RemoteMod
 
-`RemoteMod` is the normalized "download this" shape used by the command layer:
+`RemoteMod` is the normalized artifact metadata used by the command layer:
 
 - `Name`: display name for UX (project title/name)
-- `FileName`: jar filename to write to the mods directory
+- `FileName`: artifact filename to use when writing the local file to the mods directory
 - `ReleaseDate`: RFC3339 timestamp string
 - `Hash`: SHA-1 hash string
 - `DownloadURL`: direct URL to download the jar
 
-## How selection works
+## How artifact lookup works
 
-`internal/platform` delegates selection to the platform-specific packages:
+`internal/platform` delegates artifact lookup to the platform-specific packages:
 
-- Modrinth selection lives in `internal/modrinth` and honors Modrinth's primary-file semantics.
-- CurseForge selection lives in `internal/curseforge` and uses paginated file listings with typed API errors.
+- Modrinth artifact lookup lives in `internal/modrinth` and honors Modrinth's primary-file semantics.
+- CurseForge artifact lookup lives in `internal/curseforge` and uses paginated file listings with typed API errors.
 
-See `internal/modrinth/README.md` and `internal/curseforge/README.md` for the behavior rules that the platform-specific helpers implement.
+See `internal/modrinth/README.md` and `internal/curseforge/README.md` for the artifact lookup rules that the platform-specific helpers implement.
 
 ### Fallback behavior
 
@@ -126,7 +126,7 @@ These error types are part of the contract with the command layer:
 
 - `UnknownPlatformError`: the platform enum is not recognized by this module
 - `ModNotFoundError`: the project ID does not exist on that platform (mapped from a 404)
-- `NoCompatibleFileError`: the project exists, but nothing matches the selection rules (or the matching file is missing a URL/SHA-1)
+- `NoCompatibleFileError`: the project exists, but nothing matches the artifact lookup rules (or the matching artifact is missing a URL/SHA-1)
 
 The rest of the errors are treated as unexpected failures (network issues, API errors, bad JSON, etc).
 
@@ -135,10 +135,10 @@ The rest of the errors are treated as unexpected failures (network issues, API e
 When you add support for another platform, keep the surface area the same:
 
 1. Add a new `models.Platform` value (in `internal/models`) and ensure it has a stable string form for UX.
-2. Implement a platform-specific helper (in the provider package) that returns `models.RemoteMod`.
-3. Add a new `case` in `FetchMod`'s switch to call the provider helper.
-4. Ensure the provider maps "not found" responses to `ModNotFoundError` so the UX stays consistent.
-5. Add `httptest` coverage in the provider package and minimal orchestration tests in `internal/platform/platform_test.go`.
+2. Implement an artifact lookup helper in the platform-specific package that returns `models.RemoteMod`.
+3. Add a new `case` in `FetchMod`'s switch to call the platform-specific helper.
+4. Ensure the platform-specific package maps "not found" responses to `ModNotFoundError` so the UX stays consistent.
+5. Add `httptest` coverage in the platform-specific package and minimal orchestration tests in `internal/platform/platform_test.go`.
 
 ## Tests
 

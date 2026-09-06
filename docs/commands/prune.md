@@ -2,7 +2,7 @@
 
 > This guide describes the Go-port target defined in [product intent](../intent.md), not a claim that every released build already implements it.
 
-`mmm prune` deletes visible unmanaged `.jar` files from the configured mods directory.
+`mmm prune` deletes visible unmanaged `.jar` files from the modlist's mods directory.
 
 ```bash
 mmm prune
@@ -15,11 +15,11 @@ mmm prune --force
 | --- | --- | --- |
 | `-f, --force` | Delete the identified unmanaged jars without confirmation | off |
 
-`--force` supplies deletion authority; it does not enable prompting or override exclusions. Use `--unattended --force` when a no-prompt invocation should delete the reported set. Global options and setup are covered in [shared command behavior](README.md#configuration-and-setup).
+`--force` supplies deletion authority; it does not enable prompting or override exclusions. Use `--unattended --force` when a no-prompt invocation should delete the reported set. Global options and setup are covered in [shared command behavior](README.md#modlist-and-setup).
 
 ## Deletion boundary
 
-Prune considers only unmanaged `.jar` files immediately inside the configured mods directory. It does not recurse into subdirectories and does not delete unrelated file types.
+Prune considers only unmanaged `.jar` files immediately inside the modlist's mods directory. It does not recurse into subdirectories and does not delete unrelated file types.
 
 The following remain untouched:
 
@@ -37,9 +37,9 @@ In an interactive terminal, prune shows the complete intended deletion set and a
 
 In unattended or redirected execution, MMM never prompts. Without `--force`, it reports that deletion needs explicit authorization and removes nothing.
 
-Prune requires a lockfile to distinguish managed artifacts from unmanaged jars safely. If the lockfile is missing, it refuses deletion and explains that [`mmm install`](install.md) is needed to establish resolution evidence. Missing configuration follows the [shared setup behavior](README.md#configuration-and-setup); a missing lockfile is not treated as missing setup.
+Prune requires a lockfile to distinguish managed artifacts from unmanaged jars safely. If the lockfile is missing, it refuses deletion and explains that [`mmm install`](install.md) is needed to establish resolution evidence. A missing modlist follows the [shared setup behavior](README.md#modlist-and-setup); a missing lockfile is not treated as missing setup.
 
-Corrupt or contradictory resolution evidence is preserved and reported; it is not evidence that a possibly managed jar is unmanaged. See [selection and lockfiles](README.md#selection-and-lockfiles) for the shared recovery contract.
+Corrupt or contradictory resolution evidence is preserved and reported; it is not evidence that a possibly managed jar is unmanaged. See [lookup and lockfiles](README.md#lookup-and-lockfiles) for the shared recovery contract.
 
 ## Results, failure and retry
 

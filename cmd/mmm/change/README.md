@@ -1,4 +1,4 @@
-This package implements the `mmm change` command: verify a target Minecraft version, download replacement jars into a staging area, and only then switch the mods folder and configuration to that version.
+This package implements the `mmm change` command: verify a target Minecraft version, download replacement artifacts into a staging area, and only then switch the mods folder and modlist to that version.
 
 The command runs the same compatibility checks as `mmm test` (unless `--force` is provided), stages downloads under `mods/.mmm-staging`, updates `modlist.json` and `modlist-lock.json`, and attempts rollback if switching fails.
 
