@@ -1,12 +1,12 @@
 # Terminal interaction conventions
 
-These conventions help contributors present shared capabilities consistently. [Product intent](../intent.md) owns product behavior; [command guides](../commands/README.md) own workflows and outcomes. This document refines presentation without defining additional modes or authorization policies.
+These conventions help contributors present shared capabilities consistently. [Product intent](../../intent.md) owns product behavior; [command guides](../../commands/README.md) own workflows and outcomes. This document refines presentation without defining additional modes or authorization policies.
 
 Use the [implementation guide](../guide-to-working-with-the-terminal.md) for ownership and lifetimes, and [component examples](component-examples.md) for annotated target illustrations. Examples do not claim current implementation conformance.
 
 ## Execution contexts
 
-Follow the [execution-mode matrix](../intent.md#execution-modes-and-operator-intent). Interactive terminals use rich controls with Unicode or ASCII UI symbols where supported, or line-based questions without control-sequence support. Explicit `--unattended` always selects plain append-only output and prohibits questions, even in a capable terminal. Complete arguments alone do not select unattended presentation. Non-interactive execution, including redirection, is also plain and never prompts.
+Follow the [execution-mode matrix](../../intent.md#execution-modes-and-operator-intent). Interactive terminals use rich controls with Unicode or ASCII UI symbols where supported, or line-based questions without control-sequence support. Explicit `--unattended` always selects plain append-only output and prohibits questions, even in a capable terminal. Complete arguments alone do not select unattended presentation. Non-interactive execution, including redirection, is also plain and never prompts.
 
 <a id="redirected-input-or-output"></a>
 
@@ -44,7 +44,7 @@ Show the actions supported by the current presentation. On confirmation, record 
 
 Use the same semantics wherever a capability appears. Localizable help must describe the active control's actual actions. Reuse suitable Bubble Tea controls without treating default keymaps or untranslated help as product authority.
 
-The first `Ctrl+C` requests safe cancellation; a second can force termination after the warning defined in [intent](../intent.md#failure-retry-and-cancellation-promises). In rich controls, Escape follows the control's back or cancel semantics. [Initialization](../commands/init.md) has no step-back navigation: Escape leaves active filtering or otherwise cancels. Plain interactive questions expose equivalent decisions without requiring rich-control key sequences.
+The first `Ctrl+C` requests safe cancellation; a second can force termination after the warning defined in [intent](../../intent.md#failure-retry-and-cancellation-promises). In rich controls, Escape follows the control's back or cancel semantics. [Initialization](../../commands/init.md) has no step-back navigation: Escape leaves active filtering or otherwise cancels. Plain interactive questions expose equivalent decisions without requiring rich-control key sequences.
 
 Ordinary letters must not cancel free text. A progress-only control may expose a documented quit shortcut. New prompts must not pull an operator away from history.
 
@@ -68,7 +68,7 @@ Distinguish failure from uncertainty. Unmanaged files can legitimately coexist; 
 
 Use text alongside icons. Distinguish questions, focus, selection, pending work, pins, success, warnings and failure in ASCII as well as Unicode. Keep secondary metadata subordinate but legible; error and follow-up lines must remain recognizable without styles.
 
-Use the same durable text and formatting for equivalent records in every mode under the same locale and character capabilities, as required by the [transcript contract](../intent.md#active-display-and-permanent-transcript). This includes resolved decisions, failures, warnings and summaries, not only successful results. Commit settled results once in completion order. Summaries add counts and next steps without replaying each item. Do not claim unchanged files or successful recovery without established evidence. Numeric exit assignments belong in command references and acceptance scenarios, not visual examples.
+Use the same durable text and formatting for equivalent records in every mode under the same locale and character capabilities, as required by the [transcript contract](../../intent.md#active-display-and-permanent-transcript). This includes resolved decisions, failures, warnings and summaries, not only successful results. Commit settled results once in completion order. Summaries add counts and next steps without replaying each item. Do not claim unchanged files or successful recovery without established evidence. Numeric exit assignments belong in command references and acceptance scenarios, not visual examples.
 
 ## Accessibility and language
 
@@ -78,4 +78,4 @@ Respect capabilities rather than assuming every TTY supports the same features. 
 
 ## Validation
 
-Follow the [E2E testing guide](../testing/README.md). Verify shared conventions within real consuming commands. Use [examples](component-examples.md) to discuss visual transitions and [intent's acceptance journeys](../intent.md#acceptance-and-evidence) to establish required behavior.
+Follow the [E2E testing guide](../testing/README.md). Verify shared conventions within real consuming commands. Use [examples](component-examples.md) to discuss visual transitions and [intent's acceptance journeys](../../intent.md#acceptance-and-evidence) to establish required behavior.

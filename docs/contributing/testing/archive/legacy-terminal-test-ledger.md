@@ -44,7 +44,7 @@ Every item below has the future disposition `Unassessed` and the removal reason 
 
 ## Command PTY suites
 
-The historical classifications used the per-command flow documents, the command specifications available at the recorded baseline, and the shared [interaction guidelines](../../interactions/interaction-guidelines.md) as documentary sources. Reassess the entries against current [product intent](../../intent.md) and [command guides](../../commands/README.md); historical classifications do not establish current authority. Classification is `documented, implementation-coupled` unless stated otherwise. Fixtures were inline, in an afero memory filesystem, or in a test-owned temporary directory; there are no external fixture files.
+The historical classifications used the per-command flow documents, the command specifications available at the recorded baseline, and the shared [interaction guidelines](../../interactions/interaction-guidelines.md) as documentary sources. Reassess the entries against current [product intent](../../../intent.md) and [command guides](../../../commands/README.md); historical classifications do not establish current authority. Classification is `documented, implementation-coupled` unless stated otherwise. Fixtures were inline, in an afero memory filesystem, or in a test-owned temporary directory; there are no external fixture files.
 
 ### Change
 

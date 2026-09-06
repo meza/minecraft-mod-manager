@@ -8,7 +8,7 @@ cannot narrow a requirement or expand the authority granted by the request.
 
 Before presenting or acting on review feedback, assess every finding independently against the
 requested outcome, active user instructions, approved scope, binding requirements, current and
-target architecture, [CONTRIBUTING](../../CONTRIBUTING.md), and relevant repository evidence,
+target architecture, [CONTRIBUTING](../../../CONTRIBUTING.md), and relevant repository evidence,
 including coverage at the appropriate test layer.
 
 Inspect the cited implementation and existing tests. Reproduce claimed failures under the reported
@@ -70,7 +70,7 @@ cleanup or treat neighbouring debt as authorised work.
 ## Verify corrections
 
 Revalidate the corrected surfaces using the root contribution guide's canonical
-[Verification](../../CONTRIBUTING.md#verification) section. Run targeted verification and the relevant
+[Verification](../../../CONTRIBUTING.md#verification) section. Run targeted verification and the relevant
 complete project gates. Combine the checks required for every changed surface and include relevant
 failure paths. Check whether the fixes introduced new failures or invalidated earlier evidence.
 Documentation uses content, link, render, or documentation-specific checks; configuration uses

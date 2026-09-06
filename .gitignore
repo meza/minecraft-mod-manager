@@ -8,7 +8,6 @@ mmm-perf.json
 build
 dist
 .claude
-docs/interactions/audit-artifacts
 .codex_*
 *.bak*
 

@@ -2,14 +2,15 @@
 
 This guide defines MMM's terminal testing contract for contributors writing,
 running or maintaining tests.
-[Product intent](../intent.md) defines required behaviour; these guides explain
-how tests obtain and assess evidence. The [glossary](../GLOSSARY.md) owns vocabulary.
+[Product intent](../../intent.md) defines required behaviour; these guides explain
+how tests obtain and assess evidence. The [glossary](../../GLOSSARY.md) owns vocabulary.
 
 ## Choose the guide for your task
 
 | Task | Canonical guide |
 | --- | --- |
-| Verify a documentation-only change | Root [verification guidance](../../CONTRIBUTING.md#verification) |
+| Apply general test design and test-first development | [Testing policy](policy.md) |
+| Verify a documentation-only change | Root [verification guidance](../../../CONTRIBUTING.md#verification) |
 | Choose component, render, root, runtime, story or real-process evidence | [Components and coordination](components.md) |
 | Set up the native binding and run the suite | [Terminal harness](terminal-harness.md#prerequisites) |
 | Write scenarios; understand runner, actions, drivers and product assertions | [BDD architecture](bdd.md) |
@@ -17,8 +18,8 @@ how tests obtain and assess evidence. The [glossary](../GLOSSARY.md) owns vocabu
 | Investigate a failure, manage processes and capture terminal evidence | [Lifecycle and diagnostics](terminal-harness.md#lifecycle-and-diagnostics) |
 | Control HTTP responses, downloads and pending work across the process boundary | [HTTP fixtures](http-fixtures.md) |
 
-Contribution rules live in the [E2E](../../e2e/CONTRIBUTING.md) and
-[feature](../../e2e/features/CONTRIBUTING.md) guides.
+Contribution rules live in the [E2E](../../../e2e/CONTRIBUTING.md) and
+[feature](../../../e2e/features/CONTRIBUTING.md) guides.
 
 ## One journey, separately owned checks
 

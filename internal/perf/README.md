@@ -70,7 +70,7 @@ We intentionally cover the whole path from process start to user-visible complet
   - User actions and state transitions (examples): `interaction.<cmd>.state.*`, `interaction.<cmd>.action.*`, `interactive.<cmd>.state.*`, `interactive.<cmd>.action.*`.
   - Thinking time (examples): `interaction.<cmd>.wait.<state>`, `interactive.<cmd>.wait.<state>`.
 
-See terminal interaction definitions in `docs/interactions/interaction-guidelines.md#execution-contexts`.
+See terminal interaction definitions in `docs/contributing/interactions/interaction-guidelines.md#execution-contexts`.
 
 ### When to add markers
 

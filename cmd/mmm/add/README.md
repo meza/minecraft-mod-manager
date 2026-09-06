@@ -8,7 +8,7 @@ Product intent defines what the command must do. Keep the user guide accurate wh
 
 - Product intent: [`docs/intent.md`](../../../docs/intent.md)
 - User guide: [`docs/commands/add.md`](../../../docs/commands/add.md) (what users see and copy/paste)
-- Shared terminal implementation and presentation: [terminal corpus](../../../docs/interactions/README.md)
+- Shared terminal implementation and presentation: [terminal corpus](../../../docs/contributing/interactions/README.md)
 
 ## Code map
 

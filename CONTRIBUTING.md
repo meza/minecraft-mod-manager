@@ -12,18 +12,18 @@ its ancestors. Combine routes for mixed changes; unrelated guides do not need to
 | Work | Required guidance |
 | --- | --- |
 | Product requirements or design | [Product work](#product-work), [product intent](docs/intent.md), [glossary](docs/GLOSSARY.md), and the relevant [command guide](docs/commands/README.md) |
-| Go behavior or refactoring | [Code conventions](#code-conventions), [testing policy](docs/contributing/testing.md), and affected command or package guides |
-| Test-only changes | [Testing policy](docs/contributing/testing.md), then the guide for the test boundary |
-| Terminal components | [Terminal architecture](docs/guide-to-working-with-the-terminal.md), [Charm TUI guide (Bubble Tea, Bubbles and Lip Gloss)](docs/charm-tui/README.md), [interaction conventions](docs/interactions/README.md), and [component verification](docs/testing/components.md) |
-| Stories or gallery integration | [Charm TUI guide](docs/charm-tui/README.md), [gallery contribution guide](tools/bubblebook/README.md), and [component verification](docs/testing/components.md) |
-| E2E scenarios or harnesses | [E2E testing index](docs/testing/README.md) and its task-selected guides |
-| Translations or user-facing text | [Translations](#translations), [i18n guide](internal/i18n/README.md), and [interaction conventions](docs/interactions/interaction-guidelines.md) for controls and confirmation tokens |
+| Go behavior or refactoring | [Code conventions](#code-conventions), [testing policy](docs/contributing/testing/policy.md), and affected command or package guides |
+| Test-only changes | [Testing policy](docs/contributing/testing/policy.md), then the guide for the test boundary |
+| Terminal components | [Terminal architecture](docs/contributing/guide-to-working-with-the-terminal.md), [Charm TUI guide (Bubble Tea, Bubbles and Lip Gloss)](docs/contributing/charm-tui/README.md), [interaction conventions](docs/contributing/interactions/README.md), and [component verification](docs/contributing/testing/components.md) |
+| Stories or gallery integration | [Charm TUI guide](docs/contributing/charm-tui/README.md), [gallery contribution guide](tools/bubblebook/README.md), and [component verification](docs/contributing/testing/components.md) |
+| E2E scenarios or harnesses | [E2E testing index](docs/contributing/testing/README.md) and its task-selected guides |
+| Translations or user-facing text | [Translations](#translations), [i18n guide](internal/i18n/README.md), and [interaction conventions](docs/contributing/interactions/interaction-guidelines.md) for controls and confirmation tokens |
 | Provider integrations | [Shared platform boundary](internal/platform/README.md) and the relevant [CurseForge](internal/curseforge/README.md) or [Modrinth](internal/modrinth/README.md) guide |
 | Performance or telemetry | [Performance instrumentation](internal/perf/README.md) or [telemetry](internal/telemetry/README.md), according to the changed contract |
 | Documentation or comments | [Documentation procedure](docs/contributing/documentation.md) and [comment policy](docs/contributing/code-comments.md) when comments change |
 | Tooling, dependencies or configuration | [Cross-platform tooling](docs/contributing/cross-platform-tooling.md), affected documentation, and [verification](#verification) |
-| Review or re-review | [Code review](docs/code-review.md) and its task-selected procedure |
-| Addressing review findings | [Review remediation](docs/reviewing-code/addressing-findings.md) |
+| Review or re-review | [Code review](docs/contributing/reviewing-code/README.md) and its task-selected procedure |
+| Addressing review findings | [Review remediation](docs/contributing/reviewing-code/addressing-findings.md) |
 | Commits or pull requests | [Submission](#submission) |
 | Packaging or release | [Release guide](docs/contributing/releases.md) |
 | Project instruction maintenance | [Document ownership and routing](docs/contributing/documentation.md#instruction-and-contribution-guidance) |
@@ -39,7 +39,7 @@ make mod-download
 ~~~
 
 Use the applicable checks under [verification](#verification) to validate the change. The
-[terminal harness prerequisites](docs/testing/terminal-harness.md#prerequisites) apply before
+[terminal harness prerequisites](docs/contributing/testing/terminal-harness.md#prerequisites) apply before
 running native terminal E2E tests; the [gallery guide](tools/bubblebook/README.md) owns gallery
 setup.
 
@@ -102,7 +102,7 @@ running formatting or autofix commands.
 
 | Changed surface | Required evidence |
 | --- | --- |
-| Production behavior | Follow [test-first development](docs/contributing/testing.md#behavior-changes), prove the expected failure and subsequent passing behavior, and run the Go gates below |
+| Production behavior | Follow [test-first development](docs/contributing/testing/policy.md#behavior-changes), prove the expected failure and subsequent passing behavior, and run the Go gates below |
 | Behavior-preserving refactoring | Existing tests protect the affected contract; run the Go gates without inventing a new behavior solely to add a test |
 | Go test-only changes | Assert meaningful outcomes and run the relevant suite plus the Go gates; test review does not require reconstructing authoring chronology |
 | Documentation | Check content, terminology, examples, links and consistency using the [documentation procedure](docs/contributing/documentation.md); no production tests or application build are required |
@@ -125,14 +125,14 @@ Do not call Go test or build commands directly; use repository make targets.
 
 Every user-facing behavior change requires a product scenario and at least one automated test
 that would fail for a meaningful regression. Run `make e2e` when the change affects interactive
-terminal behavior or E2E scenarios and harnesses. Use the [E2E index](docs/testing/README.md) for
+terminal behavior or E2E scenarios and harnesses. Use the [E2E index](docs/contributing/testing/README.md) for
 required prerequisites and evidence, including other execution profiles affected by the change.
 Required complete layout or styling behavior needs tui-test snapshot coverage at relevant terminal
 dimensions. Direct component rendering checks complement that application evidence.
 
 Run `make test-race` for effectful terminal-component changes. It is also available as an optional
 additional check before larger concurrency changes. Report an unavailable race toolchain rather
-than treating a non-race run as equivalent. Follow [component verification](docs/testing/components.md)
+than treating a non-race run as equivalent. Follow [component verification](docs/contributing/testing/components.md)
 for component, root, runtime and story checks.
 
 Required evidence that cannot be obtained remains unverified. Explain the constraint and its effect
@@ -146,7 +146,7 @@ All user-facing strings go through i18n. Read the [i18n guide](internal/i18n/REA
 Reuse one key for identical user-facing content. Multiple keys with identical English are allowed
 only when their meanings intentionally differ and translations are expected to differ by locale;
 explain that exception in the change description. For interactive labels and confirmation tokens,
-also follow [interaction conventions](docs/interactions/interaction-guidelines.md).
+also follow [interaction conventions](docs/contributing/interactions/interaction-guidelines.md).
 
 ## Product work
 
@@ -179,5 +179,5 @@ Before submitting:
 - Complete the checks required for the changed surfaces.
 - Keep secrets out of commits, logs, output and fixtures.
 
-Use the [review guide](docs/code-review.md) for an advisory review and the
+Use the [review guide](docs/contributing/reviewing-code/README.md) for an advisory review and the
 [release guide](docs/contributing/releases.md) for packaging and release readiness.

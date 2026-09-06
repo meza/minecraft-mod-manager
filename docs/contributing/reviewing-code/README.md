@@ -8,10 +8,10 @@ Review the submitted work without changing it. Leave corrections, Git changes, a
 
 Read the guidance for the review you are doing before examining the change:
 
-- [Initial review](./reviewing-code/initial-review.md) covers the complete change.
-- [Re-review](./reviewing-code/re-review.md) covers findings, fixes, and affected flows. Apply initial-review guidance to new, expanded, or previously unreviewed work.
-- [Pull request reviews](./reviewing-code/pull-requests.md) covers the pull request description and discussion.
-- [Architectural fitness](./reviewing-code/architectural-fitness.md) applies to changes involving executable behaviour, schemas, public or typed contracts, module boundaries, dependencies, shared components, business rules, or architecture documentation.
+- [Initial review](initial-review.md) covers the complete change.
+- [Re-review](re-review.md) covers findings, fixes, and affected flows. Apply initial-review guidance to new, expanded, or previously unreviewed work.
+- [Pull request reviews](pull-requests.md) covers the pull request description and discussion.
+- [Architectural fitness](architectural-fitness.md) applies to changes involving executable behaviour, schemas, public or typed contracts, module boundaries, dependencies, shared components, business rules, or architecture documentation.
 
 Architectural review is not needed for prose, formatting, generated output, repository metadata, or mechanical changes that involve no architectural choice.
 
@@ -54,7 +54,7 @@ Exclude unrelated debt, personal preference, hypothetical risks without a credib
 
 ## Verify each changed surface
 
-Follow the contribution guide's [Verification](../CONTRIBUTING.md#verification) requirements for every changed surface. Record the commands, results, and relevant inspection evidence.
+Follow the contribution guide's [Verification](../../../CONTRIBUTING.md#verification) requirements for every changed surface. Record the commands, results, and relevant inspection evidence.
 
 - For production behaviour, use tests through stable interfaces at the appropriate level, together with the required code-quality, security, build, and end-to-end checks.
 - For documentation, check content, links, rendering, or other documentation-specific evidence.

@@ -5,7 +5,7 @@ description: MUST USE for reviewing Minecraft Mod Manager code changes
 
 # Code review
 
-Read [Code review](../../../docs/code-review.md) completely before reviewing a change. Follow its guidance and read every reference it selects for that review before inspecting the change. The document owns the review workflow, scope, findings, verdicts, and verification.
+Read [Code review](../../../docs/contributing/reviewing-code/README.md) completely before reviewing a change. Follow its guidance and read every reference it selects for that review before inspecting the change. The document owns the review workflow, scope, findings, verdicts, and verification.
 
 ## Select the review lane
 
@@ -19,7 +19,7 @@ When the request identifies a Linear ticket, retrieve it through the environment
 
 For a pull request, use the environment's enabled read-only GitHub integration to retrieve its title, complete body, target branch, head revision, and complete discussion history before establishing the comparison. Include general comments, submitted review bodies, inline threads, replies, and available resolved or outdated threads.
 
-Follow every pagination cursor exposed by the integration. Record the pull request identity, target and head revisions, retrieved fields, whether pagination completed, and any unavailable history. Apply the [pull request guide](../../../docs/reviewing-code/pull-requests.md) when assessing the effect of missing evidence.
+Follow every pagination cursor exposed by the integration. Record the pull request identity, target and head revisions, retrieved fields, whether pagination completed, and any unavailable history. Apply the [pull request guide](../../../docs/contributing/reviewing-code/pull-requests.md) when assessing the effect of missing evidence.
 
 Do not read tracker or GitHub credentials from repository or environment files, and do not improvise another access mechanism when an integration is unavailable.
 

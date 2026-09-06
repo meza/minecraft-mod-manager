@@ -7,7 +7,7 @@ the harness, prerequisites and suite lifecycle.
 
 ## Ownership and request flow
 
-[Product intent](../intent.md#acceptance-and-evidence) requires scenarios to exercise the real MMM process with deterministic network fixtures. The selected design is:
+[Product intent](../../intent.md#acceptance-and-evidence) requires scenarios to exercise the real MMM process with deterministic network fixtures. The selected design is:
 
 ```text
 Godog scenario -> fixture server setup and endpoint environment

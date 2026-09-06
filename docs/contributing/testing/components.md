@@ -92,7 +92,7 @@ and exercise its supported interactions. Record automated behaviour in component
 or root checks; the fact that a story launches is not evidence that its presentation is
 correct.
 
-See the [component gallery guide](../../tools/bubblebook/README.md) for running and
+See the [component gallery guide](../../../tools/bubblebook/README.md) for running and
 navigating the host.
 
 ## Keep real-process E2E distinct

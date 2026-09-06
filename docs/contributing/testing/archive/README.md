@@ -8,6 +8,6 @@ These references preserve historical tooling and evidence. Start with the
   recoverable source locations and requirement-assessment records.
 
 Historical assertions do not establish product requirements. Review the requirement
-against [product intent](../../intent.md) before reusing an expectation or creating
+against [product intent](../../../intent.md) before reusing an expectation or creating
 a snapshot baseline. Preserve the ledger's historical rows and append assessments
 using its recorded workflow.

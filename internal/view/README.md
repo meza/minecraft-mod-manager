@@ -41,8 +41,8 @@ These are intentionally thin wrappers so key help stays consistent and localizab
 ## Related docs
 
 For terminal interaction expectations and implementation guidance, see:
-- `docs/interactions/interaction-guidelines.md`
-- `docs/guide-to-working-with-the-terminal.md`
+- `docs/contributing/interactions/interaction-guidelines.md`
+- `docs/contributing/guide-to-working-with-the-terminal.md`
 
 ## Tests
 

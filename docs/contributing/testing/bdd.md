@@ -1,7 +1,7 @@
 # BDD architecture and shared product journeys
 
 This guide owns scenarios, profile execution, driver responsibilities and product
-assertions. Start with the [testing overview](README.md). [Product intent](../intent.md#acceptance-and-evidence)
+assertions. Start with the [testing overview](README.md). [Product intent](../../intent.md#acceptance-and-evidence)
 owns expected behaviour; [presentation testing](presentation.md) owns visual checks.
 
 ## One scenario in every profile
@@ -18,7 +18,7 @@ Scenario: Alice adds a mod to her installation
 ```
 
 The runner executes this unchanged scenario in all five
-[execution profiles](../intent.md#execution-modes-and-operator-intent). Selection
+[execution profiles](../../intent.md#execution-modes-and-operator-intent). Selection
 belongs outside shared Gherkin: no duplicate scenarios, profile-specific steps or
 profile Examples table. Each run has isolated actor/conversation state, workspace,
 fixtures and process lifecycle. Reports identify both scenario and profile.
@@ -88,7 +88,7 @@ Reading terminal text does not automatically make a check a visual test.
 
 Required results and decision records are product evidence even when observed in
 the terminal. Their text and formatting follow the shared
-[transcript contract](../intent.md#active-display-and-permanent-transcript).
+[transcript contract](../../intent.md#active-display-and-permanent-transcript).
 Equivalent outcomes and decisions use the same durable records under matching
 locale and character capabilities, whether supplied by prompts, arguments or defaults.
 Records appear once as outcomes settle, without replay or manufactured questions.

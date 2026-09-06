@@ -86,12 +86,12 @@ stays in the launcher. Application packages do not depend on stories, the galler
 or Bubblebook. This developer program is separate from the `mmm` executable and
 release archives.
 
-Follow the [terminal architecture guide](../../docs/guide-to-working-with-the-terminal.md)
+Follow the [terminal architecture guide](../../docs/contributing/guide-to-working-with-the-terminal.md)
 when designing composed application components. The gallery provides a place to
 preview those components as they become available; it does not implement the
 application's target terminal session architecture. Use the
-[component testing guide](../../docs/testing/components.md) to choose direct component,
+[component testing guide](../../docs/contributing/testing/components.md) to choose direct component,
 render, coordinating-root, runtime, story and E2E evidence.
 
 Use the repository checks in [CONTRIBUTING.md](../../CONTRIBUTING.md). For terminal
-verification tooling, see the [terminal E2E guide](../../docs/testing/terminal-harness.md).
+verification tooling, see the [terminal E2E guide](../../docs/contributing/testing/terminal-harness.md).

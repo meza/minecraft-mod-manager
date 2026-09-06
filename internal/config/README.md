@@ -62,7 +62,7 @@ Other failures (read/write permissions, etc) are returned as wrapped `error` val
 ## Related docs
 
 For the user-facing shape of these files, see the root [`README.md`](../../README.md).
-For authoritative behavior, see the [installation model](../../docs/intent.md#the-installation-model) and [paths and installation boundaries](../../docs/intent.md#paths-and-installation-boundaries) in product intent. The [command guide index](../../docs/commands/README.md) routes operator workflows, and [`docs/interactions/`](../../docs/interactions/README.md) describes terminal interactions.
+For authoritative behavior, see the [installation model](../../docs/intent.md#the-installation-model) and [paths and installation boundaries](../../docs/intent.md#paths-and-installation-boundaries) in product intent. The [command guide index](../../docs/commands/README.md) routes operator workflows, and [`docs/contributing/interactions/`](../../docs/contributing/interactions/README.md) describes terminal interactions.
 
 ## Tests
 

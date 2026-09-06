@@ -35,10 +35,10 @@ If you are adding a command that talks to an external API, start here.
 
 See the terminal contract and implementation guidance:
 
-- [progress bars](../../docs/interactions/interaction-guidelines.md#progress-bars)
+- [progress bars](../../docs/contributing/interactions/interaction-guidelines.md#progress-bars)
 - [execution modes and operator intent](../../docs/intent.md#execution-modes-and-operator-intent)
 - [active display and permanent transcript](../../docs/intent.md#active-display-and-permanent-transcript)
-- [guide to working with the terminal](../../docs/guide-to-working-with-the-terminal.md)
+- [guide to working with the terminal](../../docs/contributing/guide-to-working-with-the-terminal.md)
 
 ### Timeout policy
 

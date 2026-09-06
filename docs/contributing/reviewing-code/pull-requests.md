@@ -8,4 +8,4 @@ Use the description and discussion to understand purpose, boundaries, constraint
 
 Review the full agreed scope even when a comment highlights a smaller area. For an explicitly limited review, state the boundary and do not claim coverage beyond it.
 
-Run the checks required by the [review guide](../code-review.md#verify-each-changed-surface) and record the commands and results. CI provides additional evidence, but does not replace local verification or determine the verdict by itself. The implementer decides how the advisory review affects the pull request.
+Run the checks required by the [review guide](README.md#verify-each-changed-surface) and record the commands and results. CI provides additional evidence, but does not replace local verification or determine the verdict by itself. The implementer decides how the advisory review affects the pull request.

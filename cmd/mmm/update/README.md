@@ -4,4 +4,4 @@ This command currently runs without prompts. It reuses the same modlist/lockfile
 
 If you change behavior, follow the target in [`docs/intent.md`](../../../docs/intent.md) and keep the [`update` command guide](../../../docs/commands/update.md) accurate.
 
-Shared terminal implementation, conventions and annotated examples live in the [terminal corpus](../../../docs/interactions/README.md).
+Shared terminal implementation, conventions and annotated examples live in the [terminal corpus](../../../docs/contributing/interactions/README.md).

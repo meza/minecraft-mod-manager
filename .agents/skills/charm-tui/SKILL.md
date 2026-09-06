@@ -9,4 +9,4 @@ description: >
   Charm services or authorize a v1 migration.
 ---
 
-Please refer to the [charm-tui README](/docs/charm-tui/README.md) for the skill.
+Please refer to the [charm-tui README](/docs/contributing/charm-tui/README.md) for the skill.

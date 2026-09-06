@@ -1,9 +1,9 @@
 # Testing policy
 
 This guide owns general test design and test-first development. Use the
-[contribution verification policy](../../CONTRIBUTING.md#verification) to select required commands
+[contribution verification policy](../../../CONTRIBUTING.md#verification) to select required commands
 for the changed surfaces. Tests provide evidence for behavior; product requirements remain owned
-by [product intent](../intent.md) and the relevant [command guides](../commands/README.md).
+by [product intent](../../intent.md) and the relevant [command guides](../../commands/README.md).
 
 ## Choose the test boundary
 
@@ -15,11 +15,11 @@ core behavior merely to make coverage pass.
 | Contract | Guidance |
 | --- | --- |
 | Package behavior or an integration boundary | The affected package README and this policy |
-| Component state, rendering, root composition or runtime delivery | [Component verification](../testing/components.md) |
-| Operator capability through the real MMM process | [E2E architecture](../testing/README.md) and [BDD authoring](../testing/bdd.md) |
-| Application layout, animation or styling | [Presentation testing](../testing/presentation.md) |
-| HTTP responses across the process boundary | [HTTP fixtures](../testing/http-fixtures.md) |
-| Native terminal input, waits, screen state or lifecycle | [Terminal harness](../testing/terminal-harness.md) |
+| Component state, rendering, root composition or runtime delivery | [Component verification](components.md) |
+| Operator capability through the real MMM process | [E2E architecture](README.md) and [BDD authoring](bdd.md) |
+| Application layout, animation or styling | [Presentation testing](presentation.md) |
+| HTTP responses across the process boundary | [HTTP fixtures](http-fixtures.md) |
+| Native terminal input, waits, screen state or lifecycle | [Terminal harness](terminal-harness.md) |
 
 Documentation, configuration and mechanical changes use their own verification routes; do not
 invent production tests for work without an executable behavior contract.
@@ -53,10 +53,10 @@ a behavior change simply to create a new test.
 
 Run shared BDD scenarios unchanged across execution profiles. Drivers execute actions; shared
 product assertions verify capabilities; separately owned presentation checks reuse suitable
-journeys. Use [E2E architecture](../testing/README.md) for those boundaries.
+journeys. Use [E2E architecture](README.md) for those boundaries.
 
 Compare durable records and relevant resolved decisions under the
-[permanent transcript contract](../intent.md#active-display-and-permanent-transcript). Do not
+[permanent transcript contract](../../intent.md#active-display-and-permanent-transcript). Do not
 compare raw control bytes or input exchanges, or normalize away meaningful discrepancies.
 
 Prefer stable i18n keys, interpolation arguments, exit status, filesystem effects and semantic
@@ -69,9 +69,9 @@ PTY or terminal emulation helpers.
 ## Commands and retained snapshots
 
 Use repository make targets rather than direct Go test or build commands. The
-[verification policy](../../CONTRIBUTING.md#verification) owns gates and their applicability.
-The [terminal harness prerequisites](../testing/terminal-harness.md#prerequisites) and
-[HTTP fixture guide](../testing/http-fixtures.md) apply when running their respective E2E work.
+[verification policy](../../../CONTRIBUTING.md#verification) owns gates and their applicability.
+The [terminal harness prerequisites](terminal-harness.md#prerequisites) and
+[HTTP fixture guide](http-fixtures.md) apply when running their respective E2E work.
 
 `make coverage` runs the unified coverage tool, generates `coverage.html` and the function report
 in `coverage.out`, and enforces 100% coverage after configured exclusions.
@@ -85,5 +85,5 @@ UPDATE_SNAPS=true make coverage
 
 In PowerShell, set `UPDATE_SNAPS` to `true` in the command's environment before running
 `make coverage`, then restore its previous value. Inspect the updated baseline. Native terminal
-snapshots follow the [terminal harness workflow](../testing/terminal-harness.md), not this
+snapshots follow the [terminal harness workflow](terminal-harness.md), not this
 non-E2E update command.

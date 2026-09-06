@@ -139,7 +139,7 @@ When investigating a failure:
 
 ## Verify terminal lifetimes
 
-[Product intent](../intent.md#acceptance-and-evidence) owns acceptance requirements. Use the [component examples](../interactions/component-examples.md) to discuss presentation, not as an automatic snapshot baseline. The following observations connect the rendering architecture to real terminal evidence:
+[Product intent](../../intent.md#acceptance-and-evidence) owns acceptance requirements. Use the [component examples](../interactions/component-examples.md) to discuss presentation, not as an automatic snapshot baseline. The following observations connect the rendering architecture to real terminal evidence:
 
 | Journey | Evidence to retain |
 | --- | --- |

@@ -1,6 +1,6 @@
 # Guide to working with the terminal
 
-This guide helps contributors implement the terminal architecture required by [product intent](intent.md#component-ownership-and-architecture). It describes the target design and evidence needed to demonstrate it, not a claim that existing commands conform. [Command guides](commands/README.md) own inputs and outcomes. [Interaction conventions](interactions/interaction-guidelines.md) and [component examples](interactions/component-examples.md) support presentation decisions.
+This guide helps contributors implement the terminal architecture required by [product intent](../intent.md#component-ownership-and-architecture). It describes the target design and evidence needed to demonstrate it, not a claim that existing commands conform. [Command guides](../commands/README.md) own inputs and outcomes. [Interaction conventions](interactions/interaction-guidelines.md) and [component examples](interactions/component-examples.md) support presentation decisions.
 
 ## Start with ownership
 
@@ -17,11 +17,11 @@ Command orchestration can remain in command packages. Confirmation, selection, s
 
 Use native Bubble Tea v2 composition with one coordinating root and narrow capability components. Project components expose purpose-specific operations rather than each implementing a generic message loop; native Bubbles widgets may retain their framework integration contract. The root routes framework messages and makes transitions and effects explicit: the flow supplies a request, the capability collects a decision or observes work, and it returns a typed result plus any effect request. The root returns the corresponding command to the Bubble Tea runtime for execution, then routes the runtime result to the owning live component as a typed result. Children do not independently start terminal programs, perform domain operations or print around the renderer. Concrete packages and message types belong to implementation, following these boundaries.
 
-Existing capability helpers are described in [internal/view](../internal/view/README.md). Their presence is not evidence of a complete session architecture. Check an existing command's lifecycle before treating it as a reusable example.
+Existing capability helpers are described in [internal/view](../../internal/view/README.md). Their presence is not evidence of a complete session architecture. Check an existing command's lifecycle before treating it as a reusable example.
 
 ## Separate active state from durable events
 
-The [terminal contract](intent.md#active-display-and-permanent-transcript) gives active rendering and history different lifetimes. In the TUI, pending items, progress and unanswered prompts can repaint, sort and regroup. In every profile, settled results and relevant resolved decisions append once and cannot change in a later render.
+The [terminal contract](../intent.md#active-display-and-permanent-transcript) gives active rendering and history different lifetimes. In the TUI, pending items, progress and unanswered prompts can repaint, sort and regroup. In every profile, settled results and relevant resolved decisions append once and cannot change in a later render.
 
 The session coordinates these transitions:
 
@@ -57,7 +57,7 @@ Distinguish terminal-emulator scrollback from an MMM-owned viewport. A component
 
 ## Select presentation from capabilities and policy
 
-Follow the [execution-mode matrix](intent.md#execution-modes-and-operator-intent). Explicit `--unattended` always selects plain append-only output without questions, animation or styling/control sequences. Complete arguments alone do not select that policy. Otherwise, interactive input and output use rich controls where control sequences are supported, with Unicode or ASCII UI symbols as supported. Without control-sequence support, interactive execution collects equivalent decisions through line-based questions. Non-interactive execution, including redirection, never prompts and emits plain records.
+Follow the [execution-mode matrix](../intent.md#execution-modes-and-operator-intent). Explicit `--unattended` always selects plain append-only output without questions, animation or styling/control sequences. Complete arguments alone do not select that policy. Otherwise, interactive input and output use rich controls where control sequences are supported, with Unicode or ASCII UI symbols as supported. Without control-sequence support, interactive execution collects equivalent decisions through line-based questions. Non-interactive execution, including redirection, never prompts and emits plain records.
 
 Detect interaction, control-sequence and character capabilities at the session boundary and pass them consistently to consumers alongside invocation policy. TTY detection alone does not establish control-sequence or Unicode support. Terminal detection does not grant mutation authority, and unattended execution does not imply force. Use existing helpers where applicable, but verify both absence of control sequences and presence of required results. Disabling a renderer alone does not prove result delivery.
 
@@ -65,7 +65,7 @@ Error and diagnostic paths must cooperate with session output ownership, avoid c
 
 ## Compose setup and correction
 
-Invoke shared recovery according to [intent](intent.md#shared-setup-and-recovery). Preserve valid inputs while correcting another field. Return an explicit accepted, declined, cancelled or failed outcome; resume the command only after successful accepted recovery.
+Invoke shared recovery according to [intent](../intent.md#shared-setup-and-recovery). Preserve valid inputs while correcting another field. Return an explicit accepted, declined, cancelled or failed outcome; resume the command only after successful accepted recovery.
 
 Malformed syntax differs from a correctable supplied value. Do not reject every invalid field in a parser hook if that prevents required interactive correction. Without prompting, invalid requests fail without mutation.
 
@@ -81,6 +81,6 @@ Escape and documented quit shortcuts follow the active capability's [controls](i
 
 ## Prove the integration
 
-Start with the [component testing guide](testing/components.md) to choose direct component, render, root, runtime, story or real-process evidence. The [E2E testing guide](testing/README.md) owns scenarios, presentation checks and terminal tooling. [Intent's acceptance journeys](intent.md#acceptance-and-evidence) govern required observations.
+Start with the [component testing guide](testing/components.md) to choose direct component, render, root, runtime, story or real-process evidence. The [E2E testing guide](testing/README.md) owns scenarios, presentation checks and terminal tooling. [Intent's acceptance journeys](../intent.md#acceptance-and-evidence) govern required observations.
 
 Exercise direct component and coordinating-root checks for local transitions, rendering, routing and explicit effects. Use the native v2 program harness only for runtime-sensitive behaviour that direct model calls cannot prove. Exercise real consuming commands across the mode matrix for shell and process behaviour, including unattended execution in a capable terminal and with redirected I/O, rich ASCII interaction and plain line-based questions. Compare permanent records for equivalent prompted and supplied decisions, successful work, partial failure and cancellation. Model and in-process program tests cannot establish shell history, scroll round trips, restoration or cross-command consistency. Record the terminal and platform used to demonstrate renderer behavior. Do not normalize, reorder or reconstruct missing output to manufacture an expected screen.
