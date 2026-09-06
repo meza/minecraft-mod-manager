@@ -1,138 +1,81 @@
 # Code review
 
-Code review determines whether a change satisfies the requested outcome and fits the repository's
-current engineering and architectural contracts. Reviews are evidence-based and advisory: the
-reviewer reports every supported observation, while humans decide whether a finding prevents
-delivery.
+Code review determines whether a change satisfies the requested outcome and fits the repository's current engineering and architectural contracts. Reviews are evidence-based and advisory: the reviewer reports every supported observation, while the implementer decides whether a finding prevents delivery.
 
-A standalone review is recorded only in `code-review.md` at the repository root. Do not publish
-its findings through native pull-request review controls or another parallel review artifact.
+Review the submitted work without changing it. Leave corrections, Git changes, and ticket closure to the implementer.
 
-An independent handoff review required by repository coordination policy is a separate review lane,
-not another standalone review or a new human approval gate. Its reviewer reports directly to the
-implementation owner in the format requested by that policy and does not create or replace the root
-artifact. When that lane is limited to documentation, review only the changed documentation and its
-governing documentary evidence. Do not inspect production code, configuration, or runtime behaviour,
-and do not run production software tests. These restrictions do not narrow a standalone review.
+## Choose the review
 
-The remainder of this document governs standalone reviews.
+Read the guidance for the review you are doing before examining the change:
 
-## Load the guidance for this review
+- [Initial review](./reviewing-code/initial-review.md) covers the complete change.
+- [Re-review](./reviewing-code/re-review.md) covers findings, fixes, and affected flows. Apply initial-review guidance to new, expanded, or previously unreviewed work.
+- [Pull request reviews](./reviewing-code/pull-requests.md) covers the pull request description and discussion.
+- [Architectural fitness](./reviewing-code/architectural-fitness.md) applies to changes involving executable behaviour, schemas, public or typed contracts, module boundaries, dependencies, shared components, business rules, or architecture documentation.
 
-Read this document completely for every standalone review, then read each applicable reference
-completely before inspecting the change:
+Architectural review is not needed for prose, formatting, generated output, repository metadata, or mechanical changes that involve no architectural choice.
 
-- For an initial review, read [initial review](./reviewing-code/initial-review.md).
-- For a re-review, read [re-review](./reviewing-code/re-review.md). Also read and apply
-  [initial review](./reviewing-code/initial-review.md) to every new, expanded, or wholly uncovered
-  surface identified by the re-review procedure.
-- For a pull request review, read [pull requests](./reviewing-code/pull-requests.md).
-- Read [architectural fitness](./reviewing-code/architectural-fitness.md) when the change affects
-  executable behaviour, schemas, public or typed contracts, module boundaries, dependency
-  relationships, shared components, business rules, or architecture documentation.
+Read the relevant package guides and contribution requirements, including the Go and testing guidance when those areas change.
 
-Architectural-fitness guidance may be skipped only for prose, formatting, generated output,
-repository metadata, or mechanical work with no architectural choice.
+## Understand the change
 
-Load other repository guidance selected by the affected paths and concerns, including the
-repository's Go and test guidance when those surfaces change.
+Start with the requested outcome, its rationale, intended behaviour, constraints, and acceptance criteria. Read the associated ticket and its references when there is one. Otherwise, use the review request. Identify which requirement comes from which source, and raise unclear or unavailable requirements rather than guessing.
 
-## Establish context and scope
+The request, ticket requirements, normative references, and repository guidance define what the change must satisfy. Implementer notes can explain supporting work or add compatible constraints, but cannot narrow those requirements. Cleanup, refactoring, or supporting work is not a defect merely because it was not explicitly requested; a finding needs a concrete adverse consequence.
 
-Establish the requested outcome, rationale, intended behaviour, constraints, and acceptance criteria
-from the review request and the governing repository documents. Record the sources that establish
-each requirement. Together, these sources establish the review contract.
+## Agree the scope
 
-Request requirements and governing documents are binding review criteria. Implementer notes may add
-non-conflicting constraints or explain justified supporting work, but cannot narrow the request.
-Do not treat cleanup, refactoring, or supporting work outside an explicit requirement as a finding
-without a concrete adverse consequence.
+Unless the request specifies otherwise, an initial review covers the entire change:
 
-An unqualified initial review covers the entire active changeset. For local or ad hoc work, that is
-the working tree relative to `HEAD`, including staged, unstaged, and untracked files. For a pull
-request, it is the pull-request head relative to its target-branch merge base. An explicit pair of
-comparison references supplied by the user overrides those defaults. Use repository state only to
-establish the surface; do not report staging, tracking, branch, or commit hygiene as findings.
+- For local work, compare the working tree with `HEAD`, including staged, unstaged, and untracked files.
+- For a pull request, compare its head with the merge base of its target branch.
+- Use an explicit pair of comparison references when the request supplies one.
 
-Discover a local surface with read-only status and diff inspection. Take the union of tracked
-changes against `HEAD` and every untracked file, accounting for additions, modifications, deletions,
-and renames. Record `HEAD`, any explicit comparison references, and the complete file set under
-`Context and sources` so the coverage claim is reproducible.
+Include additions, modifications, deletions, and renames. Note the revisions and files reviewed so the scope is clear. Git status and diffs help establish this scope; staging, tracking, branch, and commit hygiene are not review findings.
 
-If the user explicitly narrows the review, record the included and excluded surfaces and claim
-completeness only for the declared scope. A review is incomplete until every file and materially
-affected flow in that scope has been examined. When the baseline or comparison endpoint cannot be
-established, record the ambiguity and use `Review incomplete`.
+For a limited review, state what is included and excluded. Examine every file and materially affected flow within that scope, and do not claim coverage beyond it. If the comparison cannot be established, explain what is missing and mark the review incomplete.
 
-## Review against the current standard
+## Assess the work
 
-Judge new and materially changed work against current repository guidance and configuration.
-Neighbouring legacy code explains constraints but is not proof that a pattern remains acceptable.
-A narrow change need not repair unrelated debt, although copied, extracted, substantially rewritten,
-or newly exposed code must meet the current standard.
+Judge new and materially changed work against current repository guidance and configuration. Neighbouring legacy code can explain constraints, but does not establish an acceptable pattern. A narrow change need not repair unrelated debt; copied, extracted, substantially rewritten, or newly exposed code must meet the current standard.
 
-Trace real control and data flows before reporting a defect. Review correctness, architecture,
-security, compatibility, failure handling, recovery, side effects, cross-platform behaviour, and
-test effectiveness where relevant. Tests must assert material behaviour rather than merely execute
-code. Do not require production tests for prose, configuration, generated output, or mechanical work
-when the appropriate repository checks provide the evidence.
+Trace the actual control and data flows. Consider correctness, architecture, security, compatibility, failure handling, recovery, side effects, cross-platform behaviour, and test effectiveness where relevant. Tests should assert material behaviour, not just execute code.
 
-Report only observations introduced, worsened, newly exposed, or made directly relevant by the
-change. Each finding must state:
+Report observations introduced, worsened, newly exposed, or made directly relevant by the change. Each finding needs:
 
-- the concrete observation and location;
+- the concrete observation and its location;
 - the reachable condition, execution path, or governing evidence;
-- the user, data, security, operational, architectural, or maintenance consequence; and
-- one bounded recommended outcome.
+- the consequence for users, data, security, operations, architecture, or maintenance; and
+- a bounded recommended outcome.
 
-Findings are objective and unranked. Do not add severity, priority, or delivery-impact labels.
-Group occurrences with the same root cause and identify every affected location. Do not omit a
-supported finding because another one already determines the likely human decision.
+Keep findings objective and unranked, without severity, priority, or delivery-impact labels. Group occurrences with the same root cause and identify every affected location. Report every supported finding, even when another finding already warrants changes.
 
-Do not report unrelated debt, personal preference, deterministic failures already fully represented
-by a recorded repository check, hypothetical risks without a credible path, or redesigns whose only
-benefit is aesthetic consistency. Do not manufacture a finding when the change is acceptable.
+Exclude unrelated debt, personal preference, hypothetical risks without a credible path, and redesigns whose only benefit is aesthetic consistency. A defect demonstrated by a check is a finding: report it once with the command and result, adding any analysis needed to explain the consequence. An acceptable change needs no findings.
 
 ## Verify each changed surface
 
-Read the root contribution guide's canonical [Verification](../CONTRIBUTING.md#verification) section
-and select its required checks for every changed surface. Run only non-mutating review commands and
-record each command and result. In particular:
+Follow the contribution guide's [Verification](../CONTRIBUTING.md#verification) requirements for every changed surface. Record the commands, results, and relevant inspection evidence.
 
-- verify production-code behaviour through stable interfaces at the test level appropriate to the
-  change, together with the applicable code-quality, security, build, and end-to-end gates;
-- verify documentation with content, link, render, or documentation-specific checks;
-- verify configuration with its parser, schema, or tool-native validation;
-- verify mechanical edits with searches, diffs, and relevant static checks; and
-- verify generated output through its owning generation or staleness check without editing it.
+- For production behaviour, use tests through stable interfaces at the appropriate level, together with the required code-quality, security, build, and end-to-end checks.
+- For documentation, check content, links, rendering, or other documentation-specific evidence.
+- For configuration, use parser, schema, or tool-native validation.
+- For mechanical edits, use searches, diffs, and relevant static checks.
+- For generated output, use the owning generation or staleness check without updating the output.
 
-Mixed changes require the combined checks selected for their surfaces. Do not run production
-software tests merely to validate prose, configuration, generated output, or a mechanical edit.
-Remote CI may provide additional evidence, but it does not replace required local evidence. Fixing,
-formatting, snapshot-update, and generation commands are for implementers; reviewers record the
-failure and do not mutate the working tree.
+Combine the required checks for mixed changes. Production tests are not a substitute for the appropriate documentation, configuration, generated-output, or mechanical checks. CI can provide additional evidence, but does not replace required local verification.
 
-When a required command cannot run, record the attempted command, the exact constraint or failure,
-and the resulting evidence gap. `Review incomplete` takes precedence over the other verdicts while
-any material evidence gap remains. A failed check whose output fully establishes a concrete finding
-does not by itself make the review incomplete; record the finding and use `Changes recommended`.
+Run checks rather than correction commands such as `make fmt`, `make lint-fix`, snapshot updates, or regeneration. Ordinary build, test, and coverage output is a by-product of verification, not part of the submitted change. Leave fixes to the implementer.
 
-## Write `code-review.md`
+If a required check cannot run, record the attempted command, the exact failure or constraint, and what remains unverified. A failed check that conclusively demonstrates a defect is evidence for a change recommendation; it does not by itself make the review incomplete.
 
-Use these sections in this order:
+## Complete the review
 
-1. **Context and sources** - requested outcome and rationale, review type, declared scope,
-   changed surfaces, and every requirement or guidance source read.
-2. **Requirements** - complete, explicit acceptance criteria, each attributed to the request or a
-   named repository document and section.
-3. **Advisory verdict** - exactly one of `No changes recommended`, `Changes recommended`, or
-   `Review incomplete`, followed by a concise evidence-based rationale.
-4. **Findings** - objective, unranked findings. Write `No findings` when there are none.
-5. **Validation evidence** - every surface-appropriate local command with its result, plus targeted
-   inspection or behavioural evidence used by the review.
-6. **Unverified evidence and questions** - material evidence gaps and decisions that require human
-   input. Write `None` when there are none.
+Explain what was reviewed, the requirements and sources used, the findings, the verification results, and any outstanding questions or evidence gaps. Make each finding actionable and self-contained.
 
-Keep each finding actionable and self-contained. The review is complete when the artifact accounts
-for every in-scope file and affected flow, every applicable requirement, all prior findings in a
-re-review, and all required surface-appropriate verification.
+Use one advisory verdict with a brief explanation:
+
+- `Review incomplete` when a material evidence gap remains. This takes precedence over the other verdicts.
+- `Changes recommended` when findings remain.
+- `No changes recommended` when the review is complete and no corrections are needed.
+
+Before finishing, account for every in-scope file and affected flow, every applicable requirement, all findings being re-reviewed, and the required verification. The implementer decides how the review affects delivery.

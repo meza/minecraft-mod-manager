@@ -3,54 +3,47 @@ name: code-review-rules
 description: MUST USE for reviewing Minecraft Mod Manager code changes
 ---
 
-# Code review router
+# Code review
 
-## Load the canonical policy
+Read [Code review](../../../docs/code-review.md) completely before reviewing a change. Follow its guidance and read every reference it selects for that review before inspecting the change. The document owns the review workflow, scope, findings, verdicts, and verification.
 
-Read [`../../../docs/code-review.md`](../../../docs/code-review.md) completely before reviewing a
-change. It owns the review workflow, scope, evidence, verdicts, and output format. Read every
-reference that it selects for the current review before inspecting the change.
+## Select the review lane
 
-## Establish the work item
+For a standalone review, follow the contributor procedure and the response structure below.
 
-- When the request identifies a Linear ticket, retrieve it through the environment's enabled
-  Linear connector. Extract a ticket identifier from a supplied Linear URL when necessary.
-- Do not read tracker credentials from repository files or environment files, and do not improvise
-  another access mechanism. If the connector is unavailable, record the missing evidence under
-  `Unverified evidence and questions` in `code-review.md`.
-- When no ticket is identified, use the request's rationale, intended behaviour, constraints, and
-  acceptance criteria as the work item. Record material ambiguity instead of inventing a
-  requirement.
-- A ticket's requirements and normative references cannot be narrowed by implementer notes.
-  Non-conflicting implementer constraints and justified additional work remain part of the review.
+For an independent handoff review, follow the assigned lane's scope, evidence restrictions, and reporting format. Report directly to the implementation owner. A documentation-only lane may inspect only the changed documentation and its permitted documentary references, not production code, tests, configuration, or runtime behaviour. Do not run production tests for that lane.
 
-## Preserve the review boundary
+## Retrieve the work item
 
-- The only review artifact is `code-review.md` in the repository root. Put all findings, evidence,
-  questions, and the advisory verdict there.
-- Do not modify submitted implementation, tests, documentation, configuration, or tracker state
-  during a review. Writing the required root `code-review.md` artifact is the only exception. Do not
-  delete `code-review.md`.
-- Do not run formatters, auto-fixers, or other commands intended to rewrite repository files.
-- Do not mutate Git state. Read-only Git commands may be used to discover and understand the review
-  surface, but staging, tracking, branch, and commit state are not review findings.
-- Verification commands may generate ordinary build, test, or coverage artifacts. Treat those as
-  review by-products, not as part of the submitted change.
-- The reviewer cannot close tickets or decide whether a finding blocks delivery. Humans own those
-  decisions.
+When the request identifies a Linear ticket, retrieve it through the environment's enabled Linear connector. Extract the ticket identifier from a supplied Linear URL when necessary. If the connector is unavailable, report the missing evidence and its effect on the review.
 
-## Complete the review
+For a pull request, use the environment's enabled read-only GitHub integration to retrieve its title, complete body, target branch, head revision, and complete discussion history before establishing the comparison. Include general comments, submitted review bodies, inline threads, replies, and available resolved or outdated threads.
 
-- For an initial review, cover every file and materially affected control or data flow in the
-  declared review surface. A user may explicitly narrow that surface; record the boundary and do
-  not claim coverage outside it.
-- For a re-review, use the prior matching `code-review.md` as the baseline and follow the bounded
-  re-review guidance selected by the canonical policy.
-- Read [`../../../CONTRIBUTING.md`](../../../CONTRIBUTING.md) and run every required gate command
-  named in its `Required local checks` section. Record each command and result in `code-review.md`.
-  The contribution guide's advice to run `make fmt` or `make lint-fix` after a failed gate is for
-  implementers, not reviewers; record the failure without running either fix target. Never
-  substitute a CI status for required local evidence.
-- Finish by reconciling the work item, every in-scope file, affected flows, applicable guidance,
-  prior findings when relevant, and validation evidence. If evidence is incomplete, use the
-  `Review incomplete` advisory verdict.
+Follow every pagination cursor exposed by the integration. Record the pull request identity, target and head revisions, retrieved fields, whether pagination completed, and any unavailable history. Apply the [pull request guide](../../../docs/reviewing-code/pull-requests.md) when assessing the effect of missing evidence.
+
+Do not read tracker or GitHub credentials from repository or environment files, and do not improvise another access mechanism when an integration is unavailable.
+
+## Use read-only review tools
+
+Discover local changes with read-only status and diff commands. For an unqualified local review, take the union of tracked changes against `HEAD` and untracked files, including additions, modifications, deletions, and renames. Use explicit comparison references and scope limits when supplied by the request, as defined in the contributor guide. Record `HEAD`, any explicit comparison references, and the complete reviewed file set.
+
+Do not modify the submitted implementation, tests, documentation, configuration, tracker state, or Git state. Do not run formatters, auto-fixers, snapshot updates, or generation commands intended to rewrite repository files. Verification may produce ordinary build, test, or coverage output; treat it as a by-product rather than part of the submitted change.
+
+Do not create native GitHub review comments, submit approval or change-request decisions, duplicate findings in pull-request discussion, or close tickets. The implementer owns delivery and ticket decisions.
+
+Run the checks selected by [CONTRIBUTING's Verification section](../../../CONTRIBUTING.md#verification) for the changed surfaces. Capture each command and result. A failed check does not authorise `make fmt`, `make lint-fix`, or another correction command. CI status does not replace required local evidence.
+
+## Return the standalone review
+
+Use these sections in the response, in order:
+
+1. **Context and sources**: requested outcome and rationale, review type, scope, comparison references, reviewed files, and requirement or guidance sources.
+2. **Requirements**: acceptance criteria attributed to the request, ticket, or repository document and section.
+3. **Advisory verdict**: one of the contributor guide's verdicts with an evidence-based rationale.
+4. **Findings**: the supported findings, or `No findings`.
+5. **Validation evidence**: local commands and results, targeted inspection evidence, and integration retrieval coverage.
+6. **Unverified evidence and questions**: material evidence gaps and decisions requiring input, or `None`.
+
+## Self-verification
+
+Reconcile the work item, every in-scope file and affected flow, applicable guidance, findings being re-reviewed, and verification evidence. Check that integration retrieval is complete or its gaps are disclosed. Apply the contributor guide's verdict precedence, and respect the assigned lane's evidence and reporting limits.
