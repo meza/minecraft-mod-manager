@@ -105,7 +105,6 @@ running formatting or autofix commands.
 | Production behavior | Follow [test-first development](docs/contributing/testing/policy.md#behavior-changes), prove the expected failure and subsequent passing behavior, and run the Go gates below |
 | Behavior-preserving refactoring | Existing tests protect the affected contract; run the Go gates without inventing a new behavior solely to add a test |
 | Go test-only changes | Assert meaningful outcomes and run the relevant suite plus the Go gates; test review does not require reconstructing authoring chronology |
-| Documentation | Check content, terminology, examples, links and consistency using the [documentation procedure](docs/contributing/documentation.md); no production tests or application build are required |
 | Configuration or dependencies | Validate relevant syntax, schema, defaults, precedence and intended effects; run code or integration gates when the change affects those surfaces |
 | Mechanical changes | Use targeted searches, diffs and relevant static checks; retain code gates if executable behavior or compilation may be affected |
 | Development tooling | Apply the [tooling policy](docs/contributing/cross-platform-tooling.md), relevant static/build checks and tool-specific effect validation |
