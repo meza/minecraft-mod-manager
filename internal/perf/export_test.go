@@ -419,7 +419,7 @@ func TestAttributeValueToInterface_CoversAllTypes(t *testing.T) {
 	assert.Equal(t, []int64{1, 2}, attributeValueToInterface(attribute.Int64Slice("is", []int64{1, 2}).Value))
 	assert.Equal(t, []float64{1.0, 2.5}, attributeValueToInterface(attribute.Float64Slice("fs", []float64{1.0, 2.5}).Value))
 	assert.Equal(t, []string{"a", "b"}, attributeValueToInterface(attribute.StringSlice("ss", []string{"a", "b"}).Value))
-	assert.Equal(t, attribute.Value{}.Emit(), attributeValueToInterface(attribute.Value{}))
+	assert.Equal(t, "unknown", attributeValueToInterface(attribute.Value{}))
 }
 
 func TestNormalizeValue_CleansRelativePaths(t *testing.T) {

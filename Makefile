@@ -18,7 +18,6 @@ ifeq ($(OS),Windows_NT)
 else
         E2E_EXECUTABLE := $(E2E_BUILD_DIR)/mmm
 endif
-GOLANGCI_LINT_TOOLCHAIN := go1.25.5
 GOVULNCHECK_TOOLCHAIN := go1.25.5
 
 ifeq ($(OS),Windows_NT)
@@ -89,18 +88,10 @@ else
 endif
 
 lint:
-ifeq ($(OSFAMILY), Windows)
-	@powershell -NoProfile -Command "$$env:GOTOOLCHAIN='$(GOLANGCI_LINT_TOOLCHAIN)'; go run github.com/golangci/golangci-lint/v2/cmd/golangci-lint run"
-else
-	@GOTOOLCHAIN=$(GOLANGCI_LINT_TOOLCHAIN) go run github.com/golangci/golangci-lint/v2/cmd/golangci-lint run
-endif
+	go run github.com/golangci/golangci-lint/v2/cmd/golangci-lint run
 
 lint-fix:
-ifeq ($(OSFAMILY), Windows)
-	@powershell -NoProfile -Command "$$env:GOTOOLCHAIN='$(GOLANGCI_LINT_TOOLCHAIN)'; go run github.com/golangci/golangci-lint/v2/cmd/golangci-lint run --fix"
-else
-	@GOTOOLCHAIN=$(GOLANGCI_LINT_TOOLCHAIN) go run github.com/golangci/golangci-lint/v2/cmd/golangci-lint run --fix
-endif
+	go run github.com/golangci/golangci-lint/v2/cmd/golangci-lint run --fix
 
 # NOTE: govulncheck symbol scan panics under Go 1.25.x; see https://github.com/golang/go/issues/73871
 vuln:
