@@ -1,5 +1,7 @@
 {
   "$schema": "https://docs.renovatebot.com/renovate-schema.json",
   "extends": ["github>stateshifters/renovate-common"],
-  "baseBranches": ["go"]
+  "baseBranchPatterns": [
+    "go"
+  ]
 }
