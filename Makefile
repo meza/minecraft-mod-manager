@@ -93,13 +93,8 @@ lint:
 lint-fix:
 	go run github.com/golangci/golangci-lint/v2/cmd/golangci-lint run --fix
 
-# NOTE: govulncheck symbol scan panics under Go 1.25.x; see https://github.com/golang/go/issues/73871
 vuln:
-ifeq ($(OSFAMILY), Windows)
-	@powershell -NoProfile -Command "$$env:GOTOOLCHAIN='$(GOVULNCHECK_TOOLCHAIN)'; go run golang.org/x/vuln/cmd/govulncheck -scan=package ./..."
-else
-	@GOTOOLCHAIN=$(GOVULNCHECK_TOOLCHAIN) go run golang.org/x/vuln/cmd/govulncheck -scan=package ./...
-endif
+	go run golang.org/x/vuln/cmd/govulncheck -scan=package ./...
 
 # Clean build directory
 ifeq ($(OSFAMILY), Unix)
