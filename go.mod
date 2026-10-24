@@ -2,7 +2,7 @@ module github.com/meza/minecraft-mod-manager
 
 go 1.25.0
 
-toolchain go1.26.10
+toolchain go1.27.2
 
 require (
 	github.com/CycloneDX/cyclonedx-gomod v1.9.0
