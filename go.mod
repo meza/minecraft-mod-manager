@@ -38,7 +38,6 @@ require (
 	golang.org/x/time v0.14.0
 	golang.org/x/vuln v1.1.4
 	gopkg.in/dnaeon/go-vcr.v2 v2.3.0
-	shanhu.io/g v0.0.0-20240812005415-1ae7504cde0e
 )
 
 require (
