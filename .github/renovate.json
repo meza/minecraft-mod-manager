@@ -3,5 +3,6 @@
   "extends": ["github>stateshifters/renovate-common"],
   "baseBranchPatterns": [
     "go"
-  ]
+  ],
+  "prConcurrentLimit": 2
 }
