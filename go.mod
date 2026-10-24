@@ -1,6 +1,6 @@
 module github.com/meza/minecraft-mod-manager
 
-go 1.25
+go 1.25.0
 
 toolchain go1.25.5
 
@@ -32,7 +32,7 @@ require (
 	go.opentelemetry.io/otel v1.39.0
 	go.opentelemetry.io/otel/sdk v1.39.0
 	go.opentelemetry.io/otel/trace v1.39.0
-	golang.org/x/sync v0.19.0
+	golang.org/x/sync v0.22.0
 	golang.org/x/term v0.38.0
 	golang.org/x/text v0.32.0
 	golang.org/x/time v0.14.0
