@@ -192,7 +192,7 @@ require (
 	github.com/knadh/koanf/parsers/json v1.0.0 // indirect
 	github.com/knadh/koanf/parsers/toml/v2 v2.2.0 // indirect
 	github.com/knadh/koanf/parsers/yaml v1.1.0 // indirect
-	github.com/knadh/koanf/providers/fs v1.0.0 // indirect
+	github.com/knadh/koanf/providers/fs v1.0.1 // indirect
 	github.com/knadh/koanf/providers/rawbytes v1.0.0 // indirect
 	github.com/knadh/koanf/v2 v2.3.0 // indirect
 	github.com/kr/pretty v0.3.1 // indirect
