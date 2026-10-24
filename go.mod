@@ -67,7 +67,7 @@ require (
 	github.com/MirrexOne/unqueryvet v1.5.4 // indirect
 	github.com/OpenPeeDeeP/depguard/v2 v2.2.1 // indirect
 	github.com/ProtonMail/go-crypto v1.5.2 // indirect
-	github.com/agentable/go-intl v0.2.14 // indirect
+	github.com/agentable/go-intl v0.2.17 // indirect
 	github.com/alecthomas/chroma/v2 v2.27.0 // indirect
 	github.com/alecthomas/go-check-sumtype v0.5.1-0.20260828200218-ae6904d28606 // indirect
 	github.com/alecthomas/repr v0.5.4 // indirect
@@ -201,7 +201,7 @@ require (
 	github.com/julz/importas v0.2.0 // indirect
 	github.com/kaptinlin/jsonpointer v0.4.28 // indirect
 	github.com/kaptinlin/jsonschema v0.9.10 // indirect
-	github.com/kaptinlin/messageformat-go/mf1 v0.8.3 // indirect
+	github.com/kaptinlin/messageformat-go/mf1 v0.8.6 // indirect
 	github.com/karamaru-alpha/copyloopvar v1.2.2 // indirect
 	github.com/kevinburke/ssh_config v1.6.0 // indirect
 	github.com/kisielk/errcheck v1.30.0 // indirect

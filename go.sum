@@ -115,8 +115,8 @@ github.com/OpenPeeDeeP/depguard/v2 v2.2.1 h1:vckeWVESWp6Qog7UZSARNqfu/cZqvki8zsu
 github.com/OpenPeeDeeP/depguard/v2 v2.2.1/go.mod h1:q4DKzC4UcVaAvcfd41CZh0PWpGgzrVxUYBlgKNGquUo=
 github.com/ProtonMail/go-crypto v1.5.2 h1:cucYnvqcY7UOXVD//mSyjeaPY0SSN3v5cDkYPxumINk=
 github.com/ProtonMail/go-crypto v1.5.2/go.mod h1:/RaSu30DaKO4RY+XdV/ACcCcZkGr7AhUIduq5sjzzCo=
-github.com/agentable/go-intl v0.2.14 h1:YDlxoHJfxDUTGjphdWXHamRmSJ0NF2oZmJGQFkciqco=
-github.com/agentable/go-intl v0.2.14/go.mod h1:dTVfDMS4F0TirLOmeY+T4LPEz9i3zSIF4Dfu2dz77dI=
+github.com/agentable/go-intl v0.2.17 h1:3blR3VCaoeje4/NHkOJDar1LjGmX+Pi+lm0FjlG/BCA=
+github.com/agentable/go-intl v0.2.17/go.mod h1:dTVfDMS4F0TirLOmeY+T4LPEz9i3zSIF4Dfu2dz77dI=
 github.com/alcortesm/tgz v0.0.0-20161220082320-9c5fe88206d7 h1:uSoVVbwJiQipAclBbw+8quDsfcvFjOpI5iCf4p/cqCs=
 github.com/alcortesm/tgz v0.0.0-20161220082320-9c5fe88206d7/go.mod h1:6zEj6s6u/ghQa61ZWa/C2Aw3RkjiTBOix7dkqa1VLIs=
 github.com/alecthomas/assert/v2 v2.11.0 h1:2Q9r3ki8+JYXvGsDyBXwH3LcJ+WK5D0gc5E8vS6K3D0=
@@ -589,8 +589,8 @@ github.com/kaptinlin/jsonpointer v0.4.28 h1:PyxOfdml9PGpxQz+JnNLGsyzQ+Rnm+OVNTGc
 github.com/kaptinlin/jsonpointer v0.4.28/go.mod h1:JzeIDw1+60bryzOFea9P3zjKg8pfJHd+UIA/zfZ70x8=
 github.com/kaptinlin/jsonschema v0.9.10 h1:dnMgwshay3YVUjFEHn6Bnf5oZ3LE1iQAL4iB2vSmviM=
 github.com/kaptinlin/jsonschema v0.9.10/go.mod h1:ZgmK1hBhK8zmScMktiE+DRr3U3POBHupO4TvnFntel0=
-github.com/kaptinlin/messageformat-go/mf1 v0.8.3 h1:0O5wpU8pCMc7jNHxhC8VOFIfX3NE6/j8yQHd/LWfeEE=
-github.com/kaptinlin/messageformat-go/mf1 v0.8.3/go.mod h1:kH9vDVMi31ccWuiE6f2RVC/Wi1Ldtz1ocITILFaz9PU=
+github.com/kaptinlin/messageformat-go/mf1 v0.8.6 h1:6cOpT7bPl7a4mKim5KMloH2XzxFRmucdLHylXnqipP8=
+github.com/kaptinlin/messageformat-go/mf1 v0.8.6/go.mod h1:FP1S5cO5GMhYy8S73XE/y2vIbYvrswBocVR6TXAtzwQ=
 github.com/karamaru-alpha/copyloopvar v1.2.2 h1:yfNQvP9YaGQR7VaWLYcfZUlRP2eo2vhExWKxD/fP6q0=
 github.com/karamaru-alpha/copyloopvar v1.2.2/go.mod h1:oY4rGZqZ879JkJMtX3RRkcXRkmUvH0x35ykgaKgsgJY=
 github.com/kevinburke/ssh_config v0.0.0-20190725054713-01f96b0aa0cd/go.mod h1:CT57kijsi8u/K/BOFA39wgDQJ9CxiF4nAY/ojJ6r6mM=
