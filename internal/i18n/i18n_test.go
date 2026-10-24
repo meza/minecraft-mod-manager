@@ -293,10 +293,15 @@ func TestGetUserLocalesProviderSuccess(t *testing.T) {
 }
 
 func TestDefaultLocaleProvider(t *testing.T) {
+	t.Setenv("LANGUAGE", "en_GB.UTF-8")
+	t.Setenv("LC_ALL", "en_GB.UTF-8")
+	t.Setenv("LC_MESSAGES", "en_GB.UTF-8")
+	t.Setenv("LANG", "en_GB.UTF-8")
+
 	provider := DefaultLocaleProvider{}
 	locales, err := provider.GetLocales()
 	assert.NoError(t, err)
-	assert.NotNil(t, locales)
+	assert.NotEmpty(t, locales)
 }
 
 func TestBuildLocalizerLocales(t *testing.T) {

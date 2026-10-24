@@ -2,6 +2,7 @@ package scan
 
 import (
 	"context"
+	"strings"
 	"testing"
 	"time"
 
@@ -373,6 +374,25 @@ func TestScanRenderWithStickyHeaderSkipsWhenHeaderMissing(t *testing.T) {
 
 	content := "Other Header\nalpha.jar"
 	assert.Equal(t, content, model.renderWithStickyHeader(content, "cmd.scan.header.running"))
+}
+
+func TestScanRenderWithStickyHeaderRepeatsHeaderWhenContentOverflows(t *testing.T) {
+	t.Setenv("MMM_TEST", "true")
+
+	items := []scanItem{{FileName: "alpha.jar", Status: scanItemStatusScanning}}
+	model := newScanModel(scanModelInput{
+		ctx:        context.Background(),
+		colorMode:  view.ColorDisabled,
+		items:      items,
+		indexByKey: scanIndexByFile(items),
+	})
+	updated, cmd := model.Update(tea.WindowSizeMsg{Width: 80, Height: 1})
+	assert.Nil(t, cmd)
+
+	rendered := updated.View()
+	assert.Equal(t, 2, strings.Count(rendered, "cmd.scan.header.running"))
+	assert.Contains(t, rendered, "alpha.jar")
+	assert.Greater(t, strings.LastIndex(rendered, "cmd.scan.header.running"), strings.Index(rendered, "alpha.jar"))
 }
 
 func TestScanSplitHeaderFromContent(t *testing.T) {

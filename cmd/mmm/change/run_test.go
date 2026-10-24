@@ -158,6 +158,56 @@ func TestRunChangeReturnsOutputErrorWhenUnmanagedNoticeWriteFails(t *testing.T) 
 	assert.Equal(t, 1, result.ExitCode)
 }
 
+func TestRunChangeMarksUnmanagedFilesErrorHandledAfterNotice(t *testing.T) {
+	t.Setenv("MMM_TEST", "true")
+	fs := afero.NewMemMapFs()
+	meta := config.NewMetadata(filepath.FromSlash("/cfg/modlist.json"))
+	cfg := models.ModsJSON{Loader: models.FABRIC, GameVersion: "1.20.1", ModsFolder: "mods"}
+	require.NoError(t, fs.MkdirAll(meta.ModsFolderPath(cfg), 0755))
+	require.NoError(t, config.WriteConfig(context.Background(), fs, meta, cfg))
+	require.NoError(t, config.WriteLock(context.Background(), fs, meta, []models.ModInstall{}))
+	unmanagedPath := filepath.Join(meta.ModsFolderPath(cfg), "unmanaged.jar")
+	require.NoError(t, afero.WriteFile(fs, unmanagedPath, []byte("unmanaged data"), 0644))
+	configBefore, err := afero.ReadFile(fs, meta.ConfigPath)
+	require.NoError(t, err)
+
+	cmd := &cobra.Command{}
+	cmd.SetIn(&bytes.Buffer{})
+	cmd.SetOut(&bytes.Buffer{})
+	var noticeLines []string
+	result, err := runChange(context.Background(), cmd, changeOptions{
+		ConfigPath: meta.ConfigPath,
+		LockSync:   locksync.PolicyFlags{Skip: true},
+	}, changeDeps{
+		fs:         fs,
+		readConfig: config.ReadConfig,
+		ensureLock: config.EnsureLock,
+		runTea: func(model tea.Model, _ ...tea.ProgramOption) (tea.Model, error) {
+			if outputModel, ok := model.(view.OutputLinesModel); ok {
+				noticeLines = append(noticeLines, outputModel.Lines...)
+			}
+			return model, nil
+		},
+		isValidVersion: func(context.Context, string, httpclient.Doer) (bool, error) {
+			t.Fatal("version validation must not run after the unmanaged-file gate fails")
+			return false, nil
+		},
+	})
+	assert.ErrorIs(t, err, interaction.ErrUnmanagedFiles)
+	assert.True(t, clierrors.IsHandled(err))
+	assert.Equal(t, 1, result.ExitCode)
+	require.Len(t, noticeLines, 1)
+	assert.Contains(t, noticeLines[0], "cmd.list.unmanaged.header")
+	assert.Contains(t, noticeLines[0], "unmanaged.jar")
+	assert.Contains(t, noticeLines[0], "cmd.list.unmanaged.cta")
+	configAfter, readErr := afero.ReadFile(fs, meta.ConfigPath)
+	require.NoError(t, readErr)
+	assert.Equal(t, configBefore, configAfter)
+	unmanagedAfter, readErr := afero.ReadFile(fs, unmanagedPath)
+	require.NoError(t, readErr)
+	assert.Equal(t, "unmanaged data", string(unmanagedAfter))
+}
+
 func TestResolveTargetVersionLatestError(t *testing.T) {
 	cmd := &cobra.Command{}
 	cmd.SetOut(&bytes.Buffer{})

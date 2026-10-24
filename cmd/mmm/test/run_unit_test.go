@@ -16,6 +16,7 @@ import (
 	"github.com/stretchr/testify/require"
 
 	initCmd "github.com/meza/minecraft-mod-manager/cmd/mmm/init"
+	"github.com/meza/minecraft-mod-manager/internal/clierrors"
 	"github.com/meza/minecraft-mod-manager/internal/config"
 	"github.com/meza/minecraft-mod-manager/internal/httpclient"
 	"github.com/meza/minecraft-mod-manager/internal/interaction"
@@ -1285,6 +1286,49 @@ func TestRunTestReturnsOutputErrorWhenUnmanagedNoticeWriteFails(t *testing.T) {
 
 	assert.ErrorIs(t, err, writeErr)
 	assert.Equal(t, 1, result.ExitCode)
+}
+
+func TestRunTestMarksUnmanagedFilesErrorHandledAfterNotice(t *testing.T) {
+	t.Setenv("MMM_TEST", "true")
+	fs := afero.NewMemMapFs()
+	meta := config.NewMetadata(filepath.FromSlash("/cfg/modlist.json"))
+	cfg := models.ModsJSON{Loader: models.FABRIC, GameVersion: "1.20.1", ModsFolder: "mods"}
+	require.NoError(t, fs.MkdirAll(meta.ModsFolderPath(cfg), 0755))
+	require.NoError(t, config.WriteConfig(context.Background(), fs, meta, cfg))
+	require.NoError(t, config.WriteLock(context.Background(), fs, meta, []models.ModInstall{}))
+	unmanagedPath := filepath.Join(meta.ModsFolderPath(cfg), "unmanaged.jar")
+	require.NoError(t, afero.WriteFile(fs, unmanagedPath, []byte("unmanaged data"), 0644))
+
+	cmd := &cobra.Command{}
+	cmd.SetIn(&bytes.Buffer{})
+	cmd.SetOut(&bytes.Buffer{})
+	var noticeLines []string
+	result, err := runTest(context.Background(), cmd, testOptions{
+		ConfigPath: meta.ConfigPath,
+		LockSync:   locksync.PolicyFlags{Skip: true},
+	}, testDeps{
+		fs: fs,
+		runTea: func(model tea.Model, _ ...tea.ProgramOption) (tea.Model, error) {
+			if outputModel, ok := model.(view.OutputLinesModel); ok {
+				noticeLines = append(noticeLines, outputModel.Lines...)
+			}
+			return model, nil
+		},
+		isValidVersion: func(context.Context, string, httpclient.Doer) (bool, error) {
+			t.Fatal("version validation must not run after the unmanaged-file gate fails")
+			return false, nil
+		},
+	})
+	assert.ErrorIs(t, err, interaction.ErrUnmanagedFiles)
+	assert.True(t, clierrors.IsHandled(err))
+	assert.Equal(t, 1, result.ExitCode)
+	require.Len(t, noticeLines, 1)
+	assert.Contains(t, noticeLines[0], "cmd.list.unmanaged.header")
+	assert.Contains(t, noticeLines[0], "unmanaged.jar")
+	assert.Contains(t, noticeLines[0], "cmd.list.unmanaged.cta")
+	unmanagedAfter, readErr := afero.ReadFile(fs, unmanagedPath)
+	require.NoError(t, readErr)
+	assert.Equal(t, "unmanaged data", string(unmanagedAfter))
 }
 
 type lockStatErrorFs struct {

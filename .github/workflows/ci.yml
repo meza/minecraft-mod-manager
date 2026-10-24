@@ -38,10 +38,20 @@ jobs:
           go-version: 1.25.5
           cache: true
 
-      - name: Install make on Windows
+      - name: Install pinned make on Windows
         if: runner.os == 'Windows'
         shell: pwsh
-        run: choco install make --no-progress --yes
+        run: |
+          $archive = Join-Path $env:RUNNER_TEMP 'make.4.4.1.zip'
+          $installDir = Join-Path $env:RUNNER_TEMP 'make'
+          $expectedSha256 = '8b2dec73ed4c84163c4a4f9bfe658553b1e3d1fdfa8930d2aa438e030ff21f9d'
+          Invoke-WebRequest 'https://community.chocolatey.org/api/v2/package/make/4.4.1' -OutFile $archive
+          $actualSha256 = (Get-FileHash -LiteralPath $archive -Algorithm SHA256).Hash.ToLowerInvariant()
+          if ($actualSha256 -ne $expectedSha256) {
+            throw "make package checksum mismatch: expected $expectedSha256, got $actualSha256"
+          }
+          Expand-Archive -LiteralPath $archive -DestinationPath $installDir -Force
+          Join-Path $installDir 'tools/install/bin' | Out-File -FilePath $env:GITHUB_PATH -Encoding utf8 -Append
 
       - name: Install pinned tui-test on Linux and macOS
         if: runner.os != 'Windows'
@@ -75,10 +85,10 @@ jobs:
           curl --proto '=https' --tlsv1.2 -LsSf \
             "https://github.com/microsoft/tui-test/releases/download/0.1.0-beta.2/$asset" \
             --output "$archive"
-          if command -v sha256sum >/dev/null 2>&1; then
-            echo "$sha256  $archive" | sha256sum --check
+          if [ "$RUNNER_OS" = macOS ]; then
+            echo "$sha256  $archive" | shasum -a 256 -c
           else
-            echo "$sha256  $archive" | shasum --algorithm 256 --check
+            echo "$sha256  $archive" | sha256sum -c
           fi
           mkdir -p "$TUI_TEST_INSTALL_DIR"
           tar -xzf "$archive" -C "$TUI_TEST_INSTALL_DIR"

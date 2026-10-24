@@ -31,17 +31,34 @@ func TestRunLockSyncPromptReturnsErrorOnRunTeaFailure(t *testing.T) {
 
 func TestLockSyncPromptModelSelectsPolicy(t *testing.T) {
 	t.Setenv("MMM_TEST", "true")
-	model := newLockSyncPromptModel("list")
-	updated, cmd := model.Update(tea.KeyMsg{Type: tea.KeyEnter})
-	require.NotNil(t, cmd)
-	_, ok := cmd().(tea.QuitMsg)
-	assert.True(t, ok)
+	testCases := []struct {
+		name   string
+		index  int
+		policy Policy
+		answer string
+	}{
+		{name: "add", index: 0, policy: PolicyAdd, answer: "cmd.lock_sync.answer.add"},
+		{name: "delete", index: 1, policy: PolicyDelete, answer: "cmd.lock_sync.answer.delete"},
+		{name: "ignore", index: 2, policy: PolicyIgnore, answer: "cmd.lock_sync.answer.ignore"},
+		{name: "skip", index: 3, policy: PolicySkip, answer: "cmd.lock_sync.answer.skip"},
+	}
+	for _, testCase := range testCases {
+		t.Run(testCase.name, func(t *testing.T) {
+			model := newLockSyncPromptModel("list")
+			model.list.Select(testCase.index)
+			updated, cmd := model.Update(tea.KeyMsg{Type: tea.KeyEnter})
+			require.NotNil(t, cmd)
+			_, ok := cmd().(tea.QuitMsg)
+			assert.True(t, ok)
 
-	typed, ok := updated.(lockSyncPromptModel)
-	require.True(t, ok)
-	assert.True(t, typed.answered)
-	assert.Equal(t, PolicyAdd, typed.policy)
-	assert.Contains(t, typed.View(), "cmd.lock_sync.answer.add")
+			typed, ok := updated.(lockSyncPromptModel)
+			require.True(t, ok)
+			assert.True(t, typed.answered)
+			assert.Equal(t, testCase.policy, typed.policy)
+			assert.Contains(t, typed.View(), testCase.answer)
+			assert.NotContains(t, typed.View(), "cmd.lock_sync.option.")
+		})
+	}
 }
 
 func TestLockSyncPromptModelCancelSetsCanceled(t *testing.T) {
