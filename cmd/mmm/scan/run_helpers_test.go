@@ -286,6 +286,39 @@ func TestRunInteractiveScanWritesResults(t *testing.T) {
 	assert.Contains(t, out.String(), "cmd.scan.header.results")
 }
 
+func TestRunInteractiveScanUsesTerminalDimensions(t *testing.T) {
+	t.Setenv("MMM_TEST", "true")
+
+	restoreTerminal := view.SetIsTerminalFuncForTesting(func(int) bool { return true })
+	t.Cleanup(restoreTerminal)
+	restoreSize := view.SetTerminalSizeFuncForTesting(func(int) (int, int, error) {
+		return 90, 24, nil
+	})
+	t.Cleanup(restoreSize)
+
+	original := runScanProgram
+	t.Cleanup(func() { runScanProgram = original })
+	runScanProgram = func(model *scanModel, _ ...tea.ProgramOption) (tea.Model, error) {
+		assert.Equal(t, 90, model.windowW)
+		assert.Equal(t, 24, model.windowH)
+		model.outcome = scanExecutionOutcome{unknown: []string{"alpha.jar"}}
+		return model, nil
+	}
+
+	out := fakeTTY{Buffer: &bytes.Buffer{}}
+	cmd := &cobra.Command{}
+	cmd.SetIn(&bytes.Buffer{})
+	cmd.SetOut(out)
+
+	outcome, err := runInteractiveScan(context.Background(), cmd,
+		scanExecutionInput{deps: scanDeps{runTea: runTeaStub(runTeaScenario{})}},
+		scanOptions{},
+	)
+	assert.NoError(t, err)
+	assert.Equal(t, []string{"alpha.jar"}, outcome.unknown)
+	assert.Contains(t, out.String(), "cmd.scan.header.results")
+}
+
 func TestRunInteractiveScanIgnoresContextCancellation(t *testing.T) {
 	original := runScanProgram
 	t.Cleanup(func() { runScanProgram = original })

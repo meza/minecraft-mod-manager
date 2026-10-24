@@ -292,7 +292,7 @@ func attributeValueToInterface(v attribute.Value) interface{} {
 	case attribute.STRINGSLICE:
 		return v.AsStringSlice()
 	default:
-		return v.Emit()
+		return "unknown"
 	}
 }
 
