@@ -80,7 +80,7 @@ func setup() error {
 		return err
 	}
 
-	availableLocales := []string{defaultLocale}
+	availableLocales := []string{}
 
 	for _, file := range files {
 		if !file.IsDir() {
@@ -93,10 +93,13 @@ func setup() error {
 		}
 	}
 
-	newBundle := i18nLib.NewBundle(
-		i18nLib.WithDefaultLocale(defaultLocale),
+	newBundle, err := i18nLib.NewBundle(
+		defaultLocale,
 		i18nLib.WithLocales(availableLocales...),
 	)
+	if err != nil {
+		return err
+	}
 
 	if err := newBundle.LoadFS(enFS, fmt.Sprintf("%s/*.json", langDir)); err != nil {
 		return err

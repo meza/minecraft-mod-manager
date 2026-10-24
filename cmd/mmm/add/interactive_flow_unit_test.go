@@ -151,6 +151,29 @@ func TestPlatformListRequiredHeightAccountsForHelpHeight(t *testing.T) {
 	assert.Equal(t, expectedHeight, requiredHeight)
 }
 
+func TestPlatformListHelpShowsActionsForCurrentFilterState(t *testing.T) {
+	t.Setenv("MMM_TEST", "true")
+	listModel := newPlatformListModel()
+	applyPlatformListSizing(&listModel, 20)
+
+	helpView := listModel.Help.View(listModel)
+	assert.Contains(t, helpView, "key.direction.up")
+	assert.Contains(t, helpView, "key.direction.down")
+	assert.Contains(t, helpView, "key.help.filter")
+	assert.Contains(t, helpView, "key.help.quit")
+	assert.Contains(t, helpView, "key.help.more")
+	assert.NotContains(t, helpView, "key.help.clear_filter")
+	assert.NotContains(t, helpView, "key.help.apply_filter")
+	assert.NotContains(t, helpView, "key.help.cancel")
+
+	applyPlatformListSizing(&listModel, 120)
+	listModel, _ = listModel.Update(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune{'/'}})
+	listModel, _ = listModel.Update(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune{'m'}})
+	helpView = listModel.Help.View(listModel)
+	assert.Contains(t, helpView, "key.help.apply_filter")
+	assert.Contains(t, helpView, "key.help.cancel")
+}
+
 func TestPlatformListRequiredHeightUsesFilterTitleHeight(t *testing.T) {
 	listModel := newPlatformListModel()
 	listModel.SetFilterState(list.Filtering)

@@ -120,7 +120,7 @@ notices:
 
 sbom:
 	$(call MKDIR_P,$(METADATA_DIR))
-	go run github.com/CycloneDX/cyclonedx-gomod/cmd/cyclonedx-gomod@v1.9.0 mod -licenses -json -output "$(SBOM_FILE)"
+	go run github.com/CycloneDX/cyclonedx-gomod/cmd/cyclonedx-gomod@v1.12.0 mod -licenses -json -output "$(SBOM_FILE)"
 
 dist: notices sbom
 	go run ./tools/packaging --version "$(VERSION)"

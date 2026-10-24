@@ -91,7 +91,7 @@ cmd.init.error.release-types.empty
 ? cmd.init.prompt.loader.question fabric
 ? cmd.minecraft.version.question 1.21.1
 ? cmd.init.prompt.release-types.question release
-? cmd.init.prompt.mods-folder.question missing         <- cmd.init.prompt.mods-folder.missing
+? cmd.init.prompt.mods-folder.question missing        <- cmd.init.prompt.mods-folder.missing
 
 key.tab key.help.complete • key.enter key.help.accept • key.ctrl_c/key.esc key.help.quit
 ---

@@ -52,10 +52,11 @@ func manifestDoer(versions []string) doerFunc {
 
 func TestGameVersionPlaceholderUsesLatest(t *testing.T) {
 	minecraft.ClearManifestCache()
+	t.Cleanup(minecraft.ClearManifestCache)
 
 	model := NewGameVersionModel(context.Background(), manifestDoer([]string{"1.21.11"}), "")
 
-	assert.Contains(t, model.input.View(), "1.21.11")
+	assert.Contains(t, model.View(), "1.21.11")
 	assert.GreaterOrEqual(t, model.input.Width, len("1.21.11"))
 }
 

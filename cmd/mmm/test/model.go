@@ -11,7 +11,6 @@ import (
 
 type testModel struct {
 	ctx               context.Context
-	cancel            context.CancelFunc
 	sender            testExecSender
 	execRunner        func(context.Context, testExecSender) testExecutionOutcome
 	colorMode         view.ColorMode
@@ -52,11 +51,9 @@ type testExecutionFinishedMsg struct {
 type testFinalizeMsg struct{}
 
 func newTestModel(input testModelInput) *testModel {
-	ctx, cancel := context.WithCancel(input.ctx)
 	spin := view.NewSpinner()
 	model := &testModel{
-		ctx:               ctx,
-		cancel:            cancel,
+		ctx:               input.ctx,
 		execRunner:        input.execRunner,
 		colorMode:         input.colorMode,
 		targetVersion:     input.targetVersion,

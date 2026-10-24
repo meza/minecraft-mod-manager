@@ -23,6 +23,7 @@ type ModsFolderSelectedMessage struct {
 
 type ModsFolderModel struct {
 	input  textinput.Model
+	prompt string
 	help   help.Model
 	keymap view.TranslatedInputKeyMap
 	error  error
@@ -40,7 +41,7 @@ type modsFolderModelInput struct {
 
 func NewModsFolderModel(input modsFolderModelInput) ModsFolderModel {
 	inputModel := textinput.New()
-	inputModel.Prompt = view.QuestionStyle.Render("? ") + view.TitleStyle.Render(i18n.T("cmd.init.prompt.mods-folder.question", nil)) + " "
+	inputModel.Prompt = ""
 	resolvedModsFolder := input.meta.ModsFolderPath(models.ModsJSON{ModsFolder: input.modsFolder})
 	inputModel.Placeholder = input.modsFolder
 	// Ensure the placeholder fits so the full path is visible to the user.
@@ -57,6 +58,7 @@ func NewModsFolderModel(input modsFolderModelInput) ModsFolderModel {
 
 	model := ModsFolderModel{
 		input:  inputModel,
+		prompt: view.QuestionStyle.Render("? ") + view.TitleStyle.Render(i18n.T("cmd.init.prompt.mods-folder.question", nil)) + " ",
 		help:   help.New(),
 		keymap: view.TranslatedInputKeyMap{},
 		validate: func(value string) error {
@@ -91,7 +93,7 @@ func (model ModsFolderModel) Update(msg tea.Msg) (ModsFolderModel, tea.Cmd) {
 
 func (model ModsFolderModel) View() string {
 	if model.Value != "" {
-		return fmt.Sprintf("%s%s", model.input.Prompt, view.SelectedItemStyle.Render(model.Value))
+		return fmt.Sprintf("%s%s", model.prompt, view.SelectedItemStyle.Render(model.Value))
 	}
 
 	errorString := ""
@@ -99,7 +101,7 @@ func (model ModsFolderModel) View() string {
 		errorString = view.ErrorStyle.Render(" <- " + model.error.Error())
 	}
 
-	return fmt.Sprintf("%s%s\n\n%s", model.input.View(), errorString, model.help.View(model.keymap))
+	return fmt.Sprintf("%s%s%s\n\n%s", model.prompt, model.input.View(), errorString, model.help.View(model.keymap))
 }
 
 func (model ModsFolderModel) modsFolderSelected() tea.Cmd {

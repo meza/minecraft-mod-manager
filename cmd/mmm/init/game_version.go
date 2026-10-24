@@ -24,6 +24,7 @@ type GameVersionSelectedMessage struct {
 type GameVersionModel struct {
 	tea.Model
 	input  textinput.Model
+	prompt string
 	help   help.Model
 	keymap view.TranslatedInputKeyMap
 	error  error
@@ -72,7 +73,7 @@ func (model GameVersionModel) Update(msg tea.Msg) (GameVersionModel, tea.Cmd) {
 // View renders the game version prompt.
 func (model GameVersionModel) View() string {
 	if model.Value != "" {
-		return fmt.Sprintf("%s%s", model.input.Prompt, view.SelectedItemStyle.Render(model.Value))
+		return fmt.Sprintf("%s%s", model.prompt, view.SelectedItemStyle.Render(model.Value))
 	}
 
 	errorString := ""
@@ -80,7 +81,7 @@ func (model GameVersionModel) View() string {
 		errorString = view.ErrorStyle.Render(" <- " + model.error.Error())
 	}
 
-	return fmt.Sprintf("%s%s\n\n%s", model.input.View(), errorString, model.help.View(model.keymap))
+	return fmt.Sprintf("%s%s%s\n\n%s", model.prompt, model.input.View(), errorString, model.help.View(model.keymap))
 }
 
 func (model GameVersionModel) handleKeyMsg(msg tea.KeyMsg) (GameVersionModel, tea.Cmd, bool) {
@@ -160,10 +161,11 @@ func NewGameVersionPromptModel(
 	latestVersion := fetchLatestVersion(ctx, minecraftClient)
 	allVersions := minecraft.GetAllMinecraftVersions(ctx, minecraftClient)
 
-	inputModel := buildGameVersionInputModel(latestVersion, allVersions, gameVersion, options.Question)
+	inputModel := buildGameVersionInputModel(latestVersion, allVersions, gameVersion)
 
 	model := GameVersionModel{
 		input:  inputModel,
+		prompt: view.QuestionStyle.Render("? ") + view.TitleStyle.Render(options.Question) + " ",
 		help:   help.New(),
 		keymap: view.TranslatedInputKeyMap{},
 		validate: func(value string) error {
@@ -217,10 +219,9 @@ func buildGameVersionInputModel(
 	latestVersion string,
 	allVersions []string,
 	gameVersion string,
-	question string,
 ) textinput.Model {
 	inputModel := textinput.New()
-	inputModel.Prompt = view.QuestionStyle.Render("? ") + view.TitleStyle.Render(question) + " "
+	inputModel.Prompt = ""
 	inputModel.Placeholder = latestVersion
 	inputModel.PlaceholderStyle = view.PlaceholderStyle
 	width := len(inputModel.Placeholder)

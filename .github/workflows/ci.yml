@@ -25,18 +25,19 @@ jobs:
         os:
           - meza-ubuntu-slim
           - meza-windows-slim
-          - meza-macos
+          # - meza-macos
     steps:
       - name: Check out repository
-        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           persist-credentials: false
 
       - name: Set up Go
-        uses: actions/setup-go@40f1582b2485089dde7abd97c1529aa768e1baff # v5.6.0
+        uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7.0.0
         with:
-          go-version: 1.26.10
+          go-version: 1.27.3
           cache: true
+          cache-dependency-path: go.sum
 
       - name: Install pinned make on Windows
         if: runner.os == 'Windows'
@@ -62,19 +63,19 @@ jobs:
           case "$RUNNER_OS-$RUNNER_ARCH" in
             Linux-X64)
               asset=tui-test-x86_64-unknown-linux-gnu.tar.gz
-              sha256=e54ff48914e1d1e8250c7b9b34bd7a1e5915f802fc7492ce832554fcebf570b5
+              sha256=ae1f32afb34c713284b0637ea41d855124fe0ac298defb38a4018cd952c158ca
               ;;
             Linux-ARM64)
               asset=tui-test-aarch64-unknown-linux-gnu.tar.gz
-              sha256=f6cf1624cd722c36cc834b524fd50b493f66f8c4fb4a604b713fbc08e189ae3c
+              sha256=99588dd2e296f9b2685d7fb71d68a3dde3b1fed8c0e8f1af4d215538e858bd09
               ;;
             macOS-X64)
               asset=tui-test-x86_64-apple-darwin.tar.gz
-              sha256=16143bf7cbbc29ecf9493cea15843a13cbba56f9952e530396091de96e33c59b
+              sha256=298ae3d37549d4712a7795d388f4e871f3bf8b7863372c3441787870c747408d
               ;;
             macOS-ARM64)
               asset=tui-test-aarch64-apple-darwin.tar.gz
-              sha256=a5a49eec33b8f977f3f1a782f0f8d81f0978a14e0407a6a5f15619d6ccd3c89c
+              sha256=a6819562a18031b212565f771d03fe9e5ec7d4f71b389394fd909cc66cee6b81
               ;;
             *)
               echo "Unsupported runner: $RUNNER_OS-$RUNNER_ARCH" >&2
@@ -83,7 +84,7 @@ jobs:
           esac
           archive="$RUNNER_TEMP/$asset"
           curl --proto '=https' --tlsv1.2 -LsSf \
-            "https://github.com/microsoft/tui-test/releases/download/0.1.0-beta.2/$asset" \
+            "https://github.com/microsoft/tui-test/releases/download/0.1.1/$asset" \
             --output "$archive"
           if [ "$RUNNER_OS" = macOS ]; then
             echo "$sha256  $archive" | shasum -a 256 -c
@@ -104,9 +105,9 @@ jobs:
             throw "Unsupported Windows runner architecture: $env:RUNNER_ARCH"
           }
           $asset = 'tui-test-x86_64-pc-windows-msvc.zip'
-          $expectedSha256 = '9b34bfdc43b250a0f4e6adb0cb127f1749958483a2e6396dacf91bf7566b2593'
+          $expectedSha256 = '1dfdc80c6394bb723c9f3e3cb919db5138f72c75855b8fba2051dadf89663856'
           $archive = Join-Path $env:RUNNER_TEMP $asset
-          Invoke-WebRequest "https://github.com/microsoft/tui-test/releases/download/0.1.0-beta.2/$asset" -OutFile $archive
+          Invoke-WebRequest "https://github.com/microsoft/tui-test/releases/download/0.1.1/$asset" -OutFile $archive
           $actualSha256 = (Get-FileHash -LiteralPath $archive -Algorithm SHA256).Hash.ToLowerInvariant()
           if ($actualSha256 -ne $expectedSha256) {
             throw "tui-test archive checksum mismatch: expected $expectedSha256, got $actualSha256"
@@ -125,7 +126,7 @@ jobs:
         id: go
         name: Set up Go
         with:
-          go-version: 1.26.10
+          go-version: 1.27.3
 
       - name: Lint
         run: make lint

@@ -96,7 +96,7 @@ func (item loaderType) FilterValue() string { return "" }
 
 func NewLoaderModel(loader string) LoaderModel {
 	loaderOptions := models.AllLoaders()
-	items := make([]list.Item, 0)
+	items := make([]list.Item, 0, len(loaderOptions))
 
 	for _, loader := range loaderOptions {
 		items = append(items, loaderType(loader))

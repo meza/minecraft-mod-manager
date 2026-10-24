@@ -87,7 +87,6 @@ type changeOutcome struct {
 
 type changeModel struct {
 	ctx             context.Context
-	cancel          context.CancelFunc
 	sender          httpclient.Sender
 	execRunner      func(context.Context, httpclient.Sender) changeOutcome
 	colorMode       view.ColorMode
@@ -189,12 +188,10 @@ type changePolicySelectedMsg struct {
 }
 
 func newChangeModel(input changeModelInput) *changeModel {
-	ctx, cancel := context.WithCancel(input.ctx)
 	spin := view.NewSpinner()
 
 	model := &changeModel{
-		ctx:             ctx,
-		cancel:          cancel,
+		ctx:             input.ctx,
 		execRunner:      input.execRunner,
 		colorMode:       input.colorMode,
 		stage:           changeStageRunning,
