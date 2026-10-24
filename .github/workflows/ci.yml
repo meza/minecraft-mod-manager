@@ -23,9 +23,8 @@ jobs:
       fail-fast: false
       matrix:
         os:
-          - ubuntu-latest
-          - macos-latest
-          - windows-latest
+          - meza-ubuntu-slim
+          - meza-windows-slim
     steps:
       - name: Check out repository
         uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
@@ -109,7 +108,7 @@ jobs:
         run: make e2e
 
   release:
-    runs-on: self-hosted
+    runs-on: meza-ubuntu-slim
     steps:
       - uses: meza/action-go-setup@main
         id: go
