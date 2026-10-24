@@ -18,7 +18,6 @@ ifeq ($(OS),Windows_NT)
 else
         E2E_EXECUTABLE := $(E2E_BUILD_DIR)/mmm
 endif
-GOVULNCHECK_TOOLCHAIN := go1.25.5
 
 ifeq ($(OS),Windows_NT)
         OSFLAG  := WIN
@@ -117,19 +116,11 @@ e2e-build:
 
 notices:
 	$(call MKDIR_P,$(METADATA_DIR))
-ifeq ($(OSFAMILY), Windows)
-	@powershell -NoProfile -Command "$$env:GOTOOLCHAIN='$(GOVULNCHECK_TOOLCHAIN)'; go run github.com/google/go-licenses@v1.6.0 report ./... | Out-File -FilePath '$(NOTICES_FILE)' -Encoding utf8"
-else
-	@GOTOOLCHAIN=$(GOVULNCHECK_TOOLCHAIN) go run github.com/google/go-licenses@v1.6.0 report ./... > "$(NOTICES_FILE)"
-endif
+	go run github.com/google/go-licenses@v1.6.0 report ./... > "$(NOTICES_FILE)"
 
 sbom:
 	$(call MKDIR_P,$(METADATA_DIR))
-ifeq ($(OSFAMILY), Windows)
-	@powershell -NoProfile -Command "$$env:GOTOOLCHAIN='$(GOVULNCHECK_TOOLCHAIN)'; go run github.com/CycloneDX/cyclonedx-gomod/cmd/cyclonedx-gomod@v1.9.0 mod -licenses -json -output '$(SBOM_FILE)'"
-else
-	@GOTOOLCHAIN=$(GOVULNCHECK_TOOLCHAIN) go run github.com/CycloneDX/cyclonedx-gomod/cmd/cyclonedx-gomod@v1.9.0 mod -licenses -json -output "$(SBOM_FILE)"
-endif
+	go run github.com/CycloneDX/cyclonedx-gomod/cmd/cyclonedx-gomod@v1.9.0 mod -licenses -json -output "$(SBOM_FILE)"
 
 dist: notices sbom
 	go run ./tools/packaging --version "$(VERSION)"
