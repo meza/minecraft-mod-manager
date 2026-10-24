@@ -122,7 +122,7 @@ jobs:
   release:
     runs-on: meza-ubuntu-slim
     steps:
-      - uses: meza/action-go-setup@main
+      - uses: meza/action-go-setup@c78a8df36a2e434db368347b54e4e6aa0f874fd8 # main
         id: go
         name: Set up Go
         with:
