@@ -23,7 +23,7 @@ func TestSummarizePlatformErrorUsesResponseError(t *testing.T) {
 	summary, ok := SummarizePlatformError(responseErr, models.CURSEFORGE)
 	assert.True(t, ok)
 	assert.Equal(t, i18n.T("cmd.platform.error.reason.auth", &i18n.Tvars{
-		Data: &i18n.TData{
+		Data: &i18n.TData{ //nolint:gosec // G101: CURSEFORGE_API_KEY names an environment variable.
 			"token":    "CURSEFORGE_API_KEY",
 			"platform": string(models.CURSEFORGE),
 		},

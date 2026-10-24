@@ -18,7 +18,7 @@ import (
 	"time"
 )
 
-const requiredTUITestVersion = "0.1.0-beta.2"
+const requiredTUITestVersion = "0.1.1"
 
 var tuiTestSessionSequence atomic.Uint64
 
@@ -210,7 +210,7 @@ func (client *tuiTestClient) Run(launch tuiTestLaunch) error {
 }
 
 func (client *tuiTestClient) WaitText(value string, timeout time.Duration) error {
-	_, err := client.executeWithDiagnosticsTimeout(timeout+5*time.Second, "wait", "text", value, "--timeout", timeoutMilliseconds(timeout))
+	_, err := client.executeWithDiagnosticsTimeout(timeout+5*time.Second, "expect", "text", value, "--match", "any", "--timeout", timeoutMilliseconds(timeout))
 	return err
 }
 
@@ -284,7 +284,7 @@ func (client *tuiTestClient) ExpectSnapshot(name string, update bool, includeCol
 		arguments = append(arguments, "--update")
 	}
 	if includeColors {
-		arguments = append(arguments, "--include-colors")
+		arguments = append(arguments, "--include-style")
 	}
 	_, err := client.executeWithDiagnostics(arguments...)
 	return err

@@ -75,6 +75,9 @@ func TestNormalizeLocaleName(t *testing.T) {
 //go:embed __fixtures_invalid__/*.json
 var invalidLocales embed.FS
 
+//go:embed __fixtures_invalid_locale__/*.json
+var invalidLocaleNames embed.FS
+
 func TestSimpleTranslations(t *testing.T) {
 	enFS = testData
 	langDir = "__fixtures__"
@@ -194,6 +197,22 @@ func TestInvalidLocaleFiles(t *testing.T) {
 	assert.Equal(t, "test.simple", T("test.simple", nil))
 }
 
+func TestInvalidLocaleNameReturnsKey(t *testing.T) {
+	originalFS := enFS
+	originalLangDir := langDir
+	enFS = invalidLocaleNames
+	langDir = "__fixtures_invalid_locale__"
+	ResetForTesting()
+	t.Cleanup(func() {
+		enFS = originalFS
+		langDir = originalLangDir
+		ResetForTesting()
+	})
+
+	assert.Equal(t, "test.simple", T("test.simple", nil))
+	assert.Error(t, setupError)
+}
+
 func TestSetupKeepsDefaultFirst(t *testing.T) {
 	originalFS := enFS
 	originalLangDir := langDir
@@ -210,7 +229,7 @@ func TestSetupKeepsDefaultFirst(t *testing.T) {
 
 	assert.NoError(t, setup())
 
-	supported := bundle.SupportedLanguages()
+	supported := bundle.SupportedLocales()
 	assert.Equal(t, defaultLocale, supported[0].String())
 }
 

@@ -57,7 +57,7 @@ replace the required distribution-build evidence or authorize obtaining producti
 Lefthook provides local hooks aligned with repository make targets. To opt in:
 
 ~~~sh
-go install github.com/evilmartians/lefthook/v2@v2.0.12
+go install github.com/evilmartians/lefthook/v2@v2.2.2
 lefthook install
 ~~~
 

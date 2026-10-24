@@ -493,12 +493,12 @@ func TestNewModelDefersGameVersionPromptConstructionUntilGameVersionState(t *tes
 	}, metadata, false)
 
 	assert.Equal(t, stateLoader, model.state)
-	assert.Empty(t, model.gameVersionQuestion.input.Prompt)
+	assert.Empty(t, model.gameVersionQuestion.prompt)
 
 	updated := model.handleLoaderSelected(LoaderSelectedMessage{Loader: models.FABRIC})
 
 	assert.Equal(t, stateGameVersion, updated.state)
-	assert.NotEmpty(t, updated.gameVersionQuestion.input.Prompt)
+	assert.NotEmpty(t, updated.gameVersionQuestion.prompt)
 }
 
 func TestCommandModelRevalidateModsFolderSkipsWhenNotProvided(t *testing.T) {
@@ -1654,6 +1654,20 @@ func TestNewModsFolderModelMinWidth(t *testing.T) {
 
 	model := NewModsFolderModel(modsFolderModelInput{modsFolder: "m", meta: meta, fs: fs, prefill: false})
 	assert.Equal(t, 10, model.input.Width)
+}
+
+func TestModsFolderPromptShowsFullPlaceholder(t *testing.T) {
+	t.Setenv("MMM_TEST", "true")
+	model := NewModsFolderModel(modsFolderModelInput{
+		modsFolder: "missing",
+		meta:       config.NewMetadata("modlist.json"),
+		fs:         afero.NewMemMapFs(),
+	})
+
+	assert.Contains(t, model.View(), "cmd.init.prompt.mods-folder.question missing")
+	updated, _ := model.Update(tea.KeyMsg{Type: tea.KeyTab})
+	assert.Equal(t, "missing", updated.input.Value())
+	assert.Contains(t, updated.View(), "cmd.init.prompt.mods-folder.question missing")
 }
 
 func TestCommandModelInitAndView(t *testing.T) {

@@ -187,7 +187,7 @@ func isNilSender(program Sender) bool {
 	}
 	programValue := reflect.ValueOf(program)
 	switch programValue.Kind() {
-	case reflect.Ptr, reflect.Chan, reflect.Func, reflect.Interface, reflect.Map, reflect.Slice:
+	case reflect.Pointer, reflect.Chan, reflect.Func, reflect.Interface, reflect.Map, reflect.Slice:
 		return programValue.IsNil()
 	default:
 		return false
