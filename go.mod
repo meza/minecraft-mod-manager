@@ -176,7 +176,7 @@ require (
 	github.com/hhatto/gorst v0.0.0-20181029133204-ca9f730cac5b // indirect
 	github.com/inconshreveable/mousetrap v1.1.0 // indirect
 	github.com/jbenet/go-context v0.0.0-20150711004518-d14ea06fba99 // indirect
-	github.com/jdkato/prose v1.1.0 // indirect
+	github.com/jdkato/prose v1.2.1 // indirect
 	github.com/jgautheron/goconst v1.8.2 // indirect
 	github.com/jingyugao/rowserrcheck v1.1.1 // indirect
 	github.com/jjti/go-spancheck v0.6.5 // indirect
@@ -227,7 +227,7 @@ require (
 	github.com/mitchellh/go-homedir v1.1.0 // indirect
 	github.com/mitchellh/mapstructure v1.5.0 // indirect
 	github.com/mitchellh/reflectwalk v1.0.2 // indirect
-	github.com/montanaflynn/stats v0.0.0-20151014174947-eeaced052adb // indirect
+	github.com/montanaflynn/stats v0.6.3 // indirect
 	github.com/moricho/tparallel v0.3.2 // indirect
 	github.com/muesli/ansi v0.0.0-20230316100256-276c6243b2f6 // indirect
 	github.com/muesli/cancelreader v0.2.2 // indirect
@@ -266,7 +266,7 @@ require (
 	github.com/schollz/progressbar/v3 v3.18.0 // indirect
 	github.com/securego/gosec/v2 v2.22.11-0.20251204091113-daccba6b93d7 // indirect
 	github.com/sergi/go-diff v1.4.0 // indirect
-	github.com/shogo82148/go-shuffle v0.0.0-20170808115208-59829097ff3b // indirect
+	github.com/shogo82148/go-shuffle v0.0.0-20180218125048-27e6095f230d // indirect
 	github.com/sirupsen/logrus v1.9.3 // indirect
 	github.com/sivchari/containedctx v1.0.3 // indirect
 	github.com/skeema/knownhosts v1.3.0 // indirect
