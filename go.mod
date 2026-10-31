@@ -1,6 +1,6 @@
 module github.com/meza/minecraft-mod-manager
 
-go 1.27.0
+go 1.27.2
 
 toolchain go1.27.3
 
@@ -67,7 +67,7 @@ require (
 	github.com/MirrexOne/unqueryvet v1.5.4 // indirect
 	github.com/OpenPeeDeeP/depguard/v2 v2.2.1 // indirect
 	github.com/ProtonMail/go-crypto v1.5.2 // indirect
-	github.com/agentable/go-intl v0.2.14 // indirect
+	github.com/agentable/go-intl v0.5.0 // indirect
 	github.com/alecthomas/chroma/v2 v2.27.0 // indirect
 	github.com/alecthomas/go-check-sumtype v0.5.1-0.20260828200218-ae6904d28606 // indirect
 	github.com/alecthomas/repr v0.5.4 // indirect

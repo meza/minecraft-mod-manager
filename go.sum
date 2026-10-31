@@ -115,8 +115,8 @@ github.com/OpenPeeDeeP/depguard/v2 v2.2.1 h1:vckeWVESWp6Qog7UZSARNqfu/cZqvki8zsu
 github.com/OpenPeeDeeP/depguard/v2 v2.2.1/go.mod h1:q4DKzC4UcVaAvcfd41CZh0PWpGgzrVxUYBlgKNGquUo=
 github.com/ProtonMail/go-crypto v1.5.2 h1:cucYnvqcY7UOXVD//mSyjeaPY0SSN3v5cDkYPxumINk=
 github.com/ProtonMail/go-crypto v1.5.2/go.mod h1:/RaSu30DaKO4RY+XdV/ACcCcZkGr7AhUIduq5sjzzCo=
-github.com/agentable/go-intl v0.2.14 h1:YDlxoHJfxDUTGjphdWXHamRmSJ0NF2oZmJGQFkciqco=
-github.com/agentable/go-intl v0.2.14/go.mod h1:dTVfDMS4F0TirLOmeY+T4LPEz9i3zSIF4Dfu2dz77dI=
+github.com/agentable/go-intl v0.5.0 h1:i/AtVF6gRlVqnr9cM+W9ZaQqMieIvABDhLMs+5Q2GVc=
+github.com/agentable/go-intl v0.5.0/go.mod h1:RCz+Y5UntLBHdPP/o4Wafb+NtFtpuyEZNAGY4zciaQk=
 github.com/alcortesm/tgz v0.0.0-20161220082320-9c5fe88206d7 h1:uSoVVbwJiQipAclBbw+8quDsfcvFjOpI5iCf4p/cqCs=
 github.com/alcortesm/tgz v0.0.0-20161220082320-9c5fe88206d7/go.mod h1:6zEj6s6u/ghQa61ZWa/C2Aw3RkjiTBOix7dkqa1VLIs=
 github.com/alecthomas/assert/v2 v2.11.0 h1:2Q9r3ki8+JYXvGsDyBXwH3LcJ+WK5D0gc5E8vS6K3D0=
