@@ -1,8 +1,6 @@
 module github.com/meza/minecraft-mod-manager
 
-go 1.27.0
-
-toolchain go1.27.3
+go 1.27.4
 
 require (
 	github.com/CycloneDX/cyclonedx-gomod v1.12.0
@@ -32,9 +30,9 @@ require (
 	go.opentelemetry.io/otel v1.47.0
 	go.opentelemetry.io/otel/sdk v1.47.0
 	go.opentelemetry.io/otel/trace v1.47.0
-	golang.org/x/sync v0.24.0
+	golang.org/x/sync v0.25.0
 	golang.org/x/term v0.47.0
-	golang.org/x/text v0.43.0
+	golang.org/x/text v0.44.0
 	golang.org/x/time v0.16.0
 	golang.org/x/vuln v1.9.0
 	gopkg.in/dnaeon/go-vcr.v2 v2.3.0
@@ -67,7 +65,7 @@ require (
 	github.com/MirrexOne/unqueryvet v1.5.4 // indirect
 	github.com/OpenPeeDeeP/depguard/v2 v2.2.1 // indirect
 	github.com/ProtonMail/go-crypto v1.5.2 // indirect
-	github.com/agentable/go-intl v0.2.14 // indirect
+	github.com/agentable/go-intl v0.5.3 // indirect
 	github.com/alecthomas/chroma/v2 v2.27.0 // indirect
 	github.com/alecthomas/go-check-sumtype v0.5.1-0.20260828200218-ae6904d28606 // indirect
 	github.com/alecthomas/repr v0.5.4 // indirect
